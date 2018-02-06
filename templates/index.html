@@ -1,0 +1,74 @@
+<!--Copyright (C) 2018 Riedel Communications GmbH & Co. KG
+	
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NMOS Tests</title>
+    <link rel="stylesheet" media="screen" href ="static/css/bootstrap.min.css">
+    <link rel="stylesheet" media="screen" href ="static/css/style.css">
+    <meta name="viewport" content = "width=device-width, initial-scale=1.0">
+</head>
+<body>
+<h1>NMOS Test</h1>
+<br/>
+<form action="" method='POST'>
+    <div class="input_data">
+        <div class="input dropdown input_data_fld">
+            {{ form.test.label }} {{ form.test }}
+        </div>
+        <div class="input text input_data_fld">
+            {{ form.url.label }} {{ form.url(size="60") }}
+        </div>
+        <br/><br/><br/>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+
+        {% for message in messages %}
+            {% if "Error" not in message[1]: %}
+                <div class="alert alert-info">
+                <strong>Success! </strong> {{ message[1] }}
+                </div>
+            {% endif %}
+
+            {% if "Error" in message[1]: %}
+                <div class="alert alert-warning">
+                {{ message[1] }}
+                </div>
+            {% endif %}
+        {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <br/><br/>
+        <div class="input submit input_data_fld">
+            <input type="submit" value="Run"/>
+                    <div id="description">
+            <br/><br/>
+            <p>
+                Please select a test first and enter the URL to your API as follows:
+            </p>
+            <ul>
+                <li>NMOS-IS-04-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/node/v1.[0-2]/</li>
+                <li>NMOS-IS-05-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/connection/</li>
+            </ul>
+        </div>
+        </div>
+    </div>
+
+</form>
+<br>
+</body>
+</html>
