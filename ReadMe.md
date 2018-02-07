@@ -12,15 +12,19 @@ Required command line parameters:
 
 --query_port: theh port of the query service on which the node is currently registered
 
-e.g. ./nmos-test.py --query_ip=172.56.123.5 --query-port=4480
+e.g. python nmos-test.py --query_ip=172.56.123.5 --query-port=4480
 
 This tool provides a simple web service which is available on http://localhost:5000.
 Provide the NodeUrl (see the detailed description on the webpage) and select a checklist.
 The result of the the test will be shown after a couple seconds.
 
 ##  External dependencies:
+-Python
+
+Python packages:
 - flask 
 - wtforms
 - jsonschema
 - netifaces
 - zeroconf
+- requests
