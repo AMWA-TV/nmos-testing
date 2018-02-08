@@ -26,7 +26,8 @@ class MdnsListener(object):
 
     def add_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
-        self.services.append(info)
+		if info is not None:
+			self.services.append(info)
 
     def get_service_list(self):
         return self.services
