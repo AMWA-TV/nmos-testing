@@ -10,7 +10,7 @@ Required command line parameters:
 
 --query_ip: the ip of the query service on which the node is currently registered
 
---query_port: theh port of the query service on which the node is currently registered
+--query_port: the port of the query service on which the node is currently registered
 
 e.g. python nmos-test.py --query_ip=172.56.123.5 --query-port=4480
 
@@ -19,7 +19,7 @@ Provide the NodeUrl (see the detailed description on the webpage) and select a c
 The result of the the test will be shown after a couple seconds.
 
 ##  External dependencies:
-- Python
+- Python3
 
 Python packages:
 - flask 
