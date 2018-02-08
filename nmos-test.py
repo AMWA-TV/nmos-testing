@@ -27,6 +27,19 @@ app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 NODE_URL = "http://<node_ip>:<node_port>/x-nmos/node/v1.2/"
 
 
+class DataForm(Form):
+    url = StringField("URL: ", validators=[validators.DataRequired(message="URL is required"),
+                                           validators.regexp(".*node\/v1\.[0-2]\/|.*connection\/$",
+                                                             message="URL has to be in format: "
+                                                                     "http://<ip>(:<port>)/x-nmos/node/v1.[0-2]/ "
+                                                                     "for IS-04 or "
+                                                                     "http://<ip>:<port>)/x-nmos/connection/ "
+                                                                     "for IS-05 tests")],
+                      default=NODE_URL)
+    test = SelectField(label="Select test", choices=[("IS-04-01", "IS-04-01: Node"),
+                                                     ("IS-05-01", "IS-05-01: API")])
+													 
+
 @app.route('/', methods=["GET", "POST"])
 def index_page():
     form = DataForm(request.form)
@@ -58,15 +71,3 @@ if __name__ == '__main__':
     QUERY_URL = "http://{}:{}/x-nmos/query".format(args.query_ip, args.query_port)
     app.run(host='0.0.0.0')
 
-
-class DataForm(Form):
-    url = StringField("URL: ", validators=[validators.DataRequired(message="URL is required"),
-                                           validators.regexp(".*node\/v1\.[0-2]\/|.*connection\/$",
-                                                             message="URL has to be in format: "
-                                                                     "http://<ip>(:<port>)/x-nmos/node/v1.[0-2]/ "
-                                                                     "for IS-04 or "
-                                                                     "http://<ip>:<port>)/x-nmos/connection/ "
-                                                                     "for IS-05 tests")],
-                      default=NODE_URL)
-    test = SelectField(label="Select test", choices=[("IS-04-01", "IS-04-01: Node"),
-                                                     ("IS-05-01", "IS-05-01: API")])

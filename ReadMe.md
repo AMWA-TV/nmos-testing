@@ -19,7 +19,7 @@ Provide the NodeUrl (see the detailed description on the webpage) and select a c
 The result of the the test will be shown after a couple seconds.
 
 ##  External dependencies:
--Python
+- Python
 
 Python packages:
 - flask 
