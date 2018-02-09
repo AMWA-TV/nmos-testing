@@ -246,7 +246,7 @@ class IS0401Test:
         zeroconf = Zeroconf()
         listener = MdnsListener()
         browser = ServiceBrowser(zeroconf, "_nmos-node._tcp.local.", listener)
-        sleep(1)
+        sleep(5)
         zeroconf.close()
         node_list = listener.get_service_list()
         for node in node_list:
