@@ -21,7 +21,6 @@
     <link rel="stylesheet" media="screen" href ="static/css/bootstrap.min.css">
     <link rel="stylesheet" media="screen" href ="static/css/style.css">
     <meta name="viewport" content = "width=device-width, initial-scale=1.0">
-    <script>function changebtn(){document.getElementById("runbtn").value="Executing test"; document.getElementById("runbtn").disabled = true; }</script>
 </head>
 <body>
 <h1>NMOS Test</h1>
@@ -55,17 +54,17 @@
         {% endwith %}
         <br/><br/>
         <div class="input submit input_data_fld">
-            <input type="submit" value="Run" onclick="changebtn()" id="runbtn"/>
-                    <div id="description">
-            <br/><br/>
-            <p>
-                Please select a test first and enter the URL to your API as follows:
-            </p>
-            <ul>
-                <li>NMOS-IS-04-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/node/v1.[0-2]/</li>
-                <li>NMOS-IS-05-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/connection/v1.0/</li>
-            </ul>
-        </div>
+            <input type="submit" id="runbtn" value="Run" onclick="document.getElementById('runbtn').value='Executing test..';document.getElementById('runbtn').className += 'disabled';"/>
+            <div id="description">
+                <br/><br/>
+                <p>
+                    Please select a test first and enter the URL to your API as follows:
+                </p>
+                <ul>
+                    <li>NMOS-IS-04-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/node/v1.[0-2]/</li>
+                    <li>NMOS-IS-05-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/connection/v1.0/</li>
+                </ul>
+            </div>
         </div>
     </div>
 

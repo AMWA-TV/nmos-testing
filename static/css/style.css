@@ -66,3 +66,7 @@ th {
     margin: auto;
     text-align: left;
 }
+
+.disabled {
+    pointer-events: none;
+}

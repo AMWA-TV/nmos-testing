@@ -20,6 +20,8 @@ This tool provides a simple web service which is available on http://localhost:5
 Provide the NodeUrl (see the detailed description on the webpage) and select a checklist.
 The result of the the test will be shown after a couple seconds.
 
+Tested with Firefox 58 and Chrome 63.
+
 ##  External dependencies:
 - Python3
 
@@ -30,3 +32,4 @@ Python packages:
 - netifaces
 - zeroconf
 - requests
+
