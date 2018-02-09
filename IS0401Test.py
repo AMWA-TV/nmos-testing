@@ -85,18 +85,21 @@ class IS0401Test:
             # Get node data from node itself
             r = requests.get(url)
             if r.status_code == 200:
-                # Get data from queryserver
-                if "id" in r.json():
-                    url2 = "{}nodes/".format(self.query_api_url, r.json()["id"])
-                    try:
-                        query_data = requests.get(url2)
-                        if query_data.status_code == 200:
-                            return test_number, test_description, "Pass", ""
-                        else:
-                            return test_number, test_description, "Fail", json.dumps(query_data.json())
-                    except requests.ConnectionError:
-                        return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                return test_number, test_description, "Fail", "No id in json data found!"
+                try:
+                    # Get data from queryserver
+                    if "id" in r.json():
+                        url2 = "{}nodes/".format(self.query_api_url, r.json()["id"])
+                        try:
+                            query_data = requests.get(url2)
+                            if query_data.status_code == 200:
+                                return test_number, test_description, "Pass", ""
+                            else:
+                                return test_number, test_description, "Fail", json.dumps(query_data.json())
+                        except requests.ConnectionError:
+                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
+                    return test_number, test_description, "Fail", "No id in json data found!"
+                except ValueError:
+                    return test_number, test_description, "Fail", "Invalid JSON received!"
             else:
                 return test_number, test_description, "Fail", "Could not reach Node!"
         except requests.ConnectionError:
@@ -125,23 +128,26 @@ class IS0401Test:
         url = "{}devices/".format(self.url)
         try:
             r = requests.get(url)
-            returned_devices = r.json()
-            if r.status_code == 200 and len(returned_devices) > 0:
-                for curr_device in returned_devices:
-                    if "id" in curr_device:
-                        url2 = "{}devices/{}".format(self.query_api_url, curr_device["id"])
-                        try:
-                            k = requests.get(url2)
-                            if k.status_code == 200:
-                                pass
-                            else:
-                                return test_number, test_description, "Fail", "Device not found on registry: {}"\
-                                    .format(curr_device["id"])
-                        except requests.ConnectionError:
-                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                return test_number, test_description, "Pass", ""
-            else:
-                return test_number, test_description, "N/A", "Not tested. No resources found."
+            try:
+                returned_devices = r.json()
+                if r.status_code == 200 and len(returned_devices) > 0:
+                    for curr_device in returned_devices:
+                        if "id" in curr_device:
+                            url2 = "{}devices/{}".format(self.query_api_url, curr_device["id"])
+                            try:
+                                k = requests.get(url2)
+                                if k.status_code == 200:
+                                    pass
+                                else:
+                                    return test_number, test_description, "Fail", "Device not found on registry: {}"\
+                                        .format(curr_device["id"])
+                            except requests.ConnectionError:
+                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
+                    return test_number, test_description, "Pass", ""
+                else:
+                    return test_number, test_description, "N/A", "Not tested. No resources found."
+            except ValueError:
+                return test_number, test_description, "Fail", "Invalid JSON received!"
         except requests.ConnectionError:
             return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
@@ -154,23 +160,26 @@ class IS0401Test:
         url = "{}sources/".format(self.url)
         try:
             r = requests.get(url)
-            returned_sources = r.json()
-            if r.status_code == 200 and len(returned_sources) > 0:
-                for curr_source in returned_sources:
-                    if "id" in curr_source:
-                        url2 = "{}sources/{}".format(self.query_api_url, curr_source["id"])
-                        try:
-                            k = requests.get(url2)
-                            if k.status_code == 200:
-                                pass
-                            else:
-                                return test_number, test_description, "Fail", "Source not found on registry: {}"\
-                                    .format(curr_source["id"])
-                        except requests.ConnectionError:
-                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                return test_number, test_description, "Pass", ""
-            else:
-                return test_number, test_description, "N/A", "Not tested. No resources found."
+            try:
+                returned_sources = r.json()
+                if r.status_code == 200 and len(returned_sources) > 0:
+                    for curr_source in returned_sources:
+                        if "id" in curr_source:
+                            url2 = "{}sources/{}".format(self.query_api_url, curr_source["id"])
+                            try:
+                                k = requests.get(url2)
+                                if k.status_code == 200:
+                                    pass
+                                else:
+                                    return test_number, test_description, "Fail", "Source not found on registry: {}"\
+                                        .format(curr_source["id"])
+                            except requests.ConnectionError:
+                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
+                    return test_number, test_description, "Pass", ""
+                else:
+                    return test_number, test_description, "N/A", "Not tested. No resources found."
+            except ValueError:
+                return test_number, test_description, "Fail", "Invalid JSON received!"
         except requests.ConnectionError:
             return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
@@ -183,23 +192,26 @@ class IS0401Test:
         url = "{}flows/".format(self.url)
         try:
             r = requests.get(url)
-            returned_flows = r.json()
-            if r.status_code == 200 and len(returned_flows) > 0:
-                for curr_flow in returned_flows:
-                    if "id" in curr_flow:
-                        url2 = "{}flows/{}".format(self.query_api_url, curr_flow["id"])
-                        try:
-                            k = requests.get("{}flows/{}".format(self.query_api_url, curr_flow["id"]))
-                            if k.status_code == 200:
-                                pass
-                            else:
-                                return test_number, test_description, "Fail", "Flow not found on registry: {}"\
-                                    .format(curr_flow["id"])
-                        except requests.ConnectionError:
-                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                return test_number, test_description, "Pass", ""
-            else:
-                return test_number, test_description, "N/A", "Not tested. No resources found."
+            try:
+                returned_flows = r.json()
+                if r.status_code == 200 and len(returned_flows) > 0:
+                    for curr_flow in returned_flows:
+                        if "id" in curr_flow:
+                            url2 = "{}flows/{}".format(self.query_api_url, curr_flow["id"])
+                            try:
+                                k = requests.get("{}flows/{}".format(self.query_api_url, curr_flow["id"]))
+                                if k.status_code == 200:
+                                    pass
+                                else:
+                                    return test_number, test_description, "Fail", "Flow not found on registry: {}"\
+                                        .format(curr_flow["id"])
+                            except requests.ConnectionError:
+                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
+                    return test_number, test_description, "Pass", ""
+                else:
+                    return test_number, test_description, "N/A", "Not tested. No resources found."
+            except ValueError:
+                return test_number, test_description, "Fail", "Invalid JSON received!"
         except requests.ConnectionError:
             return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
@@ -212,23 +224,26 @@ class IS0401Test:
         url = "{}senders/".format(self.url)
         try:
             r = requests.get(url)
-            returned_senders = r.json()
-            if r.status_code == 200 and len(returned_senders) > 0:
-                for curr_sender in returned_senders:
-                    if "id" in curr_sender:
-                        url2 = "{}senders/{}".format(self.query_api_url, curr_sender["id"])
-                        try:
-                            k = requests.get(url2)
-                            if k.status_code == 200:
-                                pass
-                            else:
-                                return test_number, test_description, "Fail", "Sender not found on registry: {}" \
-                                    .format(curr_sender["id"])
-                        except requests.ConnectionError:
-                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                return test_number, test_description, "Pass", ""
-            else:
-                return test_number, test_description, "N/A", "Not tested. No resources found."
+            try:
+                returned_senders = r.json()
+                if r.status_code == 200 and len(returned_senders) > 0:
+                    for curr_sender in returned_senders:
+                        if "id" in curr_sender:
+                            url2 = "{}senders/{}".format(self.query_api_url, curr_sender["id"])
+                            try:
+                                k = requests.get(url2)
+                                if k.status_code == 200:
+                                    pass
+                                else:
+                                    return test_number, test_description, "Fail", "Sender not found on registry: {}" \
+                                        .format(curr_sender["id"])
+                            except requests.ConnectionError:
+                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
+                    return test_number, test_description, "Pass", ""
+                else:
+                    return test_number, test_description, "N/A", "Not tested. No resources found."
+            except ValueError:
+                return test_number, test_description, "Fail", "Invalid JSON received!"
         except requests.ConnectionError:
             return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
@@ -241,23 +256,26 @@ class IS0401Test:
         url = "{}receivers/".format(self.url)
         try:
             r = requests.get(url)
-            returned_receivers = r.json()
-            if r.status_code == 200 and len(returned_receivers) > 0:
-                for curr_receiver in returned_receivers:
-                    if "id" in curr_receiver:
-                        url2 = "{}receivers/{}".format(self.query_api_url, curr_receiver["id"])
-                        try:
-                            k = requests.get(url2)
-                            if k.status_code == 200:
-                                pass
-                            else:
-                                return test_number, test_description, "Fail", "Receiver not found on registry: {}" \
-                                    .format(curr_receiver["id"])
-                        except requests.ConnectionError:
-                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                return test_number, test_description, "Pass", ""
-            else:
-                return test_number, test_description, "N/A", "Not tested. No resources found."
+            try:
+                returned_receivers = r.json()
+                if r.status_code == 200 and len(returned_receivers) > 0:
+                    for curr_receiver in returned_receivers:
+                        if "id" in curr_receiver:
+                            url2 = "{}receivers/{}".format(self.query_api_url, curr_receiver["id"])
+                            try:
+                                k = requests.get(url2)
+                                if k.status_code == 200:
+                                    pass
+                                else:
+                                    return test_number, test_description, "Fail", "Receiver not found on registry: {}" \
+                                        .format(curr_receiver["id"])
+                            except requests.ConnectionError:
+                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
+                    return test_number, test_description, "Pass", ""
+                else:
+                    return test_number, test_description, "N/A", "Not tested. No resources found."
+            except ValueError:
+                return test_number, test_description, "Fail", "Invalid JSON received!"
         except requests.ConnectionError:
             return test_number, test_description, "Fail", "Connection error for {}".format(url)
 

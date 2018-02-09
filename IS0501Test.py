@@ -1452,16 +1452,22 @@ class IS0501Test:
         """Gets a list of the available senders on the API"""
         r = requests.get(self.url + "single/senders/")
         toReturn = []
-        for value in r.json():
-            toReturn.append(value[:-1])
+        try:
+            for value in r.json():
+                toReturn.append(value[:-1])
+        except ValueError:
+            pass
         return toReturn
 
     def get_receivers(self):
         """Gets a list of the available receivers on the API"""
         r = requests.get(self.url + "single/receivers/")
         toReturn = []
-        for value in r.json():
-            toReturn.append(value[:-1])
+        try:
+            for value in r.json():
+                toReturn.append(value[:-1])
+        except ValueError:
+            pass
         return toReturn
 
     def getTAITime(self, offset=0.0):
@@ -1490,7 +1496,12 @@ class IS0501Test:
         """Returns the number or redundant paths on a port"""
         url = self.url + "single/" + portType + "s/" + port + "/constraints/"
         r = requests.get(url)
-        return len(r.json())
+        try:
+            rjson = r.json()
+            return len(rjson)
+        except ValueError:
+            pass
+        return 0
 
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response form an endpoint to a schema"""
