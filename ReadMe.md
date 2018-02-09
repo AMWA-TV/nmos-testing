@@ -4,6 +4,8 @@ This tool creates a simple web service to test against the JTNM February 2018 "D
 
 Currently NMOS-IS-04-01 (Basic) and NMOS-IS-05-01 (Basic) tests are integrated.
 
+**Attention:**
+The NMOS-IS-04-01 test only works if the target node is in registered mode. The registration service endpoint has to be specified on program startup (see section "Usage"). For testing purposes a reference implementation of the RDS is provided by the BBC (https://github.com/bbc/nmos-discovery-registration-ri).
 
 ## Usage:
 Required command line parameters:
