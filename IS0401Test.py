@@ -80,24 +80,27 @@ class IS0401Test:
         test_number = "02"
         test_description = "Node can register a valid Node resource with the network registration service, " \
                            "matching its Node API self resource"
+        url = "{}self".format(self.url)
         try:
             # Get node data from node itself
-            r = requests.get("{}self".format(self.url))
-
+            r = requests.get(url)
             if r.status_code == 200:
                 # Get data from queryserver
                 if "id" in r.json():
-                    query_data = requests.get("{}nodes/".format(self.query_api_url, r.json()["id"]))
-                    if query_data.status_code == 200:
-                        return test_number, test_description, "Pass", ""
-                    else:
-                        return test_number, test_description, "Fail", json.dumps(query_data.json())
-
+                    url2 = "{}nodes/".format(self.query_api_url, r.json()["id"])
+                    try:
+                        query_data = requests.get(url2)
+                        if query_data.status_code == 200:
+                            return test_number, test_description, "Pass", ""
+                        else:
+                            return test_number, test_description, "Fail", json.dumps(query_data.json())
+                    except requests.ConnectionError:
+                        return test_number, test_description, "Fail", "Connection error for {}".format(url2)
                 return test_number, test_description, "Fail", "No id in json data found!"
             else:
                 return test_number, test_description, "Fail", "Could not reach Node!"
         except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error."
+            return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
     def test_03(self):
         """Node maintains itself in the registry via periodic calls to the health resource"""
@@ -119,23 +122,28 @@ class IS0401Test:
         test_number = "05"
         test_description = "Node can register a valid Device resource with the network registration service, " \
                            "matching its Node API Device resource"
+        url = "{}devices/".format(self.url)
         try:
-            r = requests.get("{}devices/".format(self.url))
+            r = requests.get(url)
             returned_devices = r.json()
             if r.status_code == 200 and len(returned_devices) > 0:
                 for curr_device in returned_devices:
                     if "id" in curr_device:
-                        k = requests.get("{}devices/{}".format(self.query_api_url, curr_device["id"]))
-                        if k.status_code == 200:
-                            pass
-                        else:
-                            return test_number, test_description, "Fail", "Device not found on registry: {}"\
-                                .format(curr_device["id"])
+                        url2 = "{}devices/{}".format(self.query_api_url, curr_device["id"])
+                        try:
+                            k = requests.get(url2)
+                            if k.status_code == 200:
+                                pass
+                            else:
+                                return test_number, test_description, "Fail", "Device not found on registry: {}"\
+                                    .format(curr_device["id"])
+                        except requests.ConnectionError:
+                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
                 return test_number, test_description, "Pass", ""
             else:
                 return test_number, test_description, "N/A", "Not tested. No resources found."
         except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error."
+            return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
     def test_06(self):
         """Node can register a valid Source resource with the network
@@ -143,24 +151,28 @@ class IS0401Test:
         test_number = "06"
         test_description = "Node can register a valid Source resource with the network " \
                            "registration service, matching its Node API Source resource"
+        url = "{}sources/".format(self.url)
         try:
-            r = requests.get("{}sources/".format(self.url))
+            r = requests.get(url)
             returned_sources = r.json()
             if r.status_code == 200 and len(returned_sources) > 0:
                 for curr_source in returned_sources:
                     if "id" in curr_source:
-                        url = "{}sources/{}".format(self.query_api_url, curr_source["id"])
-                        k = requests.get("{}sources/{}".format(self.query_api_url, curr_source["id"]))
-                        if k.status_code == 200:
-                            pass
-                        else:
-                            return test_number, test_description, "Fail", "Source not found on registry: {}"\
-                                .format(curr_source["id"])
+                        url2 = "{}sources/{}".format(self.query_api_url, curr_source["id"])
+                        try:
+                            k = requests.get(url2)
+                            if k.status_code == 200:
+                                pass
+                            else:
+                                return test_number, test_description, "Fail", "Source not found on registry: {}"\
+                                    .format(curr_source["id"])
+                        except requests.ConnectionError:
+                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
                 return test_number, test_description, "Pass", ""
             else:
                 return test_number, test_description, "N/A", "Not tested. No resources found."
         except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error."
+            return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
     def test_07(self):
         """Node can register a valid Flow resource with the network
@@ -168,24 +180,28 @@ class IS0401Test:
         test_number = "07"
         test_description = "Node can register a valid Flow resource with the network " \
                            "registration service, matching its Node API Flow resource"
+        url = "{}flows/".format(self.url)
         try:
-            r = requests.get("{}flows/".format(self.url))
+            r = requests.get(url)
             returned_flows = r.json()
             if r.status_code == 200 and len(returned_flows) > 0:
                 for curr_flow in returned_flows:
                     if "id" in curr_flow:
-                        url = "{}flows/{}".format(self.query_api_url, curr_flow["id"])
-                        k = requests.get("{}flows/{}".format(self.query_api_url, curr_flow["id"]))
-                        if k.status_code == 200:
-                            pass
-                        else:
-                            return test_number, test_description, "Fail", "Flow not found on registry: {}"\
-                                .format(curr_flow["id"])
+                        url2 = "{}flows/{}".format(self.query_api_url, curr_flow["id"])
+                        try:
+                            k = requests.get("{}flows/{}".format(self.query_api_url, curr_flow["id"]))
+                            if k.status_code == 200:
+                                pass
+                            else:
+                                return test_number, test_description, "Fail", "Flow not found on registry: {}"\
+                                    .format(curr_flow["id"])
+                        except requests.ConnectionError:
+                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
                 return test_number, test_description, "Pass", ""
             else:
                 return test_number, test_description, "N/A", "Not tested. No resources found."
         except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error."
+            return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
     def test_08(self):
         """Node can register a valid Sender resource with the network
@@ -193,24 +209,28 @@ class IS0401Test:
         test_number = "08"
         test_description = "Node can register a valid Sender resource with the network " \
                            "registration service, matching its Node API Sender resource"
+        url = "{}senders/".format(self.url)
         try:
-            r = requests.get("{}senders/".format(self.url))
+            r = requests.get(url)
             returned_senders = r.json()
             if r.status_code == 200 and len(returned_senders) > 0:
                 for curr_sender in returned_senders:
                     if "id" in curr_sender:
-                        url = "{}senders/{}".format(self.query_api_url, curr_sender["id"])
-                        k = requests.get("{}senders/{}".format(self.query_api_url, curr_sender["id"]))
-                        if k.status_code == 200:
-                            pass
-                        else:
-                            return test_number, test_description, "Fail", "Sender not found on registry: {}" \
-                                .format(curr_sender["id"])
+                        url2 = "{}senders/{}".format(self.query_api_url, curr_sender["id"])
+                        try:
+                            k = requests.get(url2)
+                            if k.status_code == 200:
+                                pass
+                            else:
+                                return test_number, test_description, "Fail", "Sender not found on registry: {}" \
+                                    .format(curr_sender["id"])
+                        except requests.ConnectionError:
+                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
                 return test_number, test_description, "Pass", ""
             else:
                 return test_number, test_description, "N/A", "Not tested. No resources found."
         except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error."
+            return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
     def test_09(self):
         """Node can register a valid Receiver resource with the network
@@ -218,24 +238,28 @@ class IS0401Test:
         test_number = "09"
         test_description = "Node can register a valid Receiver resource with the network " \
                            "registration service, matching its Node API Receiver resource"
+        url = "{}receivers/".format(self.url)
         try:
-            r = requests.get("{}receivers/".format(self.url))
+            r = requests.get(url)
             returned_receivers = r.json()
             if r.status_code == 200 and len(returned_receivers) > 0:
                 for curr_receiver in returned_receivers:
                     if "id" in curr_receiver:
-                        url = "{}receivers/{}".format(self.query_api_url, curr_receiver["id"])
-                        k = requests.get("{}receivers/{}".format(self.query_api_url, curr_receiver["id"]))
-                        if k.status_code == 200:
-                            pass
-                        else:
-                            return test_number, test_description, "Fail", "Receiver not found on registry: {}" \
-                                .format(curr_receiver["id"])
+                        url2 = "{}receivers/{}".format(self.query_api_url, curr_receiver["id"])
+                        try:
+                            k = requests.get(url2)
+                            if k.status_code == 200:
+                                pass
+                            else:
+                                return test_number, test_description, "Fail", "Receiver not found on registry: {}" \
+                                    .format(curr_receiver["id"])
+                        except requests.ConnectionError:
+                            return test_number, test_description, "Fail", "Connection error for {}".format(url2)
                 return test_number, test_description, "Pass", ""
             else:
                 return test_number, test_description, "N/A", "Not tested. No resources found."
         except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error."
+            return test_number, test_description, "Fail", "Connection error for {}".format(url)
 
     def test_10(self):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
