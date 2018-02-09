@@ -130,7 +130,7 @@ class IS0501Test:
         test_number = "01"
         test_description = "Api root matches the spec"
         expected = ["single/", "bulk/"]
-        dest = "v1.0/"
+        dest = ""
         valid, result = self.checkCleanGet(dest)
         if valid:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
@@ -147,7 +147,7 @@ class IS0501Test:
         test_number = "02"
         test_description = "Single endpoint root matches the spec"
         expected = ["receivers/", "senders/"]
-        dest = "v1.0/single/"
+        dest = "single/"
         valid, result = self.checkCleanGet(dest)
         if valid:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
@@ -163,7 +163,7 @@ class IS0501Test:
         """Root of /single/senders/ matches the spec"""
         test_number = "03"
         test_description = "Root of /single/senders/ matches the spec"
-        dest = "v1.0/single/senders/"
+        dest = "single/senders/"
         valid, response = self.checkCleanGet(dest)
         smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
         umsg = "Response from {} containts invalid UUIDs".format(dest)
@@ -193,7 +193,7 @@ class IS0501Test:
         """Root of /single/receivers/ matches the spec"""
         test_number = "04"
         test_description = "Root of /single/receivers/ matches the spec"
-        dest = "v1.0/single/receivers/"
+        dest = "single/receivers/"
         valid, response = self.checkCleanGet(dest)
         smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
         umsg = "Response from {} containts invalid UUIDs".format(dest)
@@ -225,7 +225,7 @@ class IS0501Test:
         test_description = "Index of /single/senders/<uuid>/ matches the spec"
         if len(self.senders) > 0:
             for sender in self.senders:
-                dest = "v1.0/single/senders/" + sender + "/"
+                dest = "single/senders/" + sender + "/"
                 valid, response = self.checkCleanGet(dest)
                 expected = [
                     "constraints/",
@@ -251,7 +251,7 @@ class IS0501Test:
         test_description = "Index of /single/receivers/<uuid>/ matches the spec"
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                dest = "v1.0/single/receivers/" + receiver + "/"
+                dest = "single/receivers/" + receiver + "/"
                 valid, response = self.checkCleanGet(dest)
                 expected = [
                     "constraints/",
@@ -276,7 +276,7 @@ class IS0501Test:
         test_description = "Return of /single/senders/<uuid>/constraints/ meets the schema"
         if len(self.senders) > 0:
             for sender in self.senders:
-                dest = "v1.0/single/senders/" + sender + "/constraints/"
+                dest = "single/senders/" + sender + "/constraints/"
                 valid, msg = self.compare_to_schema("v1.0-constraints-schema.json", dest)
                 if valid:
                     pass
@@ -292,7 +292,7 @@ class IS0501Test:
         test_description = "Return of /single/receivers/<uuid>/constraints/ meets the schema"
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                dest = "v1.0/single/receivers/" + receiver + "/constraints/"
+                dest = "single/receivers/" + receiver + "/constraints/"
                 valid, msg = self.compare_to_schema("v1.0-constraints-schema.json", dest)
                 if valid:
                     pass
@@ -351,7 +351,7 @@ class IS0501Test:
 
         if len(self.senders) > 0:
             for sender in self.senders:
-                dest = "v1.0/single/senders/" + sender + "/constraints/"
+                dest = "single/senders/" + sender + "/constraints/"
                 try:
                     valid, response = self.checkCleanGet(dest)
                     if valid:
@@ -392,7 +392,7 @@ class IS0501Test:
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                dest = "v1.0/single/receivers/" + receiver + "/constraints/"
+                dest = "single/receivers/" + receiver + "/constraints/"
                 try:
                     valid, response = self.checkCleanGet(dest)
                     if valid:
@@ -422,7 +422,7 @@ class IS0501Test:
         test_description = "Return of /single/senders/<uuid>/staged/ meets the schema"
         if len(self.senders) > 0:
             for sender in self.senders:
-                dest = "v1.0/single/senders/" + sender + "/staged/"
+                dest = "single/senders/" + sender + "/staged/"
                 valid, msg = self.compare_to_schema("v1.0-sender-response-schema.json", dest)
                 if valid:
                     pass
@@ -438,7 +438,7 @@ class IS0501Test:
         test_description = "Return of /single/receivers/<uuid>/staged/ meets the schema"
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                dest = "v1.0/single/receivers/" + receiver + "/staged/"
+                dest = "single/receivers/" + receiver + "/staged/"
                 valid, msg = self.compare_to_schema("v1.0-receiver-response-schema.json", dest)
                 if valid:
                     pass
@@ -532,7 +532,7 @@ class IS0501Test:
         test_description = "Sender id on staged receiver is changeable"
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                url = "v1.0/single/receivers/" + receiver + "/staged"
+                url = "single/receivers/" + receiver + "/staged"
                 id = str(uuid.uuid4())
                 data = {"sender_id": id}
                 valid, response = self.checkCleanPatch(url, data)
@@ -563,7 +563,7 @@ class IS0501Test:
         test_description = "Receiver id on staged sender is changeable"
         if len(self.senders) > 0:
             for sender in self.senders:
-                url = "v1.0/single/senders/" + sender + "/staged"
+                url = "single/senders/" + sender + "/staged"
                 id = str(uuid.uuid4())
                 data = {"receiver_id": id}
                 valid, response = self.checkCleanPatch(url, data)
@@ -726,7 +726,7 @@ class IS0501Test:
         test_description = "Sender active response schema is valid"
         if len(self.senders):
             for sender in self.senders:
-                activeUrl = "v1.0/single/senders/" + sender + "/active"
+                activeUrl = "single/senders/" + sender + "/active"
                 valid, response = self.compare_to_schema("v1.0-sender-response-schema.json", activeUrl)
                 if valid:
                     pass
@@ -742,7 +742,7 @@ class IS0501Test:
         test_description = "Receiver active response schema is valid"
         if len(self.receivers):
             for receiver in self.receivers:
-                activeUrl = "v1.0/single/receivers/" + receiver + "/active"
+                activeUrl = "single/receivers/" + receiver + "/active"
                 valid, response = self.compare_to_schema("v1.0-receiver-response-schema.json", activeUrl)
                 if valid:
                     pass
@@ -756,7 +756,7 @@ class IS0501Test:
         """/bulk/ endpoint returns correct JSON"""
         test_number = "33"
         test_description = "/bulk/ endpoint returns correct JSON"
-        url = "v1.0/bulk/"
+        url = "bulk/"
         valid, response = self.checkCleanGet(url)
         if valid:
             expected = ['senders/', 'receivers/']
@@ -772,7 +772,7 @@ class IS0501Test:
         """GET on /bulk/senders returns 405"""
         test_number = "34"
         test_description = "GET on /bulk/senders returns 405"
-        url = "v1.0/bulk/senders"
+        url = "bulk/senders"
         valid, response = self.checkCleanGet(url, 405)
         if valid:
             return test_number, test_description, "Pass", ""
@@ -783,7 +783,7 @@ class IS0501Test:
         """GET on /bulk/receivers returns 405"""
         test_number = "35"
         test_description = "GET on /bulk/receivers returns 405"
-        url = "v1.0/bulk/receivers"
+        url = "bulk/receivers"
         valid, response = self.checkCleanGet(url, 405)
         if valid:
             return test_number, test_description, "Pass", ""
@@ -822,7 +822,7 @@ class IS0501Test:
         test_description = "Number of legs matches on constraints, staged and active endpoint for senders"
         if len(self.senders) > 0:
             for sender in self.senders:
-                url = "v1.0/single/senders/{}/".format(sender)
+                url = "single/senders/{}/".format(sender)
                 valid, response = self.check_num_legs(url, "sender", sender)
                 if valid:
                     pass
@@ -838,7 +838,7 @@ class IS0501Test:
         test_description = "Number of legs matches on constraints, staged and active endpoint for receivers"
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                url = "v1.0/single/receivers/{}/".format(receiver)
+                url = "single/receivers/{}/".format(receiver)
                 valid, response = self.check_num_legs(url, "receiver", receiver)
                 if valid:
                     pass
@@ -908,7 +908,7 @@ class IS0501Test:
 
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""
-        url = self.url + "v1.0/bulk/" + port + "s"
+        url = self.url + "bulk/" + port + "s"
         data = []
         ports = {}
         for portInst in portList:
@@ -943,7 +943,7 @@ class IS0501Test:
 
         # Check the parameters have actually changed
         for portInst in portList:
-            activeUrl = "v1.0/single/" + port + "s/" + portInst + "/staged/"
+            activeUrl = "single/" + port + "s/" + portInst + "/staged/"
 
             valid, response = self.checkCleanGet(activeUrl)
             if valid:
@@ -967,7 +967,7 @@ class IS0501Test:
 
     def check_staged_activation_params_default(self, port, portId):
         # Check that the staged activation parameters have returned to their default values
-        stagedUrl = "v1.0/single/" + port + "s/" + portId + "/staged"
+        stagedUrl = "single/" + port + "s/" + portId + "/staged"
         valid, response = self.checkCleanGet(stagedUrl)
         if valid:
             expected = {"mode": None, "requested_time": None, "activation_time": None}
@@ -991,8 +991,8 @@ class IS0501Test:
 
     def check_perform_immediate_activation(self, port, portId, stagedParams):
         # Request an immediate activation
-        stagedUrl = "v1.0/single/" + port + "s/" + portId + "/staged"
-        activeUrl = "v1.0/single/" + port + "s/" + portId + "/active"
+        stagedUrl = "single/" + port + "s/" + portId + "/staged"
+        activeUrl = "single/" + port + "s/" + portId + "/active"
         data = {"activation": {"mode": "activate_immediate"}}
         valid, response = self.checkCleanPatch(stagedUrl, data)
         if valid:
@@ -1073,8 +1073,8 @@ class IS0501Test:
 
     def check_perform_relative_activation(self, port, portId, stagedParams):
         # Request an relative activation
-        stagedUrl = "v1.0/single/" + port + "s/" + portId + "/staged"
-        activeUrl = "v1.0/single/" + port + "s/" + portId + "/active"
+        stagedUrl = "single/" + port + "s/" + portId + "/staged"
+        activeUrl = "single/" + port + "s/" + portId + "/active"
         data = {"activation": {"mode": "activate_scheduled_relative", "requested_time": "0:2"}}
         valid, response = self.checkCleanPatch(stagedUrl, data, 202)
         if valid:
@@ -1148,8 +1148,8 @@ class IS0501Test:
 
     def check_perform_absolute_activation(self, port, portId, stagedParams):
         # request an absolute activation
-        stagedUrl = "v1.0/single/" + port + "s/" + portId + "/staged"
-        activeUrl = "v1.0/single/" + port + "s/" + portId + "/active"
+        stagedUrl = "single/" + port + "s/" + portId + "/staged"
+        activeUrl = "single/" + port + "s/" + portId + "/active"
         TAItime = self.getTAITime(0.1)
         data = {"activation": {"mode": "activate_scheduled_absolute", "requested_time": TAItime}}
         valid, response = self.checkCleanPatch(stagedUrl, data, 202)
@@ -1229,7 +1229,7 @@ class IS0501Test:
         # Set a new destination port in staged
         valid, destinationPort = self.generate_destination_ports(port, portId)
         if valid:
-            stagedUrl = "v1.0/single/" + port + "s/" + portId + "/staged"
+            stagedUrl = "single/" + port + "s/" + portId + "/staged"
             data = {"transport_params": []}
             for i in range(0, self.get_num_paths(portId, port)):
                 data['transport_params'].append({"destination_port": destinationPort[i]})
@@ -1251,7 +1251,7 @@ class IS0501Test:
     def generate_destination_ports(self, port, portId):
         """Uses a port's constraints to generate an allowable destination
         ports for it"""
-        url = "v1.0/single/" + port + "s/" + portId + "/constraints/"
+        url = "single/" + port + "s/" + portId + "/constraints/"
         valid, constraints = self.checkCleanGet(url)
         if valid:
             toReturn = []
@@ -1275,7 +1275,7 @@ class IS0501Test:
 
     def check_change_transport_param(self, port, portList, paramName, paramValues, myPort):
         """Check that we can update a transport parameter"""
-        url = "v1.0/single/" + port + "s/" + myPort + "/staged"
+        url = "single/" + port + "s/" + myPort + "/staged"
         data = {}
         data['transport_params'] = []
         paths = self.get_num_paths(myPort, port)
@@ -1319,7 +1319,7 @@ class IS0501Test:
         """Check that invalid patch requests to /staged are met with an HTTP 400"""
         data = {"bad": "data"}
         for myPort in portList:
-            url = "v1.0/single/" + port + "s/" + myPort + "/staged"
+            url = "single/" + port + "s/" + myPort + "/staged"
             valid, response = self.checkCleanPatch(url, data, code=400)
             if valid:
                 pass
@@ -1330,7 +1330,7 @@ class IS0501Test:
     def check_patch_response_schema_valid(self, port, portList):
         """Check the response to an empty patch request complies with the schema"""
         for myPort in portList:
-            url = "v1.0/single/" + port + "s/" + myPort + "/staged"
+            url = "single/" + port + "s/" + myPort + "/staged"
             data = {}
             valid, response = self.checkCleanPatch(url, data)
             if valid:
@@ -1349,14 +1349,14 @@ class IS0501Test:
         """Check that the staged endpoint is using parameters that meet
         the constents of the /constraints endpoint"""
         for myPort in portList:
-            dest = "v1.0/single/" + port + "s/" + myPort + "/staged/"
+            dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.checkCleanGet(dest)
             if valid:
                 schema = self.load_schema("v1.0_" + port + "_transport_params_rtp.json")
                 resolver = RefResolver("file:///" + os.path.join(os.path.dirname(__file__), "schemas") + "/",
                                        schema)
                 constraints_valid, constraints_response = self.checkCleanGet(
-                    "v1.0/single/" + port + "s/" + myPort + "/constraints/")
+                    "single/" + port + "s/" + myPort + "/constraints/")
                 if constraints_valid:
                     count = 0
                     for params in response['transport_params']:
@@ -1382,9 +1382,9 @@ class IS0501Test:
         """Generic test for checking params listed in the /constraints endpoint
         are listed in in the /staged and /active endpoints"""
         for myPort in portList:
-            rDest = "v1.0/single/" + port + "/" + myPort + "/constraints/"
-            sDest = "v1.0/single/" + port + "/" + myPort + "/staged/"
-            aDest = "v1.0/single/" + port + "/" + myPort + "/active/"
+            rDest = "single/" + port + "/" + myPort + "/constraints/"
+            sDest = "single/" + port + "/" + myPort + "/staged/"
+            aDest = "single/" + port + "/" + myPort + "/active/"
             r_valid, r_response = self.checkCleanGet(rDest)
             s_valid, s_response = self.checkCleanGet(sDest)
             a_valid, a_response = self.checkCleanGet(aDest)
@@ -1450,7 +1450,7 @@ class IS0501Test:
 
     def get_senders(self):
         """Gets a list of the available senders on the API"""
-        r = requests.get(self.url + "v1.0/single/senders/")
+        r = requests.get(self.url + "single/senders/")
         toReturn = []
         for value in r.json():
             toReturn.append(value[:-1])
@@ -1458,7 +1458,7 @@ class IS0501Test:
 
     def get_receivers(self):
         """Gets a list of the available receivers on the API"""
-        r = requests.get(self.url + "v1.0/single/receivers/")
+        r = requests.get(self.url + "single/receivers/")
         toReturn = []
         for value in r.json():
             toReturn.append(value[:-1])
@@ -1488,7 +1488,7 @@ class IS0501Test:
 
     def get_num_paths(self, port, portType):
         """Returns the number or redundant paths on a port"""
-        url = self.url + "v1.0/single/" + portType + "s/" + port + "/constraints/"
+        url = self.url + "single/" + portType + "s/" + port + "/constraints/"
         r = requests.get(url)
         return len(r.json())
 

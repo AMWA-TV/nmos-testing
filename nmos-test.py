@@ -28,17 +28,18 @@ NODE_URL = "http://<node_ip>:<node_port>/x-nmos/node/v1.2/"
 
 
 class DataForm(Form):
-    url = StringField("URL: ", validators=[validators.DataRequired(message="URL is required"),
-                                           validators.regexp(".*node\/v1\.[0-2]\/|.*connection\/$",
-                                                             message="URL has to be in format: "
-                                                                     "http://<ip>(:<port>)/x-nmos/node/v1.[0-2]/ "
-                                                                     "for IS-04 or "
-                                                                     "http://<ip>:<port>)/x-nmos/connection/ "
-                                                                     "for IS-05 tests")],
+    url = StringField("Full URL: ", validators=[validators.DataRequired(message="URL is required"),
+                                                validators.regexp(
+                                                    "http:\/\/(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]):[0-9]{1,5}\/x-nmos\/(node\/v1.[0-2]|connection\/v1.0)\/$",
+                                                    message="URL has to be in format: "
+                                                            "http://<ip>:<port>/x-nmos/node/v1.[0-2]/ "
+                                                            "for IS-04 or "
+                                                            "http://<ip>:<port>/x-nmos/connection/v1.0/ "
+                                                            "for IS-05 tests")],
                       default=NODE_URL)
     test = SelectField(label="Select test", choices=[("IS-04-01", "IS-04-01: Node"),
                                                      ("IS-05-01", "IS-05-01: API")])
-													 
+
 
 @app.route('/', methods=["GET", "POST"])
 def index_page():
@@ -65,9 +66,8 @@ def index_page():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Riedel NMOS Interop Test Tool")
-    parser.add_argument("--query_ip", help="String. IPv4 address of the query service.", required=True)
-    parser.add_argument("--query_port", help="Integer. Port of the query service", required=True)
+    parser.add_argument("--query_ip", help="String. IPv4 address of the query service (RDS).", required=True)
+    parser.add_argument("--query_port", help="Integer. Port of the query service (RDS).", required=True)
     args = parser.parse_args()
     QUERY_URL = "http://{}:{}/x-nmos/query".format(args.query_ip, args.query_port)
     app.run(host='0.0.0.0')
-
