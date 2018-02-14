@@ -1486,7 +1486,8 @@ class IS0501Test:
         secs = int(myTime)
         nanos = int((myTime - secs) * 1e9)
         ippTime = self.from_UTC(secs, nanos)
-        return str(ippTime)
+        return str(ippTime[0]) + ":" + str(ippTime[1])
+
 
     def from_UTC(self, secs, nanos, is_leap=False):
         leap_sec = 0
