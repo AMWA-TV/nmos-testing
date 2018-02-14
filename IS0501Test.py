@@ -1414,12 +1414,16 @@ class IS0501Test:
                                             # Found something that we couldn't get keys from, not a dict then...
                                             return False, "Staged parameters contain non-dicts in array position {}".format(
                                                 count)
+                                        except IndexError:
+                                            return False, "Staged parameters do not contain transport_params"
                                         try:
                                             activeParams = a_response['transport_params'][count].keys()
                                         except AttributeError:
                                             # Found something that we couldn't get keys from, not a dict then...
                                             return False, "Active parameters contain non-dicts in array position {}".format(
                                                 count)
+                                        except IndexError:
+                                            return False, "Active parameters do not contain transport_params"
                                         smsg = "Staged parameter set does not match parameters in constraints"
                                         amsg = "Active parameter set does not match parameters in constraints"
                                         if len(r_response) == len(s_response['transport_params']):
