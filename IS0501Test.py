@@ -386,12 +386,10 @@ class IS0501Test:
         test_description = "Receiver are using valid combination of parameters"
 
         generalParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
-        fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode', 'fec_type',
-                     'fec_block_width', 'fec_block_height', 'fec1D_destination_port',
-                     'fec1D_source_port', 'fec2D_destination_port', 'fec2D_source_port']
+        fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode',
+                     'fec1D_destination_port', 'fec2D_destination_port']
         fecParams = fecParams + generalParams
-        rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port',
-                      'rtcp_source_port']
+        rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port']
         combinedParams = rtcpParams + fecParams
         rtcpParams = rtcpParams + generalParams
 
