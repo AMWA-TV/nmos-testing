@@ -367,7 +367,12 @@ class IS0501Test:
                         dest, response)
 
                 if sorted(params) == sorted(generalParams):
-                    # TODO Add FEC and RTCP Tests!
+                    pass
+                elif sorted(params) == sorted(fecParams):
+                    pass
+                elif sorted(params) == sorted(rtcpParams):
+                    pass
+                elif sorted(params) == sorted(combinedParams):
                     pass
                 else:
                     return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
@@ -408,7 +413,12 @@ class IS0501Test:
                         dest, response)
 
                 if sorted(params) == sorted(generalParams):
-                    # TODO Add FEC and RTCP Tests!
+                    pass
+                elif sorted(params) == sorted(fecParams):
+                    pass
+                elif sorted(params) == sorted(rtcpParams):
+                    pass
+                elif sorted(params) == sorted(combinedParams):
                     pass
                 else:
                     return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
