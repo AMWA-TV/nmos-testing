@@ -894,11 +894,11 @@ class IS0501Test:
                     if len(constraints) >= min:
                         pass
                     else:
-                        return "{} {} has too few legs".format(type, uuid)
+                        return False, "{} {} has too few legs".format(type, uuid)
                     if len(constraints) == len(stagedParams):
                         pass
                     else:
-                        return "Number of legs in constraints and staged is different for {} {}".format(type, uuid)
+                        return False, "Number of legs in constraints and staged is different for {} {}".format(type, uuid)
 
                     if len(constraints) == len(activeParams):
                         pass
@@ -1549,17 +1549,20 @@ class IS0501Test:
 
     def checkCleanPatch(self, dest, data, code=200):
         """Checks a PATCH can be made and the resulting json can be parsed"""
-        r = requests.patch(self.url + dest, headers=HEADERS, data=json.dumps(data))
-        message = "Expected status code {} from {}, got {}.".format(code, dest, r.status_code)
-        if r.status_code == code:
-            try:
-                return True, r.json()
-            except:
-                # Failed parsing JSON
-                msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
-                    dest,
-                    r.text
-                )
-                return False, msg
-        else:
-            return False, message
+        try:
+            r = requests.patch(self.url + dest, headers=HEADERS, data=json.dumps(data))
+            message = "Expected status code {} from {}, got {}.".format(code, dest, r.status_code)
+            if r.status_code == code:
+                try:
+                    return True, r.json()
+                except:
+                    # Failed parsing JSON
+                    msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
+                        dest,
+                        r.text
+                    )
+                    return False, msg
+            else:
+                return False, message
+        except:
+            return False, "Error"
