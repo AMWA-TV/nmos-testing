@@ -355,27 +355,27 @@ class IS0501Test:
                 try:
                     valid, response = self.checkCleanGet(dest)
                     if valid:
-                        pass
+                        if len(response) > 0 and isinstance(response[0], dict):
+                            params = response[0].keys()
+                            if sorted(params) == sorted(generalParams):
+                                pass
+                            elif sorted(params) == sorted(fecParams):
+                                pass
+                            elif sorted(params) == sorted(rtcpParams):
+                                pass
+                            elif sorted(params) == sorted(combinedParams):
+                                pass
+                            else:
+                                return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
+                        else:
+                            return test_number, test_description, "Fail", "Invalid response: {}".format(response)
                     else:
                         return test_number, test_description, "Fail", response
-                    params = response[0].keys()
                 except IndexError:
-                    return test_number, test_description, "Fail", "Expected an array from {}, got {}".format(dest,
-                                                                                                             response)
+                    return test_number, test_description, "Fail", "Expected an array from {}, got {}".format(dest, response)
                 except AttributeError:
                     return test_number, test_description, "Fail", "Expected constraints array at {} to contain dicts, got {}".format(
                         dest, response)
-
-                if sorted(params) == sorted(generalParams):
-                    pass
-                elif sorted(params) == sorted(fecParams):
-                    pass
-                elif sorted(params) == sorted(rtcpParams):
-                    pass
-                elif sorted(params) == sorted(combinedParams):
-                    pass
-                else:
-                    return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
             return test_number, test_description, "Pass", ""
         else:
             return test_number, test_description, "N/A", "Not tested. No resources found."
@@ -399,27 +399,27 @@ class IS0501Test:
                 try:
                     valid, response = self.checkCleanGet(dest)
                     if valid:
-                        pass
+                        if len(response) > 0 and isinstance(response[0], dict):
+                            params = response[0].keys()
+                            if sorted(params) == sorted(generalParams):
+                                pass
+                            elif sorted(params) == sorted(fecParams):
+                                pass
+                            elif sorted(params) == sorted(rtcpParams):
+                                pass
+                            elif sorted(params) == sorted(combinedParams):
+                                pass
+                            else:
+                                return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
+                        else:
+                            return test_number, test_description, "Fail", "Invalid response: {}".format(response)
                     else:
                         return test_number, test_description, "Fail", response
-                    params = response[0].keys()
                 except IndexError:
-                    return test_number, test_description, "Fail", "Expected an array from {}, got {}".format(dest,
-                                                                                                             response)
+                    return test_number, test_description, "Fail", "Expected an array from {}, got {}".format(dest, response)
                 except AttributeError:
                     return test_number, test_description, "Fail", "Expected constraints array at {} to contain dicts, got {}".format(
                         dest, response)
-
-                if sorted(params) == sorted(generalParams):
-                    pass
-                elif sorted(params) == sorted(fecParams):
-                    pass
-                elif sorted(params) == sorted(rtcpParams):
-                    pass
-                elif sorted(params) == sorted(combinedParams):
-                    pass
-                else:
-                    return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
             return test_number, test_description, "Pass", ""
         else:
             return test_number, test_description, "N/A", "Not tested. No resources found."
@@ -875,7 +875,7 @@ class IS0501Test:
                         return False, "Expected an object to be returned from {}, got {}: {}".format(stagedUrl,
                                                                                                      type(staged),
                                                                                                      staged)
-                    except IndexError:
+                    except KeyError:
                         return False, "Could not find transport params in object from {}, got {}".format(stagedUrl,
                                                                                                          staged)
                     try:
@@ -884,7 +884,7 @@ class IS0501Test:
                         return False, "Expected an object to be returned from {}, got {}: {}".format(activeUrl,
                                                                                                      type(active),
                                                                                                      active)
-                    except IndexError:
+                    except KeyError:
                         return False, "Could not find transport params in object from {}, got {}".format(activeUrl,
                                                                                                          active)
                     if len(constraints) <= max:
@@ -932,12 +932,15 @@ class IS0501Test:
                 data.append(toAdd)
             else:
                 return False, response
-        r = requests.post(url, data=json.dumps(data), headers=HEADERS)
-        msg = "Expected a 200 response from {}, got {}".format(url, r.status_code)
-        if r.status_code == 200:
-            pass
-        else:
-            return False, msg
+        try:
+            r = requests.post(url, data=json.dumps(data), headers=HEADERS)
+            msg = "Expected a 200 response from {}, got {}".format(url, r.status_code)
+            if r.status_code == 200:
+                pass
+            else:
+                return False, msg
+        except requests.exceptions.RequestException as e:
+            return False, str(e)
 
         schema = self.load_schema("v1.0-bulk-stage-confirm.json")
         resolver = RefResolver("file:///" + os.path.join(os.path.dirname(__file__), "schemas") + "/",
@@ -958,7 +961,7 @@ class IS0501Test:
                 for i in range(0, self.get_num_paths(portInst, port)):
                     try:
                         value = response['transport_params'][i]['destination_port']
-                    except IndexError:
+                    except KeyError:
                         return False, "Could not find `destination_port` parameter at {} on leg {}, got{}".format(
                             activeUrl, i,
                             response)
@@ -981,7 +984,7 @@ class IS0501Test:
             expected = {"mode": None, "requested_time": None, "activation_time": None}
             try:
                 params = response['activation']
-            except IndexError:
+            except KeyError:
                 return False, "Could not find a receiver_id entry in response from {}, got {}".format(stagedUrl,
                                                                                                       response)
             except TypeError:
@@ -1008,7 +1011,7 @@ class IS0501Test:
                 mode = response['activation']['mode']
                 requested = response['activation']['requested_time']
                 activation = response['activation']['activation_time']
-            except IndexError:
+            except KeyError:
                 return False, "Could not find all activation entries from {}, got {}".format(stagedUrl, response)
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(response),
@@ -1037,7 +1040,7 @@ class IS0501Test:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
                             activePort = response3['transport_params'][i]['destination_port']
-                        except IndexError:
+                        except KeyError:
                             return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(
                                 i,
                                 activeUrl,
@@ -1049,7 +1052,7 @@ class IS0501Test:
                                 response3)
                         try:
                             stagedPort = stagedParams[i]['destination_port']
-                        except IndexError:
+                        except KeyError:
                             return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(
                                 i,
                                 stagedUrl,
@@ -1090,7 +1093,7 @@ class IS0501Test:
                 mode = response['activation']['mode']
                 requested = response['activation']['requested_time']
                 activation = response['activation']['activation_time']
-            except IndexError:
+            except KeyError:
                 return False, "Could not find all activation entries from {}, got {}".format(stagedUrl, response)
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(response),
@@ -1117,7 +1120,7 @@ class IS0501Test:
                 for i in range(0, self.get_num_paths(portId, port)):
                     try:
                         activePort = activeParams['transport_params'][i]['destination_port']
-                    except IndexError:
+                    except KeyError:
                         return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
                                                                                                                       activeUrl,
                                                                                                                       activeParams)
@@ -1125,11 +1128,11 @@ class IS0501Test:
                         return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(activeUrl,
                                                                                                               i,
                                                                                                               type(
-                                                                                                                  activeParams),
+                                                                                                              activeParams),
                                                                                                               activeParams)
                     try:
                         stagedPort = stagedParams[i]['destination_port']
-                    except IndexError:
+                    except KeyError:
                         return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
                                                                                                                       stagedUrl,
                                                                                                                       stagedParams)
@@ -1137,7 +1140,7 @@ class IS0501Test:
                         return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(stagedUrl,
                                                                                                               i,
                                                                                                               type(
-                                                                                                                  activeParams),
+                                                                                                              activeParams),
                                                                                                               stagedParams)
                     if stagedPort == activePort:
                         pass
@@ -1145,10 +1148,13 @@ class IS0501Test:
                         return False, "Transport parameters did not transition to active during an relative activation"
                 msg = "Activation mode was not set to `activate_scheduled_relative` at {} after a relative activation".format(
                     activeUrl)
-                if activeParams['activation']['mode'] == "activate_scheduled_relative":
-                    return True, ""
-                else:
-                    return False, msg
+                try:
+                    if activeParams['activation']['mode'] == "activate_scheduled_relative":
+                        return True, ""
+                    else:
+                        return False, msg
+                except KeyError:
+                    return False, "Expected 'mode' key in 'activation' object."
             else:
                 return False, activeParams
         else:
@@ -1166,7 +1172,7 @@ class IS0501Test:
                 mode = response['activation']['mode']
                 requested = response['activation']['requested_time']
                 activation = response['activation']['activation_time']
-            except IndexError:
+            except KeyError:
                 return False, "Could not find all activation entries from {}, got {}".format(stagedUrl, response)
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(response),
@@ -1174,18 +1180,27 @@ class IS0501Test:
             mmsg = "Expected mode `activate_sechduled_absolute` for relative activation, got {}".format(mode)
             rmsg = "Expected requested time `{}` for relative activation, got {}".format(TAItime, requested)
             amsg = "Expected activation time to match regex ^[0-9]+:[0-9]+$, got {}".format(activation)
-            if response['activation']['mode'] == "activate_scheduled_absolute":
-                pass
-            else:
-                return False, mmsg
-            if response['activation']['requested_time'] == TAItime:
-                pass
-            else:
-                return False, rmsg
-            if re.match("^[0-9]+:[0-9]+$", response['activation']['activation_time']) is not None:
-                pass
-            else:
-                return False, amsg
+            try:
+                if response['activation']['mode'] == "activate_scheduled_absolute":
+                    pass
+                else:
+                    return False, mmsg
+            except KeyError:
+                return False, "Expected 'mode' key in 'activation' object."
+            try:
+                if response['activation']['requested_time'] == TAItime:
+                    pass
+                else:
+                    return False, rmsg
+            except KeyError:
+                return False, "Expected 'requested_time' key in 'activation' object."
+            try:
+                if re.match("^[0-9]+:[0-9]+$", response['activation']['activation_time']) is not None:
+                    pass
+                else:
+                    return False, amsg
+            except KeyError:
+                return False, "Expected 'activation_time' key in 'activation' object."
             # Allow extra time for processing between getting time and making request
             time.sleep(2)
             # Check the values now on /active
@@ -1194,7 +1209,7 @@ class IS0501Test:
                 for i in range(0, self.get_num_paths(portId, port)):
                     try:
                         activePort = activeParams['transport_params'][i]['destination_port']
-                    except IndexError:
+                    except KeyError:
                         return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
                                                                                                                       activeUrl,
                                                                                                                       activeParams)
@@ -1206,7 +1221,7 @@ class IS0501Test:
                                                                                                               activeParams)
                     try:
                         stagedPort = stagedParams[i]['destination_port']
-                    except IndexError:
+                    except KeyError:
                         return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
                                                                                                                       stagedUrl,
                                                                                                                       stagedParams)
@@ -1222,10 +1237,13 @@ class IS0501Test:
                         return False, "Transport parameters did not transition to active during an absolute activation"
                 msg = "Activation mode was not set to `activate_scheduled_absolute` at {} after a absolute activation".format(
                     activeUrl)
-                if activeParams['activation']['mode'] == "activate_scheduled_absolute":
-                    return True, ""
-                else:
-                    return False, msg
+                try:
+                    if activeParams['activation']['mode'] == "activate_scheduled_absolute":
+                        return True, ""
+                    else:
+                        return False, msg
+                except KeyError:
+                    return False, "Expected 'mode' key in 'activation' object."
             else:
                 return False, activeParams
         else:
@@ -1245,7 +1263,7 @@ class IS0501Test:
             if valid2:
                 try:
                     stagedParams = r['transport_params']
-                except IndexError:
+                except KeyError:
                     return False, "Could not find `transport_params` entry in response from {}".format(stagedUrl)
                 except TypeError:
                     return False, "Expected a dict to be returned from {}, got a {}".format(stagedUrl,
@@ -1265,14 +1283,20 @@ class IS0501Test:
             toReturn = []
             try:
                 for entry in constraints:
-                    if "maximum" in entry['destination_port']:
-                        max = entry['destination_port']['maximum']
-                    else:
-                        max = 49151
-                    if "minimum" in entry['destination_port']:
-                        min = entry['destination_port']['minimum']
-                    else:
-                        min = 5000
+                    try:
+                        if "maximum" in entry['destination_port']:
+                            max = entry['destination_port']['maximum']
+                        else:
+                            max = 49151
+                    except KeyError:
+                        return False, "Expected 'maximum' key in 'destination_port' object."
+                    try:
+                        if "minimum" in entry['destination_port']:
+                            min = entry['destination_port']['minimum']
+                        else:
+                            min = 5000
+                    except KeyError:
+                        return False, "Expected 'minimum' key in 'destination_port' object."
                     toReturn.append(randint(min, max))
                 return True, toReturn
             except TypeError:
@@ -1296,11 +1320,11 @@ class IS0501Test:
             if valid2:
                 try:
                     response3 = response2['transport_params']
-                except IndexError:
-                    return False, "Could not find trainsport_params in response from {}, got {}".format(url, response3)
+                except KeyError:
+                    return False, "Could not find transport_params in response from {}, got {}".format(url, response2)
                 except TypeError:
-                    return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(response3),
-                                                                                                response3)
+                    return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(response2),
+                                                                                                response2)
                 count = 0
                 try:
                     for item in response3:
@@ -1363,23 +1387,25 @@ class IS0501Test:
                 schema = self.load_schema("v1.0_" + port + "_transport_params_rtp.json")
                 resolver = RefResolver("file:///" + os.path.join(os.path.dirname(__file__), "schemas") + "/",
                                        schema)
-                constraints_valid, constraints_response = self.checkCleanGet(
-                    "single/" + port + "s/" + myPort + "/constraints/")
+                constraints_valid, constraints_response = self.checkCleanGet("single/" + port + "s/" + myPort + "/constraints/")
                 if constraints_valid:
                     count = 0
-                    for params in response['transport_params']:
-                        schema.update(constraints_response[count])
-                        try:
-                            Draft4Validator(schema['items']['properties'], resolver=resolver).validate(params)
-                        except ValidationError as e:
-                            return False, "Staged endpoint does not comply with constraints in leg {}: {}".format(count,
-                                                                                                                  str(
-                                                                                                                      e))
-                        except SchemaError as e:
-                            return False, "Invalid schema resulted from combining constraints in leg {}: {}".format(
-                                count,
-                                str(e))
-                        count = count + 1
+                    try:
+                        for params in response['transport_params']:
+                            schema.update(constraints_response[count])
+                            try:
+                                Draft4Validator(schema['items']['properties'], resolver=resolver).validate(params)
+                            except ValidationError as e:
+                                return False, "Staged endpoint does not comply with constraints in leg {}: {}".format(count,
+                                                                                                                      str(
+                                                                                                                          e))
+                            except SchemaError as e:
+                                return False, "Invalid schema resulted from combining constraints in leg {}: {}".format(
+                                    count,
+                                    str(e))
+                            count = count + 1
+                    except KeyError:
+                        return False, "Expected 'tranport_params' key in constraints."
                 else:
                     return False, constraints_response
             else:
@@ -1414,7 +1440,7 @@ class IS0501Test:
                                             # Found something that we couldn't get keys from, not a dict then...
                                             return False, "Staged parameters contain non-dicts in array position {}".format(
                                                 count)
-                                        except IndexError:
+                                        except KeyError:
                                             return False, "Staged parameters do not contain transport_params"
                                         try:
                                             activeParams = a_response['transport_params'][count].keys()
@@ -1422,7 +1448,7 @@ class IS0501Test:
                                             # Found something that we couldn't get keys from, not a dict then...
                                             return False, "Active parameters contain non-dicts in array position {}".format(
                                                 count)
-                                        except IndexError:
+                                        except KeyError:
                                             return False, "Active parameters do not contain transport_params"
                                         smsg = "Staged parameter set does not match parameters in constraints"
                                         amsg = "Active parameter set does not match parameters in constraints"
@@ -1462,23 +1488,29 @@ class IS0501Test:
 
     def get_senders(self):
         """Gets a list of the available senders on the API"""
-        r = requests.get(self.url + "single/senders/")
         toReturn = []
         try:
-            for value in r.json():
-                toReturn.append(value[:-1])
-        except ValueError:
+            r = requests.get(self.url + "single/senders/")
+            try:
+                for value in r.json():
+                    toReturn.append(value[:-1])
+            except ValueError:
+                pass
+        except requests.exceptions.RequestException:
             pass
         return toReturn
 
     def get_receivers(self):
         """Gets a list of the available receivers on the API"""
-        r = requests.get(self.url + "single/receivers/")
         toReturn = []
         try:
-            for value in r.json():
-                toReturn.append(value[:-1])
-        except ValueError:
+            r = requests.get(self.url + "single/receivers/")
+            try:
+                for value in r.json():
+                    toReturn.append(value[:-1])
+            except ValueError:
+                pass
+        except requests.exceptions.RequestException:
             pass
         return toReturn
 
@@ -1489,7 +1521,6 @@ class IS0501Test:
         nanos = int((myTime - secs) * 1e9)
         ippTime = self.from_UTC(secs, nanos)
         return str(ippTime[0]) + ":" + str(ippTime[1])
-
 
     def from_UTC(self, secs, nanos, is_leap=False):
         leap_sec = 0
@@ -1508,13 +1539,15 @@ class IS0501Test:
     def get_num_paths(self, port, portType):
         """Returns the number or redundant paths on a port"""
         url = self.url + "single/" + portType + "s/" + port + "/constraints/"
-        r = requests.get(url)
         try:
-            rjson = r.json()
-            return len(rjson)
-        except ValueError:
-            pass
-        return 0
+            r = requests.get(url)
+            try:
+                rjson = r.json()
+                return len(rjson)
+            except ValueError:
+                return 0
+        except requests.exceptions.RequestException:
+            return 0
 
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response form an endpoint to a schema"""
@@ -1532,20 +1565,27 @@ class IS0501Test:
 
     def checkCleanGet(self, dest, code=200):
         """Checks that JSON can be got from dest and be parsed"""
-        r = requests.get(self.url + dest)
-        message = "Expected status code {} from {}, got {}.".format(code, dest, r.status_code)
-        if r.status_code == code:
-            try:
-                return True, r.json()
-            except:
-                # Failed parsing JSON
-                msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
-                    dest,
-                    r.text
-                )
-                return False, msg
-        else:
-            return False, message
+        try:
+            r = requests.get(self.url + dest)
+            message = "Expected status code {} from {}, got {}.".format(code, dest, r.status_code)
+            if r.status_code == code:
+                try:
+                    return True, r.json()
+                except:
+                    # Failed parsing JSON
+                    msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
+                        dest,
+                        r.text
+                    )
+                    return False, msg
+            else:
+                return False, message
+        except requests.exceptions.Timeout:
+            return False, "Connection timeout"
+        except requests.exceptions.TooManyRedirects:
+            return False, "Too many redirects"
+        except requests.exceptions.RequestException as e:
+            return False, str(e)
 
     def checkCleanPatch(self, dest, data, code=200):
         """Checks a PATCH can be made and the resulting json can be parsed"""
@@ -1564,5 +1604,9 @@ class IS0501Test:
                     return False, msg
             else:
                 return False, message
-        except:
-            return False, "Error"
+        except requests.exceptions.Timeout:
+            return False, "Connection timeout"
+        except requests.exceptions.TooManyRedirects:
+            return False, "Too many redirects"
+        except requests.exceptions.RequestException as e:
+            return False, str(e)
