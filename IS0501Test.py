@@ -1027,9 +1027,12 @@ class IS0501Test:
                 pass
             else:
                 return False, rmsg
-            if re.match("^[0-9]+:[0-9]+$", activation) is not None:
-                pass
-            else:
+            try:
+                if re.match("^[0-9]+:[0-9]+$", activation) is not None:
+                    pass
+                else:
+                    return False, amsg
+            except TypeError:
                 return False, amsg
 
             valid2, response2 = self.check_staged_activation_params_default(port, portId)
