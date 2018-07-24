@@ -1,0 +1,5 @@
+flask
+wtforms
+requests
+zeroconf
+jsonschema

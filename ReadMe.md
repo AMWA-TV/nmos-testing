@@ -29,7 +29,6 @@ Python packages:
 - flask 
 - wtforms
 - jsonschema
-- netifaces
 - zeroconf
 - requests
 
