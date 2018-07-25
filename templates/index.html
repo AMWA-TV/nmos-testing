@@ -20,55 +20,54 @@
     <title>NMOS Tests</title>
     <link rel="stylesheet" media="screen" href ="static/css/bootstrap.min.css">
     <link rel="stylesheet" media="screen" href ="static/css/style.css">
+    <script src="static/js/script.js"></script>
     <meta name="viewport" content = "width=device-width, initial-scale=1.0">
 </head>
 <body>
-<h1>NMOS Test</h1>
-<br/>
-<form action="" method='POST'>
-    <div class="input_data">
-        <div class="input dropdown input_data_fld">
-            {{ form.test.label }} {{ form.test }}
-        </div>
-        <div class="input text input_data_fld">
-            {{ form.url.label }} {{ form.url(size="60") }}
-        </div>
-        <br/><br/><br/>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
+    <div id="page">
+        <h1>NMOS Test</h1>
+        <form action="" method='POST'>
+            <div class="input_data">
+                <div class="input dropdown input_data_fld">
+                    {{ form.test.label }} {{ form.test }}
+                </div><br/><br/>
+                <div class="input text input_data_fld">
+                    {{ form.ip.label }} {{ form.ip(size="15") }}
+                </div>
+                <div class="input text input_data_fld">
+                    {{ form.port.label }} {{ form.port(size="5") }}
+                </div>
+                <div class="input dropdown input_data_fld" id="version_select">
+                    {{ form.version.label }} {{ form.version }}
+                </div>
+                <br/>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
 
-        {% for message in messages %}
-            {% if "Error" not in message[1] %}
+                {% for message in messages %}
+                {% if "Error" not in message[1] %}
                 <div class="alert alert-info">
-                <strong>Success! </strong> {{ message[1] }}
+                    <strong>Success! </strong> {{ message[1] }}
                 </div>
-            {% endif %}
+                {% endif %}
 
-            {% if "Error" in message[1] %}
+                {% if "Error" in message[1] %}
                 <div class="alert alert-warning">
-                {{ message[1] }}
+                    {{ message[1] }}
                 </div>
-            {% endif %}
-        {% endfor %}
-            {% endif %}
-        {% endwith %}
-        <br/><br/>
-        <div class="input submit input_data_fld">
-            <input type="submit" id="runbtn" value="Run" onclick="document.getElementById('runbtn').value='Executing test..';document.getElementById('runbtn').className += 'disabled';"/>
-            <div id="description">
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
                 <br/><br/>
-                <p>
-                    Please select a test first and enter the URL to your API as follows:
-                </p>
-                <ul>
-                    <li>NMOS-IS-04-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/node/v1.[0-2]/</li>
-                    <li>NMOS-IS-05-01 (Basic): http://&lt;your_ip&gt;:&lt;your_port&gt;/x-nmos/connection/v1.0/</li>
-                </ul>
+                <div class="input submit input_data_fld">
+                    <input type="submit" id="runbtn" value="Run" onclick="document.getElementById('runbtn').value='Executing test..';document.getElementById('runbtn').className += 'disabled';"/>
+                </div>
             </div>
-        </div>
-    </div>
 
-</form>
-<br>
-</body>
+        </form>
+    </div>
+    <br/>
+    <br>
+    </body>
 </html>

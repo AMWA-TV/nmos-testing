@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from flask import Flask, render_template, flash, request
-from wtforms import Form, validators, StringField, SelectField
+from wtforms import Form, validators, StringField, SelectField, IntegerField
 
 import argparse
 
@@ -28,36 +28,34 @@ NODE_URL = "http://<node_ip>:<node_port>/x-nmos/node/v1.2/"
 
 
 class DataForm(Form):
-    url = StringField("Full URL: ", validators=[validators.DataRequired(message="URL is required"),
-                                                validators.regexp(
-                                                    "http:\/\/(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):[0-9]{1,5}\/x-nmos\/(node\/v1.[0-2]|connection\/v1.0)\/$",
-                                                    message="URL has to be in format: "
-                                                            "http://<ip>:<port>/x-nmos/node/v1.[0-2]/ "
-                                                            "for IS-04 or "
-                                                            "http://<ip>:<port>/x-nmos/connection/v1.0/ "
-                                                            "for IS-05 tests")],
-                      default=NODE_URL)
-    test = SelectField(label="Select test", choices=[("IS-04-01", "IS-04-01: Node"),
-                                                     ("IS-05-01", "IS-05-01: API")])
+    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04-01: Node API"), ("IS-05-01", "IS-05-01: ConnectionMgmt API")])
+    ip = StringField(label="Ip:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
+    port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
+                                                                          message="Please enter a valid port number (0-65535).")])
+    version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
+                                                        ("v1.1", "v1.1"),
+                                                        ("v1.2", "v1.2")])
 
 
 @app.route('/', methods=["GET", "POST"])
 def index_page():
     form = DataForm(request.form)
     if request.method == "POST":
-        url = request.form["url"]
         test = request.form["test"]
+        ip = request.form["ip"]
+        port = request.form["port"]
+        version = request.form["version"]
         if form.validate():
             if test == "IS-04-01":
+                url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
                 test_obj = IS0401Test.IS0401Test(url, QUERY_URL)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=url, test=test, result=result)
-            elif test == "IS-05-01":
+            else:  # test == "IS-05-01"
+                url = "http://{}:{}/x-nmos/connection/{}/".format(ip, str(port), version)
                 test_obj = IS0501Test.IS0501Test(url)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=url, test=test, result=result)
-            else:
-                return render_template("result.html", url=url, test=test, result="UKNOWN")
         else:
             flash("Error: {}".format(form.errors))
 
