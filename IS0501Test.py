@@ -1286,21 +1286,19 @@ class IS0501Test:
             toReturn = []
             try:
                 for entry in constraints:
-                    try:
-                        if "maximum" in entry['destination_port']:
-                            max = entry['destination_port']['maximum']
-                        else:
-                            max = 49151
-                    except KeyError:
-                        return False, "Expected 'maximum' key in 'destination_port' object."
-                    try:
+                    if "enum" in entry['destination_port']:
+                        values = entry['destination_port']['enum']
+                        toReturn.append(values[randint(0, len(values) - 1)])
+                    else:
                         if "minimum" in entry['destination_port']:
                             min = entry['destination_port']['minimum']
                         else:
                             min = 5000
-                    except KeyError:
-                        return False, "Expected 'minimum' key in 'destination_port' object."
-                    toReturn.append(randint(min, max))
+                        if "maximum" in entry['destination_port']:
+                            max = entry['destination_port']['maximum']
+                        else:
+                            max = 49151
+                        toReturn.append(randint(min, max))
                 return True, toReturn
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
