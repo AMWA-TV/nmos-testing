@@ -82,6 +82,7 @@ class IS0501Test:
         self.result = list()
         self.senders = self.get_senders()
         self.receivers = self.get_receivers()
+        self.file_prefix = "file:///" if os.name == "nt" else "file:"
 
     def run_tests(self):
         self.result.append(self.test_01())
@@ -943,7 +944,7 @@ class IS0501Test:
             return False, str(e)
 
         schema = self.load_schema("v1.0-bulk-stage-confirm.json")
-        resolver = RefResolver("file:///" + os.path.join(os.path.dirname(__file__), "schemas") + "/",
+        resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/",
                                schema)
         try:
             Draft4Validator(schema, resolver=resolver).validate(r.json())
@@ -1368,7 +1369,7 @@ class IS0501Test:
             valid, response = self.checkCleanPatch(url, data)
             if valid:
                 schema = self.load_schema("v1.0-" + port + "-response-schema.json")
-                resolver = RefResolver("file:///" + os.path.join(os.path.dirname(__file__), "schemas") + "/",
+                resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/",
                                        schema)
                 try:
                     Draft4Validator(schema, resolver=resolver).validate(response)
@@ -1386,7 +1387,7 @@ class IS0501Test:
             valid, response = self.checkCleanGet(dest)
             if valid:
                 schema = self.load_schema("v1.0_" + port + "_transport_params_rtp.json")
-                resolver = RefResolver("file:///" + os.path.join(os.path.dirname(__file__), "schemas") + "/",
+                resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/",
                                        schema)
                 constraints_valid, constraints_response = self.checkCleanGet("single/" + port + "s/" + myPort + "/constraints/")
                 if constraints_valid:
@@ -1553,7 +1554,7 @@ class IS0501Test:
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response form an endpoint to a schema"""
         schema = self.load_schema(schema)
-        resolver = RefResolver("file:///" + os.path.join(os.path.dirname(__file__), "schemas") + "/", schema)
+        resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/", schema)
         valid, response = self.checkCleanGet(endpoint, status_code)
         if valid:
             try:
