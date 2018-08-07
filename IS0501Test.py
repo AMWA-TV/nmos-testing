@@ -678,7 +678,7 @@ class IS0501Test:
                     pass
                 else:
                     return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+            return test_number, test_description, "Pass", response
         else:
             return test_number, test_description, "N/A", "Not tested. No resources found."
 
@@ -694,7 +694,7 @@ class IS0501Test:
                     pass
                 else:
                     return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+            return test_number, test_description, "Pass", response
         else:
             return test_number, test_description, "N/A", "Not tested. No resources found."
 
@@ -709,7 +709,7 @@ class IS0501Test:
                     pass
                 else:
                     return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+            return test_number, test_description, "Pass", response
         else:
             return test_number, test_description, "N/A", "Not tested. No resources found."
 
@@ -725,7 +725,7 @@ class IS0501Test:
                     pass
                 else:
                     return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+            return test_number, test_description, "Pass", response
         else:
             return test_number, test_description, "N/A", "Not tested. No resources found."
 
@@ -1118,49 +1118,61 @@ class IS0501Test:
             else:
                 return False, amsg
             time.sleep(0.2)
-            # Check the values now on /active
-            valid2, activeParams = self.checkCleanGet(activeUrl)
-            if valid2:
-                for i in range(0, self.get_num_paths(portId, port)):
-                    try:
-                        activePort = activeParams['transport_params'][i]['destination_port']
-                    except KeyError:
-                        return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                      activeUrl,
-                                                                                                                      activeParams)
-                    except TypeError:
-                        return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(activeUrl,
-                                                                                                              i,
-                                                                                                              type(
-                                                                                                              activeParams),
-                                                                                                              activeParams)
-                    try:
-                        stagedPort = stagedParams[i]['destination_port']
-                    except KeyError:
-                        return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                      stagedUrl,
-                                                                                                                      stagedParams)
-                    except TypeError:
-                        return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(stagedUrl,
-                                                                                                              i,
-                                                                                                              type(
-                                                                                                              activeParams),
-                                                                                                              stagedParams)
-                    if stagedPort == activePort:
-                        pass
-                    else:
-                        return False, "Transport parameters did not transition to active during an relative activation"
-                msg = "Activation mode was not set to `activate_scheduled_relative` at {} after a relative activation".format(
-                    activeUrl)
-                try:
-                    if activeParams['activation']['mode'] == "activate_scheduled_relative":
-                        return True, ""
-                    else:
-                        return False, msg
-                except KeyError:
-                    return False, "Expected 'mode' key in 'activation' object."
-            else:
-                return False, activeParams
+
+            retries = 0
+            finished = False
+
+            while retries < 3 and not finished:
+                # Check the values now on /active
+                valid2, activeParams = self.checkCleanGet(activeUrl)
+                if valid2:
+                    for i in range(0, self.get_num_paths(portId, port)):
+                        try:
+                            activePort = activeParams['transport_params'][i]['destination_port']
+                        except KeyError:
+                            return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
+                                                                                                                          activeUrl,
+                                                                                                                          activeParams)
+                        except TypeError:
+                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(activeUrl,
+                                                                                                                  i,
+                                                                                                                  type(
+                                                                                                                      activeParams),
+                                                                                                                  activeParams)
+                        try:
+                            stagedPort = stagedParams[i]['destination_port']
+                        except KeyError:
+                            return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
+                                                                                                                          stagedUrl,
+                                                                                                                          stagedParams)
+                        except TypeError:
+                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(stagedUrl,
+                                                                                                                  i,
+                                                                                                                  type(
+                                                                                                                      activeParams),
+                                                                                                                  stagedParams)
+                        if stagedPort == activePort:
+                            finished = True
+                        else:
+                            retries = retries + 1
+                            time.sleep(0.2)
+
+                    if finished:
+                        try:
+                            if activeParams['activation']['mode'] == "activate_scheduled_relative":
+                                if retries > 0:
+                                    return True, "(Retries: {})".format(str(retries))
+                                else:
+                                    return True, ""
+                            else:
+                                return False, "Activation mode was not set to `activate_scheduled_relative` at {} after a relative activation".format(
+                                    activeUrl)
+                        except KeyError:
+                            return False, "Expected 'mode' key in 'activation' object."
+
+                else:
+                    return False, activeParams
+            return False, "Transport parameters did not transition to active during an relative activation (Retries: {})".format(str(retries))
         else:
             return False, response
 
@@ -1206,50 +1218,61 @@ class IS0501Test:
             except KeyError:
                 return False, "Expected 'activation_time' key in 'activation' object."
             # Allow extra time for processing between getting time and making request
-            time.sleep(2)
-            # Check the values now on /active
-            valid2, activeParams = self.checkCleanGet(activeUrl)
-            if valid2:
-                for i in range(0, self.get_num_paths(portId, port)):
-                    try:
-                        activePort = activeParams['transport_params'][i]['destination_port']
-                    except KeyError:
-                        return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                      activeUrl,
-                                                                                                                      activeParams)
-                    except TypeError:
-                        return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(activeUrl,
-                                                                                                              i,
-                                                                                                              type(
-                                                                                                                  activeParams),
-                                                                                                              activeParams)
-                    try:
-                        stagedPort = stagedParams[i]['destination_port']
-                    except KeyError:
-                        return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                      stagedUrl,
-                                                                                                                      stagedParams)
-                    except TypeError:
-                        return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(stagedUrl,
-                                                                                                              i,
-                                                                                                              type(
-                                                                                                                  activeParams),
-                                                                                                              stagedParams)
-                    if activePort == stagedPort:
-                        pass
-                    else:
-                        return False, "Transport parameters did not transition to active during an absolute activation"
-                msg = "Activation mode was not set to `activate_scheduled_absolute` at {} after a absolute activation".format(
-                    activeUrl)
-                try:
-                    if activeParams['activation']['mode'] == "activate_scheduled_absolute":
-                        return True, ""
-                    else:
-                        return False, msg
-                except KeyError:
-                    return False, "Expected 'mode' key in 'activation' object."
-            else:
-                return False, activeParams
+            time.sleep(1)
+
+            retries = 0
+            finished = False
+
+            while retries < 3 and not finished:
+                # Check the values now on /active
+                valid2, activeParams = self.checkCleanGet(activeUrl)
+                if valid2:
+                    for i in range(0, self.get_num_paths(portId, port)):
+                        try:
+                            activePort = activeParams['transport_params'][i]['destination_port']
+                        except KeyError:
+                            return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
+                                                                                                                          activeUrl,
+                                                                                                                          activeParams)
+                        except TypeError:
+                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(activeUrl,
+                                                                                                                  i,
+                                                                                                                  type(
+                                                                                                                      activeParams),
+                                                                                                                  activeParams)
+                        try:
+                            stagedPort = stagedParams[i]['destination_port']
+                        except KeyError:
+                            return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
+                                                                                                                          stagedUrl,
+                                                                                                                          stagedParams)
+                        except TypeError:
+                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(stagedUrl,
+                                                                                                                  i,
+                                                                                                                  type(
+                                                                                                                      activeParams),
+                                                                                                                  stagedParams)
+                        if activePort == stagedPort:
+                            finished = True
+                        else:
+                            retries = retries + 1
+                            time.sleep(1)
+
+                    if finished:
+                        try:
+                            if activeParams['activation']['mode'] == "activate_scheduled_absolute":
+                                if retries > 0:
+                                    return True, "(Retries: {})".format(str(retries))
+                                else:
+                                    return True, ""
+                            else:
+                                return False, "Activation mode was not set to `activate_scheduled_absolute` at {} after a absolute activation".format(
+                                    activeUrl)
+                        except KeyError:
+                            return False, "Expected 'mode' key in 'activation' object."
+                else:
+                    return False, activeParams
+            return False, "Transport parameters did not transition to active during an absolute activation (Retries: {})".format(str(retries))
         else:
             return False, response
 
