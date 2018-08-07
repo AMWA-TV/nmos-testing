@@ -1180,7 +1180,7 @@ class IS0501Test:
         # request an absolute activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        TAItime = self.getTAITime(0.1)
+        TAItime = self.getTAITime(1)
         data = {"activation": {"mode": "activate_scheduled_absolute", "requested_time": TAItime}}
         valid, response = self.checkCleanPatch(stagedUrl, data, 202)
         if valid:
@@ -1218,7 +1218,7 @@ class IS0501Test:
             except KeyError:
                 return False, "Expected 'activation_time' key in 'activation' object."
             # Allow extra time for processing between getting time and making request
-            time.sleep(1)
+            time.sleep(2)
 
             retries = 0
             finished = False
