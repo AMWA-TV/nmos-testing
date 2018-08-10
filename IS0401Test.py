@@ -88,7 +88,7 @@ class IS0401Test:
                 try:
                     # Get data from queryserver
                     if "id" in r.json():
-                        url2 = "{}nodes/".format(self.query_api_url, r.json()["id"])
+                        url2 = "{}nodes/{}".format(self.query_api_url, r.json()["id"])
                         try:
                             query_data = requests.get(url2)
                             if query_data.status_code == 200:
