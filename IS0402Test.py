@@ -174,6 +174,15 @@ class IS0402Test:
         #TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on either.
 
 
+    def convert_bytes(self, data):
+        if isinstance(data, bytes):
+            return data.decode('ascii')
+        if isinstance(data, dict):
+            return dict(map(self.convert_bytes, data.items()))
+        if isinstance(data, tuple):
+            return map(self.convert_bytes, data)
+        return data
+
     def test_01(self):
         """Registration API advertises correctly via mDNS"""
         test_number = "01"
@@ -189,14 +198,30 @@ class IS0402Test:
             address = socket.inet_ntoa(api.address)
             port = api.port
             if address in self.reg_url and ":{}".format(port) in self.reg_url:
-                properties_raw = api.properties
-                if "pri" not in properties_raw:
+                properties = self.convert_bytes(api.properties)
+                if "pri" not in properties:
                     return test_number, test_description, "Fail", "No 'pri' TXT record found in Registration API advertisement."
+                try:
+                    priority = int(properties["pri"])
+                    if priority < 0:
+                        return test_number, test_description, "Fail", "Priority ('pri') TXT record must be greater than zero."
+                    elif priority >= 100:
+                        return test_number, test_description, "Fail", "Priority ('pri') TXT record must be less than 100 for a production instance."
+                except Exception as e:
+                    return test_number, test_description, "Fail", "Priority ('pri') TXT record is not an integer."
+
+                # Other TXT records only came in for IS-04 v1.1+
                 if self.major_version > 1 or (self.major_version == 1 and self.minor_version > 0):
-                    if "api_ver" not in properties_raw:
+                    if "api_ver" not in properties:
                         return test_number, test_description, "Fail", "No 'api_ver' TXT record found in Registration API advertisement."
-                    if "api_proto" not in properties_raw:
+                    elif "v{}.{}".format(self.major_version, self.minor_version) not in properties["api_ver"].split(","):
+                        return test_number, test_description, "Fail", "Registry does not claim to support version under test."
+
+                    if "api_proto" not in properties:
                         return test_number, test_description, "Fail", "No 'api_proto' TXT record found in Registration API advertisement."
+                    elif properties["api_proto"] != "http":
+                        return test_number, test_description, "Fail", "API protocol is not advertised as 'http'. This test suite does not currently support 'https'."
+
                 return test_number, test_description, "Pass", ""
         return test_number, test_description, "Fail", "No matching mDNS announcement found for Registration API."
 
@@ -215,13 +240,29 @@ class IS0402Test:
             address = socket.inet_ntoa(api.address)
             port = api.port
             if address in self.query_url and ":{}".format(port) in self.query_url:
-                properties_raw = api.properties
-                if "pri" not in properties_raw:
+                properties = self.convert_bytes(api.properties)
+                if "pri" not in properties:
                     return test_number, test_description, "Fail", "No 'pri' TXT record found in Query API advertisement."
+                try:
+                    priority = int(properties["pri"])
+                    if priority < 0:
+                        return test_number, test_description, "Fail", "Priority ('pri') TXT record must be greater than zero."
+                    elif priority >= 100:
+                        return test_number, test_description, "Fail", "Priority ('pri') TXT record must be less than 100 for a production instance."
+                except Exception as e:
+                    return test_number, test_description, "Fail", "Priority ('pri') TXT record is not an integer."
+
+                # Other TXT records only came in for IS-04 v1.1+
                 if self.major_version > 1 or (self.major_version == 1 and self.minor_version > 0):
-                    if "api_ver" not in properties_raw:
+                    if "api_ver" not in properties:
                         return test_number, test_description, "Fail", "No 'api_ver' TXT record found in Query API advertisement."
-                    if "api_proto" not in properties_raw:
+                    elif "v{}.{}".format(self.major_version, self.minor_version) not in properties["api_ver"].split(","):
+                        return test_number, test_description, "Fail", "Registry does not claim to support version under test."
+
+                    if "api_proto" not in properties:
                         return test_number, test_description, "Fail", "No 'api_proto' TXT record found in Query API advertisement."
+                    elif properties["api_proto"] != "http":
+                        return test_number, test_description, "Fail", "API protocol is not advertised as 'http'. This test suite does not currently support 'https'."
+
                 return test_number, test_description, "Pass", ""
         return test_number, test_description, "Fail", "No matching mDNS announcement found for Query API."
