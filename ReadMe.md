@@ -11,9 +11,9 @@ Currently NMOS-IS-04-01 (Basic) and NMOS-IS-05-01 (Basic) tests are integrated.
 ## Usage:
 Required command line parameters:
 
---query_ip: the ip of the query service on which the node is currently registered (RDS) 
+--query_ip: the ip of the query service on which the node is currently registered (RDS)
 
---query_port: the port of the query service on which the node is currently registered (RDS) 
+--query_port: the port of the query service on which the node is currently registered (RDS)
 
 e.g. python nmos-test.py --query_ip=172.56.123.5 --query-port=4480
 
@@ -27,9 +27,10 @@ Tested with Firefox 58 and Chrome 63.
 - Python3
 
 Python packages:
-- flask 
+- flask
 - wtforms
 - jsonschema
 - zeroconf
 - requests
-
+- gitpython
+- ramlifications

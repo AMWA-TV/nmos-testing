@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import Flask, render_template, flash, request
+from flask import Flask, render_template, flash, request, jsonify
 from wtforms import Form, validators, StringField, SelectField, IntegerField
 
-import argparse
+import git
+import os
+import time
 
 import IS0401Test
+import IS0402Test
 import IS0501Test
 
 app = Flask(__name__)
@@ -25,10 +28,11 @@ app.debug = True
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 
 NODE_URL = "http://<node_ip>:<node_port>/x-nmos/node/v1.2/"
-
+CACHE_PATH = 'cache'
 
 class DataForm(Form):
-    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04-01: Node API"), ("IS-05-01", "IS-05-01: ConnectionMgmt API")])
+    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04-01: Node"), ("IS-04-02", "IS-04-02: Registry"), ("IS-05-01", "IS-05-01: ConnectionMgmt API")])
+    #TODO: Potentially add a mixed IS-04/05 test for where they cross over
     ip = StringField(label="Ip:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
                                                                           message="Please enter a valid port number (0-65535).")])
@@ -36,7 +40,49 @@ class DataForm(Form):
                                                         ("v1.1", "v1.1"),
                                                         ("v1.2", "v1.2")])
 
+class Registry(object):
+    def __init__(self):
+        self.last_time = 0
+        self.last_hb_time = 0
+        self.data = []
+        self.heartbeats = []
 
+    def reset(self):
+        self.last_time = time.time()
+        self.last_hb_time = 0
+        self.data = []
+        self.heartbeats = []
+
+    def add(self, headers, payload):
+        self.last_time = time.time()
+        self.data.append((self.last_time, {"headers": headers, "payload": payload}))
+
+    def heartbeat(self, headers, payload, node_id):
+        self.last_hb_time = time.time()
+        self.heartbeats.append((self.last_hb_time, {"headers": headers, "payload": payload, "node_id": node_id}))
+
+    def get_data(self):
+        return self.data
+
+    def get_heartbeats(self):
+        return self.heartbeats
+
+REGISTRY = Registry()
+
+# IS-04 resources
+@app.route('/x-nmos/registration/v1.2/resource', methods=["POST"])
+def reg_page():
+    REGISTRY.add(request.headers, request.json)
+    #TODO: Ensure status code returned is correct
+    return jsonify(request.json["data"])
+
+@app.route('/x-nmos/registration/v1.2/health/nodes/<node_id>', methods=["POST"])
+def heartbeat(node_id):
+    REGISTRY.heartbeat(request.headers, request.json, node_id)
+    #TODO: Ensure status code returned is correct
+    return jsonify({"health": int(time.time())})
+
+# Index page
 @app.route('/', methods=["GET", "POST"])
 def index_page():
     form = DataForm(request.form)
@@ -48,9 +94,15 @@ def index_page():
         if form.validate():
             if test == "IS-04-01":
                 url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
-                test_obj = IS0401Test.IS0401Test(url, QUERY_URL)
+                test_obj = IS0401Test.IS0401Test(url, REGISTRY)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=url, test=test, result=result)
+            elif test == "IS-04-02":
+                reg_url = "http://{}:{}/x-nmos/registration/{}/".format(ip, str(port), version)
+                query_url = "http://{}:{}/x-nmos/query/{}/".format(ip, str(port), version)
+                test_obj = IS0402Test.IS0402Test(reg_url, query_url)
+                result = test_obj.run_tests()
+                return render_template("result.html", url=query_url, test=test, result=result)
             else:  # test == "IS-05-01"
                 url = "http://{}:{}/x-nmos/connection/{}/".format(ip, str(port), version)
                 test_obj = IS0501Test.IS0501Test(url)
@@ -63,9 +115,25 @@ def index_page():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Riedel NMOS Interop Test Tool")
-    parser.add_argument("--query_ip", help="String. IPv4 address of the query service (RDS).", required=True)
-    parser.add_argument("--query_port", help="Integer. Port of the query service (RDS).", required=True)
-    args = parser.parse_args()
-    QUERY_URL = "http://{}:{}/x-nmos/query".format(args.query_ip, args.query_port)
-    app.run(host='0.0.0.0')
+    print(" * Initialising specification repositories...")
+
+    if not os.path.exists(CACHE_PATH):
+        os.makedirs(CACHE_PATH)
+
+    repositories = [('is-04', 'nmos-discovery-registration'),
+                    ('is-05', 'nmos-device-connection-management'),
+                    ('is-06', 'nmos-network-control')]
+    for repo_data in repositories:
+        path = os.path.join(CACHE_PATH + '/' + repo_data[0])
+        if not os.path.exists(path):
+            repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data[1] + '.git', path)
+        else:
+            repo = git.Repo(path)
+            repo.git.reset('--hard')
+            #repo.remotes.origin.pull() # TODO: Uncomment for production use
+
+    #TODO: Join 224.0.1.129 briefly and capture some announce messages
+
+    print(" * Initialisation complete")
+
+    app.run(host='0.0.0.0', threaded=True)
