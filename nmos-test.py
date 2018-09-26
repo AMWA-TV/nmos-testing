@@ -19,6 +19,7 @@ import git
 import os
 import time
 
+import Generic
 import IS0401Test
 import IS0402Test
 import IS0501Test
@@ -31,7 +32,7 @@ NODE_URL = "http://<node_ip>:<node_port>/x-nmos/node/v1.2/"
 CACHE_PATH = 'cache'
 
 class DataForm(Form):
-    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04-01: Node"), ("IS-04-02", "IS-04-02: Registry"), ("IS-05-01", "IS-05-01: ConnectionMgmt API")])
+    test = SelectField(label="Select test:", choices=[("Generic", "IS-04 Generic Tests"), ("IS-04-01", "IS-04-01: Node"), ("IS-04-02", "IS-04-02: Registry"), ("IS-05-01", "IS-05-01: ConnectionMgmt API")])
     #TODO: Potentially add a mixed IS-04/05 test for where they cross over
     ip = StringField(label="Ip:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
@@ -92,7 +93,12 @@ def index_page():
         port = request.form["port"]
         version = request.form["version"]
         if form.validate():
-            if test == "IS-04-01":
+            if test == "Generic":
+                url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
+                test_obj = Generic.Generic(url)
+                result = test_obj.run_tests()
+                return render_template("result.html", url=url, test=test, result=result)
+            elif test == "IS-04-01":
                 url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
                 test_obj = IS0401Test.IS0401Test(url, REGISTRY)
                 result = test_obj.run_tests()

@@ -59,15 +59,15 @@ class Specification(object):
                         resource_data['body'] = self.deref_schema(os.path.dirname(file_path), schema=attr.raw)
                         break
             for response in resource.responses:
-                resource_data[response.code] = None
+                resource_data["responses"][response.code] = None
                 if response.body:
                     for entry in response.body:
                         if isinstance(entry.schema, dict):
-                            resource_data[response.code] = self.deref_schema(os.path.dirname(file_path), schema=entry.schema)
+                            resource_data["responses"][response.code] = self.deref_schema(os.path.dirname(file_path), schema=entry.schema)
                         elif entry.schema in self.global_schemas:
-                            resource_data[response.code] = self.deref_schema(os.path.dirname(file_path), schema=self.global_schemas[entry.schema])
+                            resource_data["responses"][response.code] = self.deref_schema(os.path.dirname(file_path), schema=self.global_schemas[entry.schema])
                         else:
-                            resource_data[response.code] = None
+                            resource_data["responses"][response.code] = None
                         break
             self.data[resource.path] = resource_data
 
@@ -119,13 +119,13 @@ class Specification(object):
     def get_reads(self):
         resources = []
         for resource in self.data:
-            if resource['method'] in ['get', 'head', 'options']:
-                resources.append(resource)
+            if self.data[resource]['method'] in ['get', 'head', 'options']:
+                resources.append((resource, self.data[resource]))
         return resources
 
     def get_writes(self):
         resources = []
         for resource in self.data:
-            if resource['method'] in ['post', 'put', 'patch', 'delete']:
-                resources.append(resource)
+            if self.data[resource]['method'] in ['post', 'put', 'patch', 'delete']:
+                resources.append((resource, self.data[resource]))
         return resources
