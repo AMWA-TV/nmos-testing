@@ -69,6 +69,23 @@ class Specification(object):
                         break
             self.data[resource.path] = resource_data
 
+    def deref_schema(self, name, dir):
+        def process(obj):
+            if isinstance(obj, dict):
+                if len(obj) == 1 and "$ref" in obj:
+                    return self.deref_schema(obj['$ref'], dir)
+                return {k: process(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [process(x) for x in obj]
+            else:
+                return obj
+
+        local = {}
+        filename = "{}/{}".format(dir, name)
+        with open(filename, 'r') as fh:
+            local = process(json.load(fh))
+        return local
+
     def get_path(self, path):
         path_parts = path.split('/')
         for resource in self.data:
