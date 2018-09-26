@@ -1,3 +1,6 @@
+>**Work in Progress!!** We intend to contribute this back under the AMWA GitHub organisation once it reaches an initial usable state.
+
+
 # Riedel NMOS Test Tool
 
 This tool creates a simple web service to test against the JTNM February 2018 "Dirty Hands" NMOS checklist.
