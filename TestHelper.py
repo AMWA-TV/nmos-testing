@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import ramlfications
+import os
+import json
 
 def ordered(obj):
     if isinstance(obj, dict):
@@ -54,26 +56,26 @@ class Specification(object):
             if resource.body is not None:
                 for attr in resource.body:
                     if attr.mime_type == "schema":
-                        resource_data['body'] = attr.raw
+                        resource_data['body'] = self.deref_schema(os.path.dirname(file_path), schema=attr.raw)
                         break
             for response in resource.responses:
                 resource_data[response.code] = None
                 if response.body:
                     for entry in response.body:
                         if isinstance(entry.schema, dict):
-                            resource_data[response.code] = entry.schema
+                            resource_data[response.code] = self.deref_schema(os.path.dirname(file_path), schema=entry.schema)
                         elif entry.schema in self.global_schemas:
-                            resource_data[response.code] = self.global_schemas[entry.schema]
+                            resource_data[response.code] = self.deref_schema(os.path.dirname(file_path), schema=self.global_schemas[entry.schema])
                         else:
                             resource_data[response.code] = None
                         break
             self.data[resource.path] = resource_data
 
-    def deref_schema(self, name, dir):
+    def deref_schema(self, dir, name=None, schema=None):
         def process(obj):
             if isinstance(obj, dict):
                 if len(obj) == 1 and "$ref" in obj:
-                    return self.deref_schema(obj['$ref'], dir)
+                    return self.deref_schema(dir, name=obj['$ref'])
                 return {k: process(v) for k, v in obj.items()}
             elif isinstance(obj, list):
                 return [process(x) for x in obj]
@@ -81,10 +83,13 @@ class Specification(object):
                 return obj
 
         local = {}
-        filename = "{}/{}".format(dir, name)
-        with open(filename, 'r') as fh:
-            local = process(json.load(fh))
-        return local
+        if name:
+            filename = "{}/{}".format(dir, name)
+            with open(filename, 'r') as fh:
+                local = process(json.load(fh))
+            return local
+        else:
+            return process(schema)
 
     def get_path(self, path):
         path_parts = path.split('/')
