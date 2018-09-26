@@ -45,15 +45,27 @@ class Specification(object):
     def __init__(self, file_path):
         self.data = {}
         api_raml = ramlfications.parse(file_path, "config.ini")
+        self.global_schemas = api_raml.schemas[0]
         for resource in api_raml.resources:
             resource_data = {'method': resource.method,
                              'params': resource.uri_params,
+                             'body': None,
                              'responses': {}}
+            if resource.body is not None:
+                for attr in resource.body:
+                    if attr.mime_type == "schema":
+                        resource_data['body'] = attr.raw
+                        break
             for response in resource.responses:
                 resource_data[response.code] = None
                 if response.body:
                     for entry in response.body:
-                        resource_data[response.code] = entry.schema
+                        if isinstance(entry.schema, dict):
+                            resource_data[response.code] = entry.schema
+                        elif entry.schema in self.global_schemas:
+                            resource_data[response.code] = self.global_schemas[entry.schema]
+                        else:
+                            resource_data[response.code] = None
                         break
             self.data[resource.path] = resource_data
 
