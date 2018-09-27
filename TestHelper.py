@@ -19,6 +19,9 @@ import git
 import ramlfications
 import jsonschema
 
+# TODO: Consider whether to set Accept headers? If we don't set them we expect APIs to default to application/json
+# unless told otherwise. Is this part of the spec?
+
 
 class GenericTest(object):
     """
