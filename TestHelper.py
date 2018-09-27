@@ -97,10 +97,39 @@ class GenericTest(object):
 #       interactions
 
     def test_basics(self):
-        # TODO: Check the /, x-nmos/ and x-nmos/node/ locations too...
         results = []
 
         for api in self.apis:
+            test = Test("GET /")
+            req = requests.get(self.base_url)
+            if req.status_code != 200:
+                results.append(test.FAIL("Incorrect response code: {}".format(req.status_code)))
+            elif not self.validate_CORS('GET', req):
+                results.append(test.FAIL("Incorrect CORS headers: {}".format(req.headers)))
+                # TODO: Check the response is JSON and correct
+            else:
+                results.append(test.PASS())
+
+            test = Test("GET /x-nmos")
+            req = requests.get(self.base_url + "/x-nmos")
+            if req.status_code != 200:
+                results.append(test.FAIL("Incorrect response code: {}".format(req.status_code)))
+            elif not self.validate_CORS('GET', req):
+                results.append(test.FAIL("Incorrect CORS headers: {}".format(req.headers)))
+                # TODO: Check the response is JSON and correct
+            else:
+                results.append(test.PASS())
+
+            test = Test("GET /x-nmos/{}".format(api))
+            req = requests.get(self.base_url + "/x-nmos/" + api)
+            if req.status_code != 200:
+                results.append(test.FAIL("Incorrect response code: {}".format(req.status_code)))
+            elif not self.validate_CORS('GET', req):
+                results.append(test.FAIL("Incorrect CORS headers: {}".format(req.headers)))
+                # TODO: Check the response is JSON and correct
+            else:
+                results.append(test.PASS())
+
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
                     # TODO: Handle cases where we have params by checking at least one active ID
