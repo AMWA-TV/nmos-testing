@@ -115,7 +115,7 @@ def index_page():
                 spec_versions = ["v1.0"]
                 spec_path = 'cache/is-05'
 
-                test_obj = IS0501Test.IS0501Test(apis["connection"]["url"])
+                test_obj = IS0501Test.IS0501Test(base_url, apis, spec_versions, version, spec_path)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-06-01":

@@ -25,6 +25,8 @@ from jsonschema import ValidationError, SchemaError, RefResolver, Draft4Validato
 from random import randint
 
 import TestHelper
+from TestHelper import Test
+from Generic import GenericTest
 
 SCHEMA_LOCAL = "schemas/"
 HEADERS = {'Content-Type': 'application/json'}
@@ -69,67 +71,103 @@ UTC_LEAP = [
 ]
 
 
-class IS0501Test:
+class IS0501Test(GenericTest):
     """
     Runs IS-05-01-Test
-    Result-format:
-
-    #TestNumber#    #TestDescription#   #Succeeded?#    #Reason#
     """
 
-    def __init__(self, url):
-        self.url = url
-        self.result = list()
+    def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
+        GenericTest.__init__(self, base_url, apis, spec_versions, test_version, spec_path)
+        self.url = self.apis["connection"]["url"]
         self.senders = self.get_senders()
         self.receivers = self.get_receivers()
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
 
-    def run_tests(self):
-        self.result.append(self.test_01())
-        self.result.append(self.test_02())
-        self.result.append(self.test_03())
-        self.result.append(self.test_04())
-        self.result.append(self.test_05())
-        self.result.append(self.test_06())
-        self.result.append(self.test_07())
-        self.result.append(self.test_08())
-        self.result.append(self.test_09())
-        self.result.append(self.test_10())
-        self.result.append(self.test_11())
-        self.result.append(self.test_12())
-        self.result.append(self.test_13())
-        self.result.append(self.test_14())
-        self.result.append(self.test_15())
-        self.result.append(self.test_16())
-        self.result.append(self.test_17())
-        self.result.append(self.test_18())
-        self.result.append(self.test_19())
-        self.result.append(self.test_20())
-        self.result.append(self.test_21())
-        self.result.append(self.test_22())
-        self.result.append(self.test_23())
-        self.result.append(self.test_24())
-        self.result.append(self.test_25())
-        self.result.append(self.test_26())
-        self.result.append(self.test_27())
-        self.result.append(self.test_28())
-        self.result.append(self.test_29())
-        self.result.append(self.test_30())
-        self.result.append(self.test_31())
-        self.result.append(self.test_32())
-        self.result.append(self.test_33())
-        self.result.append(self.test_34())
-        self.result.append(self.test_35())
-        self.result.append(self.test_36())
-        self.result.append(self.test_37())
-        self.result.append(self.test_38())
-        self.result.append(self.test_39())
-        return self.result
+    def execute_tests(self):
+        super(IS0501Test, self).execute_tests()
+        test_number = len(self.result) + 1
+        self.result.append([test_number] + self.test_01())
+        test_number += 1
+        self.result.append([test_number] + self.test_02())
+        test_number += 1
+        self.result.append([test_number] + self.test_03())
+        test_number += 1
+        self.result.append([test_number] + self.test_04())
+        test_number += 1
+        self.result.append([test_number] + self.test_05())
+        test_number += 1
+        self.result.append([test_number] + self.test_06())
+        test_number += 1
+        self.result.append([test_number] + self.test_07())
+        test_number += 1
+        self.result.append([test_number] + self.test_08())
+        test_number += 1
+        self.result.append([test_number] + self.test_09())
+        test_number += 1
+        self.result.append([test_number] + self.test_10())
+        test_number += 1
+        self.result.append([test_number] + self.test_11())
+        test_number += 1
+        self.result.append([test_number] + self.test_12())
+        test_number += 1
+        self.result.append([test_number] + self.test_13())
+        test_number += 1
+        self.result.append([test_number] + self.test_14())
+        test_number += 1
+        self.result.append([test_number] + self.test_15())
+        test_number += 1
+        self.result.append([test_number] + self.test_16())
+        test_number += 1
+        self.result.append([test_number] + self.test_17())
+        test_number += 1
+        self.result.append([test_number] + self.test_18())
+        test_number += 1
+        self.result.append([test_number] + self.test_19())
+        test_number += 1
+        self.result.append([test_number] + self.test_20())
+        test_number += 1
+        self.result.append([test_number] + self.test_21())
+        test_number += 1
+        self.result.append([test_number] + self.test_22())
+        test_number += 1
+        self.result.append([test_number] + self.test_23())
+        test_number += 1
+        self.result.append([test_number] + self.test_24())
+        test_number += 1
+        self.result.append([test_number] + self.test_25())
+        test_number += 1
+        self.result.append([test_number] + self.test_26())
+        test_number += 1
+        self.result.append([test_number] + self.test_27())
+        test_number += 1
+        self.result.append([test_number] + self.test_28())
+        test_number += 1
+        self.result.append([test_number] + self.test_29())
+        test_number += 1
+        self.result.append([test_number] + self.test_30())
+        test_number += 1
+        self.result.append([test_number] + self.test_31())
+        test_number += 1
+        self.result.append([test_number] + self.test_32())
+        test_number += 1
+        self.result.append([test_number] + self.test_33())
+        test_number += 1
+        self.result.append([test_number] + self.test_34())
+        test_number += 1
+        self.result.append([test_number] + self.test_35())
+        test_number += 1
+        self.result.append([test_number] + self.test_36())
+        test_number += 1
+        self.result.append([test_number] + self.test_37())
+        test_number += 1
+        self.result.append([test_number] + self.test_38())
+        test_number += 1
+        self.result.append([test_number] + self.test_39())
+        test_number += 1
 
     def test_01(self):
         """Api root matches the spec"""
-        test_number = "01"
-        test_description = "Api root matches the spec"
+        test = Test("Api root matches the spec")
         expected = ["single/", "bulk/"]
         dest = ""
         valid, result = self.checkCleanGet(dest)
@@ -137,16 +175,15 @@ class IS0501Test:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
                 .format(dest, result)
             if TestHelper.compare_json(expected, result):
-                return test_number, test_description, "Pass", ""
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", msg
+                return test.FAIL(msg)
         else:
-            return test_number, test_description, "Fail", result
+            return test.FAIL(result)
 
     def test_02(self):
         """Single endpoint root matches the spec"""
-        test_number = "02"
-        test_description = "Single endpoint root matches the spec"
+        test = Test("Single endpoint root matches the spec")
         expected = ["receivers/", "senders/"]
         dest = "single/"
         valid, result = self.checkCleanGet(dest)
@@ -154,16 +191,15 @@ class IS0501Test:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
                 .format(dest, result)
             if TestHelper.compare_json(expected, result):
-                return test_number, test_description, "Pass", ""
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", msg
+                return test.FAIL(msg)
         else:
-            return test_number, test_description, "Fail", result
+            return test.FAIL(result)
 
     def test_03(self):
         """Root of /single/senders/ matches the spec"""
-        test_number = "03"
-        test_description = "Root of /single/senders/ matches the spec"
+        test = Test("Root of /single/senders/ matches the spec")
         dest = "single/senders/"
         valid, response = self.checkCleanGet(dest)
         smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
@@ -179,21 +215,20 @@ class IS0501Test:
                                 uuid.UUID(value[:-1])
                             except ValueError:
                                 # Found something that isn't a valid UUID
-                                return test_number, test_description, "Fail", umsg
+                                return test.FAIL(umsg)
                         else:
-                            return test_number, test_description, "Fail", smsg
-                    return test_number, test_description, "Pass", ""
+                            return test.FAIL(smsg)
+                    return test.PASS()
                 else:
-                    return test_number, test_description, "N/A", "Not tested. No resources found."
+                    return test.NA("Not tested. No resources found.")
             else:
-                return test_number, test_description, "Fail", amsg
+                return test.FAIL(amsg)
         else:
-            return test_number, test_description, "Fail", response
+            return test.FAIL(response)
 
     def test_04(self):
         """Root of /single/receivers/ matches the spec"""
-        test_number = "04"
-        test_description = "Root of /single/receivers/ matches the spec"
+        test = Test("Root of /single/receivers/ matches the spec")
         dest = "single/receivers/"
         valid, response = self.checkCleanGet(dest)
         smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
@@ -209,21 +244,20 @@ class IS0501Test:
                                 uuid.UUID(value[:-1])
                             except ValueError:
                                 # Found something that isn't a valid UUID
-                                return test_number, test_description, "Fail", umsg
+                                return test.FAIL(umsg)
                         else:
-                            return test_number, test_description, "Fail", smsg
-                    return test_number, test_description, "Pass", ""
+                            return test.FAIL(smsg)
+                    return test.PASS()
                 else:
-                    return test_number, test_description, "N/A", "Not tested. No resources found."
+                    return test.NA("Not tested. No resources found.")
             else:
-                return test_number, test_description, "Fail", amsg
+                return test.FAIL(amsg)
         else:
-            return test_number, test_description, "Fail", response
+            return test.FAIL(response)
 
     def test_05(self):
         """Index of /single/senders/<uuid>/ matches the spec"""
-        test_number = "05"
-        test_description = "Index of /single/senders/<uuid>/ matches the spec"
+        test = Test("Index of /single/senders/<uuid>/ matches the spec")
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/"
@@ -239,17 +273,16 @@ class IS0501Test:
                     if TestHelper.compare_json(expected, response):
                         pass
                     else:
-                        return test_number, test_description, "Fail", msg
+                        return test.FAIL(msg)
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_06(self):
         """Index of /single/receivers/<uuid>/ matches the spec"""
-        test_number = "06"
-        test_description = "Index of /single/receivers/<uuid>/ matches the spec"
+        test = Test("Index of /single/receivers/<uuid>/ matches the spec")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/"
@@ -264,17 +297,16 @@ class IS0501Test:
                     if TestHelper.compare_json(expected, response):
                         pass
                     else:
-                        return test_number, test_description, "Fail", msg
+                        return test.FAIL(msg)
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_07(self):
         """Return of /single/senders/<uuid>/constraints/ meets the schema"""
-        test_number = "07"
-        test_description = "Return of /single/senders/<uuid>/constraints/ meets the schema"
+        test = Test("Return of /single/senders/<uuid>/constraints/ meets the schema")
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/constraints/"
@@ -282,15 +314,14 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", msg
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(msg)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_08(self):
         """Return of /single/receivers/<uuid>/constraints/ meets the schema"""
-        test_number = "08"
-        test_description = "Return of /single/receivers/<uuid>/constraints/ meets the schema"
+        test = Test("Return of /single/receivers/<uuid>/constraints/ meets the schema")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/constraints/"
@@ -298,47 +329,44 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", msg
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(msg)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_09(self):
         """All params listed in /single/senders/<uuid>/constraints/ matches /staged/ and /active/"""
-        test_number = "09"
-        test_description = "All params listed in /single/senders/<uuid>/constraints/ matches /staged/ and /active/"
+        test = Test("All params listed in /single/senders/<uuid>/constraints/ matches /staged/ and /active/")
         if len(self.senders) > 0:
             valid, response = self.check_params_match("senders", self.senders)
             if valid:
-                return test_number, test_description, "Pass", ""
+                return test.PASS()
             else:
                 if "Not tested. No resources found." in response:
-                    return test_number, test_description, "N/A", response
+                    return test.NA(response)
                 else:
-                    return test_number, test_description, "Fail", response
+                    return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_10(self):
         """All params listed in /single/receivers/<uuid>/constraints/ matches /staged/ and /active/"""
-        test_number = "10"
-        test_description = "All params listed in /single/receivers/<uuid>/constraints/ matches /staged/ and /active/"
+        test = Test("All params listed in /single/receivers/<uuid>/constraints/ matches /staged/ and /active/")
         if len(self.receivers) > 0:
             valid, response = self.check_params_match("receivers", self.receivers)
             if valid:
-                return test_number, test_description, "Pass", ""
+                return test.PASS()
             else:
                 if "Not tested. No resources found." in response:
-                    return test_number, test_description, "N/A", response
+                    return test.NA(response)
                 else:
-                    return test_number, test_description, "Fail", response
+                    return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_11(self):
         """Senders are using valid combination of parameters"""
-        test_number = "11"
-        test_description = "Senders are using valid combination of parameters"
+        test = Test("Senders are using valid combination of parameters")
 
         generalParams = ['source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode', 'fec_type',
@@ -367,24 +395,22 @@ class IS0501Test:
                             elif sorted(params) == sorted(combinedParams):
                                 pass
                             else:
-                                return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
+                                return test.FAIL("Invalid combination of parameters on constraints endpoint.")
                         else:
-                            return test_number, test_description, "Fail", "Invalid response: {}".format(response)
+                            return test.FAIL("Invalid response: {}".format(response))
                     else:
-                        return test_number, test_description, "Fail", response
+                        return test.FAIL(response)
                 except IndexError:
-                    return test_number, test_description, "Fail", "Expected an array from {}, got {}".format(dest, response)
+                    return test.FAIL("Expected an array from {}, got {}".format(dest, response))
                 except AttributeError:
-                    return test_number, test_description, "Fail", "Expected constraints array at {} to contain dicts, got {}".format(
-                        dest, response)
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_12(self):
         """Receiver are using valid combination of parameters"""
-        test_number = "12"
-        test_description = "Receiver are using valid combination of parameters"
+        test = Test("Receiver are using valid combination of parameters")
 
         generalParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode',
@@ -411,24 +437,22 @@ class IS0501Test:
                             elif sorted(params) == sorted(combinedParams):
                                 pass
                             else:
-                                return test_number, test_description, "Fail", "Invalid combination of parameters on constraints endpoint."
+                                return test.FAIL("Invalid combination of parameters on constraints endpoint.")
                         else:
-                            return test_number, test_description, "Fail", "Invalid response: {}".format(response)
+                            return test.FAIL("Invalid response: {}".format(response))
                     else:
-                        return test_number, test_description, "Fail", response
+                        return test.FAIL(response)
                 except IndexError:
-                    return test_number, test_description, "Fail", "Expected an array from {}, got {}".format(dest, response)
+                    return test.FAIL("Expected an array from {}, got {}".format(dest, response))
                 except AttributeError:
-                    return test_number, test_description, "Fail", "Expected constraints array at {} to contain dicts, got {}".format(
-                        dest, response)
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_13(self):
         """Return of /single/senders/<uuid>/staged/ meets the schema"""
-        test_number = "13"
-        test_description = "Return of /single/senders/<uuid>/staged/ meets the schema"
+        test = Test("Return of /single/senders/<uuid>/staged/ meets the schema")
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/staged/"
@@ -436,15 +460,14 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", msg
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(msg)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_14(self):
         """Return of /single/receivers/<uuid>/staged/ meets the schema"""
-        test_number = "14"
-        test_description = "Return of /single/receivers/<uuid>/staged/ meets the schema"
+        test = Test("Return of /single/receivers/<uuid>/staged/ meets the schema")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/staged/"
@@ -452,93 +475,86 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", msg
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(msg)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_15(self):
         """Staged parameters for senders comply with constraints"""
-        test_number = "15"
-        test_description = "Staged parameters for senders comply with constraints"
+        test = Test("Staged parameters for senders comply with constraints")
         if len(self.senders) > 0:
             valid, response = self.check_staged_complies_with_constraints("sender", self.senders)
             if valid:
-                return test_number, test_description, "Pass"
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_16(self):
         """Staged parameters for receivers comply with constraints"""
-        test_number = "16"
-        test_description = "Staged parameters for receivers comply with constraints"
+        test = Test("Staged parameters for receivers comply with constraints")
         if len(self.receivers) > 0:
             valid, response = self.check_staged_complies_with_constraints("receiver", self.receivers)
             if valid:
-                return test_number, test_description, "Pass"
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_17(self):
         """Sender patch response schema is valid"""
-        test_number = "17"
-        test_description = "Sender patch response schema is valid"
+        test = Test("Sender patch response schema is valid")
         if len(self.senders) > 0:
             valid, response = self.check_patch_response_schema_valid("sender", self.senders)
             if valid:
-                return test_number, test_description, "Pass"
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_18(self):
         """Receiver patch response schema is valid"""
-        test_number = "18"
-        test_description = "Receiver patch response schema is valid"
+        test = Test("Receiver patch response schema is valid")
         if len(self.receivers) > 0:
             valid, response = self.check_patch_response_schema_valid("receiver", self.receivers)
             if valid:
-                return test_number, test_description, "Pass"
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_19(self):
         """Sender invalid patch is refused"""
-        test_number = "19"
-        test_description = "Sender invalid patch is refused"
+        test = Test("Sender invalid patch is refused")
         if len(self.senders) > 0:
             valid, response = self.check_refuses_invalid_patch("sender", self.senders)
             if valid:
-                return test_number, test_description, "Pass"
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_20(self):
         """Receiver invalid patch is refused"""
-        test_number = "20"
-        test_description = "Receiver invalid patch is refused"
+        test = Test("Receiver invalid patch is refused")
         if len(self.receivers) > 0:
             valid, response = self.check_refuses_invalid_patch("receiver", self.receivers)
             if valid:
-                return test_number, test_description, "Pass"
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_21(self):
         """Sender id on staged receiver is changeable"""
-        test_number = "21"
-        test_description = "Sender id on staged receiver is changeable"
+        test = Test("Sender id on staged receiver is changeable")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 url = "single/receivers/" + receiver + "/staged"
@@ -554,22 +570,20 @@ class IS0501Test:
                             if senderId == id:
                                 pass
                             else:
-                                return test_number, test_description, "Fail", msg
+                                return test.FAIL(msg)
                         except KeyError:
-                            return test_number, test_description, "Fail", "Did not find sender_id in response from {}" \
-                                .format(url)
+                            return test.FAIL("Did not find sender_id in response from {}".format(url))
                     else:
-                        return test_number, test_description, "Fail", response2
+                        return test.FAIL(response2)
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_22(self):
         """Receiver id on staged sender is changeable"""
-        test_number = "22"
-        test_description = "Receiver id on staged sender is changeable"
+        test = Test("Receiver id on staged sender is changeable")
         if len(self.senders) > 0:
             for sender in self.senders:
                 url = "single/senders/" + sender + "/staged"
@@ -585,22 +599,20 @@ class IS0501Test:
                             if receiverId == id:
                                 pass
                             else:
-                                return test_number, test_description, "Fail", msg
+                                return test.FAIL(msg)
                         except KeyError:
-                            return test_number, test_description, "Fail", "Did not find receiver_id in response from {}" \
-                                .format(url)
+                            return test.FAIL("Did not find receiver_id in response from {}".format(url))
                     else:
-                        return test_number, test_description, "Fail", response2
+                        return test.FAIL(response2)
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_23(self):
         """Sender transport parameters are changeable"""
-        test_number = "23"
-        test_description = "Sender transport parameters are changeable"
+        test = Test("Sender transport parameters are changeable")
         if len(self.senders) > 0:
             for sender in self.senders:
                 valid, values = self.generate_destination_ports("sender", sender)
@@ -610,17 +622,16 @@ class IS0501Test:
                     if valid2:
                         pass
                     else:
-                        return test_number, test_description, "Fail", response2
+                        return test.FAIL(response2)
                 else:
-                    return test_number, test_description, "Fail", values
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(values)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_24(self):
         """Receiver transport parameters are changeable"""
-        test_number = "24"
-        test_description = "Receiver transport parameters are changeable"
+        test = Test("Receiver transport parameters are changeable")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 valid, values = self.generate_destination_ports("receiver", receiver)
@@ -630,62 +641,58 @@ class IS0501Test:
                     if valid2:
                         pass
                     else:
-                        return test_number, test_description, "Fail", response2
+                        return test.FAIL(response2)
                 else:
-                    return test_number, test_description, "Fail", values
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(values)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_25(self):
         """Immediate activation of a sender is possible"""
-        test_number = "25"
-        test_description = "Immediate activation of a sender is possible"
+        test = Test("Immediate activation of a sender is possible")
         if len(self.senders) > 0:
             for sender in self.senders:
                 valid, response = self.check_activation("sender", sender, self.check_perform_immediate_activation)
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_26(self):
         """Immediate activation of a receiver is possible"""
-        test_number = "26"
-        test_description = "Immediate activation of a receiver is possible"
+        test = Test("Immediate activation of a receiver is possible")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 valid, response = self.check_activation("receiver", receiver, self.check_perform_immediate_activation)
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_27(self):
         """Relative activation of a sender is possible"""
-        test_number = "27"
-        test_description = "Relative activation of a sender is possible"
+        test = Test("Relative activation of a sender is possible")
         if len(self.senders) > 0:
             for sender in self.senders:
                 valid, response = self.check_activation("sender", sender, self.check_perform_relative_activation)
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", response
+                    return test.FAIL(response)
+            return test.PASS(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_28(self):
         """Relative activation of a receiver is possible"""
-        test_number = "28"
-        test_description = "Relative activation of a receiver is possible"
+        test = Test("Relative activation of a receiver is possible")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 valid, response = self.check_activation("receiver", receiver,
@@ -693,30 +700,28 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", response
+                    return test.FAIL(response)
+            return test.PASS(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_29(self):
         """Absolute activation of a sender is possible"""
-        test_number = "29"
-        test_description = "Absolute activation of a sender is possible"
+        test = Test("Absolute activation of a sender is possible")
         if len(self.senders) > 0:
             for sender in self.senders:
                 valid, response = self.check_activation("sender", sender, self.check_perform_absolute_activation)
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", response
+                    return test.FAIL(response)
+            return test.PASS(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_30(self):
         """Absolute activation of a receiver is possible"""
-        test_number = "30"
-        test_description = "Absolute activation of a receiver is possible"
+        test = Test("Absolute activation of a receiver is possible")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 valid, response = self.check_activation("receiver", receiver,
@@ -724,15 +729,14 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", response
+                    return test.FAIL(response)
+            return test.PASS(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_31(self):
         """Sender active response schema is valid"""
-        test_number = "31"
-        test_description = "Sender active response schema is valid"
+        test = Test("Sender active response schema is valid")
         if len(self.senders):
             for sender in self.senders:
                 activeUrl = "single/senders/" + sender + "/active"
@@ -740,15 +744,14 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_32(self):
         """Receiver active response schema is valid"""
-        test_number = "32"
-        test_description = "Receiver active response schema is valid"
+        test = Test("Receiver active response schema is valid")
         if len(self.receivers):
             for receiver in self.receivers:
                 activeUrl = "single/receivers/" + receiver + "/active"
@@ -756,79 +759,73 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_33(self):
         """/bulk/ endpoint returns correct JSON"""
-        test_number = "33"
-        test_description = "/bulk/ endpoint returns correct JSON"
+        test = Test("/bulk/ endpoint returns correct JSON")
         url = "bulk/"
         valid, response = self.checkCleanGet(url)
         if valid:
             expected = ['senders/', 'receivers/']
             msg = "Got wrong response from {}, expected an array containing {}, got {}".format(url, expected, response)
             if expected == response:
-                return test_number, test_description, "Pass", ""
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", msg
+                return test.FAIL(msg)
         else:
-            return test_number, test_description, "Fail", response
+            return test.FAIL(response)
 
     def test_34(self):
         """GET on /bulk/senders returns 405"""
-        test_number = "34"
-        test_description = "GET on /bulk/senders returns 405"
+        test = Test("GET on /bulk/senders returns 405")
         url = "bulk/senders"
         valid, response = self.checkCleanGet(url, 405)
         if valid:
-            return test_number, test_description, "Pass", ""
+            return test.PASS()
         else:
-            return test_number, test_description, "Fail", response
+            return test.FAIL(response)
 
     def test_35(self):
         """GET on /bulk/receivers returns 405"""
-        test_number = "35"
-        test_description = "GET on /bulk/receivers returns 405"
+        test = Test("GET on /bulk/receivers returns 405")
         url = "bulk/receivers"
         valid, response = self.checkCleanGet(url, 405)
         if valid:
-            return test_number, test_description, "Pass", ""
+            return test.PASS()
         else:
-            return test_number, test_description, "Fail", response
+            return test.FAIL(response)
 
     def test_36(self):
         """Bulk interface can be used to change destination port on all senders"""
-        test_number = "36"
-        test_description = "Bulk interface can be used to change destination port on all senders"
+        test = Test("Bulk interface can be used to change destination port on all senders")
         if len(self.senders) > 0:
             valid, response = self.check_bulk_stage("sender", self.senders)
             if valid:
-                return test_number, test_description, "Pass", ""
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_37(self):
         """Bulk interface can be used to change destination port on all receivers"""
-        test_number = "37"
-        test_description = "Bulk interface can be used to change destination port on all receivers"
+        test = Test("Bulk interface can be used to change destination port on all receivers")
         if len(self.receivers) > 0:
             valid, response = self.check_bulk_stage("receiver", self.receivers)
             if valid:
-                return test_number, test_description, "Pass", ""
+                return test.PASS()
             else:
-                return test_number, test_description, "Fail", response
+                return test.FAIL(response)
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_38(self):
         """Number of legs matches on constraints, staged and active endpoint for senders"""
-        test_number = "38"
-        test_description = "Number of legs matches on constraints, staged and active endpoint for senders"
+        test = Test("Number of legs matches on constraints, staged and active endpoint for senders")
         if len(self.senders) > 0:
             for sender in self.senders:
                 url = "single/senders/{}/".format(sender)
@@ -836,15 +833,14 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def test_39(self):
         """Number of legs matches on constraints, staged and active endpoint for receivers"""
-        test_number = "39"
-        test_description = "Number of legs matches on constraints, staged and active endpoint for receivers"
+        test = Test("Number of legs matches on constraints, staged and active endpoint for receivers")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 url = "single/receivers/{}/".format(receiver)
@@ -852,10 +848,10 @@ class IS0501Test:
                 if valid:
                     pass
                 else:
-                    return test_number, test_description, "Fail", response
-            return test_number, test_description, "Pass", ""
+                    return test.FAIL(response)
+            return test.PASS()
         else:
-            return test_number, test_description, "N/A", "Not tested. No resources found."
+            return test.NA("Not tested. No resources found.")
 
     def check_num_legs(self, url, type, uuid):
         """Checks the number of legs present on a given sender/receiver"""

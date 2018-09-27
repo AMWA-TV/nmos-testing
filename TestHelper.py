@@ -34,14 +34,14 @@ class Test(object):
     def __init__(self, description):
         self.description = description
 
-    def PASS(self):
-        return [self.description, "Pass", ""]
+    def PASS(self, detail=""):
+        return [self.description, "Pass", detail]
 
     def MANUAL(self):
         return [self.description, "Manual", ""]
 
-    def NA(self):
-        return [self.description, "N/A", ""]
+    def NA(self, detail):
+        return [self.description, "N/A", detail]
 
     def FAIL(self, detail):
         return [self.description, "Fail", detail]
@@ -66,9 +66,10 @@ class Specification(object):
         self.fix_schemas(file_path)
         api_raml = ramlfications.parse(file_path, "config.ini")
         self.global_schemas = {}
-        for schema in api_raml.schemas:
-            keys = list(schema.keys())
-            self.global_schemas[keys[0]] = schema[keys[0]]
+        if api_raml.schemas:
+            for schema in api_raml.schemas:
+                keys = list(schema.keys())
+                self.global_schemas[keys[0]] = schema[keys[0]]
         for resource in api_raml.resources:
             resource_data = {'method': resource.method,
                              'params': resource.uri_params,
