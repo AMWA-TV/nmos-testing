@@ -14,9 +14,9 @@
 # limitations under the License.
 
 import requests
-import json
 import os
 import git
+import jsonschema
 
 from TestHelper import Specification
 
@@ -43,7 +43,7 @@ class Generic:
         self.parse_RAML()
 
     def run_tests(self):
-        self.result.append(self.test_node_read())
+        self.result += self.test_node_read()
         return self.result
 
 # Tests: Schema checks for all resources
@@ -60,31 +60,54 @@ class Generic:
         return headers
 
     def validate_CORS(self, method, response):
-        if not 'Access-Control-Allow-Origin' in response.headers:
+        if 'Access-Control-Allow-Origin' not in response.headers:
             return False
         if method in ['POST', 'PUT', 'PATCH', 'DELETE']:
-            if not 'Access-Control-Allow-Headers' in response.headers:
+            if 'Access-Control-Allow-Headers' not in response.headers:
                 return False
-            if not method in response.headers['Access-Control-Allow-Headers']:
+            if method not in response.headers['Access-Control-Allow-Headers']:
                 return False
-            if not 'Access-Control-Allow-Method' in response.headers:
+            if 'Access-Control-Allow-Method' not in response.headers:
                 return False
-            if not method in response.headers['Access-Control-Allow-Methods']:
+            if method not in response.headers['Access-Control-Allow-Methods']:
                 return False
+        return True
 
 # TODO: Scan the Node first for all our its resources. We'll match these to the registrations received.
 # Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under test
 # TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API interactions
 
     def test_node_read(self):
+        #TODO: Check the /, x-nmos/ and x-nmos/node/ locations too...
+        results = []
+        test_number = 0
         for resource in self.node_api.get_reads():
             for response_code in resource[1]['responses']:
-                if response_code == 200:
+                if response_code == 200 and not resource[1]['params']:
+                    url = "{}{}".format(self.url.rstrip("/"), resource[0])
+                    test_number += 1
+                    test_description = "{} {}".format(resource[1]['method'].upper(), resource[0])
+                    s = requests.Session()
+                    req = requests.Request(resource[1]['method'], url)
+                    prepped = s.prepare_request(req)
+                    r = s.send(prepped)
+                    if r.status_code != response_code:
+                        results.append([test_number, test_description, "Fail", "Incorrect response code: {}".format(r.status_code)])
+                        continue
+                    if not self.validate_CORS(resource[1]['method'], r):
+                        results.append([test_number, test_description, "Fail", "Incorrect CORS headers: {}".format(r.headers)])
+                        continue
                     if resource[1]['responses'][response_code]:
-                        print(resource[0])
-                        print(response_code)
-                        print(resource[1]['responses'][response_code])
-                        print(resource[1]['params'])
+                        try:
+                            jsonschema.validate(r.json(), resource[1]['responses'][response_code])
+                        except jsonschema.ValidationError:
+                            results.append([test_number, test_description, "Fail", "Response schema validation error"])
+                            continue
+                    else:
+                        results.append([test_number, test_description, "Fail", "Test suite unable to locate schema"])
+                        continue
+                    results.append([test_number, test_description, "Pass", ""])
+        return results
         #TODO: For any method we can't test, flag it as a manual test
         # Write a harness for each write method with one or more things to send it. Test them using this as part of this loop
         #TODO: Some basic tests of the Node API itself? Such as presence of arrays at /, /x-nmos, /x-nmos/node etc.
