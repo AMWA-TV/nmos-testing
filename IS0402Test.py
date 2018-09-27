@@ -17,9 +17,7 @@ from time import sleep
 import socket
 
 from zeroconf import ServiceBrowser, Zeroconf
-from TestHelper import MdnsListener, Test
-
-from Generic import GenericTest
+from TestHelper import MdnsListener, Test, GenericTest
 
 
 class IS0402Test(GenericTest):

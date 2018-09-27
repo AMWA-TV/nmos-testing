@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from Generic import GenericTest
+from TestHelper import GenericTest
 
 
 class IS0601Test(GenericTest):

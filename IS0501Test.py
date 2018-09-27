@@ -25,8 +25,7 @@ from jsonschema import ValidationError, SchemaError, RefResolver, Draft4Validato
 from random import randint
 
 import TestHelper
-from TestHelper import Test
-from Generic import GenericTest
+from TestHelper import Test, GenericTest
 
 SCHEMA_LOCAL = "schemas/"
 HEADERS = {'Content-Type': 'application/json'}

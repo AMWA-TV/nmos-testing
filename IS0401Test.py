@@ -19,8 +19,7 @@ import time
 import socket
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
-from TestHelper import MdnsListener, Test
-from Generic import GenericTest
+from TestHelper import MdnsListener, Test, GenericTest
 
 
 class IS0401Test(GenericTest):
