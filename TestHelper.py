@@ -30,6 +30,23 @@ def compare_json(json1, json2):
     return ordered(json1) == ordered(json2)
 
 
+class Test(object):
+    def __init__(self, description):
+        self.description = description
+
+    def PASS(self):
+        return [self.description, "Pass", ""]
+
+    def MANUAL(self):
+        return [self.description, "Manual", ""]
+
+    def NA(self):
+        return [self.description, "N/A", ""]
+
+    def FAIL(self, detail):
+        return [self.description, "Fail", detail]
+
+
 class MdnsListener(object):
     def __init__(self):
         self.services = list()

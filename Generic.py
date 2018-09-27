@@ -18,7 +18,7 @@ import os
 import git
 import jsonschema
 
-from TestHelper import Specification
+from TestHelper import Specification, Test
 
 SPEC_PATH = 'cache/is-04'
 
@@ -43,7 +43,10 @@ class Generic:
         self.parse_RAML()
 
     def run_tests(self):
-        self.result += self.test_node_read()
+        test_number = 1
+        for result in self.test_node_read():
+            self.result.append([test_number] + result)
+            test_number += 1
         return self.result
 
 # Tests: Schema checks for all resources
@@ -80,33 +83,32 @@ class Generic:
     def test_node_read(self):
         #TODO: Check the /, x-nmos/ and x-nmos/node/ locations too...
         results = []
-        test_number = 0
         for resource in self.node_api.get_reads():
             for response_code in resource[1]['responses']:
+                #TODO: Handle cases where we have params by checking at least one active ID
                 if response_code == 200 and not resource[1]['params']:
                     url = "{}{}".format(self.url.rstrip("/"), resource[0])
-                    test_number += 1
-                    test_description = "{} {}".format(resource[1]['method'].upper(), resource[0])
+                    test = Test("{} {}".format(resource[1]['method'].upper(), resource[0]))
                     s = requests.Session()
                     req = requests.Request(resource[1]['method'], url)
                     prepped = s.prepare_request(req)
                     r = s.send(prepped)
                     if r.status_code != response_code:
-                        results.append([test_number, test_description, "Fail", "Incorrect response code: {}".format(r.status_code)])
+                        results.append(test.FAIL("Incorrect response code: {}".format(r.status_code)))
                         continue
                     if not self.validate_CORS(resource[1]['method'], r):
-                        results.append([test_number, test_description, "Fail", "Incorrect CORS headers: {}".format(r.headers)])
+                        results.append(test.FAIL("Incorrect CORS headers: {}".format(r.headers)))
                         continue
                     if resource[1]['responses'][response_code]:
                         try:
                             jsonschema.validate(r.json(), resource[1]['responses'][response_code])
                         except jsonschema.ValidationError:
-                            results.append([test_number, test_description, "Fail", "Response schema validation error"])
+                            results.append(test.FAIL("Response schema validation error"))
                             continue
                     else:
-                        results.append([test_number, test_description, "Fail", "Test suite unable to locate schema"])
+                        results.append(test.FAIL("Test suite unable to locate schema"))
                         continue
-                    results.append([test_number, test_description, "Pass", ""])
+                    results.append(test.PASS())
         return results
         #TODO: For any method we can't test, flag it as a manual test
         # Write a harness for each write method with one or more things to send it. Test them using this as part of this loop
