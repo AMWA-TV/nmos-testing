@@ -15,18 +15,19 @@
 
 import requests
 import git
+import os
 import jsonschema
 
-from TestHelper import Test
+from TestHelper import Test, Specification
 
 
 class GenericTest(object):
     """
     Generic testing class. Can be used independently or inhereted from in order to perform more detailed testing.
     """
-    def __init__(self, base_url, api_name, spec_versions, test_version, spec_path):
+    def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
         self.base_url = base_url
-        self.api_name = api_name
+        self.apis = apis
         self.spec_versions = spec_versions
         self.test_version = test_version
         self.spec_path = spec_path
@@ -34,16 +35,16 @@ class GenericTest(object):
         self.major_version, self.minor_version = self.parse_version(self.test_version)
 
         repo = git.Repo(self.spec_path)
-        self.url = "{}/x-nmos/{}/{}/".format(self.base_url, self.api_name, self.test_version)
         self.result = list()
 
         spec_branch = self.test_version + ".x"
+        repo.git.reset('--hard')
         repo.git.checkout(spec_branch)
         self.parse_RAML()
 
     def parse_version(self, version):
         version_parts = version.strip("v").split(".")
-        return version_parts[0], version_parts[1]
+        return int(version_parts[0]), int(version_parts[1])
 
     def execute_tests(self):
         test_number = len(self.result) + 1
@@ -69,7 +70,8 @@ class GenericTest(object):
 # Trailing slashes
 
     def parse_RAML(self):
-        pass
+        for api in self.apis:
+            self.apis[api]["spec"] = Specification(os.path.join(self.spec_path + '/APIs/' + self.apis[api]["raml"]))
 
     def prepare_CORS(self, method):
         headers = {}
@@ -98,32 +100,34 @@ class GenericTest(object):
     def test_basics(self):
         #TODO: Check the /, x-nmos/ and x-nmos/node/ locations too...
         results = []
-        for resource in self.node_api.get_reads():
-            for response_code in resource[1]['responses']:
-                #TODO: Handle cases where we have params by checking at least one active ID
-                if response_code == 200 and not resource[1]['params']:
-                    url = "{}{}".format(self.url.rstrip("/"), resource[0])
-                    test = Test("{} {}".format(resource[1]['method'].upper(), resource[0]))
-                    s = requests.Session()
-                    req = requests.Request(resource[1]['method'], url)
-                    prepped = s.prepare_request(req)
-                    r = s.send(prepped)
-                    if r.status_code != response_code:
-                        results.append(test.FAIL("Incorrect response code: {}".format(r.status_code)))
-                        continue
-                    if not self.validate_CORS(resource[1]['method'], r):
-                        results.append(test.FAIL("Incorrect CORS headers: {}".format(r.headers)))
-                        continue
-                    if resource[1]['responses'][response_code]:
-                        try:
-                            jsonschema.validate(r.json(), resource[1]['responses'][response_code])
-                        except jsonschema.ValidationError:
-                            results.append(test.FAIL("Response schema validation error"))
+
+        for api in self.apis:
+            for resource in self.apis[api]["spec"].get_reads():
+                for response_code in resource[1]['responses']:
+                    #TODO: Handle cases where we have params by checking at least one active ID
+                    if response_code == 200 and not resource[1]['params']:
+                        url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
+                        test = Test("{} {}".format(resource[1]['method'].upper(), resource[0]))
+                        s = requests.Session()
+                        req = requests.Request(resource[1]['method'], url)
+                        prepped = s.prepare_request(req)
+                        r = s.send(prepped)
+                        if r.status_code != response_code:
+                            results.append(test.FAIL("Incorrect response code: {}".format(r.status_code)))
                             continue
-                    else:
-                        results.append(test.FAIL("Test suite unable to locate schema"))
-                        continue
-                    results.append(test.PASS())
+                        if not self.validate_CORS(resource[1]['method'], r):
+                            results.append(test.FAIL("Incorrect CORS headers: {}".format(r.headers)))
+                            continue
+                        if resource[1]['responses'][response_code]:
+                            try:
+                                jsonschema.validate(r.json(), resource[1]['responses'][response_code])
+                            except jsonschema.ValidationError:
+                                results.append(test.FAIL("Response schema validation error"))
+                                continue
+                        else:
+                            results.append(test.FAIL("Test suite unable to locate schema"))
+                            continue
+                        results.append(test.PASS())
         return results
         #TODO: For any method we can't test, flag it as a manual test
         # Write a harness for each write method with one or more things to send it. Test them using this as part of this loop

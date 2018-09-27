@@ -94,37 +94,36 @@ def index_page():
         base_url = "http://{}:{}".format(ip, str(port))
         if form.validate():
             if test == "IS-04-01":
-                api_name = "node"
+                apis = {"node": {"raml": "NodeAPI.raml", "url": "{}/x-nmos/node/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0", "v1.1", "v1.2"]
                 spec_path = 'cache/is-04'
 
-                url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
-                test_obj = IS0401Test.IS0401Test(url, REGISTRY)
+                test_obj = IS0401Test.IS0401Test(apis["node"]["url"], REGISTRY)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-04-02":
-                api_name = "node"
+                apis = {"registration": {"raml": "RegistrationAPI.raml", "url": "{}/x-nmos/registration/{}/".format(base_url, version)},
+                        "query": {"raml": "QueryAPI.raml", "url": "{}/x-nmos/query/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0", "v1.1", "v1.2"]
                 spec_path = 'cache/is-04'
 
-                test_obj = IS0402Test.IS0402Test(base_url, api_name, spec_versions, version, spec_path)
+                test_obj = IS0402Test.IS0402Test(base_url, apis, spec_versions, version, spec_path)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-05-01":
-                api_name = "connection"
+                apis = {"connection": {"raml": "ConnectionAPI.raml", "url": "{}/x-nmos/connection/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0"]
                 spec_path = 'cache/is-05'
 
-                url = "http://{}:{}/x-nmos/connection/{}/".format(ip, str(port), version)
-                test_obj = IS0501Test.IS0501Test(url)
+                test_obj = IS0501Test.IS0501Test(apis["connection"]["url"])
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-06-01":
-                api_name = "netctrl"
+                apis = {"netctrl": {"raml": "NetworkControlAPI.raml", "url": "{}/x-nmos/netctrl/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0"]
                 spec_path = 'cache/is-06'
 
-                test_obj = IS0601Test.IS0601Test(base_url, api_name, spec_versions, version, spec_path)
+                test_obj = IS0601Test.IS0601Test(base_url, apis, spec_versions, version, spec_path)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
         else:

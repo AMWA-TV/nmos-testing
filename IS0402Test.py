@@ -15,10 +15,9 @@
 
 from time import sleep
 import socket
-import os
 
 from zeroconf import ServiceBrowser, Zeroconf
-from TestHelper import Specification, MdnsListener, Test
+from TestHelper import MdnsListener, Test
 
 from Generic import GenericTest
 
@@ -27,10 +26,10 @@ class IS0402Test(GenericTest):
     """
     Runs IS-04-02-Test
     """
-    def __init__(self, base_url, api_name, spec_versions, test_version, spec_path):
-        GenericTest.__init__(self, base_url, api_name, spec_versions, test_version, spec_path)
-        self.reg_url = "{}/x-nmos/registration/{}/".format(self.base_url, self.test_version)
-        self.query_url = "{}/x-nmos/query/{}/".format(self.base_url, self.test_version)
+    def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
+        GenericTest.__init__(self, base_url, apis, spec_versions, test_version, spec_path)
+        self.reg_url = self.apis["registration"]["url"]
+        self.query_url = self.apis["query"]["url"]
 
     def execute_tests(self):
         super(IS0402Test, self).execute_tests()
@@ -38,26 +37,6 @@ class IS0402Test(GenericTest):
         self.result.append([test_number] + self.test_01())
         test_number += 1
         self.result.append([test_number] + self.test_02())
-
-# Tests: Schema checks for all resources
-# CORS checks for all resources
-# Trailing slashes
-
-    def parse_RAML(self):
-        self.node_api = Specification(os.path.join(self.spec_path + '/APIs/NodeAPI.raml'))
-        self.registration_api = Specification(os.path.join(self.spec_path + '/APIs/RegistrationAPI.raml'))
-        self.query_api = Specification(os.path.join(self.spec_path + '/APIs/QueryAPI.raml'))
-
-        #print(self.node_api.get_path('/self'))
-
-# TODO: Scan the Node first for all our its resources. We'll match these to the registrations received.
-# Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under test
-# TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API interactions
-
-        #TODO: For any method we can't test, flag it as a manual test
-        # Write a harness for each write method with one or more things to send it. Test them using this as part of this loop
-        #TODO: Some basic tests of the Node API itself? Such as presence of arrays at /, /x-nmos, /x-nmos/node etc.
-        #TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on either.
 
     def test_01(self):
         """Registration API advertises correctly via mDNS"""

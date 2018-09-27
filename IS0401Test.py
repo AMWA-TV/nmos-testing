@@ -66,10 +66,6 @@ class IS0401Test:
         #self.result.append(self.test_14())
         return self.result
 
-# Tests: Schema checks for all resources
-# CORS checks for all resources
-# Trailing slashes
-
     def parse_RAML(self):
         self.node_api = Specification(os.path.join(SPEC_PATH + '/APIs/NodeAPI.raml'))
         self.registration_api = Specification(os.path.join(SPEC_PATH + '/APIs/RegistrationAPI.raml'))
@@ -95,10 +91,6 @@ class IS0401Test:
             if not method in response.headers['Access-Control-Allow-Methods']:
                 return False
 
-# TODO: Scan the Node first for all our its resources. We'll match these to the registrations received.
-# Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under test
-# TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API interactions
-
     def test_node_read(self):
         for resource in self.node_api.resources:
             if resource.method in ['get', 'head', 'options']:
@@ -108,11 +100,6 @@ class IS0401Test:
                             print(entry.schema)
                             print(resource.path)
                             print(resource.uri_params)
-        #TODO: For any method we can't test, flag it as a manual test
-        # Write a harness for each write method with one or more things to send it. Test them using this as part of this loop
-        #TODO: Some basic tests of the Node API itself? Such as presence of arrays at /, /x-nmos, /x-nmos/node etc.
-        #TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on either.
-
 
     def test_01(self):
         """Node can discover network registration service via mDNS"""

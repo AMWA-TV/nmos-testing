@@ -13,9 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-
-from TestHelper import Specification
 from Generic import GenericTest
 
 
@@ -23,11 +20,9 @@ class IS0601Test(GenericTest):
     """
     Runs IS-06-01-Test
     """
-    def __init__(self, base_url, api_name, spec_versions, test_version, spec_path):
-        GenericTest.__init__(self, base_url, api_name, spec_versions, test_version, spec_path)
+    def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
+        GenericTest.__init__(self, base_url, apis, spec_versions, test_version, spec_path)
 
     def execute_tests(self):
         super(IS0601Test, self).execute_tests()
-
-    def parse_RAML(self):
-        self.netctrl_api = Specification(os.path.join(self.spec_path + '/APIs/NetworkControlAPI.raml'))
+        # Call more tests here...
