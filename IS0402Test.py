@@ -31,10 +31,8 @@ class IS0402Test(GenericTest):
 
     def execute_tests(self):
         super(IS0402Test, self).execute_tests()
-        test_number = len(self.result) + 1
-        self.result.append([test_number] + self.test_01())
-        test_number += 1
-        self.result.append([test_number] + self.test_02())
+        self.result.append(self.test_01())
+        self.result.append(self.test_02())
 
     def test_01(self):
         """Registration API advertises correctly via mDNS"""

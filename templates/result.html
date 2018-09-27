@@ -1,5 +1,5 @@
 <!--Copyright (C) 2018 Riedel Communications GmbH & Co. KG
-	
+
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
@@ -39,21 +39,23 @@
                 </tr>
             </thead>
             <tbody>
+                {% set count = 1 %}
                 {% for curr_result in result %}
                     <tr>
-                        <td>{{ curr_result[0] }}</td>
-                        {% if curr_result[2] == "Pass" %}
-                            <td class="bg-success pass">{{ curr_result[2] }}</td>
-                        {% elif curr_result[2] == "Manual" %}
-                            <td class="bg-info manual">{{ curr_result[2] }}</td>
-                        {% elif curr_result[2] == "N/A" %}
-                            <td class="bg-secondary notavailable">{{ curr_result[2] }}</td>
+                        <td>{{ count }}</td>
+                        {% if curr_result[1] == "Pass" %}
+                            <td class="bg-success pass">{{ curr_result[1] }}</td>
+                        {% elif curr_result[1] == "Manual" %}
+                            <td class="bg-info manual">{{ curr_result[1] }}</td>
+                        {% elif curr_result[1] == "N/A" %}
+                            <td class="bg-secondary notavailable">{{ curr_result[1] }}</td>
                         {% else %}
-                            <td class="bg-danger fail">{{ curr_result[2] }}</td>
+                            <td class="bg-danger fail">{{ curr_result[1] }}</td>
                         {% endif %}
-                        <td>{{ curr_result[1] }}</td>
-                        <td>{{ curr_result[3] }}</td>
+                        <td>{{ curr_result[0] }}</td>
+                        <td>{{ curr_result[2] }}</td>
                     </tr>
+                    {% set count = count + 1 %}
                 {% endfor %}
             </tbody>
         </table>

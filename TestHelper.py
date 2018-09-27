@@ -47,10 +47,7 @@ class GenericTest(object):
         return int(version_parts[0]), int(version_parts[1])
 
     def execute_tests(self):
-        test_number = len(self.result) + 1
-        for result in self.test_basics():
-            self.result.append([test_number] + result)
-            test_number += 1
+        self.result += self.test_basics()
 
     def run_tests(self):
         self.execute_tests()

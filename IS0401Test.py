@@ -34,14 +34,10 @@ class IS0401Test(GenericTest):
 
     def execute_tests(self):
         super(IS0401Test, self).execute_tests()
-        test_number = len(self.result) + 1
-        self.result.append([test_number] + self.test_01())
-        test_number += 1
-        self.result.append([test_number] + self.test_new_02())
-        test_number += 1
-        self.result.append([test_number] + self.test_02())
-        test_number += 1
-        self.result.append([test_number] + self.test_03())
+        self.result.append(self.test_01())
+        self.result.append(self.test_new_02())
+        self.result.append(self.test_02())
+        self.result.append(self.test_03())
         # self.result.append(self.test_04())
         # self.result.append(self.test_05())
         # self.result.append(self.test_06())
@@ -53,7 +49,6 @@ class IS0401Test(GenericTest):
         # self.result.append(self.test_12())
         # self.result.append(self.test_13())
         # self.result.append(self.test_14())
-        return self.result
 
     def test_01(self):
         """Node can discover network registration service via mDNS"""

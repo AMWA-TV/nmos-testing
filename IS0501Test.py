@@ -84,85 +84,45 @@ class IS0501Test(GenericTest):
 
     def execute_tests(self):
         super(IS0501Test, self).execute_tests()
-        test_number = len(self.result) + 1
-        self.result.append([test_number] + self.test_01())
-        test_number += 1
-        self.result.append([test_number] + self.test_02())
-        test_number += 1
-        self.result.append([test_number] + self.test_03())
-        test_number += 1
-        self.result.append([test_number] + self.test_04())
-        test_number += 1
-        self.result.append([test_number] + self.test_05())
-        test_number += 1
-        self.result.append([test_number] + self.test_06())
-        test_number += 1
-        self.result.append([test_number] + self.test_07())
-        test_number += 1
-        self.result.append([test_number] + self.test_08())
-        test_number += 1
-        self.result.append([test_number] + self.test_09())
-        test_number += 1
-        self.result.append([test_number] + self.test_10())
-        test_number += 1
-        self.result.append([test_number] + self.test_11())
-        test_number += 1
-        self.result.append([test_number] + self.test_12())
-        test_number += 1
-        self.result.append([test_number] + self.test_13())
-        test_number += 1
-        self.result.append([test_number] + self.test_14())
-        test_number += 1
-        self.result.append([test_number] + self.test_15())
-        test_number += 1
-        self.result.append([test_number] + self.test_16())
-        test_number += 1
-        self.result.append([test_number] + self.test_17())
-        test_number += 1
-        self.result.append([test_number] + self.test_18())
-        test_number += 1
-        self.result.append([test_number] + self.test_19())
-        test_number += 1
-        self.result.append([test_number] + self.test_20())
-        test_number += 1
-        self.result.append([test_number] + self.test_21())
-        test_number += 1
-        self.result.append([test_number] + self.test_22())
-        test_number += 1
-        self.result.append([test_number] + self.test_23())
-        test_number += 1
-        self.result.append([test_number] + self.test_24())
-        test_number += 1
-        self.result.append([test_number] + self.test_25())
-        test_number += 1
-        self.result.append([test_number] + self.test_26())
-        test_number += 1
-        self.result.append([test_number] + self.test_27())
-        test_number += 1
-        self.result.append([test_number] + self.test_28())
-        test_number += 1
-        self.result.append([test_number] + self.test_29())
-        test_number += 1
-        self.result.append([test_number] + self.test_30())
-        test_number += 1
-        self.result.append([test_number] + self.test_31())
-        test_number += 1
-        self.result.append([test_number] + self.test_32())
-        test_number += 1
-        self.result.append([test_number] + self.test_33())
-        test_number += 1
-        self.result.append([test_number] + self.test_34())
-        test_number += 1
-        self.result.append([test_number] + self.test_35())
-        test_number += 1
-        self.result.append([test_number] + self.test_36())
-        test_number += 1
-        self.result.append([test_number] + self.test_37())
-        test_number += 1
-        self.result.append([test_number] + self.test_38())
-        test_number += 1
-        self.result.append([test_number] + self.test_39())
-        test_number += 1
+        self.result.append(self.test_01())
+        self.result.append(self.test_02())
+        self.result.append(self.test_03())
+        self.result.append(self.test_04())
+        self.result.append(self.test_05())
+        self.result.append(self.test_06())
+        self.result.append(self.test_07())
+        self.result.append(self.test_08())
+        self.result.append(self.test_09())
+        self.result.append(self.test_10())
+        self.result.append(self.test_11())
+        self.result.append(self.test_12())
+        self.result.append(self.test_13())
+        self.result.append(self.test_14())
+        self.result.append(self.test_15())
+        self.result.append(self.test_16())
+        self.result.append(self.test_17())
+        self.result.append(self.test_18())
+        self.result.append(self.test_19())
+        self.result.append(self.test_20())
+        self.result.append(self.test_21())
+        self.result.append(self.test_22())
+        self.result.append(self.test_23())
+        self.result.append(self.test_24())
+        self.result.append(self.test_25())
+        self.result.append(self.test_26())
+        self.result.append(self.test_27())
+        self.result.append(self.test_28())
+        self.result.append(self.test_29())
+        self.result.append(self.test_30())
+        self.result.append(self.test_31())
+        self.result.append(self.test_32())
+        self.result.append(self.test_33())
+        self.result.append(self.test_34())
+        self.result.append(self.test_35())
+        self.result.append(self.test_36())
+        self.result.append(self.test_37())
+        self.result.append(self.test_38())
+        self.result.append(self.test_39())
 
     def test_01(self):
         """Api root matches the spec"""
