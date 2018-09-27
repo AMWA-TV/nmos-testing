@@ -19,10 +19,10 @@ import git
 import os
 import time
 
-import Generic
 import IS0401Test
 import IS0402Test
 import IS0501Test
+import IS0601Test
 
 app = Flask(__name__)
 app.debug = True
@@ -32,7 +32,7 @@ NODE_URL = "http://<node_ip>:<node_port>/x-nmos/node/v1.2/"
 CACHE_PATH = 'cache'
 
 class DataForm(Form):
-    test = SelectField(label="Select test:", choices=[("Generic", "IS-04 Generic Tests"), ("IS-04-01", "IS-04-01: Node"), ("IS-04-02", "IS-04-02: Registry"), ("IS-05-01", "IS-05-01: ConnectionMgmt API")])
+    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04-01: Node"), ("IS-04-02", "IS-04-02: Registry"), ("IS-05-01", "IS-05-01: ConnectionMgmt API"), ("IS-06-01", "IS-06-01: Network Control API")])
     #TODO: Potentially add a mixed IS-04/05 test for where they cross over
     ip = StringField(label="Ip:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
@@ -92,18 +92,9 @@ def index_page():
         ip = request.form["ip"]
         port = request.form["port"]
         version = request.form["version"]
+        base_url = "http://{}:{}".format(ip, str(port))
         if form.validate():
-            if test == "Generic":
-                base_url = "http://{}:{}".format(ip, str(port))
-                api_name = "node"
-                spec_versions = ["v1.0", "v1.1", "v1.2"]
-                spec_path = 'cache/is-04'
-                test_version = version
-                test_obj = Generic.GenericTest(base_url, api_name, spec_versions, test_version, spec_path)
-                result = test_obj.run_tests()
-                url = "{}/x-nmos/{}/{}/".format(base_url, api_name, version)
-                return render_template("result.html", url=url, test=test, result=result)
-            elif test == "IS-04-01":
+            if test == "IS-04-01":
                 url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
                 test_obj = IS0401Test.IS0401Test(url, REGISTRY)
                 result = test_obj.run_tests()
@@ -112,20 +103,26 @@ def index_page():
                 reg_url = "http://{}:{}/x-nmos/registration/{}/".format(ip, str(port), version)
                 query_url = "http://{}:{}/x-nmos/query/{}/".format(ip, str(port), version)
 
-                base_url = "http://{}:{}".format(ip, str(port))
                 api_name = "node"
                 spec_versions = ["v1.0", "v1.1", "v1.2"]
                 spec_path = 'cache/is-04'
-                test_version = version
 
-                test_obj = IS0402Test.IS0402Test(base_url, api_name, spec_versions, test_version, spec_path, reg_url, query_url)
+                test_obj = IS0402Test.IS0402Test(base_url, api_name, spec_versions, version, spec_path, reg_url, query_url)
                 result = test_obj.run_tests()
-                return render_template("result.html", url=query_url, test=test, result=result)
-            else:  # test == "IS-05-01"
+                return render_template("result.html", url=base_url, test=test, result=result)
+            elif test == "IS-05-01":  # test == "IS-05-01"
                 url = "http://{}:{}/x-nmos/connection/{}/".format(ip, str(port), version)
                 test_obj = IS0501Test.IS0501Test(url)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=url, test=test, result=result)
+            elif test == "IS-06-01":
+                api_name = "netctrl"
+                spec_versions = ["v1.0"]
+                spec_path = 'cache/is-06'
+
+                test_obj = IS0601Test.IS0601Test(base_url, api_name, spec_versions, version, spec_path)
+                result = test_obj.run_tests()
+                return render_template("result.html", url=base_url, test=test, result=result)
         else:
             flash("Error: {}".format(form.errors))
 
