@@ -43,17 +43,17 @@ class IS0401Test(GenericTest):
         self.result.append([test_number] + self.test_02())
         test_number += 1
         self.result.append([test_number] + self.test_03())
-        #self.result.append(self.test_04())
-        #self.result.append(self.test_05())
-        #self.result.append(self.test_06())
-        #self.result.append(self.test_07())
-        #self.result.append(self.test_08())
-        #self.result.append(self.test_09())
-        #self.result.append(self.test_10())
-        #self.result.append(self.test_11())
-        #self.result.append(self.test_12())
-        #self.result.append(self.test_13())
-        #self.result.append(self.test_14())
+        # self.result.append(self.test_04())
+        # self.result.append(self.test_05())
+        # self.result.append(self.test_06())
+        # self.result.append(self.test_07())
+        # self.result.append(self.test_08())
+        # self.result.append(self.test_09())
+        # self.result.append(self.test_10())
+        # self.result.append(self.test_11())
+        # self.result.append(self.test_12())
+        # self.result.append(self.test_13())
+        # self.result.append(self.test_14())
         return self.result
 
     def test_01(self):
@@ -63,17 +63,17 @@ class IS0401Test(GenericTest):
 
         self.registry.reset()
 
-        #TODO: Set api_ver to just the version under test. Later test support for parsing CSV string
+        # TODO: Set api_ver to just the version under test. Later test support for parsing CSV string
         txt = {'api_ver': 'v1.0,v1.1,v1.2', 'api_proto': 'http', 'pri': '0'}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite._nmos-registration._tcp.local.",
                            socket.inet_aton("127.0.0.1"), 5000, 0, 0,
-                           txt, "nmos-test.local.") #TODO: Advertise on the local IP only. May allow config via args
+                           txt, "nmos-test.local.")  # TODO: Advertise on the local IP only. May allow config via args
 
         zeroconf = Zeroconf()
         zeroconf.register_service(info)
 
-        while (time.time() - self.registry.last_time) < 5: # Ensure we allow 5 seconds to get at least one heartbeat
+        while (time.time() - self.registry.last_time) < 5:  # Ensure we allow 5 seconds to get at least one heartbeat
             time.sleep(1)
 
         zeroconf.unregister_service(info)
@@ -154,8 +154,7 @@ class IS0401Test(GenericTest):
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
 
         if len(self.registry.get_heartbeats()) < 2:
-            return test.FAIL("Node API JSON does not match data in registry.")
-            return test_number, test_description, "Fail", "Not enough heartbeats were made in the time period."
+            return test.FAIL("Not enough heartbeats were made in the time period.")
 
         last_hb = None
         for heartbeat in self.registry.get_heartbeats():
@@ -177,7 +176,7 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
 
             # Ensure the heartbeat request body is empty
-            if heartbeat[1]["payload"] != None:
+            if heartbeat[1]["payload"] is not None:
                 return test.FAIL("Heartbeat POST contained a payload body.")
 
             last_hb = heartbeat

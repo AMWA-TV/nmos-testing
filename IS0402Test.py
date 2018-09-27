@@ -69,13 +69,15 @@ class IS0402Test(GenericTest):
                 if self.major_version > 1 or (self.major_version == 1 and self.minor_version > 0):
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Registration API advertisement.")
-                    elif "v{}.{}".format(self.major_version, self.minor_version) not in properties["api_ver"].split(","):
+                    elif "v{}.{}".format(self.major_version,
+                                         self.minor_version) not in properties["api_ver"].split(","):
                         return test.FAIL("Registry does not claim to support version under test.")
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Registration API advertisement.")
                     elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol is not advertised as 'http'. This test suite does not currently support 'https'.")
+                        return test.FAIL("API protocol is not advertised as 'http'. "
+                                         "This test suite does not currently support 'https'.")
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Registration API.")
@@ -111,13 +113,15 @@ class IS0402Test(GenericTest):
                 if self.major_version > 1 or (self.major_version == 1 and self.minor_version > 0):
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Query API advertisement.")
-                    elif "v{}.{}".format(self.major_version, self.minor_version) not in properties["api_ver"].split(","):
+                    elif "v{}.{}".format(self.major_version,
+                                         self.minor_version) not in properties["api_ver"].split(","):
                         return test.FAIL("Registry does not claim to support version under test.")
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Query API advertisement.")
                     elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol is not advertised as 'http'. This test suite does not currently support 'https'.")
+                        return test.FAIL("API protocol is not advertised as 'http'. "
+                                         "This test suite does not currently support 'https'.")
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Query API.")

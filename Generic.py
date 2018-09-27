@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import requests
 import git
-import os
 import jsonschema
 
 from TestHelper import Test, Specification
@@ -23,7 +23,8 @@ from TestHelper import Test, Specification
 
 class GenericTest(object):
     """
-    Generic testing class. Can be used independently or inhereted from in order to perform more detailed testing.
+    Generic testing class.
+    Can be used independently or inhereted from in order to perform more detailed testing.
     """
     def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
         self.base_url = base_url
@@ -75,8 +76,8 @@ class GenericTest(object):
 
     def prepare_CORS(self, method):
         headers = {}
-        headers['Access-Control-Request-Method'] = method # Match to request type
-        headers['Access-Control-Request-Headers'] = "Content-Type" # Needed for POST/PATCH etc
+        headers['Access-Control-Request-Method'] = method  # Match to request type
+        headers['Access-Control-Request-Headers'] = "Content-Type"  # Needed for POST/PATCH etc
         return headers
 
     def validate_CORS(self, method, response):
@@ -94,20 +95,25 @@ class GenericTest(object):
         return True
 
 # TODO: Scan the Node first for all our its resources. We'll match these to the registrations received.
-# Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under test
-# TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API interactions
+# TODO: Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under
+#       test
+# TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API
+#       interactions
 
     def test_basics(self):
-        #TODO: Check the /, x-nmos/ and x-nmos/node/ locations too...
+        # TODO: Check the /, x-nmos/ and x-nmos/node/ locations too...
         results = []
 
         for api in self.apis:
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
-                    #TODO: Handle cases where we have params by checking at least one active ID
+                    # TODO: Handle cases where we have params by checking at least one active ID
                     if response_code == 200 and not resource[1]['params']:
                         url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
-                        test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(), api, self.test_version, resource[0]))
+                        test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                                api,
+                                                                self.test_version,
+                                                                resource[0]))
                         s = requests.Session()
                         req = requests.Request(resource[1]['method'], url)
                         prepped = s.prepare_request(req)
@@ -129,7 +135,9 @@ class GenericTest(object):
                             continue
                         results.append(test.PASS())
         return results
-        #TODO: For any method we can't test, flag it as a manual test
-        # Write a harness for each write method with one or more things to send it. Test them using this as part of this loop
-        #TODO: Some basic tests of the Node API itself? Such as presence of arrays at /, /x-nmos, /x-nmos/node etc.
-        #TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on either.
+        # TODO: For any method we can't test, flag it as a manual test
+        # TODO: Write a harness for each write method with one or more things to send it. Test them using this as part
+        #       of this loop
+        # TODO: Some basic tests of the Node API itself? Such as presence of arrays at /, /x-nmos, /x-nmos/node etc.
+        # TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on
+        #       either.

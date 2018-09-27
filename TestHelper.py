@@ -16,6 +16,7 @@ import ramlfications
 import os
 import json
 
+
 def ordered(obj):
     if isinstance(obj, dict):
         return sorted((k, ordered(v)) for k, v in obj.items())
@@ -85,9 +86,13 @@ class Specification(object):
                 if response.body:
                     for entry in response.body:
                         if isinstance(entry.schema, dict):
-                            resource_data["responses"][response.code] = self.deref_schema(os.path.dirname(file_path), schema=entry.schema)
+                            resource_data["responses"][response.code] = self.deref_schema(
+                                                                            os.path.dirname(file_path),
+                                                                            schema=entry.schema)
                         elif entry.schema in self.global_schemas:
-                            resource_data["responses"][response.code] = self.deref_schema(os.path.dirname(file_path), schema=self.global_schemas[entry.schema])
+                            resource_data["responses"][response.code] = self.deref_schema(
+                                                                            os.path.dirname(file_path),
+                                                                            schema=self.global_schemas[entry.schema])
                         else:
                             resource_data["responses"][response.code] = None
                         break

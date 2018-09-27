@@ -30,18 +30,21 @@ app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 
 CACHE_PATH = 'cache'
 
+
 class DataForm(Form):
     test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04 Node API"),
                                                       ("IS-04-02", "IS-04 Registry APIs"),
                                                       ("IS-05-01", "IS-05 Connection Management API"),
                                                       ("IS-06-01", "IS-06 Network Control API")])
-    #TODO: Potentially add a mixed IS-04/05 test for where they cross over
+    # TODO: Potentially add a mixed IS-04/05 test for where they cross over
     ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
-                                                                          message="Please enter a valid port number (0-65535).")])
+                                                                          message="Please enter a valid port number "
+                                                                                  "(0-65535).")])
     version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
                                                          ("v1.1", "v1.1"),
                                                          ("v1.2", "v1.2")])
+
 
 class Registry(object):
     def __init__(self):
@@ -70,20 +73,24 @@ class Registry(object):
     def get_heartbeats(self):
         return self.heartbeats
 
+
 REGISTRY = Registry()
+
 
 # IS-04 resources
 @app.route('/x-nmos/registration/v1.2/resource', methods=["POST"])
 def reg_page():
     REGISTRY.add(request.headers, request.json)
-    #TODO: Ensure status code returned is correct
+    # TODO: Ensure status code returned is correct
     return jsonify(request.json["data"])
+
 
 @app.route('/x-nmos/registration/v1.2/health/nodes/<node_id>', methods=["POST"])
 def heartbeat(node_id):
     REGISTRY.heartbeat(request.headers, request.json, node_id)
-    #TODO: Ensure status code returned is correct
+    # TODO: Ensure status code returned is correct
     return jsonify({"health": int(time.time())})
+
 
 # Index page
 @app.route('/', methods=["GET", "POST"])
@@ -97,7 +104,8 @@ def index_page():
         base_url = "http://{}:{}".format(ip, str(port))
         if form.validate():
             if test == "IS-04-01":
-                apis = {"node": {"raml": "NodeAPI.raml", "url": "{}/x-nmos/node/{}/".format(base_url, version)}}
+                apis = {"node": {"raml": "NodeAPI.raml",
+                                 "url": "{}/x-nmos/node/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0", "v1.1", "v1.2"]
                 spec_path = 'cache/is-04'
 
@@ -105,8 +113,10 @@ def index_page():
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-04-02":
-                apis = {"registration": {"raml": "RegistrationAPI.raml", "url": "{}/x-nmos/registration/{}/".format(base_url, version)},
-                        "query": {"raml": "QueryAPI.raml", "url": "{}/x-nmos/query/{}/".format(base_url, version)}}
+                apis = {"registration": {"raml": "RegistrationAPI.raml",
+                                         "url": "{}/x-nmos/registration/{}/".format(base_url, version)},
+                        "query": {"raml": "QueryAPI.raml",
+                                  "url": "{}/x-nmos/query/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0", "v1.1", "v1.2"]
                 spec_path = 'cache/is-04'
 
@@ -114,7 +124,8 @@ def index_page():
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-05-01":
-                apis = {"connection": {"raml": "ConnectionAPI.raml", "url": "{}/x-nmos/connection/{}/".format(base_url, version)}}
+                apis = {"connection": {"raml": "ConnectionAPI.raml",
+                                       "url": "{}/x-nmos/connection/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0"]
                 spec_path = 'cache/is-05'
 
@@ -122,7 +133,8 @@ def index_page():
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-06-01":
-                apis = {"netctrl": {"raml": "NetworkControlAPI.raml", "url": "{}/x-nmos/netctrl/{}/".format(base_url, version)}}
+                apis = {"netctrl": {"raml": "NetworkControlAPI.raml",
+                                    "url": "{}/x-nmos/netctrl/{}/".format(base_url, version)}}
                 spec_versions = ["v1.0"]
                 spec_path = 'cache/is-06'
 
@@ -151,9 +163,9 @@ if __name__ == '__main__':
         else:
             repo = git.Repo(path)
             repo.git.reset('--hard')
-            #repo.remotes.origin.pull() # TODO: Uncomment for production use
+            # repo.remotes.origin.pull() # TODO: Uncomment for production use
 
-    #TODO: Join 224.0.1.129 briefly and capture some announce messages
+    # TODO: Join 224.0.1.129 briefly and capture some announce messages
 
     print(" * Initialisation complete")
 

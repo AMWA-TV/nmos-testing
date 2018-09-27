@@ -895,7 +895,8 @@ class IS0501Test(GenericTest):
                     if len(constraints) == len(stagedParams):
                         pass
                     else:
-                        return False, "Number of legs in constraints and staged is different for {} {}".format(type, uuid)
+                        return False, "Number of legs in constraints and staged is different for {} {}".format(type,
+                                                                                                               uuid)
 
                     if len(constraints) == len(activeParams):
                         pass
@@ -991,8 +992,7 @@ class IS0501Test(GenericTest):
                 return True, ""
             else:
                 msg = "Activation parameters in staged have not returned to their defaults after activation. " \
-                      "Expected {}, got {}".format(
-                    expected, params)
+                      "Expected {}, got {}".format(expected, params)
                 return False, msg
         else:
             return False, response
@@ -1020,7 +1020,7 @@ class IS0501Test(GenericTest):
                 pass
             else:
                 return False, mmsg
-            if requested == None:
+            if requested is None:
                 pass
             else:
                 return False, rmsg
@@ -1041,35 +1041,27 @@ class IS0501Test(GenericTest):
                         try:
                             activePort = response3['transport_params'][i]['destination_port']
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(
-                                i,
-                                activeUrl,
-                                response3)
+                            return False, "Could not find active destination_port entry on leg {} from {}, " \
+                                          "got {}".format(i, activeUrl, response3)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
-                                activeUrl, i,
-                                type(response3),
-                                response3)
+                                activeUrl, i, type(response3), response3)
                         try:
                             stagedPort = stagedParams[i]['destination_port']
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(
-                                i,
-                                stagedUrl,
-                                stagedParams)
+                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
+                                          "got {}".format(i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
-                                stagedUrl, i,
-                                type(response3),
-                                stagedParams)
+                                stagedUrl, i, type(response3), stagedParams)
                         msg = "Transport parameters did not transition to active during an imeddiate activation"
                         if stagedPort == activePort:
                             pass
                         else:
                             return False, msg
 
-                    msg = "Activation mode was not set to `activate_immediate` at {} after an immediate activation".format(
-                        activeUrl)
+                    msg = "Activation mode was not set to `activate_immediate` at {} " \
+                          "after an immediate activation".format(activeUrl)
                     if response3['activation']['mode'] == "activate_immediate":
                         pass
                     else:
@@ -1126,27 +1118,19 @@ class IS0501Test(GenericTest):
                         try:
                             activePort = activeParams['transport_params'][i]['destination_port']
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                          activeUrl,
-                                                                                                                          activeParams)
+                            return False, "Could not find active destination_port entry on leg {} from {}, " \
+                                          "got {}".format(i, activeUrl, activeParams)
                         except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(activeUrl,
-                                                                                                                  i,
-                                                                                                                  type(
-                                                                                                                      activeParams),
-                                                                                                                  activeParams)
+                            return False, "Expected a dict to be returned from {} on leg {}, " \
+                                          "got a {}: {}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
                             stagedPort = stagedParams[i]['destination_port']
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                          stagedUrl,
-                                                                                                                          stagedParams)
+                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
+                                          "got {}".format(i, stagedUrl, stagedParams)
                         except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(stagedUrl,
-                                                                                                                  i,
-                                                                                                                  type(
-                                                                                                                      activeParams),
-                                                                                                                  stagedParams)
+                            return False, "Expected a dict to be returned from {} on leg {}, " \
+                                          "got a {}: {}".format(stagedUrl, i, type(activeParams), stagedParams)
                         if stagedPort == activePort:
                             finished = True
                         else:
@@ -1161,14 +1145,15 @@ class IS0501Test(GenericTest):
                                 else:
                                     return True, ""
                             else:
-                                return False, "Activation mode was not set to `activate_scheduled_relative` at {} after a relative activation".format(
-                                    activeUrl)
+                                return False, "Activation mode was not set to `activate_scheduled_relative` at {} " \
+                                              "after a relative activation".format(activeUrl)
                         except KeyError:
                             return False, "Expected 'mode' key in 'activation' object."
 
                 else:
                     return False, activeParams
-            return False, "Transport parameters did not transition to active during an relative activation (Retries: {})".format(str(retries))
+            return False, "Transport parameters did not transition to active during an relative activation " \
+                          "(Retries: {})".format(str(retries))
         else:
             return False, response
 
@@ -1227,27 +1212,19 @@ class IS0501Test(GenericTest):
                         try:
                             activePort = activeParams['transport_params'][i]['destination_port']
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                          activeUrl,
-                                                                                                                          activeParams)
+                            return False, "Could not find active destination_port entry on leg {} from {}, " \
+                                          "got {}".format(i, activeUrl, activeParams)
                         except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(activeUrl,
-                                                                                                                  i,
-                                                                                                                  type(
-                                                                                                                      activeParams),
-                                                                                                                  activeParams)
+                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
+                                          "{}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
                             stagedPort = stagedParams[i]['destination_port']
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, got {}".format(i,
-                                                                                                                          stagedUrl,
-                                                                                                                          stagedParams)
+                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
+                                          "got {}".format(i, stagedUrl, stagedParams)
                         except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(stagedUrl,
-                                                                                                                  i,
-                                                                                                                  type(
-                                                                                                                      activeParams),
-                                                                                                                  stagedParams)
+                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
+                                          "{}".format(stagedUrl, i, type(activeParams), stagedParams)
                         if activePort == stagedPort:
                             finished = True
                         else:
@@ -1262,13 +1239,14 @@ class IS0501Test(GenericTest):
                                 else:
                                     return True, ""
                             else:
-                                return False, "Activation mode was not set to `activate_scheduled_absolute` at {} after a absolute activation".format(
-                                    activeUrl)
+                                return False, "Activation mode was not set to `activate_scheduled_absolute` at {} " \
+                                              "after a absolute activation".format(activeUrl)
                         except KeyError:
                             return False, "Expected 'mode' key in 'activation' object."
                 else:
                     return False, activeParams
-            return False, "Transport parameters did not transition to active during an absolute activation (Retries: {})".format(str(retries))
+            return False, "Transport parameters did not transition to active during an absolute activation " \
+                          "(Retries: {})".format(str(retries))
         else:
             return False, response
 
@@ -1408,7 +1386,8 @@ class IS0501Test(GenericTest):
                 schema = self.load_schema("v1.0_" + port + "_transport_params_rtp.json")
                 resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/",
                                        schema)
-                constraints_valid, constraints_response = self.checkCleanGet("single/" + port + "s/" + myPort + "/constraints/")
+                constraints_valid, constraints_response = self.checkCleanGet("single/" + port + "s/" +
+                                                                             myPort + "/constraints/")
                 if constraints_valid:
                     count = 0
                     try:
@@ -1417,9 +1396,8 @@ class IS0501Test(GenericTest):
                             try:
                                 Draft4Validator(schema['items']['properties'], resolver=resolver).validate(params)
                             except ValidationError as e:
-                                return False, "Staged endpoint does not comply with constraints in leg {}: {}".format(count,
-                                                                                                                      str(
-                                                                                                                          e))
+                                return False, "Staged endpoint does not comply with constraints in leg {}: " \
+                                              "{}".format(count, str(e))
                             except SchemaError as e:
                                 return False, "Invalid schema resulted from combining constraints in leg {}: {}".format(
                                     count,
@@ -1459,16 +1437,16 @@ class IS0501Test(GenericTest):
                                             stagedParams = s_response['transport_params'][count].keys()
                                         except AttributeError:
                                             # Found something that we couldn't get keys from, not a dict then...
-                                            return False, "Staged parameters contain non-dicts in array position {}".format(
-                                                count)
+                                            return False, "Staged parameters contain non-dicts in array position " \
+                                                          "{}".format(count)
                                         except KeyError:
                                             return False, "Staged parameters do not contain transport_params"
                                         try:
                                             activeParams = a_response['transport_params'][count].keys()
                                         except AttributeError:
                                             # Found something that we couldn't get keys from, not a dict then...
-                                            return False, "Active parameters contain non-dicts in array position {}".format(
-                                                count)
+                                            return False, "Active parameters contain non-dicts in array position " \
+                                                          "{}".format(count)
                                         except KeyError:
                                             return False, "Active parameters do not contain transport_params"
                                         smsg = "Staged parameter set does not match parameters in constraints"
