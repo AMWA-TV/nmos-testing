@@ -26,14 +26,11 @@ from Generic import GenericTest
 class IS0402Test(GenericTest):
     """
     Runs IS-04-02-Test
-    Result-format:
-
-    #TestNumber#    #TestDescription#   #Succeeded?#    #Reason#
     """
-    def __init__(self, base_url, api_name, spec_versions, test_version, spec_path, reg_url, query_url):
+    def __init__(self, base_url, api_name, spec_versions, test_version, spec_path):
         GenericTest.__init__(self, base_url, api_name, spec_versions, test_version, spec_path)
-        self.reg_url = reg_url
-        self.query_url = query_url
+        self.reg_url = "{}/x-nmos/registration/{}/".format(self.base_url, self.test_version)
+        self.query_url = "{}/x-nmos/query/{}/".format(self.base_url, self.test_version)
 
     def execute_tests(self):
         super(IS0402Test, self).execute_tests()

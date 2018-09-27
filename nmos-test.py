@@ -28,7 +28,6 @@ app = Flask(__name__)
 app.debug = True
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 
-NODE_URL = "http://<node_ip>:<node_port>/x-nmos/node/v1.2/"
 CACHE_PATH = 'cache'
 
 class DataForm(Form):
@@ -95,26 +94,31 @@ def index_page():
         base_url = "http://{}:{}".format(ip, str(port))
         if form.validate():
             if test == "IS-04-01":
-                url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
-                test_obj = IS0401Test.IS0401Test(url, REGISTRY)
-                result = test_obj.run_tests()
-                return render_template("result.html", url=url, test=test, result=result)
-            elif test == "IS-04-02":
-                reg_url = "http://{}:{}/x-nmos/registration/{}/".format(ip, str(port), version)
-                query_url = "http://{}:{}/x-nmos/query/{}/".format(ip, str(port), version)
-
                 api_name = "node"
                 spec_versions = ["v1.0", "v1.1", "v1.2"]
                 spec_path = 'cache/is-04'
 
-                test_obj = IS0402Test.IS0402Test(base_url, api_name, spec_versions, version, spec_path, reg_url, query_url)
+                url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
+                test_obj = IS0401Test.IS0401Test(url, REGISTRY)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
-            elif test == "IS-05-01":  # test == "IS-05-01"
+            elif test == "IS-04-02":
+                api_name = "node"
+                spec_versions = ["v1.0", "v1.1", "v1.2"]
+                spec_path = 'cache/is-04'
+
+                test_obj = IS0402Test.IS0402Test(base_url, api_name, spec_versions, version, spec_path)
+                result = test_obj.run_tests()
+                return render_template("result.html", url=base_url, test=test, result=result)
+            elif test == "IS-05-01":
+                api_name = "connection"
+                spec_versions = ["v1.0"]
+                spec_path = 'cache/is-05'
+
                 url = "http://{}:{}/x-nmos/connection/{}/".format(ip, str(port), version)
                 test_obj = IS0501Test.IS0501Test(url)
                 result = test_obj.run_tests()
-                return render_template("result.html", url=url, test=test, result=result)
+                return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-06-01":
                 api_name = "netctrl"
                 spec_versions = ["v1.0"]
