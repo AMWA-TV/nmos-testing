@@ -94,9 +94,14 @@ def index_page():
         version = request.form["version"]
         if form.validate():
             if test == "Generic":
-                url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)
-                test_obj = Generic.Generic(url)
+                base_url = "http://{}:{}".format(ip, str(port))
+                api_name = "node"
+                spec_versions = ["v1.0", "v1.1", "v1.2"]
+                spec_path = 'cache/is-04'
+                test_version = version
+                test_obj = Generic.GenericTest(base_url, api_name, spec_versions, test_version, spec_path)
                 result = test_obj.run_tests()
+                url = "{}/x-nmos/{}/{}/".format(base_url, api_name, version)
                 return render_template("result.html", url=url, test=test, result=result)
             elif test == "IS-04-01":
                 url = "http://{}:{}/x-nmos/node/{}/".format(ip, str(port), version)

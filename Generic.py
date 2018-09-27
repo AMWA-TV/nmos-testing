@@ -20,27 +20,31 @@ import jsonschema
 
 from TestHelper import Specification, Test
 
-SPEC_PATH = 'cache/is-04'
 
-
-class Generic:
+class GenericTest(object):
     """
-    Runs Generic
-    Result-format:
-
-    #TestNumber#    #TestDescription#   #Succeeded?#    #Reason#
+    Generic testing class. Can be used independently or inhereted from in order to perform more detailed testing.
     """
-    def __init__(self, url):
-        repo = git.Repo(SPEC_PATH)
-        self.url = url
+    def __init__(self, base_url, api_name, spec_versions, test_version, spec_path):
+        self.base_url = base_url
+        self.api_name = api_name
+        self.spec_versions = spec_versions
+        self.test_version = test_version
+        self.spec_path = spec_path
+
+        self.major_version, self.minor_version = self.parse_version(self.test_version)
+
+        repo = git.Repo(self.spec_path)
+        self.url = "{}/x-nmos/{}/{}/".format(self.base_url, self.api_name, self.test_version)
         self.result = list()
-        if "/v1.0/" in self.url:
-            repo.git.checkout('v1.0.x')
-        elif "/v1.1/" in self.url:
-            repo.git.checkout('v1.1.x')
-        elif "/v1.2/" in self.url:
-            repo.git.checkout('v1.2.x')
+
+        spec_branch = self.test_version + ".x"
+        repo.git.checkout(spec_branch)
         self.parse_RAML()
+
+    def parse_version(self, version):
+        version_parts = version.strip("v").split(".")
+        return version_parts[0], version_parts[1]
 
     def run_tests(self):
         test_number = 1
@@ -54,7 +58,7 @@ class Generic:
 # Trailing slashes
 
     def parse_RAML(self):
-        self.node_api = Specification(os.path.join(SPEC_PATH + '/APIs/NodeAPI.raml'))
+        self.node_api = Specification(os.path.join(self.spec_path + '/APIs/NodeAPI.raml'))
 
     def prepare_CORS(self, method):
         headers = {}
