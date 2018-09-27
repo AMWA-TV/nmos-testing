@@ -22,8 +22,6 @@ from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 from TestHelper import MdnsListener, Test
 from Generic import GenericTest
 
-SPEC_PATH = 'cache/is-04'
-
 
 class IS0401Test(GenericTest):
     """

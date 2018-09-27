@@ -107,7 +107,7 @@ class GenericTest(object):
                     #TODO: Handle cases where we have params by checking at least one active ID
                     if response_code == 200 and not resource[1]['params']:
                         url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
-                        test = Test("{} {}".format(resource[1]['method'].upper(), resource[0]))
+                        test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(), api, self.test_version, resource[0]))
                         s = requests.Session()
                         req = requests.Request(resource[1]['method'], url)
                         prepped = s.prepare_request(req)
