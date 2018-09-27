@@ -98,7 +98,7 @@ def index_page():
                 spec_versions = ["v1.0", "v1.1", "v1.2"]
                 spec_path = 'cache/is-04'
 
-                test_obj = IS0401Test.IS0401Test(apis["node"]["url"], REGISTRY)
+                test_obj = IS0401Test.IS0401Test(base_url, apis, spec_versions, version, spec_path, REGISTRY)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-04-02":

@@ -14,45 +14,37 @@
 # limitations under the License.
 
 import requests
-import json
 from time import sleep
 import time
 import socket
-import os
-import git
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
-from TestHelper import Specification, MdnsListener
+from TestHelper import MdnsListener, Test
+from Generic import GenericTest
 
 SPEC_PATH = 'cache/is-04'
 
 
-class IS0401Test:
+class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
-    Result-format:
-
-    #TestNumber#    #TestDescription#   #Succeeded?#    #Reason#
     """
-    def __init__(self, url, registry):
-        repo = git.Repo(SPEC_PATH)
+    def __init__(self, base_url, apis, spec_versions, test_version, spec_path, registry):
+        GenericTest.__init__(self, base_url, apis, spec_versions, test_version, spec_path)
         self.registry = registry
-        self.url = url
+        self.node_url = self.apis["node"]["url"]
         self.query_api_url = None
-        self.result = list()
-        if "/v1.0/" in self.url:
-            repo.git.checkout('v1.0.x')
-        elif "/v1.1/" in self.url:
-            repo.git.checkout('v1.1.x')
-        elif "/v1.2/" in self.url:
-            repo.git.checkout('v1.2.x')
-        self.parse_RAML()
 
-    def run_tests(self):
-        self.result.append(self.test_01())
-        self.result.append(self.test_new_02())
-        self.result.append(self.test_02())
-        self.result.append(self.test_03())
+    def execute_tests(self):
+        super(IS0401Test, self).execute_tests()
+        test_number = len(self.result) + 1
+        self.result.append([test_number] + self.test_01())
+        test_number += 1
+        self.result.append([test_number] + self.test_new_02())
+        test_number += 1
+        self.result.append([test_number] + self.test_02())
+        test_number += 1
+        self.result.append([test_number] + self.test_03())
         #self.result.append(self.test_04())
         #self.result.append(self.test_05())
         #self.result.append(self.test_06())
@@ -66,45 +58,10 @@ class IS0401Test:
         #self.result.append(self.test_14())
         return self.result
 
-    def parse_RAML(self):
-        self.node_api = Specification(os.path.join(SPEC_PATH + '/APIs/NodeAPI.raml'))
-        self.registration_api = Specification(os.path.join(SPEC_PATH + '/APIs/RegistrationAPI.raml'))
-
-        #print(self.node_api.get_path('/self'))
-
-    def prepare_CORS(self, method):
-        headers = {}
-        headers['Access-Control-Request-Method'] = method # Match to request type
-        headers['Access-Control-Request-Headers'] = "Content-Type" # Needed for POST/PATCH etc
-        return headers
-
-    def validate_CORS(self, method, response):
-        if not 'Access-Control-Allow-Origin' in response.headers:
-            return False
-        if method in ['POST', 'PUT', 'PATCH', 'DELETE']:
-            if not 'Access-Control-Allow-Headers' in response.headers:
-                return False
-            if not method in response.headers['Access-Control-Allow-Headers']:
-                return False
-            if not 'Access-Control-Allow-Method' in response.headers:
-                return False
-            if not method in response.headers['Access-Control-Allow-Methods']:
-                return False
-
-    def test_node_read(self):
-        for resource in self.node_api.resources:
-            if resource.method in ['get', 'head', 'options']:
-                for response in resource.responses:
-                    if response.code == 200:
-                        for entry in response.body:
-                            print(entry.schema)
-                            print(resource.path)
-                            print(resource.uri_params)
-
     def test_01(self):
         """Node can discover network registration service via mDNS"""
-        test_number = "01"
-        test_description = "Node can discover network registration service via mDNS"
+
+        test = Test("Node can discover network registration service via mDNS")
 
         self.registry.reset()
 
@@ -126,25 +83,25 @@ class IS0401Test:
 
         # TODO Schema check them all registrations etc
         if len(self.registry.get_data()) > 0:
-            return test_number, test_description, "Pass", ""
+            return test.PASS()
 
-        return test_number, test_description, "Fail", "Node did not attempt to register with the advertised registry."
+        return test.FAIL("Node did not attempt to register with the advertised registry.")
 
     def test_new_02(self):
         """Registration API interactions use the correct Content-Type"""
-        test_number = "02"
-        test_description = "Registration API interactions use the correct Content-Type"
+
+        test = Test("Registration API interactions use the correct Content-Type")
 
         if len(self.registry.get_data()) == 0:
-            return test_number, test_description, "Fail", "No registrations found"
+            return test.FAIL("No registrations found")
 
         for resource in self.registry.get_data():
             if "Content-Type" not in resource[1]["headers"]:
-                return test_number, test_description, "Fail", "Node failed to signal its Content-Type correctly when registering."
+                return test.FAIL("Node failed to signal its Content-Type correctly when registering.")
             elif resource[1]["headers"]["Content-Type"] != "application/json":
-                return test_number, test_description, "Fail", "Node signalled a Content-Type other than application/json."
+                return test.FAIL("Node signalled a Content-Type other than application/json.")
 
-        return test_number, test_description, "Pass", ""
+        return test.PASS()
 
     def test_mdns_pri(self):
         # Set priority to 100
@@ -163,10 +120,11 @@ class IS0401Test:
     def test_02(self):
         """Node can register a valid Node resource with the network registration service,
         matching its Node API self resource"""
-        test_number = "02"
-        test_description = "Node can register a valid Node resource with the network registration service, " \
-                           "matching its Node API self resource"
-        url = "{}self".format(self.url)
+
+        test = Test("Node can register a valid Node resource with the network registration service, "
+                    "matching its Node API self resource")
+
+        url = "{}self".format(self.node_url)
         try:
             # Get node data from node itself
             r = requests.get(url)
@@ -180,24 +138,25 @@ class IS0401Test:
 
                     if last_node is not None:
                         if last_node == r.json():
-                            return test_number, test_description, "Pass", ""
+                            return test.PASS()
                         else:
-                            return test_number, test_description, "Fail", "Node API JSON does not match data in registry."
+                            return test.FAIL("Node API JSON does not match data in registry.")
                     else:
-                        return test_number, test_description, "Fail", "No Node registration found in registry."
+                        return test.FAIL("No Node registration found in registry.")
                 except ValueError:
-                    return test_number, test_description, "Fail", "Invalid JSON received!"
+                    return test.FAIL("Invalid JSON received!")
             else:
-                return test_number, test_description, "Fail", "Could not reach Node!"
+                return test.FAIL("Could not reach Node!")
         except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error for {}".format(url)
+            return test.FAIL("Connection error for {}".format(url))
 
     def test_03(self):
         """Node maintains itself in the registry via periodic calls to the health resource"""
-        test_number = "03"
-        test_description = "Node maintains itself in the registry via periodic calls to the health resource"
+
+        test = Test("Node maintains itself in the registry via periodic calls to the health resource")
 
         if len(self.registry.get_heartbeats()) < 2:
+            return test.FAIL("Node API JSON does not match data in registry.")
             return test_number, test_description, "Fail", "Not enough heartbeats were made in the time period."
 
         last_hb = None
@@ -206,26 +165,26 @@ class IS0401Test:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
                 if time_diff > 5.5:
-                    return test_number, test_description, "Fail", "Heartbeats are not frequent enough."
+                    return test.FAIL("Heartbeats are not frequent enough.")
                 elif time_diff < 4.5:
-                    return test_number, test_description, "Fail", "Heartbeats are too frequent."
+                    return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
                 initial_node = self.registry.get_data()[0]
                 if (heartbeat[0] - initial_node[0]) > 5.5:
-                    return test_number, test_description, "Fail", "First heartbeat occurred too long after initial Node registration."
+                    return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
                 # Ensure the Node ID for heartbeats matches the registrations
                 if heartbeat[1]["node_id"] != initial_node["id"]:
-                    return test_number, test_description, "Fail", "Heartbeats matched a different Node ID to the initial registration."
+                    return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
 
             # Ensure the heartbeat request body is empty
             if heartbeat[1]["payload"] != None:
-                return test_number, test_description, "Fail", "Heartbeat POST contained a payload body."
+                return test.FAIL("Heartbeat POST contained a payload body.")
 
             last_hb = heartbeat
 
-        return test_number, test_description, "Pass", ""
+        return test.PASS()
 
     def test_04(self):
         """Node correctly handles HTTP 4XX and 5XX codes from the registry,
@@ -241,7 +200,7 @@ class IS0401Test:
         test_number = "05"
         test_description = "Node can register a valid Device resource with the network registration service, " \
                            "matching its Node API Device resource"
-        url = "{}devices/".format(self.url)
+        url = "{}devices/".format(self.node_url)
         try:
             r = requests.get(url)
             try:
@@ -273,7 +232,7 @@ class IS0401Test:
         test_number = "06"
         test_description = "Node can register a valid Source resource with the network " \
                            "registration service, matching its Node API Source resource"
-        url = "{}sources/".format(self.url)
+        url = "{}sources/".format(self.node_url)
         try:
             r = requests.get(url)
             try:
@@ -305,7 +264,7 @@ class IS0401Test:
         test_number = "07"
         test_description = "Node can register a valid Flow resource with the network " \
                            "registration service, matching its Node API Flow resource"
-        url = "{}flows/".format(self.url)
+        url = "{}flows/".format(self.node_url)
         try:
             r = requests.get(url)
             try:
@@ -337,7 +296,7 @@ class IS0401Test:
         test_number = "08"
         test_description = "Node can register a valid Sender resource with the network " \
                            "registration service, matching its Node API Sender resource"
-        url = "{}senders/".format(self.url)
+        url = "{}senders/".format(self.node_url)
         try:
             r = requests.get(url)
             try:
@@ -369,7 +328,7 @@ class IS0401Test:
         test_number = "09"
         test_description = "Node can register a valid Receiver resource with the network " \
                            "registration service, matching its Node API Receiver resource"
-        url = "{}receivers/".format(self.url)
+        url = "{}receivers/".format(self.node_url)
         try:
             r = requests.get(url)
             try:
@@ -410,7 +369,7 @@ class IS0401Test:
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            if address in self.url and ":{}".format(port) in self.url:
+            if address in self.node_url and ":{}".format(port) in self.node_url:
                 properties_raw = node.properties
                 for prop in properties_raw:
                     if "ver_" in prop.decode('ascii'):
