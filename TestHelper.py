@@ -155,6 +155,9 @@ class GenericTest(object):
                             except jsonschema.ValidationError:
                                 results.append(test.FAIL("Response schema validation error"))
                                 continue
+                            except json.decoder.JSONDecodeError:
+                                results.append(test.FAIL("Invalid JSON received"))
+                                continue
                         else:
                             results.append(test.FAIL("Test suite unable to locate schema"))
                             continue
