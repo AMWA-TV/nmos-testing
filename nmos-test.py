@@ -31,14 +31,17 @@ app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 CACHE_PATH = 'cache'
 
 class DataForm(Form):
-    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04-01: Node"), ("IS-04-02", "IS-04-02: Registry"), ("IS-05-01", "IS-05-01: ConnectionMgmt API"), ("IS-06-01", "IS-06-01: Network Control API")])
+    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04 Node API"),
+                                                      ("IS-04-02", "IS-04 Registry APIs"),
+                                                      ("IS-05-01", "IS-05 Connection Management API"),
+                                                      ("IS-06-01", "IS-06 Network Control API")])
     #TODO: Potentially add a mixed IS-04/05 test for where they cross over
-    ip = StringField(label="Ip:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
+    ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
                                                                           message="Please enter a valid port number (0-65535).")])
     version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
-                                                        ("v1.1", "v1.1"),
-                                                        ("v1.2", "v1.2")])
+                                                         ("v1.1", "v1.1"),
+                                                         ("v1.2", "v1.2")])
 
 class Registry(object):
     def __init__(self):
