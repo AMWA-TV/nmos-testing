@@ -63,8 +63,12 @@ class MdnsListener(object):
 class Specification(object):
     def __init__(self, file_path):
         self.data = {}
+        self.fix_schemas(file_path)
         api_raml = ramlfications.parse(file_path, "config.ini")
-        self.global_schemas = api_raml.schemas[0]
+        self.global_schemas = {}
+        for schema in api_raml.schemas:
+            keys = list(schema.keys())
+            self.global_schemas[keys[0]] = schema[keys[0]]
         for resource in api_raml.resources:
             resource_data = {'method': resource.method,
                              'params': resource.uri_params,
@@ -87,6 +91,24 @@ class Specification(object):
                             resource_data["responses"][response.code] = None
                         break
             self.data[resource.path] = resource_data
+
+    def fix_schemas(self, file_path):
+        # Fixes RAML to match ramlfications expectations (bugs)
+        lines = []
+        in_schemas = False
+        with open(file_path) as raml:
+            line = raml.readline()
+            while line:
+                if in_schemas and not line.startswith(" "):
+                    in_schemas = False
+                if in_schemas and "- " not in line:
+                    line = "  - " + line.lstrip()
+                if line.startswith("schemas:"):
+                    in_schemas = True
+                lines.append(line)
+                line = raml.readline()
+        with open(file_path, "w") as raml:
+            raml.writelines("".join(lines))
 
     def deref_schema(self, dir, name=None, schema=None):
         def process(obj):
