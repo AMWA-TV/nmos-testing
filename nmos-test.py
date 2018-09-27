@@ -111,7 +111,14 @@ def index_page():
             elif test == "IS-04-02":
                 reg_url = "http://{}:{}/x-nmos/registration/{}/".format(ip, str(port), version)
                 query_url = "http://{}:{}/x-nmos/query/{}/".format(ip, str(port), version)
-                test_obj = IS0402Test.IS0402Test(reg_url, query_url)
+
+                base_url = "http://{}:{}".format(ip, str(port))
+                api_name = "node"
+                spec_versions = ["v1.0", "v1.1", "v1.2"]
+                spec_path = 'cache/is-04'
+                test_version = version
+
+                test_obj = IS0402Test.IS0402Test(base_url, api_name, spec_versions, test_version, spec_path, reg_url, query_url)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=query_url, test=test, result=result)
             else:  # test == "IS-05-01"

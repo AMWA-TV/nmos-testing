@@ -14,11 +14,10 @@
 # limitations under the License.
 
 import requests
-import os
 import git
 import jsonschema
 
-from TestHelper import Specification, Test
+from TestHelper import Test
 
 
 class GenericTest(object):
@@ -46,19 +45,31 @@ class GenericTest(object):
         version_parts = version.strip("v").split(".")
         return version_parts[0], version_parts[1]
 
-    def run_tests(self):
-        test_number = 1
-        for result in self.test_node_read():
+    def execute_tests(self):
+        test_number = len(self.result) + 1
+        for result in self.test_basics():
             self.result.append([test_number] + result)
             test_number += 1
+
+    def run_tests(self):
+        self.execute_tests()
         return self.result
+
+    def convert_bytes(self, data):
+        if isinstance(data, bytes):
+            return data.decode('ascii')
+        if isinstance(data, dict):
+            return dict(map(self.convert_bytes, data.items()))
+        if isinstance(data, tuple):
+            return map(self.convert_bytes, data)
+        return data
 
 # Tests: Schema checks for all resources
 # CORS checks for all resources
 # Trailing slashes
 
     def parse_RAML(self):
-        self.node_api = Specification(os.path.join(self.spec_path + '/APIs/NodeAPI.raml'))
+        pass
 
     def prepare_CORS(self, method):
         headers = {}
@@ -84,7 +95,7 @@ class GenericTest(object):
 # Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under test
 # TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API interactions
 
-    def test_node_read(self):
+    def test_basics(self):
         #TODO: Check the /, x-nmos/ and x-nmos/node/ locations too...
         results = []
         for resource in self.node_api.get_reads():
