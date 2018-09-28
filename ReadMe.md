@@ -21,7 +21,7 @@ $ python3 nmos-test.py
 ```
 
 This tool provides a simple web service which is available on `http://localhost:5000`.
-Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test from the checklist. The result of the the test will be shown after a few seconds.
+Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test from the checklist. The result of the test will be shown after a few seconds.
 
 ## External dependencies:
 -   Python 3
