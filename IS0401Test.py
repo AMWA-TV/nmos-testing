@@ -37,7 +37,6 @@ class IS0401Test(GenericTest):
         self.registry.enable()
         self.result.append(self.test_01())
         self.registry.disable()
-        self.result.append(self.test_new_02())
         self.result.append(self.test_02())
         self.result.append(self.test_03())
         self.result.append(self.test_04())
@@ -51,6 +50,8 @@ class IS0401Test(GenericTest):
         self.result.append(self.test_12())
         self.result.append(self.test_13())
         self.result.append(self.test_14())
+        self.result.append(self.test_15())
+        self.result.append(self.test_16())
 
     def test_01(self):
         """Node can discover network registration service via mDNS"""
@@ -81,7 +82,14 @@ class IS0401Test(GenericTest):
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
 
-    def test_new_02(self):
+    def test_02(self):
+        """Node can discover network registration service via unicast DNS"""
+
+        # TODO: Provide an option for the user to set up their own unicast DNS server?
+        test = Test("Node can discover network registration service via unicast DNS")
+        return test.MANUAL()
+
+    def test_03(self):
         """Registration API interactions use the correct Content-Type"""
 
         test = Test("Registration API interactions use the correct Content-Type")
@@ -162,7 +170,7 @@ class IS0401Test(GenericTest):
         except requests.ConnectionError:
             return test.FAIL("Connection error for {}".format(url))
 
-    def test_02(self):
+    def test_04(self):
         """Node can register a valid Node resource with the network registration service,
         matching its Node API self resource"""
 
@@ -170,7 +178,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API self resource")
         return self.test_matching_resource(test, "node")
 
-    def test_03(self):
+    def test_05(self):
         """Node maintains itself in the registry via periodic calls to the health resource"""
 
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
@@ -205,7 +213,7 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_04(self):
+    def test_06(self):
         """Node correctly handles HTTP 4XX and 5XX codes from the registry,
         re-registering or trying alternative Registration APIs as required"""
 
@@ -213,7 +221,7 @@ class IS0401Test(GenericTest):
                     "re-registering or trying alternative Registration APIs as required")
         return test.MANUAL()
 
-    def test_05(self):
+    def test_07(self):
         """Node can register a valid Device resource with the network registration service, matching its
         Node API Device resource"""
 
@@ -221,7 +229,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Device resource")
         return self.test_matching_resource(test, "device")
 
-    def test_06(self):
+    def test_08(self):
         """Node can register a valid Source resource with the network
         registration service, matching its Node API Source resource"""
 
@@ -229,7 +237,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Source resource")
         return self.test_matching_resource(test, "source")
 
-    def test_07(self):
+    def test_09(self):
         """Node can register a valid Flow resource with the network
         registration service, matching its Node API Flow resource"""
 
@@ -237,7 +245,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Flow resource")
         return self.test_matching_resource(test, "flow")
 
-    def test_08(self):
+    def test_10(self):
         """Node can register a valid Sender resource with the network
         registration service, matching its Node API Sender resource"""
 
@@ -245,7 +253,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Sender resource")
         return self.test_matching_resource(test, "sender")
 
-    def test_09(self):
+    def test_11(self):
         """Node can register a valid Receiver resource with the network
         registration service, matching its Node API Receiver resource"""
 
@@ -253,7 +261,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Receiver resource")
         return self.test_matching_resource(test, "receiver")
 
-    def test_10(self):
+    def test_12(self):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
         in the presence of a Registration API"""
         test = Test("Node advertises a Node type mDNS announcement with no ver_* TXT records in the presence "
@@ -275,7 +283,7 @@ class IS0401Test(GenericTest):
                 return test.PASS()
         return test.FAIL("No matching mdns announcement found for node.")
 
-    def test_11(self):
+    def test_13(self):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
         and connects the Receiver to a stream"""
 
@@ -283,7 +291,7 @@ class IS0401Test(GenericTest):
                     "is accepted and connects the Receiver to a stream")
         return test.MANUAL()
 
-    def test_12(self):
+    def test_14(self):
         """Receiver resource (in Node API and registry) is correctly updated to match the subscribed
         Sender ID upon subscription"""
 
@@ -291,7 +299,7 @@ class IS0401Test(GenericTest):
                     "the subscribed Sender ID upon subscription")
         return test.MANUAL()
 
-    def test_13(self):
+    def test_15(self):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
         disconnects the Receiver from a stream"""
 
@@ -299,7 +307,7 @@ class IS0401Test(GenericTest):
                     "is accepted and disconnects the Receiver from a stream")
         return test.MANUAL()
 
-    def test_14(self):
+    def test_16(self):
         """Node correctly selects a Registration API based on advertised priorities"""
 
         test = Test("Node correctly selects a Registration API based on advertised priorities")
