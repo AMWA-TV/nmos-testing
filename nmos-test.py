@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import Flask, render_template, flash, request, jsonify
+from flask import Flask, render_template, flash, request, jsonify, abort
 from wtforms import Form, validators, StringField, SelectField, IntegerField
 
 import git
@@ -52,6 +52,7 @@ class Registry(object):
         self.last_hb_time = 0
         self.data = []
         self.heartbeats = []
+        self.enabled = False
 
     def reset(self):
         self.last_time = time.time()
@@ -73,6 +74,12 @@ class Registry(object):
     def get_heartbeats(self):
         return self.heartbeats
 
+    def enable(self):
+        self.enabled = True
+
+    def disable(self):
+        self.enabled = False
+
 
 REGISTRY = Registry()
 
@@ -80,6 +87,8 @@ REGISTRY = Registry()
 # IS-04 resources
 @app.route('/x-nmos/registration/v1.2/resource', methods=["POST"])
 def reg_page():
+    if not REGISTRY.enabled:
+        abort(500)
     REGISTRY.add(request.headers, request.json)
     # TODO: Ensure status code returned is correct
     return jsonify(request.json["data"])
@@ -87,6 +96,8 @@ def reg_page():
 
 @app.route('/x-nmos/registration/v1.2/health/nodes/<node_id>', methods=["POST"])
 def heartbeat(node_id):
+    if not REGISTRY.enabled:
+        abort(404)
     REGISTRY.heartbeat(request.headers, request.json, node_id)
     # TODO: Ensure status code returned is correct
     return jsonify({"health": int(time.time())})

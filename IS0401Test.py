@@ -34,10 +34,12 @@ class IS0401Test(GenericTest):
 
     def execute_tests(self):
         super(IS0401Test, self).execute_tests()
+        self.registry.enable()
         self.result.append(self.test_01())
         self.result.append(self.test_new_02())
         self.result.append(self.test_02())
         self.result.append(self.test_03())
+        self.registry.disable()
         # self.result.append(self.test_04())
         # self.result.append(self.test_05())
         # self.result.append(self.test_06())
@@ -58,7 +60,7 @@ class IS0401Test(GenericTest):
         self.registry.reset()
 
         # TODO: Set api_ver to just the version under test. Later test support for parsing CSV string
-        txt = {'api_ver': 'v1.0,v1.1,v1.2', 'api_proto': 'http', 'pri': '0'}
+        txt = {'api_ver': self.test_version, 'api_proto': 'http', 'pri': '0'}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite._nmos-registration._tcp.local.",
                            socket.inet_aton("127.0.0.1"), 5000, 0, 0,
@@ -166,7 +168,7 @@ class IS0401Test(GenericTest):
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
                 # Ensure the Node ID for heartbeats matches the registrations
-                if heartbeat[1]["node_id"] != initial_node["id"]:
+                if heartbeat[1]["node_id"] != initial_node[1]["payload"]["data"]["id"]:
                     return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
 
             # Ensure the heartbeat request body is empty
