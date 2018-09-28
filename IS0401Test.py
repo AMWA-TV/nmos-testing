@@ -36,16 +36,16 @@ class IS0401Test(GenericTest):
         super(IS0401Test, self).execute_tests()
         self.registry.enable()
         self.result.append(self.test_01())
+        self.registry.disable()
         self.result.append(self.test_new_02())
         self.result.append(self.test_02())
         self.result.append(self.test_03())
-        self.registry.disable()
         # self.result.append(self.test_04())
-        # self.result.append(self.test_05())
-        # self.result.append(self.test_06())
-        # self.result.append(self.test_07())
-        # self.result.append(self.test_08())
-        # self.result.append(self.test_09())
+        self.result.append(self.test_05())
+        self.result.append(self.test_06())
+        self.result.append(self.test_07())
+        self.result.append(self.test_08())
+        self.result.append(self.test_09())
         # self.result.append(self.test_10())
         # self.result.append(self.test_11())
         # self.result.append(self.test_12())
@@ -111,38 +111,64 @@ class IS0401Test(GenericTest):
         # Set ver to something else comma separated?
         pass
 
-    def test_02(self):
-        """Node can register a valid Node resource with the network registration service,
-        matching its Node API self resource"""
+    def get_registry_resources(self, res_type):
+        resources = {}
+        for resource in self.registry.get_data():
+            if resource[1]["payload"]["type"] == res_type:
+                resources[resource[1]["payload"]["data"]["id"]] = resource[1]["payload"]["data"]
+        return resources
 
-        test = Test("Node can register a valid Node resource with the network registration service, "
-                    "matching its Node API self resource")
+    def get_node_resources(self, resp_json):
+        resources = {}
+        if isinstance(resp_json, dict):
+            resources[resp_json["id"]] = resp_json
+        else:
+            for resource in resp_json:
+                resources[resource["id"]] = resource
+        return resources
 
-        url = "{}self".format(self.node_url)
+    def test_matching_resource(self, test, res_type):
+        if res_type == "node":
+            url = "{}self".format(self.node_url)
+        else:
+            url = "{}{}s".format(self.node_url, res_type)
         try:
-            # Get node data from node itself
+            # Get data from node itself
             r = requests.get(url)
             if r.status_code == 200:
                 try:
-                    # Compare to registered resource
-                    last_node = None
-                    for resource in self.registry.get_data():
-                        if resource[1]["payload"]["type"] == "node":
-                            last_node = resource[1]["payload"]["data"]
+                    reg_resources = self.get_registry_resources(res_type)
+                    node_resources = self.get_node_resources(r.json())
 
-                    if last_node is not None:
-                        if last_node == r.json():
-                            return test.PASS()
-                        else:
-                            return test.FAIL("Node API JSON does not match data in registry.")
-                    else:
-                        return test.FAIL("No Node registration found in registry.")
+                    if len(reg_resources) != len(node_resources):
+                        return test.FAIL("One or more {} registrations were not found in either "
+                                         "the Node or the registry.".format(res_type.title()))
+
+                    if len(node_resources) == 0:
+                        return test.NA("No {} resources were found on the Node.".format(res_type.title()))
+
+                    for resource in node_resources:
+                        if resource not in reg_resources:
+                            test.FAIL("{} {} was not found in the registry.".format(res_type.title(), resource))
+                        elif reg_resources[resource] != node_resources[resource]:
+                            return test.FAIL("Node API JSON does not match data in registry for "
+                                             "{} {}.".format(res_type.title(), resource))
+
+                    return test.PASS()
                 except ValueError:
                     return test.FAIL("Invalid JSON received!")
             else:
                 return test.FAIL("Could not reach Node!")
         except requests.ConnectionError:
             return test.FAIL("Connection error for {}".format(url))
+
+    def test_02(self):
+        """Node can register a valid Node resource with the network registration service,
+        matching its Node API self resource"""
+
+        test = Test("Node can register a valid Node resource with the network registration service, "
+                    "matching its Node API self resource")
+        return self.test_matching_resource(test, "node")
 
     def test_03(self):
         """Node maintains itself in the registry via periodic calls to the health resource"""
@@ -190,162 +216,42 @@ class IS0401Test(GenericTest):
     def test_05(self):
         """Node can register a valid Device resource with the network registration service, matching its
         Node API Device resource"""
-        test_number = "05"
-        test_description = "Node can register a valid Device resource with the network registration service, " \
-                           "matching its Node API Device resource"
-        url = "{}devices/".format(self.node_url)
-        try:
-            r = requests.get(url)
-            try:
-                returned_devices = r.json()
-                if r.status_code == 200 and len(returned_devices) > 0:
-                    for curr_device in returned_devices:
-                        if "id" in curr_device:
-                            url2 = "{}devices/{}".format(self.query_api_url, curr_device["id"])
-                            try:
-                                k = requests.get(url2)
-                                if k.status_code == 200:
-                                    pass
-                                else:
-                                    return test_number, test_description, "Fail", "Device not found on registry: {}"\
-                                        .format(curr_device["id"])
-                            except requests.ConnectionError:
-                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                    return test_number, test_description, "Pass", ""
-                else:
-                    return test_number, test_description, "N/A", "Not tested. No resources found."
-            except ValueError:
-                return test_number, test_description, "Fail", "Invalid JSON received!"
-        except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error for {}".format(url)
+
+        test = Test("Node can register a valid Device resource with the network registration service, "
+                    "matching its Node API Device resource")
+        return self.test_matching_resource(test, "device")
 
     def test_06(self):
         """Node can register a valid Source resource with the network
         registration service, matching its Node API Source resource"""
-        test_number = "06"
-        test_description = "Node can register a valid Source resource with the network " \
-                           "registration service, matching its Node API Source resource"
-        url = "{}sources/".format(self.node_url)
-        try:
-            r = requests.get(url)
-            try:
-                returned_sources = r.json()
-                if r.status_code == 200 and len(returned_sources) > 0:
-                    for curr_source in returned_sources:
-                        if "id" in curr_source:
-                            url2 = "{}sources/{}".format(self.query_api_url, curr_source["id"])
-                            try:
-                                k = requests.get(url2)
-                                if k.status_code == 200:
-                                    pass
-                                else:
-                                    return test_number, test_description, "Fail", "Source not found on registry: {}"\
-                                        .format(curr_source["id"])
-                            except requests.ConnectionError:
-                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                    return test_number, test_description, "Pass", ""
-                else:
-                    return test_number, test_description, "N/A", "Not tested. No resources found."
-            except ValueError:
-                return test_number, test_description, "Fail", "Invalid JSON received!"
-        except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error for {}".format(url)
+
+        test = Test("Node can register a valid Source resource with the network registration service, "
+                    "matching its Node API Source resource")
+        return self.test_matching_resource(test, "source")
 
     def test_07(self):
         """Node can register a valid Flow resource with the network
         registration service, matching its Node API Flow resource"""
-        test_number = "07"
-        test_description = "Node can register a valid Flow resource with the network " \
-                           "registration service, matching its Node API Flow resource"
-        url = "{}flows/".format(self.node_url)
-        try:
-            r = requests.get(url)
-            try:
-                returned_flows = r.json()
-                if r.status_code == 200 and len(returned_flows) > 0:
-                    for curr_flow in returned_flows:
-                        if "id" in curr_flow:
-                            url2 = "{}flows/{}".format(self.query_api_url, curr_flow["id"])
-                            try:
-                                k = requests.get("{}flows/{}".format(self.query_api_url, curr_flow["id"]))
-                                if k.status_code == 200:
-                                    pass
-                                else:
-                                    return test_number, test_description, "Fail", "Flow not found on registry: {}"\
-                                        .format(curr_flow["id"])
-                            except requests.ConnectionError:
-                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                    return test_number, test_description, "Pass", ""
-                else:
-                    return test_number, test_description, "N/A", "Not tested. No resources found."
-            except ValueError:
-                return test_number, test_description, "Fail", "Invalid JSON received!"
-        except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error for {}".format(url)
+
+        test = Test("Node can register a valid Flow resource with the network registration service, "
+                    "matching its Node API Flow resource")
+        return self.test_matching_resource(test, "flow")
 
     def test_08(self):
         """Node can register a valid Sender resource with the network
         registration service, matching its Node API Sender resource"""
-        test_number = "08"
-        test_description = "Node can register a valid Sender resource with the network " \
-                           "registration service, matching its Node API Sender resource"
-        url = "{}senders/".format(self.node_url)
-        try:
-            r = requests.get(url)
-            try:
-                returned_senders = r.json()
-                if r.status_code == 200 and len(returned_senders) > 0:
-                    for curr_sender in returned_senders:
-                        if "id" in curr_sender:
-                            url2 = "{}senders/{}".format(self.query_api_url, curr_sender["id"])
-                            try:
-                                k = requests.get(url2)
-                                if k.status_code == 200:
-                                    pass
-                                else:
-                                    return test_number, test_description, "Fail", "Sender not found on registry: {}" \
-                                        .format(curr_sender["id"])
-                            except requests.ConnectionError:
-                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                    return test_number, test_description, "Pass", ""
-                else:
-                    return test_number, test_description, "N/A", "Not tested. No resources found."
-            except ValueError:
-                return test_number, test_description, "Fail", "Invalid JSON received!"
-        except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error for {}".format(url)
+
+        test = Test("Node can register a valid Sender resource with the network registration service, "
+                    "matching its Node API Sender resource")
+        return self.test_matching_resource(test, "sender")
 
     def test_09(self):
         """Node can register a valid Receiver resource with the network
         registration service, matching its Node API Receiver resource"""
-        test_number = "09"
-        test_description = "Node can register a valid Receiver resource with the network " \
-                           "registration service, matching its Node API Receiver resource"
-        url = "{}receivers/".format(self.node_url)
-        try:
-            r = requests.get(url)
-            try:
-                returned_receivers = r.json()
-                if r.status_code == 200 and len(returned_receivers) > 0:
-                    for curr_receiver in returned_receivers:
-                        if "id" in curr_receiver:
-                            url2 = "{}receivers/{}".format(self.query_api_url, curr_receiver["id"])
-                            try:
-                                k = requests.get(url2)
-                                if k.status_code == 200:
-                                    pass
-                                else:
-                                    return test_number, test_description, "Fail", "Receiver not found on registry: {}" \
-                                        .format(curr_receiver["id"])
-                            except requests.ConnectionError:
-                                return test_number, test_description, "Fail", "Connection error for {}".format(url2)
-                    return test_number, test_description, "Pass", ""
-                else:
-                    return test_number, test_description, "N/A", "Not tested. No resources found."
-            except ValueError:
-                return test_number, test_description, "Fail", "Invalid JSON received!"
-        except requests.ConnectionError:
-            return test_number, test_description, "Fail", "Connection error for {}".format(url)
+
+        test = Test("Node can register a valid Receiver resource with the network registration service, "
+                    "matching its Node API Receiver resource")
+        return self.test_matching_resource(test, "receiver")
 
     def test_10(self):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
