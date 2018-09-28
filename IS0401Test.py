@@ -40,17 +40,17 @@ class IS0401Test(GenericTest):
         self.result.append(self.test_new_02())
         self.result.append(self.test_02())
         self.result.append(self.test_03())
-        # self.result.append(self.test_04())
+        self.result.append(self.test_04())
         self.result.append(self.test_05())
         self.result.append(self.test_06())
         self.result.append(self.test_07())
         self.result.append(self.test_08())
         self.result.append(self.test_09())
-        # self.result.append(self.test_10())
-        # self.result.append(self.test_11())
-        # self.result.append(self.test_12())
-        # self.result.append(self.test_13())
-        # self.result.append(self.test_14())
+        self.result.append(self.test_10())
+        self.result.append(self.test_11())
+        self.result.append(self.test_12())
+        self.result.append(self.test_13())
+        self.result.append(self.test_14())
 
     def test_01(self):
         """Node can discover network registration service via mDNS"""
@@ -208,10 +208,10 @@ class IS0401Test(GenericTest):
     def test_04(self):
         """Node correctly handles HTTP 4XX and 5XX codes from the registry,
         re-registering or trying alternative Registration APIs as required"""
-        test_number = "04"
-        test_description = "Node correctly handles HTTP 4XX and 5XX codes from the registry, " \
-                           "re-registering or trying alternative Registration APIs as required"
-        return test_number, test_description, "Manual", "This test has to be done manually."
+
+        test = Test("Node correctly handles HTTP 4XX and 5XX codes from the registry, "
+                    "re-registering or trying alternative Registration APIs as required")
+        return test.MANUAL()
 
     def test_05(self):
         """Node can register a valid Device resource with the network registration service, matching its
@@ -256,9 +256,8 @@ class IS0401Test(GenericTest):
     def test_10(self):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
         in the presence of a Registration API"""
-        test_number = "10"
-        test_description = "Node advertises a Node type mDNS announcement with no ver_* TXT records in the presence " \
-                           "of a Registration API"
+        test = Test("Node advertises a Node type mDNS announcement with no ver_* TXT records in the presence "
+                    "of a Registration API")
         zeroconf = Zeroconf()
         listener = MdnsListener()
         browser = ServiceBrowser(zeroconf, "_nmos-node._tcp.local.", listener)
@@ -272,37 +271,36 @@ class IS0401Test(GenericTest):
                 properties_raw = node.properties
                 for prop in properties_raw:
                     if "ver_" in prop.decode('ascii'):
-                        return test_number, test_description, "Fail", "Found 'ver_'-txt record while node " \
-                                                                      "is registered."
-                return test_number, test_description, "Pass", ""
-        return test_number, test_description, "Fail", "No matching mdns announcement found for node."
+                        return test.FAIL("Found 'ver_'-txt record while node is registered.")
+                return test.PASS()
+        return test.FAIL("No matching mdns announcement found for node.")
 
     def test_11(self):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
         and connects the Receiver to a stream"""
-        test_number = "11"
-        test_description = "PUTing to a Receiver target resource with a Sender resource payload " \
-                           "is accepted and connects the Receiver to a stream"
-        return test_number, test_description, "Manual", "This test has to be done manually."
+
+        test = Test("PUTing to a Receiver target resource with a Sender resource payload " \
+                    "is accepted and connects the Receiver to a stream")
+        return test.MANUAL()
 
     def test_12(self):
         """Receiver resource (in Node API and registry) is correctly updated to match the subscribed
         Sender ID upon subscription"""
-        test_number = "12"
-        test_description = "Receiver resource (in Node API and registry) is correctly updated to match " \
-                           "the subscribed Sender ID upon subscription"
-        return test_number, test_description, "Manual", "This test has to be done manually."
+
+        test = Test("Receiver resource (in Node API and registry) is correctly updated to match "
+                    "the subscribed Sender ID upon subscription")
+        return test.MANUAL()
 
     def test_13(self):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
         disconnects the Receiver from a stream"""
-        test_number = "13"
-        test_description = "PUTing to a Receiver target resource with an empty JSON object payload " \
-                           "is accepted and disconnects the Receiver from a stream"
-        return test_number, test_description, "Manual", "This test has to be done manually."
+
+        test = Test("PUTing to a Receiver target resource with an empty JSON object payload "
+                    "is accepted and disconnects the Receiver from a stream")
+        return test.MANUAL()
 
     def test_14(self):
         """Node correctly selects a Registration API based on advertised priorities"""
-        test_number = "14"
-        test_description = "Node correctly selects a Registration API based on advertised priorities"
-        return test_number, test_description, "Manual", "This test has to be done manually."
+
+        test = Test("Node correctly selects a Registration API based on advertised priorities")
+        return test.MANUAL()
