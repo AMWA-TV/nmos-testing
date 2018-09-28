@@ -118,6 +118,9 @@ class GenericTest(object):
     def test_basics(self):
         results = []
 
+        # When a 'list' is encountered, the results are stored here for subsequent parameterised GETs
+        saved_entities = {}
+
         for api in self.apis:
             results.append(self.check_base_path("/", "x-nmos/"))
             results.append(self.check_base_path("/x-nmos", api + "/"))
@@ -125,13 +128,38 @@ class GenericTest(object):
 
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
-                    # TODO: Handle cases where we have params by checking at least one active ID
-                    if response_code == 200 and not resource[1]['params']:
-                        url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
-                        test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
-                                                                api,
-                                                                self.test_version,
-                                                                resource[0]))
+                    if response_code == 200:
+                        # Test URLs which include a {resourceId} or similar parameter
+                        if resource[1]['params'] and len(resource[1]['params']) == 1:
+                            path = "/" + resource[0].split("/")[1]
+                            if path in saved_entities:
+                                # Pick the first relevant saved entity and construct a test
+                                entity = saved_entities[path][0]
+                                url_param = resource[0].replace("{" + resource[1]['params'][0].name + "}", entity)
+                                url = "{}{}".format(self.apis[api]["url"].rstrip("/"), url_param)
+                                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                                        api,
+                                                                        self.test_version,
+                                                                        url_param))
+                            else:
+                                # There were no saved entities found, so we can't test this parameterised URL
+                                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                                        api,
+                                                                        self.test_version,
+                                                                        resource[0]))
+                                results.append(test.NA("No resources found to perform this test"))
+                                continue
+
+                        # Test general URLs with no parameters
+                        elif not resource[1]['params']:
+                            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
+                            test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                                    api,
+                                                                    self.test_version,
+                                                                    resource[0]))
+                        else:
+                            continue
+
                         s = requests.Session()
                         req = requests.Request(resource[1]['method'], url)
                         prepped = s.prepare_request(req)
@@ -142,6 +170,19 @@ class GenericTest(object):
                         if not self.validate_CORS(resource[1]['method'], r):
                             results.append(test.FAIL("Incorrect CORS headers: {}".format(r.headers)))
                             continue
+
+                        # Gather IDs of sub-resources for testing of parameterised URLs...
+                        try:
+                            if isinstance(r.json(), list):
+                                for entry in r.json():
+                                    if isinstance(entry, dict) and "id" in entry:
+                                        if resource[0] not in saved_entities:
+                                            saved_entities[resource[0]] = [entry["id"]]
+                                        else:
+                                            saved_entities[resource[0]].append(entry["id"])
+                        except json.decoder.JSONDecodeError:
+                            pass
+
                         if resource[1]['responses'][response_code]:
                             try:
                                 jsonschema.validate(r.json(), resource[1]['responses'][response_code])
@@ -154,6 +195,7 @@ class GenericTest(object):
                         else:
                             results.append(test.FAIL("Test suite unable to locate schema"))
                             continue
+
                         results.append(test.PASS())
         return results
         # TODO: For any method we can't test, flag it as a manual test
@@ -315,6 +357,7 @@ class Specification(object):
         for resource in self.data:
             if self.data[resource]['method'] in ['get', 'head', 'options']:
                 resources.append((resource, self.data[resource]))
+        resources.sort()
         return resources
 
     def get_writes(self):
@@ -322,4 +365,5 @@ class Specification(object):
         for resource in self.data:
             if self.data[resource]['method'] in ['post', 'put', 'patch', 'delete']:
                 resources.append((resource, self.data[resource]))
+        resources.sort()
         return resources
