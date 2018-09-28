@@ -99,39 +99,29 @@ class GenericTest(object):
 # TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API
 #       interactions
 
+    def check_base_path(self, path, expectation):
+        test = Test("GET {}".format(path))
+        req = requests.get(self.base_url + path)
+        if req.status_code != 200:
+            return test.FAIL("Incorrect response code: {}".format(req.status_code))
+        elif not self.validate_CORS('GET', req):
+            return test.FAIL("Incorrect CORS headers: {}".format(req.headers))
+        else:
+            try:
+                if not isinstance(req.json(), list) or expectation not in req.json():
+                    return test.FAIL("Response is not an array containing '{}'".format(expectation))
+                else:
+                    return test.PASS()
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned")
+
     def test_basics(self):
         results = []
 
         for api in self.apis:
-            test = Test("GET /")
-            req = requests.get(self.base_url)
-            if req.status_code != 200:
-                results.append(test.FAIL("Incorrect response code: {}".format(req.status_code)))
-            elif not self.validate_CORS('GET', req):
-                results.append(test.FAIL("Incorrect CORS headers: {}".format(req.headers)))
-                # TODO: Check the response is JSON and correct
-            else:
-                results.append(test.PASS())
-
-            test = Test("GET /x-nmos")
-            req = requests.get(self.base_url + "/x-nmos")
-            if req.status_code != 200:
-                results.append(test.FAIL("Incorrect response code: {}".format(req.status_code)))
-            elif not self.validate_CORS('GET', req):
-                results.append(test.FAIL("Incorrect CORS headers: {}".format(req.headers)))
-                # TODO: Check the response is JSON and correct
-            else:
-                results.append(test.PASS())
-
-            test = Test("GET /x-nmos/{}".format(api))
-            req = requests.get(self.base_url + "/x-nmos/" + api)
-            if req.status_code != 200:
-                results.append(test.FAIL("Incorrect response code: {}".format(req.status_code)))
-            elif not self.validate_CORS('GET', req):
-                results.append(test.FAIL("Incorrect CORS headers: {}".format(req.headers)))
-                # TODO: Check the response is JSON and correct
-            else:
-                results.append(test.PASS())
+            results.append(self.check_base_path("/", "x-nmos/"))
+            results.append(self.check_base_path("/x-nmos", api + "/"))
+            results.append(self.check_base_path("/x-nmos/{}".format(api), self.test_version + "/"))
 
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
@@ -169,7 +159,6 @@ class GenericTest(object):
         # TODO: For any method we can't test, flag it as a manual test
         # TODO: Write a harness for each write method with one or more things to send it. Test them using this as part
         #       of this loop
-        # TODO: Some basic tests of the Node API itself? Such as presence of arrays at /, /x-nmos, /x-nmos/node etc.
         # TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on
         #       either.
 
