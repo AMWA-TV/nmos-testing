@@ -1,39 +1,36 @@
 >**Work in Progress!!** We intend to contribute this back under the AMWA GitHub organisation once it reaches an initial usable state.
 
 
-# Riedel NMOS Test Tool
+# NMOS API Testing Tool
 
-This tool creates a simple web service to test against the JTNM February 2018 "Dirty Hands" NMOS checklist.
+This tool creates a simple web service which tests implementations of the NMOS APIs.
 
-Currently NMOS-IS-04-01 (Basic) and NMOS-IS-05-01 (Basic) tests are integrated.
+The following tests sets are currently supported:
+*   IS-04 Node API
+*   IS-04 Registry APIs
+*   IS-05 Connection Management API
+*   IS-06 Network Control API
 
 **Attention:**
-- The NMOS-IS-04-01 test only works if the target node is in registered mode. The registration service endpoint has to be specified on program startup (see section "Usage"). For testing purposes a reference implementation of the RDS is provided by the BBC (https://github.com/bbc/nmos-discovery-registration-ri).
-- For IS-05 Test #29 and #30 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.  
+*   The IS-04 Node tests create a mock registry on the network. It is critical that these are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time.
+*   For IS-05 tests #29 and #30 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.
 
 ## Usage:
-Required command line parameters:
+```
+$ python3 nmos-test.py
+```
 
---query_ip: the ip of the query service on which the node is currently registered (RDS)
+This tool provides a simple web service which is available on `http://localhost:5000`.
+Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test from the checklist. The result of the the test will be shown after a few seconds.
 
---query_port: the port of the query service on which the node is currently registered (RDS)
-
-e.g. python nmos-test.py --query_ip=172.56.123.5 --query-port=4480
-
-This tool provides a simple web service which is available on http://localhost:5000.
-Provide the NodeUrl (see the detailed description on the webpage) and select a checklist.
-The result of the the test will be shown after a couple seconds.
-
-Tested with Firefox 58 and Chrome 63.
-
-##  External dependencies:
-- Python3
+## External dependencies:
+-   Python 3
 
 Python packages:
-- flask
-- wtforms
-- jsonschema
-- zeroconf
-- requests
-- gitpython
-- ramlifications
+-   flask
+-   wtforms
+-   jsonschema
+-   zeroconf
+-   requests
+-   gitpython
+-   ramlifications

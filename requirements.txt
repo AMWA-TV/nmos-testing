@@ -1,5 +1,7 @@
 flask
 wtforms
-requests
-zeroconf
 jsonschema
+zeroconf
+requests
+gitpython
+ramlifications
