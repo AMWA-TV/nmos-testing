@@ -34,3 +34,14 @@ Python packages:
 -   requests
 -   gitpython
 -   ramlifications
+
+## Known Issues
+Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until we can resolve this properly, the following can be used as a workaround.
+
+In file 'ramlfications/utils.py', insert the following code into the top of the function '_remove_duplicates' which starts at line 495:
+
+```
+    if not resource_params:
+        return None
+
+```
