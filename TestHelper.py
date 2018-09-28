@@ -82,7 +82,7 @@ class GenericTest(object):
     def validate_CORS(self, method, response):
         if 'Access-Control-Allow-Origin' not in response.headers:
             return False
-        if method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+        if method in ['OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']:
             if 'Access-Control-Allow-Headers' not in response.headers:
                 return False
             if method not in response.headers['Access-Control-Allow-Headers']:
