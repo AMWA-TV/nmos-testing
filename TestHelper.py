@@ -100,12 +100,6 @@ class GenericTest(object):
                 return False
         return True
 
-# TODO: Scan the Node first for all our its resources. We'll match these to the registrations received.
-# TODO: Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under
-#       test
-# TODO: Test the Node API first and in isolation to check it all looks generally OK before proceeding with Reg API
-#       interactions
-
     def check_base_path(self, path, expectation):
         test = Test("GET {}".format(path))
         req = requests.get(self.base_url + path)

@@ -21,6 +21,8 @@ import socket
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 from TestHelper import MdnsListener, Test, GenericTest
 
+# TODO: Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under
+#       test
 
 class IS0401Test(GenericTest):
     """
@@ -60,7 +62,6 @@ class IS0401Test(GenericTest):
         zeroconf.unregister_service(info)
         zeroconf.close()
 
-        # TODO Schema check them all registrations etc
         if len(self.registry.get_data()) > 0:
             return test.PASS()
 

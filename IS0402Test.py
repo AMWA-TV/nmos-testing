@@ -51,7 +51,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API advertises correctly via mDNS")
 
         browser = ServiceBrowser(self.zc, "_nmos-registration._tcp.local.", self.zc_listener)
-        sleep(5)
+        sleep(2)
         serv_list = self.zc_listener.get_service_list()
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
@@ -92,7 +92,7 @@ class IS0402Test(GenericTest):
         test = Test("Query API advertises correctly via mDNS")
 
         browser = ServiceBrowser(self.zc, "_nmos-query._tcp.local.", self.zc_listener)
-        sleep(5)
+        sleep(2)
         serv_list = self.zc_listener.get_service_list()
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
@@ -131,6 +131,9 @@ class IS0402Test(GenericTest):
         """Registration API accepts and stores a valid Node resource"""
 
         test = Test("Registration API accepts and stores a valid Node resource")
+
+        # TODO: Need a mechanism to do this correctly for each API version. Might require a resource stripping method
+        # from nmos-common
 
         return test.MANUAL()
 
