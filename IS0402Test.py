@@ -43,6 +43,12 @@ class IS0402Test(GenericTest):
         self.result.append(self.test_06())
         self.result.append(self.test_07())
         self.result.append(self.test_08())
+        self.result.append(self.test_09())
+        self.result.append(self.test_10())
+        self.result.append(self.test_11())
+        self.result.append(self.test_12())
+        self.result.append(self.test_13())
+        self.result.append(self.test_14())
 
     def init_zeroconf(self):
         self.zc = Zeroconf()
@@ -136,6 +142,13 @@ class IS0402Test(GenericTest):
         return test.FAIL("No matching mDNS announcement found for Query API.")
 
     def test_03(self):
+        """Registration API accepts and stores a valid Node resource"""
+
+        test = Test("Registration API accepts and stores a valid Node resource")
+
+        return test.MANUAL()
+
+    def test_04(self):
         """Registration API rejects an invalid Node resource with a 400 HTTP code"""
 
         test = Test("Registration API rejects an invalid Node resource with a 400 HTTP code")
@@ -143,7 +156,14 @@ class IS0402Test(GenericTest):
         bad_json = {"notanode": True}
         return self.do_400_check(test, "node", bad_json)
 
-    def test_04(self):
+    def test_05(self):
+        """Registration API accepts and stores a valid Device resource"""
+
+        test = Test("Registration API accepts and stores a valid Device resource")
+
+        return test.MANUAL()
+
+    def test_06(self):
         """Registration API rejects an invalid Device resource with a 400 HTTP code"""
 
         test = Test("Registration API rejects an invalid Device resource with a 400 HTTP code")
@@ -151,7 +171,14 @@ class IS0402Test(GenericTest):
         bad_json = {"notadevice": True}
         return self.do_400_check(test, "device", bad_json)
 
-    def test_05(self):
+    def test_07(self):
+        """Registration API accepts and stores a valid Source resource"""
+
+        test = Test("Registration API accepts and stores a valid Source resource")
+
+        return test.MANUAL()
+
+    def test_08(self):
         """Registration API rejects an invalid Source resource with a 400 HTTP code"""
 
         test = Test("Registration API rejects an invalid Source resource with a 400 HTTP code")
@@ -159,7 +186,14 @@ class IS0402Test(GenericTest):
         bad_json = {"notasource": True}
         return self.do_400_check(test, "source", bad_json)
 
-    def test_06(self):
+    def test_09(self):
+        """Registration API accepts and stores a valid Flow resource"""
+
+        test = Test("Registration API accepts and stores a valid Flow resource")
+
+        return test.MANUAL()
+
+    def test_10(self):
         """Registration API rejects an invalid Flow resource with a 400 HTTP code"""
 
         test = Test("Registration API rejects an invalid Flow resource with a 400 HTTP code")
@@ -167,7 +201,14 @@ class IS0402Test(GenericTest):
         bad_json = {"notaflow": True}
         return self.do_400_check(test, "flow", bad_json)
 
-    def test_07(self):
+    def test_11(self):
+        """Registration API accepts and stores a valid Sender resource"""
+
+        test = Test("Registration API accepts and stores a valid Sender resource")
+
+        return test.MANUAL()
+
+    def test_12(self):
         """Registration API rejects an invalid Sender resource with a 400 HTTP code"""
 
         test = Test("Registration API rejects an invalid Sender resource with a 400 HTTP code")
@@ -175,7 +216,14 @@ class IS0402Test(GenericTest):
         bad_json = {"notasender": True}
         return self.do_400_check(test, "sender", bad_json)
 
-    def test_08(self):
+    def test_13(self):
+        """Registration API accepts and stores a valid Receiver resource"""
+
+        test = Test("Registration API accepts and stores a valid Receiver resource")
+
+        return test.MANUAL()
+
+    def test_14(self):
         """Registration API rejects an invalid Receiver resource with a 400 HTTP code"""
 
         test = Test("Registration API rejects an invalid Receiver resource with a 400 HTTP code")
