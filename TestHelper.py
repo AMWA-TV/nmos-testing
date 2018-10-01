@@ -131,7 +131,13 @@ class GenericTest(object):
                     if response_code == 200:
                         # Test URLs which include a {resourceId} or similar parameter
                         if resource[1]['params'] and len(resource[1]['params']) == 1:
-                            path = "/" + resource[0].split("/")[1]
+                            path_parts = resource[0].split("/")
+                            path = ""
+                            for part in path_parts:
+                                if part.startswith("{"):
+                                    break
+                                if part != "":
+                                    path += "/" + part
                             if path in saved_entities:
                                 # Pick the first relevant saved entity and construct a test
                                 entity = saved_entities[path][0]
@@ -175,11 +181,19 @@ class GenericTest(object):
                         try:
                             if isinstance(r.json(), list):
                                 for entry in r.json():
+                                    # In general, lists return fully fledged objects which each have an ID
                                     if isinstance(entry, dict) and "id" in entry:
                                         if resource[0] not in saved_entities:
                                             saved_entities[resource[0]] = [entry["id"]]
                                         else:
                                             saved_entities[resource[0]].append(entry["id"])
+                                    # In some cases lists contain strings which indicate the path to each resource
+                                    elif isinstance(entry, str) and entry.endswith("/"):
+                                        res_id = entry.rstrip("/")
+                                        if resource[0] not in saved_entities:
+                                            saved_entities[resource[0]] = [res_id]
+                                        else:
+                                            saved_entities[resource[0]].append(res_id)
                         except json.decoder.JSONDecodeError:
                             pass
 
