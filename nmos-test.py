@@ -25,6 +25,7 @@ import IS0401Test
 import IS0402Test
 import IS0501Test
 import IS0601Test
+import IS0701Test
 
 app = Flask(__name__)
 app.debug = True
@@ -37,7 +38,8 @@ class DataForm(Form):
     test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04 Node API"),
                                                       ("IS-04-02", "IS-04 Registry APIs"),
                                                       ("IS-05-01", "IS-05 Connection Management API"),
-                                                      ("IS-06-01", "IS-06 Network Control API")])
+                                                      ("IS-06-01", "IS-06 Network Control API"),
+                                                      ("IS-07-01", "IS-07 Event & Tally API")])
     # TODO: Potentially add a mixed IS-04/05 test for where they cross over
     ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
@@ -154,6 +156,15 @@ def index_page():
                 test_obj = IS0601Test.IS0601Test(base_url, apis, spec_versions, version, spec_path)
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
+            elif test == "IS-07-01":
+                apis = {"events": {"raml": "EventsAPI.raml",
+                                   "url": "{}/x-nmos/events/{}/".format(base_url, version)}}
+                spec_versions = ["v1.0"]
+                spec_path = 'cache/is-07'
+
+                test_obj = IS0701Test.IS0701Test(base_url, apis, spec_versions, version, spec_path)
+                result = test_obj.run_tests()
+                return render_template("result.html", url=base_url, test=test, result=result)
         else:
             flash("Error: {}".format(form.errors))
 
@@ -168,7 +179,8 @@ if __name__ == '__main__':
 
     repositories = [('is-04', 'nmos-discovery-registration'),
                     ('is-05', 'nmos-device-connection-management'),
-                    ('is-06', 'nmos-network-control')]
+                    ('is-06', 'nmos-network-control'),
+                    ('is-07', 'nmos-event-tally')]
     for repo_data in repositories:
         path = os.path.join(CACHE_PATH + '/' + repo_data[0])
         if not os.path.exists(path):
