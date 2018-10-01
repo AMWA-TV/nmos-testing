@@ -207,7 +207,7 @@ class GenericTest(object):
                                 results.append(test.FAIL("Invalid JSON received"))
                                 continue
                         else:
-                            results.append(test.FAIL("Test suite unable to locate schema"))
+                            results.append(test.MANUAL("Test suite unable to locate schema"))
                             continue
 
                         results.append(test.PASS())
@@ -240,8 +240,8 @@ class Test(object):
     def PASS(self, detail=""):
         return [self.description, "Pass", detail]
 
-    def MANUAL(self):
-        return [self.description, "Manual", ""]
+    def MANUAL(self, detail=""):
+        return [self.description, "Manual", detail]
 
     def NA(self, detail):
         return [self.description, "N/A", detail]
