@@ -31,20 +31,28 @@ class IS0402Test(GenericTest):
 
     def execute_tests(self):
         super(IS0402Test, self).execute_tests()
+        self.init_zeroconf()
         self.result.append(self.test_01())
         self.result.append(self.test_02())
+        self.close_zeroconf()
+
+    def init_zeroconf(self):
+        self.zc = Zeroconf()
+        self.zc_listener = MdnsListener()
+
+    def close_zeroconf(self):
+        if self.zc:
+            self.zc.close()
+            self.zc = None
 
     def test_01(self):
         """Registration API advertises correctly via mDNS"""
 
         test = Test("Registration API advertises correctly via mDNS")
 
-        zeroconf = Zeroconf()
-        listener = MdnsListener()
-        browser = ServiceBrowser(zeroconf, "_nmos-registration._tcp.local.", listener)
+        browser = ServiceBrowser(self.zc, "_nmos-registration._tcp.local.", self.zc_listener)
         sleep(5)
-        zeroconf.close()
-        serv_list = listener.get_service_list()
+        serv_list = self.zc_listener.get_service_list()
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
             port = api.port
@@ -83,12 +91,9 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API advertises correctly via mDNS")
 
-        zeroconf = Zeroconf()
-        listener = MdnsListener()
-        browser = ServiceBrowser(zeroconf, "_nmos-query._tcp.local.", listener)
+        browser = ServiceBrowser(self.zc, "_nmos-query._tcp.local.", self.zc_listener)
         sleep(5)
-        zeroconf.close()
-        serv_list = listener.get_service_list()
+        serv_list = self.zc_listener.get_service_list()
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
             port = api.port
