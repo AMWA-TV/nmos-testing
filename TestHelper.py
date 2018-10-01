@@ -287,7 +287,10 @@ class Specification(object):
                         else:
                             resource_data["responses"][response.code] = None
                         break
-            self.data[resource.path] = resource_data
+            if resource.path not in self.data:
+                self.data[resource.path] = [resource_data]
+            else:
+                self.data[resource.path].append(resource_data)
 
     def fix_schemas(self, file_path):
         # Fixes RAML to match ramlfications expectations (bugs)
@@ -355,15 +358,17 @@ class Specification(object):
     def get_reads(self):
         resources = []
         for resource in self.data:
-            if self.data[resource]['method'] in ['get', 'head', 'options']:
-                resources.append((resource, self.data[resource]))
+            for method_def in self.data[resource]:
+                if method_def['method'] in ['get', 'head', 'options']:
+                    resources.append((resource, method_def))
         resources.sort()
         return resources
 
     def get_writes(self):
         resources = []
         for resource in self.data:
-            if self.data[resource]['method'] in ['post', 'put', 'patch', 'delete']:
-                resources.append((resource, self.data[resource]))
+            for method_def in self.data[resource]:
+                if method_def['method'] in ['post', 'put', 'patch', 'delete']:
+                    resources.append((resource, method_def))
         resources.sort()
         return resources
