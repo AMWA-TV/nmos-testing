@@ -33,7 +33,7 @@ Python packages:
 -   zeroconf
 -   requests
 -   gitpython
--   ramlifications
+-   ramlfications
 
 ## Known Issues
 Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until we can resolve this properly, the following can be used as a workaround.

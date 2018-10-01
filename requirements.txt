@@ -4,4 +4,4 @@ jsonschema
 zeroconf
 requests
 gitpython
-ramlifications
+ramlfications
