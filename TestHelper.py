@@ -270,7 +270,8 @@ class Specification(object):
                         resource_data['body'] = self.deref_schema(os.path.dirname(file_path), schema=attr.raw)
                         break
             for response in resource.responses:
-                resource_data["responses"][response.code] = None
+                if response.code not in resource_data["responses"]:
+                    resource_data["responses"][response.code] = None
                 if response.body:
                     for entry in response.body:
                         schema_loc = entry.schema
@@ -284,8 +285,6 @@ class Specification(object):
                             resource_data["responses"][response.code] = self.deref_schema(
                                                                              os.path.dirname(file_path),
                                                                              schema=self.global_schemas[schema_loc])
-                        else:
-                            resource_data["responses"][response.code] = None
                         break
             if resource.path not in self.data:
                 self.data[resource.path] = [resource_data]
