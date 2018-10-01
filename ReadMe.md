@@ -7,6 +7,7 @@ The following tests sets are currently supported:
 *   IS-04 Registry APIs
 *   IS-05 Connection Management API
 *   IS-06 Network Control API
+*   IS-07 Event & Tally API
 
 **Attention:**
 *   The IS-04 Node tests create a mock registry on the network. It is critical that these are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time.
