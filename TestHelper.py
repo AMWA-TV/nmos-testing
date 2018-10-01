@@ -273,6 +273,12 @@ class Specification(object):
             for schema in api_raml.schemas:
                 keys = list(schema.keys())
                 self.global_schemas[keys[0]] = schema[keys[0]]
+        elif "types" in api_raml.raw:
+            # Handle parsing errors in ramlfications manually, notably for schemas in RAML 1.0
+            for schema in api_raml.raw["types"]:
+                keys = list(schema.keys())
+                self.global_schemas[keys[0]] = schema[keys[0]]
+
         for resource in api_raml.resources:
             resource_data = {'method': resource.method,
                              'params': resource.uri_params,
@@ -325,7 +331,7 @@ class Specification(object):
                     in_schemas = False
                 if in_schemas and "- " not in line:
                     line = "  - " + line.lstrip()
-                if line.startswith("schemas:"):
+                if line.startswith("schemas:") or line.startswith("types:"):
                     in_schemas = True
                 lines.append(line)
                 line = raml.readline()
