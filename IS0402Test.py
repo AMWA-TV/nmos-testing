@@ -15,6 +15,8 @@
 
 from time import sleep
 import socket
+import requests
+import jsonschema
 
 from zeroconf import ServiceBrowser, Zeroconf
 from TestHelper import MdnsListener, Test, GenericTest
@@ -35,6 +37,12 @@ class IS0402Test(GenericTest):
         self.result.append(self.test_01())
         self.result.append(self.test_02())
         self.close_zeroconf()
+        self.result.append(self.test_03())
+        self.result.append(self.test_04())
+        self.result.append(self.test_05())
+        self.result.append(self.test_06())
+        self.result.append(self.test_07())
+        self.result.append(self.test_08())
 
     def init_zeroconf(self):
         self.zc = Zeroconf()
@@ -126,3 +134,73 @@ class IS0402Test(GenericTest):
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Query API.")
+
+    def test_03(self):
+        """Registration API rejects an invalid Node resource with a 400 HTTP code"""
+
+        test = Test("Registration API rejects an invalid Node resource with a 400 HTTP code")
+
+        bad_json = {"notanode": True}
+        return self.do_400_check(test, "node", bad_json)
+
+    def test_04(self):
+        """Registration API rejects an invalid Device resource with a 400 HTTP code"""
+
+        test = Test("Registration API rejects an invalid Device resource with a 400 HTTP code")
+
+        bad_json = {"notadevice": True}
+        return self.do_400_check(test, "device", bad_json)
+
+    def test_05(self):
+        """Registration API rejects an invalid Source resource with a 400 HTTP code"""
+
+        test = Test("Registration API rejects an invalid Source resource with a 400 HTTP code")
+
+        bad_json = {"notasource": True}
+        return self.do_400_check(test, "source", bad_json)
+
+    def test_06(self):
+        """Registration API rejects an invalid Flow resource with a 400 HTTP code"""
+
+        test = Test("Registration API rejects an invalid Flow resource with a 400 HTTP code")
+
+        bad_json = {"notaflow": True}
+        return self.do_400_check(test, "flow", bad_json)
+
+    def test_07(self):
+        """Registration API rejects an invalid Sender resource with a 400 HTTP code"""
+
+        test = Test("Registration API rejects an invalid Sender resource with a 400 HTTP code")
+
+        bad_json = {"notasender": True}
+        return self.do_400_check(test, "sender", bad_json)
+
+    def test_08(self):
+        """Registration API rejects an invalid Receiver resource with a 400 HTTP code"""
+
+        test = Test("Registration API rejects an invalid Receiver resource with a 400 HTTP code")
+
+        bad_json = {"notareceiver": True}
+        return self.do_400_check(test, "receiver", bad_json)
+
+    def do_400_check(self, test, resource_type, data):
+        r = requests.post(self.reg_url + "resource", json={"type": resource_type, "data": data})
+
+        if r.status_code != 400:
+            return test.FAIL("Registration API returned a {} code for an invalid registration".format(r.status_code))
+
+        # TODO: Refactor into a check_response_schema(method, path, return_code, response). Check CORS too?? Make it easy to do so...
+        for response in self.apis["registration"]["spec"].data["/resource"]:
+            # print(response)
+            if response["method"] == "post":
+                if response["responses"][400]:
+                    try:
+                        jsonschema.validate(r.json(), response["responses"][400])
+                    except jsonschema.ValidationError:
+                        return test.FAIL("Response schema validation error")
+                    except json.decoder.JSONDecodeError:
+                        return test.FAIL("Invalid JSON received")
+                else:
+                    return test.MANUAL("Test suite unable to locate schema")
+
+        return test.PASS()
