@@ -118,6 +118,24 @@ class GenericTest(object):
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned")
 
+    def check_response(self, test, api_name, method, path, response):
+        if not self.validate_CORS(method, response):
+            return test.FAIL("Incorrect CORS headers: {}".format(response.headers))
+
+        schema = self.apis[api_name]["spec"].get_schema(method, path, response.status_code)
+
+        if schema:
+            try:
+                jsonschema.validate(response.json(), schema)
+            except jsonschema.ValidationError:
+                return test.FAIL("Response schema validation error")
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Invalid JSON received")
+        else:
+            return test.MANUAL("Test suite unable to locate schema")
+
+        return test.PASS()
+
     def basics(self):
         results = []
 
