@@ -1,5 +1,4 @@
-
-# Copyright (C) 2018 Riedel Communications GmbH & Co. KG
+# Copyright (C) 2018 British Broadcasting Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

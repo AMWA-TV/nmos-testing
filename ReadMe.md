@@ -1,6 +1,3 @@
->**Work in Progress!!** We intend to contribute this back under the AMWA GitHub organisation once it reaches an initial usable state.
-
-
 # NMOS API Testing Tool
 
 This tool creates a simple web service which tests implementations of the NMOS APIs.
