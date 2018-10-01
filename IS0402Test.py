@@ -226,17 +226,16 @@ class IS0402Test(GenericTest):
             return test.FAIL("Registration API returned a {} code for an invalid registration".format(r.status_code))
 
         # TODO: Refactor into a check_response_schema(method, path, return_code, response). Check CORS too?? Make it easy to do so...
-        for response in self.apis["registration"]["spec"].data["/resource"]:
-            # print(response)
-            if response["method"] == "post":
-                if response["responses"][400]:
-                    try:
-                        jsonschema.validate(r.json(), response["responses"][400])
-                    except jsonschema.ValidationError:
-                        return test.FAIL("Response schema validation error")
-                    except json.decoder.JSONDecodeError:
-                        return test.FAIL("Invalid JSON received")
-                else:
-                    return test.MANUAL("Test suite unable to locate schema")
+        schema = self.apis["registration"]["spec"].get_schema("POST", "/resource", 400)
+
+        if schema:
+            try:
+                jsonschema.validate(r.json(), schema)
+            except jsonschema.ValidationError:
+                return test.FAIL("Response schema validation error")
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Invalid JSON received")
+        else:
+            return test.MANUAL("Test suite unable to locate schema")
 
         return test.PASS()

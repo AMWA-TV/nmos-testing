@@ -386,6 +386,14 @@ class Specification(object):
 
         # TODO: Exchange {} cases for what's in the path
 
+    def get_schema(self, method, path, response_code):
+        if path in self.data:
+            for response in self.data[path]:
+                if response["method"].upper() == method.upper():
+                    if response["responses"][response_code]:
+                        return response["responses"][response_code]
+        return None
+
     def get_reads(self):
         resources = []
         for resource in self.data:
