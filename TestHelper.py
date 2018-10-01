@@ -286,20 +286,28 @@ class Specification(object):
             for response in resource.responses:
                 if response.code not in resource_data["responses"]:
                     resource_data["responses"][response.code] = None
-                if response.body:
+                schema_loc = None
+                if not response.body:
+                    # Handle parsing errors in ramlfications manually, notably for schemas in RAML 1.0
+                    if response.code in response.raw and response.raw[response.code] is not None:
+                        if "body" in response.raw[response.code]:
+                            if "type" in response.raw[response.code]["body"]:
+                                schema_loc = response.raw[response.code]["body"]["type"]
+                else:
                     for entry in response.body:
                         schema_loc = entry.schema
                         if not schema_loc:
                             schema_loc = entry.raw
-                        if isinstance(schema_loc, dict):
-                            resource_data["responses"][response.code] = self.deref_schema(
-                                                                             os.path.dirname(file_path),
-                                                                             schema=schema_loc)
-                        elif schema_loc in self.global_schemas:
-                            resource_data["responses"][response.code] = self.deref_schema(
-                                                                             os.path.dirname(file_path),
-                                                                             schema=self.global_schemas[schema_loc])
-                        break
+
+                if isinstance(schema_loc, dict):
+                    resource_data["responses"][response.code] = self.deref_schema(
+                                                                     os.path.dirname(file_path),
+                                                                     schema=schema_loc)
+                elif schema_loc in self.global_schemas:
+                    resource_data["responses"][response.code] = self.deref_schema(
+                                                                     os.path.dirname(file_path),
+                                                                     schema=self.global_schemas[schema_loc])
+
             if resource.path not in self.data:
                 self.data[resource.path] = [resource_data]
             else:
