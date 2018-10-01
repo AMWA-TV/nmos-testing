@@ -33,25 +33,9 @@ class IS0401Test(GenericTest):
         self.query_api_url = None
 
     def execute_tests(self):
-        super(IS0401Test, self).execute_tests()
         self.registry.enable()
-        self.result.append(self.test_01())
+        super(IS0401Test, self).execute_tests()
         self.registry.disable()
-        self.result.append(self.test_02())
-        self.result.append(self.test_03())
-        self.result.append(self.test_04())
-        self.result.append(self.test_05())
-        self.result.append(self.test_06())
-        self.result.append(self.test_07())
-        self.result.append(self.test_08())
-        self.result.append(self.test_09())
-        self.result.append(self.test_10())
-        self.result.append(self.test_11())
-        self.result.append(self.test_12())
-        self.result.append(self.test_13())
-        self.result.append(self.test_14())
-        self.result.append(self.test_15())
-        self.result.append(self.test_16())
 
     def test_01(self):
         """Node can discover network registration service via mDNS"""
@@ -105,17 +89,17 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_mdns_pri(self):
+    def check_mdns_pri(self):
         # Set priority to 100
         # Ensure nothing registers
         pass
 
-    def test_mdns_proto(self):
+    def check_mdns_proto(self):
         # Set proto to https
         # Ensure https used, otherwise fail
         pass
 
-    def test_mdns_ver(self):
+    def check_mdns_ver(self):
         # Set ver to something else comma separated?
         pass
 
@@ -135,7 +119,7 @@ class IS0401Test(GenericTest):
                 resources[resource["id"]] = resource
         return resources
 
-    def test_matching_resource(self, test, res_type):
+    def check_matching_resource(self, test, res_type):
         if res_type == "node":
             url = "{}self".format(self.node_url)
         else:
@@ -176,7 +160,7 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Node resource with the network registration service, "
                     "matching its Node API self resource")
-        return self.test_matching_resource(test, "node")
+        return self.check_matching_resource(test, "node")
 
     def test_05(self):
         """Node maintains itself in the registry via periodic calls to the health resource"""
@@ -227,7 +211,7 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Device resource with the network registration service, "
                     "matching its Node API Device resource")
-        return self.test_matching_resource(test, "device")
+        return self.check_matching_resource(test, "device")
 
     def test_08(self):
         """Node can register a valid Source resource with the network
@@ -235,7 +219,7 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Source resource with the network registration service, "
                     "matching its Node API Source resource")
-        return self.test_matching_resource(test, "source")
+        return self.check_matching_resource(test, "source")
 
     def test_09(self):
         """Node can register a valid Flow resource with the network
@@ -243,7 +227,7 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Flow resource with the network registration service, "
                     "matching its Node API Flow resource")
-        return self.test_matching_resource(test, "flow")
+        return self.check_matching_resource(test, "flow")
 
     def test_10(self):
         """Node can register a valid Sender resource with the network
@@ -251,7 +235,7 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Sender resource with the network registration service, "
                     "matching its Node API Sender resource")
-        return self.test_matching_resource(test, "sender")
+        return self.check_matching_resource(test, "sender")
 
     def test_11(self):
         """Node can register a valid Receiver resource with the network
@@ -259,7 +243,7 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Receiver resource with the network registration service, "
                     "matching its Node API Receiver resource")
-        return self.test_matching_resource(test, "receiver")
+        return self.check_matching_resource(test, "receiver")
 
     def test_12(self):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records

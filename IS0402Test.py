@@ -32,23 +32,9 @@ class IS0402Test(GenericTest):
         self.query_url = self.apis["query"]["url"]
 
     def execute_tests(self):
-        super(IS0402Test, self).execute_tests()
         self.init_zeroconf()
-        self.result.append(self.test_01())
-        self.result.append(self.test_02())
+        super(IS0402Test, self).execute_tests()
         self.close_zeroconf()
-        self.result.append(self.test_03())
-        self.result.append(self.test_04())
-        self.result.append(self.test_05())
-        self.result.append(self.test_06())
-        self.result.append(self.test_07())
-        self.result.append(self.test_08())
-        self.result.append(self.test_09())
-        self.result.append(self.test_10())
-        self.result.append(self.test_11())
-        self.result.append(self.test_12())
-        self.result.append(self.test_13())
-        self.result.append(self.test_14())
 
     def init_zeroconf(self):
         self.zc = Zeroconf()

@@ -50,7 +50,14 @@ class GenericTest(object):
         return int(version_parts[0]), int(version_parts[1])
 
     def execute_tests(self):
-        self.result += self.test_basics()
+        print(" * Running basic API tests")
+        self.result += self.basics()
+        for method_name in dir(self):
+            if method_name.startswith("test_"):
+                method = getattr(self, method_name)
+                if callable(method):
+                    print(" * Running " + method_name)
+                    self.result.append(method())
 
     def run_tests(self):
         self.execute_tests()
@@ -115,7 +122,7 @@ class GenericTest(object):
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned")
 
-    def test_basics(self):
+    def basics(self):
         results = []
 
         # When a 'list' is encountered, the results are stored here for subsequent parameterised GETs
