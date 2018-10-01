@@ -194,9 +194,6 @@ class GenericTest(object):
                         if r.status_code != response_code:
                             results.append(test.FAIL("Incorrect response code: {}".format(r.status_code)))
                             continue
-                        if not self.validate_CORS(resource[1]['method'], r):
-                            results.append(test.FAIL("Incorrect CORS headers: {}".format(r.headers)))
-                            continue
 
                         # Gather IDs of sub-resources for testing of parameterised URLs...
                         try:
@@ -218,20 +215,8 @@ class GenericTest(object):
                         except json.decoder.JSONDecodeError:
                             pass
 
-                        if resource[1]['responses'][response_code]:
-                            try:
-                                jsonschema.validate(r.json(), resource[1]['responses'][response_code])
-                            except jsonschema.ValidationError:
-                                results.append(test.FAIL("Response schema validation error"))
-                                continue
-                            except json.decoder.JSONDecodeError:
-                                results.append(test.FAIL("Invalid JSON received"))
-                                continue
-                        else:
-                            results.append(test.MANUAL("Test suite unable to locate schema"))
-                            continue
+                        results.append(self.check_response(test, api, resource[1]["method"], resource[0], r))
 
-                        results.append(test.PASS())
         return results
         # TODO: For any method we can't test, flag it as a manual test
         # TODO: Write a harness for each write method with one or more things to send it. Test them using this as part
