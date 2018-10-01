@@ -297,7 +297,8 @@ class Specification(object):
                     for entry in response.body:
                         schema_loc = entry.schema
                         if not schema_loc:
-                            schema_loc = entry.raw
+                            if "type" in entry.raw:
+                                schema_loc = entry.raw["type"]
 
                 if isinstance(schema_loc, dict):
                     resource_data["responses"][response.code] = self.deref_schema(
