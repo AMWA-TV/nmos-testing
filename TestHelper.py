@@ -389,7 +389,7 @@ class Specification(object):
             for method_def in self.data[resource]:
                 if method_def['method'] in ['get', 'head', 'options']:
                     resources.append((resource, method_def))
-        resources.sort()
+        resources = sorted(resources, key=lambda x: x[0])
         return resources
 
     def get_writes(self):
@@ -398,5 +398,5 @@ class Specification(object):
             for method_def in self.data[resource]:
                 if method_def['method'] in ['post', 'put', 'patch', 'delete']:
                     resources.append((resource, method_def))
-        resources.sort()
+        resources = sorted(resources, key=lambda x: x[0])
         return resources
