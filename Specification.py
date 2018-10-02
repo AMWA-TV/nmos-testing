@@ -99,6 +99,8 @@ class Specification(object):
                 self.global_schemas[keys[0]] = schema[keys[0]]
 
     def _deref_schema(self, dir, name=None, schema=None):
+        """Resolve $ref cases to the correct files in schema JSON"""
+        # TODO: Is the python jsonschema RefResolver capable of doing this on its own?
         def process(obj):
             if isinstance(obj, dict):
                 if len(obj) == 1 and "$ref" in obj:
@@ -119,6 +121,7 @@ class Specification(object):
             return process(schema)
 
     def get_schema(self, method, path, response_code):
+        """Get the response schema for a given method, path and response code if available"""
         if path in self.data:
             for response in self.data[path]:
                 if response["method"].upper() == method.upper():
@@ -127,6 +130,7 @@ class Specification(object):
         return None
 
     def get_reads(self):
+        """Get all API resources which support read based HTTP methods"""
         resources = []
         for resource in self.data:
             for method_def in self.data[resource]:
@@ -136,6 +140,7 @@ class Specification(object):
         return resources
 
     def get_writes(self):
+        """Get all API resources which support write based HTTP methods"""
         resources = []
         for resource in self.data:
             for method_def in self.data[resource]:

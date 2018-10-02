@@ -30,7 +30,7 @@ from TestHelper import Test, UTC_LEAP
 class GenericTest(object):
     """
     Generic testing class.
-    Can be used independently or inhereted from in order to perform more detailed testing.
+    Can be inhereted from in order to perform detailed testing.
     """
     def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
         self.base_url = base_url
@@ -51,10 +51,12 @@ class GenericTest(object):
         self.parse_RAML()
 
     def _parse_version(self, version):
+        """Parse a string based API version into its major and minor numbers"""
         version_parts = version.strip("v").split(".")
         return int(version_parts[0]), int(version_parts[1])
 
     def execute_tests(self):
+        """Perform all tests defined within this class"""
         print(" * Running basic API tests")
         self.result += self.basics()
         for method_name in dir(self):
@@ -65,10 +67,12 @@ class GenericTest(object):
                     self.result.append(method())
 
     def run_tests(self):
+        """Perform tests and return the results as a list"""
         self.execute_tests()
         return self.result
 
     def convert_bytes(self, data):
+        """Convert bytes which may be contained within a dict or tuple into strings"""
         if isinstance(data, bytes):
             return data.decode('ascii')
         if isinstance(data, dict):
@@ -82,16 +86,19 @@ class GenericTest(object):
 # Trailing slashes
 
     def parse_RAML(self):
+        """Create a Specification object for each API defined in this object"""
         for api in self.apis:
             self.apis[api]["spec"] = Specification(os.path.join(self.spec_path + '/APIs/' + self.apis[api]["raml"]))
 
     def prepare_CORS(self, method):
+        """Prepare CORS headers to be used when making any API request"""
         headers = {}
         headers['Access-Control-Request-Method'] = method  # Match to request type
-        headers['Access-Control-Request-Headers'] = "Content-Type"  # Needed for POST/PATCH etc
+        headers['Access-Control-Request-Headers'] = "Content-Type"  # Needed for POST/PATCH etc only
         return headers
 
     def validate_CORS(self, method, response):
+        """Check the CORS headers returned by an API call"""
         if 'Access-Control-Allow-Origin' not in response.headers:
             return False
         if method in ['OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']:
@@ -106,6 +113,7 @@ class GenericTest(object):
         return True
 
     def check_base_path(self, path, expectation):
+        """Check that a GET to a path returns a JSON array containing a defined string"""
         test = Test("GET {}".format(path))
         req = requests.get(self.base_url + path)
         if req.status_code != 200:
@@ -122,6 +130,7 @@ class GenericTest(object):
                 return test.FAIL("Non-JSON response returned")
 
     def check_response(self, test, api_name, method, path, response):
+        """Confirm that a given Requests response conforms to the expected schema and has any expected headers"""
         if not self.validate_CORS(method, response):
             return test.FAIL("Incorrect CORS headers: {}".format(response.headers))
 
@@ -142,6 +151,7 @@ class GenericTest(object):
         return test.PASS()
 
     def do_request(self, method, url, data=None):
+        """Perform a basic HTTP request with appropriate error handling"""
         try:
             s = requests.Session()
             req = None
@@ -160,6 +170,7 @@ class GenericTest(object):
             return False, str(e)
 
     def basics(self):
+        """Perform basic API read requests (GET etc.) relevant to all API definitions"""
         results = []
 
         # When a 'list' is encountered, the results are stored here for subsequent parameterised GETs
@@ -257,6 +268,7 @@ class GenericTest(object):
         return str(ippTime[0]) + ":" + str(ippTime[1])
 
     def from_UTC(self, secs, nanos, is_leap=False):
+        """Convert a UTC time into a TAI time"""
         leap_sec = 0
         for tbl_sec, tbl_tai_sec_minus_1 in UTC_LEAP:
             if secs >= tbl_sec:
@@ -271,7 +283,7 @@ class GenericTest(object):
         return json.loads(f.read())
 
     def compare_to_schema(self, schema, endpoint, status_code=200):
-        """Compares the response form an endpoint to a schema"""
+        """Compares the response from an endpoint to a schema"""
         resolver = RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'), schema)
         valid, response = self.checkCleanRequest("GET", endpoint, code=status_code)
         if valid:
