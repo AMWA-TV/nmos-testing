@@ -495,31 +495,6 @@ class Specification(object):
         else:
             return process(schema)
 
-    def get_path(self, path):
-        path_parts = path.split('/')
-        for resource in self.data:
-            resource_parts = resource.split('/')
-            for part in path_parts:
-                for rpart in resource_parts:
-                    if part == rpart:
-                        pass
-                    elif rpart in resource.uri_params:
-                        pass
-
-            path_builder = '/'
-            count = 0
-
-            count += 1
-            path_builder += part
-
-            if len(path_parts) == count:
-                pass
-
-            if resource.startswith(path_builder):
-                pass
-
-        # TODO: Exchange {} cases for what's in the path
-
     def get_schema(self, method, path, response_code):
         if path in self.data:
             for response in self.data[path]:
