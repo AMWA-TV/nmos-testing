@@ -17,7 +17,6 @@
 
 import requests
 import uuid
-import json
 import os
 import re
 import time

@@ -15,7 +15,6 @@
 from time import sleep
 import socket
 import requests
-import jsonschema
 
 from zeroconf import ServiceBrowser, Zeroconf
 from TestHelper import MdnsListener, Test, GenericTest
@@ -226,4 +225,3 @@ class IS0402Test(GenericTest):
             return test.FAIL("Registration API returned a {} code for an invalid registration".format(r.status_code))
 
         return self.check_response(test, "registration", "POST", "/resource", r)
-        
