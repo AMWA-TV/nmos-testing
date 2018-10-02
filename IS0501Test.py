@@ -1494,34 +1494,23 @@ class IS0501Test(GenericTest):
 
     def checkCleanRequest(self, method, dest, data=None, code=200):
         """Checks a request can be made and the resulting json can be parsed"""
-        try:
-            s = requests.Session()
-            req = None
-            if data is not None:
-                req = requests.Request(method, self.url + dest, json=data)
-            else:
-                req = requests.Request(method, self.url + dest)
-            prepped = req.prepare()
-            r = s.send(prepped)
-            message = "Expected status code {} from {}, got {}.".format(code, dest, r.status_code)
-            if r.status_code == code:
-                try:
-                    return True, r.json()
-                except:
-                    # Failed parsing JSON
-                    msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
-                        dest,
-                        r.text
-                    )
-                    return False, msg
-            else:
-                return False, message
-        except requests.exceptions.Timeout:
-            return False, "Connection timeout"
-        except requests.exceptions.TooManyRedirects:
-            return False, "Too many redirects"
-        except requests.exceptions.RequestException as e:
-            return False, str(e)
+        status, response = self.do_request(method, self.url + dest, data)
+        if not status:
+            return status, response
+
+        message = "Expected status code {} from {}, got {}.".format(code, dest, response.status_code)
+        if response.status_code == code:
+            try:
+                return True, response.json()
+            except:
+                # Failed parsing JSON
+                msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
+                    dest,
+                    response.text
+                )
+                return False, msg
+        else:
+            return False, message
 
     def checkCleanGet(self, dest, code=200):
         """Checks that JSON can be got from dest and be parsed"""

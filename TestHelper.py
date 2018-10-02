@@ -139,6 +139,24 @@ class GenericTest(object):
 
         return test.PASS()
 
+    def do_request(self, method, url, data=None):
+        try:
+            s = requests.Session()
+            req = None
+            if data is not None:
+                req = requests.Request(method, url, json=data)
+            else:
+                req = requests.Request(method, url)
+            prepped = req.prepare()
+            r = s.send(prepped)
+            return True, r
+        except requests.exceptions.Timeout:
+            return False, "Connection timeout"
+        except requests.exceptions.TooManyRedirects:
+            return False, "Too many redirects"
+        except requests.exceptions.RequestException as e:
+            return False, str(e)
+
     def basics(self):
         results = []
 
@@ -190,18 +208,19 @@ class GenericTest(object):
                         else:
                             continue
 
-                        s = requests.Session()
-                        req = requests.Request(resource[1]['method'], url)
-                        prepped = req.prepare()
-                        r = s.send(prepped)
-                        if r.status_code != response_code:
+                        status, response = self.do_request(resource[1]['method'], url)
+                        if not status:
+                            results.append(test.FAIL(response))
+                            continue
+
+                        if response.status_code != response_code:
                             results.append(test.FAIL("Incorrect response code: {}".format(r.status_code)))
                             continue
 
                         # Gather IDs of sub-resources for testing of parameterised URLs...
                         try:
-                            if isinstance(r.json(), list):
-                                for entry in r.json():
+                            if isinstance(response.json(), list):
+                                for entry in response.json():
                                     # In general, lists return fully fledged objects which each have an ID
                                     if isinstance(entry, dict) and "id" in entry:
                                         if resource[0] not in saved_entities:
@@ -218,7 +237,7 @@ class GenericTest(object):
                         except json.decoder.JSONDecodeError:
                             pass
 
-                        results.append(self.check_response(test, api, resource[1]["method"], resource[0], r))
+                        results.append(self.check_response(test, api, resource[1]["method"], resource[0], response))
 
         return results
         # TODO: For any method we can't test, flag it as a manual test
