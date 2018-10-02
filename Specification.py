@@ -39,19 +39,8 @@ class Specification(object):
             for response in resource.responses:
                 if response.code not in resource_data["responses"]:
                     resource_data["responses"][response.code] = None
-                schema_loc = None
-                if not response.body:
-                    # Handle parsing errors in ramlfications manually, notably for schemas in RAML 1.0
-                    if response.code in response.raw and response.raw[response.code] is not None:
-                        if "body" in response.raw[response.code]:
-                            if "type" in response.raw[response.code]["body"]:
-                                schema_loc = response.raw[response.code]["body"]["type"]
-                else:
-                    for entry in response.body:
-                        schema_loc = entry.schema
-                        if not schema_loc:
-                            if "type" in entry.raw:
-                                schema_loc = entry.raw["type"]
+
+                schema_loc = self._extract_response_schema(response)
 
                 if isinstance(schema_loc, dict):
                     resource_data["responses"][response.code] = self._deref_schema(
@@ -97,6 +86,23 @@ class Specification(object):
             for schema in api_raml.raw["types"]:
                 keys = list(schema.keys())
                 self.global_schemas[keys[0]] = schema[keys[0]]
+
+    def _extract_response_schema(self, response):
+        """Find schemas defined for a given API response and return the file path or global schema name"""
+        schema_loc = None
+        if not response.body:
+            # Handle parsing errors in ramlfications manually, notably for schemas in RAML 1.0
+            if response.code in response.raw and response.raw[response.code] is not None:
+                if "body" in response.raw[response.code]:
+                    if "type" in response.raw[response.code]["body"]:
+                        schema_loc = response.raw[response.code]["body"]["type"]
+        else:
+            for entry in response.body:
+                schema_loc = entry.schema
+                if not schema_loc:
+                    if "type" in entry.raw:
+                        schema_loc = entry.raw["type"]
+        return schema_loc
 
     def _deref_schema(self, dir, name=None, schema=None):
         """Resolve $ref cases to the correct files in schema JSON"""
