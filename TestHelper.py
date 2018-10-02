@@ -390,18 +390,12 @@ class MdnsListener(object):
 class Specification(object):
     def __init__(self, file_path):
         self.data = {}
+        self.global_schemas = {}
+
         self._fix_schemas(file_path)
         api_raml = ramlfications.parse(file_path, "config.ini")
-        self.global_schemas = {}
-        if api_raml.schemas:
-            for schema in api_raml.schemas:
-                keys = list(schema.keys())
-                self.global_schemas[keys[0]] = schema[keys[0]]
-        elif "types" in api_raml.raw:
-            # Handle parsing errors in ramlfications manually, notably for schemas in RAML 1.0
-            for schema in api_raml.raw["types"]:
-                keys = list(schema.keys())
-                self.global_schemas[keys[0]] = schema[keys[0]]
+
+        self._extract_global_schemas(api_raml)
 
         for resource in api_raml.resources:
             resource_data = {'method': resource.method,
@@ -445,7 +439,7 @@ class Specification(object):
                 self.data[resource.path].append(resource_data)
 
     def _fix_schemas(self, file_path):
-        # Fixes RAML to match ramlfications expectations (bugs)
+        """Fixes RAML files to match ramlfications expectations (bugs)"""
         lines = []
         in_schemas = False
         with open(file_path) as raml:
@@ -461,6 +455,19 @@ class Specification(object):
                 line = raml.readline()
         with open(file_path, "w") as raml:
             raml.writelines("".join(lines))
+
+    def _extract_global_schemas(self, api_raml):
+        """Find schemas defined at the top of the RAML file and store them in global_schemas"""
+        if api_raml.schemas:
+            # Standard ramlfications method for finding schemas
+            for schema in api_raml.schemas:
+                keys = list(schema.keys())
+                self.global_schemas[keys[0]] = schema[keys[0]]
+        elif "types" in api_raml.raw:
+            # Handle RAML 1.0 parsing manually as ramlfications doesn't support it
+            for schema in api_raml.raw["types"]:
+                keys = list(schema.keys())
+                self.global_schemas[keys[0]] = schema[keys[0]]
 
     def _deref_schema(self, dir, name=None, schema=None):
         def process(obj):
