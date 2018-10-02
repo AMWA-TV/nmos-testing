@@ -79,7 +79,7 @@ class GenericTest(object):
         self.spec_path = spec_path
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
 
-        self.major_version, self.minor_version = self.parse_version(self.test_version)
+        self.major_version, self.minor_version = self._parse_version(self.test_version)
 
         repo = git.Repo(self.spec_path)
         self.result = list()
@@ -89,7 +89,7 @@ class GenericTest(object):
         repo.git.checkout(spec_branch)
         self.parse_RAML()
 
-    def parse_version(self, version):
+    def _parse_version(self, version):
         version_parts = version.strip("v").split(".")
         return int(version_parts[0]), int(version_parts[1])
 
@@ -403,7 +403,7 @@ class MdnsListener(object):
 class Specification(object):
     def __init__(self, file_path):
         self.data = {}
-        self.fix_schemas(file_path)
+        self._fix_schemas(file_path)
         api_raml = ramlfications.parse(file_path, "config.ini")
         self.global_schemas = {}
         if api_raml.schemas:
@@ -424,7 +424,7 @@ class Specification(object):
             if resource.body is not None:
                 for attr in resource.body:
                     if attr.mime_type == "schema":
-                        resource_data['body'] = self.deref_schema(os.path.dirname(file_path), schema=attr.raw)
+                        resource_data['body'] = self._deref_schema(os.path.dirname(file_path), schema=attr.raw)
                         break
             for response in resource.responses:
                 if response.code not in resource_data["responses"]:
@@ -444,11 +444,11 @@ class Specification(object):
                                 schema_loc = entry.raw["type"]
 
                 if isinstance(schema_loc, dict):
-                    resource_data["responses"][response.code] = self.deref_schema(
+                    resource_data["responses"][response.code] = self._deref_schema(
                                                                      os.path.dirname(file_path),
                                                                      schema=schema_loc)
                 elif schema_loc in self.global_schemas:
-                    resource_data["responses"][response.code] = self.deref_schema(
+                    resource_data["responses"][response.code] = self._deref_schema(
                                                                      os.path.dirname(file_path),
                                                                      schema=self.global_schemas[schema_loc])
 
@@ -457,7 +457,7 @@ class Specification(object):
             else:
                 self.data[resource.path].append(resource_data)
 
-    def fix_schemas(self, file_path):
+    def _fix_schemas(self, file_path):
         # Fixes RAML to match ramlfications expectations (bugs)
         lines = []
         in_schemas = False
@@ -475,11 +475,11 @@ class Specification(object):
         with open(file_path, "w") as raml:
             raml.writelines("".join(lines))
 
-    def deref_schema(self, dir, name=None, schema=None):
+    def _deref_schema(self, dir, name=None, schema=None):
         def process(obj):
             if isinstance(obj, dict):
                 if len(obj) == 1 and "$ref" in obj:
-                    return self.deref_schema(dir, name=obj['$ref'])
+                    return self._deref_schema(dir, name=obj['$ref'])
                 return {k: process(v) for k, v in obj.items()}
             elif isinstance(obj, list):
                 return [process(x) for x in obj]
