@@ -27,8 +27,6 @@ from random import randint
 import TestHelper
 from TestHelper import Test, GenericTest
 
-HEADERS = {'Content-Type': 'application/json'}
-
 # The UTC leap seconds table below was extracted from the information provided at
 # http://www.ietf.org/timezones/data/leap-seconds.list
 #
@@ -864,7 +862,7 @@ class IS0501Test(GenericTest):
             else:
                 return False, response
         try:
-            r = requests.post(url, data=json.dumps(data), headers=HEADERS)
+            r = requests.post(url, json=data)
             msg = "Expected a 200 response from {}, got {}".format(url, r.status_code)
             if r.status_code == 200:
                 pass
@@ -1494,10 +1492,17 @@ class IS0501Test(GenericTest):
         else:
             return False, "Invalid response while getting data: " + response
 
-    def checkCleanGet(self, dest, code=200):
-        """Checks that JSON can be got from dest and be parsed"""
+    def checkCleanRequest(self, method, dest, data=None, code=200):
+        """Checks a request can be made and the resulting json can be parsed"""
         try:
-            r = requests.get(self.url + dest)
+            s = requests.Session()
+            req = None
+            if data is not None:
+                req = requests.Request(method, self.url + dest, json=data)
+            else:
+                req = requests.Request(method, self.url + dest)
+            prepped = req.prepare()
+            r = s.send(prepped)
             message = "Expected status code {} from {}, got {}.".format(code, dest, r.status_code)
             if r.status_code == code:
                 try:
@@ -1518,26 +1523,10 @@ class IS0501Test(GenericTest):
         except requests.exceptions.RequestException as e:
             return False, str(e)
 
+    def checkCleanGet(self, dest, code=200):
+        """Checks that JSON can be got from dest and be parsed"""
+        return self.checkCleanRequest("GET", dest, code=code)
+
     def checkCleanPatch(self, dest, data, code=200):
         """Checks a PATCH can be made and the resulting json can be parsed"""
-        try:
-            r = requests.patch(self.url + dest, headers=HEADERS, data=json.dumps(data))
-            message = "Expected status code {} from {}, got {}.".format(code, dest, r.status_code)
-            if r.status_code == code:
-                try:
-                    return True, r.json()
-                except:
-                    # Failed parsing JSON
-                    msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
-                        dest,
-                        r.text
-                    )
-                    return False, msg
-            else:
-                return False, message
-        except requests.exceptions.Timeout:
-            return False, "Connection timeout"
-        except requests.exceptions.TooManyRedirects:
-            return False, "Too many redirects"
-        except requests.exceptions.RequestException as e:
-            return False, str(e)
+        return self.checkCleanRequest("PATCH", dest, data=data, code=code)

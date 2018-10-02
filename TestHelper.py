@@ -192,7 +192,7 @@ class GenericTest(object):
 
                         s = requests.Session()
                         req = requests.Request(resource[1]['method'], url)
-                        prepped = s.prepare_request(req)
+                        prepped = req.prepare()
                         r = s.send(prepped)
                         if r.status_code != response_code:
                             results.append(test.FAIL("Incorrect response code: {}".format(r.status_code)))
