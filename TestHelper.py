@@ -36,6 +36,7 @@ class GenericTest(object):
         self.spec_versions = spec_versions
         self.test_version = test_version
         self.spec_path = spec_path
+        self.file_prefix = "file:///" if os.name == "nt" else "file:"
 
         self.major_version, self.minor_version = self.parse_version(self.test_version)
 
@@ -126,7 +127,9 @@ class GenericTest(object):
 
         if schema:
             try:
-                jsonschema.validate(response.json(), schema)
+                resolver = jsonschema.RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'),
+                                                  schema)
+                jsonschema.validate(response.json(), schema, resolver=resolver)
             except jsonschema.ValidationError:
                 return test.FAIL("Response schema validation error")
             except json.decoder.JSONDecodeError:

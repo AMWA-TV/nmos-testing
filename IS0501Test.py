@@ -27,7 +27,6 @@ from random import randint
 import TestHelper
 from TestHelper import Test, GenericTest
 
-SCHEMA_LOCAL = "schemas/"
 HEADERS = {'Content-Type': 'application/json'}
 
 # The UTC leap seconds table below was extracted from the information provided at
@@ -80,7 +79,6 @@ class IS0501Test(GenericTest):
         self.url = self.apis["connection"]["url"]
         self.senders = self.get_senders()
         self.receivers = self.get_receivers()
-        self.file_prefix = "file:///" if os.name == "nt" else "file:"
 
     def test_01(self):
         """Api root matches the spec"""
@@ -227,7 +225,10 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/constraints/"
-                valid, msg = self.compare_to_schema("v1.0-constraints-schema.json", dest)
+                schema = self.apis["connection"]["spec"].get_schema("GET",
+                                                                    "/single/senders/{senderId}/constraints",
+                                                                    200)
+                valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
                 else:
@@ -242,7 +243,10 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/constraints/"
-                valid, msg = self.compare_to_schema("v1.0-constraints-schema.json", dest)
+                schema = self.apis["connection"]["spec"].get_schema("GET",
+                                                                    "/single/receivers/{receiverId}/constraints",
+                                                                    200)
+                valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
                 else:
@@ -373,7 +377,10 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/staged/"
-                valid, msg = self.compare_to_schema("v1.0-sender-response-schema.json", dest)
+                schema = self.apis["connection"]["spec"].get_schema("GET",
+                                                                    "/single/senders/{senderId}/staged",
+                                                                    200)
+                valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
                 else:
@@ -388,7 +395,10 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/staged/"
-                valid, msg = self.compare_to_schema("v1.0-receiver-response-schema.json", dest)
+                schema = self.apis["connection"]["spec"].get_schema("GET",
+                                                                    "/single/receivers/{receiverId}/staged",
+                                                                    200)
+                valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
                 else:
@@ -657,7 +667,10 @@ class IS0501Test(GenericTest):
         if len(self.senders):
             for sender in self.senders:
                 activeUrl = "single/senders/" + sender + "/active"
-                valid, response = self.compare_to_schema("v1.0-sender-response-schema.json", activeUrl)
+                schema = self.apis["connection"]["spec"].get_schema("GET",
+                                                                    "/single/senders/{senderId}/active",
+                                                                    200)
+                valid, response = self.compare_to_schema(schema, activeUrl)
                 if valid:
                     pass
                 else:
@@ -672,7 +685,10 @@ class IS0501Test(GenericTest):
         if len(self.receivers):
             for receiver in self.receivers:
                 activeUrl = "single/receivers/" + receiver + "/active"
-                valid, response = self.compare_to_schema("v1.0-receiver-response-schema.json", activeUrl)
+                schema = self.apis["connection"]["spec"].get_schema("GET",
+                                                                    "/single/receivers/{receiverId}/active",
+                                                                    200)
+                valid, response = self.compare_to_schema(schema, activeUrl)
                 if valid:
                     pass
                 else:
@@ -857,11 +873,11 @@ class IS0501Test(GenericTest):
         except requests.exceptions.RequestException as e:
             return False, str(e)
 
-        schema = self.load_schema("v1.0-bulk-stage-confirm.json")
-        resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/",
-                               schema)
+        schema = self.apis["connection"]["spec"].get_schema("POST",
+                                                            "/bulk/" + port + "s",
+                                                            200)
         try:
-            Draft4Validator(schema, resolver=resolver).validate(r.json())
+            Draft4Validator(schema).validate(r.json())
         except ValidationError as e:
             return False, "Response to post at {} did not validate against schema: {}".format(url, str(e))
         except:
@@ -1282,11 +1298,11 @@ class IS0501Test(GenericTest):
             data = {}
             valid, response = self.checkCleanPatch(url, data)
             if valid:
-                schema = self.load_schema("v1.0-" + port + "-response-schema.json")
-                resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/",
-                                       schema)
+                schema = self.apis["connection"]["spec"].get_schema("PATCH",
+                                                                    "/single/" + port + "s/{" + port + "Id}/staged",
+                                                                    200)
                 try:
-                    Draft4Validator(schema, resolver=resolver).validate(response)
+                    Draft4Validator(schema).validate(response)
                 except ValidationError as e:
                     return False, "Response to empty patch to {} does not comply with schema: {}".format(url, str(e))
             else:
@@ -1301,7 +1317,7 @@ class IS0501Test(GenericTest):
             valid, response = self.checkCleanGet(dest)
             if valid:
                 schema = self.load_schema("v1.0_" + port + "_transport_params_rtp.json")
-                resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/",
+                resolver = RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'),
                                        schema)
                 constraints_valid, constraints_response = self.checkCleanGet("single/" + port + "s/" +
                                                                              myPort + "/constraints/")
@@ -1448,7 +1464,7 @@ class IS0501Test(GenericTest):
 
     def load_schema(self, path):
         """Used to load in schemas"""
-        real_path = os.path.join(os.path.dirname(__file__), SCHEMA_LOCAL, path)
+        real_path = os.path.join(self.spec_path + '/APIs/schemas/', path)
         f = open(real_path, "r")
         return json.loads(f.read())
 
@@ -1467,12 +1483,11 @@ class IS0501Test(GenericTest):
 
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response form an endpoint to a schema"""
-        schema = self.load_schema(schema)
-        resolver = RefResolver(self.file_prefix + os.path.join(os.path.dirname(__file__), "schemas") + "/", schema)
+        resolver = RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'), schema)
         valid, response = self.checkCleanGet(endpoint, status_code)
         if valid:
             try:
-                Draft4Validator(schema, resolver=resolver).validate(response)
+                Draft4Validator(schema).validate(response)
                 return True, ""
             except ValidationError as e:
                 return False, "Response from {} did not meet schema: {}".format(endpoint, str(e))
