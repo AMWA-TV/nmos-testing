@@ -309,19 +309,6 @@ class GenericTest(object):
         f = open(real_path, "r")
         return json.loads(f.read())
 
-    def get_num_paths(self, port, portType):
-        """Returns the number or redundant paths on a port"""
-        url = self.url + "single/" + portType + "s/" + port + "/constraints/"
-        try:
-            r = requests.get(url)
-            try:
-                rjson = r.json()
-                return len(rjson)
-            except ValueError:
-                return 0
-        except requests.exceptions.RequestException:
-            return 0
-
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response form an endpoint to a schema"""
         resolver = RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'), schema)

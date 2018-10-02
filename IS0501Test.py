@@ -1403,3 +1403,16 @@ class IS0501Test(GenericTest):
         except requests.exceptions.RequestException:
             pass
         return toReturn
+
+    def get_num_paths(self, port, portType):
+        """Returns the number or redundant paths on a port"""
+        url = self.url + "single/" + portType + "s/" + port + "/constraints/"
+        try:
+            r = requests.get(url)
+            try:
+                rjson = r.json()
+                return len(rjson)
+            except ValueError:
+                return 0
+        except requests.exceptions.RequestException:
+            return 0
