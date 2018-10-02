@@ -255,7 +255,7 @@ class GenericTest(object):
                             continue
 
                         if response.status_code != response_code:
-                            results.append(test.FAIL("Incorrect response code: {}".format(r.status_code)))
+                            results.append(test.FAIL("Incorrect response code: {}".format(response.status_code)))
                             continue
 
                         # Gather IDs of sub-resources for testing of parameterised URLs...
