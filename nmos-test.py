@@ -28,7 +28,7 @@ import IS0601Test
 import IS0701Test
 
 app = Flask(__name__)
-app.debug = True
+app.debug = True  # TODO: Set to False for production use
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 
 CACHE_PATH = 'cache'
@@ -188,7 +188,8 @@ if __name__ == '__main__':
         else:
             repo = git.Repo(path)
             repo.git.reset('--hard')
-            # repo.remotes.origin.pull() # TODO: Uncomment for production use
+            if not app.debug:
+                repo.remotes.origin.pull()
 
     # TODO: Join 224.0.1.129 briefly and capture some announce messages
 
