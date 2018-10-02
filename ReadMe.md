@@ -60,6 +60,8 @@ All test classes inherit from 'GenericTest' which implements some basic schema c
 Each manually defined test is expected to be defined as a method starting with 'test_'. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class Test. An example is included below:
 
 ```python
+from TestHelper import Test
+
 def test_my_stuff(self):
     test = Test("My test description")
 
@@ -96,7 +98,7 @@ Returns a JSON schema, or None if it is unavailable.
 When adding tests for a completely new API, the first set of basic tests have already been written for you. Provided a specification is available in the standard NMOS layout (using RAML 1.0), the test suite can automatically download and interpret it. Simply create a new test file which looks like the following:
 
 ```python
-from TestHelper import GenericTest
+from GenericTest import GenericTest
 
 
 class MyNewSpecTest(GenericTest):

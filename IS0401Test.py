@@ -20,10 +20,12 @@ import time
 import socket
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
-from TestHelper import MdnsListener, Test, GenericTest
+from TestHelper import MdnsListener, Test
+from GenericTest import GenericTest
 
 # TODO: Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under
 #       test
+
 
 class IS0401Test(GenericTest):
     """

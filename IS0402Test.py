@@ -17,7 +17,8 @@ import socket
 import requests
 
 from zeroconf import ServiceBrowser, Zeroconf
-from TestHelper import MdnsListener, Test, GenericTest
+from TestHelper import MdnsListener, Test
+from GenericTest import GenericTest
 
 
 class IS0402Test(GenericTest):

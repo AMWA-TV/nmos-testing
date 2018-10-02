@@ -24,7 +24,8 @@ from jsonschema import ValidationError, SchemaError, RefResolver, Draft4Validato
 from random import randint
 
 import TestHelper
-from TestHelper import Test, GenericTest
+from TestHelper import Test
+from GenericTest import GenericTest
 
 
 class IS0501Test(GenericTest):
