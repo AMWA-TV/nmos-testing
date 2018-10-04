@@ -32,14 +32,40 @@ app.debug = True  # TODO: Set to False for production use
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 
 CACHE_PATH = 'cache'
+SPEC_REPOS = [
+    ('is-04', 'nmos-discovery-registration'),
+    ('is-05', 'nmos-device-connection-management'),
+    ('is-06', 'nmos-network-control'),
+    ('is-07', 'nmos-event-tally')
+]
+TEST_DEFINITIONS = {
+    "IS-04-01": {"name": "IS-04 Node API",
+                 "versions": ["v1.0", "v1.1", "v1.2"],
+                 "spec_key": 'is-04',
+                 "class": IS0401Test.IS0401Test},
+    "IS-04-02": {"name": "IS-04 Registry APIs",
+                 "versions": ["v1.0", "v1.1", "v1.2"],
+                 "spec_key": 'is-04',
+                 "class": IS0402Test.IS0402Test},
+    "IS-05-01": {"name": "IS-05 Connection Management API",
+                 "versions": ["v1.0"],
+                 "spec_key": 'is-05',
+                 "class": IS0501Test.IS0501Test},
+    "IS-06-01": {"name": "IS-06 Network Control API",
+                 "versions": ["v1.0"],
+                 "spec_key": 'is-06',
+                 "class": IS0601Test.IS0601Test},
+    "IS-07-01": {"name": "IS-07 Event & Tally API",
+                 "versions": ["v1.0"],
+                 "spec_key": 'is-07',
+                 "class": IS0701Test.IS0701Test}
+}
 
 
 class DataForm(Form):
-    test = SelectField(label="Select test:", choices=[("IS-04-01", "IS-04 Node API"),
-                                                      ("IS-04-02", "IS-04 Registry APIs"),
-                                                      ("IS-05-01", "IS-05 Connection Management API"),
-                                                      ("IS-06-01", "IS-06 Network Control API"),
-                                                      ("IS-07-01", "IS-07 Event & Tally API")])
+    choices = [(test_id, TEST_DEFINITIONS[test_id]["name"]) for test_id in TEST_DEFINITIONS]
+    choices = sorted(choices, key=lambda x: x[0])
+    test = SelectField(label="Select test:", choices=choices)
     # TODO: Potentially add a mixed IS-04/05 test for where they cross over
     ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
@@ -118,51 +144,37 @@ def index_page():
         version = request.form["version"]
         base_url = "http://{}:{}".format(ip, str(port))
         if form.validate():
+            if test in TEST_DEFINITIONS:
+                spec_versions = TEST_DEFINITIONS[test]["versions"]
+                spec_path = CACHE_PATH + '/' + TEST_DEFINITIONS[test]["spec_key"]
+
             if test == "IS-04-01":
                 apis = {"node": {"raml": "NodeAPI.raml",
                                  "url": "{}/x-nmos/node/{}/".format(base_url, version)}}
-                spec_versions = ["v1.0", "v1.1", "v1.2"]
-                spec_path = 'cache/is-04'
-
                 test_obj = IS0401Test.IS0401Test(base_url, apis, spec_versions, version, spec_path, REGISTRY)
-                result = test_obj.run_tests()
-                return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-04-02":
                 apis = {"registration": {"raml": "RegistrationAPI.raml",
                                          "url": "{}/x-nmos/registration/{}/".format(base_url, version)},
                         "query": {"raml": "QueryAPI.raml",
                                   "url": "{}/x-nmos/query/{}/".format(base_url, version)}}
-                spec_versions = ["v1.0", "v1.1", "v1.2"]
-                spec_path = 'cache/is-04'
-
                 test_obj = IS0402Test.IS0402Test(base_url, apis, spec_versions, version, spec_path)
-                result = test_obj.run_tests()
-                return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-05-01":
                 apis = {"connection": {"raml": "ConnectionAPI.raml",
                                        "url": "{}/x-nmos/connection/{}/".format(base_url, version)}}
-                spec_versions = ["v1.0"]
-                spec_path = 'cache/is-05'
-
+                version = "v1.0" # Override
                 test_obj = IS0501Test.IS0501Test(base_url, apis, spec_versions, version, spec_path)
-                result = test_obj.run_tests()
-                return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-06-01":
                 apis = {"netctrl": {"raml": "NetworkControlAPI.raml",
                                     "url": "{}/x-nmos/netctrl/{}/".format(base_url, version)}}
-                spec_versions = ["v1.0"]
-                spec_path = 'cache/is-06'
-
+                version = "v1.0" # Override
                 test_obj = IS0601Test.IS0601Test(base_url, apis, spec_versions, version, spec_path)
-                result = test_obj.run_tests()
-                return render_template("result.html", url=base_url, test=test, result=result)
             elif test == "IS-07-01":
                 apis = {"events": {"raml": "EventsAPI.raml",
                                    "url": "{}/x-nmos/events/{}/".format(base_url, version)}}
-                spec_versions = ["v1.0"]
-                spec_path = 'cache/is-07'
-
+                version = "v1.0" # Override
                 test_obj = IS0701Test.IS0701Test(base_url, apis, spec_versions, version, spec_path)
+
+            if test_obj:
                 result = test_obj.run_tests()
                 return render_template("result.html", url=base_url, test=test, result=result)
         else:
@@ -177,11 +189,7 @@ if __name__ == '__main__':
     if not os.path.exists(CACHE_PATH):
         os.makedirs(CACHE_PATH)
 
-    repositories = [('is-04', 'nmos-discovery-registration'),
-                    ('is-05', 'nmos-device-connection-management'),
-                    ('is-06', 'nmos-network-control'),
-                    ('is-07', 'nmos-event-tally')]
-    for repo_data in repositories:
+    for repo_data in SPEC_REPOS:
         path = os.path.join(CACHE_PATH + '/' + repo_data[0])
         if not os.path.exists(path):
             repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data[1] + '.git', path)
