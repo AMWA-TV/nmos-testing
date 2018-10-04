@@ -67,33 +67,3 @@ def ordered(obj):
 def compare_json(json1, json2):
     """Compares two json objects for equality"""
     return ordered(json1) == ordered(json2)
-
-
-class Test(object):
-    def __init__(self, description):
-        self.description = description
-
-    def PASS(self, detail=""):
-        return [self.description, "Pass", detail]
-
-    def MANUAL(self, detail=""):
-        return [self.description, "Manual", detail]
-
-    def NA(self, detail):
-        return [self.description, "N/A", detail]
-
-    def FAIL(self, detail):
-        return [self.description, "Fail", detail]
-
-
-class MdnsListener(object):
-    def __init__(self):
-        self.services = list()
-
-    def add_service(self, zeroconf, type, name):
-        info = zeroconf.get_service_info(type, name)
-        if info is not None:
-            self.services.append(info)
-
-    def get_service_list(self):
-        return self.services

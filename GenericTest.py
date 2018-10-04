@@ -21,7 +21,8 @@ import jsonschema
 
 from jsonschema import ValidationError, RefResolver, Draft4Validator
 from Specification import Specification
-from TestHelper import Test, UTC_LEAP
+from TestHelper import UTC_LEAP
+from TestResult import Test
 
 # TODO: Consider whether to set Accept headers? If we don't set them we expect APIs to default to application/json
 # unless told otherwise. Is this part of the spec?
