@@ -56,6 +56,11 @@ class GenericTest(object):
         version_parts = version.strip("v").split(".")
         return int(version_parts[0]), int(version_parts[1])
 
+    def parse_RAML(self):
+        """Create a Specification object for each API defined in this object"""
+        for api in self.apis:
+            self.apis[api]["spec"] = Specification(os.path.join(self.spec_path + '/APIs/' + self.apis[api]["raml"]))
+
     def execute_tests(self):
         """Perform all tests defined within this class"""
         print(" * Running basic API tests")
@@ -85,11 +90,6 @@ class GenericTest(object):
 # Tests: Schema checks for all resources
 # CORS checks for all resources
 # Trailing slashes
-
-    def parse_RAML(self):
-        """Create a Specification object for each API defined in this object"""
-        for api in self.apis:
-            self.apis[api]["spec"] = Specification(os.path.join(self.spec_path + '/APIs/' + self.apis[api]["raml"]))
 
     def prepare_CORS(self, method):
         """Prepare CORS headers to be used when making any API request"""
