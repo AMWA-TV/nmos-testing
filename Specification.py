@@ -95,10 +95,10 @@ class Specification(object):
         schema_loc = None
         if not response.body:
             # Handle parsing errors in ramlfications manually, notably for schemas in RAML 1.0
-            if response.code in response.raw and response.raw[response.code] is not None:
-                if "body" in response.raw[response.code]:
-                    if "type" in response.raw[response.code]["body"]:
-                        schema_loc = response.raw[response.code]["body"]["type"]
+            try:
+                schema_loc = response.raw[response.code]["body"]["type"]
+            except (KeyError, TypeError):
+                pass
         else:
             for entry in response.body:
                 schema_loc = entry.schema
