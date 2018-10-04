@@ -60,19 +60,22 @@ class Specification(object):
         """Fixes RAML files to match ramlfications expectations (bugs)"""
         lines = []
         in_schemas = False
-        with open(file_path) as raml:
-            line = raml.readline()
-            while line:
-                if in_schemas and not line.startswith(" "):
-                    in_schemas = False
-                if in_schemas and "- " not in line:
-                    line = "  - " + line.lstrip()
-                if line.startswith("schemas:") or line.startswith("types:"):
-                    in_schemas = True
-                lines.append(line)
+        try:
+            with open(file_path) as raml:
                 line = raml.readline()
-        with open(file_path, "w") as raml:
-            raml.writelines("".join(lines))
+                while line:
+                    if in_schemas and not line.startswith(" "):
+                        in_schemas = False
+                    if in_schemas and "- " not in line:
+                        line = "  - " + line.lstrip()
+                    if line.startswith("schemas:") or line.startswith("types:"):
+                        in_schemas = True
+                    lines.append(line)
+                    line = raml.readline()
+            with open(file_path, "w") as raml:
+                raml.writelines("".join(lines))
+        except IOError as e:
+            print("Error modifying RAML. Some schemas may not be loaded: {}".format(e))
 
     def _extract_global_schemas(self, api_raml):
         """Find schemas defined at the top of the RAML file and store them in global_schemas"""
