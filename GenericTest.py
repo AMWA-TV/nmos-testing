@@ -239,16 +239,11 @@ class GenericTest(object):
             return test.FAIL("Incorrect response code: {}".format(response.status_code))
 
         # Gather IDs of sub-resources for testing of parameterised URLs...
-        sub_resources = self.get_subresources(response)
-        if len(sub_resources) > 0:
-            if resource[0] not in self.saved_entities:
-                self.saved_entities[resource[0]] = sub_resources
-            else:
-                self.saved_entities[resource[0]] += sub_resources
+        self.save_subresources(resource[0], response)
 
         return self.check_response(test, api, resource[1]["method"], resource[0], response)
 
-    def get_subresources(self, response):
+    def save_subresources(self, path, response):
         """Get IDs contained within an array JSON response such that they can be interrogated individually"""
         subresources = list()
         try:
@@ -264,7 +259,11 @@ class GenericTest(object):
         except json.decoder.JSONDecodeError:
             pass
 
-        return subresources
+        if len(subresources) > 0:
+            if path not in self.saved_entities:
+                self.saved_entities[path] = subresources
+            else:
+                self.saved_entities[path] += subresources
 
     def getTAITime(self, offset=0.0):
         """Get the current TAI time as a colon seperated string"""
