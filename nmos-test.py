@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import Flask, render_template, flash, request, jsonify, abort
+from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField
+from Registry import REGISTRY, REGISTRY_API
 
 import git
 import os
-import time
 
 import IS0401Test
 import IS0402Test
@@ -30,6 +30,7 @@ import IS0701Test
 app = Flask(__name__)
 app.debug = True  # TODO: Set to False for production use
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
+app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
 
 CACHE_PATH = 'cache'
 SPEC_REPOS = [
@@ -74,63 +75,6 @@ class DataForm(Form):
     version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
                                                          ("v1.1", "v1.1"),
                                                          ("v1.2", "v1.2")])
-
-
-class Registry(object):
-    def __init__(self):
-        self.last_time = 0
-        self.last_hb_time = 0
-        self.data = []
-        self.heartbeats = []
-        self.enabled = False
-
-    def reset(self):
-        self.last_time = time.time()
-        self.last_hb_time = 0
-        self.data = []
-        self.heartbeats = []
-
-    def add(self, headers, payload):
-        self.last_time = time.time()
-        self.data.append((self.last_time, {"headers": headers, "payload": payload}))
-
-    def heartbeat(self, headers, payload, node_id):
-        self.last_hb_time = time.time()
-        self.heartbeats.append((self.last_hb_time, {"headers": headers, "payload": payload, "node_id": node_id}))
-
-    def get_data(self):
-        return self.data
-
-    def get_heartbeats(self):
-        return self.heartbeats
-
-    def enable(self):
-        self.enabled = True
-
-    def disable(self):
-        self.enabled = False
-
-
-REGISTRY = Registry()
-
-
-# IS-04 resources
-@app.route('/x-nmos/registration/v1.2/resource', methods=["POST"])
-def reg_page():
-    if not REGISTRY.enabled:
-        abort(500)
-    REGISTRY.add(request.headers, request.json)
-    # TODO: Ensure status code returned is correct
-    return jsonify(request.json["data"])
-
-
-@app.route('/x-nmos/registration/v1.2/health/nodes/<node_id>', methods=["POST"])
-def heartbeat(node_id):
-    if not REGISTRY.enabled:
-        abort(404)
-    REGISTRY.heartbeat(request.headers, request.json, node_id)
-    # TODO: Ensure status code returned is correct
-    return jsonify({"health": int(time.time())})
 
 
 # Index page
