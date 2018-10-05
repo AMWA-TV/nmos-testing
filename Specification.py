@@ -26,35 +26,25 @@ class Specification(object):
 
         self._extract_global_schemas(api_raml)
 
+        # Iterate over each path+method defined in the API
         for resource in api_raml.resources:
             resource_data = {'method': resource.method,
                              'params': resource.uri_params,
-                             'body': None,
+                             'body': self._extract_body_schema(resource, file_path),
                              'responses': {}}
-            if resource.body is not None:
-                for attr in resource.body:
-                    if attr.mime_type == "schema":
-                        resource_data['body'] = self._deref_schema(os.path.dirname(file_path), schema=attr.raw)
-                        break
-            for response in resource.responses:
-                if response.code not in resource_data["responses"]:
-                    resource_data["responses"][response.code] = None
 
-                schema_loc = self._extract_response_schema(response)
-
-                if isinstance(schema_loc, dict):
-                    resource_data["responses"][response.code] = self._deref_schema(
-                                                                     os.path.dirname(file_path),
-                                                                     schema=schema_loc)
-                elif schema_loc in self.global_schemas:
-                    resource_data["responses"][response.code] = self._deref_schema(
-                                                                     os.path.dirname(file_path),
-                                                                     schema=self.global_schemas[schema_loc])
-
+            # Add a list for the resource path if we don't have one yet
             if resource.path not in self.data:
-                self.data[resource.path] = [resource_data]
-            else:
-                self.data[resource.path].append(resource_data)
+                self.data[resource.path] = list()
+
+            # Extract the schemas for the different response codes
+            for response in resource.responses:
+                # Note: Must check we don't overwrite an existing schema here by checking if it is None or not
+                if response.code not in resource_data["responses"] or resource_data["responses"][response.code] is None:
+                    resource_data["responses"][response.code] = self._extract_response_schema(response, file_path)
+
+            # Register the collected data in the Specification object
+            self.data[resource.path].append(resource_data)
 
     def _fix_schemas(self, file_path):
         """Fixes RAML files to match ramlfications expectations (bugs)"""
@@ -90,7 +80,17 @@ class Specification(object):
                 keys = list(schema.keys())
                 self.global_schemas[keys[0]] = schema[keys[0]]
 
-    def _extract_response_schema(self, response):
+    def _extract_body_schema(self, resource, file_path):
+        """Locate the schema for the request body if one exists"""
+        body_schema = None
+        if resource.body is not None:
+            for attr in resource.body:
+                if attr.mime_type == "schema":
+                    body_schema = self._deref_schema(os.path.dirname(file_path), schema=attr.raw)
+                    break
+        return body_schema
+
+    def _extract_response_schema(self, response, file_path):
         """Find schemas defined for a given API response and return the file path or global schema name"""
         schema_loc = None
         if not response.body:
@@ -105,7 +105,13 @@ class Specification(object):
                 if not schema_loc:
                     if "type" in entry.raw:
                         schema_loc = entry.raw["type"]
-        return schema_loc
+
+        if isinstance(schema_loc, dict):
+            return self._deref_schema(os.path.dirname(file_path), schema=schema_loc)
+        elif schema_loc in self.global_schemas:
+            return self._deref_schema(os.path.dirname(file_path), schema=self.global_schemas[schema_loc])
+        else:
+            return None
 
     def _deref_schema(self, dir, name=None, schema=None):
         """Resolve $ref cases to the correct files in schema JSON"""
