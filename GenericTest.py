@@ -40,6 +40,7 @@ class GenericTest(object):
         self.test_version = test_version
         self.spec_path = spec_path
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
+        self.saved_entities = {}
 
         self.major_version, self.minor_version = self._parse_version(self.test_version)
 
@@ -174,9 +175,6 @@ class GenericTest(object):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""
         results = []
 
-        # When a 'list' is encountered, the results are stored here for subsequent parameterised GETs
-        saved_entities = {}
-
         for api in self.apis:
             results.append(self.check_base_path("/", "x-nmos/"))
             results.append(self.check_base_path("/x-nmos", api + "/"))
@@ -185,73 +183,9 @@ class GenericTest(object):
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
                     if response_code == 200:
-                        # Test URLs which include a {resourceId} or similar parameter
-                        if resource[1]['params'] and len(resource[1]['params']) == 1:
-                            path_parts = resource[0].split("/")
-                            path = ""
-                            for part in path_parts:
-                                if part.startswith("{"):
-                                    break
-                                if part != "":
-                                    path += "/" + part
-                            if path in saved_entities:
-                                # Pick the first relevant saved entity and construct a test
-                                entity = saved_entities[path][0]
-                                url_param = resource[0].replace("{" + resource[1]['params'][0].name + "}", entity)
-                                url = "{}{}".format(self.apis[api]["url"].rstrip("/"), url_param)
-                                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
-                                                                        api,
-                                                                        self.test_version,
-                                                                        url_param))
-                            else:
-                                # There were no saved entities found, so we can't test this parameterised URL
-                                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
-                                                                        api,
-                                                                        self.test_version,
-                                                                        resource[0]))
-                                results.append(test.NA("No resources found to perform this test"))
-                                continue
-
-                        # Test general URLs with no parameters
-                        elif not resource[1]['params']:
-                            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
-                            test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
-                                                                    api,
-                                                                    self.test_version,
-                                                                    resource[0]))
-                        else:
-                            continue
-
-                        status, response = self.do_request(resource[1]['method'], url)
-                        if not status:
-                            results.append(test.FAIL(response))
-                            continue
-
-                        if response.status_code != response_code:
-                            results.append(test.FAIL("Incorrect response code: {}".format(response.status_code)))
-                            continue
-
-                        # Gather IDs of sub-resources for testing of parameterised URLs...
-                        try:
-                            if isinstance(response.json(), list):
-                                for entry in response.json():
-                                    # In general, lists return fully fledged objects which each have an ID
-                                    if isinstance(entry, dict) and "id" in entry:
-                                        if resource[0] not in saved_entities:
-                                            saved_entities[resource[0]] = [entry["id"]]
-                                        else:
-                                            saved_entities[resource[0]].append(entry["id"])
-                                    # In some cases lists contain strings which indicate the path to each resource
-                                    elif isinstance(entry, str) and entry.endswith("/"):
-                                        res_id = entry.rstrip("/")
-                                        if resource[0] not in saved_entities:
-                                            saved_entities[resource[0]] = [res_id]
-                                        else:
-                                            saved_entities[resource[0]].append(res_id)
-                        except json.decoder.JSONDecodeError:
-                            pass
-
-                        results.append(self.check_response(test, api, resource[1]["method"], resource[0], response))
+                        result = self.check_api_resource(resource, response_code, api)
+                        if result is not None:
+                            results.append(result)
 
         return results
         # TODO: For any method we can't test, flag it as a manual test
@@ -259,6 +193,78 @@ class GenericTest(object):
         #       of this loop
         # TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on
         #       either.
+
+    def check_api_resource(self, resource, response_code, api):
+        # Test URLs which include a {resourceId} or similar parameter
+        if resource[1]['params'] and len(resource[1]['params']) == 1:
+            path_parts = resource[0].split("/")
+            path = ""
+            for part in path_parts:
+                if part.startswith("{"):
+                    break
+                if part != "":
+                    path += "/" + part
+            if path in self.saved_entities:
+                # Pick the first relevant saved entity and construct a test
+                entity = self.saved_entities[path][0]
+                url_param = resource[0].replace("{" + resource[1]['params'][0].name + "}", entity)
+                url = "{}{}".format(self.apis[api]["url"].rstrip("/"), url_param)
+                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                        api,
+                                                        self.test_version,
+                                                        url_param))
+            else:
+                # There were no saved entities found, so we can't test this parameterised URL
+                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                        api,
+                                                        self.test_version,
+                                                        resource[0]))
+                return test.NA("No resources found to perform this test")
+
+        # Test general URLs with no parameters
+        elif not resource[1]['params']:
+            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
+            test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                    api,
+                                                    self.test_version,
+                                                    resource[0]))
+        else:
+            return None
+
+        status, response = self.do_request(resource[1]['method'], url)
+        if not status:
+            return test.FAIL(response)
+
+        if response.status_code != response_code:
+            return test.FAIL("Incorrect response code: {}".format(response.status_code))
+
+        # Gather IDs of sub-resources for testing of parameterised URLs...
+        sub_resources = self.get_subresources(response)
+        if len(sub_resources) > 0:
+            if resource[0] not in self.saved_entities:
+                self.saved_entities[resource[0]] = sub_resources
+            else:
+                self.saved_entities[resource[0]] += sub_resources
+
+        return self.check_response(test, api, resource[1]["method"], resource[0], response)
+
+    def get_subresources(self, response):
+        """Get IDs contained within an array JSON response such that they can be interrogated individually"""
+        subresources = list()
+        try:
+            if isinstance(response.json(), list):
+                for entry in response.json():
+                    # In general, lists return fully fledged objects which each have an ID
+                    if isinstance(entry, dict) and "id" in entry:
+                        subresources.append(entry["id"])
+                    # In some cases lists contain strings which indicate the path to each resource
+                    elif isinstance(entry, str) and entry.endswith("/"):
+                        res_id = entry.rstrip("/")
+                        subresources.append(res_id)
+        except json.decoder.JSONDecodeError:
+            pass
+
+        return subresources
 
     def getTAITime(self, offset=0.0):
         """Get the current TAI time as a colon seperated string"""
