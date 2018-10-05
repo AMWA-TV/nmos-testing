@@ -197,17 +197,12 @@ class GenericTest(object):
     def check_api_resource(self, resource, response_code, api):
         # Test URLs which include a {resourceId} or similar parameter
         if resource[1]['params'] and len(resource[1]['params']) == 1:
-            path_parts = resource[0].split("/")
-            path = ""
-            for part in path_parts:
-                if part.startswith("{"):
-                    break
-                if part != "":
-                    path += "/" + part
+            path = resource[0].split("{")[0].rstrip("/")
             if path in self.saved_entities:
                 # Pick the first relevant saved entity and construct a test
                 entity = self.saved_entities[path][0]
-                url_param = resource[0].replace("{" + resource[1]['params'][0].name + "}", entity)
+                params = {resource[1]['params'][0].name: entity}
+                url_param = resource[0].format(**params)
                 url = "{}{}".format(self.apis[api]["url"].rstrip("/"), url_param)
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
