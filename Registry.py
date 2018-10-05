@@ -57,8 +57,8 @@ REGISTRY_API = Blueprint('registry_api', __name__)
 
 
 # IS-04 resources
-@REGISTRY_API.route('/x-nmos/registration/v1.2/resource', methods=["POST"])
-def reg_page():
+@REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
+def reg_page(version):
     if not REGISTRY.enabled:
         abort(500)
     REGISTRY.add(request.headers, request.json)
@@ -66,8 +66,8 @@ def reg_page():
     return jsonify(request.json["data"])
 
 
-@REGISTRY_API.route('/x-nmos/registration/v1.2/health/nodes/<node_id>', methods=["POST"])
-def heartbeat(node_id):
+@REGISTRY_API.route('/x-nmos/registration/<version>/health/nodes/<node_id>', methods=["POST"])
+def heartbeat(version, node_id):
     if not REGISTRY.enabled:
         abort(404)
     REGISTRY.heartbeat(request.headers, request.json, node_id)
