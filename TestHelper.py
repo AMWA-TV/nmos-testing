@@ -22,6 +22,8 @@
 # The NTP epoch seconds have been converted to Unix epoch seconds. The difference between
 # the NTP epoch at 1 Jan 1900 and the Unix epoch at 1 Jan 1970 is 2208988800 seconds
 
+import time
+
 UTC_LEAP = [
     # || UTC SEC  |  TAI SEC - 1 ||
     (1483228800, 1483228836),  # 1 Jan 2017, 37 leap seconds
@@ -67,3 +69,22 @@ def ordered(obj):
 def compare_json(json1, json2):
     """Compares two json objects for equality"""
     return ordered(json1) == ordered(json2)
+
+
+def from_UTC(secs, nanos, is_leap=False):
+    """Convert a UTC time into a TAI time"""
+    leap_sec = 0
+    for tbl_sec, tbl_tai_sec_minus_1 in UTC_LEAP:
+        if secs >= tbl_sec:
+            leap_sec = (tbl_tai_sec_minus_1 + 1) - tbl_sec
+            break
+    return secs + leap_sec + is_leap, nanos
+
+
+def getTAITime(offset=0.0):
+    """Get the current TAI time as a colon seperated string"""
+    myTime = time.time() + offset
+    secs = int(myTime)
+    nanos = int((myTime - secs) * 1e9)
+    ippTime = from_UTC(secs, nanos)
+    return str(ippTime[0]) + ":" + str(ippTime[1])

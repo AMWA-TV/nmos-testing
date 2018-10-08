@@ -1053,7 +1053,7 @@ class IS0501Test(GenericTest):
         # request an absolute activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        TAItime = self.getTAITime(1)
+        TAItime = TestHelper.getTAITime(1)
         data = {"activation": {"mode": "activate_scheduled_absolute", "requested_time": TAItime}}
         valid, response = self.checkCleanRequest("PATCH", stagedUrl, data=data, code=202)
         if valid:

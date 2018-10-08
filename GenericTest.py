@@ -14,14 +14,12 @@
 
 import os
 import json
-import time
 import requests
 import git
 import jsonschema
 
 from jsonschema import ValidationError, RefResolver, Draft4Validator
 from Specification import Specification
-from TestHelper import UTC_LEAP
 from TestResult import Test
 
 # TODO: Consider whether to set Accept headers? If we don't set them we expect APIs to default to application/json
@@ -259,23 +257,6 @@ class GenericTest(object):
                 self.saved_entities[path] = subresources
             else:
                 self.saved_entities[path] += subresources
-
-    def getTAITime(self, offset=0.0):
-        """Get the current TAI time as a colon seperated string"""
-        myTime = time.time() + offset
-        secs = int(myTime)
-        nanos = int((myTime - secs) * 1e9)
-        ippTime = self.from_UTC(secs, nanos)
-        return str(ippTime[0]) + ":" + str(ippTime[1])
-
-    def from_UTC(self, secs, nanos, is_leap=False):
-        """Convert a UTC time into a TAI time"""
-        leap_sec = 0
-        for tbl_sec, tbl_tai_sec_minus_1 in UTC_LEAP:
-            if secs >= tbl_sec:
-                leap_sec = (tbl_tai_sec_minus_1 + 1) - tbl_sec
-                break
-        return secs + leap_sec + is_leap, nanos
 
     def load_schema(self, path):
         """Used to load in schemas"""
