@@ -271,16 +271,9 @@ class GenericTest(object):
 
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response from an endpoint to a schema"""
-        resolver = RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'), schema)
         valid, response = self.checkCleanRequest("GET", endpoint, code=status_code)
         if valid:
-            try:
-                Draft4Validator(schema).validate(response.json())
-                return True, ""
-            except ValidationError as e:
-                return False, "Response from {} did not meet schema: {}".format(endpoint, str(e))
-            except json.decoder.JSONDecodeError:
-                return False, "Invalid JSON received"
+            return self.check_response(schema, "GET", response)
         else:
             return False, "Invalid response while getting data: " + response
 
