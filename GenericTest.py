@@ -275,10 +275,12 @@ class GenericTest(object):
         valid, response = self.checkCleanRequest("GET", endpoint, code=status_code)
         if valid:
             try:
-                Draft4Validator(schema).validate(response)
+                Draft4Validator(schema).validate(response.json())
                 return True, ""
             except ValidationError as e:
                 return False, "Response from {} did not meet schema: {}".format(endpoint, str(e))
+            except json.decoder.JSONDecodeError:
+                return False, "Invalid JSON received"
         else:
             return False, "Invalid response while getting data: " + response
 
@@ -290,14 +292,17 @@ class GenericTest(object):
 
         message = "Expected status code {} from {}, got {}.".format(code, dest, response.status_code)
         if response.status_code == code:
+            return True, response
+        else:
+            return False, message
+
+    def checkCleanRequestJSON(self, method, dest, data=None, code=200):
+        valid, response = self.checkCleanRequest(method, dest, data, code)
+        if valid:
             try:
                 return True, response.json()
             except:
                 # Failed parsing JSON
-                msg = "Failed decoding JSON from {}, got {}. Please check JSON syntax".format(
-                    dest,
-                    response.text
-                )
-                return False, msg
+                return False, "Invalid JSON received"
         else:
-            return False, message
+            return valid, response

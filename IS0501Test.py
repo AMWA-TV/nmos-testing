@@ -44,7 +44,7 @@ class IS0501Test(GenericTest):
         test = Test("Api root matches the spec")
         expected = ["single/", "bulk/"]
         dest = ""
-        valid, result = self.checkCleanRequest("GET", dest)
+        valid, result = self.checkCleanRequestJSON("GET", dest)
         if valid:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
                 .format(dest, result)
@@ -60,7 +60,7 @@ class IS0501Test(GenericTest):
         test = Test("Single endpoint root matches the spec")
         expected = ["receivers/", "senders/"]
         dest = "single/"
-        valid, result = self.checkCleanRequest("GET", dest)
+        valid, result = self.checkCleanRequestJSON("GET", dest)
         if valid:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
                 .format(dest, result)
@@ -75,7 +75,7 @@ class IS0501Test(GenericTest):
         """Root of /single/senders/ matches the spec"""
         test = Test("Root of /single/senders/ matches the spec")
         dest = "single/senders/"
-        valid, response = self.checkCleanRequest("GET", dest)
+        valid, response = self.checkCleanRequestJSON("GET", dest)
         smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
         umsg = "Response from {} containts invalid UUIDs".format(dest)
         amsg = "Expected an array from {}, got {}".format(dest, type(response))
@@ -104,7 +104,7 @@ class IS0501Test(GenericTest):
         """Root of /single/receivers/ matches the spec"""
         test = Test("Root of /single/receivers/ matches the spec")
         dest = "single/receivers/"
-        valid, response = self.checkCleanRequest("GET", dest)
+        valid, response = self.checkCleanRequestJSON("GET", dest)
         smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
         umsg = "Response from {} containts invalid UUIDs".format(dest)
         amsg = "Expected an array from {}, got {}".format(dest, type(response))
@@ -135,7 +135,7 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/"
-                valid, response = self.checkCleanRequest("GET", dest)
+                valid, response = self.checkCleanRequestJSON("GET", dest)
                 expected = [
                     "constraints/",
                     "staged/",
@@ -160,7 +160,7 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/"
-                valid, response = self.checkCleanRequest("GET", dest)
+                valid, response = self.checkCleanRequestJSON("GET", dest)
                 expected = [
                     "constraints/",
                     "staged/",
@@ -262,7 +262,7 @@ class IS0501Test(GenericTest):
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/constraints/"
                 try:
-                    valid, response = self.checkCleanRequest("GET", dest)
+                    valid, response = self.checkCleanRequestJSON("GET", dest)
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
                             params = response[0].keys()
@@ -304,7 +304,7 @@ class IS0501Test(GenericTest):
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/constraints/"
                 try:
-                    valid, response = self.checkCleanRequest("GET", dest)
+                    valid, response = self.checkCleanRequestJSON("GET", dest)
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
                             params = response[0].keys()
@@ -446,9 +446,9 @@ class IS0501Test(GenericTest):
                 url = "single/receivers/" + receiver + "/staged"
                 id = str(uuid.uuid4())
                 data = {"sender_id": id}
-                valid, response = self.checkCleanRequest("PATCH", url, data=data)
+                valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
                 if valid:
-                    valid2, response2 = self.checkCleanRequest("GET", url + "/")
+                    valid2, response2 = self.checkCleanRequestJSON("GET", url + "/")
                     if valid2:
                         try:
                             senderId = response['sender_id']
@@ -475,9 +475,9 @@ class IS0501Test(GenericTest):
                 url = "single/senders/" + sender + "/staged"
                 id = str(uuid.uuid4())
                 data = {"receiver_id": id}
-                valid, response = self.checkCleanRequest("PATCH", url, data=data)
+                valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
                 if valid:
-                    valid2, response2 = self.checkCleanRequest("GET", url + "/")
+                    valid2, response2 = self.checkCleanRequestJSON("GET", url + "/")
                     if valid2:
                         try:
                             receiverId = response['receiver_id']
@@ -660,7 +660,7 @@ class IS0501Test(GenericTest):
         """/bulk/ endpoint returns correct JSON"""
         test = Test("/bulk/ endpoint returns correct JSON")
         url = "bulk/"
-        valid, response = self.checkCleanRequest("GET", url)
+        valid, response = self.checkCleanRequestJSON("GET", url)
         if valid:
             expected = ['senders/', 'receivers/']
             msg = "Got wrong response from {}, expected an array containing {}, got {}".format(url, expected, response)
@@ -675,7 +675,7 @@ class IS0501Test(GenericTest):
         """GET on /bulk/senders returns 405"""
         test = Test("GET on /bulk/senders returns 405")
         url = "bulk/senders"
-        valid, response = self.checkCleanRequest("GET", url, code=405)
+        valid, response = self.checkCleanRequestJSON("GET", url, code=405)
         if valid:
             return test.PASS()
         else:
@@ -685,7 +685,7 @@ class IS0501Test(GenericTest):
         """GET on /bulk/receivers returns 405"""
         test = Test("GET on /bulk/receivers returns 405")
         url = "bulk/receivers"
-        valid, response = self.checkCleanRequest("GET", url, code=405)
+        valid, response = self.checkCleanRequestJSON("GET", url, code=405)
         if valid:
             return test.PASS()
         else:
@@ -752,11 +752,11 @@ class IS0501Test(GenericTest):
         constraintsUrl = url + "constraints/"
         stagedUrl = url + "staged/"
         activeUrl = url + "active/"
-        valid1, constraints = self.checkCleanRequest("GET", constraintsUrl)
+        valid1, constraints = self.checkCleanRequestJSON("GET", constraintsUrl)
         if valid1:
-            valid2, staged = self.checkCleanRequest("GET", stagedUrl)
+            valid2, staged = self.checkCleanRequestJSON("GET", stagedUrl)
             if valid2:
-                valid3, active = self.checkCleanRequest("GET", activeUrl)
+                valid3, active = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid3:
                     try:
                         stagedParams = staged['transport_params']
@@ -846,7 +846,7 @@ class IS0501Test(GenericTest):
         for portInst in portList:
             activeUrl = "single/" + port + "s/" + portInst + "/staged/"
 
-            valid, response = self.checkCleanRequest("GET", activeUrl)
+            valid, response = self.checkCleanRequestJSON("GET", activeUrl)
             if valid:
                 for i in range(0, self.get_num_paths(portInst, port)):
                     try:
@@ -869,7 +869,7 @@ class IS0501Test(GenericTest):
     def check_staged_activation_params_default(self, port, portId):
         # Check that the staged activation parameters have returned to their default values
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
-        valid, response = self.checkCleanRequest("GET", stagedUrl)
+        valid, response = self.checkCleanRequestJSON("GET", stagedUrl)
         if valid:
             expected = {"mode": None, "requested_time": None, "activation_time": None}
             try:
@@ -894,7 +894,7 @@ class IS0501Test(GenericTest):
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
         data = {"activation": {"mode": "activate_immediate"}}
-        valid, response = self.checkCleanRequest("PATCH", stagedUrl, data=data)
+        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -927,7 +927,7 @@ class IS0501Test(GenericTest):
             valid2, response2 = self.check_staged_activation_params_default(port, portId)
             if valid2:
                 # Check the values now on /active
-                valid3, response3 = self.checkCleanRequest("GET", activeUrl)
+                valid3, response3 = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid3:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
@@ -971,7 +971,7 @@ class IS0501Test(GenericTest):
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
         data = {"activation": {"mode": "activate_scheduled_relative", "requested_time": "0:2"}}
-        valid, response = self.checkCleanRequest("PATCH", stagedUrl, data=data, code=202)
+        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=202)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -1004,7 +1004,7 @@ class IS0501Test(GenericTest):
 
             while retries < 3 and not finished:
                 # Check the values now on /active
-                valid2, activeParams = self.checkCleanRequest("GET", activeUrl)
+                valid2, activeParams = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
@@ -1055,7 +1055,7 @@ class IS0501Test(GenericTest):
         activeUrl = "single/" + port + "s/" + portId + "/active"
         TAItime = TestHelper.getTAITime(1)
         data = {"activation": {"mode": "activate_scheduled_absolute", "requested_time": TAItime}}
-        valid, response = self.checkCleanRequest("PATCH", stagedUrl, data=data, code=202)
+        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=202)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -1098,7 +1098,7 @@ class IS0501Test(GenericTest):
 
             while retries < 3 and not finished:
                 # Check the values now on /active
-                valid2, activeParams = self.checkCleanRequest("GET", activeUrl)
+                valid2, activeParams = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
@@ -1152,7 +1152,7 @@ class IS0501Test(GenericTest):
             data = {"transport_params": []}
             for i in range(0, self.get_num_paths(portId, port)):
                 data['transport_params'].append({"destination_port": destinationPort[i]})
-            valid2, r = self.checkCleanRequest("PATCH", stagedUrl, data=data)
+            valid2, r = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
             if valid2:
                 try:
                     stagedParams = r['transport_params']
@@ -1171,7 +1171,7 @@ class IS0501Test(GenericTest):
         """Uses a port's constraints to generate an allowable destination
         ports for it"""
         url = "single/" + port + "s/" + portId + "/constraints/"
-        valid, constraints = self.checkCleanRequest("GET", url)
+        valid, constraints = self.checkCleanRequestJSON("GET", url)
         if valid:
             toReturn = []
             try:
@@ -1205,9 +1205,9 @@ class IS0501Test(GenericTest):
         for i in range(0, paths):
             data['transport_params'].append({})
             data['transport_params'][i][paramName] = paramValues[i]
-        valid, response = self.checkCleanRequest("PATCH", url, data=data)
+        valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
-            valid2, response2 = self.checkCleanRequest("GET", url + "/")
+            valid2, response2 = self.checkCleanRequestJSON("GET", url + "/")
             if valid2:
                 try:
                     response3 = response2['transport_params']
@@ -1243,7 +1243,7 @@ class IS0501Test(GenericTest):
         data = {"bad": "data"}
         for myPort in portList:
             url = "single/" + port + "s/" + myPort + "/staged"
-            valid, response = self.checkCleanRequest("PATCH", url, data=data, code=400)
+            valid, response = self.checkCleanRequestJSON("PATCH", url, data=data, code=400)
             if valid:
                 pass
             else:
@@ -1255,7 +1255,7 @@ class IS0501Test(GenericTest):
         for myPort in portList:
             url = "single/" + port + "s/" + myPort + "/staged"
             data = {}
-            valid, response = self.checkCleanRequest("PATCH", url, data=data)
+            valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
             if valid:
                 schema = self.apis["connection"]["spec"].get_schema("PATCH",
                                                                     "/single/" + port + "s/{" + port + "Id}/staged",
@@ -1273,12 +1273,12 @@ class IS0501Test(GenericTest):
         the constents of the /constraints endpoint"""
         for myPort in portList:
             dest = "single/" + port + "s/" + myPort + "/staged/"
-            valid, response = self.checkCleanRequest("GET", dest)
+            valid, response = self.checkCleanRequestJSON("GET", dest)
             if valid:
                 schema = self.load_schema("v1.0_" + port + "_transport_params_rtp.json")
                 resolver = RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'),
                                        schema)
-                constraints_valid, constraints_response = self.checkCleanRequest("GET", "single/" + port + "s/" +
+                constraints_valid, constraints_response = self.checkCleanRequestJSON("GET", "single/" + port + "s/" +
                                                                                  myPort + "/constraints/")
                 if constraints_valid:
                     count = 0
@@ -1310,9 +1310,9 @@ class IS0501Test(GenericTest):
             rDest = "single/" + port + "/" + myPort + "/constraints/"
             sDest = "single/" + port + "/" + myPort + "/staged/"
             aDest = "single/" + port + "/" + myPort + "/active/"
-            r_valid, r_response = self.checkCleanRequest("GET", rDest)
-            s_valid, s_response = self.checkCleanRequest("GET", sDest)
-            a_valid, a_response = self.checkCleanRequest("GET", aDest)
+            r_valid, r_response = self.checkCleanRequestJSON("GET", rDest)
+            s_valid, s_response = self.checkCleanRequestJSON("GET", sDest)
+            a_valid, a_response = self.checkCleanRequestJSON("GET", aDest)
             count = 0
             amsg = "Expected an array to be returned {} but got {}".format(rDest, r_response)
             omsg = "Expected array entries to be dictionaries at {} but got {}".format(rDest, r_response)
