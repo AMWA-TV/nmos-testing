@@ -104,9 +104,7 @@ class GenericTest(object):
         if method in ['OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']:
             if 'Access-Control-Allow-Headers' not in response.headers:
                 return False
-            if method not in response.headers['Access-Control-Allow-Headers']:
-                return False
-            if 'Access-Control-Allow-Method' not in response.headers:
+            if 'Access-Control-Allow-Methods' not in response.headers:
                 return False
             if method not in response.headers['Access-Control-Allow-Methods']:
                 return False
