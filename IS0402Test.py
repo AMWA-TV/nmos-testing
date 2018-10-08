@@ -14,7 +14,6 @@
 
 from time import sleep
 import socket
-import requests
 
 from zeroconf import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -221,7 +220,10 @@ class IS0402Test(GenericTest):
         return self.do_400_check(test, "receiver", bad_json)
 
     def do_400_check(self, test, resource_type, data):
-        r = requests.post(self.reg_url + "resource", json={"type": resource_type, "data": data})
+        valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
+
+        if not valid:
+            return test.FAIL(r)
 
         if r.status_code != 400:
             return test.FAIL("Registration API returned a {} code for an invalid registration".format(r.status_code))
