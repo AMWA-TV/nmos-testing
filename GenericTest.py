@@ -129,26 +129,21 @@ class GenericTest(object):
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned")
 
-    def check_response(self, test, api_name, method, path, response):
+    def check_response(self, schema, method, response):
         """Confirm that a given Requests response conforms to the expected schema and has any expected headers"""
         if not self.validate_CORS(method, response):
-            return test.FAIL("Incorrect CORS headers: {}".format(response.headers))
+            return False, "Incorrect CORS headers: {}".format(response.headers)
 
-        schema = self.apis[api_name]["spec"].get_schema(method, path, response.status_code)
+        try:
+            resolver = jsonschema.RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'),
+                                              schema)
+            jsonschema.validate(response.json(), schema, resolver=resolver)
+        except jsonschema.ValidationError:
+            return False, "Response schema validation error"
+        except json.decoder.JSONDecodeError:
+            return False, "Invalid JSON received"
 
-        if schema:
-            try:
-                resolver = jsonschema.RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'),
-                                                  schema)
-                jsonschema.validate(response.json(), schema, resolver=resolver)
-            except jsonschema.ValidationError:
-                return test.FAIL("Response schema validation error")
-            except json.decoder.JSONDecodeError:
-                return test.FAIL("Invalid JSON received")
-        else:
-            return test.MANUAL("Test suite unable to locate schema")
-
-        return test.PASS()
+        return True, ""
 
     def do_request(self, method, url, data=None):
         """Perform a basic HTTP request with appropriate error handling"""
@@ -234,7 +229,17 @@ class GenericTest(object):
         # Gather IDs of sub-resources for testing of parameterised URLs...
         self.save_subresources(resource[0], response)
 
-        return self.check_response(test, api, resource[1]["method"], resource[0], response)
+        schema = self.apis[api]["spec"].get_schema(resource[1]["method"], resource[0], response.status_code)
+
+        if not schema:
+            return test.MANUAL("Test suite unable to locate schema")
+
+        valid, message = self.check_response(schema, resource[1]["method"], response)
+
+        if valid:
+            return test.PASS()
+        else:
+            return test.FAIL(message)
 
     def save_subresources(self, path, response):
         """Get IDs contained within an array JSON response such that they can be interrogated individually"""

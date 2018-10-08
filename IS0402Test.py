@@ -226,4 +226,10 @@ class IS0402Test(GenericTest):
         if r.status_code != 400:
             return test.FAIL("Registration API returned a {} code for an invalid registration".format(r.status_code))
 
-        return self.check_response(test, "registration", "POST", "/resource", r)
+        schema = self.apis["registration"]["spec"].get_schema("POST", "/resource", 400)
+        valid, message = self.check_response(schema, "POST", r)
+
+        if valid:
+            return test.PASS()
+        else:
+            return test.FAIL(message)
