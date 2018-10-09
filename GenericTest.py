@@ -204,7 +204,7 @@ class GenericTest(object):
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
                                                         self.test_version,
-                                                        resource[0]))
+                                                        resource[0].rstrip("/")))
                 return test.NA("No resources found to perform this test")
 
         # Test general URLs with no parameters
@@ -213,7 +213,7 @@ class GenericTest(object):
             test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                     api,
                                                     self.test_version,
-                                                    resource[0]))
+                                                    resource[0].rstrip("/")))
         else:
             return None
 
