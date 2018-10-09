@@ -14,6 +14,7 @@
 
 from time import sleep
 import socket
+import uuid
 
 from zeroconf import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -218,6 +219,87 @@ class IS0402Test(GenericTest):
 
         bad_json = {"notareceiver": True}
         return self.do_400_check(test, "receiver", bad_json)
+
+    def test_15(self):
+        """Query API implements pagination"""
+
+        test = Test("Query API implements pagination")
+
+        return test.MANUAL()
+
+    def test_16(self):
+        """Query API implements downgrade queries"""
+
+        test = Test("Query API implements downgrade queries")
+
+        return test.MANUAL()
+
+    def test_17(self):
+        """Query API implements basic query parameters"""
+
+        test = Test("Query API implements basic query parameters")
+
+        valid, r = self.do_request("GET", self.query_url + "nodes")
+        if not valid:
+            return test.FAIL("Query API failed to respond to query")
+        elif len(r.json()) == 0:
+            return test.NA("No Nodes found in registry. Test cannot proceed.")
+
+        random_label = uuid.uuid4()
+        query_string = "?label=" + str(random_label)
+        valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
+        if not valid:
+            return test.FAIL("Query API failed to respond to query")
+        elif len(r.json()) > 0:
+            return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
+
+        return test.PASS()
+
+    def test_18(self):
+        """Query API implements RQL"""
+
+        test = Test("Query API implements RQL")
+
+        valid, r = self.do_request("GET", self.query_url + "nodes")
+        if not valid:
+            return test.FAIL("Query API failed to respond to query")
+        elif len(r.json()) == 0:
+            return test.NA("No Nodes found in registry. Test cannot proceed.")
+
+        random_label = uuid.uuid4()
+        query_string = "?query.rql=eq(label," + str(random_label) + ")"
+        valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
+        if not valid:
+            return test.FAIL("Query API failed to respond to query")
+        elif r.status_code == 501:
+            return test.NA("Query API signalled that it does not support RQL queries")
+        elif len(r.json()) > 0:
+            return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
+
+        return test.PASS()
+
+    def test_19(self):
+        """Query API implements ancestry queries"""
+
+        test = Test("Query API implements ancestry queries")
+
+        valid, r = self.do_request("GET", self.query_url + "sources")
+        if not valid:
+            return test.FAIL("Query API failed to respond to query")
+        elif len(r.json()) == 0:
+            return test.NA("No Sources found in registry. Test cannot proceed.")
+
+        random_label = uuid.uuid4()
+        query_string = "?query.ancestry_id=" + str(random_label) + "&query.ancestry_type=children"
+        valid, r = self.do_request("GET", self.query_url + "sources" + query_string)
+        if not valid:
+            return test.FAIL("Query API failed to respond to query")
+        elif r.status_code == 501:
+            return test.NA("Query API signalled that it does not support ancestry queries")
+        elif len(r.json()) > 0:
+            return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
+
+        return test.PASS()
 
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
