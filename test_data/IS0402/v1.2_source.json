@@ -1,0 +1,16 @@
+{
+    "description": "Capture Card Source Video",
+    "format": "urn:x-nmos:format:video",
+    "tags": {
+        "host": [
+            "ap-z220-0"
+        ]
+    },
+    "label": "CaptureCardSourceVideo",
+    "version": "1539094457:613614390",
+    "parents": [],
+    "clock_name": "clk1",
+    "caps": {},
+    "id": "2ed8d1cb-8af4-3fd5-aa6e-b7f6c00c263d",
+    "device_id": "3f30d310-681f-4533-b919-18b000de7716"
+}

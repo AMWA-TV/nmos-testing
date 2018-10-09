@@ -15,6 +15,7 @@
 from time import sleep
 import socket
 import uuid
+import json
 
 from zeroconf import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -132,10 +133,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Node resource")
 
-        # TODO: Need a mechanism to do this correctly for each API version. Might require a resource stripping method
-        # from nmos-common
+        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
+        if self.test_version != "v1.2":
+            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
 
-        return test.MANUAL()
+        with open("test_data/IS0402/v1.2_node.json") as node_data:
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node",
+                                                                                "data": json.load(node_data)})
+
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
 
     def test_04(self):
         """Registration API rejects an invalid Node resource with a 400 HTTP code"""
@@ -150,7 +163,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Device resource")
 
-        return test.MANUAL()
+        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
+        if self.test_version != "v1.2":
+            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
+
+        with open("test_data/IS0402/v1.2_device.json") as device_data:
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
+                                                                                "data": json.load(device_data)})
+
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
 
     def test_06(self):
         """Registration API rejects an invalid Device resource with a 400 HTTP code"""
@@ -165,7 +193,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Source resource")
 
-        return test.MANUAL()
+        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
+        if self.test_version != "v1.2":
+            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
+
+        with open("test_data/IS0402/v1.2_source.json") as source_data:
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
+                                                                                "data": json.load(source_data)})
+
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
 
     def test_08(self):
         """Registration API rejects an invalid Source resource with a 400 HTTP code"""
@@ -180,7 +223,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Flow resource")
 
-        return test.MANUAL()
+        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
+        if self.test_version != "v1.2":
+            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
+
+        with open("test_data/IS0402/v1.2_flow.json") as flow_data:
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
+                                                                                "data": json.load(flow_data)})
+
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
 
     def test_10(self):
         """Registration API rejects an invalid Flow resource with a 400 HTTP code"""
@@ -195,7 +253,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Sender resource")
 
-        return test.MANUAL()
+        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
+        if self.test_version != "v1.2":
+            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
+
+        with open("test_data/IS0402/v1.2_sender.json") as sender_data:
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
+                                                                                "data": json.load(sender_data)})
+
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
 
     def test_12(self):
         """Registration API rejects an invalid Sender resource with a 400 HTTP code"""
@@ -210,7 +283,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Receiver resource")
 
-        return test.MANUAL()
+        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
+        if self.test_version != "v1.2":
+            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
+
+        with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
+                                                                                "data": json.load(receiver_data)})
+
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
 
     def test_14(self):
         """Registration API rejects an invalid Receiver resource with a 400 HTTP code"""

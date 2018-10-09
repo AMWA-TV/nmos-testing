@@ -1,0 +1,41 @@
+{
+    "colorspace": "BT709",
+    "description": "",
+    "format": "urn:x-nmos:format:video",
+    "frame_height": 1080,
+    "tags": {},
+    "transfer_characteristic": "SDR",
+    "frame_width": 1920,
+    "label": "",
+    "grain_rate": {
+        "denominator": 1000,
+        "numerator": 25000
+    },
+    "version": "1539094460:257325706",
+    "parents": [],
+    "interlace_mode": "interlaced_tff",
+    "components": [
+        {
+            "width": 1920,
+            "bit_depth": 10,
+            "name": "Y",
+            "height": 1080
+        },
+        {
+            "width": 960,
+            "bit_depth": 10,
+            "name": "Cb",
+            "height": 1080
+        },
+        {
+            "width": 960,
+            "bit_depth": 10,
+            "name": "Cr",
+            "height": 1080
+        }
+    ],
+    "source_id": "2ed8d1cb-8af4-3fd5-aa6e-b7f6c00c263d",
+    "media_type": "video/raw",
+    "id": "19aa36aa-0018-3e9e-8faf-56fd45a0ee1f",
+    "device_id": "3f30d310-681f-4533-b919-18b000de7716"
+}
