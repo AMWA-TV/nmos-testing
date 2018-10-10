@@ -167,7 +167,9 @@ class GenericTest(object):
         results = []
 
         for api in self.apis:
-            results.append(self.check_base_path("/", "x-nmos/"))
+            # This test isn't mandatory... Many systems will use the base path for other things
+            # results.append(self.check_base_path("/", "x-nmos/"))
+
             results.append(self.check_base_path("/x-nmos", api + "/"))
             results.append(self.check_base_path("/x-nmos/{}".format(api), self.test_version + "/"))
 

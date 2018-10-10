@@ -313,12 +313,18 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements pagination")
 
+        if self.test_version == "v1.0":
+            return test.NA("This test does not apply to v1.0")
+
         return test.MANUAL()
 
     def test_16(self):
         """Query API implements downgrade queries"""
 
         test = Test("Query API implements downgrade queries")
+
+        if self.test_version == "v1.0":
+            return test.NA("This test does not apply to v1.0")
 
         return test.MANUAL()
 
@@ -348,6 +354,9 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements RQL")
 
+        if self.test_version == "v1.0":
+            return test.NA("This test does not apply to v1.0")
+
         valid, r = self.do_request("GET", self.query_url + "nodes")
         if not valid:
             return test.FAIL("Query API failed to respond to query")
@@ -370,6 +379,9 @@ class IS0402Test(GenericTest):
         """Query API implements ancestry queries"""
 
         test = Test("Query API implements ancestry queries")
+
+        if self.test_version == "v1.0":
+            return test.NA("This test does not apply to v1.0")
 
         valid, r = self.do_request("GET", self.query_url + "sources")
         if not valid:
