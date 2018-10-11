@@ -229,7 +229,7 @@ class GenericTest(object):
         # Gather IDs of sub-resources for testing of parameterised URLs...
         self.save_subresources(resource[0], response)
 
-        schema = self.apis[api]["spec"].get_schema(resource[1]["method"], resource[0], response.status_code)
+        schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
 
         if not schema:
             return test.MANUAL("Test suite unable to locate schema")
@@ -268,3 +268,6 @@ class GenericTest(object):
         real_path = os.path.join(self.spec_path + '/APIs/schemas/', path)
         f = open(real_path, "r")
         return json.loads(f.read())
+
+    def get_schema(self, api_name, method, path, status_code):
+        return self.apis[api_name]["spec"].get_schema(method, path, status_code)

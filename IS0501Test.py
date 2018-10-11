@@ -184,9 +184,7 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/constraints/"
-                schema = self.apis["connection"]["spec"].get_schema("GET",
-                                                                    "/single/senders/{senderId}/constraints",
-                                                                    200)
+                schema = self.get_schema("connection", "GET", "/single/senders/{senderId}/constraints", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -202,9 +200,7 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/constraints/"
-                schema = self.apis["connection"]["spec"].get_schema("GET",
-                                                                    "/single/receivers/{receiverId}/constraints",
-                                                                    200)
+                schema = self.get_schema("connection", "GET", "/single/receivers/{receiverId}/constraints", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -336,9 +332,7 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/staged/"
-                schema = self.apis["connection"]["spec"].get_schema("GET",
-                                                                    "/single/senders/{senderId}/staged",
-                                                                    200)
+                schema = self.get_schema("connection", "GET", "/single/senders/{senderId}/staged", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -354,9 +348,7 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/staged/"
-                schema = self.apis["connection"]["spec"].get_schema("GET",
-                                                                    "/single/receivers/{receiverId}/staged",
-                                                                    200)
+                schema = self.get_schema("connection", "GET", "/single/receivers/{receiverId}/staged", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -626,9 +618,7 @@ class IS0501Test(GenericTest):
         if len(self.senders):
             for sender in self.senders:
                 activeUrl = "single/senders/" + sender + "/active"
-                schema = self.apis["connection"]["spec"].get_schema("GET",
-                                                                    "/single/senders/{senderId}/active",
-                                                                    200)
+                schema = self.get_schema("connection", "GET", "/single/senders/{senderId}/active", 200)
                 valid, response = self.compare_to_schema(schema, activeUrl)
                 if valid:
                     pass
@@ -644,9 +634,7 @@ class IS0501Test(GenericTest):
         if len(self.receivers):
             for receiver in self.receivers:
                 activeUrl = "single/receivers/" + receiver + "/active"
-                schema = self.apis["connection"]["spec"].get_schema("GET",
-                                                                    "/single/receivers/{receiverId}/active",
-                                                                    200)
+                schema = self.get_schema("connection", "GET", "/single/receivers/{receiverId}/active", 200)
                 valid, response = self.compare_to_schema(schema, activeUrl)
                 if valid:
                     pass
@@ -832,9 +820,7 @@ class IS0501Test(GenericTest):
         except requests.exceptions.RequestException as e:
             return False, str(e)
 
-        schema = self.apis["connection"]["spec"].get_schema("POST",
-                                                            "/bulk/" + port + "s",
-                                                            200)
+        schema = self.get_schema("connection", "POST", "/bulk/" + port + "s", 200)
         try:
             Draft4Validator(schema).validate(r.json())
         except ValidationError as e:
@@ -1257,9 +1243,7 @@ class IS0501Test(GenericTest):
             data = {}
             valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
             if valid:
-                schema = self.apis["connection"]["spec"].get_schema("PATCH",
-                                                                    "/single/" + port + "s/{" + port + "Id}/staged",
-                                                                    200)
+                schema = self.get_schema("connection", "PATCH", "/single/" + port + "s/{" + port + "Id}/staged", 200)
                 try:
                     Draft4Validator(schema).validate(response)
                 except ValidationError as e:

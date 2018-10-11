@@ -91,7 +91,7 @@ Return a tuple of the test status (True/False) and a string indicating the error
 
 **Accessing response schemas**
 ```python
-self.apis[api_name]["spec"].get_schema(method, path, status_code)
+self.get_schema(api_name, method, path, status_code)
 ```
 Returns a JSON schema, or None if it is unavailable.
 
