@@ -18,6 +18,7 @@ import requests
 from time import sleep
 import time
 import socket
+import netifaces
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
@@ -50,12 +51,15 @@ class IS0401Test(GenericTest):
 
         self.registry.reset()
 
+        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+
         # TODO: Set api_ver to just the version under test. Later test support for parsing CSV string
         txt = {'api_ver': self.test_version, 'api_proto': 'http', 'pri': '0'}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite._nmos-registration._tcp.local.",
-                           socket.inet_aton("127.0.0.1"), 5000, 0, 0,
-                           txt, "nmos-test.local.")  # TODO: Advertise on the local IP only. May allow config via args
+                           socket.inet_aton(default_ip), 5000, 0, 0,
+                           txt, "nmos-test.local.")
 
         zeroconf = Zeroconf()
         zeroconf.register_service(info)

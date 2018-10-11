@@ -34,6 +34,7 @@ Python packages:
 *   jsonschema
 *   zeroconf
 *   requests
+*   netifaces
 *   gitpython
 *   ramlfications
 
