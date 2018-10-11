@@ -60,6 +60,8 @@ class Specification(object):
                         line = "  - " + line.lstrip()
                     if line.startswith("schemas:") or line.startswith("types:"):
                         in_schemas = True
+                    if line.startswith("traits:"):
+                        line = "bugfix:\r\n"  # Work around issue with ramlfications utils.py '_remove_duplicates'
                     lines.append(line)
                     line = raml.readline()
             with open(file_path, "w") as raml:

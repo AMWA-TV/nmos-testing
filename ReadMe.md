@@ -40,7 +40,7 @@ Python packages:
 
 ## Known Issues
 
-Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until we can resolve this properly, the following can be used as a workaround.
+Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until this is resolved in the library, we overwrite cases of this keyword in the RAML files. An alternative approach is documented below.
 
 In file 'ramlfications/utils.py', insert the following code into the top of the function '\_remove_duplicates' which starts at line 495:
 
