@@ -41,7 +41,7 @@ Python packages:
 
 Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until we can resolve this properly, the following can be used as a workaround.
 
-In file 'ramlfications/utils.py', insert the following code into the top of the function '_remove_duplicates' which starts at line 495:
+In file 'ramlfications/utils.py', insert the following code into the top of the function '\_remove_duplicates' which starts at line 495:
 
 ```python
     if not resource_params:

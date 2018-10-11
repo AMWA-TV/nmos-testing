@@ -333,11 +333,14 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements basic query parameters")
 
-        valid, r = self.do_request("GET", self.query_url + "nodes")
-        if not valid:
-            return test.FAIL("Query API failed to respond to query")
-        elif len(r.json()) == 0:
-            return test.NA("No Nodes found in registry. Test cannot proceed.")
+        try:
+            valid, r = self.do_request("GET", self.query_url + "nodes")
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif len(r.json()) == 0:
+                return test.NA("No Nodes found in registry. Test cannot proceed.")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
 
         random_label = uuid.uuid4()
         query_string = "?label=" + str(random_label)
@@ -357,11 +360,14 @@ class IS0402Test(GenericTest):
         if self.test_version == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        valid, r = self.do_request("GET", self.query_url + "nodes")
-        if not valid:
-            return test.FAIL("Query API failed to respond to query")
-        elif len(r.json()) == 0:
-            return test.NA("No Nodes found in registry. Test cannot proceed.")
+        try:
+            valid, r = self.do_request("GET", self.query_url + "nodes")
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif len(r.json()) == 0:
+                return test.NA("No Nodes found in registry. Test cannot proceed.")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
 
         random_label = uuid.uuid4()
         query_string = "?query.rql=eq(label," + str(random_label) + ")"
@@ -383,11 +389,14 @@ class IS0402Test(GenericTest):
         if self.test_version == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        valid, r = self.do_request("GET", self.query_url + "sources")
-        if not valid:
-            return test.FAIL("Query API failed to respond to query")
-        elif len(r.json()) == 0:
-            return test.NA("No Sources found in registry. Test cannot proceed.")
+        try:
+            valid, r = self.do_request("GET", self.query_url + "sources")
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif len(r.json()) == 0:
+                return test.NA("No Sources found in registry. Test cannot proceed.")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
 
         random_label = uuid.uuid4()
         query_string = "?query.ancestry_id=" + str(random_label) + "&query.ancestry_type=children"
