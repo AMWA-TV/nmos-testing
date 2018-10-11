@@ -40,6 +40,12 @@ Python packages:
 
 ## Known Issues
 
+### Version Switching
+
+When testing a particular API, if you test one version of the API and then immediately after test another version of the same API, the test tool may output errors. The cause of this has not yet been determined, but a workaround is to restart the testing tool when choosing to test a different version of the same API.
+
+### Ramlfications Parsing
+
 Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until this is resolved in the library, we overwrite cases of this keyword in the RAML files. An alternative approach is documented below.
 
 In file 'ramlfications/utils.py', insert the following code into the top of the function '\_remove_duplicates' which starts at line 495:

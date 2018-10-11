@@ -18,7 +18,6 @@ import requests
 import git
 import jsonschema
 
-from jsonschema import ValidationError, RefResolver, Draft4Validator
 from Specification import Specification
 from TestResult import Test
 
