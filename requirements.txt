@@ -3,5 +3,6 @@ wtforms
 jsonschema
 zeroconf
 requests
+netifaces
 gitpython
 ramlfications
