@@ -32,7 +32,7 @@ Python packages:
 *   flask
 *   wtforms
 *   jsonschema
-*   zeroconf
+*   zeroconf (<= 0.17.5)
 *   requests
 *   netifaces
 *   gitpython
