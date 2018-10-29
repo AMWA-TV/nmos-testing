@@ -17,7 +17,7 @@ import socket
 import uuid
 import json
 
-from zeroconf import ServiceBrowser, Zeroconf
+from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, test_depends

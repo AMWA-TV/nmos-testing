@@ -19,7 +19,7 @@ import time
 import socket
 import netifaces
 
-from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
+from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest

@@ -76,7 +76,7 @@ packages_required = [
     "flask",
     "wtforms",
     "jsonschema",
-    "zeroconf<=0.17.5",
+    "zeroconf-monkey",
     "requests",
     "netifaces",
     "gitpython",
