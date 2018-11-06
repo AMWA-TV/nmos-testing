@@ -112,7 +112,10 @@ class GenericTest(object):
     def check_base_path(self, path, expectation):
         """Check that a GET to a path returns a JSON array containing a defined string"""
         test = Test("GET {}".format(path))
-        req = requests.get(self.base_url + path)
+        valid, req = self.do_request("GET", self.base_url + path)
+        if not valid:
+            return test.FAIL("Unable to connect to API: {}".format(req))
+
         if req.status_code != 200:
             return test.FAIL("Incorrect response code: {}".format(req.status_code))
         elif not self.validate_CORS('GET', req):
@@ -158,6 +161,8 @@ class GenericTest(object):
             return False, "Connection timeout"
         except requests.exceptions.TooManyRedirects:
             return False, "Too many redirects"
+        except requests.exceptions.ConnectionError as e:
+            return False, str(e)
         except requests.exceptions.RequestException as e:
             return False, str(e)
 
