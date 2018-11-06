@@ -41,15 +41,15 @@ SPEC_REPOS = [
 ]
 TEST_DEFINITIONS = {
     "IS-04-01": {"name": "IS-04 Node API",
-                 "versions": ["v1.0", "v1.1", "v1.2"],
+                 "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
                  "spec_key": 'is-04',
                  "class": IS0401Test.IS0401Test},
     "IS-04-02": {"name": "IS-04 Registry APIs",
-                 "versions": ["v1.0", "v1.1", "v1.2"],
+                 "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
                  "spec_key": 'is-04',
                  "class": IS0402Test.IS0402Test},
     "IS-05-01": {"name": "IS-05 Connection Management API",
-                 "versions": ["v1.0"],
+                 "versions": ["v1.0", "v1.1"],
                  "spec_key": 'is-05',
                  "class": IS0501Test.IS0501Test},
     "IS-06-01": {"name": "IS-06 Network Control API",
@@ -74,7 +74,8 @@ class DataForm(Form):
                                                                                   "(0-65535).")])
     version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
                                                          ("v1.1", "v1.1"),
-                                                         ("v1.2", "v1.2")])
+                                                         ("v1.2", "v1.2"),
+                                                         ("v1.3", "v1.3")])
 
 
 # Index page
@@ -105,17 +106,14 @@ def index_page():
             elif test == "IS-05-01":
                 apis = {"connection": {"raml": "ConnectionAPI.raml",
                                        "url": "{}/x-nmos/connection/{}/".format(base_url, version)}}
-                version = "v1.0" # Override
                 test_obj = IS0501Test.IS0501Test(base_url, apis, spec_versions, version, spec_path)
             elif test == "IS-06-01":
                 apis = {"netctrl": {"raml": "NetworkControlAPI.raml",
                                     "url": "{}/x-nmos/netctrl/{}/".format(base_url, version)}}
-                version = "v1.0" # Override
                 test_obj = IS0601Test.IS0601Test(base_url, apis, spec_versions, version, spec_path)
             elif test == "IS-07-01":
                 apis = {"events": {"raml": "EventsAPI.raml",
                                    "url": "{}/x-nmos/events/{}/".format(base_url, version)}}
-                version = "v1.0" # Override
                 test_obj = IS0701Test.IS0701Test(base_url, apis, spec_versions, version, spec_path)
 
             if test_obj:

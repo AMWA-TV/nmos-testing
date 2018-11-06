@@ -44,7 +44,18 @@ class GenericTest(object):
         repo = git.Repo(self.spec_path)
         self.result = list()
 
-        spec_branch = self.test_version + ".x"
+        # List remote branches and check there is a v#.#.x or v#.#-dev
+        branches = repo.git.branch('-a')
+        spec_branch = None
+        branch_names = [self.test_version + ".x", self.test_version + "-dev"]
+        for branch in branch_names:
+            if "remotes/origin/" + branch in branches:
+                spec_branch = branch
+                break
+
+        if not spec_branch:
+            raise Exception("No branch matching the expected patterns was found in the Git repository")
+
         repo.git.reset('--hard')
         repo.git.checkout(spec_branch)
         self.parse_RAML()
