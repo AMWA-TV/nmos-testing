@@ -30,7 +30,7 @@ class GenericTest(object):
     Generic testing class.
     Can be inhereted from in order to perform detailed testing.
     """
-    def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
+    def __init__(self, base_url, apis, spec_versions, test_version, spec_path, omit_paths=None):
         self.base_url = base_url
         self.apis = apis
         self.spec_versions = spec_versions
@@ -38,6 +38,10 @@ class GenericTest(object):
         self.spec_path = spec_path
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
         self.saved_entities = {}
+
+        self.omit_paths = []
+        if isinstance(omit_paths, list):
+            self.omit_paths = omit_paths
 
         self.major_version, self.minor_version = self._parse_version(self.test_version)
 
@@ -190,7 +194,7 @@ class GenericTest(object):
 
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
-                    if response_code == 200:
+                    if response_code == 200 and resource[0] not in self.omit_paths:
                         result = self.check_api_resource(resource, response_code, api)
                         if result is not None:
                             results.append(result)
