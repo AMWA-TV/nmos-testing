@@ -992,7 +992,7 @@ class IS0501Test(GenericTest):
             retries = 0
             finished = False
 
-            while retries < 3 and not finished:
+            while retries < 5 and not finished:
                 # Check the values now on /active
                 valid2, activeParams = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid2:
@@ -1086,7 +1086,7 @@ class IS0501Test(GenericTest):
             retries = 0
             finished = False
 
-            while retries < 3 and not finished:
+            while retries < 5 and not finished:
                 # Check the values now on /active
                 valid2, activeParams = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid2:
