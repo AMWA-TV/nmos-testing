@@ -15,11 +15,13 @@
 # limitations under the License.
 
 from flask import Flask, render_template, flash, request
-from wtforms import Form, validators, StringField, SelectField, IntegerField
+from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField
 from Registry import REGISTRY, REGISTRY_API
 
 import git
 import os
+import json
+import copy
 
 import IS0401Test
 import IS0402Test
@@ -42,22 +44,27 @@ SPEC_REPOS = [
 TEST_DEFINITIONS = {
     "IS-04-01": {"name": "IS-04 Node API",
                  "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
+                 "default_version": "v1.2",
                  "spec_key": 'is-04',
                  "class": IS0401Test.IS0401Test},
     "IS-04-02": {"name": "IS-04 Registry APIs",
                  "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
+                 "default_version": "v1.2",
                  "spec_key": 'is-04',
                  "class": IS0402Test.IS0402Test},
     "IS-05-01": {"name": "IS-05 Connection Management API",
                  "versions": ["v1.0", "v1.1"],
+                 "default_version": "v1.0",
                  "spec_key": 'is-05',
                  "class": IS0501Test.IS0501Test},
     "IS-06-01": {"name": "IS-06 Network Control API",
                  "versions": ["v1.0"],
+                 "default_version": "v1.0",
                  "spec_key": 'is-06',
                  "class": IS0601Test.IS0601Test},
     "IS-07-01": {"name": "IS-07 Event & Tally API",
                  "versions": ["v1.0"],
+                 "default_version": "v1.0",
                  "spec_key": 'is-07',
                  "class": IS0701Test.IS0701Test}
 }
@@ -76,6 +83,13 @@ class DataForm(Form):
                                                          ("v1.1", "v1.1"),
                                                          ("v1.2", "v1.2"),
                                                          ("v1.3", "v1.3")])
+
+    # Hide test data in the web form for dynamic modification of behaviour
+    hidden_data = {}
+    for test_id in TEST_DEFINITIONS:
+        hidden_data[test_id] = copy.copy(TEST_DEFINITIONS[test_id])
+        hidden_data[test_id].pop("class")
+    hidden = HiddenField(default=json.dumps(hidden_data))
 
 
 # Index page
