@@ -115,7 +115,7 @@ class GenericTest(object):
         """Check the CORS headers returned by an API call"""
         if 'Access-Control-Allow-Origin' not in response.headers:
             return False
-        if method in ['OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']:
+        if method == "OPTIONS":
             if 'Access-Control-Allow-Headers' not in response.headers:
                 return False
             if 'Access-Control-Allow-Methods' not in response.headers:
