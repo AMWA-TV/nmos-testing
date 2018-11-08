@@ -16,6 +16,16 @@ import os
 import json
 import ramlfications
 
+from Patches import _parse_json
+
+
+try:
+    # Patch ramlfications for Windows support
+    ramlfications.loader.RAMLLoader._parse_json = _parse_json
+except AttributeError:
+    pass
+
+
 class Specification(object):
     def __init__(self, file_path):
         self.data = {}
