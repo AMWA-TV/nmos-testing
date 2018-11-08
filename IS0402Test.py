@@ -28,7 +28,11 @@ class IS0402Test(GenericTest):
     Runs IS-04-02-Test
     """
     def __init__(self, apis, spec_versions, test_version, spec_path):
-        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path)
+        # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
+        omit_paths = [
+          "/health/nodes/{nodeId}"
+        ]
+        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path, omit_paths)
         self.reg_url = self.apis["registration"]["url"]
         self.query_url = self.apis["query"]["url"]
 
