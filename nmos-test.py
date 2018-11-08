@@ -45,26 +45,31 @@ TEST_DEFINITIONS = {
     "IS-04-01": {"name": "IS-04 Node API",
                  "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
                  "default_version": "v1.2",
+                 "input_labels": ["Node API"],
                  "spec_key": 'is-04',
                  "class": IS0401Test.IS0401Test},
     "IS-04-02": {"name": "IS-04 Registry APIs",
                  "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
                  "default_version": "v1.2",
+                 "input_labels": ["Registration API", "Query API"],
                  "spec_key": 'is-04',
                  "class": IS0402Test.IS0402Test},
     "IS-05-01": {"name": "IS-05 Connection Management API",
                  "versions": ["v1.0", "v1.1"],
                  "default_version": "v1.0",
+                 "input_labels": ["Connection API"],
                  "spec_key": 'is-05',
                  "class": IS0501Test.IS0501Test},
     "IS-06-01": {"name": "IS-06 Network Control API",
                  "versions": ["v1.0"],
                  "default_version": "v1.0",
+                 "input_labels": ["Network API"],
                  "spec_key": 'is-06',
                  "class": IS0601Test.IS0601Test},
     "IS-07-01": {"name": "IS-07 Event & Tally API",
                  "versions": ["v1.0"],
                  "default_version": "v1.0",
+                 "input_labels": ["Event API"],
                  "spec_key": 'is-07',
                  "class": IS0701Test.IS0701Test}
 }
@@ -79,6 +84,12 @@ class DataForm(Form):
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
                                                                           message="Please enter a valid port number "
                                                                                   "(0-65535).")])
+    ip_sec = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address."),
+                                                  validators.optional()])
+    port_sec = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
+                                                                              message="Please enter a valid port "
+                                                                                      "number (0-65535)."),
+                                                       validators.optional()])
     version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
                                                          ("v1.1", "v1.1"),
                                                          ("v1.2", "v1.2"),
@@ -100,8 +111,11 @@ def index_page():
         test = request.form["test"]
         ip = request.form["ip"]
         port = request.form["port"]
+        ip_sec = request.form["ip_sec"]
+        port_sec = request.form["port_sec"]
         version = request.form["version"]
         base_url = "http://{}:{}".format(ip, str(port))
+        base_url_sec = "http://{}:{}".format(ip_sec, str(port_sec))
         if form.validate():
             if test in TEST_DEFINITIONS:
                 spec_versions = TEST_DEFINITIONS[test]["versions"]
@@ -109,26 +123,32 @@ def index_page():
 
             if test == "IS-04-01":
                 apis = {"node": {"raml": "NodeAPI.raml",
+                                 "base_url": base_url,
                                  "url": "{}/x-nmos/node/{}/".format(base_url, version)}}
-                test_obj = IS0401Test.IS0401Test(base_url, apis, spec_versions, version, spec_path, REGISTRY)
+                test_obj = IS0401Test.IS0401Test(apis, spec_versions, version, spec_path, REGISTRY)
             elif test == "IS-04-02":
                 apis = {"registration": {"raml": "RegistrationAPI.raml",
+                                         "base_url": base_url,
                                          "url": "{}/x-nmos/registration/{}/".format(base_url, version)},
                         "query": {"raml": "QueryAPI.raml",
-                                  "url": "{}/x-nmos/query/{}/".format(base_url, version)}}
-                test_obj = IS0402Test.IS0402Test(base_url, apis, spec_versions, version, spec_path)
+                                  "base_url": base_url_sec,
+                                  "url": "{}/x-nmos/query/{}/".format(base_url_sec, version)}}
+                test_obj = IS0402Test.IS0402Test(apis, spec_versions, version, spec_path)
             elif test == "IS-05-01":
                 apis = {"connection": {"raml": "ConnectionAPI.raml",
+                                       "base_url": base_url,
                                        "url": "{}/x-nmos/connection/{}/".format(base_url, version)}}
-                test_obj = IS0501Test.IS0501Test(base_url, apis, spec_versions, version, spec_path)
+                test_obj = IS0501Test.IS0501Test(apis, spec_versions, version, spec_path)
             elif test == "IS-06-01":
                 apis = {"netctrl": {"raml": "NetworkControlAPI.raml",
+                                    "base_url": base_url,
                                     "url": "{}/x-nmos/netctrl/{}/".format(base_url, version)}}
-                test_obj = IS0601Test.IS0601Test(base_url, apis, spec_versions, version, spec_path)
+                test_obj = IS0601Test.IS0601Test(apis, spec_versions, version, spec_path)
             elif test == "IS-07-01":
                 apis = {"events": {"raml": "EventsAPI.raml",
+                                   "base_url": base_url,
                                    "url": "{}/x-nmos/events/{}/".format(base_url, version)}}
-                test_obj = IS0701Test.IS0701Test(base_url, apis, spec_versions, version, spec_path)
+                test_obj = IS0701Test.IS0701Test(apis, spec_versions, version, spec_path)
 
             if test_obj:
                 result = test_obj.run_tests()

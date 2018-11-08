@@ -35,15 +35,29 @@
                     {{ form.hidden }}
                 </div><br/><br/>
                 <div class="input text input_data_fld">
+                    <label id="input1"></label>
+                </div>
+                <div class="input text input_data_fld">
                     {{ form.ip.label }} {{ form.ip(size="15") }}
                 </div>
                 <div class="input text input_data_fld">
                     {{ form.port.label }} {{ form.port(size="5") }}
-                </div>
+                </div><br />
+                <div id="secondary_api">
+                    <div class="input text input_data_fld">
+                        <label id="input2"></label>
+                    </div>
+                    <div class="input text input_data_fld">
+                        {{ form.ip_sec.label }} {{ form.ip_sec(size="15") }}
+                    </div>
+                    <div class="input text input_data_fld">
+                        {{ form.port_sec.label }} {{ form.port_sec(size="5") }}
+                    </div><br />
+                </div><br />
                 <div class="input dropdown input_data_fld" id="version_select">
                     {{ form.version.label }} {{ form.version }}
                 </div>
-                <br/>
+                <br/><br/>
                 {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
 
@@ -62,7 +76,7 @@
                 {% endfor %}
                 {% endif %}
                 {% endwith %}
-                <br/><br/>
+                <br/>
                 <div class="input submit input_data_fld">
                     <input type="submit" id="runbtn" value="Run" onclick="document.getElementById('runbtn').value='Executing test..';document.getElementById('runbtn').className += 'disabled';"/>
                 </div>

@@ -114,6 +114,6 @@ class MyNewSpecTest(GenericTest):
     """
     Runs MyNewSpecTest
     """
-    def __init__(self, base_url, apis, spec_versions, test_version, spec_path):
-        GenericTest.__init__(self, base_url, apis, spec_versions, test_version, spec_path)
+    def __init__(self, apis, spec_versions, test_version, spec_path):
+        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path)
 ```

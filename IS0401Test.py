@@ -33,8 +33,8 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, base_url, apis, spec_versions, test_version, spec_path, registry):
-        GenericTest.__init__(self, base_url, apis, spec_versions, test_version, spec_path)
+    def __init__(self, apis, spec_versions, test_version, spec_path, registry):
+        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path)
         self.registry = registry
         self.node_url = self.apis["node"]["url"]
         self.query_api_url = None
