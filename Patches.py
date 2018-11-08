@@ -1,4 +1,5 @@
-# Copyright (C) 2018 British Broadcasting Corporation
+# Copyright (C) 2018 British Broadcasting Corporation and
+# Copyright (C) 2015 Spotify AB
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +17,9 @@ import os
 import jsonref
 
 
-# Work around ramlfications Windows compatibility issues
+# Work around ramlfications Windows compatibility issues. The following method is modified from the original
+# in https://github.com/spotify/ramlfications/blob/master/ramlfications/loader.py
+# Copyright (c) 2015 Spotify AB
 def _parse_json(self, jsonfile, base_path):
     """
     Parses JSON as well as resolves any `$ref`s, including references to
