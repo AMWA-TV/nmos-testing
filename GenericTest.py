@@ -30,8 +30,7 @@ class GenericTest(object):
     Generic testing class.
     Can be inhereted from in order to perform detailed testing.
     """
-    def __init__(self, base_url, apis, spec_versions, test_version, spec_path, omit_paths=None):
-        self.base_url = base_url
+    def __init__(self, apis, spec_versions, test_version, spec_path, omit_paths=None):
         self.apis = apis
         self.spec_versions = spec_versions
         self.test_version = test_version
@@ -124,10 +123,10 @@ class GenericTest(object):
                 return False
         return True
 
-    def check_base_path(self, path, expectation):
+    def check_base_path(self, base_url, path, expectation):
         """Check that a GET to a path returns a JSON array containing a defined string"""
         test = Test("GET {}".format(path))
-        valid, req = self.do_request("GET", self.base_url + path)
+        valid, req = self.do_request("GET", base_url + path)
         if not valid:
             return test.FAIL("Unable to connect to API: {}".format(req))
 
@@ -187,10 +186,11 @@ class GenericTest(object):
 
         for api in self.apis:
             # This test isn't mandatory... Many systems will use the base path for other things
-            # results.append(self.check_base_path("/", "x-nmos/"))
+            # results.append(self.check_base_path(self.apis[api]["base_url"], "/", "x-nmos/"))
 
-            results.append(self.check_base_path("/x-nmos", api + "/"))
-            results.append(self.check_base_path("/x-nmos/{}".format(api), self.test_version + "/"))
+            results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos", api + "/"))
+            results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos/{}".format(api),
+                                                self.test_version + "/"))
 
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
