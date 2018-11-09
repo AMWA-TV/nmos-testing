@@ -73,20 +73,27 @@ class GenericTest(object):
         for api in self.apis:
             self.apis[api]["spec"] = Specification(os.path.join(self.spec_path + '/APIs/' + self.apis[api]["raml"]))
 
-    def execute_tests(self):
+    def execute_tests(self, test_name):
         """Perform all tests defined within this class"""
-        print(" * Running basic API tests")
-        self.result += self.basics()
-        for method_name in dir(self):
-            if method_name.startswith("test_"):
-                method = getattr(self, method_name)
-                if callable(method):
-                    print(" * Running " + method_name)
-                    self.result.append(method())
+        if test_name == "auto" or test_name == "all":
+            print(" * Running basic API tests")
+            self.result += self.basics()
+        if test_name == "all":
+            for method_name in dir(self):
+                if method_name.startswith("test_"):
+                    method = getattr(self, method_name)
+                    if callable(method):
+                        print(" * Running " + method_name)
+                        self.result.append(method())
+        if test_name != "auto" and test_name != "all":
+            method = getattr(self, test_name)
+            if callable(method):
+                print(" * Running " + test_name)
+                self.result.append(method())
 
-    def run_tests(self):
+    def run_tests(self, test_name="all"):
         """Perform tests and return the results as a list"""
-        self.execute_tests()
+        self.execute_tests(test_name)
         return self.result
 
     def convert_bytes(self, data):

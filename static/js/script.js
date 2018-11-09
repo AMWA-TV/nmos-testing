@@ -27,6 +27,13 @@ function updateDropdown() {
       input2.innerHTML = testData["input_labels"][1] + ":";
       secAPI.style.display = "block";
     }
+
+    // Update the test selection dropdown
+    var testDropdown = document.getElementById("test_selection");
+    testDropdown.options.length = 0;
+    for (var i=0; i<testData["tests"].length; i++) {
+      testDropdown.options[i] = new Option(testData["tests"][i], testData["tests"][i]);
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function() {
