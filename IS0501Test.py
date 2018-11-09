@@ -22,6 +22,7 @@ import re
 import time
 from jsonschema import ValidationError, SchemaError, RefResolver, Draft4Validator
 from random import randint
+import inspect
 
 import TestHelper
 from TestResult import Test
@@ -45,7 +46,7 @@ class IS0501Test(GenericTest):
 
     def test_01(self):
         """Api root matches the spec"""
-        test = Test("Api root matches the spec")
+        test = Test("Api root matches the spec", inspect.currentframe().f_code.co_name)
         expected = ["single/", "bulk/"]
         dest = ""
         valid, result = self.checkCleanRequestJSON("GET", dest)

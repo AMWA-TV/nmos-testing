@@ -37,6 +37,7 @@ class GenericTest(object):
         self.spec_path = spec_path
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
         self.saved_entities = {}
+        self.test_count = 1
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
@@ -132,7 +133,8 @@ class GenericTest(object):
 
     def check_base_path(self, base_url, path, expectation):
         """Check that a GET to a path returns a JSON array containing a defined string"""
-        test = Test("GET {}".format(path))
+        test = Test("GET {}".format(path), "auto_" + str(self.test_count))
+        self.test_count += 1
         valid, req = self.do_request("GET", base_url + path)
         if not valid:
             return test.FAIL("Unable to connect to API: {}".format(req))
