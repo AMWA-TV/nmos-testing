@@ -32,6 +32,7 @@ import IS0701Test
 app = Flask(__name__)
 app.debug = True  # TODO: Set to False for production use
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
+app.config['TEST_ACTIVE'] = False
 app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
 
 CACHE_PATH = 'cache'
@@ -107,7 +108,7 @@ class DataForm(Form):
 @app.route('/', methods=["GET", "POST"])
 def index_page():
     form = DataForm(request.form)
-    if request.method == "POST":
+    if request.method == "POST" and not app.config['TEST_ACTIVE']:
         test = request.form["test"]
         ip = request.form["ip"]
         port = request.form["port"]
@@ -151,10 +152,18 @@ def index_page():
                 test_obj = IS0701Test.IS0701Test(apis, spec_versions, version, spec_path)
 
             if test_obj:
-                result = test_obj.run_tests()
+                app.config['TEST_ACTIVE'] = True
+                try:
+                    result = test_obj.run_tests()
+                except Exception as ex:
+                    raise ex
+                finally:
+                    app.config['TEST_ACTIVE'] = False
                 return render_template("result.html", url=base_url, test=test, result=result)
         else:
             flash("Error: {}".format(form.errors))
+    elif request.method == "POST":
+        flash("Error: A test is currently in progress. Please wait until it has completed or restart the testing tool.")
 
     return render_template("index.html", form=form)
 
