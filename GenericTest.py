@@ -76,9 +76,13 @@ class GenericTest(object):
 
     def execute_tests(self, test_name):
         """Perform all tests defined within this class"""
-        if test_name == "auto" or test_name == "all":
+
+        # Run automatically defined tests
+        if test_name in ["auto", "all"]:
             print(" * Running basic API tests")
             self.result += self.basics()
+
+        # Run manually defined tests
         if test_name == "all":
             for method_name in dir(self):
                 if method_name.startswith("test_"):
@@ -86,15 +90,27 @@ class GenericTest(object):
                     if callable(method):
                         print(" * Running " + method_name)
                         self.result.append(method())
+
+        # Run a single test
         if test_name != "auto" and test_name != "all":
             method = getattr(self, test_name)
             if callable(method):
                 print(" * Running " + test_name)
                 self.result.append(method())
 
+    def set_up_tests(self):
+        """Called before a set of tests is run. Override this method with setup code."""
+        pass
+
+    def tear_down_tests(self):
+        """Called after a set of tests is run. Override this method with teardown code."""
+        pass
+
     def run_tests(self, test_name="all"):
         """Perform tests and return the results as a list"""
+        self.set_up_tests()
         self.execute_tests(test_name)
+        self.tear_down_tests()
         return self.result
 
     def convert_bytes(self, data):

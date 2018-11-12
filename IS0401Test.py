@@ -39,9 +39,10 @@ class IS0401Test(GenericTest):
         self.node_url = self.apis["node"]["url"]
         self.query_api_url = None
 
-    def execute_tests(self):
+    def set_up_tests(self):
         self.registry.enable()
-        super(IS0401Test, self).execute_tests()
+
+    def tear_down_tests(self):
         self.registry.disable()
 
     def test_01(self):

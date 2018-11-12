@@ -35,17 +35,13 @@ class IS0402Test(GenericTest):
         GenericTest.__init__(self, apis, spec_versions, test_version, spec_path, omit_paths)
         self.reg_url = self.apis["registration"]["url"]
         self.query_url = self.apis["query"]["url"]
+        self.zc = None
 
-    def execute_tests(self):
-        self.init_zeroconf()
-        super(IS0402Test, self).execute_tests()
-        self.close_zeroconf()
-
-    def init_zeroconf(self):
+    def set_up_tests(self):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener()
 
-    def close_zeroconf(self):
+    def tear_down_tests(self):
         if self.zc:
             self.zc.close()
             self.zc = None
