@@ -26,6 +26,7 @@ import copy
 import IS0401Test
 import IS0402Test
 import IS0501Test
+import IS0401_0501Test
 import IS0601Test
 import IS0701Test
 
@@ -61,6 +62,13 @@ TEST_DEFINITIONS = {
                  "input_labels": ["Connection API"],
                  "spec_key": 'is-05',
                  "class": IS0501Test.IS0501Test},
+    "IS-05-01-04-1": {
+                    "name": "IS-05 Integration with Node API",
+                    "versions": ["v1.0"],
+                    "default_version": "v1.0",
+                    "input_labels": ["Connection API", "Node API"],
+                    "spec_key": 'is-05',
+                    "class": IS0401_0501Test},
     "IS-06-01": {"name": "IS-06 Network Control API",
                  "versions": ["v1.0"],
                  "default_version": "v1.0",
