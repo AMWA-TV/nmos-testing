@@ -20,7 +20,7 @@ import json
 from zeroconf import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest
+from GenericTest import GenericTest, test_depends
 
 
 class IS0402Test(GenericTest):
@@ -158,6 +158,7 @@ class IS0402Test(GenericTest):
         bad_json = {"notanode": True}
         return self.do_400_check(test, "node", bad_json)
 
+    @test_depends
     def test_05(self):
         """Registration API accepts and stores a valid Device resource"""
 
@@ -180,6 +181,7 @@ class IS0402Test(GenericTest):
 
         return test.FAIL("An unknown error occurred")
 
+    @test_depends
     def test_06(self):
         """Registration API rejects an invalid Device resource with a 400 HTTP code"""
 
@@ -188,6 +190,7 @@ class IS0402Test(GenericTest):
         bad_json = {"notadevice": True}
         return self.do_400_check(test, "device", bad_json)
 
+    @test_depends
     def test_07(self):
         """Registration API accepts and stores a valid Source resource"""
 
@@ -210,6 +213,7 @@ class IS0402Test(GenericTest):
 
         return test.FAIL("An unknown error occurred")
 
+    @test_depends
     def test_08(self):
         """Registration API rejects an invalid Source resource with a 400 HTTP code"""
 
@@ -218,6 +222,7 @@ class IS0402Test(GenericTest):
         bad_json = {"notasource": True}
         return self.do_400_check(test, "source", bad_json)
 
+    @test_depends
     def test_09(self):
         """Registration API accepts and stores a valid Flow resource"""
 
@@ -240,6 +245,7 @@ class IS0402Test(GenericTest):
 
         return test.FAIL("An unknown error occurred")
 
+    @test_depends
     def test_10(self):
         """Registration API rejects an invalid Flow resource with a 400 HTTP code"""
 
@@ -248,6 +254,7 @@ class IS0402Test(GenericTest):
         bad_json = {"notaflow": True}
         return self.do_400_check(test, "flow", bad_json)
 
+    @test_depends
     def test_11(self):
         """Registration API accepts and stores a valid Sender resource"""
 
@@ -270,6 +277,7 @@ class IS0402Test(GenericTest):
 
         return test.FAIL("An unknown error occurred")
 
+    @test_depends
     def test_12(self):
         """Registration API rejects an invalid Sender resource with a 400 HTTP code"""
 
@@ -278,6 +286,7 @@ class IS0402Test(GenericTest):
         bad_json = {"notasender": True}
         return self.do_400_check(test, "sender", bad_json)
 
+    @test_depends
     def test_13(self):
         """Registration API accepts and stores a valid Receiver resource"""
 
@@ -300,6 +309,7 @@ class IS0402Test(GenericTest):
 
         return test.FAIL("An unknown error occurred")
 
+    @test_depends
     def test_14(self):
         """Registration API rejects an invalid Receiver resource with a 400 HTTP code"""
 

@@ -25,6 +25,17 @@ from TestResult import Test
 # unless told otherwise. Is this part of the spec?
 
 
+def test_depends(func):
+    """ Decorator to prevent a test being executed in individual mode"""
+    def invalid(self):
+        if self.test_individual:
+            test = Test("Invalid")
+            return test.FAIL("This test cannot be performed individually")
+        else:
+            return func(self)
+    return invalid
+
+
 class GenericTest(object):
     """
     Generic testing class.
@@ -38,6 +49,7 @@ class GenericTest(object):
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
         self.saved_entities = {}
         self.auto_test_count = 0
+        self.test_individual = False
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
@@ -108,6 +120,7 @@ class GenericTest(object):
 
     def run_tests(self, test_name="all"):
         """Perform tests and return the results as a list"""
+        self.test_individual = (test_name != "all")
         self.set_up_tests()
         self.execute_tests(test_name)
         self.tear_down_tests()

@@ -23,7 +23,7 @@ import netifaces
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest
+from GenericTest import GenericTest, test_depends
 
 # TODO: Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under
 #       test
@@ -83,6 +83,7 @@ class IS0401Test(GenericTest):
         test = Test("Node can discover network registration service via unicast DNS")
         return test.MANUAL()
 
+    @test_depends
     def test_03(self):
         """Registration API interactions use the correct Content-Type"""
 
@@ -164,6 +165,7 @@ class IS0401Test(GenericTest):
         except requests.ConnectionError:
             return test.FAIL("Connection error for {}".format(url))
 
+    @test_depends
     def test_04(self):
         """Node can register a valid Node resource with the network registration service,
         matching its Node API self resource"""
@@ -172,6 +174,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API self resource")
         return self.check_matching_resource(test, "node")
 
+    @test_depends
     def test_05(self):
         """Node maintains itself in the registry via periodic calls to the health resource"""
 
@@ -215,6 +218,7 @@ class IS0401Test(GenericTest):
                     "re-registering or trying alternative Registration APIs as required")
         return test.MANUAL()
 
+    @test_depends
     def test_07(self):
         """Node can register a valid Device resource with the network registration service, matching its
         Node API Device resource"""
@@ -223,6 +227,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Device resource")
         return self.check_matching_resource(test, "device")
 
+    @test_depends
     def test_08(self):
         """Node can register a valid Source resource with the network
         registration service, matching its Node API Source resource"""
@@ -231,6 +236,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Source resource")
         return self.check_matching_resource(test, "source")
 
+    @test_depends
     def test_09(self):
         """Node can register a valid Flow resource with the network
         registration service, matching its Node API Flow resource"""
@@ -239,6 +245,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Flow resource")
         return self.check_matching_resource(test, "flow")
 
+    @test_depends
     def test_10(self):
         """Node can register a valid Sender resource with the network
         registration service, matching its Node API Sender resource"""
@@ -247,6 +254,7 @@ class IS0401Test(GenericTest):
                     "matching its Node API Sender resource")
         return self.check_matching_resource(test, "sender")
 
+    @test_depends
     def test_11(self):
         """Node can register a valid Receiver resource with the network
         registration service, matching its Node API Receiver resource"""
