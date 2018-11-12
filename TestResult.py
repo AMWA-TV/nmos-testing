@@ -12,11 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
+
 
 class Test(object):
     def __init__(self, description, name=None):
         self.description = description
         self.name = name
+        if not self.name:
+            # Get name of calling function
+            self.name = inspect.stack()[1][3]
 
     def PASS(self, detail=""):
         return [self.description, "Pass", detail, self.name]

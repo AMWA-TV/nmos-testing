@@ -37,7 +37,7 @@ class GenericTest(object):
         self.spec_path = spec_path
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
         self.saved_entities = {}
-        self.test_count = 1
+        self.auto_test_count = 0
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
@@ -131,10 +131,14 @@ class GenericTest(object):
                 return False
         return True
 
+    def auto_test_name(self):
+        """Get the name which should be used for an automatically defined test"""
+        self.auto_test_count += 1
+        return "auto_" + str(self.auto_test_count)
+
     def check_base_path(self, base_url, path, expectation):
         """Check that a GET to a path returns a JSON array containing a defined string"""
-        test = Test("GET {}".format(path), "auto_" + str(self.test_count))
-        self.test_count += 1
+        test = Test("GET {}".format(path), self.auto_test_name())
         valid, req = self.do_request("GET", base_url + path)
         if not valid:
             return test.FAIL("Unable to connect to API: {}".format(req))
@@ -228,13 +232,13 @@ class GenericTest(object):
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
                                                         self.test_version,
-                                                        url_param))
+                                                        url_param), self.auto_test_name())
             else:
                 # There were no saved entities found, so we can't test this parameterised URL
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
                                                         self.test_version,
-                                                        resource[0].rstrip("/")))
+                                                        resource[0].rstrip("/")), self.auto_test_name())
                 return test.NA("No resources found to perform this test")
 
         # Test general URLs with no parameters
@@ -243,7 +247,7 @@ class GenericTest(object):
             test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                     api,
                                                     self.test_version,
-                                                    resource[0].rstrip("/")))
+                                                    resource[0].rstrip("/")), self.auto_test_name())
         else:
             return None
 
