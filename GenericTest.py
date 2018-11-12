@@ -21,9 +21,6 @@ import jsonschema
 from Specification import Specification
 from TestResult import Test
 
-# TODO: Consider whether to set Accept headers? If we don't set them we expect APIs to default to application/json
-# unless told otherwise. Is this part of the spec?
-
 
 class GenericTest(object):
     """
@@ -195,16 +192,13 @@ class GenericTest(object):
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
                     if response_code == 200 and resource[0] not in self.omit_paths:
+                        # TODO: Test for each of these if the trailing slash version also works and if redirects are
+                        # used on either.
                         result = self.check_api_resource(resource, response_code, api)
                         if result is not None:
                             results.append(result)
 
         return results
-        # TODO: For any method we can't test, flag it as a manual test
-        # TODO: Write a harness for each write method with one or more things to send it. Test them using this as part
-        #       of this loop
-        # TODO: Equally test for each of these if the trailing slash version also works and if redirects are used on
-        #       either.
 
     def check_api_resource(self, resource, response_code, api):
         # Test URLs which include a {resourceId} or similar parameter

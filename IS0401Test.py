@@ -25,9 +25,6 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
 
-# TODO: Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under
-#       test
-
 
 class IS0401Test(GenericTest):
     """
@@ -54,7 +51,7 @@ class IS0401Test(GenericTest):
         default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
 
-        # TODO: Set api_ver to just the version under test. Later test support for parsing CSV string
+        # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': self.test_version, 'api_proto': 'http', 'pri': '0'}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite._nmos-registration._tcp.local.",

@@ -80,7 +80,6 @@ class DataForm(Form):
     choices = [(test_id, TEST_DEFINITIONS[test_id]["name"]) for test_id in TEST_DEFINITIONS]
     choices = sorted(choices, key=lambda x: x[0])
     test = SelectField(label="Select test:", choices=choices)
-    # TODO: Potentially add a mixed IS-04/05 test for where they cross over
     ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
                                                                           message="Please enter a valid port number "
@@ -183,8 +182,6 @@ if __name__ == '__main__':
             repo.git.reset('--hard')
             if not app.debug:
                 repo.remotes.origin.pull()
-
-    # TODO: Join 224.0.1.129 briefly and capture some announce messages
 
     print(" * Initialisation complete")
 
