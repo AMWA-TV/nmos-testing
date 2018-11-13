@@ -54,9 +54,11 @@
                         {{ form.port_sec.label }} {{ form.port_sec(size="5") }}
                     </div><br />
                 </div><br />
-                <div class="input dropdown input_data_fld">
-                    {{ form.version.label }} {{ form.version }}
-                </div>
+                    {% for version in form.versions %}
+                        <div class="input dropdown input_data_fld">
+                            {{ version.label }} {{ version }}
+                        </div>
+                    {% endfor %}
                 <div class="input dropdown input_data_fld">
                     {{ form.test_selection.label }} {{ form.test_selection }}
                 </div>

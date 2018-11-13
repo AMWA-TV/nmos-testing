@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from flask import Flask, render_template, flash, request
-from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField
+from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import REGISTRY, REGISTRY_API
 
 import git
@@ -45,41 +45,60 @@ SPEC_REPOS = [
 ]
 TEST_DEFINITIONS = {
     "IS-04-01": {"name": "IS-04 Node API",
-                 "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
-                 "default_version": "v1.2",
-                 "input_labels": ["Node API"],
-                 "spec_key": 'is-04',
+                 "specs": [{
+                    "input_labels": ["Connection API"],
+                    "spec_key": "is-04",
+                    "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
+                    "default_version": "v1.2",
+                 }],
                  "class": IS0401Test.IS0401Test},
     "IS-04-02": {"name": "IS-04 Registry APIs",
-                 "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
-                 "default_version": "v1.2",
-                 "input_labels": ["Registration API", "Query API"],
+                 "specs": [{
+                    "input_labels": ["Registration API", "Query API"],
+                    "spec_key": "is-04",
+                    "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
+                    "default_version": "v1.2",
+                 }],
                  "spec_key": 'is-04',
                  "class": IS0402Test.IS0402Test},
     "IS-05-01": {"name": "IS-05 Connection Management API",
-                 "versions": ["v1.0", "v1.1"],
-                 "default_version": "v1.0",
-                 "input_labels": ["Connection API"],
-                 "spec_key": 'is-05',
+                 "specs": [{
+                    "input_labels": ["Connection API"],
+                    "versions": ["v1.0", "v1.1"],
+                    "default_version": "v1.0",
+                    "spec_key": 'is-05',
+                 }],
                  "class": IS0501Test.IS0501Test},
     "IS-05-01-04-1": {
                     "name": "IS-05 Integration with Node API",
-                    "versions": ["v1.0"],
-                    "default_version": "v1.0",
-                    "input_labels": ["Connection API", "Node API"],
-                    "spec_key": 'is-05',
+                    "specs": [{
+                            "input_labels": ["Node API"],
+                            "spec_key": "is-04",
+                            "versions": ["v1.2"],
+                            "default_version": "v1.2"
+                        }, {
+                            "input_labels": ["Connection API"],
+                            "spec_key": "is-05",
+                            "versions": ["v1.0", "v1.1"],
+                            "default_version": "v1.0"
+                        }
+                    ],
                     "class": IS0401_0501Test},
     "IS-06-01": {"name": "IS-06 Network Control API",
-                 "versions": ["v1.0"],
-                 "default_version": "v1.0",
-                 "input_labels": ["Network API"],
-                 "spec_key": 'is-06',
+                 "specs": [{
+                        "versions": ["v1.0"],
+                        "default_version": "v1.0",
+                        "input_labels": ["Network API"],
+                        "spec_key": 'is-06',
+                 }],
                  "class": IS0601Test.IS0601Test},
     "IS-07-01": {"name": "IS-07 Event & Tally API",
-                 "versions": ["v1.0"],
-                 "default_version": "v1.0",
-                 "input_labels": ["Event API"],
-                 "spec_key": 'is-07',
+                 "specs": [{
+                        "versions": ["v1.0"],
+                        "default_version": "v1.0",
+                        "input_labels": ["Event API"],
+                        "spec_key": 'is-07',
+                 }],
                  "class": IS0701Test.IS0701Test}
 }
 
@@ -98,9 +117,24 @@ class NonValidatingSelectField(SelectField):
     def pre_validate(self, form):
         pass
 
+
+class VersionForm(Form):
+    version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
+                                                         ("v1.1", "v1.1"),
+                                                         ("v1.2", "v1.2"),
+                                                         ("v1.3", "v1.3")])
+
+
 class DataForm(Form):
     choices = [(test_id, TEST_DEFINITIONS[test_id]["name"]) for test_id in TEST_DEFINITIONS]
     choices = sorted(choices, key=lambda x: x[0])
+    specs = [(test_id, TEST_DEFINITIONS[test_id]["specs"]) for test_id in TEST_DEFINITIONS]
+    specs = sorted(specs, key=lambda x: x[0])
+    maxVersions = 0
+    for spec in specs:
+        if len(spec) > maxVersions:
+            maxVersions = len(spec)
+
     test = SelectField(label="Select test:", choices=choices)
     ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
@@ -112,10 +146,8 @@ class DataForm(Form):
                                                                               message="Please enter a valid port "
                                                                                       "number (0-65535)."),
                                                        validators.optional()])
-    version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
-                                                         ("v1.1", "v1.1"),
-                                                         ("v1.2", "v1.2"),
-                                                         ("v1.3", "v1.3")])
+    versions = FieldList(FormField(VersionForm), min_entries=maxVersions)
+
     test_selection = NonValidatingSelectField(label="Test Selection:", choices=[("all", "all"),
                                                                                 ("auto", "auto")])
 
@@ -125,12 +157,14 @@ class DataForm(Form):
         hidden_data[test_id] = copy.copy(TEST_DEFINITIONS[test_id])
         hidden_data[test_id].pop("class")
         hidden_data[test_id]["tests"] = ["all", "auto"] + enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
+    hidden_data['max_versions'] = maxVersions
     hidden = HiddenField(default=json.dumps(hidden_data))
 
 
 # Index page
 @app.route('/', methods=["GET", "POST"])
 def index_page():
+    print(request.form)
     form = DataForm(request.form)
     if request.method == "POST" and not app.config['TEST_ACTIVE']:
         test = request.form["test"]
