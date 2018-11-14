@@ -12,19 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
+
 
 class Test(object):
-    def __init__(self, description):
+    def __init__(self, description, name=None):
         self.description = description
+        self.name = name
+        if not self.name:
+            # Get name of calling function
+            self.name = inspect.stack()[1][3]
 
     def PASS(self, detail=""):
-        return [self.description, "Pass", detail]
+        return [self.description, "Pass", detail, self.name]
 
     def MANUAL(self, detail=""):
-        return [self.description, "Manual", detail]
+        return [self.description, "Manual", detail, self.name]
 
     def NA(self, detail):
-        return [self.description, "N/A", detail]
+        return [self.description, "N/A", detail, self.name]
 
     def FAIL(self, detail):
-        return [self.description, "Fail", detail]
+        return [self.description, "Fail", detail, self.name]

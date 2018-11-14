@@ -76,6 +76,20 @@ TEST_DEFINITIONS = {
 }
 
 
+def enumerate_tests(class_def):
+    tests = []
+    for method_name in dir(class_def):
+        if method_name.startswith("test_"):
+            method = getattr(class_def, method_name)
+            if callable(method):
+                tests.append(method_name)
+    return tests
+
+
+class NonValidatingSelectField(SelectField):
+    def pre_validate(self, form):
+        pass
+
 class DataForm(Form):
     choices = [(test_id, TEST_DEFINITIONS[test_id]["name"]) for test_id in TEST_DEFINITIONS]
     choices = sorted(choices, key=lambda x: x[0])
@@ -94,12 +108,15 @@ class DataForm(Form):
                                                          ("v1.1", "v1.1"),
                                                          ("v1.2", "v1.2"),
                                                          ("v1.3", "v1.3")])
+    test_selection = NonValidatingSelectField(label="Test Selection:", choices=[("all", "all"),
+                                                                                ("auto", "auto")])
 
     # Hide test data in the web form for dynamic modification of behaviour
     hidden_data = {}
     for test_id in TEST_DEFINITIONS:
         hidden_data[test_id] = copy.copy(TEST_DEFINITIONS[test_id])
         hidden_data[test_id].pop("class")
+        hidden_data[test_id]["tests"] = ["all", "auto"] + enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
     hidden = HiddenField(default=json.dumps(hidden_data))
 
 
@@ -114,6 +131,7 @@ def index_page():
         ip_sec = request.form["ip_sec"]
         port_sec = request.form["port_sec"]
         version = request.form["version"]
+        test_selection = request.form["test_selection"]
         base_url = "http://{}:{}".format(ip, str(port))
         base_url_sec = "http://{}:{}".format(ip_sec, str(port_sec))
         if form.validate():
@@ -153,7 +171,7 @@ def index_page():
             if test_obj:
                 app.config['TEST_ACTIVE'] = True
                 try:
-                    result = test_obj.run_tests()
+                    result = test_obj.run_tests(test_selection)
                 except Exception as ex:
                     raise ex
                 finally:

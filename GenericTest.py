@@ -22,6 +22,17 @@ from Specification import Specification
 from TestResult import Test
 
 
+def test_depends(func):
+    """ Decorator to prevent a test being executed in individual mode"""
+    def invalid(self):
+        if self.test_individual:
+            test = Test("Invalid")
+            return test.FAIL("This test cannot be performed individually")
+        else:
+            return func(self)
+    return invalid
+
+
 class GenericTest(object):
     """
     Generic testing class.
@@ -34,6 +45,8 @@ class GenericTest(object):
         self.spec_path = spec_path
         self.file_prefix = "file:///" if os.name == "nt" else "file:"
         self.saved_entities = {}
+        self.auto_test_count = 0
+        self.test_individual = False
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
@@ -70,20 +83,44 @@ class GenericTest(object):
         for api in self.apis:
             self.apis[api]["spec"] = Specification(os.path.join(self.spec_path + '/APIs/' + self.apis[api]["raml"]))
 
-    def execute_tests(self):
+    def execute_tests(self, test_name):
         """Perform all tests defined within this class"""
-        print(" * Running basic API tests")
-        self.result += self.basics()
-        for method_name in dir(self):
-            if method_name.startswith("test_"):
-                method = getattr(self, method_name)
-                if callable(method):
-                    print(" * Running " + method_name)
-                    self.result.append(method())
 
-    def run_tests(self):
+        # Run automatically defined tests
+        if test_name in ["auto", "all"]:
+            print(" * Running basic API tests")
+            self.result += self.basics()
+
+        # Run manually defined tests
+        if test_name == "all":
+            for method_name in dir(self):
+                if method_name.startswith("test_"):
+                    method = getattr(self, method_name)
+                    if callable(method):
+                        print(" * Running " + method_name)
+                        self.result.append(method())
+
+        # Run a single test
+        if test_name != "auto" and test_name != "all":
+            method = getattr(self, test_name)
+            if callable(method):
+                print(" * Running " + test_name)
+                self.result.append(method())
+
+    def set_up_tests(self):
+        """Called before a set of tests is run. Override this method with setup code."""
+        pass
+
+    def tear_down_tests(self):
+        """Called after a set of tests is run. Override this method with teardown code."""
+        pass
+
+    def run_tests(self, test_name="all"):
         """Perform tests and return the results as a list"""
-        self.execute_tests()
+        self.test_individual = (test_name != "all")
+        self.set_up_tests()
+        self.execute_tests(test_name)
+        self.tear_down_tests()
         return self.result
 
     def convert_bytes(self, data):
@@ -120,9 +157,14 @@ class GenericTest(object):
                 return False
         return True
 
+    def auto_test_name(self):
+        """Get the name which should be used for an automatically defined test"""
+        self.auto_test_count += 1
+        return "auto_" + str(self.auto_test_count)
+
     def check_base_path(self, base_url, path, expectation):
         """Check that a GET to a path returns a JSON array containing a defined string"""
-        test = Test("GET {}".format(path))
+        test = Test("GET {}".format(path), self.auto_test_name())
         valid, req = self.do_request("GET", base_url + path)
         if not valid:
             return test.FAIL("Unable to connect to API: {}".format(req))
@@ -213,13 +255,13 @@ class GenericTest(object):
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
                                                         self.test_version,
-                                                        url_param))
+                                                        url_param), self.auto_test_name())
             else:
                 # There were no saved entities found, so we can't test this parameterised URL
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
                                                         self.test_version,
-                                                        resource[0].rstrip("/")))
+                                                        resource[0].rstrip("/")), self.auto_test_name())
                 return test.NA("No resources found to perform this test")
 
         # Test general URLs with no parameters
@@ -228,7 +270,7 @@ class GenericTest(object):
             test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                     api,
                                                     self.test_version,
-                                                    resource[0].rstrip("/")))
+                                                    resource[0].rstrip("/")), self.auto_test_name())
         else:
             return None
 

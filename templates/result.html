@@ -41,10 +41,9 @@
                 </tr>
             </thead>
             <tbody>
-                {% set count = 1 %}
                 {% for curr_result in result %}
                     <tr>
-                        <td>{{ count }}</td>
+                        <td>{{ curr_result[3] }}</td>
                         {% if curr_result[1] == "Pass" %}
                             <td class="bg-success pass">{{ curr_result[1] }}</td>
                         {% elif curr_result[1] == "Manual" %}
@@ -57,7 +56,6 @@
                         <td>{{ curr_result[0] }}</td>
                         <td>{{ curr_result[2] }}</td>
                     </tr>
-                    {% set count = count + 1 %}
                 {% endfor %}
             </tbody>
         </table>
