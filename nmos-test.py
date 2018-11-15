@@ -245,6 +245,7 @@ def index_page():
 
                 test_selection = request.form["test_selection"]
 
+                test_obj = None
                 if test == "IS-04-01":
                     test_obj = IS0401Test.IS0401Test(apis, spec_versions, api_version, spec_path, REGISTRY)
                 elif test == "IS-04-02":
@@ -265,6 +266,8 @@ def index_page():
                     finally:
                         app.config['TEST_ACTIVE'] = False
                     return render_template("result.html", url=base_url, test=test, result=result)
+                else:
+                    flash("Error: This test definition does not exist")
             else:
                 flash("Error: This test definition does not exist")
         else:
