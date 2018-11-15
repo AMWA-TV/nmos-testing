@@ -146,7 +146,7 @@ class DataForm(Form):
                                                                               message="Please enter a valid port "
                                                                                       "number (0-65535)."),
                                                        validators.optional()])
-    versions = FieldList(FormField(VersionForm), min_entries=maxVersions)
+    versions = FieldList(FormField(VersionForm, label=""), min_entries=maxVersions)
 
     test_selection = NonValidatingSelectField(label="Test Selection:", choices=[("all", "all"),
                                                                                 ("auto", "auto")])

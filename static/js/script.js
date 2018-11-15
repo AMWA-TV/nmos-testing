@@ -9,7 +9,6 @@ function updateDropdown() {
 
     // Update the version dropdown
     for (var apiNum=0; apiNum<maxVersions; apiNum++){
-      document.getElementById("versions-" + apiNum).labels[0].style.display = "none"
       var versionDropdown = document.getElementById("versions-" + apiNum.toString() + "-version");
       versionDropdown.options.length = 0;
       if (apiNum < testData["specs"].length){
