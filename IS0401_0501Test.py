@@ -1,6 +1,4 @@
-# Copyright (C) 2018 Riedel Communications GmbH & Co. KG
-#
-# Modifications Copyright 2018 British Broadcasting Corporation
+# Copyright 2018 British Broadcasting Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,25 +17,15 @@ import requests
 from TestResult import Test
 from GenericTest import GenericTest
 
-# TODO: Worth checking PTP etc too, and reachability of Node API on all endpoints, plus endpoint matching the one under
-#       test
-
 
 class IS04010501Test(GenericTest):
     """
     Runs Tests covering both IS-0401 and IS-0501
     """
-    def __init__(self, apis, spec_versions, test_version, spec_path, registry):
+    def __init__(self, apis, spec_versions, test_version, spec_path):
         GenericTest.__init__(self, apis, spec_versions, test_version, spec_path)
-        self.registry = registry
         self.node_url = self.apis["node"]["url"]
         self.connection_url = self.apis["connection"]["url"]
-        self.query_api_url = None
-
-    def execute_tests(self):
-        self.registry.enable()
-        super(IS04010501Test, self).execute_tests()
-        self.registry.disable()
 
     def test_01(self):
         """At least one Device is showing an IS-05 control advertisement"""
@@ -61,4 +49,3 @@ class IS04010501Test(GenericTest):
 
     def test_06(self):
         """Check that version 1.2 or greater of the node API is available"""
-
