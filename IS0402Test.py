@@ -22,19 +22,22 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, test_depends
 
+REG_API_KEY = "registration"
+QUERY_API_KEY = "query"
+
 
 class IS0402Test(GenericTest):
     """
     Runs IS-04-02-Test
     """
-    def __init__(self, apis, spec_versions, test_version, spec_path):
+    def __init__(self, apis):
         # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
         omit_paths = [
           "/health/nodes/{nodeId}"
         ]
-        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path, omit_paths)
-        self.reg_url = self.apis["registration"]["url"]
-        self.query_url = self.apis["query"]["url"]
+        GenericTest.__init__(self, apis, omit_paths)
+        self.reg_url = self.apis[REG_API_KEY]["url"]
+        self.query_url = self.apis[QUERY_API_KEY]["url"]
         self.zc = None
 
     def set_up_tests(self):
@@ -71,11 +74,12 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
-                if self.major_version > 1 or (self.major_version == 1 and self.minor_version > 0):
+                api = self.apis[REG_API_KEY]
+                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 0):
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Registration API advertisement.")
-                    elif "v{}.{}".format(self.major_version,
-                                         self.minor_version) not in properties["api_ver"].split(","):
+                    elif "v{}.{}".format(api["major_version"],
+                                         api["minor_version"]) not in properties["api_ver"].split(","):
                         return test.FAIL("Registry does not claim to support version under test.")
 
                     if "api_proto" not in properties:
@@ -112,11 +116,12 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
-                if self.major_version > 1 or (self.major_version == 1 and self.minor_version > 0):
+                api = self.apis[QUERY_API_KEY]
+                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 0):
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Query API advertisement.")
-                    elif "v{}.{}".format(self.major_version,
-                                         self.minor_version) not in properties["api_ver"].split(","):
+                    elif "v{}.{}".format(api["major_version"],
+                                         api["minor_version"]) not in properties["api_ver"].split(","):
                         return test.FAIL("Registry does not claim to support version under test.")
 
                     if "api_proto" not in properties:
@@ -134,7 +139,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Node resource")
 
         # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.test_version != "v1.2":
+        if self.apis[REG_API_KEY]["version"] != "v1.2":
             return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
 
         with open("test_data/IS0402/v1.2_node.json") as node_data:
@@ -165,7 +170,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Device resource")
 
         # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.test_version != "v1.2":
+        if self.apis[REG_API_KEY]["version"] != "v1.2":
             return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
 
         with open("test_data/IS0402/v1.2_device.json") as device_data:
@@ -197,7 +202,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Source resource")
 
         # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.test_version != "v1.2":
+        if self.apis[REG_API_KEY]["version"] != "v1.2":
             return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
 
         with open("test_data/IS0402/v1.2_source.json") as source_data:
@@ -229,7 +234,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Flow resource")
 
         # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.test_version != "v1.2":
+        if self.apis[REG_API_KEY]["version"] != "v1.2":
             return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
 
         with open("test_data/IS0402/v1.2_flow.json") as flow_data:
@@ -261,7 +266,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Sender resource")
 
         # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.test_version != "v1.2":
+        if self.apis[REG_API_KEY]["version"] != "v1.2":
             return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
 
         with open("test_data/IS0402/v1.2_sender.json") as sender_data:
@@ -293,7 +298,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Receiver resource")
 
         # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.test_version != "v1.2":
+        if self.apis[REG_API_KEY]["version"] != "v1.2":
             return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
 
         with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
@@ -323,7 +328,7 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements pagination")
 
-        if self.test_version == "v1.0":
+        if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
         return test.MANUAL()
@@ -333,7 +338,7 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements downgrade queries")
 
-        if self.test_version == "v1.0":
+        if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
         return test.MANUAL()
@@ -367,7 +372,7 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements RQL")
 
-        if self.test_version == "v1.0":
+        if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
         try:
@@ -396,7 +401,7 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements ancestry queries")
 
-        if self.test_version == "v1.0":
+        if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
         try:
@@ -429,8 +434,8 @@ class IS0402Test(GenericTest):
         if r.status_code != 400:
             return test.FAIL("Registration API returned a {} code for an invalid registration".format(r.status_code))
 
-        schema = self.get_schema("registration", "POST", "/resource", 400)
-        valid, message = self.check_response(schema, "POST", r)
+        schema = self.get_schema(REG_API_KEY, "POST", "/resource", 400)
+        valid, message = self.check_response(REG_API_KEY, schema, "POST", r)
 
         if valid:
             return test.PASS()

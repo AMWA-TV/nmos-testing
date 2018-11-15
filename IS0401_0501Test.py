@@ -17,15 +17,18 @@ import requests
 from TestResult import Test
 from GenericTest import GenericTest
 
+NODE_API_KEY = "node"
+CONN_API_KEY = "connection"
+
 
 class IS04010501Test(GenericTest):
     """
     Runs Tests covering both IS-0401 and IS-0501
     """
-    def __init__(self, apis, spec_versions, test_version, spec_path):
-        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path)
-        self.node_url = self.apis["node"]["url"]
-        self.connection_url = self.apis["connection"]["url"]
+    def __init__(self, apis):
+        GenericTest.__init__(self, apis)
+        self.node_url = self.apis[NODE_API_KEY]["url"]
+        self.connection_url = self.apis[CONNECTION_API_KEY]["url"]
 
     def test_01(self):
         """At least one Device is showing an IS-05 control advertisement"""

@@ -27,19 +27,21 @@ import TestHelper
 from TestResult import Test
 from GenericTest import GenericTest
 
+CONN_API_KEY = "connection"
+
 
 class IS0501Test(GenericTest):
     """
     Runs IS-05-01-Test
     """
 
-    def __init__(self, apis, spec_versions, test_version, spec_path):
+    def __init__(self, apis):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
             "/single/senders/{senderId}/transportfile"
         ]
-        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path, omit_paths)
-        self.url = self.apis["connection"]["url"]
+        GenericTest.__init__(self, apis, omit_paths)
+        self.url = self.apis[CONN_API_KEY]["url"]
         self.senders = self.get_senders()
         self.receivers = self.get_receivers()
 
@@ -188,7 +190,7 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/constraints/"
-                schema = self.get_schema("connection", "GET", "/single/senders/{senderId}/constraints", 200)
+                schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/constraints", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -204,7 +206,7 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/constraints/"
-                schema = self.get_schema("connection", "GET", "/single/receivers/{receiverId}/constraints", 200)
+                schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/constraints", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -336,7 +338,7 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/staged/"
-                schema = self.get_schema("connection", "GET", "/single/senders/{senderId}/staged", 200)
+                schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/staged", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -352,7 +354,7 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/staged/"
-                schema = self.get_schema("connection", "GET", "/single/receivers/{receiverId}/staged", 200)
+                schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/staged", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
                     pass
@@ -622,7 +624,7 @@ class IS0501Test(GenericTest):
         if len(self.senders):
             for sender in self.senders:
                 activeUrl = "single/senders/" + sender + "/active"
-                schema = self.get_schema("connection", "GET", "/single/senders/{senderId}/active", 200)
+                schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/active", 200)
                 valid, response = self.compare_to_schema(schema, activeUrl)
                 if valid:
                     pass
@@ -638,7 +640,7 @@ class IS0501Test(GenericTest):
         if len(self.receivers):
             for receiver in self.receivers:
                 activeUrl = "single/receivers/" + receiver + "/active"
-                schema = self.get_schema("connection", "GET", "/single/receivers/{receiverId}/active", 200)
+                schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/active", 200)
                 valid, response = self.compare_to_schema(schema, activeUrl)
                 if valid:
                     pass
@@ -824,7 +826,7 @@ class IS0501Test(GenericTest):
         except requests.exceptions.RequestException as e:
             return False, str(e)
 
-        schema = self.get_schema("connection", "POST", "/bulk/" + port + "s", 200)
+        schema = self.get_schema(CONN_API_KEY, "POST", "/bulk/" + port + "s", 200)
         try:
             Draft4Validator(schema).validate(r.json())
         except ValidationError as e:
@@ -1247,7 +1249,7 @@ class IS0501Test(GenericTest):
             data = {}
             valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
             if valid:
-                schema = self.get_schema("connection", "PATCH", "/single/" + port + "s/{" + port + "Id}/staged", 200)
+                schema = self.get_schema(CONN_API_KEY, "PATCH", "/single/" + port + "s/{" + port + "Id}/staged", 200)
                 try:
                     Draft4Validator(schema).validate(response)
                 except ValidationError as e:
@@ -1263,11 +1265,12 @@ class IS0501Test(GenericTest):
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.checkCleanRequestJSON("GET", dest)
             if valid:
-                schema = self.load_schema("v1.0_" + port + "_transport_params_rtp.json")
-                resolver = RefResolver(self.file_prefix + os.path.join(self.spec_path + '/APIs/schemas/'),
+                schema = self.load_schema(CONN_API_KEY, "v1.0_" + port + "_transport_params_rtp.json")
+                resolver = RefResolver(self.file_prefix + os.path.join(self.apis[CONN_API_KEY]["spec_path"] +
+                                                                       '/APIs/schemas/'),
                                        schema)
                 constraints_valid, constraints_response = self.checkCleanRequestJSON("GET", "single/" + port + "s/" +
-                                                                                 myPort + "/constraints/")
+                                                                                     myPort + "/constraints/")
                 if constraints_valid:
                     count = 0
                     try:
@@ -1410,7 +1413,7 @@ class IS0501Test(GenericTest):
         """Compares the response from an endpoint to a schema"""
         valid, response = self.checkCleanRequest("GET", endpoint, code=status_code)
         if valid:
-            return self.check_response(schema, "GET", response)
+            return self.check_response(CONN_API_KEY, schema, "GET", response)
         else:
             return False, "Invalid response while getting data: " + response
 

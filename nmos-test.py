@@ -231,15 +231,12 @@ def index_page():
                         "raml": SPECIFICATIONS[spec_key]["apis"][api_key]["raml"],
                         "base_url": base_url,
                         "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, version),
-                        "spec_versions": SPECIFICATIONS[spec_key]["versions"],
                         "spec_path": CACHE_PATH + '/' + spec_key,
-                        "version": version
+                        "version": version,
+                        "spec": None, # Used inside GenericTest
+                        "major_version": None, # Used inside GenericTest
+                        "minor_version": None # Used inside GenericTest
                     }
-
-                    if spec_count == 0:
-                        spec_versions = SPECIFICATIONS[spec_key]["versions"]
-                        spec_path = CACHE_PATH + '/' + spec_key
-                        api_version = version
 
                     spec_count += 1
 
@@ -247,15 +244,15 @@ def index_page():
 
                 test_obj = None
                 if test == "IS-04-01":
-                    test_obj = IS0401Test.IS0401Test(apis, spec_versions, api_version, spec_path, REGISTRY)
+                    test_obj = IS0401Test.IS0401Test(apis, REGISTRY)
                 elif test == "IS-04-02":
-                    test_obj = IS0402Test.IS0402Test(apis, spec_versions, api_version, spec_path)
+                    test_obj = IS0402Test.IS0402Test(apis)
                 elif test == "IS-05-01":
-                    test_obj = IS0501Test.IS0501Test(apis, spec_versions, api_version, spec_path)
+                    test_obj = IS0501Test.IS0501Test(apis)
                 elif test == "IS-06-01":
-                    test_obj = IS0601Test.IS0601Test(apis, spec_versions, api_version, spec_path)
+                    test_obj = IS0601Test.IS0601Test(apis)
                 elif test == "IS-07-01":
-                    test_obj = IS0701Test.IS0701Test(apis, spec_versions, api_version, spec_path)
+                    test_obj = IS0701Test.IS0701Test(apis)
 
                 if test_obj:
                     app.config['TEST_ACTIVE'] = True
