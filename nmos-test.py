@@ -37,69 +37,115 @@ app.config['TEST_ACTIVE'] = False
 app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
 
 CACHE_PATH = 'cache'
-SPEC_REPOS = [
-    ('is-04', 'nmos-discovery-registration'),
-    ('is-05', 'nmos-device-connection-management'),
-    ('is-06', 'nmos-network-control'),
-    ('is-07', 'nmos-event-tally')
-]
+SPECIFICATIONS = {
+    "is-04": {
+        "repo": "nmos-discovery-registration",
+        "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
+        "default_version": "v1.2",
+        "apis": {
+            "node": {
+                "name": "Node API",
+                "raml": "NodeAPI.raml"
+            },
+            "query": {
+                "name": "Query API",
+                "raml": "QueryAPI.raml"
+            },
+            "registration": {
+                "name": "Registration API",
+                "raml": "RegistrationAPI.raml"
+            }
+        }
+    },
+    "is-05": {
+        "repo": "nmos-device-connection-management",
+        "versions": ["v1.0", "v1.1"],
+        "default_version": "v1.0",
+        "apis": {
+            "connection": {
+                "name": "Connection API",
+                "raml": "ConnectionAPI.raml"
+            }
+        }
+    },
+    "is-06": {
+        "repo": "nmos-network-control",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "netctrl": {
+                "name": "Network API",
+                "raml": "NetworkControlAPI.raml"
+            }
+        }
+    },
+    "is-07": {
+        "repo": "nmos-event-tally",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "events": {
+                "name": "Events API",
+                "raml": "EventsAPI.raml"
+            }
+        }
+    }
+}
 TEST_DEFINITIONS = {
-    "IS-04-01": {"name": "IS-04 Node API",
-                 "specs": [{
-                    "input_labels": ["Connection API"],
-                    "spec_key": "is-04",
-                    "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
-                    "default_version": "v1.2",
-                 }],
-                 "class": IS0401Test.IS0401Test},
-    "IS-04-02": {"name": "IS-04 Registry APIs",
-                 "specs": [{
-                    "input_labels": ["Registration API", "Query API"],
-                    "spec_key": "is-04",
-                    "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
-                    "default_version": "v1.2",
-                 }],
-                 "spec_key": 'is-04',
-                 "class": IS0402Test.IS0402Test},
-    "IS-05-01": {"name": "IS-05 Connection Management API",
-                 "specs": [{
-                    "input_labels": ["Connection API"],
-                    "versions": ["v1.0", "v1.1"],
-                    "default_version": "v1.0",
-                    "spec_key": 'is-05',
-                 }],
-                 "class": IS0501Test.IS0501Test},
+    "IS-04-01": {
+        "name": "IS-04 Node API",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": IS0401Test.IS0401Test
+    },
+    "IS-04-02": {
+        "name": "IS-04 Registry APIs",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "registration"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "query"
+        }],
+        "class": IS0402Test.IS0402Test
+    },
+    "IS-05-01": {
+        "name": "IS-05 Connection Management API",
+        "specs": [{
+            "spec_key": 'is-05',
+            "api_key": "connection"
+        }],
+        "class": IS0501Test.IS0501Test
+    },
     "IS-05-01-04-1": {
-                    "name": "IS-05 Integration with Node API",
-                    "specs": [{
-                            "input_labels": ["Node API"],
-                            "spec_key": "is-04",
-                            "versions": ["v1.2"],
-                            "default_version": "v1.2"
-                        }, {
-                            "input_labels": ["Connection API"],
-                            "spec_key": "is-05",
-                            "versions": ["v1.0", "v1.1"],
-                            "default_version": "v1.0"
-                        }
-                    ],
-                    "class": IS0401_0501Test},
-    "IS-06-01": {"name": "IS-06 Network Control API",
-                 "specs": [{
-                        "versions": ["v1.0"],
-                        "default_version": "v1.0",
-                        "input_labels": ["Network API"],
-                        "spec_key": 'is-06',
-                 }],
-                 "class": IS0601Test.IS0601Test},
-    "IS-07-01": {"name": "IS-07 Event & Tally API",
-                 "specs": [{
-                        "versions": ["v1.0"],
-                        "default_version": "v1.0",
-                        "input_labels": ["Event API"],
-                        "spec_key": 'is-07',
-                 }],
-                 "class": IS0701Test.IS0701Test}
+        "name": "IS-05 Integration with Node API",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "class": IS0401_0501Test.IS04010501Test
+    },
+    "IS-06-01": {
+        "name": "IS-06 Network Control API",
+        "specs": [{
+            "spec_key": 'is-06',
+            "api_key": "netctrl"
+        }],
+        "class": IS0601Test.IS0601Test
+    },
+    "IS-07-01": {
+        "name": "IS-07 Event & Tally API",
+        "specs": [{
+            "spec_key": 'is-07',
+            "api_key": "events"
+        }],
+        "class": IS0701Test.IS0701Test
+    }
 }
 
 
@@ -118,107 +164,109 @@ class NonValidatingSelectField(SelectField):
         pass
 
 
-class VersionForm(Form):
-    version = SelectField(label="API Version:", choices=[("v1.0", "v1.0"),
-                                                         ("v1.1", "v1.1"),
-                                                         ("v1.2", "v1.2"),
-                                                         ("v1.3", "v1.3")])
+class EndpointForm(Form):
+    ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address."),
+                                              validators.optional()])
+    port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
+                                                                          message="Please enter a valid port number "
+                                                                                  "(0-65535)."),
+                                                   validators.optional()])
+    version = NonValidatingSelectField(label="API Version:", choices=[("v1.0", "v1.0"),
+                                                                      ("v1.1", "v1.1"),
+                                                                      ("v1.2", "v1.2"),
+                                                                      ("v1.3", "v1.3")])
 
 
 class DataForm(Form):
-    choices = [(test_id, TEST_DEFINITIONS[test_id]["name"]) for test_id in TEST_DEFINITIONS]
-    choices = sorted(choices, key=lambda x: x[0])
-    specs = [(test_id, TEST_DEFINITIONS[test_id]["specs"]) for test_id in TEST_DEFINITIONS]
-    specs = sorted(specs, key=lambda x: x[0])
-    maxVersions = 0
-    for spec in specs:
-        if len(spec) > maxVersions:
-            maxVersions = len(spec)
+    # Define the primary test selection dropdown
+    test_choices = [(test_id, TEST_DEFINITIONS[test_id]["name"]) for test_id in TEST_DEFINITIONS]
+    test_choices = sorted(test_choices, key=lambda x: x[0])
+    test = SelectField(label="Select test:", choices=test_choices)
 
-    test = SelectField(label="Select test:", choices=choices)
-    ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address.")])
-    port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
-                                                                          message="Please enter a valid port number "
-                                                                                  "(0-65535).")])
-    ip_sec = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address."),
-                                                  validators.optional()])
-    port_sec = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
-                                                                              message="Please enter a valid port "
-                                                                                      "number (0-65535)."),
-                                                       validators.optional()])
-    versions = FieldList(FormField(VersionForm, label=""), min_entries=maxVersions)
+    # Determine how many sets of IP/Port/Version to display at most
+    specs_per_test = [(test_id, TEST_DEFINITIONS[test_id]["specs"]) for test_id in TEST_DEFINITIONS]
+    specs_per_test = sorted(specs_per_test, key=lambda x: x[0])
+    max_endpoints = 0
+    for spec in specs_per_test:
+        if len(spec) > max_endpoints:
+            max_endpoints = len(spec)
+    endpoints = FieldList(FormField(EndpointForm, label=""), min_entries=max_endpoints)
 
+    # Define the secondary test selection dropdown
     test_selection = NonValidatingSelectField(label="Test Selection:", choices=[("all", "all"),
                                                                                 ("auto", "auto")])
 
     # Hide test data in the web form for dynamic modification of behaviour
-    hidden_data = {}
+    test_data = {}
     for test_id in TEST_DEFINITIONS:
-        hidden_data[test_id] = copy.copy(TEST_DEFINITIONS[test_id])
-        hidden_data[test_id].pop("class")
-        hidden_data[test_id]["tests"] = ["all", "auto"] + enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
-    hidden_data['max_versions'] = maxVersions
-    hidden = HiddenField(default=json.dumps(hidden_data))
+        test_data[test_id] = copy.deepcopy(TEST_DEFINITIONS[test_id])
+        test_data[test_id].pop("class")
+        test_data[test_id]["tests"] = ["all", "auto"] + enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
+
+    hidden_options = HiddenField(default=max_endpoints)
+    hidden_tests = HiddenField(default=json.dumps(test_data))
+    hidden_specs = HiddenField(default=json.dumps(SPECIFICATIONS))
 
 
 # Index page
 @app.route('/', methods=["GET", "POST"])
 def index_page():
-    print(request.form)
     form = DataForm(request.form)
     if request.method == "POST" and not app.config['TEST_ACTIVE']:
-        test = request.form["test"]
-        ip = request.form["ip"]
-        port = request.form["port"]
-        ip_sec = request.form["ip_sec"]
-        port_sec = request.form["port_sec"]
-        version = request.form["version"]
-        test_selection = request.form["test_selection"]
-        base_url = "http://{}:{}".format(ip, str(port))
-        base_url_sec = "http://{}:{}".format(ip_sec, str(port_sec))
         if form.validate():
+            test = request.form["test"]
             if test in TEST_DEFINITIONS:
-                spec_versions = TEST_DEFINITIONS[test]["versions"]
-                spec_path = CACHE_PATH + '/' + TEST_DEFINITIONS[test]["spec_key"]
+                test_def = TEST_DEFINITIONS[test]
+                apis = {}
+                spec_count = 0
+                for spec in test_def["specs"]:
+                    ip = request.form["endpoints-{}-ip".format(spec_count)]
+                    port = request.form["endpoints-{}-port".format(spec_count)]
+                    version = request.form["endpoints-{}-version".format(spec_count)]
+                    base_url = "http://{}:{}".format(ip, str(port))
 
-            if test == "IS-04-01":
-                apis = {"node": {"raml": "NodeAPI.raml",
-                                 "base_url": base_url,
-                                 "url": "{}/x-nmos/node/{}/".format(base_url, version)}}
-                test_obj = IS0401Test.IS0401Test(apis, spec_versions, version, spec_path, REGISTRY)
-            elif test == "IS-04-02":
-                apis = {"registration": {"raml": "RegistrationAPI.raml",
-                                         "base_url": base_url,
-                                         "url": "{}/x-nmos/registration/{}/".format(base_url, version)},
-                        "query": {"raml": "QueryAPI.raml",
-                                  "base_url": base_url_sec,
-                                  "url": "{}/x-nmos/query/{}/".format(base_url_sec, version)}}
-                test_obj = IS0402Test.IS0402Test(apis, spec_versions, version, spec_path)
-            elif test == "IS-05-01":
-                apis = {"connection": {"raml": "ConnectionAPI.raml",
-                                       "base_url": base_url,
-                                       "url": "{}/x-nmos/connection/{}/".format(base_url, version)}}
-                test_obj = IS0501Test.IS0501Test(apis, spec_versions, version, spec_path)
-            elif test == "IS-06-01":
-                apis = {"netctrl": {"raml": "NetworkControlAPI.raml",
-                                    "base_url": base_url,
-                                    "url": "{}/x-nmos/netctrl/{}/".format(base_url, version)}}
-                test_obj = IS0601Test.IS0601Test(apis, spec_versions, version, spec_path)
-            elif test == "IS-07-01":
-                apis = {"events": {"raml": "EventsAPI.raml",
-                                   "base_url": base_url,
-                                   "url": "{}/x-nmos/events/{}/".format(base_url, version)}}
-                test_obj = IS0701Test.IS0701Test(apis, spec_versions, version, spec_path)
+                    spec_key = spec["spec_key"]
+                    api_key = spec["api_key"]
+                    apis[api_key] = {
+                        "raml": SPECIFICATIONS[spec_key]["apis"][api_key]["raml"],
+                        "base_url": base_url,
+                        "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, version),
+                        "spec_versions": SPECIFICATIONS[spec_key]["versions"],
+                        "spec_path": CACHE_PATH + '/' + spec_key,
+                        "version": version
+                    }
 
-            if test_obj:
-                app.config['TEST_ACTIVE'] = True
-                try:
-                    result = test_obj.run_tests(test_selection)
-                except Exception as ex:
-                    raise ex
-                finally:
-                    app.config['TEST_ACTIVE'] = False
-                return render_template("result.html", url=base_url, test=test, result=result)
+                    if spec_count == 0:
+                        spec_versions = SPECIFICATIONS[spec_key]["versions"]
+                        spec_path = CACHE_PATH + '/' + spec_key
+                        api_version = version
+
+                    spec_count += 1
+
+                test_selection = request.form["test_selection"]
+
+                if test == "IS-04-01":
+                    test_obj = IS0401Test.IS0401Test(apis, spec_versions, api_version, spec_path, REGISTRY)
+                elif test == "IS-04-02":
+                    test_obj = IS0402Test.IS0402Test(apis, spec_versions, api_version, spec_path)
+                elif test == "IS-05-01":
+                    test_obj = IS0501Test.IS0501Test(apis, spec_versions, api_version, spec_path)
+                elif test == "IS-06-01":
+                    test_obj = IS0601Test.IS0601Test(apis, spec_versions, api_version, spec_path)
+                elif test == "IS-07-01":
+                    test_obj = IS0701Test.IS0701Test(apis, spec_versions, api_version, spec_path)
+
+                if test_obj:
+                    app.config['TEST_ACTIVE'] = True
+                    try:
+                        result = test_obj.run_tests(test_selection)
+                    except Exception as ex:
+                        raise ex
+                    finally:
+                        app.config['TEST_ACTIVE'] = False
+                    return render_template("result.html", url=base_url, test=test, result=result)
+            else:
+                flash("Error: This test definition does not exist")
         else:
             flash("Error: {}".format(form.errors))
     elif request.method == "POST":
@@ -233,10 +281,10 @@ if __name__ == '__main__':
     if not os.path.exists(CACHE_PATH):
         os.makedirs(CACHE_PATH)
 
-    for repo_data in SPEC_REPOS:
-        path = os.path.join(CACHE_PATH + '/' + repo_data[0])
+    for repo_key, repo_data in SPECIFICATIONS.items():
+        path = os.path.join(CACHE_PATH + '/' + repo_key)
         if not os.path.exists(path):
-            repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data[1] + '.git', path)
+            repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
         else:
             repo = git.Repo(path)
             repo.git.reset('--hard')
