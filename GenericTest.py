@@ -285,6 +285,16 @@ class GenericTest(object):
         # Gather IDs of sub-resources for testing of parameterised URLs...
         self.save_subresources(resource[0], response)
 
+        # For methods which don't return a payload, just check the CORS headers
+        if resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
+            if self.validate_CORS(resource[1]['method'], response):
+                # Pass for a plain CORS check
+                return test.PASS()
+            else:
+                # Fail for a plain CORS check
+                return test.FAIL("Incorrect CORS headers: {}".format(response.headers))
+
+        # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
 
         if not schema:
