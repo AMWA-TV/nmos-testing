@@ -25,15 +25,17 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, test_depends
 
+NODE_API_KEY = "node"
+
 
 class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, spec_versions, test_version, spec_path, registry):
-        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path)
+    def __init__(self, apis, registry):
+        GenericTest.__init__(self, apis)
         self.registry = registry
-        self.node_url = self.apis["node"]["url"]
+        self.node_url = self.apis[NODE_API_KEY]["url"]
         self.query_api_url = None
 
     def set_up_tests(self):
@@ -53,7 +55,7 @@ class IS0401Test(GenericTest):
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': self.test_version, 'api_proto': 'http', 'pri': '0'}
+        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': '0'}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite._nmos-registration._tcp.local.",
                            socket.inet_aton(default_ip), 5000, 0, 0,

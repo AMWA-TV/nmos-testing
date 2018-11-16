@@ -92,7 +92,7 @@ The following methods may be of use within a given test definition.
 
 **Testing an API's response**
 ```python
-self.check_response(schema, method, response)
+self.check_response(api_name, schema, method, response)
 ```
 Return a tuple of the test status (True/False) and a string indicating the error in the case this is False.
 
@@ -114,6 +114,6 @@ class MyNewSpecTest(GenericTest):
     """
     Runs MyNewSpecTest
     """
-    def __init__(self, apis, spec_versions, test_version, spec_path):
-        GenericTest.__init__(self, apis, spec_versions, test_version, spec_path)
+    def __init__(self, apis):
+        GenericTest.__init__(self, apis)
 ```
