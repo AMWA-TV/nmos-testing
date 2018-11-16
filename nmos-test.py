@@ -173,6 +173,7 @@ def index_page():
                 try:
                     result = test_obj.run_tests(test_selection)
                 except Exception as ex:
+                    print(" * ERROR: {}".format(ex))
                     raise ex
                 finally:
                     app.config['TEST_ACTIVE'] = False
