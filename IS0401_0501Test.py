@@ -28,7 +28,7 @@ class IS04010501Test(GenericTest):
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
         self.node_url = self.apis[NODE_API_KEY]["url"]
-        self.connection_url = self.apis[CONNECTION_API_KEY]["url"]
+        self.connection_url = self.apis[CONN_API_KEY]["url"]
 
     def test_01(self):
         """At least one Device is showing an IS-05 control advertisement"""

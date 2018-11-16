@@ -85,10 +85,10 @@ packages_required = [
 
 deps_required = []
 
-setup(name="mediagrains",
+setup(name="nmos-testing",
       version="0.0.1",
       description="NMOS Test Suite",
-      url='https://github.com/bbc/rd-apmm-python-lib-mediagrains',
+      url='https://github.com/bbc/nmos-testing',
       author='Andrew Bonney',
       author_email='andrew.bonney@bbc.co.uk',
       license='Apache 2',

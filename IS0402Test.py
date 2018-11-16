@@ -78,8 +78,7 @@ class IS0402Test(GenericTest):
                 if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 0):
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Registration API advertisement.")
-                    elif "v{}.{}".format(api["major_version"],
-                                         api["minor_version"]) not in properties["api_ver"].split(","):
+                    elif api["version"] not in properties["api_ver"].split(","):
                         return test.FAIL("Registry does not claim to support version under test.")
 
                     if "api_proto" not in properties:
@@ -120,8 +119,7 @@ class IS0402Test(GenericTest):
                 if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 0):
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Query API advertisement.")
-                    elif "v{}.{}".format(api["major_version"],
-                                         api["minor_version"]) not in properties["api_ver"].split(","):
+                    elif api["version"] not in properties["api_ver"].split(","):
                         return test.FAIL("Registry does not claim to support version under test.")
 
                     if "api_proto" not in properties:

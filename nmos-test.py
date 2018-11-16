@@ -233,38 +233,31 @@ def index_page():
                         "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, version),
                         "spec_path": CACHE_PATH + '/' + spec_key,
                         "version": version,
-                        "spec": None, # Used inside GenericTest
-                        "major_version": None, # Used inside GenericTest
-                        "minor_version": None # Used inside GenericTest
+                        "spec": None,  # Used inside GenericTest
+                        "major_version": None,  # Used inside GenericTest
+                        "minor_version": None  # Used inside GenericTest
                     }
 
                     spec_count += 1
 
                 test_selection = request.form["test_selection"]
 
+                # Instantiate the test class
                 test_obj = None
                 if test == "IS-04-01":
-                    test_obj = IS0401Test.IS0401Test(apis, REGISTRY)
-                elif test == "IS-04-02":
-                    test_obj = IS0402Test.IS0402Test(apis)
-                elif test == "IS-05-01":
-                    test_obj = IS0501Test.IS0501Test(apis)
-                elif test == "IS-06-01":
-                    test_obj = IS0601Test.IS0601Test(apis)
-                elif test == "IS-07-01":
-                    test_obj = IS0701Test.IS0701Test(apis)
-
-                if test_obj:
-                    app.config['TEST_ACTIVE'] = True
-                    try:
-                        result = test_obj.run_tests(test_selection)
-                    except Exception as ex:
-                        raise ex
-                    finally:
-                        app.config['TEST_ACTIVE'] = False
-                    return render_template("result.html", url=base_url, test=test, result=result)
+                    # This test has an unusual constructor as it requires a registry instance
+                    test_obj = test_def["class"](apis, REGISTRY)
                 else:
-                    flash("Error: This test definition does not exist")
+                    test_obj = test_def["class"](apis)
+
+                app.config['TEST_ACTIVE'] = True
+                try:
+                    result = test_obj.run_tests(test_selection)
+                except Exception as ex:
+                    raise ex
+                finally:
+                    app.config['TEST_ACTIVE'] = False
+                return render_template("result.html", url=base_url, test=test, result=result)
             else:
                 flash("Error: This test definition does not exist")
         else:
