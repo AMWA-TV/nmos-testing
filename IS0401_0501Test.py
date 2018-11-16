@@ -30,25 +30,25 @@ class IS04010501Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
 
-    def test_01(self):
+    def test_01_device_control_present(self):
         """At least one Device is showing an IS-05 control advertisement"""
         pass
 
-    def test_02(self):
+    def test_02_is04_is05_rx_match(self):
         """Receivers shown in CM API matches those shown in Node API"""
         pass
 
-    def test_03(self):
+    def test_03_is04_is05_tx_match(self):
         """Senders shown in CM API matches those shown in Node API"""
         pass
 
-    def test_04(self):
+    def test_04_rx_activate_updates_ver(self):
         """Activation of a receiver increments the version timestamp"""
         pass
 
-    def test_05(self):
+    def test_05_tx_activate_updates_ver(self):
         """Activation of a sender increments the version timestamp"""
         pass
 
-    def test_06(self):
+    def test_06_node_api_1_2_or_greater(self):
         """Check that version 1.2 or greater of the node API is available"""
