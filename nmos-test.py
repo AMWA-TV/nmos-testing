@@ -17,11 +17,13 @@
 from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import REGISTRY, REGISTRY_API
+from datetime import datetime, timedelta
 
 import git
 import os
 import json
 import copy
+import pickle
 
 import IS0401Test
 import IS0402Test
@@ -31,7 +33,7 @@ import IS0601Test
 import IS0701Test
 
 app = Flask(__name__)
-app.debug = True  # TODO: Set to False for production use
+app.debug = True  # Ensures we can debug exceptions more easily
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 app.config['TEST_ACTIVE'] = False
 app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
@@ -274,15 +276,39 @@ if __name__ == '__main__':
     if not os.path.exists(CACHE_PATH):
         os.makedirs(CACHE_PATH)
 
+    # Prevent re-pulling of the spec repos too frequently
+    time_now = datetime.now()
+    last_pull_file = os.path.join(CACHE_PATH + "/last_pull")
+    last_pull_time = time_now - timedelta(hours=1)
+    update_last_pull = False
+    if os.path.exists(last_pull_file):
+        try:
+            with open(last_pull_file, "rb") as f:
+                last_pull_time = pickle.load(f)
+        except Exception as e:
+            print(" * ERROR: Unable to load last pull time for cache: {}".format(e))
+
     for repo_key, repo_data in SPECIFICATIONS.items():
         path = os.path.join(CACHE_PATH + '/' + repo_key)
         if not os.path.exists(path):
+            print(" * Initialising repository '{}'".format(repo_data["repo"]))
             repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
+            update_last_pull = True
         else:
             repo = git.Repo(path)
             repo.git.reset('--hard')
-            if not app.debug:
+            # Only pull if we haven't in the last hour
+            if (last_pull_time + timedelta(hours=1)) <= time_now:
+                print(" * Pulling latest files for repository '{}'".format(repo_data["repo"]))
                 repo.remotes.origin.pull()
+                update_last_pull = True
+
+    if update_last_pull:
+        try:
+            with open(last_pull_file, "wb") as f:
+                pickle.dump(time_now, f)
+        except Exception as e:
+            print(" * ERROR: Unable to write last pull time to file: {}".format(e))
 
     print(" * Initialisation complete")
 
