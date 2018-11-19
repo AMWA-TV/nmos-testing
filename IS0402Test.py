@@ -42,7 +42,7 @@ class IS0402Test(GenericTest):
 
     def set_up_tests(self):
         self.zc = Zeroconf()
-        self.zc_listener = MdnsListener()
+        self.zc_listener = MdnsListener(self.zc)
 
     def tear_down_tests(self):
         if self.zc:

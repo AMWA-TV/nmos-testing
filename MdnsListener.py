@@ -14,15 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from threading import Thread
+from queue import Queue
+
 
 class MdnsListener(object):
-    def __init__(self):
+    def __init__(self, zeroconf):
+        self.zeroconf = zeroconf
         self.services = list()
+        self.resolve_queue = Queue()
 
-    def add_service(self, zeroconf, type, name):
-        info = zeroconf.get_service_info(type, name)
-        if info is not None:
-            self.services.append(info)
+    def add_service(self, zeroconf, srv_type, name):
+        self.resolve_queue.put((srv_type, name))
+        t = Thread(target=self.worker)
+        t.daemon = True
+        t.start()
 
     def get_service_list(self):
+        self.resolve_queue.join()
         return self.services
+
+    def worker(self):
+        item = self.resolve_queue.get()
+        info = self.zeroconf.get_service_info(item[0], item[1])
+        if info is not None:
+            self.services.append(info)
+        self.resolve_queue.task_done()

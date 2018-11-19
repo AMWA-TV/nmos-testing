@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import requests
-from time import sleep
 import time
 import socket
 import netifaces
@@ -40,9 +39,14 @@ class IS0401Test(GenericTest):
 
     def set_up_tests(self):
         self.registry.enable()
+        self.zc = Zeroconf()
+        self.zc_listener = MdnsListener(self.zc)
 
     def tear_down_tests(self):
         self.registry.disable()
+        if self.zc:
+            self.zc.close()
+            self.zc = None
 
     def test_01(self):
         """Node can discover network registration service via mDNS"""
@@ -61,14 +65,12 @@ class IS0401Test(GenericTest):
                            socket.inet_aton(default_ip), 5000, 0, 0,
                            txt, "nmos-test.local.")
 
-        zeroconf = Zeroconf()
-        zeroconf.register_service(info)
+        self.zc.register_service(info)
 
         while (time.time() - self.registry.last_time) < 5:  # Ensure we allow 5 seconds to get at least one heartbeat
             time.sleep(1)
 
-        zeroconf.unregister_service(info)
-        zeroconf.close()
+        self.zc.unregister_service(info)
 
         if len(self.registry.get_data()) > 0:
             return test.PASS()
@@ -267,12 +269,9 @@ class IS0401Test(GenericTest):
         in the presence of a Registration API"""
         test = Test("Node advertises a Node type mDNS announcement with no ver_* TXT records in the presence "
                     "of a Registration API")
-        zeroconf = Zeroconf()
-        listener = MdnsListener()
-        browser = ServiceBrowser(zeroconf, "_nmos-node._tcp.local.", listener)
-        sleep(5)
-        zeroconf.close()
-        node_list = listener.get_service_list()
+        browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
+        time.sleep(1)
+        node_list = self.zc_listener.get_service_list()
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
