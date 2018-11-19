@@ -276,9 +276,9 @@ class IS0401Test(GenericTest):
             address = socket.inet_ntoa(node.address)
             port = node.port
             if address in self.node_url and ":{}".format(port) in self.node_url:
-                properties_raw = node.properties
-                for prop in properties_raw:
-                    if "ver_" in prop.decode('ascii'):
+                properties = self.convert_bytes(node.properties)
+                for prop in properties:
+                    if "ver_" in prop:
                         return test.FAIL("Found 'ver_'-txt record while node is registered.")
                 return test.PASS()
         return test.FAIL("No matching mdns announcement found for node.")
