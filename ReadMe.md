@@ -90,6 +90,12 @@ def test_my_stuff(self):
 
 The following methods may be of use within a given test definition.
 
+**Requesting from an API**
+```python
+self.do_request(method, url, data)
+```
+Returns a tuple of the request status (True/False) and a Requests library Response object.
+
 **Testing an API's response**
 ```python
 self.check_response(api_name, schema, method, response)
