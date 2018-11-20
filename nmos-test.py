@@ -28,7 +28,7 @@ import pickle
 import IS0401Test
 import IS0402Test
 import IS0501Test
-import IS0401_0501Test
+import IS0502Test
 import IS0601Test
 import IS0701Test
 
@@ -121,7 +121,7 @@ TEST_DEFINITIONS = {
         }],
         "class": IS0501Test.IS0501Test
     },
-    "IS-05-01-04-1": {
+    "IS-05-02": {
         "name": "IS-05 Integration with Node API",
         "specs": [{
             "spec_key": "is-04",
@@ -130,7 +130,7 @@ TEST_DEFINITIONS = {
             "spec_key": "is-05",
             "api_key": "connection"
         }],
-        "class": IS0401_0501Test.IS04010501Test
+        "class": IS0502Test.IS0502Test
     },
     "IS-06-01": {
         "name": "IS-06 Network Control API",
