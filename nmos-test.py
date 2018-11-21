@@ -31,6 +31,7 @@ import IS0501Test
 import IS0502Test
 import IS0601Test
 import IS0701Test
+import IS0801Test
 
 app = Flask(__name__)
 app.debug = True  # Ensures we can debug exceptions more easily
@@ -91,6 +92,17 @@ SPECIFICATIONS = {
                 "raml": "EventsAPI.raml"
             }
         }
+    },
+    "is-08": {
+        "repo": "nmos-audio-channel-mapping",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "channelmapping": {
+                "name": "Channel Mapping API",
+                "raml": "ChannelMappingAPI.raml"
+            }
+        }
     }
 }
 TEST_DEFINITIONS = {
@@ -147,6 +159,14 @@ TEST_DEFINITIONS = {
             "api_key": "events"
         }],
         "class": IS0701Test.IS0701Test
+    },
+    "IS-08-01": {
+        "name": "IS-08 Channel Mapping API",
+        "specs": [{
+            "spec_key": 'is-08',
+            "api_key": "channelmapping"
+        }],
+        "class": IS0801Test.IS0801Test
     }
 }
 
