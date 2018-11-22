@@ -14,6 +14,8 @@
 
 import json
 
+from urllib.parse import urlparse
+
 from TestResult import Test
 from GenericTest import GenericTest
 
@@ -119,6 +121,31 @@ class IS0502Test(GenericTest):
 
         return result
 
+    def compare_urls(self, url1, url2):
+        """Check that two URLs to a given API are sufficiently similar"""
+
+        url1_parsed = urlparse(url1.rstrip("/"))
+        url2_parsed = urlparse(url2.rstrip("/"))
+
+        comparisons = ["scheme", "hostname", "path"]
+        for attr in comparisons:
+            if getattr(url1_parsed, attr) != getattr(url2_parsed, attr):
+                return False
+
+        # Ports can be None if they are the default for the scheme
+        ports = [url1_parsed.port, url2_parsed.port]
+        comparisons = [url1_parsed, url2_parsed]
+        for index, url in enumerate(comparisons):
+            if url.port is None and url.scheme == "http":
+                ports[index] = 80
+            elif url.port is None and url.scheme == "https":
+                ports[index] = 443
+
+        if ports[0] != ports[1]:
+            return False
+
+        return True
+
     def test_01_node_api_1_2_or_greater(self):
         """Check that version 1.2 or greater of the Node API is available"""
 
@@ -144,22 +171,25 @@ class IS0502Test(GenericTest):
             return test.FAIL("Node API did not respond as expected: {}".format(devices))
 
         is05_devices = []
+        found_api_match = False
         try:
             device_type = "urn:x-nmos:control:sr-ctrl/" + self.apis[CONN_API_KEY]["version"]
             for device in devices.json():
                 controls = device["controls"]
                 for control in controls:
                     if control["type"] == device_type:
-                        is05_devices.append(control["href"].rstrip("/"))
+                        is05_devices.append(control["href"])
+                        if self.compare_urls(self.connection_url, control["href"]):
+                            found_api_match = True
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
         except KeyError:
             return test.FAIL("One or more Devices were missing the 'controls' attribute")
 
-        if len(is05_devices) > 0:
-            # TODO: Note that the connection_url includes the port, but the control href may or may not if it uses the
-            # default HTTP/HTTPS port.
+        if len(is05_devices) > 0 and found_api_match:
             return test.PASS()
+        elif len(is05_devices) > 0:
+            return test.FAIL("Found one or more Device controls, but no href matched the Connection API under test")
         else:
             return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(device_type))
 
