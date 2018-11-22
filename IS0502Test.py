@@ -80,7 +80,10 @@ class IS0502Test(GenericTest):
 
     def get_valid_transports(self):
         """Identify the valid transport types for a given version of IS-05"""
-        valid_transports = ["urn:x-nmos:transport:rtp"]
+        valid_transports = ["urn:x-nmos:transport:rtp",
+                            "urn:x-nmos:transport:rtp.mcast",
+                            "urn:x-nmos:transport:rtp.ucast",
+                            "urn:x-nmos:transport:dash"]
         api = self.apis[CONN_API_KEY]
         if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 1):
             valid_transports.append("urn:x-nmos:transport:websocket")
@@ -227,6 +230,9 @@ class IS0502Test(GenericTest):
         try:
             for resource_type in ["senders", "receivers"]:
                 for resource in self.is04_resources[resource_type]:
+                    if resource["transport"] not in self.get_valid_transports():
+                        continue
+
                     bindings_length = len(resource["interface_bindings"])
                     valid, result = self.do_request("GET", self.connection_url + "single/" + resource_type + "/" +
                                                            resource["id"] + "/active")
@@ -236,12 +242,47 @@ class IS0502Test(GenericTest):
 
                     trans_params_length = len(result.json()["transport_params"])
                     if trans_params_length != bindings_length:
-                        return test.FAIL("Array length mismatch for Receiver ID '{}'".format(resource["id"]))
+                        return test.FAIL("Array length mismatch for Sender/Receiver ID '{}'".format(resource["id"]))
 
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Connection API")
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 Sender/Receiver \
                               or IS-05 active resource: {}".format(ex))
+
+        return test.PASS()
+
+    def test_08_transport_files_match(self):
+        """IS-04 manifest_href matches IS-05 transportfile"""
+
+        test = Test("IS-04 manifest_href matches IS-05 transportfile")
+
+        valid, result = self.get_is04_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        try:
+            for resource in self.is04_resources["senders"]:
+                if resource["transport"] not in self.get_valid_transports():
+                    continue
+
+                is04_transport_file = None
+                is05_transport_file = None
+                if resource["manifest_href"] != "":
+                    valid, result = self.do_request("GET", resource["manifest_href"])
+                    if valid:
+                        is04_transport_file = result.text
+
+                valid, result = self.do_request("GET", self.connection_url + "single/senders/" +
+                                                       resource["id"] + "/transportfile")
+                if valid:
+                    is05_transport_file = result.text
+
+                if is04_transport_file != is05_transport_file:
+                    return test.FAIL("Transport file contents for Sender '{}' do not match \
+                                     between IS-04 and IS-05".format(resource["id"]))
+
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 Sender: {}".format(ex))
 
         return test.PASS()
