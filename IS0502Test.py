@@ -33,12 +33,16 @@ class IS0502Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
-        self.is05_resources = {"senders": [], "receivers": []}
-        self.is04_resources = {"senders": [], "receivers": []}
+        self.is05_resources = {"senders": [], "receivers": [], "_requested": []}
+        self.is04_resources = {"senders": [], "receivers": [], "_requested": []}
 
     def get_is04_resources(self, resource_type):
         """Retrieve all Senders or Receivers from a Node API, keeping hold of the returned objects"""
         assert(resource_type in ["senders", "receivers"])
+
+        # Prevent this being executed twice in one test run
+        if resource_type in self.is04_resources["_requested"]:
+            return True, ""
 
         valid, resources = self.do_request("GET", self.node_url + resource_type)
         if not valid:
@@ -47,6 +51,7 @@ class IS0502Test(GenericTest):
         try:
             for resource in resources.json():
                 self.is04_resources[resource_type].append(resource)
+            self.is04_resources["_requested"].append(resource_type)
         except json.decoder.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
 
@@ -56,6 +61,10 @@ class IS0502Test(GenericTest):
         """Retrieve all Senders or Receivers from a Connection API, keeping hold of the returned IDs"""
         assert(resource_type in ["senders", "receivers"])
 
+        # Prevent this being executed twice in one test run
+        if resource_type in self.is05_resources["_requested"]:
+            return True, ""
+
         valid, resources = self.do_request("GET", self.connection_url + "single/" + resource_type)
         if not valid:
             return False, "Connection API did not respond as expected: {}".format(resources)
@@ -63,6 +72,7 @@ class IS0502Test(GenericTest):
         try:
             for resource in resources.json():
                 self.is05_resources[resource_type].append(resource.rstrip("/"))
+            self.is05_resources["_requested"].append(resource_type)
         except json.decoder.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
 
@@ -203,3 +213,35 @@ class IS0502Test(GenericTest):
         test = Test("Activation of a sender increments the version timestamp")
 
         return test.MANUAL()
+
+    def test_07_interface_bindings_length(self):
+        """IS-04 interface bindings array matches length of IS-05 transport_params array"""
+
+        test = Test("IS-04 interface bindings array matches length of IS-05 transport_params array")
+
+        for resource_type in ["senders", "receivers"]:
+            valid, result = self.get_is04_resources(resource_type)
+            if not valid:
+                return test.FAIL(result)
+
+        try:
+            for resource_type in ["senders", "receivers"]:
+                for resource in self.is04_resources[resource_type]:
+                    bindings_length = len(resource["interface_bindings"])
+                    valid, result = self.do_request("GET", self.connection_url + "single/" + resource_type + "/" +
+                                                           resource["id"] + "/active")
+                    if not valid:
+                        return test.FAIL("Connection API returned unexpected result \
+                                          for {} '{}'".format(resource_type.capitalize(), resource["id"]))
+
+                    trans_params_length = len(result.json()["transport_params"])
+                    if trans_params_length != bindings_length:
+                        return test.FAIL("Array length mismatch for Receiver ID '{}'".format(resource["id"]))
+
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Connection API")
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 Sender/Receiver \
+                              or IS-05 active resource: {}".format(ex))
+
+        return test.PASS()
