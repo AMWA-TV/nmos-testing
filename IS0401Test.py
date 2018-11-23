@@ -35,7 +35,7 @@ class IS0401Test(GenericTest):
         GenericTest.__init__(self, apis)
         self.registry = registry
         self.node_url = self.apis[NODE_API_KEY]["url"]
-        self.query_api_url = None
+        self.registry_basics_done = False
 
     def set_up_tests(self):
         self.registry.enable()
@@ -48,10 +48,11 @@ class IS0401Test(GenericTest):
             self.zc.close()
             self.zc = None
 
-    def test_01(self):
-        """Node can discover network registration service via mDNS"""
+    def do_registry_basics_prereqs(self):
+        """Advertise a registry and collect data from any Nodes which discover it"""
 
-        test = Test("Node can discover network registration service via mDNS")
+        if self.registry_basics_done:
+            return
 
         self.registry.reset()
 
@@ -72,6 +73,15 @@ class IS0401Test(GenericTest):
 
         self.zc.unregister_service(info)
 
+        self.registry_basics_done = True
+
+    def test_01(self):
+        """Node can discover network registration service via mDNS"""
+
+        test = Test("Node can discover network registration service via mDNS")
+
+        self.do_registry_basics_prereqs()
+
         if len(self.registry.get_data()) > 0:
             return test.PASS()
 
@@ -84,11 +94,12 @@ class IS0401Test(GenericTest):
         test = Test("Node can discover network registration service via unicast DNS")
         return test.MANUAL()
 
-    @test_depends
     def test_03(self):
         """Registration API interactions use the correct Content-Type"""
 
         test = Test("Registration API interactions use the correct Content-Type")
+
+        self.do_registry_basics_prereqs()
 
         if len(self.registry.get_data()) == 0:
             return test.FAIL("No registrations found")
@@ -166,20 +177,23 @@ class IS0401Test(GenericTest):
         except requests.ConnectionError:
             return test.FAIL("Connection error for {}".format(url))
 
-    @test_depends
     def test_04(self):
         """Node can register a valid Node resource with the network registration service,
         matching its Node API self resource"""
 
         test = Test("Node can register a valid Node resource with the network registration service, "
                     "matching its Node API self resource")
+
+        self.do_registry_basics_prereqs()
+
         return self.check_matching_resource(test, "node")
 
-    @test_depends
     def test_05(self):
         """Node maintains itself in the registry via periodic calls to the health resource"""
 
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
+
+        self.do_registry_basics_prereqs()
 
         if len(self.registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
@@ -219,49 +233,59 @@ class IS0401Test(GenericTest):
                     "re-registering or trying alternative Registration APIs as required")
         return test.MANUAL()
 
-    @test_depends
     def test_07(self):
         """Node can register a valid Device resource with the network registration service, matching its
         Node API Device resource"""
 
         test = Test("Node can register a valid Device resource with the network registration service, "
                     "matching its Node API Device resource")
+
+        self.do_registry_basics_prereqs()
+
         return self.check_matching_resource(test, "device")
 
-    @test_depends
     def test_08(self):
         """Node can register a valid Source resource with the network
         registration service, matching its Node API Source resource"""
 
         test = Test("Node can register a valid Source resource with the network registration service, "
                     "matching its Node API Source resource")
+
+        self.do_registry_basics_prereqs()
+
         return self.check_matching_resource(test, "source")
 
-    @test_depends
     def test_09(self):
         """Node can register a valid Flow resource with the network
         registration service, matching its Node API Flow resource"""
 
         test = Test("Node can register a valid Flow resource with the network registration service, "
                     "matching its Node API Flow resource")
+
+        self.do_registry_basics_prereqs()
+
         return self.check_matching_resource(test, "flow")
 
-    @test_depends
     def test_10(self):
         """Node can register a valid Sender resource with the network
         registration service, matching its Node API Sender resource"""
 
         test = Test("Node can register a valid Sender resource with the network registration service, "
                     "matching its Node API Sender resource")
+
+        self.do_registry_basics_prereqs()
+
         return self.check_matching_resource(test, "sender")
 
-    @test_depends
     def test_11(self):
         """Node can register a valid Receiver resource with the network
         registration service, matching its Node API Receiver resource"""
 
         test = Test("Node can register a valid Receiver resource with the network registration service, "
                     "matching its Node API Receiver resource")
+
+        self.do_registry_basics_prereqs()
+
         return self.check_matching_resource(test, "receiver")
 
     def test_12(self):
