@@ -22,7 +22,7 @@ import netifaces
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest, test_depends
+from GenericTest import GenericTest
 
 NODE_API_KEY = "node"
 
