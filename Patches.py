@@ -17,8 +17,8 @@ import os
 import jsonref
 
 
-# Work around ramlfications Windows compatibility issues. The following method is modified from the original
-# in https://github.com/spotify/ramlfications/blob/master/ramlfications/loader.py
+# Work around ramlfications Windows compatibility issues and loader caching. The following method is modified from
+# the original in https://github.com/spotify/ramlfications/blob/master/ramlfications/loader.py
 # Copyright (c) 2015 Spotify AB
 def _parse_json(self, jsonfile, base_path):
     """
@@ -33,6 +33,8 @@ def _parse_json(self, jsonfile, base_path):
     else:
         base_path = "file://" + base_path
 
+    loader = jsonref.JsonLoader(cache_results=False)
+
     with open(jsonfile, "r") as f:
-        schema = jsonref.load(f, base_uri=base_path, jsonschema=True)
+        schema = jsonref.load(f, base_uri=base_path, loader=loader, jsonschema=True)
     return schema
