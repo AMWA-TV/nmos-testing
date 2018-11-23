@@ -512,7 +512,8 @@ class IS0402Test(GenericTest):
                 if version_minor == 0:
                     keys_to_remove = [
                         "channels",
-                        "clock_name"
+                        "clock_name",
+                        "grain_rate"
                     ]
                     for key in keys_to_remove:
                         if key in data:
@@ -534,7 +535,6 @@ class IS0402Test(GenericTest):
                         "grain_rate",
                         "interlace_mode",
                         "media_type",
-                        "refclock",
                         "sample_rate",
                         "transfer_characteristic"
                     ]
