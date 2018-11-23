@@ -70,6 +70,7 @@ class GenericTest(object):
 
             repo.git.reset('--hard')
             repo.git.checkout(spec_branch)
+            repo.git.rebase("origin/" + spec_branch)
 
         self.parse_RAML()
 
