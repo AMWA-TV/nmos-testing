@@ -72,3 +72,22 @@ th {
 .disabled {
     pointer-events: none;
 }
+
+/* Override bootstrap print behaviour */
+@media print{
+    .table td.pass {
+        background-color: #28a745 !important
+    }
+
+    .table td.manual {
+        background-color: #17a2b8 !important
+    }
+
+    .table td.notavailable {
+        background-color: #6c757d !important
+    }
+
+    .table td.fail {
+      background-color: #dc3545 !important
+    }
+}
