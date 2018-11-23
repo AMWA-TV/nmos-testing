@@ -1,5 +1,7 @@
 # Copyright (C) 2018 British Broadcasting Corporation
 #
+# Modifications Copyright 2018 Riedel Communications GmbH & Co. KG
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -136,13 +138,12 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Node resource")
 
-        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.apis[REG_API_KEY]["version"] != "v1.2":
-            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
-
         with open("test_data/IS0402/v1.2_node.json") as node_data:
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node",
-                                                                                "data": json.load(node_data)})
+            node_json = json.load(node_data)
+            if self.apis[REG_API_KEY]["version"] != "v1.2":
+                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
+
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
 
             if not valid:
                 return test.FAIL("Registration API did not respond as expected")
@@ -167,20 +168,21 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Device resource")
 
-        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.apis[REG_API_KEY]["version"] != "v1.2":
-            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
-
         with open("test_data/IS0402/v1.2_device.json") as device_data:
+            device_json = json.load(device_data)
+            if self.apis[REG_API_KEY]["version"] != "v1.2":
+                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
+
             valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
-                                                                                "data": json.load(device_data)})
+                                                                                "data": device_json})
 
             if not valid:
                 return test.FAIL("Registration API did not respond as expected")
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
+                                                                                                  r.text))
 
         return test.FAIL("An unknown error occurred")
 
@@ -199,13 +201,13 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Source resource")
 
-        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.apis[REG_API_KEY]["version"] != "v1.2":
-            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
-
         with open("test_data/IS0402/v1.2_source.json") as source_data:
+            source_json = json.load(source_data)
+            if self.apis[REG_API_KEY]["version"] != "v1.2":
+                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
+
             valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
-                                                                                "data": json.load(source_data)})
+                                                                                "data": source_json})
 
             if not valid:
                 return test.FAIL("Registration API did not respond as expected")
@@ -231,13 +233,12 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Flow resource")
 
-        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.apis[REG_API_KEY]["version"] != "v1.2":
-            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
-
         with open("test_data/IS0402/v1.2_flow.json") as flow_data:
+            flow_json = json.load(flow_data)
+            if self.apis[REG_API_KEY]["version"] != "v1.2":
+                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
             valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
-                                                                                "data": json.load(flow_data)})
+                                                                                "data": flow_json})
 
             if not valid:
                 return test.FAIL("Registration API did not respond as expected")
@@ -263,13 +264,12 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Sender resource")
 
-        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.apis[REG_API_KEY]["version"] != "v1.2":
-            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
-
         with open("test_data/IS0402/v1.2_sender.json") as sender_data:
+            sender_json = json.load(sender_data)
+            if self.apis[REG_API_KEY]["version"] != "v1.2":
+                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
             valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
-                                                                                "data": json.load(sender_data)})
+                                                                                "data": sender_json})
 
             if not valid:
                 return test.FAIL("Registration API did not respond as expected")
@@ -295,13 +295,12 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Receiver resource")
 
-        # TODO: Need to pull in code to downgrade the JSON to avoid storing multiple copies
-        if self.apis[REG_API_KEY]["version"] != "v1.2":
-            return test.MANUAL("This test cannot currently be performed for API versions other than v1.2")
-
         with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
+            receiver_json = json.load(receiver_data)
+            if self.apis[REG_API_KEY]["version"] != "v1.2":
+                receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
             valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
-                                                                                "data": json.load(receiver_data)})
+                                                                                "data": receiver_json})
 
             if not valid:
                 return test.FAIL("Registration API did not respond as expected")
@@ -439,3 +438,110 @@ class IS0402Test(GenericTest):
             return test.PASS()
         else:
             return test.FAIL(message)
+
+    def downgrade_resource(self, resource_type, data, requested_version):
+        """Downgrades given resource data to requested version"""
+        version_major, version_minor = [int(x) for x in requested_version[1:].split(".")]
+
+        if version_major == 1:
+            if resource_type == "node":
+                if version_minor <= 1:
+                    keys_to_remove = [
+                        "interfaces"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "api",
+                        "clocks",
+                        "description",
+                        "tags"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "device":
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "controls",
+                        "description",
+                        "tags"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "sender":
+                if version_minor <= 1:
+                    keys_to_remove = [
+                        "caps",
+                        "interface_bindings",
+                        "subscription"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                if version_minor == 0:
+                    pass
+                return data
+
+            elif resource_type == "receiver":
+                if version_minor <= 1:
+                    keys_to_remove = [
+                        "interface_bindings"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                    if "subscription" in data and "active" in data["subscription"]:
+                        del data["subscription"]["active"]
+                if version_minor == 0:
+                    pass
+                return data
+
+            elif resource_type == "source":
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "channels",
+                        "clock_name"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "flow":
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "bit_depth",
+                        "colorspace",
+                        "components",
+                        "device_id",
+                        "DID_SDID",
+                        "frame_height",
+                        "frame_width",
+                        "grain_rate",
+                        "interlace_mode",
+                        "media_type",
+                        "refclock",
+                        "sample_rate",
+                        "transfer_characteristic"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+        # Invalid request
+        return None
