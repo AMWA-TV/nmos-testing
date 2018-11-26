@@ -18,6 +18,7 @@ import requests
 import time
 import socket
 import netifaces
+import json
 
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
@@ -31,9 +32,10 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registry):
+    def __init__(self, apis, registry, node):
         GenericTest.__init__(self, apis)
         self.registry = registry
+        self.node = node
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
 
@@ -313,26 +315,100 @@ class IS0401Test(GenericTest):
 
         test = Test("PUTing to a Receiver target resource with a Sender resource payload " \
                     "is accepted and connects the Receiver to a stream")
-        return test.MANUAL()
+
+        valid, receivers = self.do_request("GET", self.node_url + "receivers")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
+
+        try:
+            if len(receivers.json()) > 0:
+                receiver = receivers.json()[0]
+                stream_type = receiver["format"].split(":")[-1]
+                if stream_type not in ["video", "audio", "data", "mux"]:
+                    return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
+
+                request_data = self.node.get_sender(stream_type)
+                result, error = self.do_receiver_put(receiver["id"], request_data)
+                if not result:
+                    return test.FAIL(error)
+
+                # TODO: Define the sleep time globally for all connection tests
+                time.sleep(1)
+
+                valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
+                if not valid:
+                    return test.FAIL("Unexpected response from the Node API: {}".format(receiver))
+
+                receiver = response.json()
+                if receiver["subscription"]["sender_id"] != request_data["id"]:
+                    return test.FAIL("Node API Receiver subscription does not reflect the subscribed Sender ID")
+
+                api = self.apis[NODE_API_KEY]
+                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 2):
+                    if not receiver["subscription"]["active"]:
+                        return test.FAIL("Node API Receiver subscription does not indicate an active subscription")
+
+                return test.PASS()
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.FAIL("Node API does not expose any Receivers")
 
     def test_14(self):
-        """Receiver resource (in Node API and registry) is correctly updated to match the subscribed
-        Sender ID upon subscription"""
-
-        test = Test("Receiver resource (in Node API and registry) is correctly updated to match "
-                    "the subscribed Sender ID upon subscription")
-        return test.MANUAL()
-
-    def test_15(self):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
         disconnects the Receiver from a stream"""
 
         test = Test("PUTing to a Receiver target resource with an empty JSON object payload "
                     "is accepted and disconnects the Receiver from a stream")
-        return test.MANUAL()
 
-    def test_16(self):
+        valid, receivers = self.do_request("GET", self.node_url + "receivers")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
+
+        try:
+            if len(receivers.json()) > 0:
+                receiver = receivers.json()[0]
+                result, error = self.do_receiver_put(receiver["id"], {})
+                if not result:
+                    return test.FAIL(error)
+
+                # TODO: Define the sleep time globally for all connection tests
+                time.sleep(1)
+
+                valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
+                if not valid:
+                    return test.FAIL("Unexpected response from the Node API: {}".format(receiver))
+
+                receiver = response.json()
+                if receiver["subscription"]["sender_id"] is not None:
+                    return test.FAIL("Node API Receiver subscription does not reflect the subscribed Sender ID")
+
+                api = self.apis[NODE_API_KEY]
+                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 2):
+                    if receiver["subscription"]["active"]:
+                        return test.FAIL("Node API Receiver subscription does not indicate an inactive subscription")
+
+                return test.PASS()
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.FAIL("Node API does not expose any Receivers")
+
+    def test_15(self):
         """Node correctly selects a Registration API based on advertised priorities"""
 
         test = Test("Node correctly selects a Registration API based on advertised priorities")
         return test.MANUAL()
+
+    def do_receiver_put(self, receiver_id, data):
+        """Perform a PUT to the Receiver 'target' resource with the specified data"""
+
+        valid, put_response = self.do_request("PUT", self.node_url + "receivers/" + receiver_id + "/target", data)
+        if not valid:
+            return False, "Unexpected response from the Node API: {}".format(put_response)
+
+        if put_response.status_code != 202:
+            return False, "Receiver target PATCH did not produce a 202 response code: \
+                          {}".format(put_response.status_code)
+        else:
+            return True, ""
