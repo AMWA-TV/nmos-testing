@@ -345,12 +345,14 @@ class IS0401Test(GenericTest):
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] != request_data["id"]:
-                    return test.FAIL("Node API Receiver subscription does not reflect the subscribed Sender ID")
+                    return test.FAIL("Node API Receiver subscription {} does not reflect the subscribed \
+                                      Sender ID", receiver["id"])
 
                 api = self.apis[NODE_API_KEY]
                 if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 2):
                     if not receiver["subscription"]["active"]:
-                        return test.FAIL("Node API Receiver subscription does not indicate an active subscription")
+                        return test.FAIL("Node API Receiver subscription {} does not indicate an active \
+                                          subscription", receiver["id"])
 
                 formats_tested.append(stream_type)
 
@@ -388,12 +390,14 @@ class IS0401Test(GenericTest):
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] is not None:
-                    return test.FAIL("Node API Receiver subscription does not reflect the subscribed Sender ID")
+                    return test.FAIL("Node API Receiver subscription {} does not reflect the subscribed \
+                                      Sender ID", receiver["id"])
 
                 api = self.apis[NODE_API_KEY]
                 if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 2):
                     if receiver["subscription"]["active"]:
-                        return test.FAIL("Node API Receiver subscription does not indicate an inactive subscription")
+                        return test.FAIL("Node API Receiver subscription {} does not indicate an inactive \
+                                          subscription", receiver["id"])
 
                 return test.PASS()
         except json.decoder.JSONDecodeError:
