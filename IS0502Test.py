@@ -247,14 +247,14 @@ class IS0502Test(GenericTest):
 
         return test.MANUAL()
 
-    def test_07_rx_activate_updates_ver(self):
+    def test_07_rx_activate_updates_sub(self):
         """Activation of a receiver updates the IS-04 subscription"""
 
         test = Test("Activation of a receiver updates the IS-04 subscription")
 
         return test.MANUAL()
 
-    def test_08_tx_activate_updates_ver(self):
+    def test_08_tx_activate_updates_sub(self):
         """Activation of a sender updates the IS-04 subscription"""
 
         test = Test("Activation of a sender updates the IS-04 subscription")
