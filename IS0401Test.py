@@ -321,9 +321,13 @@ class IS0401Test(GenericTest):
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
-            if len(receivers.json()) > 0:
-                receiver = receivers.json()[0]
+            formats_tested = []
+            for receiver in receivers.json():
                 stream_type = receiver["format"].split(":")[-1]
+                # Test each available receiver format once
+                if stream_type in formats_tested:
+                    continue
+
                 if stream_type not in ["video", "audio", "data", "mux"]:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
@@ -348,6 +352,9 @@ class IS0401Test(GenericTest):
                     if not receiver["subscription"]["active"]:
                         return test.FAIL("Node API Receiver subscription does not indicate an active subscription")
 
+                formats_tested.append(stream_type)
+
+            if len(formats_tested) > 0:
                 return test.PASS()
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
