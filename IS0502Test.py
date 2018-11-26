@@ -247,7 +247,21 @@ class IS0502Test(GenericTest):
 
         return test.MANUAL()
 
-    def test_07_interface_bindings_length(self):
+    def test_07_rx_activate_updates_ver(self):
+        """Activation of a receiver updates the IS-04 subscription"""
+
+        test = Test("Activation of a receiver updates the IS-04 subscription")
+
+        return test.MANUAL()
+
+    def test_08_tx_activate_updates_ver(self):
+        """Activation of a sender updates the IS-04 subscription"""
+
+        test = Test("Activation of a sender updates the IS-04 subscription")
+
+        return test.MANUAL()
+
+    def test_09_interface_bindings_length(self):
         """IS-04 interface bindings array matches length of IS-05 transport_params array"""
 
         test = Test("IS-04 interface bindings array matches length of IS-05 transport_params array")
@@ -282,7 +296,7 @@ class IS0502Test(GenericTest):
 
         return test.PASS()
 
-    def test_08_transport_files_match(self):
+    def test_10_transport_files_match(self):
         """IS-04 manifest_href matches IS-05 transportfile"""
 
         test = Test("IS-04 manifest_href matches IS-05 transportfile")
