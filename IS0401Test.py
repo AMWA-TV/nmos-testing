@@ -155,9 +155,9 @@ class IS0401Test(GenericTest):
                     reg_resources = self.get_registry_resources(res_type)
                     node_resources = self.get_node_resources(r.json())
 
-                    if len(reg_resources) != len(node_resources):
-                        return test.FAIL("One or more {} registrations were not found in either "
-                                         "the Node or the registry.".format(res_type.title()))
+                    if len(reg_resources) < len(node_resources):
+                        return test.FAIL("One or more {} registrations were not found in the "
+                                         "registry.".format(res_type.title()))
 
                     if len(node_resources) == 0:
                         return test.NA("No {} resources were found on the Node.".format(res_type.title()))
