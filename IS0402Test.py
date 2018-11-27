@@ -138,19 +138,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Node resource")
 
-        with open("test_data/IS0402/v1.2_node.json") as node_data:
-            node_json = json.load(node_data)
-            if self.apis[REG_API_KEY]["version"] != "v1.2":
-                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
-
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        if self.apis[REG_API_KEY]["major_version"] == 1:
+            with open("test_data/IS0402/v1.2_node.json") as node_data:
+                node_json = json.load(node_data)
+                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                    node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
+    
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+    
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
         return test.FAIL("An unknown error occurred")
 
@@ -168,21 +171,26 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Device resource")
 
-        with open("test_data/IS0402/v1.2_device.json") as device_data:
-            device_json = json.load(device_data)
-            if self.apis[REG_API_KEY]["version"] != "v1.2":
-                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
+        if self.apis[REG_API_KEY]["major_version"] == 1:
+            with open("test_data/IS0402/v1.2_device.json") as device_data:
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
-                                                                                "data": device_json})
+                device_json = json.load(device_data)
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
-                                                                                                  r.text))
+                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                    device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
+                                                                                    "data": device_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
+                                                                                                      r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
         return test.FAIL("An unknown error occurred")
 
@@ -201,20 +209,23 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Source resource")
 
-        with open("test_data/IS0402/v1.2_source.json") as source_data:
-            source_json = json.load(source_data)
-            if self.apis[REG_API_KEY]["version"] != "v1.2":
-                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
+        if self.apis[REG_API_KEY]["major_version"] == 1:
+            with open("test_data/IS0402/v1.2_source.json") as source_data:
+                source_json = json.load(source_data)
+                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                    source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
-                                                                                "data": source_json})
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
+                                                                                    "data": source_json})
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
         return test.FAIL("An unknown error occurred")
 
@@ -233,19 +244,23 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Flow resource")
 
-        with open("test_data/IS0402/v1.2_flow.json") as flow_data:
-            flow_json = json.load(flow_data)
-            if self.apis[REG_API_KEY]["version"] != "v1.2":
-                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
-                                                                                "data": flow_json})
+        if self.apis[REG_API_KEY]["major_version"] == 1:
+            with open("test_data/IS0402/v1.2_flow.json") as flow_data:
+                flow_json = json.load(flow_data)
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                    flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
+                                                                                    "data": flow_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
         return test.FAIL("An unknown error occurred")
 
@@ -264,19 +279,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Sender resource")
 
-        with open("test_data/IS0402/v1.2_sender.json") as sender_data:
-            sender_json = json.load(sender_data)
-            if self.apis[REG_API_KEY]["version"] != "v1.2":
-                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
-                                                                                "data": sender_json})
+        if self.apis[REG_API_KEY]["major_version"] == 1:
+            with open("test_data/IS0402/v1.2_sender.json") as sender_data:
+                sender_json = json.load(sender_data)
+                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                    sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
+                                                                                    "data": sender_json})
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
         return test.FAIL("An unknown error occurred")
 
@@ -295,19 +313,22 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Receiver resource")
 
-        with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
-            receiver_json = json.load(receiver_data)
-            if self.apis[REG_API_KEY]["version"] != "v1.2":
-                receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
-                                                                                "data": receiver_json})
+        if self.apis[REG_API_KEY]["major_version"] == 1:
+            with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
+                receiver_json = json.load(receiver_data)
+                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                    receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
+                                                                                    "data": receiver_json})
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
         return test.FAIL("An unknown error occurred")
 
