@@ -119,9 +119,20 @@ class GenericTest(object):
     def run_tests(self, test_name="all"):
         """Perform tests and return the results as a list"""
         self.test_individual = (test_name != "all")
+
+        # Set up
+        test = Test("Test setup")
         self.set_up_tests()
+        self.result.append(test.NA(""))
+
+        # Run tests
         self.execute_tests(test_name)
+
+        # Tear down
+        test = Test("Test teardown")
         self.tear_down_tests()
+        self.result.append(test.NA(""))
+
         return self.result
 
     def convert_bytes(self, data):
