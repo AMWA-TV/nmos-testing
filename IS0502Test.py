@@ -13,11 +13,13 @@
 # limitations under the License.
 
 import json
+import time
 
 from urllib.parse import urlparse
 
 from TestResult import Test
 from GenericTest import GenericTest
+from IS05Utils import IS05Utils
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -37,6 +39,7 @@ class IS0502Test(GenericTest):
         self.connection_url = self.apis[CONN_API_KEY]["url"]
         self.is05_resources = {"senders": [], "receivers": [], "_requested": []}
         self.is04_resources = {"senders": [], "receivers": [], "_requested": []}
+        self.is05_utils = IS05Utils(self.connection_url)
 
     def get_is04_resources(self, resource_type):
         """Retrieve all Senders or Receivers from a Node API, keeping hold of the returned objects"""
@@ -238,7 +241,50 @@ class IS0502Test(GenericTest):
 
         test = Test("Activation of a receiver increments the version timestamp")
 
-        return test.MANUAL()
+        resource_type = "receivers"
+
+        valid, result = self.get_is04_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+        valid, result = self.get_is05_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is05_resources[resource_type]) == 0:
+            return test.NA("Could not find any IS-05 Receivers to test")
+
+        try:
+            for is05_resource in self.is05_resources[resource_type]:
+                for is04_resource in self.is04_resources[resource_type]:
+                    if is04_resource["id"] == is05_resource:
+                        current_ver = is04_resource["version"]
+
+                        valid, response = self.is05_utils.check_activation("receiver", is05_resource,
+                                                                           self.is05_utils.check_perform_immediate_activation)
+                        if not valid:
+                            return test.FAIL(response)
+
+                        print(response)
+
+                        time.sleep(1)
+
+                        valid, response = self.do_request("GET", self.node_url + resource_type + "/" + is05_resource)
+                        if not valid:
+                            return test.FAIL("Node API did not respond as expected: {}".format(response))
+
+                        new_ver = response.json()["version"]
+
+                        print(current_ver)
+                        print(new_ver)
+
+                        if current_ver == new_ver:
+                            # TODO: Check the version actually goes up!
+                            return test.FAIL("IS-04 resource version did not change when Receiver {} was activated".format(is05_resource))
+
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
 
     def test_06_tx_activate_updates_ver(self):
         """Activation of a sender increments the version timestamp"""
