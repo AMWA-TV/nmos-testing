@@ -164,7 +164,7 @@ class IS0401Test(GenericTest):
 
                     for resource in node_resources:
                         if resource not in reg_resources:
-                            test.FAIL("{} {} was not found in the registry.".format(res_type.title(), resource))
+                            return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), resource))
                         elif reg_resources[resource] != node_resources[resource]:
                             return test.FAIL("Node API JSON does not match data in registry for "
                                              "{} {}.".format(res_type.title(), resource))
