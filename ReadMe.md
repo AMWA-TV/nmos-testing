@@ -6,6 +6,7 @@ The following tests sets are currently supported:
 *   IS-04 Node API
 *   IS-04 Registry APIs
 *   IS-05 Connection Management API
+*   IS-05 Interaction with IS-04
 *   IS-06 Network Control API
 *   IS-07 Event & Tally API
 *   IS-08 Channel Mapping API
