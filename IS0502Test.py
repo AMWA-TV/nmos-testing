@@ -182,6 +182,8 @@ class IS0502Test(GenericTest):
 
         except json.decoder.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
+        except KeyError:
+            return False, "Version attribute was not found in IS-04 resource"
 
         return True, ""
 
