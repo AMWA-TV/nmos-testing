@@ -159,8 +159,10 @@ class IS0502Test(GenericTest):
     def activate_check_version(self, resource_type):
         try:
             for is05_resource in self.is05_resources[resource_type]:
+                found_04_resource = False
                 for is04_resource in self.is04_resources[resource_type]:
                     if is04_resource["id"] == is05_resource:
+                        found_04_resource = True
                         current_ver = is04_resource["version"]
 
                         valid, response = self.is05_utils.check_activation(resource_type.rstrip("s"), is05_resource,
@@ -179,6 +181,9 @@ class IS0502Test(GenericTest):
                         if self.is05_utils.compare_version(new_ver, current_ver) != 1:
                             return False, "IS-04 resource version did not change when {} {} was activated" \
                                           .format(resource_type.rstrip("s").capitalize(), is05_resource)
+                                          
+                if not found_04_resource:
+                    return False, "Unable to find an IS-04 resource with ID {}".format(is05_resource)
 
         except json.decoder.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
