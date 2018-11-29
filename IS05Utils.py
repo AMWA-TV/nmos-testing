@@ -273,7 +273,7 @@ class IS05Utils(NMOSUtils):
         # request an absolute activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        TAItime = TestHelper.getTAITime(1)
+        TAItime = self.get_TAI_time(1)
         data = {"activation": {"mode": "activate_scheduled_absolute", "requested_time": TAItime}}
         valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=202)
         if valid:

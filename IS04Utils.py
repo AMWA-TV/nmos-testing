@@ -19,4 +19,3 @@ from NMOSUtils import NMOSUtils
 class IS04Utils(NMOSUtils):
     def __init__(self, url):
         NMOSUtils.__init__(self, url)
-        
