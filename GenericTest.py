@@ -14,9 +14,9 @@
 
 import os
 import json
-import requests
 import git
 import jsonschema
+import TestHelper
 
 from Specification import Specification
 from TestResult import Test
@@ -216,25 +216,7 @@ class GenericTest(object):
         return True, ""
 
     def do_request(self, method, url, data=None):
-        """Perform a basic HTTP request with appropriate error handling"""
-        try:
-            s = requests.Session()
-            req = None
-            if data is not None:
-                req = requests.Request(method, url, json=data)
-            else:
-                req = requests.Request(method, url)
-            prepped = req.prepare()
-            r = s.send(prepped)
-            return True, r
-        except requests.exceptions.Timeout:
-            return False, "Connection timeout"
-        except requests.exceptions.TooManyRedirects:
-            return False, "Too many redirects"
-        except requests.exceptions.ConnectionError as e:
-            return False, str(e)
-        except requests.exceptions.RequestException as e:
-            return False, str(e)
+        return TestHelper.do_request(method, url, data)
 
     def basics(self):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""
