@@ -50,6 +50,8 @@ class GenericTest(object):
         if isinstance(omit_paths, list):
             self.omit_paths = omit_paths
 
+        test = Test("Test initialisation")
+
         for api_name, api_data in self.apis.items():
             self.apis[api_name]["major_version"], self.apis[api_name]["minor_version"] = self._parse_version(
                 api_data["version"])
@@ -73,6 +75,8 @@ class GenericTest(object):
             repo.git.rebase("origin/" + spec_branch)
 
         self.parse_RAML()
+
+        self.result.append(test.NA(""))
 
     def _parse_version(self, version):
         """Parse a string based API version into its major and minor numbers"""
