@@ -73,3 +73,22 @@ class NMOSUtils(object):
         nanos = int((myTime - secs) * 1e9)
         ippTime = self.from_UTC(secs, nanos)
         return str(ippTime[0]) + ":" + str(ippTime[1])
+
+    def compare_version(self, ver1, ver2):
+        """Returns 1 if ver1>ver2, 0 if ver1=ver2, and -1 if ver1<ver2"""
+        ver1_bits = ver1.split(":")
+        ver2_bits = ver2.split(":")
+
+        # Compare seconds
+        if int(ver1_bits[0]) > int(ver2_bits[0]):
+            return 1
+        elif int(ver2_bits[0]) > int(ver1_bits[0]):
+            return -1
+
+        # Compare nanoseconds
+        if int(ver1_bits[1]) > int(ver2_bits[1]):
+            return 1
+        elif int(ver2_bits[1]) > int(ver1_bits[1]):
+            return -1
+        else:
+            return 0

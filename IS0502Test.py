@@ -277,8 +277,7 @@ class IS0502Test(GenericTest):
                         print(current_ver)
                         print(new_ver)
 
-                        if current_ver == new_ver:
-                            # TODO: Check the version actually goes up!
+                        if self.is05_utils.compare_version(new_ver, current_ver) != 1:
                             return test.FAIL("IS-04 resource version did not change when Receiver {} was activated".format(is05_resource))
 
         except json.decoder.JSONDecodeError:
