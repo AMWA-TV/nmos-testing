@@ -62,6 +62,13 @@ class IS0502Test(GenericTest):
 
         return True, ""
 
+    def refresh_is04_resources(self, resource_type):
+        """Force a re-retrieval of the IS-04 Senders or Receivers, bypassing the cache"""
+        if resource_type in self.is04_resources["_requested"]:
+            self.is04_resources["_requested"].remove(resource_type)
+
+        return self.get_is04_resources(resource_type)
+
     def get_is05_resources(self, resource_type):
         """Retrieve all Senders or Receivers from a Connection API, keeping hold of the returned IDs"""
         assert(resource_type in ["senders", "receivers"])
@@ -148,6 +155,35 @@ class IS0502Test(GenericTest):
             return False
 
         return True
+
+    def activate_check_version(self, resource_type):
+        try:
+            for is05_resource in self.is05_resources[resource_type]:
+                for is04_resource in self.is04_resources[resource_type]:
+                    if is04_resource["id"] == is05_resource:
+                        current_ver = is04_resource["version"]
+
+                        valid, response = self.is05_utils.check_activation(resource_type.rstrip("s"), is05_resource,
+                                                                           self.is05_utils.check_perform_immediate_activation)
+                        if not valid:
+                            return False, response
+
+                        time.sleep(1)
+
+                        valid, response = self.do_request("GET", self.node_url + resource_type + "/" + is05_resource)
+                        if not valid:
+                            return False, "Node API did not respond as expected: {}".format(response)
+
+                        new_ver = response.json()["version"]
+
+                        if self.is05_utils.compare_version(new_ver, current_ver) != 1:
+                            return False, "IS-04 resource version did not change when {} {} was activated" \
+                                          .format(resource_type.rstrip("s").capitalize(), is05_resource)
+
+        except json.decoder.JSONDecodeError:
+            return False, "Non-JSON response returned from Node API"
+
+        return True, ""
 
     def test_01_node_api_1_2_or_greater(self):
         """Check that version 1.2 or greater of the Node API is available"""
@@ -243,7 +279,7 @@ class IS0502Test(GenericTest):
 
         resource_type = "receivers"
 
-        valid, result = self.get_is04_resources(resource_type)
+        valid, result = self.refresh_is04_resources(resource_type)
         if not valid:
             return test.FAIL(result)
         valid, result = self.get_is05_resources(resource_type)
@@ -253,44 +289,34 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.NA("Could not find any IS-05 Receivers to test")
 
-        try:
-            for is05_resource in self.is05_resources[resource_type]:
-                for is04_resource in self.is04_resources[resource_type]:
-                    if is04_resource["id"] == is05_resource:
-                        current_ver = is04_resource["version"]
-
-                        valid, response = self.is05_utils.check_activation("receiver", is05_resource,
-                                                                           self.is05_utils.check_perform_immediate_activation)
-                        if not valid:
-                            return test.FAIL(response)
-
-                        print(response)
-
-                        time.sleep(1)
-
-                        valid, response = self.do_request("GET", self.node_url + resource_type + "/" + is05_resource)
-                        if not valid:
-                            return test.FAIL("Node API did not respond as expected: {}".format(response))
-
-                        new_ver = response.json()["version"]
-
-                        print(current_ver)
-                        print(new_ver)
-
-                        if self.is05_utils.compare_version(new_ver, current_ver) != 1:
-                            return test.FAIL("IS-04 resource version did not change when Receiver {} was activated".format(is05_resource))
-
-        except json.decoder.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned from Node API")
-
-        return test.PASS()
+        valid, response = self.activate_check_version(resource_type)
+        if not valid:
+            return test.FAIL(response)
+        else:
+            return test.PASS()
 
     def test_06_tx_activate_updates_ver(self):
         """Activation of a sender increments the version timestamp"""
 
         test = Test("Activation of a sender increments the version timestamp")
 
-        return test.MANUAL()
+        resource_type = "senders"
+
+        valid, result = self.refresh_is04_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+        valid, result = self.get_is05_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is05_resources[resource_type]) == 0:
+            return test.NA("Could not find any IS-05 Senders to test")
+
+        valid, response = self.activate_check_version(resource_type)
+        if not valid:
+            return test.FAIL(response)
+        else:
+            return test.PASS()
 
     def test_07_rx_activate_updates_sub(self):
         """Activation of a receiver updates the IS-04 subscription"""
