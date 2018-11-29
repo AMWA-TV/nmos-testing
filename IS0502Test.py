@@ -98,7 +98,7 @@ class IS0502Test(GenericTest):
                             "urn:x-nmos:transport:rtp.ucast",
                             "urn:x-nmos:transport:dash"]
         api = self.apis[CONN_API_KEY]
-        if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 1):
+        if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
             valid_transports.append("urn:x-nmos:transport:websocket")
             valid_transports.append("urn:x-nmos:transport:mqtt")
         return valid_transports
@@ -179,7 +179,7 @@ class IS0502Test(GenericTest):
 
                         new_ver = response.json()["version"]
 
-                        if self.is05_utils.compare_version(new_ver, current_ver) != 1:
+                        if self.is05_utils.compare_resource_version(new_ver, current_ver) != 1:
                             return False, "IS-04 resource version did not change when {} {} was activated" \
                                           .format(resource_type.rstrip("s").capitalize(), is05_resource)
 
@@ -215,7 +215,7 @@ class IS0502Test(GenericTest):
                         subscription = is04_resource["subscription"]
 
                         # Only IS-04 v1.2+ has an 'active' subscription key
-                        if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 1):
+                        if self.is05_utils.compare_api_version(api["version"], "v1.2") >= 0:
                             if subscription["active"] is not False:
                                 return False, "IS-04 {} {} was not marked as inactive when IS-05 master_enable set to" \
                                               " false".format(resource_type.rstrip("s").capitalize(), is05_resource)
@@ -241,7 +241,7 @@ class IS0502Test(GenericTest):
         test = Test("Check that version 1.2 or greater of the Node API is available")
 
         api = self.apis[NODE_API_KEY]
-        if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 2):
+        if self.is05_utils.compare_api_version(api["version"], "v1.2") >= 0:
             valid, result = self.do_request("GET", self.node_url)
             if valid:
                 return test.PASS()
@@ -398,7 +398,7 @@ class IS0502Test(GenericTest):
         test = Test("Activation of a sender updates the IS-04 subscription")
 
         api = self.apis[NODE_API_KEY]
-        if api["major_version"] == 1 and api["minor_version"] < 2:
+        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
             return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
 
         resource_type = "senders"

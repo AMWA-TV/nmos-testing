@@ -23,6 +23,7 @@ from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, test_depends
+from IS04Utils import IS04Utils
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -41,6 +42,8 @@ class IS0402Test(GenericTest):
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
         self.zc = None
+        self.is04_reg_utils = IS04Utils(self.reg_url)
+        self.is04_query_utils = IS04Utils(self.query_url)
 
     def set_up_tests(self):
         self.zc = Zeroconf()
@@ -77,7 +80,7 @@ class IS0402Test(GenericTest):
 
                 # Other TXT records only came in for IS-04 v1.1+
                 api = self.apis[REG_API_KEY]
-                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 0):
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Registration API advertisement.")
                     elif api["version"] not in properties["api_ver"].split(","):
@@ -118,7 +121,7 @@ class IS0402Test(GenericTest):
 
                 # Other TXT records only came in for IS-04 v1.1+
                 api = self.apis[QUERY_API_KEY]
-                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 0):
+                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Query API advertisement.")
                     elif api["version"] not in properties["api_ver"].split(","):
@@ -138,14 +141,15 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Node resource")
 
-        if self.apis[REG_API_KEY]["major_version"] == 1:
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
             with open("test_data/IS0402/v1.2_node.json") as node_data:
                 node_json = json.load(node_data)
-                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-    
+
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
-    
+
                 if not valid:
                     return test.FAIL("Registration API did not respond as expected")
                 elif r.status_code == 201:
@@ -171,12 +175,13 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Device resource")
 
-        if self.apis[REG_API_KEY]["major_version"] == 1:
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
             with open("test_data/IS0402/v1.2_device.json") as device_data:
 
                 device_json = json.load(device_data)
 
-                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
 
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
@@ -209,10 +214,11 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Source resource")
 
-        if self.apis[REG_API_KEY]["major_version"] == 1:
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
             with open("test_data/IS0402/v1.2_source.json") as source_data:
                 source_json = json.load(source_data)
-                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
@@ -244,11 +250,12 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Flow resource")
 
-        if self.apis[REG_API_KEY]["major_version"] == 1:
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
             with open("test_data/IS0402/v1.2_flow.json") as flow_data:
                 flow_json = json.load(flow_data)
 
-                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
                                                                                     "data": flow_json})
@@ -279,10 +286,11 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Sender resource")
 
-        if self.apis[REG_API_KEY]["major_version"] == 1:
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
             with open("test_data/IS0402/v1.2_sender.json") as sender_data:
                 sender_json = json.load(sender_data)
-                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
                                                                                     "data": sender_json})
@@ -313,10 +321,11 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API accepts and stores a valid Receiver resource")
 
-        if self.apis[REG_API_KEY]["major_version"] == 1:
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
             with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
                 receiver_json = json.load(receiver_data)
-                if self.apis[REG_API_KEY]["minor_version"] < 2:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
                                                                                     "data": receiver_json})
