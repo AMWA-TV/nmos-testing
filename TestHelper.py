@@ -23,6 +23,7 @@
 # the NTP epoch at 1 Jan 1900 and the Unix epoch at 1 Jan 1970 is 2208988800 seconds
 
 import time
+import requests
 
 UTC_LEAP = [
     # || UTC SEC  |  TAI SEC - 1 ||
@@ -88,3 +89,25 @@ def getTAITime(offset=0.0):
     nanos = int((myTime - secs) * 1e9)
     ippTime = from_UTC(secs, nanos)
     return str(ippTime[0]) + ":" + str(ippTime[1])
+
+
+def do_request(method, url, data=None):
+    """Perform a basic HTTP request with appropriate error handling"""
+    try:
+        s = requests.Session()
+        req = None
+        if data is not None:
+            req = requests.Request(method, url, json=data)
+        else:
+            req = requests.Request(method, url)
+        prepped = req.prepare()
+        r = s.send(prepped)
+        return True, r
+    except requests.exceptions.Timeout:
+        return False, "Connection timeout"
+    except requests.exceptions.TooManyRedirects:
+        return False, "Too many redirects"
+    except requests.exceptions.ConnectionError as e:
+        return False, str(e)
+    except requests.exceptions.RequestException as e:
+        return False, str(e)
