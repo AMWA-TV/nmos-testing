@@ -195,9 +195,7 @@ def index_page():
                         "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, version),
                         "spec_path": CACHE_PATH + '/' + spec_key,
                         "version": version,
-                        "spec": None,  # Used inside GenericTest
-                        "major_version": None,  # Used inside GenericTest
-                        "minor_version": None  # Used inside GenericTest
+                        "spec": None  # Used inside GenericTest
                     }
 
                     spec_count += 1
