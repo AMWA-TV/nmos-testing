@@ -14,6 +14,7 @@
 
 import json
 import time
+import copy
 
 from urllib.parse import urlparse
 
@@ -181,7 +182,7 @@ class IS0502Test(GenericTest):
                         if self.is05_utils.compare_version(new_ver, current_ver) != 1:
                             return False, "IS-04 resource version did not change when {} {} was activated" \
                                           .format(resource_type.rstrip("s").capitalize(), is05_resource)
-                                          
+
                 if not found_04_resource:
                     return False, "Unable to find an IS-04 resource with ID {}".format(is05_resource)
 
@@ -189,6 +190,48 @@ class IS0502Test(GenericTest):
             return False, "Non-JSON response returned from Node API"
         except KeyError:
             return False, "Version attribute was not found in IS-04 resource"
+
+        return True, ""
+
+    def activate_check_parked(self, resource_type):
+        for is05_resource in self.is05_resources[resource_type]:
+            valid, response = self.is05_utils.park_resource(resource_type, is05_resource)
+            if not valid:
+                return False, response
+
+        time.sleep(1)
+
+        valid, result = self.refresh_is04_resources(resource_type)
+        if not valid:
+            return False, result
+
+        try:
+            api = self.apis[NODE_API_KEY]
+            for is05_resource in self.is05_resources[resource_type]:
+                found_04_resource = False
+                for is04_resource in self.is04_resources[resource_type]:
+                    if is04_resource["id"] == is05_resource:
+                        found_04_resource = True
+                        subscription = is04_resource["subscription"]
+
+                        # Only IS-04 v1.2+ has an 'active' subscription key
+                        if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] > 1):
+                            if subscription["active"] is not False:
+                                return False, "IS-04 {} {} was not marked as inactive when IS-05 master_enable set to" \
+                                              " false".format(resource_type.rstrip("s").capitalize(), is05_resource)
+
+                        id_key = "sender_id"
+                        if resource_type == "senders":
+                            id_key = "receiver_id"
+                        if subscription[id_key] is not None:
+                            return False, "IS-04 {} {} still indicates a subscribed '{}' when parked".format(
+                                          resource_type.rstrip("s").capitalize(), is05_resource, id_key)
+
+                if not found_04_resource:
+                    return False, "Unable to find an IS-04 resource with ID {}".format(is05_resource)
+
+        except KeyError:
+            return False, "Subscription attribute was not found in IS-04 resource"
 
         return True, ""
 
@@ -330,14 +373,52 @@ class IS0502Test(GenericTest):
 
         test = Test("Activation of a receiver updates the IS-04 subscription")
 
-        return test.MANUAL()
+        resource_type = "receivers"
+
+        valid, result = self.get_is04_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+        valid, result = self.get_is05_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is05_resources[resource_type]) == 0:
+            return test.NA("Could not find any IS-05 Receivers to test")
+
+        valid, response = self.activate_check_parked(resource_type)
+        if not valid:
+            return test.FAIL(response)
+        else:
+            # TODO: Add test for subscribing to an NMOS endpoint and subscribing to a non-NMOS endpoint
+            return test.PASS()
 
     def test_08_tx_activate_updates_sub(self):
         """Activation of a sender updates the IS-04 subscription"""
 
         test = Test("Activation of a sender updates the IS-04 subscription")
 
-        return test.MANUAL()
+        api = self.apis[NODE_API_KEY]
+        if api["major_version"] == 1 and api["minor_version"] < 2:
+            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+
+        resource_type = "senders"
+
+        valid, result = self.get_is04_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+        valid, result = self.get_is05_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is05_resources[resource_type]) == 0:
+            return test.NA("Could not find any IS-05 Senders to test")
+
+        valid, response = self.activate_check_parked(resource_type)
+        if not valid:
+            return test.FAIL(response)
+        else:
+            # TODO: Add test for subscribing to an NMOS endpoint and subscribing to a non-NMOS endpoint
+            return test.PASS()
 
     def test_09_interface_bindings_length(self):
         """IS-04 interface bindings array matches length of IS-05 transport_params array"""

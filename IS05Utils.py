@@ -585,6 +585,22 @@ class IS05Utils(NMOSUtils):
         except requests.exceptions.RequestException:
             return 0
 
+    def park_resource(self, resource_type, resource_id):
+        url = "single/" + resource_type + "/" + resource_id + "/staged"
+        data = {"master_enable": False}
+        valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
+        if valid:
+            staged_params = response['transport_params']
+            valid2, response2 = self.check_perform_absolute_activation(resource_type.rstrip("s"),
+                                                                       resource_id,
+                                                                       staged_params)
+            if not valid2:
+                return False, response2
+        else:
+            return False, response
+
+        return True, ""
+
     def checkCleanRequest(self, method, dest, data=None, code=200):
         """Checks a request can be made and the resulting json can be parsed"""
         status, response = TestHelper.do_request(method, self.url + dest, data)
