@@ -591,9 +591,42 @@ class IS05Utils(NMOSUtils):
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
             staged_params = response['transport_params']
-            valid2, response2 = self.check_perform_absolute_activation(resource_type.rstrip("s"),
-                                                                       resource_id,
-                                                                       staged_params)
+            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
+                                                                        resource_id,
+                                                                        staged_params)
+            if not valid2:
+                return False, response2
+        else:
+            return False, response
+
+        return True, ""
+
+    def subscribe_resource(self, resource_type, resource_id, subscription_id, multicast=True):
+        url = "single/" + resource_type + "/" + resource_id + "/staged"
+
+        data = {"master_enable": True, "transport_params": []}
+        if resource_type == "receivers":
+            data["transport_file"] = {"data": "", "type": "application/sdp"}
+            data["sender_id"] = subscription_id
+        else:
+            data["receiver_id"] = subscription_id
+
+        param = "multicast_ip"
+        if resource_type == "senders":
+            param = "destination_ip"
+
+        for i in range(0, self.get_num_paths(resource_id, resource_type.rstrip("s"))):
+            if multicast:
+                data['transport_params'].append({param: "239.10.53.5"})
+            else:
+                data['transport_params'].append({param: "127.0.0.1"})
+
+        valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
+        if valid:
+            staged_params = response['transport_params']
+            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
+                                                                        resource_id,
+                                                                        staged_params)
             if not valid2:
                 return False, response2
         else:
