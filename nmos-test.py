@@ -134,7 +134,7 @@ TEST_DEFINITIONS = {
         "class": IS0501Test.IS0501Test
     },
     "IS-05-02": {
-        "name": "IS-05 Integration with Node API",
+        "name": "IS-05 Interaction with Node API",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
