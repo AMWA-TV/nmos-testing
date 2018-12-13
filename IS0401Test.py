@@ -24,7 +24,7 @@ from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
-from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT
+from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT
 
 NODE_API_KEY = "node"
 
@@ -71,7 +71,12 @@ class IS0401Test(GenericTest):
 
         self.zc.register_service(info)
 
-        while (time.time() - self.registry.last_time) < 5:  # Ensure we allow 5 seconds to get at least one heartbeat
+        # Wait for n seconds after advertising the service for the first POST from a Node
+        time.sleep(MDNS_ADVERT_TIMEOUT)
+
+        # Now wait for at least 5 seconds to pass after the last registration was recorded by the mock registry
+        # This ensures we've captured every POST which the Node wants to make, and at least one heartbeat
+        while (time.time() - self.registry.last_time) < 5:
             time.sleep(1)
 
         self.zc.unregister_service(info)

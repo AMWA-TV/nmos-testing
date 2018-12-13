@@ -15,6 +15,9 @@
 # Enable or disable mDNS advertisements. Browsing is always permitted.
 ENABLE_MDNS = True
 
+# Number of seconds to wait after an mDNS advert is created for a client to notice and perform an action
+MDNS_ADVERT_TIMEOUT = 5
+
 # Set a Query API hostname/IP and port for use when operating without mDNS
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80
