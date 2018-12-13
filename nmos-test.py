@@ -18,6 +18,7 @@ from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import REGISTRY, REGISTRY_API
 from Node import NODE, NODE_API
+from Config import CACHE_PATH, SPECIFICATIONS
 from datetime import datetime, timedelta
 
 import git
@@ -34,6 +35,7 @@ import IS0601Test
 import IS0701Test
 import IS0801Test
 
+
 app = Flask(__name__)
 app.debug = True  # Ensures we can debug exceptions more easily
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
@@ -41,72 +43,8 @@ app.config['TEST_ACTIVE'] = False
 app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
 app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 
-CACHE_PATH = 'cache'
-SPECIFICATIONS = {
-    "is-04": {
-        "repo": "nmos-discovery-registration",
-        "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
-        "default_version": "v1.2",
-        "apis": {
-            "node": {
-                "name": "Node API",
-                "raml": "NodeAPI.raml"
-            },
-            "query": {
-                "name": "Query API",
-                "raml": "QueryAPI.raml"
-            },
-            "registration": {
-                "name": "Registration API",
-                "raml": "RegistrationAPI.raml"
-            }
-        }
-    },
-    "is-05": {
-        "repo": "nmos-device-connection-management",
-        "versions": ["v1.0", "v1.1"],
-        "default_version": "v1.0",
-        "apis": {
-            "connection": {
-                "name": "Connection API",
-                "raml": "ConnectionAPI.raml"
-            }
-        }
-    },
-    "is-06": {
-        "repo": "nmos-network-control",
-        "versions": ["v1.0"],
-        "default_version": "v1.0",
-        "apis": {
-            "netctrl": {
-                "name": "Network API",
-                "raml": "NetworkControlAPI.raml"
-            }
-        }
-    },
-    "is-07": {
-        "repo": "nmos-event-tally",
-        "versions": ["v1.0"],
-        "default_version": "v1.0",
-        "apis": {
-            "events": {
-                "name": "Events API",
-                "raml": "EventsAPI.raml"
-            }
-        }
-    },
-    "is-08": {
-        "repo": "nmos-audio-channel-mapping",
-        "versions": ["v1.0"],
-        "default_version": "v1.0",
-        "apis": {
-            "channelmapping": {
-                "name": "Channel Mapping API",
-                "raml": "ChannelMappingAPI.raml"
-            }
-        }
-    }
-}
+
+# Definitions of each set of tests made available from the dropdowns
 TEST_DEFINITIONS = {
     "IS-04-01": {
         "name": "IS-04 Node API",

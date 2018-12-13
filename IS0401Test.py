@@ -24,6 +24,7 @@ from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
+from Config import ENABLE_MDNS
 
 NODE_API_KEY = "node"
 
@@ -82,6 +83,9 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can discover network registration service via mDNS")
 
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+
         self.do_registry_basics_prereqs()
 
         if len(self.registry.get_data()) > 0:
@@ -100,6 +104,9 @@ class IS0401Test(GenericTest):
         """Registration API interactions use the correct Content-Type"""
 
         test = Test("Registration API interactions use the correct Content-Type")
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -186,6 +193,9 @@ class IS0401Test(GenericTest):
         test = Test("Node can register a valid Node resource with the network registration service, "
                     "matching its Node API self resource")
 
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "node")
@@ -194,6 +204,9 @@ class IS0401Test(GenericTest):
         """Node maintains itself in the registry via periodic calls to the health resource"""
 
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -242,6 +255,9 @@ class IS0401Test(GenericTest):
         test = Test("Node can register a valid Device resource with the network registration service, "
                     "matching its Node API Device resource")
 
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
+
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "device")
@@ -252,6 +268,9 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Source resource with the network registration service, "
                     "matching its Node API Source resource")
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -264,6 +283,9 @@ class IS0401Test(GenericTest):
         test = Test("Node can register a valid Flow resource with the network registration service, "
                     "matching its Node API Flow resource")
 
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
+
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "flow")
@@ -275,6 +297,9 @@ class IS0401Test(GenericTest):
         test = Test("Node can register a valid Sender resource with the network registration service, "
                     "matching its Node API Sender resource")
 
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
+
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "sender")
@@ -285,6 +310,9 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Receiver resource with the network registration service, "
                     "matching its Node API Receiver resource")
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
