@@ -24,7 +24,7 @@ from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
-from Config import ENABLE_MDNS
+from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT
 
 NODE_API_KEY = "node"
 
@@ -54,7 +54,7 @@ class IS0401Test(GenericTest):
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
 
-        if self.registry_basics_done:
+        if self.registry_basics_done or not ENABLE_MDNS:
             return
 
         self.registry.reset()
@@ -137,9 +137,25 @@ class IS0401Test(GenericTest):
 
     def get_registry_resources(self, res_type):
         resources = {}
-        for resource in self.registry.get_data():
-            if resource[1]["payload"]["type"] == res_type:
-                resources[resource[1]["payload"]["data"]["id"]] = resource[1]["payload"]["data"]
+        if ENABLE_MDNS:
+            # Look up data in local mock registry
+            for resource in self.registry.get_data():
+                if resource[1]["payload"]["type"] == res_type:
+                    resources[resource[1]["payload"]["data"]["id"]] = resource[1]["payload"]["data"]
+        else:
+            # Look up data from a configured Query API
+            url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
+                  self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s"
+            try:
+                r = requests.get(url)
+                if r.status_code == 200:
+                    for resource in r.json():
+                        resources[resource["id"]] = resource
+                else:
+                    raise Exception
+            except Exception:
+                print(" * ERROR: Unable to load resources from the configured Query API ({}:{})".format(QUERY_API_HOST,
+                                                                                                        QUERY_API_PORT))
         return resources
 
     def get_node_resources(self, resp_json):
@@ -192,9 +208,6 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Node resource with the network registration service, "
                     "matching its Node API self resource")
-
-        if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -255,9 +268,6 @@ class IS0401Test(GenericTest):
         test = Test("Node can register a valid Device resource with the network registration service, "
                     "matching its Node API Device resource")
 
-        if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
-
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "device")
@@ -268,9 +278,6 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Source resource with the network registration service, "
                     "matching its Node API Source resource")
-
-        if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -283,9 +290,6 @@ class IS0401Test(GenericTest):
         test = Test("Node can register a valid Flow resource with the network registration service, "
                     "matching its Node API Flow resource")
 
-        if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
-
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "flow")
@@ -297,9 +301,6 @@ class IS0401Test(GenericTest):
         test = Test("Node can register a valid Sender resource with the network registration service, "
                     "matching its Node API Sender resource")
 
-        if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
-
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "sender")
@@ -310,9 +311,6 @@ class IS0401Test(GenericTest):
 
         test = Test("Node can register a valid Receiver resource with the network registration service, "
                     "matching its Node API Receiver resource")
-
-        if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot currently be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 

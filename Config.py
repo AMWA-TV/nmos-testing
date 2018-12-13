@@ -15,6 +15,10 @@
 # Enable or disable mDNS advertisements. Browsing is always permitted.
 ENABLE_MDNS = True
 
+# Set a Query API hostname/IP and port for use when operating without mDNS
+QUERY_API_HOST = "127.0.0.1"
+QUERY_API_PORT = 80
+
 # Path to store the specification file cache in. Relative to the base of the testing repository.
 CACHE_PATH = 'cache'
 
