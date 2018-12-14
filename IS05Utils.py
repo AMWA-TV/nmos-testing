@@ -27,6 +27,17 @@ class IS05Utils(NMOSUtils):
     def __init__(self, url):
         NMOSUtils.__init__(self, url)
 
+    def get_valid_transports(self, api_version):
+        """Identify the valid transport types for a given version of IS-05"""
+        valid_transports = ["urn:x-nmos:transport:rtp",
+                            "urn:x-nmos:transport:rtp.mcast",
+                            "urn:x-nmos:transport:rtp.ucast",
+                            "urn:x-nmos:transport:dash"]
+        if self.compare_api_version(api_version, "v1.1") >= 0:
+            valid_transports.append("urn:x-nmos:transport:websocket")
+            valid_transports.append("urn:x-nmos:transport:mqtt")
+        return valid_transports
+
     def check_num_legs(self, url, type, uuid):
         """Checks the number of legs present on a given sender/receiver"""
         max = 2

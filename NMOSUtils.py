@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import time
+from urllib.parse import urlparse
 
 # The UTC leap seconds table below was extracted from the information provided at
 # http://www.ietf.org/timezones/data/leap-seconds.list
@@ -111,3 +112,28 @@ class NMOSUtils(object):
             return -1
         else:
             return 0
+
+    def compare_urls(self, url1, url2):
+        """Check that two URLs to a given API are sufficiently similar"""
+
+        url1_parsed = urlparse(url1.rstrip("/"))
+        url2_parsed = urlparse(url2.rstrip("/"))
+
+        comparisons = ["scheme", "hostname", "path"]
+        for attr in comparisons:
+            if getattr(url1_parsed, attr) != getattr(url2_parsed, attr):
+                return False
+
+        # Ports can be None if they are the default for the scheme
+        ports = [url1_parsed.port, url2_parsed.port]
+        comparisons = [url1_parsed, url2_parsed]
+        for index, url in enumerate(comparisons):
+            if url.port is None and url.scheme == "http":
+                ports[index] = 80
+            elif url.port is None and url.scheme == "https":
+                ports[index] = 443
+
+        if ports[0] != ports[1]:
+            return False
+
+        return True

@@ -856,7 +856,6 @@ class IS0501Test(GenericTest):
                 return False, response
         return True, ""
 
-
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response from an endpoint to a schema"""
         valid, response = self.is05_utils.checkCleanRequest("GET", endpoint, code=status_code)
