@@ -606,7 +606,6 @@ class IS05Utils(NMOSUtils):
 
         data = {"master_enable": True, "transport_params": []}
         if resource_type == "receivers":
-            data["transport_file"] = {"data": "", "type": "application/sdp"}
             data["sender_id"] = subscription_id
         else:
             data["receiver_id"] = subscription_id
