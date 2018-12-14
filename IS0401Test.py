@@ -140,28 +140,27 @@ class IS0401Test(GenericTest):
         # Set ver to something else comma separated?
         pass
 
-    def get_registry_resources(self, res_type):
-        resources = {}
+    def get_registry_resource(self, res_type, res_id):
+        found_resource = None
         if ENABLE_MDNS:
             # Look up data in local mock registry
             for resource in self.registry.get_data():
-                if resource[1]["payload"]["type"] == res_type:
-                    resources[resource[1]["payload"]["data"]["id"]] = resource[1]["payload"]["data"]
+                if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
+                    found_resource = resource
         else:
             # Look up data from a configured Query API
             url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
-                  self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s"
+                  self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s/" + res_id
             try:
                 r = requests.get(url)
                 if r.status_code == 200:
-                    for resource in r.json():
-                        resources[resource["id"]] = resource
+                    found_resource = r.json()
                 else:
                     raise Exception
             except Exception:
-                print(" * ERROR: Unable to load resources from the configured Query API ({}:{})".format(QUERY_API_HOST,
-                                                                                                        QUERY_API_PORT))
-        return resources
+                print(" * ERROR: Unable to load resource from the configured Query API ({}:{})".format(QUERY_API_HOST,
+                                                                                                       QUERY_API_PORT))
+        return found_resource
 
     def get_node_resources(self, resp_json):
         resources = {}
@@ -182,20 +181,16 @@ class IS0401Test(GenericTest):
             r = requests.get(url)
             if r.status_code == 200:
                 try:
-                    reg_resources = self.get_registry_resources(res_type)
                     node_resources = self.get_node_resources(r.json())
-
-                    if len(reg_resources) < len(node_resources):
-                        return test.FAIL("One or more {} registrations were not found in the "
-                                         "registry.".format(res_type.title()))
 
                     if len(node_resources) == 0:
                         return test.NA("No {} resources were found on the Node.".format(res_type.title()))
 
                     for resource in node_resources:
-                        if resource not in reg_resources:
+                        reg_resource = self.get_registry_resource(res_type, resource)
+                        if not reg_resource:
                             return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), resource))
-                        elif reg_resources[resource] != node_resources[resource]:
+                        elif reg_resource != node_resources[resource]:
                             return test.FAIL("Node API JSON does not match data in registry for "
                                              "{} {}.".format(res_type.title(), resource))
 
