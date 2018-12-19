@@ -662,7 +662,7 @@ class IS0501Test(GenericTest):
         if valid:
             expected = ['senders/', 'receivers/']
             msg = "Got wrong response from {}, expected an array containing {}, got {}".format(url, expected, response)
-            if expected == response:
+            if TestHelper.compare_json(expected, response):
                 return test.PASS()
             else:
                 return test.FAIL(msg)
