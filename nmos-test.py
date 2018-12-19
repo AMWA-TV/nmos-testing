@@ -17,6 +17,7 @@
 from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import REGISTRY, REGISTRY_API
+from Node import NODE, NODE_API
 from datetime import datetime, timedelta
 
 import git
@@ -38,6 +39,7 @@ app.debug = True  # Ensures we can debug exceptions more easily
 app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 app.config['TEST_ACTIVE'] = False
 app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
+app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 
 CACHE_PATH = 'cache'
 SPECIFICATIONS = {
@@ -268,7 +270,7 @@ def index_page():
                 test_obj = None
                 if test == "IS-04-01":
                     # This test has an unusual constructor as it requires a registry instance
-                    test_obj = test_def["class"](apis, REGISTRY)
+                    test_obj = test_def["class"](apis, REGISTRY, NODE)
                 else:
                     test_obj = test_def["class"](apis)
 
