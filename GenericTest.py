@@ -53,9 +53,6 @@ class GenericTest(object):
         test = Test("Test initialisation")
 
         for api_name, api_data in self.apis.items():
-            self.apis[api_name]["major_version"], self.apis[api_name]["minor_version"] = self._parse_version(
-                api_data["version"])
-
             repo = git.Repo(api_data["spec_path"])
 
             # List remote branches and check there is a v#.#.x or v#.#-dev
@@ -77,11 +74,6 @@ class GenericTest(object):
         self.parse_RAML()
 
         self.result.append(test.NA(""))
-
-    def _parse_version(self, version):
-        """Parse a string based API version into its major and minor numbers"""
-        version_parts = version.strip("v").split(".")
-        return int(version_parts[0]), int(version_parts[1])
 
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""

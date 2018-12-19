@@ -39,6 +39,7 @@ class IS0401Test(GenericTest):
         self.node = node
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
+        self.is04_utils = IS04Utils(self.node_url)
 
     def set_up_tests(self):
         self.registry.enable()
@@ -375,7 +376,7 @@ class IS0401Test(GenericTest):
                                      "Sender ID".format(receiver["id"]))
 
                 api = self.apis[NODE_API_KEY]
-                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 2):
+                if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if not receiver["subscription"]["active"]:
                         return test.FAIL("Node API Receiver {} subscription does not indicate an active " \
                                          "subscription".format(receiver["id"]))
@@ -420,7 +421,7 @@ class IS0401Test(GenericTest):
                                      "Sender ID".format(receiver["id"]))
 
                 api = self.apis[NODE_API_KEY]
-                if api["major_version"] > 1 or (api["major_version"] == 1 and api["minor_version"] >= 2):
+                if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if receiver["subscription"]["active"]:
                         return test.FAIL("Node API Receiver {} subscription does not indicate an inactive " \
                                          "subscription".format(receiver["id"]))

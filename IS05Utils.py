@@ -27,6 +27,17 @@ class IS05Utils(NMOSUtils):
     def __init__(self, url):
         NMOSUtils.__init__(self, url)
 
+    def get_valid_transports(self, api_version):
+        """Identify the valid transport types for a given version of IS-05"""
+        valid_transports = ["urn:x-nmos:transport:rtp",
+                            "urn:x-nmos:transport:rtp.mcast",
+                            "urn:x-nmos:transport:rtp.ucast",
+                            "urn:x-nmos:transport:dash"]
+        if self.compare_api_version(api_version, "v1.1") >= 0:
+            valid_transports.append("urn:x-nmos:transport:websocket")
+            valid_transports.append("urn:x-nmos:transport:mqtt")
+        return valid_transports
+
     def check_num_legs(self, url, type, uuid):
         """Checks the number of legs present on a given sender/receiver"""
         max = 2
@@ -584,6 +595,54 @@ class IS05Utils(NMOSUtils):
                 return 0
         except requests.exceptions.RequestException:
             return 0
+
+    def park_resource(self, resource_type, resource_id):
+        url = "single/" + resource_type + "/" + resource_id + "/staged"
+        data = {"master_enable": False}
+        valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
+        if valid:
+            staged_params = response['transport_params']
+            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
+                                                                        resource_id,
+                                                                        staged_params)
+            if not valid2:
+                return False, response2
+        else:
+            return False, response
+
+        return True, ""
+
+    def subscribe_resource(self, resource_type, resource_id, subscription_id, multicast=True):
+        url = "single/" + resource_type + "/" + resource_id + "/staged"
+
+        data = {"master_enable": True, "transport_params": []}
+        if resource_type == "receivers":
+            data["sender_id"] = subscription_id
+        else:
+            data["receiver_id"] = subscription_id
+
+        param = "multicast_ip"
+        if resource_type == "senders":
+            param = "destination_ip"
+
+        for i in range(0, self.get_num_paths(resource_id, resource_type.rstrip("s"))):
+            if multicast:
+                data['transport_params'].append({param: "239.10.53.5"})
+            else:
+                data['transport_params'].append({param: "127.0.0.1"})
+
+        valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
+        if valid:
+            staged_params = response['transport_params']
+            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
+                                                                        resource_id,
+                                                                        staged_params)
+            if not valid2:
+                return False, response2
+        else:
+            return False, response
+
+        return True, ""
 
     def checkCleanRequest(self, method, dest, data=None, code=200):
         """Checks a request can be made and the resulting json can be parsed"""

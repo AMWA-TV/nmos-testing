@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import time
+from urllib.parse import urlparse
 
 # The UTC leap seconds table below was extracted from the information provided at
 # http://www.ietf.org/timezones/data/leap-seconds.list
@@ -74,7 +75,7 @@ class NMOSUtils(object):
         ippTime = self.from_UTC(secs, nanos)
         return str(ippTime[0]) + ":" + str(ippTime[1])
 
-    def compare_version(self, ver1, ver2):
+    def compare_resource_version(self, ver1, ver2):
         """Returns 1 if ver1>ver2, 0 if ver1=ver2, and -1 if ver1<ver2"""
         ver1_bits = ver1.split(":")
         ver2_bits = ver2.split(":")
@@ -92,3 +93,47 @@ class NMOSUtils(object):
             return -1
         else:
             return 0
+
+    def compare_api_version(self, ver1, ver2):
+        """Returns 1 if ver1>ver2, 0 if ver1=ver2, and -1 if ver1<ver2"""
+        ver1_bits = ver1.strip("v").split(".")
+        ver2_bits = ver2.strip("v").split(".")
+
+        # Compare major
+        if int(ver1_bits[0]) > int(ver2_bits[0]):
+            return 1
+        elif int(ver2_bits[0]) > int(ver1_bits[0]):
+            return -1
+
+        # Compare minor
+        if int(ver1_bits[1]) > int(ver2_bits[1]):
+            return 1
+        elif int(ver2_bits[1]) > int(ver1_bits[1]):
+            return -1
+        else:
+            return 0
+
+    def compare_urls(self, url1, url2):
+        """Check that two URLs to a given API are sufficiently similar"""
+
+        url1_parsed = urlparse(url1.rstrip("/"))
+        url2_parsed = urlparse(url2.rstrip("/"))
+
+        comparisons = ["scheme", "hostname", "path"]
+        for attr in comparisons:
+            if getattr(url1_parsed, attr) != getattr(url2_parsed, attr):
+                return False
+
+        # Ports can be None if they are the default for the scheme
+        ports = [url1_parsed.port, url2_parsed.port]
+        comparisons = [url1_parsed, url2_parsed]
+        for index, url in enumerate(comparisons):
+            if url.port is None and url.scheme == "http":
+                ports[index] = 80
+            elif url.port is None and url.scheme == "https":
+                ports[index] = 443
+
+        if ports[0] != ports[1]:
+            return False
+
+        return True
