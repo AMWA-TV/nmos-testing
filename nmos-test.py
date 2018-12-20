@@ -218,7 +218,7 @@ def index_page():
                     raise ex
                 finally:
                     app.config['TEST_ACTIVE'] = False
-                return render_template("result.html", url=base_url, test=test, result=result)
+                return render_template("result.html", url=base_url, test=test_def["name"], result=result)
             else:
                 flash("Error: This test definition does not exist")
         else:
