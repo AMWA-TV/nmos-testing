@@ -24,6 +24,7 @@ from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
+from IS04Utils import IS04Utils
 from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT
 
 NODE_API_KEY = "node"
