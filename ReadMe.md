@@ -2,7 +2,7 @@
 
 This tool creates a simple web service which tests implementations of the NMOS APIs.
 
-The following tests sets are currently supported:
+The following test sets are currently supported:
 *   IS-04 Node API
 *   IS-04 Registry APIs
 *   IS-05 Connection Management API
@@ -14,7 +14,7 @@ The following tests sets are currently supported:
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'N/A' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
 **Attention:**
-*   The IS-04 Node tests create a mock registry on the network. It is critical that these are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time.
+*   The IS-04 Node tests create a mock registry on the network unless the Config.py ENABLE_MDNS parameter is set to False. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time.
 *   For IS-05 tests #29 and #30 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.
 
 ## Usage
@@ -45,13 +45,6 @@ Python packages:
 ### Ramlfications Parsing
 
 Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until this is resolved in the library, we overwrite cases of this keyword in the RAML files. An alternative approach is documented below.
-
-In file 'ramlfications/utils.py', insert the following code into the top of the function '\_remove_duplicates' which starts at line 495:
-
-```python
-    if not resource_params:
-        return None
-```
 
 ## Adding New Tests
 
