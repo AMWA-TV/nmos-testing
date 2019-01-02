@@ -44,7 +44,7 @@ Python packages:
 
 ### Ramlfications Parsing
 
-Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until this is resolved in the library, we overwrite cases of this keyword in the RAML files. An alternative approach is documented below.
+Ramlfications trips up over the 'traits' used in some of the NMOS specifications. Until this is resolved in the library, we overwrite cases of this keyword in the RAML files.
 
 ## Adding New Tests
 
