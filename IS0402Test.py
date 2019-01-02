@@ -350,7 +350,176 @@ class IS0402Test(GenericTest):
         bad_json = {"notareceiver": True}
         return self.do_400_check(test, "receiver", bad_json)
 
+    @test_depends
     def test_15(self):
+        """Updating Node resource results in 200"""
+        test = Test("Registration API responds with 200 HTTP code on updating an registered Node")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_node.json") as node_data:
+                node_json = json.load(node_data)
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
+                self.bump_resource_version(node_json)
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 200:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
+
+    @test_depends
+    def test_16(self):
+        """Updating Device resource results in 200"""
+        test = Test("Registration API responds with 200 HTTP code on updating an registered Device")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_device.json") as device_data:
+
+                device_json = json.load(device_data)
+
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
+
+                self.bump_resource_version(device_json)
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
+                                                                                    "data": device_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 200:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
+                                                                                                      r.text))
+
+        return test.FAIL("An unknown error occurred")
+
+    @test_depends
+    def test_17(self):
+        """Updating Source resource results in 200"""
+        test = Test("Registration API responds with 200 HTTP code on updating an registered Source")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_source.json") as source_data:
+                source_json = json.load(source_data)
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
+
+                self.bump_resource_version(source_json)
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
+                                                                                    "data": source_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 200:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
+
+    @test_depends
+    def test_18(self):
+        """Updating Flow resource results in 200"""
+        test = Test("Registration API responds with 200 HTTP code on updating an registered Flow")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_flow.json") as flow_data:
+                flow_json = json.load(flow_data)
+
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
+
+                self.bump_resource_version(flow_json)
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
+                                                                                    "data": flow_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 200:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
+
+    @test_depends
+    def test_19(self):
+        """Updating Sender resource results in 200"""
+        test = Test("Registration API responds with 200 HTTP code on updating an registered Sender")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_sender.json") as sender_data:
+                sender_json = json.load(sender_data)
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+
+                self.bump_resource_version(sender_json)
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
+                                                                                    "data": sender_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 200:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
+
+    @test_depends
+    def test_20(self):
+        """Updating Receiver resource results in 200"""
+        test = Test("Registration API responds with 200 HTTP code on updating an registered Receiver")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
+                receiver_json = json.load(receiver_data)
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
+                                                                                    "data": receiver_json})
+                self.bump_resource_version(receiver_json)
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 200:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
+
+    def test_21(self):
         """Query API implements pagination"""
 
         test = Test("Query API implements pagination")
@@ -360,7 +529,7 @@ class IS0402Test(GenericTest):
 
         return test.MANUAL()
 
-    def test_16(self):
+    def test_22(self):
         """Query API implements downgrade queries"""
 
         test = Test("Query API implements downgrade queries")
@@ -370,7 +539,7 @@ class IS0402Test(GenericTest):
 
         return test.MANUAL()
 
-    def test_17(self):
+    def test_23(self):
         """Query API implements basic query parameters"""
 
         test = Test("Query API implements basic query parameters")
@@ -394,7 +563,7 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
-    def test_18(self):
+    def test_24(self):
         """Query API implements RQL"""
 
         test = Test("Query API implements RQL")
@@ -423,7 +592,7 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
-    def test_19(self):
+    def test_25(self):
         """Query API implements ancestry queries"""
 
         test = Test("Query API implements ancestry queries")
@@ -575,3 +744,12 @@ class IS0402Test(GenericTest):
 
         # Invalid request
         return None
+
+    def bump_resource_version(self, resource):
+        """Bump version timestamp of the given resource"""
+        v = [int(i) for i in resource["version"].split(':')]
+        v[1] += 1
+        if v[1] == 1e9:
+            v[0] += 1
+            v[1] = 0
+        resource["version"] = str(v[0]) + ':' + str(v[1])
