@@ -452,8 +452,7 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
-    @test_depends
-    def test_27(self):
+    def test_26(self):
         """Posting resource without parent results in 400"""
         test = Test("Registration API responds with 400 HTTP code on posting a resource without parent")
 
