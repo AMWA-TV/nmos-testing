@@ -836,8 +836,8 @@ class IS0501Test(GenericTest):
                     schema = self.load_schema(CONN_API_KEY, port + "_transport_params_rtp.json")
                 except FileNotFoundError:
                     schema = self.load_schema(CONN_API_KEY, "v1.0_" + port + "_transport_params_rtp.json")
-                resolver = RefResolver(self.file_prefix + os.path.join(self.apis[CONN_API_KEY]["spec_path"] +
-                                                                       '/APIs/schemas/'),
+                resolver = RefResolver(self.file_prefix + os.path.abspath(self.apis[CONN_API_KEY]["spec_path"] +
+                                                                          '/APIs/schemas/') + os.sep,
                                        schema)
                 constraints_valid, constraints_response = self.is05_utils.checkCleanRequestJSON("GET", "single/" +
                                                                                                 port + "s/" + myPort +
