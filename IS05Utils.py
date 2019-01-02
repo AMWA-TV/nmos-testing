@@ -198,7 +198,7 @@ class IS05Utils(NMOSUtils):
         return True, ""
 
     def check_perform_relative_activation(self, port, portId, stagedParams):
-        # Request an relative activation
+        # Request an relative activation 2 nanoseconds in the future
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
         data = {"activation": {"mode": "activate_scheduled_relative", "requested_time": "0:2"}}
@@ -228,7 +228,7 @@ class IS05Utils(NMOSUtils):
                 pass
             else:
                 return False, amsg
-            time.sleep(0.2)
+            time.sleep(0.5)
 
             retries = 0
             finished = False
@@ -258,7 +258,7 @@ class IS05Utils(NMOSUtils):
                             finished = True
                         else:
                             retries = retries + 1
-                            time.sleep(0.2)
+                            time.sleep(1)
 
                     if finished:
                         try:
