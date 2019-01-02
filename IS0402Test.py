@@ -452,6 +452,36 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    @test_depends
+    def test_27(self):
+        """Posting resource without parent results in 400"""
+        test = Test("Registration API responds with 400 HTTP code on posting a resource without parent")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_device.json") as device_data:
+                device_json = json.load(device_data)
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
+
+                device_json["id"] = str(uuid.uuid4())
+                device_json["node_id"] = str(uuid.uuid4())
+
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
+                                                                                    "data": device_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 200 or r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 400:
+                    return test.PASS()
+                else:
+                    return test.FAIL(
+                        "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+        return test.FAIL("An unknown error occurred")
+
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
 
