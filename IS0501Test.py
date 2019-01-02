@@ -147,6 +147,9 @@ class IS0501Test(GenericTest):
                     "active/",
                     "transportfile/"
                 ]
+                api = self.apis[CONN_API_KEY]
+                if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    expected.append("transporttype/")
                 msg = "Sender root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
                 if valid:
                     if TestHelper.compare_json(expected, response):
@@ -171,6 +174,9 @@ class IS0501Test(GenericTest):
                     "staged/",
                     "active/"
                 ]
+                api = self.apis[CONN_API_KEY]
+                if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    expected.append("transporttype/")
                 msg = "Receiver root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
                 if valid:
                     if TestHelper.compare_json(expected, response):
@@ -826,7 +832,10 @@ class IS0501Test(GenericTest):
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
             if valid:
-                schema = self.load_schema(CONN_API_KEY, "v1.0_" + port + "_transport_params_rtp.json")
+                try:
+                    schema = self.load_schema(CONN_API_KEY, port + "_transport_params_rtp.json")
+                except FileNotFoundError:
+                    schema = self.load_schema(CONN_API_KEY, "v1.0_" + port + "_transport_params_rtp.json")
                 resolver = RefResolver(self.file_prefix + os.path.join(self.apis[CONN_API_KEY]["spec_path"] +
                                                                        '/APIs/schemas/'),
                                        schema)
