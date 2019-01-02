@@ -858,7 +858,7 @@ class IS0501Test(GenericTest):
                                     str(e))
                             count = count + 1
                     except KeyError:
-                        return False, "Expected 'transport_params' key in constraints."
+                        return False, "Expected 'transport_params' key in '/staged'."
                 else:
                     return False, constraints_response
             else:
