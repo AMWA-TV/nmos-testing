@@ -848,7 +848,7 @@ class IS0501Test(GenericTest):
                         for params in response['transport_params']:
                             schema.update(constraints_response[count])
                             try:
-                                Draft4Validator(schema['items']['properties'], resolver=resolver).validate(params)
+                                Draft4Validator(schema['items'], resolver=resolver).validate(params)
                             except ValidationError as e:
                                 return False, "Staged endpoint does not comply with constraints in leg {}: " \
                                               "{}".format(count, str(e))
@@ -858,7 +858,7 @@ class IS0501Test(GenericTest):
                                     str(e))
                             count = count + 1
                     except KeyError:
-                        return False, "Expected 'tranport_params' key in constraints."
+                        return False, "Expected 'transport_params' key in constraints."
                 else:
                     return False, constraints_response
             else:
