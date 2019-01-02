@@ -621,6 +621,50 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_26(self):
+        """Posting resource without parent results in 400"""
+        test = Test("Registration API responds with 400 HTTP code on posting a resource without parent")
+
+        api = self.apis[REG_API_KEY]
+
+        resources = ["device", "source", "flow", "sender", "receiver"]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            for curr_resource in resources:
+                with open("test_data/IS0402/v1.2_{}.json".format(curr_resource)) as resource_data:
+                    resource_json = json.load(resource_data)
+                    if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                        resource_json = self.downgrade_resource(curr_resource, resource_json,
+                                                                self.apis[REG_API_KEY]["version"])
+
+                    resource_json["id"] = str(uuid.uuid4())
+
+                    # Set random uuid for parent (depending on resource type and version)
+                    if curr_resource == "device":
+                        resource_json["node_id"] = str(uuid.uuid4())
+                    elif curr_resource == "flow":
+                        if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") > 0:
+                            resource_json["device_id"] = str(uuid.uuid4())
+                        resource_json["source_id"] = str(uuid.uuid4())
+                    else:
+                        resource_json["device_id"] = str(uuid.uuid4())
+
+                    valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": curr_resource,
+                                                                                        "data": resource_json})
+
+                    if not valid:
+                        return test.FAIL("Registration API did not respond as expected")
+                    elif r.status_code == 200 or r.status_code == 201:
+                        return test.FAIL("Registration API returned wrong HTTP code.")
+                    elif r.status_code == 400:
+                        pass
+                    else:
+                        return test.FAIL(
+                            "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+            return test.PASS()
+
+        return test.FAIL("An unknown error occurred")
+
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
 
