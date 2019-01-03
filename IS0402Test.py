@@ -697,7 +697,59 @@ class IS0402Test(GenericTest):
                             return test.FAIL("Query API returned not 404 on a resource which should have been "
                                              "removed due to missing heartbeats")
                     else:
-                        return test.FAIL("Query API returned an unexpected response: {] {]".format(r.status_code, r.text))
+                        return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            return test.PASS()
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
+    def test_28(self):
+        """Child-resources of a Node which unregistered it's resources in an incorrect order must be removed by
+        the registry"""
+        test = Test("Registry removes stale child-resources of an incorrectly unregistered Node")
+
+        api = self.apis[REG_API_KEY]
+
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            resources = ["node", "device", "source", "flow", "sender", "receiver"]
+
+            # Post all resources
+            for resource in resources:
+                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
+                    resource_json = json.load(resource_data)
+                    if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                        resource_json = self.downgrade_resource(resource, resource_json,
+                                                                self.apis[REG_API_KEY]["version"])
+
+                    valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
+                                                                                        "data": resource_json})
+                    if not valid:
+                        return test.FAIL("Registration API did not respond as expected")
+                    elif r.status_code == 200 or r.status_code == 201:
+                        pass
+                    else:
+                        return test.FAIL(
+                            "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+            # Remove Node
+            with open("test_data/IS0402/v1.2_node.json") as node_data:
+                node_json = json.load(node_data)
+                valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(node_json["id"]))
+                if not valid or r.status_code != 204:
+                    return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
+                                     .format(r.status_code, r.text))
+
+            # Check if node and all child_resources are removed
+            for resource in resources:
+                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
+                    resource_json = json.load(resource_data)
+                    curr_id = resource_json["id"]
+                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                    if valid:
+                        if r.status_code != 404:
+                            return test.FAIL("Query API returned not 404 on a resource which should have been "
+                                             "removed because parent resource was deleted")
+                    else:
+                        return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
