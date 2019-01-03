@@ -661,36 +661,41 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
+    @test_depends
     def test_27(self):
         """Node and sub-resources should be removed after a timeout because of missing heartbeats"""
         test = Test("Registration API cleans up Nodes and their sub-resources when a heartbeat doesn’t occur for "
                     "the duration of a fixed timeout period")
 
         api = self.apis[REG_API_KEY]
-        sleep(GARBAGE_COLLECTION_TIMEOUT)
 
-        # Search for resources
-        resources = ["node", "device", "source", "flow", "sender", "receiver"]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            resources = ["node", "device", "source", "flow", "sender", "receiver"]
+
+            # Check if all resources are registered
             for resource in resources:
                 with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
                     resource_json = json.load(resource_data)
                     curr_id = resource_json["id"]
 
-                    valid, r = self.do_request("GET", self.query_url + "{}s".format(resource))
+                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                    if not valid or r.status_code != 200:
+                        return test.FAIL("Cannot execute test, as expected resources are not registered")
 
-                    if valid and r.status_code == 200:
-                        if curr_id in r.text:
-                            return test.FAIL("Query API returned resource which should have been removed due to missing"
-                                             "heartbeats")
-                        else:
-                            valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
-                            if valid:
-                                if r.status_code != 404:
-                                    return test.FAIL("Query API returned not 404 on a resource which should have been "
-                                                     "removed due to missing heartbeats")
-                            else:
-                                return test.FAIL("Query API returned an unexpected response: {] {]".format(r.status_code, r.text))
+            # Wait for garbage collection
+            sleep(GARBAGE_COLLECTION_TIMEOUT)
+
+            # Verify all resources are removed
+            for resource in resources:
+                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
+                    resource_json = json.load(resource_data)
+                    curr_id = resource_json["id"]
+
+                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                    if valid:
+                        if r.status_code != 404:
+                            return test.FAIL("Query API returned not 404 on a resource which should have been "
+                                             "removed due to missing heartbeats")
                     else:
                         return test.FAIL("Query API returned an unexpected response: {] {]".format(r.status_code, r.text))
             return test.PASS()
