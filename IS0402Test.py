@@ -754,6 +754,26 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
+    def test_29(self):
+        """Query API supports websocket subscription request"""
+        test = Test("Query API supports request of a websocket subscription")
+
+        api = self.apis[REG_API_KEY]
+
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/subscriptions_request.json") as sub_data:
+                sub_json = json.load(sub_data)
+                valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+                if valid:
+                    if r.status_code == 200 or r.status_code == 201:
+                        return test.PASS()
+                    else:
+                        return test.FAIL("Query API rejects websocket subscription request.")
+                else:
+                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
 
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
