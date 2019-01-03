@@ -196,8 +196,8 @@ class GenericTest(object):
             return False, "Incorrect CORS headers: {}".format(response.headers)
 
         try:
-            resolver = jsonschema.RefResolver(self.file_prefix + os.path.join(self.apis[api_name]["spec_path"] +
-                                                                              '/APIs/schemas/'),
+            resolver = jsonschema.RefResolver(self.file_prefix + os.path.abspath(self.apis[api_name]["spec_path"] +
+                                                                                 '/APIs/schemas/') + os.sep,
                                               schema)
             jsonschema.validate(response.json(), schema, resolver=resolver)
         except jsonschema.ValidationError:

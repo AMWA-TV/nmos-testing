@@ -147,6 +147,9 @@ class IS0501Test(GenericTest):
                     "active/",
                     "transportfile/"
                 ]
+                api = self.apis[CONN_API_KEY]
+                if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    expected.append("transporttype/")
                 msg = "Sender root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
                 if valid:
                     if TestHelper.compare_json(expected, response):
@@ -171,6 +174,9 @@ class IS0501Test(GenericTest):
                     "staged/",
                     "active/"
                 ]
+                api = self.apis[CONN_API_KEY]
+                if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    expected.append("transporttype/")
                 msg = "Receiver root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
                 if valid:
                     if TestHelper.compare_json(expected, response):
@@ -826,9 +832,12 @@ class IS0501Test(GenericTest):
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
             if valid:
-                schema = self.load_schema(CONN_API_KEY, "v1.0_" + port + "_transport_params_rtp.json")
-                resolver = RefResolver(self.file_prefix + os.path.join(self.apis[CONN_API_KEY]["spec_path"] +
-                                                                       '/APIs/schemas/'),
+                try:
+                    schema = self.load_schema(CONN_API_KEY, port + "_transport_params_rtp.json")
+                except FileNotFoundError:
+                    schema = self.load_schema(CONN_API_KEY, "v1.0_" + port + "_transport_params_rtp.json")
+                resolver = RefResolver(self.file_prefix + os.path.abspath(self.apis[CONN_API_KEY]["spec_path"] +
+                                                                          '/APIs/schemas/') + os.sep,
                                        schema)
                 constraints_valid, constraints_response = self.is05_utils.checkCleanRequestJSON("GET", "single/" +
                                                                                                 port + "s/" + myPort +
@@ -839,7 +848,7 @@ class IS0501Test(GenericTest):
                         for params in response['transport_params']:
                             schema.update(constraints_response[count])
                             try:
-                                Draft4Validator(schema['items']['properties'], resolver=resolver).validate(params)
+                                Draft4Validator(schema['items'], resolver=resolver).validate(params)
                             except ValidationError as e:
                                 return False, "Staged endpoint does not comply with constraints in leg {}: " \
                                               "{}".format(count, str(e))
@@ -849,7 +858,7 @@ class IS0501Test(GenericTest):
                                     str(e))
                             count = count + 1
                     except KeyError:
-                        return False, "Expected 'tranport_params' key in constraints."
+                        return False, "Expected 'transport_params' key in '/staged'."
                 else:
                     return False, constraints_response
             else:
