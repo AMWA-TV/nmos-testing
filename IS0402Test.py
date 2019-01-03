@@ -24,6 +24,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, test_depends
 from IS04Utils import IS04Utils
+from Config import GARBAGE_COLLECTION_TIMEOUT
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -159,8 +160,6 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-        return test.FAIL("An unknown error occurred")
-
     def test_04(self):
         """Registration API rejects an invalid Node resource with a 400 HTTP code"""
 
@@ -197,8 +196,6 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-        return test.FAIL("An unknown error occurred")
-
     @test_depends
     def test_06(self):
         """Registration API rejects an invalid Device resource with a 400 HTTP code"""
@@ -232,8 +229,6 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
-
-        return test.FAIL("An unknown error occurred")
 
     @test_depends
     def test_08(self):
@@ -269,8 +264,6 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-        return test.FAIL("An unknown error occurred")
-
     @test_depends
     def test_10(self):
         """Registration API rejects an invalid Flow resource with a 400 HTTP code"""
@@ -303,8 +296,6 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
-
-        return test.FAIL("An unknown error occurred")
 
     @test_depends
     def test_12(self):
@@ -339,8 +330,6 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-        return test.FAIL("An unknown error occurred")
-
     @test_depends
     def test_14(self):
         """Registration API rejects an invalid Receiver resource with a 400 HTTP code"""
@@ -374,7 +363,8 @@ class IS0402Test(GenericTest):
                 else:
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
-        return test.FAIL("An unknown error occurred")
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_16(self):
@@ -405,7 +395,8 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
                                                                                                       r.text))
 
-        return test.FAIL("An unknown error occurred")
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_17(self):
@@ -433,7 +424,8 @@ class IS0402Test(GenericTest):
                 else:
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
-        return test.FAIL("An unknown error occurred")
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_18(self):
@@ -462,7 +454,8 @@ class IS0402Test(GenericTest):
                 else:
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
-        return test.FAIL("An unknown error occurred")
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_19(self):
@@ -490,7 +483,8 @@ class IS0402Test(GenericTest):
                 else:
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
-        return test.FAIL("An unknown error occurred")
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_20(self):
@@ -502,7 +496,8 @@ class IS0402Test(GenericTest):
             with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
                 receiver_json = json.load(receiver_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
+                    receiver_json = self.downgrade_resource("receiver", receiver_json,
+                                                            self.apis[REG_API_KEY]["version"])
 
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
                                                                                     "data": receiver_json})
@@ -516,8 +511,8 @@ class IS0402Test(GenericTest):
                     return test.PASS()
                 else:
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
-
-        return test.FAIL("An unknown error occurred")
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
 
     def test_21(self):
         """Query API implements pagination"""
@@ -663,7 +658,50 @@ class IS0402Test(GenericTest):
 
             return test.PASS()
 
-        return test.FAIL("An unknown error occurred")
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
+    @test_depends
+    def test_27(self):
+        """Node and sub-resources should be removed after a timeout because of missing heartbeats"""
+        test = Test("Registration API cleans up Nodes and their sub-resources when a heartbeat doesn’t occur for "
+                    "the duration of a fixed timeout period")
+
+        api = self.apis[REG_API_KEY]
+
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            resources = ["node", "device", "source", "flow", "sender", "receiver"]
+
+            # Check if all resources are registered
+            for resource in resources:
+                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
+                    resource_json = json.load(resource_data)
+                    curr_id = resource_json["id"]
+
+                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                    if not valid or r.status_code != 200:
+                        return test.FAIL("Cannot execute test, as expected resources are not registered")
+
+            # Wait for garbage collection
+            sleep(GARBAGE_COLLECTION_TIMEOUT)
+
+            # Verify all resources are removed
+            for resource in resources:
+                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
+                    resource_json = json.load(resource_data)
+                    curr_id = resource_json["id"]
+
+                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                    if valid:
+                        if r.status_code != 404:
+                            return test.FAIL("Query API returned not 404 on a resource which should have been "
+                                             "removed due to missing heartbeats")
+                    else:
+                        return test.FAIL("Query API returned an unexpected response: {] {]".format(r.status_code, r.text))
+            return test.PASS()
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
 
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
