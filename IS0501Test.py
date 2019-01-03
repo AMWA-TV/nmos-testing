@@ -27,6 +27,13 @@ from IS05Utils import IS05Utils
 
 CONN_API_KEY = "connection"
 
+VALID_TRANSPORTS = {
+    "v1.0": ["urn:x-nmos:transport:rtp"],
+    "v1.1": ["urn:x-nmos:transport:rtp",
+             "urn:x-nmos:transport:mqtt",
+             "urn:x-nmos:transport:websocket"]
+}
+
 
 class IS0501Test(GenericTest):
     """
@@ -748,6 +755,57 @@ class IS0501Test(GenericTest):
             return test.PASS()
         else:
             return test.NA("Not tested. No resources found.")
+
+    def test_40(self):
+        """Only valid transport types for a given API version are advertised"""
+        test = Test("Only valid transport types for a given API version are advertised")
+        api = self.apis[CONN_API_KEY]
+        if self.is05_utils.compare_api_version(api["version"], "v1.0") == 0:
+            # Ensure rtp_enabled in present in each transport_params entry to confirm it's RTP
+            if len(self.senders) or len(self.receivers):
+                for sender in self.senders:
+                    url = "single/senders/{}/active".format(sender)
+                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                    if valid:
+                        if "rtp_enabled" not in response["transport_params"][0]:
+                            return test.FAIL("Sender {} does not appear to use the RTP transport".format(sender))
+                    else:
+                        return test.FAIL("Unexpected response from active resource for Sender {}".format(sender))
+                for receiver in self.receivers:
+                    url = "single/receivers/{}/active".format(receiver)
+                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                    if valid:
+                        if "rtp_enabled" not in response["transport_params"][0]:
+                            return test.FAIL("Receiver {} does not appear to use the RTP transport".format(receiver))
+                    else:
+                        return test.FAIL("Unexpected response from active resource for Receiver {}".format(receiver))
+                return test.PASS()
+            else:
+                return test.NA("Not tested. No resources found.")
+        else:
+            if len(self.senders) or len(self.receivers):
+                for sender in self.senders:
+                    url = "single/senders/{}/transporttype".format(sender)
+                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                    if valid:
+                        if response not in VALID_TRANSPORTS[api["version"]]:
+                            return test.FAIL("Sender {} indicates an invalid transport type of {}".format(sender,
+                                                                                                          response))
+                    else:
+                        return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
+                for receiver in self.receivers:
+                    url = "single/receivers/{}/transporttype".format(receiver)
+                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                    if valid:
+                        if response not in VALID_TRANSPORTS[api["version"]]:
+                            return test.FAIL("Receiver {} indicates an invalid transport type of {}".format(receiver,
+                                                                                                            response))
+                    else:
+                        return test.FAIL("Unexpected response from transporttype resource for Receiver {}".format(receiver))
+                return test.PASS()
+            else:
+                return test.NA("Not tested. No resources found.")
+
 
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""
