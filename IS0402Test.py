@@ -764,11 +764,10 @@ class IS0402Test(GenericTest):
             with open("test_data/IS0402/subscriptions_request.json") as sub_data:
                 sub_json = json.load(sub_data)
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
-                if valid:
-                    if r.status_code == 200 or r.status_code == 201:
-                        return test.PASS()
-                    else:
-                        return test.FAIL("Query API rejects websocket subscription request.")
+                if not valid:
+                    return test.FAIL("Query API did not respond as expected")
+                elif r.status_code == 200 or r.status_code == 201:
+                    return test.PASS()
                 else:
                     return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
