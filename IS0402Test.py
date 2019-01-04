@@ -767,12 +767,19 @@ class IS0402Test(GenericTest):
                 if not valid:
                     return test.FAIL("Query API did not respond as expected")
                 elif r.status_code == 200 or r.status_code == 201:
-                    return test.PASS()
+                    # Test if subscription is available
+                    sub_id = r.json()["id"]
+                    valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
+                    if not valid:
+                        return test.FAIL("Query API did not respond as expected")
+                    elif r.status_code == 200:
+                        return test.PASS()
+                    else:
+                        return test.FAIL("Query API does not provide requested subscription: {} {}".format(r.status_code, r.text))
                 else:
                     return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
-
 
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
