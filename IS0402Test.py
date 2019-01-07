@@ -763,6 +763,9 @@ class IS0402Test(GenericTest):
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
             with open("test_data/IS0402/subscriptions_request.json") as sub_data:
                 sub_json = json.load(sub_data)
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                        sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
+
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
                 if not valid:
                     return test.FAIL("Query API did not respond as expected")
@@ -896,6 +899,18 @@ class IS0402Test(GenericTest):
                         "media_type",
                         "sample_rate",
                         "transfer_characteristic"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "subscription":
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "secure"
                     ]
                     for key in keys_to_remove:
                         if key in data:
