@@ -958,7 +958,7 @@ class IS0402Test(GenericTest):
 
                     # Verify if corresponding message received via websocket DELETE
             # Delete NODE resource ## --> relies on registry to remove all related child resources!
-            v, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(test_data["node"]["id"]))
+            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(test_data["node"]["id"]))
             if not valid or r.status_code != 204:
                 return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
                                  .format(r.status_code, r.text))
