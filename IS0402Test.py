@@ -764,7 +764,7 @@ class IS0402Test(GenericTest):
             with open("test_data/IS0402/subscriptions_request.json") as sub_data:
                 sub_json = json.load(sub_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                        sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
+                    sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
 
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
                 if not valid:
@@ -781,6 +781,38 @@ class IS0402Test(GenericTest):
                         return test.FAIL("Query API does not provide requested subscription: {} {}".format(r.status_code, r.text))
                 else:
                     return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
+    def test_30(self):
+        """Registration API accepts heartbeat requests for a Node held in the registry"""
+        test = Test("Registration API accepts heartbeat requests for a Node held in the registry")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+            with open("test_data/IS0402/v1.2_node.json") as node_data:
+                node_json = json.load(node_data)
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
+
+                # Post Node
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 200 or r.status_code == 201:
+                    pass
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+
+                # Post heartbeat
+                valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 200:
+                    return test.PASS()
+                else:
+                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
