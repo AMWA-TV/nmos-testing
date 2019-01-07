@@ -869,7 +869,7 @@ class IS0402Test(GenericTest):
             websockets = dict()
             for resource in test_data:
                 sub_json["resource_path"] = "/{}s".format(resource)
-                v, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+                valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
                 if not valid:
                     return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code,
