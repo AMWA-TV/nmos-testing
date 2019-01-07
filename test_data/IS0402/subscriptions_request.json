@@ -1,0 +1,7 @@
+{
+    "max_update_rate_ms": 100,
+    "resource_path": "/nodes",
+    "params": {},
+    "persist": false,
+    "secure": false
+}
