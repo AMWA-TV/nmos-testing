@@ -862,12 +862,14 @@ class IS0402Test(GenericTest):
                         "Query API returned an unexpected response: {} {}. Cannot execute test.".format(r.status_code,
                                                                                                         r.text))
 
-                    # Request websocket subscription / ws_href on resource topic
+            # Request websocket subscription / ws_href on resource topic
             test_data = deepcopy(self.test_data)
             sub_json = self.load_subscription_request_data()
 
             websockets = dict()
-            for resource in test_data:
+            resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
+
+            for resource in resources_to_post:
                 sub_json["resource_path"] = "/{}s".format(resource)
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
@@ -882,15 +884,15 @@ class IS0402Test(GenericTest):
                             r.status_code,
                             r.text))
 
-                        # Post sample data
-            for resource, r_data in test_data.items():
+            # Post sample data
+            for resource in resources_to_post:
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
-                                                                                    "data": r_data})
+                                                                                    "data": test_data[resource]})
                 if not valid or r.status_code != 201:
                     return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
-                    # Verify if corresponding message received via websocket: SYNC
+            # Verify if corresponding message received via websocket: SYNC
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
                 sleep(0.5)
@@ -920,7 +922,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Did not found expected data set in websocket SYNC message for '{}'"
                                      .format(resource))
 
-                    # Verify if corresponding message received via websocket: UPDATE
+            # Verify if corresponding message received via websocket: UPDATE
             for resource, resource_data in test_data.items():
                 old_resource_data = deepcopy(resource_data)
                 # Update resource
@@ -956,7 +958,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Did not found expected data set in websocket UPDATE message for '{}'"
                                      .format(resource))
 
-                    # Verify if corresponding message received via websocket DELETE
+            # Verify if corresponding message received via websocket DELETE
             # Delete NODE resource ## --> relies on registry to remove all related child resources!
             valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(test_data["node"]["id"]))
             if not valid or r.status_code != 204:
@@ -987,11 +989,11 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Did not found expected data set in websocket DELETE message for '{}'"
                                      .format(resource))
 
-                    # Verify if corresponding message received via Websocket: ADD
+            # Verify if corresponding message received via Websocket: ADD
             # Post sample data again
-            for resource, r_data in test_data.items():
+            for resource in resources_to_post:
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
-                                                                                    "data": r_data})
+                                                                                    "data": test_data[resource]})
                 if not valid or r.status_code != 201:
                     return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
