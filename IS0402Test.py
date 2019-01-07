@@ -18,7 +18,7 @@ from time import sleep
 import socket
 import uuid
 import json
-from copy import deepcopy
+from copy import copy, deepcopy
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -958,12 +958,15 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Did not found expected data set in websocket UPDATE message for '{}'"
                                      .format(resource))
 
-            # Verify if corresponding message received via websocket DELETE
-            # Delete NODE resource ## --> relies on registry to remove all related child resources!
-            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(test_data["node"]["id"]))
-            if not valid or r.status_code != 204:
-                return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
-                                 .format(r.status_code, r.text))
+            # Verify if corresponding message received via websocket: DELETE
+            reversed_resource_list = copy(resources_to_post)
+            reversed_resource_list.reverse()
+            for resource in reversed_resource_list:
+                valid, r = self.do_request("DELETE", self.reg_url + "resource/{}s/{}".format(resource,
+                                                                                            test_data[resource]["id"]))
+                if not valid or r.status_code != 204:
+                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
+                                     .format(resource, r.status_code, r.text))
 
             sleep(1)
             for resource, resource_data in test_data.items():
