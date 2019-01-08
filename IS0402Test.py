@@ -923,8 +923,8 @@ class IS0402Test(GenericTest):
                                      .format(resource))
 
             # Verify if corresponding message received via websocket: UPDATE
+            old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
             for resource, resource_data in test_data.items():
-                old_resource_data = deepcopy(resource_data)
                 # Update resource
                 self.bump_resource_version(resource_data)
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
@@ -933,7 +933,9 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Cannot update sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
-                sleep(0.5)
+            sleep(1)
+
+            for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
                 # Verify data inside messages
@@ -948,7 +950,7 @@ class IS0402Test(GenericTest):
                     pre_data = json.dumps(curr_data["pre"], sort_keys=True)
                     post_data = json.dumps(curr_data["post"], sort_keys=True)
                     sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-                    sorted_old_resource_data = json.dumps(old_resource_data, sort_keys=True)
+                    sorted_old_resource_data = json.dumps(old_resource_data[resource], sort_keys=True)
 
                     if pre_data == sorted_old_resource_data:
                         if post_data == sorted_resource_data:
