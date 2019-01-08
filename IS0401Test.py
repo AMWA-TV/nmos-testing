@@ -148,7 +148,7 @@ class IS0401Test(GenericTest):
             # Look up data in local mock registry
             for resource in self.registry.get_data():
                 if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
-                    found_resource = resource
+                    found_resource = resource[1]["payload"]["data"]
         else:
             # Look up data from a configured Query API
             url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
@@ -188,13 +188,13 @@ class IS0401Test(GenericTest):
                     if len(node_resources) == 0:
                         return test.NA("No {} resources were found on the Node.".format(res_type.title()))
 
-                    for resource in node_resources:
-                        reg_resource = self.get_registry_resource(res_type, resource)
+                    for res_id in node_resources:
+                        reg_resource = self.get_registry_resource(res_type, res_id)
                         if not reg_resource:
-                            return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), resource))
-                        elif reg_resource != node_resources[resource]:
+                            return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
+                        elif reg_resource != node_resources[res_id]:
                             return test.FAIL("Node API JSON does not match data in registry for "
-                                             "{} {}.".format(res_type.title(), resource))
+                                             "{} {}.".format(res_type.title(), res_id))
 
                     return test.PASS()
                 except ValueError:
