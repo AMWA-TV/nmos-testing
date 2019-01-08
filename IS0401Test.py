@@ -76,10 +76,15 @@ class IS0401Test(GenericTest):
         # Wait for n seconds after advertising the service for the first POST from a Node
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
-        # Now wait for at least 5 seconds to pass after the last registration was recorded by the mock registry
-        # This ensures we've captured every POST which the Node wants to make, and at least one heartbeat
-        while (time.time() - self.registry.last_time) < 5:
+        # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
+        while (time.time() - self.registry.last_time) < 6:
             time.sleep(1)
+
+        # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
+        if len(self.registry.get_heartbeats()) == 1:
+            # It is heartbeating, but we don't have enough of them yet
+            while len(self.registry.get_heartbeats()) < 2:
+                time.sleep(1)
 
         self.zc.unregister_service(info)
 
@@ -389,7 +394,7 @@ class IS0401Test(GenericTest):
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.FAIL("Node API does not expose any Receivers")
+        return test.NA("Node API does not expose any Receivers")
 
     def test_14(self):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
@@ -431,7 +436,7 @@ class IS0401Test(GenericTest):
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.FAIL("Node API does not expose any Receivers")
+        return test.NA("Node API does not expose any Receivers")
 
     def test_15(self):
         """Node correctly selects a Registration API based on advertised priorities"""
