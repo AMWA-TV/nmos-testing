@@ -823,7 +823,7 @@ class IS0402Test(GenericTest):
         """Query API sends correct websocket event messages for SYNC, ADD, MODIFY and DELETE"""
 
         test = Test("Query API sends correct websocket event messages for SYNC, ADD, MODIFY and DELETE")
-        api = self.apis[REG_API_KEY]
+        api = self.apis[QUERY_API_KEY]
 
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
 
@@ -985,7 +985,7 @@ class IS0402Test(GenericTest):
                     sorted_resource_data = json.dumps(resource_data, sort_keys=True)
 
                     if pre_data == sorted_resource_data:
-                        if "post_data" not in curr_data:
+                        if "post" not in curr_data:
                             found_data_set = True
 
                 if not found_data_set:
@@ -1017,7 +1017,7 @@ class IS0402Test(GenericTest):
                     sorted_resource_data = json.dumps(resource_data, sort_keys=True)
 
                     if post_data == sorted_resource_data:
-                        if "pre_data" not in curr_data:
+                        if "pre" not in curr_data:
                             found_data_set = True
 
                 if not found_data_set:
@@ -1050,8 +1050,8 @@ class IS0402Test(GenericTest):
         """Loads subscription request data"""
         with open("test_data/IS0402/subscriptions_request.json") as resource_data:
             resource_json = json.load(resource_data)
-            if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.2") < 0:
-                return self.downgrade_resource("subscription", resource_json, self.apis[REG_API_KEY]["version"])
+            if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
+                return self.downgrade_resource("subscription", resource_json, self.apis[QUERY_API_KEY]["version"])
             return resource_json 
 
     def do_400_check(self, test, resource_type, data):
