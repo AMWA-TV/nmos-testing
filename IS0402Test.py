@@ -837,7 +837,7 @@ class IS0402Test(GenericTest):
                                                              .format(self.reg_url,
                                                                      self.test_data["node"]["id"]))
                     if not valid_delete:
-                        return test.FAIL("Reg API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                        return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
                     else:
                         if r_delete.status_code != 204:
                             return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
