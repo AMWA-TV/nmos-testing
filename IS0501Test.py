@@ -18,6 +18,7 @@
 import requests
 import uuid
 import os
+import time
 from jsonschema import ValidationError, SchemaError, RefResolver, Draft4Validator
 
 import TestHelper
@@ -806,6 +807,18 @@ class IS0501Test(GenericTest):
             else:
                 return test.NA("Not tested. No resources found.")
 
+    def test_41(self):
+        """Bulk interface can be used to activate destination port on all receivers"""
+        test = Test("Bulk interface can be used to activate destination port on all receivers")
+        if len(self.receivers) > 0:
+            valid, response = self.check_bulk_active_relative("receiver", self.receivers)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(response)
+        else:
+            return test.NA("Not tested. No resources found.")
+
 
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""
@@ -865,6 +878,75 @@ class IS0501Test(GenericTest):
                         return False, msg
             else:
                 return False, response
+        return True, ""
+
+    def check_bulk_active_relative(self, port, portList):
+        """Test changing staged parameters on the bulk interface"""
+        url = self.url + "bulk/" + port + "s"
+        data = []
+        ports = {}
+        for portInst in portList:
+            valid, response = self.is05_utils.generate_destination_ports(port, portInst)
+            if valid:
+                ports[portInst] = response
+                toAdd = {}
+                toAdd['id'] = portInst
+                toAdd['params'] = {}
+                toAdd['params']['activation'] = {"mode": "activate_scheduled_relative", "requested_time": "0:2"}
+                toAdd['params']['transport_params'] = []
+                for portNum in ports[portInst]:
+                    toAdd['params']['transport_params'].append({"destination_port": portNum})
+                data.append(toAdd)
+            else:
+                return False, response
+        try:
+            r = requests.post(url, json=data)
+            msg = "Expected a 200 response from {}, got {}".format(url, r.status_code)
+            if r.status_code == 200:
+                pass
+            else:
+                return False, msg
+        except requests.exceptions.RequestException as e:
+            return False, str(e)
+
+        schema = self.get_schema(CONN_API_KEY, "POST", "/bulk/" + port + "s", 200)
+        try:
+            Draft4Validator(schema).validate(r.json())
+        except ValidationError as e:
+            return False, "Response to post at {} did not validate against schema: {}".format(url, str(e))
+        except:
+            return False, "Invalid JSON received {}".format(r.text)
+
+        time.sleep(0.5)
+        # Check the parameters have actually changed
+        for portInst in portList:
+            retries = 0
+            finished = False
+
+            while retries < 5 and not finished:
+                activeUrl = "single/" + port + "s/" + portInst + "/active/"
+
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", activeUrl)
+                if valid:
+                    for i in range(0, self.is05_utils.get_num_paths(portInst, port)):
+                        try:
+                            value = response['transport_params'][i]['destination_port']
+                        except KeyError:
+                            return False, "Could not find `destination_port` parameter at {} on leg {}, got{}".format(
+                                activeUrl, i,
+                                response)
+                        portNum = ports[portInst][i]
+                        msg = "Problem updating destination_port value in bulk scheduled relative activation, expected {} got {}".format(portNum,
+                                                                                                                  value)
+                        if value == portNum:
+                            finished = True
+                        else:
+                            retries = retries + 1
+                            time.sleep(1)
+                else:
+                    return False, response
+            if not finished:
+                return False, msg
         return True, ""
 
     def check_patch_response_schema_valid(self, port, portList):
