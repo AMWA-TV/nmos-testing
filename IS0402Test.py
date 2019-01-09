@@ -724,9 +724,8 @@ class IS0402Test(GenericTest):
 
             # Check if node and all child_resources are removed
             for resource in resources:
-                resource_json = copy(self.test_data[resource])
-                curr_id = resource_json["id"]
-                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource,
+                                                                                   self.test_data[resource]["id"]))
                 if valid:
                     if r.status_code != 404:
                         return test.FAIL("Query API returned not 404 on a resource which should have been "
