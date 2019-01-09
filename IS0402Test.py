@@ -820,17 +820,16 @@ class IS0402Test(GenericTest):
             return test.FAIL("Version > 1 not supported yet.")
 
     def test_31(self):
-        """Query API sends correct websocket event messages for SYNC, ADD, MODIFY and DELETE"""
+        """Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED"""
 
-        test = Test("Query API sends correct websocket event messages for SYNC, ADD, MODIFY and DELETE")
+        test = Test("Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED")
         api = self.apis[QUERY_API_KEY]
-
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
 
             # Check for clean state // delete resources if needed
             valid, r = self.do_request("GET", "{}nodes/{}".format(self.query_url, self.test_data["node"]["id"]))
             if not valid:
-                return test.FAIL("Query API returend an unexpected response: {}".format(r.status_code, r.text))
+                return test.FAIL("Query API returned an unexpected response: {}".format(r.status_code, r.text))
             else:
                 if r.status_code == 200:
                     # Delete resource
@@ -892,7 +891,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
-            # Verify if corresponding message received via websocket: SYNC
+            # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
                 sleep(0.5)
@@ -919,10 +918,10 @@ class IS0402Test(GenericTest):
                             found_data_set = True
 
                 if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket SYNC message for '{}'"
+                    return test.FAIL("Did not found expected data set in websocket UNCHANGED (SYNC) message for '{}'"
                                      .format(resource))
 
-            # Verify if corresponding message received via websocket: UPDATE
+            # Verify if corresponding message received via websocket: MODIFIED
             old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
             for resource, resource_data in test_data.items():
                 # Update resource
@@ -957,10 +956,10 @@ class IS0402Test(GenericTest):
                             found_data_set = True
 
                 if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket UPDATE message for '{}'"
+                    return test.FAIL("Did not found expected data set in websocket MODIFIED message for '{}'"
                                      .format(resource))
 
-            # Verify if corresponding message received via websocket: DELETE
+            # Verify if corresponding message received via websocket: DELETED
             reversed_resource_list = copy(resources_to_post)
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
@@ -991,12 +990,14 @@ class IS0402Test(GenericTest):
                             found_data_set = True
 
                 if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket DELETE message for '{}'"
+                    return test.FAIL("Did not found expected data set in websocket DELETED message for '{}'"
                                      .format(resource))
 
-            # Verify if corresponding message received via Websocket: ADD
+            # Verify if corresponding message received via Websocket: ADDED
             # Post sample data again
             for resource in resources_to_post:
+                # Update resource
+                self.bump_resource_version(test_data[resource])
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
                                                                                     "data": test_data[resource]})
                 if not valid or r.status_code != 201:
@@ -1023,7 +1024,7 @@ class IS0402Test(GenericTest):
                             found_data_set = True
 
                 if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket ADD message for '{}'"
+                    return test.FAIL("Did not found expected data set in websocket ADDED message for '{}'"
                                      .format(resource))
 
                     # Tear down
