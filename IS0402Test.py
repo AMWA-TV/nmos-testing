@@ -143,7 +143,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Node resource")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_node.json") as node_data:
                 node_json = json.load(node_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -175,7 +175,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Device resource")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_device.json") as device_data:
 
                 device_json = json.load(device_data)
@@ -212,7 +212,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Source resource")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_source.json") as source_data:
                 source_json = json.load(source_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -246,7 +246,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Flow resource")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_flow.json") as flow_data:
                 flow_json = json.load(flow_data)
 
@@ -280,7 +280,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Sender resource")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_sender.json") as sender_data:
                 sender_json = json.load(sender_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -313,7 +313,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts and stores a valid Receiver resource")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
                 receiver_json = json.load(receiver_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -345,7 +345,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API responds with 200 HTTP code on updating an registered Node")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_node.json") as node_data:
                 node_json = json.load(node_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -372,7 +372,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API responds with 200 HTTP code on updating an registered Device")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_device.json") as device_data:
 
                 device_json = json.load(device_data)
@@ -404,7 +404,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API responds with 200 HTTP code on updating an registered Source")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_source.json") as source_data:
                 source_json = json.load(source_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -433,7 +433,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API responds with 200 HTTP code on updating an registered Flow")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_flow.json") as flow_data:
                 flow_json = json.load(flow_data)
 
@@ -463,7 +463,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API responds with 200 HTTP code on updating an registered Sender")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_sender.json") as sender_data:
                 sender_json = json.load(sender_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -492,7 +492,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API responds with 200 HTTP code on updating an registered Receiver")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
                 receiver_json = json.load(receiver_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -623,7 +623,7 @@ class IS0402Test(GenericTest):
         api = self.apis[REG_API_KEY]
 
         resources = ["device", "source", "flow", "sender", "receiver"]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             for curr_resource in resources:
                 with open("test_data/IS0402/v1.2_{}.json".format(curr_resource)) as resource_data:
                     resource_json = json.load(resource_data)
@@ -669,7 +669,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             resources = ["node", "device", "source", "flow", "sender", "receiver"]
 
             # Check if all resources are registered
@@ -709,7 +709,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             resources = ["node", "device", "source", "flow", "sender", "receiver"]
 
             # Post all resources
@@ -760,7 +760,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/subscriptions_request.json") as sub_data:
                 sub_json = json.load(sub_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -789,7 +789,7 @@ class IS0402Test(GenericTest):
         test = Test("Registration API accepts heartbeat requests for a Node held in the registry")
 
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") <= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             with open("test_data/IS0402/v1.2_node.json") as node_data:
                 node_json = json.load(node_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
