@@ -959,7 +959,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Did not found expected data set in websocket MODIFIED message for '{}'"
                                      .format(resource))
 
-            # Verify if corresponding message received via websocket: DELETED
+            # Verify if corresponding message received via websocket: REMOVED
             reversed_resource_list = copy(resources_to_post)
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
@@ -990,7 +990,7 @@ class IS0402Test(GenericTest):
                             found_data_set = True
 
                 if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket DELETED message for '{}'"
+                    return test.FAIL("Did not found expected data set in websocket REMOVED message for '{}'"
                                      .format(resource))
 
             # Verify if corresponding message received via Websocket: ADDED
