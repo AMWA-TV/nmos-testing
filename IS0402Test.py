@@ -717,8 +717,7 @@ class IS0402Test(GenericTest):
                         "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
             # Remove Node
-            node_json = copy(self.test_data["node"])
-            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(node_json["id"]))
+            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(self.test_data["node"]["id"]))
             if not valid or r.status_code != 204:
                 return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
                                  .format(r.status_code, r.text))
