@@ -6,3 +6,4 @@ requests
 netifaces
 gitpython
 ramlfications
+websocket-client

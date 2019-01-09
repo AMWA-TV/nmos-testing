@@ -18,6 +18,7 @@ from time import sleep
 import socket
 import uuid
 import json
+from copy import copy, deepcopy
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -25,6 +26,7 @@ from TestResult import Test
 from GenericTest import GenericTest, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT
+from TestHelper import WebsocketWorker
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -45,6 +47,7 @@ class IS0402Test(GenericTest):
         self.zc = None
         self.is04_reg_utils = IS04Utils(self.reg_url)
         self.is04_query_utils = IS04Utils(self.query_url)
+        self.test_data = self.load_resource_data()
 
     def set_up_tests(self):
         self.zc = Zeroconf()
@@ -815,6 +818,244 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
+
+    def test_31(self):
+        """Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED"""
+
+        test = Test("Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED")
+        api = self.apis[QUERY_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
+
+            # Check for clean state // delete resources if needed
+            valid, r = self.do_request("GET", "{}nodes/{}".format(self.query_url, self.test_data["node"]["id"]))
+            if not valid:
+                return test.FAIL("Query API returned an unexpected response: {}".format(r.status_code, r.text))
+            else:
+                if r.status_code == 200:
+                    # Delete resource
+                    valid_delete, r_delete = self.do_request("DELETE", "{}resource/nodes/{}"
+                                                             .format(self.reg_url,
+                                                                     self.test_data["node"]["id"]))
+                    if not valid_delete:
+                        return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                    else:
+                        if r_delete.status_code != 204:
+                            return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
+                                             .format(r.status_code, r.text))
+                        else:
+                            # Verify all other resources are not available
+                            remaining_resources = ["device", "flow", "source", "sender", "receiver"]
+                            for curr_resource in remaining_resources:
+                                v, r_resource_deleted = self.do_request("GET", "{}{}s/{}"
+                                                                        .format(self.query_url,
+                                                                                curr_resource,
+                                                                                self.test_data[curr_resource]["id"]))
+                                if not v or r_resource_deleted.status_code != 404:
+                                    return test.FAIL(
+                                        "Query API returned an unexpected response: {} {}. Cannot execute test.".format(
+                                            r.status_code, r.text))
+                elif r.status_code == 404:
+                    pass
+                else:
+                    return test.FAIL(
+                        "Query API returned an unexpected response: {} {}. Cannot execute test.".format(r.status_code,
+                                                                                                        r.text))
+
+            # Request websocket subscription / ws_href on resource topic
+            test_data = deepcopy(self.test_data)
+            sub_json = self.load_subscription_request_data()
+
+            websockets = dict()
+            resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
+
+            for resource in resources_to_post:
+                sub_json["resource_path"] = "/{}s".format(resource)
+                valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+
+                if not valid:
+                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code,
+                                                                                               r.text))
+                else:
+                    if r.status_code == 200 or r.status_code == 201:
+                        websockets[resource] = WebsocketWorker(r.json()["ws_href"])
+                    else:
+                        return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}".format(
+                            r.status_code,
+                            r.text))
+
+            # Post sample data
+            for resource in resources_to_post:
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
+                                                                                    "data": test_data[resource]})
+                if not valid or r.status_code != 201:
+                    return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
+                                     .format(r.status_code, r.text))
+
+            # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
+            for resource, resource_data in test_data.items():
+                websockets[resource].start()
+                sleep(0.5)
+                if websockets[resource].did_error_occur():
+                    return test.FAIL("Error opening websocket: {}".format(websockets[resource].get_error_message()))
+
+                received_messages = websockets[resource].get_messages()
+
+                # Verify data inside messages
+                grain_data = list()
+
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
+
+                found_data_set = False
+                for curr_data in grain_data:
+                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                    post_data = json.dumps(curr_data["post"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
+                    if pre_data == sorted_resource_data:
+                        if post_data == sorted_resource_data:
+                            found_data_set = True
+
+                if not found_data_set:
+                    return test.FAIL("Did not found expected data set in websocket UNCHANGED (SYNC) message for '{}'"
+                                     .format(resource))
+
+            # Verify if corresponding message received via websocket: MODIFIED
+            old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
+            for resource, resource_data in test_data.items():
+                # Update resource
+                self.bump_resource_version(resource_data)
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
+                                                                                    "data": resource_data})
+                if not valid or r.status_code != 200:
+                    return test.FAIL("Cannot update sample data. Cannot execute test: {} {}"
+                                     .format(r.status_code, r.text))
+
+            sleep(1)
+
+            for resource, resource_data in test_data.items():
+                received_messages = websockets[resource].get_messages()
+
+                # Verify data inside messages
+                grain_data = list()
+
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
+
+                found_data_set = False
+                for curr_data in grain_data:
+                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                    post_data = json.dumps(curr_data["post"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+                    sorted_old_resource_data = json.dumps(old_resource_data[resource], sort_keys=True)
+
+                    if pre_data == sorted_old_resource_data:
+                        if post_data == sorted_resource_data:
+                            found_data_set = True
+
+                if not found_data_set:
+                    return test.FAIL("Did not found expected data set in websocket MODIFIED message for '{}'"
+                                     .format(resource))
+
+            # Verify if corresponding message received via websocket: REMOVED
+            reversed_resource_list = copy(resources_to_post)
+            reversed_resource_list.reverse()
+            for resource in reversed_resource_list:
+                valid, r = self.do_request("DELETE", self.reg_url + "resource/{}s/{}".format(resource,
+                                                                                            test_data[resource]["id"]))
+                if not valid or r.status_code != 204:
+                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
+                                     .format(resource, r.status_code, r.text))
+
+            sleep(1)
+            for resource, resource_data in test_data.items():
+                received_messages = websockets[resource].get_messages()
+
+                # Verify data inside messages
+                grain_data = list()
+
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
+
+                found_data_set = False
+                for curr_data in grain_data:
+                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
+                    if pre_data == sorted_resource_data:
+                        if "post" not in curr_data:
+                            found_data_set = True
+
+                if not found_data_set:
+                    return test.FAIL("Did not found expected data set in websocket REMOVED message for '{}'"
+                                     .format(resource))
+
+            # Verify if corresponding message received via Websocket: ADDED
+            # Post sample data again
+            for resource in resources_to_post:
+                # Update resource
+                self.bump_resource_version(test_data[resource])
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
+                                                                                    "data": test_data[resource]})
+                if not valid or r.status_code != 201:
+                    return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
+                                     .format(r.status_code, r.text))
+
+            sleep(1)
+            for resource, resource_data in test_data.items():
+                received_messages = websockets[resource].get_messages()
+
+                grain_data = list()
+                # Verify data inside messages
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
+
+                found_data_set = False
+                for curr_data in grain_data:
+                    post_data = json.dumps(curr_data["post"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
+                    if post_data == sorted_resource_data:
+                        if "pre" not in curr_data:
+                            found_data_set = True
+
+                if not found_data_set:
+                    return test.FAIL("Did not found expected data set in websocket ADDED message for '{}'"
+                                     .format(resource))
+
+                    # Tear down
+            for k, v in websockets.items():
+                v.close()
+
+            return test.PASS()
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
+    def load_resource_data(self):
+        """Loads test data from files"""
+        result_data = dict()
+        resources = ["node", "device", "source", "flow", "sender", "receiver"]
+        for resource in resources:
+            with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
+                resource_json = json.load(resource_data)
+                if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.2") < 0:
+                    resource_json = self.downgrade_resource(resource, resource_json,
+                                                            self.apis[REG_API_KEY]["version"])
+
+                result_data[resource] = resource_json
+        return result_data
+
+    def load_subscription_request_data(self):
+        """Loads subscription request data"""
+        with open("test_data/IS0402/subscriptions_request.json") as resource_data:
+            resource_json = json.load(resource_data)
+            if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
+                return self.downgrade_resource("subscription", resource_json, self.apis[QUERY_API_KEY]["version"])
+            return resource_json 
 
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
