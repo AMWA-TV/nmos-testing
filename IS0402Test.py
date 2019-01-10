@@ -18,7 +18,7 @@ from time import sleep
 import socket
 import uuid
 import json
-from copy import copy, deepcopy
+from copy import deepcopy
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -148,7 +148,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = copy(self.test_data["node"])
+            node_json = deepcopy(self.test_data["node"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
 
@@ -179,7 +179,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            device_json = copy(self.test_data["device"])
+            device_json = deepcopy(self.test_data["device"])
 
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
@@ -214,7 +214,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            source_json = copy(self.test_data["source"])
+            source_json = deepcopy(self.test_data["source"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
@@ -247,7 +247,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            flow_json = copy(self.test_data["flow"])
+            flow_json = deepcopy(self.test_data["flow"])
 
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
@@ -280,7 +280,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sender_json = copy(self.test_data["sender"])
+            sender_json = deepcopy(self.test_data["sender"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
             valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
@@ -312,7 +312,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            receiver_json = copy(self.test_data["receiver"])
+            receiver_json = deepcopy(self.test_data["receiver"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
             valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
@@ -343,7 +343,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = copy(self.test_data["node"])
+            node_json = deepcopy(self.test_data["node"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
             self.bump_resource_version(node_json)
@@ -369,7 +369,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            device_json = copy(self.test_data["device"])
+            device_json = deepcopy(self.test_data["device"])
 
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
@@ -399,7 +399,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            source_json = copy(self.test_data["source"])
+            source_json = deepcopy(self.test_data["source"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
@@ -427,7 +427,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            flow_json = copy(self.test_data["flow"])
+            flow_json = deepcopy(self.test_data["flow"])
 
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
@@ -456,7 +456,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sender_json = copy(self.test_data["sender"])
+            sender_json = deepcopy(self.test_data["sender"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
 
@@ -484,7 +484,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            receiver_json = copy(self.test_data["receiver"])
+            receiver_json = deepcopy(self.test_data["receiver"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 receiver_json = self.downgrade_resource("receiver", receiver_json,
                                                         self.apis[REG_API_KEY]["version"])
@@ -615,7 +615,7 @@ class IS0402Test(GenericTest):
         resources = ["device", "source", "flow", "sender", "receiver"]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             for curr_resource in resources:
-                resource_json = copy(self.test_data[curr_resource])
+                resource_json = deepcopy(self.test_data[curr_resource])
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     resource_json = self.downgrade_resource(curr_resource, resource_json,
                                                             self.apis[REG_API_KEY]["version"])
@@ -663,7 +663,7 @@ class IS0402Test(GenericTest):
 
             # Check if all resources are registered
             for resource in resources:
-                resource_json = copy(self.test_data[resource])
+                resource_json = deepcopy(self.test_data[resource])
                 curr_id = resource_json["id"]
 
                 valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
@@ -675,7 +675,7 @@ class IS0402Test(GenericTest):
 
             # Verify all resources are removed
             for resource in resources:
-                resource_json = copy(self.test_data[resource])
+                resource_json = deepcopy(self.test_data[resource])
                 curr_id = resource_json["id"]
 
                 valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
@@ -701,7 +701,7 @@ class IS0402Test(GenericTest):
 
             # Post all resources
             for resource in resources:
-                resource_json = copy(self.test_data[resource])
+                resource_json = deepcopy(self.test_data[resource])
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     resource_json = self.downgrade_resource(resource, resource_json,
                                                             self.apis[REG_API_KEY]["version"])
@@ -743,7 +743,7 @@ class IS0402Test(GenericTest):
         api = self.apis[REG_API_KEY]
 
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-                sub_json = copy(self.subscription_data)
+                sub_json = deepcopy(self.subscription_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
 
@@ -771,7 +771,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = copy(self.test_data["node"])
+            node_json = deepcopy(self.test_data["node"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
 
@@ -845,7 +845,7 @@ class IS0402Test(GenericTest):
             resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
 
             for resource in resources_to_post:
-                sub_json = copy(self.subscription_data)
+                sub_json = deepcopy(self.subscription_data)
                 sub_json["resource_path"] = "/{}s".format(resource)
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
@@ -937,7 +937,7 @@ class IS0402Test(GenericTest):
                                      .format(resource))
 
             # Verify if corresponding message received via websocket: REMOVED
-            reversed_resource_list = copy(resources_to_post)
+            reversed_resource_list = deepcopy(resources_to_post)
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
                 valid, r = self.do_request("DELETE", self.reg_url + "resource/{}s/{}".format(resource,
