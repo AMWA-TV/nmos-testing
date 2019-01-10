@@ -18,7 +18,7 @@ from time import sleep
 import socket
 import uuid
 import json
-from copy import copy, deepcopy
+from copy import deepcopy
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -48,6 +48,7 @@ class IS0402Test(GenericTest):
         self.is04_reg_utils = IS04Utils(self.reg_url)
         self.is04_query_utils = IS04Utils(self.query_url)
         self.test_data = self.load_resource_data()
+        self.subscription_data = self.load_subscription_request_data()
 
     def set_up_tests(self):
         self.zc = Zeroconf()
@@ -147,19 +148,18 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_node.json") as node_data:
-                node_json = json.load(node_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
+            node_json = deepcopy(self.test_data["node"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -179,23 +179,21 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_device.json") as device_data:
+            device_json = deepcopy(self.test_data["device"])
 
-                device_json = json.load(device_data)
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
 
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
+                                                                                "data": device_json})
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
-                                                                                    "data": device_json})
-
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
-                                                                                                      r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
+                                                                                                  r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -216,20 +214,19 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_source.json") as source_data:
-                source_json = json.load(source_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
+            source_json = deepcopy(self.test_data["source"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
-                                                                                    "data": source_json})
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
+                                                                                "data": source_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -250,20 +247,19 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_flow.json") as flow_data:
-                flow_json = json.load(flow_data)
+            flow_json = deepcopy(self.test_data["flow"])
 
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
-                                                                                    "data": flow_json})
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
+                                                                                "data": flow_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -284,19 +280,18 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_sender.json") as sender_data:
-                sender_json = json.load(sender_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
-                                                                                    "data": sender_json})
+            sender_json = deepcopy(self.test_data["sender"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
+                                                                                "data": sender_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -317,19 +312,18 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
-                receiver_json = json.load(receiver_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
-                                                                                    "data": receiver_json})
+            receiver_json = deepcopy(self.test_data["receiver"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
+                                                                                "data": receiver_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -349,22 +343,21 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_node.json") as node_data:
-                node_json = json.load(node_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-                self.bump_resource_version(node_json)
+            node_json = deepcopy(self.test_data["node"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
+            self.bump_resource_version(node_json)
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.FAIL("Registration API returned wrong HTTP code.")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.FAIL("Registration API returned wrong HTTP code.")
+            elif r.status_code == 200:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -376,27 +369,25 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_device.json") as device_data:
+            device_json = deepcopy(self.test_data["device"])
 
-                device_json = json.load(device_data)
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
 
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
+            self.bump_resource_version(device_json)
 
-                self.bump_resource_version(device_json)
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
+                                                                                "data": device_json})
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
-                                                                                    "data": device_json})
-
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.FAIL("Registration API returned wrong HTTP code.")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
-                                                                                                      r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.FAIL("Registration API returned wrong HTTP code.")
+            elif r.status_code == 200:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
+                                                                                                  r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -408,24 +399,23 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_source.json") as source_data:
-                source_json = json.load(source_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
+            source_json = deepcopy(self.test_data["source"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
-                self.bump_resource_version(source_json)
+            self.bump_resource_version(source_json)
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
-                                                                                    "data": source_json})
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
+                                                                                "data": source_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.FAIL("Registration API returned wrong HTTP code.")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.FAIL("Registration API returned wrong HTTP code.")
+            elif r.status_code == 200:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -437,25 +427,24 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_flow.json") as flow_data:
-                flow_json = json.load(flow_data)
+            flow_json = deepcopy(self.test_data["flow"])
 
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
 
-                self.bump_resource_version(flow_json)
+            self.bump_resource_version(flow_json)
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
-                                                                                    "data": flow_json})
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
+                                                                                "data": flow_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.FAIL("Registration API returned wrong HTTP code.")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.FAIL("Registration API returned wrong HTTP code.")
+            elif r.status_code == 200:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -467,24 +456,23 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_sender.json") as sender_data:
-                sender_json = json.load(sender_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+            sender_json = deepcopy(self.test_data["sender"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
 
-                self.bump_resource_version(sender_json)
+            self.bump_resource_version(sender_json)
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
-                                                                                    "data": sender_json})
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
+                                                                                "data": sender_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.FAIL("Registration API returned wrong HTTP code.")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.FAIL("Registration API returned wrong HTTP code.")
+            elif r.status_code == 200:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -496,24 +484,23 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_receiver.json") as receiver_data:
-                receiver_json = json.load(receiver_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    receiver_json = self.downgrade_resource("receiver", receiver_json,
-                                                            self.apis[REG_API_KEY]["version"])
+            receiver_json = deepcopy(self.test_data["receiver"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                receiver_json = self.downgrade_resource("receiver", receiver_json,
+                                                        self.apis[REG_API_KEY]["version"])
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
-                                                                                    "data": receiver_json})
-                self.bump_resource_version(receiver_json)
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
+                                                                                "data": receiver_json})
+            self.bump_resource_version(receiver_json)
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 201:
-                    return test.FAIL("Registration API returned wrong HTTP code.")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 201:
+                return test.FAIL("Registration API returned wrong HTTP code.")
+            elif r.status_code == 200:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -628,36 +615,35 @@ class IS0402Test(GenericTest):
         resources = ["device", "source", "flow", "sender", "receiver"]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             for curr_resource in resources:
-                with open("test_data/IS0402/v1.2_{}.json".format(curr_resource)) as resource_data:
-                    resource_json = json.load(resource_data)
-                    if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                        resource_json = self.downgrade_resource(curr_resource, resource_json,
-                                                                self.apis[REG_API_KEY]["version"])
+                resource_json = deepcopy(self.test_data[curr_resource])
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    resource_json = self.downgrade_resource(curr_resource, resource_json,
+                                                            self.apis[REG_API_KEY]["version"])
 
-                    resource_json["id"] = str(uuid.uuid4())
+                resource_json["id"] = str(uuid.uuid4())
 
-                    # Set random uuid for parent (depending on resource type and version)
-                    if curr_resource == "device":
-                        resource_json["node_id"] = str(uuid.uuid4())
-                    elif curr_resource == "flow":
-                        if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") > 0:
-                            resource_json["device_id"] = str(uuid.uuid4())
-                        resource_json["source_id"] = str(uuid.uuid4())
-                    else:
+                # Set random uuid for parent (depending on resource type and version)
+                if curr_resource == "device":
+                    resource_json["node_id"] = str(uuid.uuid4())
+                elif curr_resource == "flow":
+                    if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") > 0:
                         resource_json["device_id"] = str(uuid.uuid4())
+                    resource_json["source_id"] = str(uuid.uuid4())
+                else:
+                    resource_json["device_id"] = str(uuid.uuid4())
 
-                    valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": curr_resource,
-                                                                                        "data": resource_json})
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": curr_resource,
+                                                                                    "data": resource_json})
 
-                    if not valid:
-                        return test.FAIL("Registration API did not respond as expected")
-                    elif r.status_code == 200 or r.status_code == 201:
-                        return test.FAIL("Registration API returned wrong HTTP code.")
-                    elif r.status_code == 400:
-                        pass
-                    else:
-                        return test.FAIL(
-                            "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 200 or r.status_code == 201:
+                    return test.FAIL("Registration API returned wrong HTTP code.")
+                elif r.status_code == 400:
+                    pass
+                else:
+                    return test.FAIL(
+                        "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
             return test.PASS()
 
@@ -677,30 +663,28 @@ class IS0402Test(GenericTest):
 
             # Check if all resources are registered
             for resource in resources:
-                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
-                    resource_json = json.load(resource_data)
-                    curr_id = resource_json["id"]
+                resource_json = deepcopy(self.test_data[resource])
+                curr_id = resource_json["id"]
 
-                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
-                    if not valid or r.status_code != 200:
-                        return test.FAIL("Cannot execute test, as expected resources are not registered")
+                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                if not valid or r.status_code != 200:
+                    return test.FAIL("Cannot execute test, as expected resources are not registered")
 
             # Wait for garbage collection
             sleep(GARBAGE_COLLECTION_TIMEOUT)
 
             # Verify all resources are removed
             for resource in resources:
-                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
-                    resource_json = json.load(resource_data)
-                    curr_id = resource_json["id"]
+                resource_json = deepcopy(self.test_data[resource])
+                curr_id = resource_json["id"]
 
-                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
-                    if valid:
-                        if r.status_code != 404:
-                            return test.FAIL("Query API returned not 404 on a resource which should have been "
-                                             "removed due to missing heartbeats")
-                    else:
-                        return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+                if valid:
+                    if r.status_code != 404:
+                        return test.FAIL("Query API returned not 404 on a resource which should have been "
+                                         "removed due to missing heartbeats")
+                else:
+                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -717,42 +701,37 @@ class IS0402Test(GenericTest):
 
             # Post all resources
             for resource in resources:
-                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
-                    resource_json = json.load(resource_data)
-                    if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                        resource_json = self.downgrade_resource(resource, resource_json,
-                                                                self.apis[REG_API_KEY]["version"])
+                resource_json = deepcopy(self.test_data[resource])
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    resource_json = self.downgrade_resource(resource, resource_json,
+                                                            self.apis[REG_API_KEY]["version"])
 
-                    valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
-                                                                                        "data": resource_json})
-                    if not valid:
-                        return test.FAIL("Registration API did not respond as expected")
-                    elif r.status_code == 200 or r.status_code == 201:
-                        pass
-                    else:
-                        return test.FAIL(
-                            "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
+                                                                                    "data": resource_json})
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected")
+                elif r.status_code == 200 or r.status_code == 201:
+                    pass
+                else:
+                    return test.FAIL(
+                        "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
             # Remove Node
-            with open("test_data/IS0402/v1.2_node.json") as node_data:
-                node_json = json.load(node_data)
-                valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(node_json["id"]))
-                if not valid or r.status_code != 204:
-                    return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
-                                     .format(r.status_code, r.text))
+            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(self.test_data["node"]["id"]))
+            if not valid or r.status_code != 204:
+                return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
+                                 .format(r.status_code, r.text))
 
             # Check if node and all child_resources are removed
             for resource in resources:
-                with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
-                    resource_json = json.load(resource_data)
-                    curr_id = resource_json["id"]
-                    valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
-                    if valid:
-                        if r.status_code != 404:
-                            return test.FAIL("Query API returned not 404 on a resource which should have been "
-                                             "removed because parent resource was deleted")
-                    else:
-                        return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource,
+                                                                                   self.test_data[resource]["id"]))
+                if valid:
+                    if r.status_code != 404:
+                        return test.FAIL("Query API returned not 404 on a resource which should have been "
+                                         "removed because parent resource was deleted")
+                else:
+                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -764,8 +743,7 @@ class IS0402Test(GenericTest):
         api = self.apis[REG_API_KEY]
 
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/subscriptions_request.json") as sub_data:
-                sub_json = json.load(sub_data)
+                sub_json = deepcopy(self.subscription_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
 
@@ -793,29 +771,28 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            with open("test_data/IS0402/v1.2_node.json") as node_data:
-                node_json = json.load(node_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
+            node_json = deepcopy(self.test_data["node"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
 
-                # Post Node
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+            # Post Node
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
 
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 200 or r.status_code == 201:
-                    pass
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 200 or r.status_code == 201:
+                pass
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
-                # Post heartbeat
-                valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            # Post heartbeat
+            valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected")
+            elif r.status_code == 200:
+                return test.PASS()
+            else:
+                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -863,12 +840,12 @@ class IS0402Test(GenericTest):
 
             # Request websocket subscription / ws_href on resource topic
             test_data = deepcopy(self.test_data)
-            sub_json = self.load_subscription_request_data()
 
             websockets = dict()
             resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
 
             for resource in resources_to_post:
+                sub_json = deepcopy(self.subscription_data)
                 sub_json["resource_path"] = "/{}s".format(resource)
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
@@ -960,7 +937,7 @@ class IS0402Test(GenericTest):
                                      .format(resource))
 
             # Verify if corresponding message received via websocket: REMOVED
-            reversed_resource_list = copy(resources_to_post)
+            reversed_resource_list = deepcopy(resources_to_post)
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
                 valid, r = self.do_request("DELETE", self.reg_url + "resource/{}s/{}".format(resource,
