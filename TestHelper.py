@@ -44,8 +44,9 @@ def do_request(method, url, data=None):
             req = requests.Request(method, url, json=data)
         else:
             req = requests.Request(method, url)
-        prepped = req.prepare()
-        r = s.send(prepped)
+        prepped = s.prepare_request(req)
+        settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
+        r = s.send(prepped, timeout=20, **settings)
         return True, r
     except requests.exceptions.Timeout:
         return False, "Connection timeout"

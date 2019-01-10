@@ -34,6 +34,7 @@ import IS0502Test
 import IS0601Test
 import IS0701Test
 import IS0801Test
+import IS0802Test
 
 
 app = Flask(__name__)
@@ -107,6 +108,17 @@ TEST_DEFINITIONS = {
             "api_key": "channelmapping"
         }],
         "class": IS0801Test.IS0801Test
+    },
+    "IS-08-02": {
+        "name": "IS-08 Interaction with Node API",
+        "specs": [{
+            "spec_key": 'is-08',
+            "api_key": "channelmapping"
+        },  {
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": IS0802Test.IS0802Test
     }
 }
 
