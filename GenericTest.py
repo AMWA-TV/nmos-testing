@@ -32,6 +32,8 @@ def test_depends(func):
             return func(self)
     return invalid
 
+class NMOSTestException(Exception):
+    pass
 
 class GenericTest(object):
     """
@@ -95,14 +97,20 @@ class GenericTest(object):
                     method = getattr(self, method_name)
                     if callable(method):
                         print(" * Running " + method_name)
-                        self.result.append(method())
+                        try:
+                            self.result.append(method())
+                        except NMOSTestException as e:
+                            self.result.append(e.args[0])
 
         # Run a single test
         if test_name != "auto" and test_name != "all":
             method = getattr(self, test_name)
             if callable(method):
                 print(" * Running " + test_name)
-                self.result.append(method())
+                try:
+                    self.result.append(method())
+                except NMOSTestException as e:
+                    self.result.append(e.args[0])
 
     def set_up_tests(self):
         """Called before a set of tests is run. Override this method with setup code."""
