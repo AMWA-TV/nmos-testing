@@ -318,6 +318,11 @@ class GenericTest(object):
                     elif isinstance(entry, str) and entry.endswith("/"):
                         res_id = entry.rstrip("/")
                         subresources.append(res_id)
+            elif isinstance(response.json(), dict):
+                for key, value in response.json().items():
+                    # Cover the audio channel mapping spec case with dictionary keys
+                    if isinstance(key, str) and isinstance(value, dict):
+                        subresources.append(key)
         except json.decoder.JSONDecodeError:
             pass
 
