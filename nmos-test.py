@@ -214,7 +214,7 @@ def index_page():
                 test_obj = None
                 if test == "IS-04-01":
                     # This test has an unusual constructor as it requires a registry instance
-                    test_obj = test_def["class"](apis, REGISTRIES[0], NODE)
+                    test_obj = test_def["class"](apis, REGISTRIES, NODE)
                 else:
                     test_obj = test_def["class"](apis)
 

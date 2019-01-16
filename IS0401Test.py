@@ -34,9 +34,9 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registry, node):
+    def __init__(self, apis, registries, node):
         GenericTest.__init__(self, apis)
-        self.registry = registry
+        self.registries = registries
         self.node = node
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
@@ -57,8 +57,10 @@ class IS0401Test(GenericTest):
         if self.registry_basics_done or not ENABLE_MDNS:
             return
 
-        self.registry.reset()
-        self.registry.enable()
+        for registry in self.registries:
+            registry.enable()
+        registry = self.registries[0]
+        registry.reset()
 
         default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
@@ -76,17 +78,18 @@ class IS0401Test(GenericTest):
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.registry.last_time) < 6:
+        while (time.time() - registry.last_time) < 6:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.registry.get_heartbeats()) == 1:
+        if len(registry.get_heartbeats()) == 1:
             # It is heartbeating, but we don't have enough of them yet
-            while len(self.registry.get_heartbeats()) < 2:
+            while len(registry.get_heartbeats()) < 2:
                 time.sleep(1)
 
         self.zc.unregister_service(info)
-        self.registry.disable()
+        for registry in self.registries:
+            registry.disable()
 
         self.registry_basics_done = True
 
@@ -100,7 +103,8 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_data()) > 0:
+        registry = self.registries[0]
+        if len(registry.get_data()) > 0:
             return test.PASS()
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
@@ -122,10 +126,11 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_data()) == 0:
+        registry = self.registries[0]
+        if len(registry.get_data()) == 0:
             return test.FAIL("No registrations found")
 
-        for resource in self.registry.get_data():
+        for resource in registry.get_data():
             if "Content-Type" not in resource[1]["headers"]:
                 return test.FAIL("Node failed to signal its Content-Type correctly when registering.")
             elif resource[1]["headers"]["Content-Type"] != "application/json":
@@ -151,7 +156,8 @@ class IS0401Test(GenericTest):
         found_resource = None
         if ENABLE_MDNS:
             # Look up data in local mock registry
-            for resource in self.registry.get_data():
+            registry = self.registries[0]
+            for resource in registry.get_data():
                 if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
                     found_resource = resource[1]["payload"]["data"]
         else:
@@ -230,11 +236,12 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_heartbeats()) < 2:
+        registry = self.registries
+        if len(registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
         last_hb = None
-        for heartbeat in self.registry.get_heartbeats():
+        for heartbeat in registry.get_heartbeats():
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
@@ -244,7 +251,7 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
-                initial_node = self.registry.get_data()[0]
+                initial_node = registry.get_data()[0]
                 if (heartbeat[0] - initial_node[0]) > 5.5:
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
