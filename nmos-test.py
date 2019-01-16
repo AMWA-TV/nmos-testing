@@ -16,7 +16,7 @@
 
 from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
-from Registry import REGISTRY, REGISTRY_API
+from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from Node import NODE, NODE_API
 from Config import CACHE_PATH, SPECIFICATIONS
 from datetime import datetime, timedelta
@@ -26,6 +26,7 @@ import os
 import json
 import copy
 import pickle
+import threading
 
 import IS0401Test
 import IS0402Test
@@ -35,13 +36,20 @@ import IS0601Test
 import IS0701Test
 import IS0801Test
 
+FLASK_APPS = []
 
-app = Flask(__name__)
-app.debug = True  # Ensures we can debug exceptions more easily
-app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
-app.config['TEST_ACTIVE'] = False
-app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
-app.register_blueprint(NODE_API)  # Dependency for IS0401Test
+core_app = Flask(__name__)
+core_app.debug = True  # Ensures we can debug exceptions more easily
+core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
+core_app.config['TEST_ACTIVE'] = False
+core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
+
+for instance in range(NUM_REGISTRIES):
+    reg_app = Flask(__name__)
+    reg_app.debug = False
+    reg_app.config['REGISTRY_INSTANCE'] = instance
+    reg_app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
+    FLASK_APPS.append(reg_app)
 
 
 # Definitions of each set of tests made available from the dropdowns
@@ -171,10 +179,10 @@ class DataForm(Form):
 
 
 # Index page
-@app.route('/', methods=["GET", "POST"])
+@core_app.route('/', methods=["GET", "POST"])
 def index_page():
     form = DataForm(request.form)
-    if request.method == "POST" and not app.config['TEST_ACTIVE']:
+    if request.method == "POST" and not core_app.config['TEST_ACTIVE']:
         if form.validate():
             test = request.form["test"]
             if test in TEST_DEFINITIONS:
@@ -206,18 +214,18 @@ def index_page():
                 test_obj = None
                 if test == "IS-04-01":
                     # This test has an unusual constructor as it requires a registry instance
-                    test_obj = test_def["class"](apis, REGISTRY, NODE)
+                    test_obj = test_def["class"](apis, REGISTRIES[0], NODE)
                 else:
                     test_obj = test_def["class"](apis)
 
-                app.config['TEST_ACTIVE'] = True
+                core_app.config['TEST_ACTIVE'] = True
                 try:
                     result = test_obj.run_tests(test_selection)
                 except Exception as ex:
                     print(" * ERROR: {}".format(ex))
                     raise ex
                 finally:
-                    app.config['TEST_ACTIVE'] = False
+                    core_app.config['TEST_ACTIVE'] = False
                 return render_template("result.html", url=base_url, test=test_def["name"], result=result)
             else:
                 flash("Error: This test definition does not exist")
@@ -275,4 +283,11 @@ if __name__ == '__main__':
 
     print(" * Initialisation complete")
 
-    app.run(host='0.0.0.0', threaded=True)
+    port=5001
+    for app in FLASK_APPS:
+        t = threading.Thread(target=app.run, kwargs={'host':'0.0.0.0', 'port':port, 'threaded':True})
+        t.daemon = True
+        t.start()
+        port += 1
+
+    core_app.run(host='0.0.0.0', port=5000, threaded=True)

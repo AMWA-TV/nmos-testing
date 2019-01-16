@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import time
+import flask
 
 from flask import request, jsonify, abort, Blueprint
 
@@ -55,23 +56,25 @@ class Registry(object):
         self.enabled = False
 
 
-REGISTRY = Registry()
+NUM_REGISTRIES = 5
+REGISTRIES = [Registry() for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
 
 # IS-04 resources
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
 def reg_page(version):
-    if not REGISTRY.enabled:
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
         abort(500)
     registered = False
     try:
         # Type may not be in the list, so this could throw an exception
-        if request.json["data"]["id"] in REGISTRY.resources[request.json["type"]]:
+        if request.json["data"]["id"] in registry.resources[request.json["type"]]:
             registered = True
     except:
         pass
-    REGISTRY.add(request.headers, request.json)
+    registry.add(request.headers, request.json)
     if registered:
         return jsonify(request.json["data"]), 200
     else:
@@ -80,10 +83,11 @@ def reg_page(version):
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/health/nodes/<node_id>', methods=["POST"])
 def heartbeat(version, node_id):
-    if not REGISTRY.enabled:
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
         abort(404)
-    REGISTRY.heartbeat(request.headers, request.json, node_id)
-    if node_id in REGISTRY.resources["node"]:
+    registry.heartbeat(request.headers, request.json, node_id)
+    if node_id in registry.resources["node"]:
         return jsonify({"health": int(time.time())})
     else:
         abort(404)

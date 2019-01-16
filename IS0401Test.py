@@ -67,7 +67,7 @@ class IS0401Test(GenericTest):
         txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': '0'}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite._nmos-registration._tcp.local.",
-                           socket.inet_aton(default_ip), 5000, 0, 0,
+                           socket.inet_aton(default_ip), 5001, 0, 0,
                            txt, "nmos-test.local.")
 
         self.zc.register_service(info)
