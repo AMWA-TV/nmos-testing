@@ -283,9 +283,9 @@ if __name__ == '__main__':
 
     print(" * Initialisation complete")
 
-    port=5001
+    port = 5001
     for app in FLASK_APPS:
-        t = threading.Thread(target=app.run, kwargs={'host':'0.0.0.0', 'port':port, 'threaded':True})
+        t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
         t.daemon = True
         t.start()
         port += 1
