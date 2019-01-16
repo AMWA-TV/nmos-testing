@@ -60,19 +60,28 @@ class Specification(object):
         """Fixes RAML files to match ramlfications expectations (bugs)"""
         lines = []
         in_schemas = False
+        type_name = None
         try:
             with open(file_path) as raml:
                 line = raml.readline()
                 while line:
                     if in_schemas and not line.startswith(" "):
                         in_schemas = False
-                    if in_schemas and "- " not in line:
+                    if in_schemas and "!include" not in line:
+                        # This is a correct RAML 1.0 type definition
+                        type_name = line
+                    elif in_schemas and type_name is not None:
+                        # Make the RAML 1.0 type definition look more like RAML 0.8 to aid parsing
+                        line = "  - " + type_name.strip() + " " + line.replace("type:", "").lstrip()
+                        type_name = None
+                    elif in_schemas and "- " not in line:
                         line = "  - " + line.lstrip()
                     if line.startswith("schemas:") or line.startswith("types:"):
                         in_schemas = True
                     if line.startswith("traits:"):
                         line = "bugfix:\r\n"  # Work around issue with ramlfications utils.py '_remove_duplicates'
-                    lines.append(line)
+                    if type_name is None:
+                        lines.append(line)
                     line = raml.readline()
             with open(file_path, "w") as raml:
                 raml.writelines("".join(lines))
