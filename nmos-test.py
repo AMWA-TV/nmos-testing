@@ -259,8 +259,12 @@ if __name__ == '__main__':
             # Only pull if we haven't in the last hour
             if (last_pull_time + timedelta(hours=1)) <= time_now:
                 print(" * Pulling latest files for repository '{}'".format(repo_data["repo"]))
-                repo.remotes.origin.pull()
-                update_last_pull = True
+                try:
+                    repo.remotes.origin.pull()
+                    update_last_pull = True
+                except Exception as e:
+                    print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
+                          "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
 
     if update_last_pull:
         try:
