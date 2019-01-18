@@ -63,10 +63,13 @@ class Specification(object):
         type_name = None
         try:
             with open(file_path) as raml:
+                # Read in a single line of RAML
                 line = raml.readline()
                 while line:
                     if in_schemas and not line.startswith(" "):
+                        # Detect that we've reached the first line after the schemas/types section
                         in_schemas = False
+
                     if in_schemas and "!include" not in line:
                         # This is a correct RAML 1.0 type definition
                         type_name = line
@@ -75,13 +78,22 @@ class Specification(object):
                         line = "  - " + type_name.strip() + " " + line.replace("type:", "").lstrip()
                         type_name = None
                     elif in_schemas and "- " not in line:
+                        # Add a leading dash to type/schema definitions to ensure they can be read by ramlfications
                         line = "  - " + line.lstrip()
+
                     if line.startswith("schemas:") or line.startswith("types:"):
+                        # We've hit the global schema/type definition section
                         in_schemas = True
+
                     if line.startswith("traits:"):
-                        line = "bugfix:\r\n"  # Work around issue with ramlfications utils.py '_remove_duplicates'
+                        # Remove traits to work around an issue with ramlfications util.py '_remove_duplicates'
+                        line = "bugfix:\r\n"
+
                     if type_name is None:
+                        # Assuming we're not in the middle of fixing a RAML 1.0 type def, add the line to the output RAML
                         lines.append(line)
+
+                    # Read the next line of the RAML file
                     line = raml.readline()
             with open(file_path, "w") as raml:
                 raml.writelines("".join(lines))
