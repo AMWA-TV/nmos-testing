@@ -30,6 +30,9 @@ class MdnsListener(object):
         t.daemon = True
         t.start()
 
+    def remove_service(self, zeroconf, srv_type, name):
+        pass
+
     def get_service_list(self):
         self.resolve_queue.join()
         return self.services
