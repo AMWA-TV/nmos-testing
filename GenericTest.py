@@ -17,6 +17,7 @@ import json
 import git
 import jsonschema
 import TestHelper
+import traceback
 
 from Specification import Specification
 from TestResult import Test
@@ -101,6 +102,8 @@ class GenericTest(object):
                             self.result.append(method())
                         except NMOSTestException as e:
                             self.result.append(e.args[0])
+                        except Exception as e:
+                            self.result.append(self.uncaught_exception(method_name, e))
 
         # Run a single test
         if test_name != "auto" and test_name != "all":
@@ -111,6 +114,15 @@ class GenericTest(object):
                     self.result.append(method())
                 except NMOSTestException as e:
                     self.result.append(e.args[0])
+                except Exception as e:
+                    self.result.append(self.uncaught_exception(test_name, e))
+
+    def uncaught_exception(self, test_name, exception):
+        """Print a traceback and provide a test FAIL result for uncaught exceptions"""
+        traceback.print_exc()
+        test = Test("Error executing {}".format(test_name))
+        return test.FAIL("Uncaught exception. Please report the traceback from the terminal to "
+                         "https://github.com/amwa-tv/nmos-testing/issues. {}".format(exception))
 
     def set_up_tests(self):
         """Called before a set of tests is run. Override this method with setup code."""
