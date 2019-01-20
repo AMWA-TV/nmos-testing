@@ -601,7 +601,10 @@ class IS05Utils(NMOSUtils):
         data = {"master_enable": False}
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
-            staged_params = response['transport_params']
+            try:
+                staged_params = response['transport_params']
+            except KeyError:
+                return False, "Staged resource did not return 'transport_params' in PATCH response"
             valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
                                                                         resource_id,
                                                                         staged_params)
