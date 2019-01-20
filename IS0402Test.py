@@ -80,7 +80,7 @@ class IS0402Test(GenericTest):
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
                         return test.FAIL("Priority ('pri') TXT record must be less than 100 for a production instance.")
-                except Exception as e:
+                except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
@@ -121,7 +121,7 @@ class IS0402Test(GenericTest):
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
                         return test.FAIL("Priority ('pri') TXT record must be less than 100 for a production instance.")
-                except Exception as e:
+                except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
@@ -159,7 +159,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -226,7 +227,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -259,7 +261,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -291,7 +294,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -323,7 +327,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -357,7 +362,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -415,7 +421,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -444,7 +451,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -472,7 +480,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -500,7 +509,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -763,7 +773,8 @@ class IS0402Test(GenericTest):
                     elif r.status_code == 200:
                         return test.PASS()
                     else:
-                        return test.FAIL("Query API does not provide requested subscription: {} {}".format(r.status_code, r.text))
+                        return test.FAIL("Query API does not provide requested subscription: {} {}"
+                                         .format(r.status_code, r.text))
                 else:
                     return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
@@ -787,7 +798,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200 or r.status_code == 201:
                 pass
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
             # Post heartbeat
             valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
