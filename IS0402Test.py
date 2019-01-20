@@ -717,8 +717,12 @@ class IS0402Test(GenericTest):
                         "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
             # Remove Node
-            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(self.test_data["node"]["id"]))
-            if not valid or r.status_code != 204:
+            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}"
+                                       .format(self.test_data["node"]["id"]))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {}"
+                                 .format(r))
+            elif r.status_code != 204:
                 return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
                                  .format(r.status_code, r.text))
 
@@ -792,21 +796,23 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
     def test_31(self):
         """Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED"""
 
-        test = Test("Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED")
+        test = Test("Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED "
+                    "and REMOVED")
         api = self.apis[QUERY_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
 
             # Check for clean state // delete resources if needed
             valid, r = self.do_request("GET", "{}nodes/{}".format(self.query_url, self.test_data["node"]["id"]))
             if not valid:
-                return test.FAIL("Query API returned an unexpected response: {}".format(r.status_code, r.text))
+                return test.FAIL("Query API returned an unexpected response: {}".format(r))
             else:
                 if r.status_code == 200:
                     # Delete resource
@@ -814,7 +820,7 @@ class IS0402Test(GenericTest):
                                                              .format(self.reg_url,
                                                                      self.test_data["node"]["id"]))
                     if not valid_delete:
-                        return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                        return test.FAIL("Registration API returned an unexpected response: {}".format(r))
                     else:
                         if r_delete.status_code != 204:
                             return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
@@ -827,7 +833,11 @@ class IS0402Test(GenericTest):
                                                                         .format(self.query_url,
                                                                                 curr_resource,
                                                                                 self.test_data[curr_resource]["id"]))
-                                if not v or r_resource_deleted.status_code != 404:
+                                if not v:
+                                    return test.FAIL(
+                                        "Query API returned an unexpected response: {}. Cannot execute test.".format(
+                                            r))
+                                elif r_resource_deleted.status_code != 404:
                                     return test.FAIL(
                                         "Query API returned an unexpected response: {} {}. Cannot execute test.".format(
                                             r.status_code, r.text))
@@ -850,8 +860,7 @@ class IS0402Test(GenericTest):
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
                 if not valid:
-                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code,
-                                                                                               r.text))
+                    return test.FAIL("Query API returned an unexpected response: {}".format(r))
                 else:
                     if r.status_code == 200 or r.status_code == 201:
                         websockets[resource] = WebsocketWorker(r.json()["ws_href"])
@@ -864,7 +873,9 @@ class IS0402Test(GenericTest):
             for resource in resources_to_post:
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
                                                                                     "data": test_data[resource]})
-                if not valid or r.status_code != 201:
+                if not valid:
+                    return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
+                elif r.status_code != 201:
                     return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
@@ -905,7 +916,9 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(resource_data)
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
                                                                                     "data": resource_data})
-                if not valid or r.status_code != 200:
+                if not valid:
+                    return test.FAIL("Cannot update sample data. Cannot execute test: {}".format(r))
+                elif r.status_code != 200:
                     return test.FAIL("Cannot update sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
@@ -941,8 +954,11 @@ class IS0402Test(GenericTest):
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
                 valid, r = self.do_request("DELETE", self.reg_url + "resource/{}s/{}".format(resource,
-                                                                                            test_data[resource]["id"]))
-                if not valid or r.status_code != 204:
+                                                                                             test_data[resource]["id"]))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
+                                     .format(resource, r))
+                elif r.status_code != 204:
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
                                      .format(resource, r.status_code, r.text))
 
@@ -977,7 +993,9 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(test_data[resource])
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
                                                                                     "data": test_data[resource]})
-                if not valid or r.status_code != 201:
+                if not valid:
+                    return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
+                elif r.status_code != 201:
                     return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
