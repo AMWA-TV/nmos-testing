@@ -356,7 +356,11 @@ class IS0401Test(GenericTest):
         try:
             formats_tested = []
             for receiver in receivers.json():
-                stream_type = receiver["format"].split(":")[-1]
+                try:
+                    stream_type = receiver["format"].split(":")[-1]
+                except TypeError:
+                    return test.FAIL("Unexpected Receiver format: {}".format(receiver))
+
                 # Test each available receiver format once
                 if stream_type in formats_tested:
                     continue
