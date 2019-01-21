@@ -904,7 +904,11 @@ class IS0501Test(GenericTest):
                     count = 0
                     try:
                         for params in response['transport_params']:
-                            schema.update(constraints_response[count])
+                            try:
+                                schema.update(constraints_response[count])
+                            except IndexError:
+                                return False, "Number of 'legs' in constraints does not match the number in " \
+                                              "transport_params"
                             try:
                                 Draft4Validator(schema['items'], resolver=resolver).validate(params)
                             except ValidationError as e:
