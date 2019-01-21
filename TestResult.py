@@ -40,4 +40,4 @@ class Test(object):
         return [self.description, "Fail", detail, self.name, self._time_elapsed()]
 
     def OPTIONAL(self, detail):
-        return [self.description, "Optional", detail, self.name, self._time_elapsed()]
+        return [self.description, "Not Implemented", detail, self.name, self._time_elapsed()]
