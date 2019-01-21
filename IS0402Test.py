@@ -757,26 +757,26 @@ class IS0402Test(GenericTest):
         api = self.apis[REG_API_KEY]
 
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-                sub_json = deepcopy(self.subscription_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
+            sub_json = deepcopy(self.subscription_data)
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
 
-                valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+            if not valid:
+                return test.FAIL("Query API did not respond as expected")
+            elif r.status_code == 200 or r.status_code == 201:
+                # Test if subscription is available
+                sub_id = r.json()["id"]
+                valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
                 if not valid:
                     return test.FAIL("Query API did not respond as expected")
-                elif r.status_code == 200 or r.status_code == 201:
-                    # Test if subscription is available
-                    sub_id = r.json()["id"]
-                    valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
-                    if not valid:
-                        return test.FAIL("Query API did not respond as expected")
-                    elif r.status_code == 200:
-                        return test.PASS()
-                    else:
-                        return test.FAIL("Query API does not provide requested subscription: {} {}"
-                                         .format(r.status_code, r.text))
+                elif r.status_code == 200:
+                    return test.PASS()
                 else:
-                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                    return test.FAIL("Query API does not provide requested subscription: {} {}"
+                                     .format(r.status_code, r.text))
+            else:
+                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -832,11 +832,11 @@ class IS0402Test(GenericTest):
                                                              .format(self.reg_url,
                                                                      self.test_data["node"]["id"]))
                     if not valid_delete:
-                        return test.FAIL("Registration API returned an unexpected response: {}".format(r))
+                        return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
                     else:
                         if r_delete.status_code != 204:
                             return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
-                                             .format(r.status_code, r.text))
+                                             .format(r_delete.status_code, r_delete.text))
                         else:
                             # Verify all other resources are not available
                             remaining_resources = ["device", "flow", "source", "sender", "receiver"]
@@ -846,13 +846,12 @@ class IS0402Test(GenericTest):
                                                                                 curr_resource,
                                                                                 self.test_data[curr_resource]["id"]))
                                 if not v:
-                                    return test.FAIL(
-                                        "Query API returned an unexpected response: {}. Cannot execute test.".format(
-                                            r))
+                                    return test.FAIL("Query API returned an unexpected response: {}. Cannot execute "
+                                                     "test.".format(r_resource_deleted))
                                 elif r_resource_deleted.status_code != 404:
-                                    return test.FAIL(
-                                        "Query API returned an unexpected response: {} {}. Cannot execute test.".format(
-                                            r.status_code, r.text))
+                                    return test.FAIL("Query API returned an unexpected response: {} {}. Cannot execute "
+                                                     "test.".format(r_resource_deleted.status_code,
+                                                                    r_resource_deleted.text))
                 elif r.status_code == 404:
                     pass
                 else:
@@ -877,9 +876,8 @@ class IS0402Test(GenericTest):
                     if r.status_code == 200 or r.status_code == 201:
                         websockets[resource] = WebsocketWorker(r.json()["ws_href"])
                     else:
-                        return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}".format(
-                            r.status_code,
-                            r.text))
+                        return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}"
+                                         .format(r.status_code, r.text))
 
             # Post sample data
             for resource in resources_to_post:
@@ -1062,7 +1060,7 @@ class IS0402Test(GenericTest):
             resource_json = json.load(resource_data)
             if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
                 return self.downgrade_resource("subscription", resource_json, self.apis[QUERY_API_KEY]["version"])
-            return resource_json 
+            return resource_json
 
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
