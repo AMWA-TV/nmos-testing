@@ -448,6 +448,35 @@ class IS0401Test(GenericTest):
         test = Test("Node correctly selects a Registration API based on advertised priorities")
         return test.MANUAL()
 
+    def test_16(self):
+        """All Node resources use different UUIDs"""
+
+        test = Test("All Node resources use different UUIDs")
+
+        uuids = []
+        valid, response = self.do_request("GET", self.node_url + "self")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            uuids.append(response.json()["id"])
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        for resource_type in ["devices", "sources", "flows", "senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + resource_type)
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            try:
+                for resource in response.json():
+                    if resource["id"] in uuids:
+                        return test.FAIL("Duplicate ID '{}' found in Node API '{}' resource".format(resource["id"],
+                                                                                                    resource_type))
+                    uuids.append(resource["id"])
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
+
     def do_receiver_put(self, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
