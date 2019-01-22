@@ -19,18 +19,15 @@ from flask import request, jsonify, abort, Blueprint
 
 class Registry(object):
     def __init__(self):
-        self.last_time = 0
-        self.last_hb_time = 0
-        self.data = []
-        self.resources = {"node": {}}
-        self.heartbeats = []
-        self.enabled = False
+        self.reset()
 
     def reset(self):
         self.last_time = time.time()
         self.last_hb_time = 0
         self.data = []
+        self.resources = {"node": {}}
         self.heartbeats = []
+        self.enabled = False
 
     def add(self, headers, payload):
         self.last_time = time.time()
