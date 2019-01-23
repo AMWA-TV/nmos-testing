@@ -92,7 +92,7 @@ class IS0401Test(GenericTest):
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.registries[0].get_heartbeats()) == 1:
+        if len(self.registries[0].get_heartbeats()) > 0:
             # It is heartbeating, but we don't have enough of them yet
             while len(self.registries[0].get_heartbeats()) < 2:
                 time.sleep(1)
