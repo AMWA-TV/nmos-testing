@@ -51,44 +51,68 @@ class IS0401Test(GenericTest):
             self.zc.close()
             self.zc = None
 
+    def _registry_mdns_info(self, port, priority=0):
+        """Get an mDNS ServiceInfo object in order to create an advertisement"""
+        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+
+        # TODO: Add another test which checks support for parsing CSV string in api_ver
+        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': priority}
+        info = ServiceInfo("_nmos-registration._tcp.local.",
+                           "NMOS Test Suite {}._nmos-registration._tcp.local.".format(port),
+                           socket.inet_aton(default_ip), port, 0, 0,
+                           txt, "nmos-test.local.")
+        return info
+
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
 
         if self.registry_basics_done or not ENABLE_MDNS:
             return
 
+        registry_mdns = []
+        priority = 0
         for registry in self.registries:
-            registry.enable()
+            info = self._registry_mdns_info(registry.get_port(), priority)
+            registry_mdns.append(info)
+            priority += 10
+
         registry = self.registries[0]
-        registry.reset()
+        self.registries[0].reset()
+        self.registries[0].enable()
 
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
-
-        # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': '0'}
-        info = ServiceInfo("_nmos-registration._tcp.local.",
-                           "NMOS Test Suite._nmos-registration._tcp.local.",
-                           socket.inet_aton(default_ip), 5001, 0, 0,
-                           txt, "nmos-test.local.")
-
-        self.zc.register_service(info)
+        # Advertise a registry at pri 0 and allow the Node to do a basic registration
+        self.zc.register_service(registry_mdns[0])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - registry.last_time) < 6:
+        while (time.time() - self.registries[0].last_time) < 6:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(registry.get_heartbeats()) == 1:
+        if len(self.registries[0].get_heartbeats()) == 1:
             # It is heartbeating, but we don't have enough of them yet
-            while len(registry.get_heartbeats()) < 2:
+            while len(self.registries[0].get_heartbeats()) < 2:
                 time.sleep(1)
 
-        self.zc.unregister_service(info)
-        for registry in self.registries:
+            # Once registered, advertise all other registries at different (ascending) priorities
+            for index, registry in enumerate(self.registries[1:]):
+                self.zc.register_service(registry_mdns[index + 1])
+                registry.enable()
+
+            # Wait for n seconds after advertising the service for the mDNS advertisements to be noticed
+            time.sleep(MDNS_ADVERT_TIMEOUT)
+
+            # Kill registries one by one to collect data around failover
+            for registry in self.registries:
+                registry.disable()
+                time.sleep(6)  # Heartbeat interval plus one
+
+        # Clean up mDNS advertisements and disable registries
+        for index, registry in enumerate(self.registries):
+            self.zc.unregister_service(registry_mdns[index])
             registry.disable()
 
         self.registry_basics_done = True

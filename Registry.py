@@ -18,15 +18,25 @@ import flask
 from flask import request, jsonify, abort, Blueprint
 
 
-class Registry(object):
+class RegistryCommon(object):
     def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.resources = {"node": {}}
+
+
+class Registry(object):
+    def __init__(self, data_store, port_increment):
+        self.common = data_store
+        self.port = 5000 + port_increment
         self.reset()
 
     def reset(self):
         self.last_time = time.time()
         self.last_hb_time = 0
         self.data = []
-        self.resources = {"node": {}}
+        self.common.reset()
         self.heartbeats = []
         self.enabled = False
 
@@ -34,10 +44,10 @@ class Registry(object):
         self.last_time = time.time()
         self.data.append((self.last_time, {"headers": headers, "payload": payload}))
         if "type" in payload and "data" in payload:
-            if payload["type"] not in self.resources:
-                self.resources[payload["type"]] = {}
+            if payload["type"] not in self.common.resources:
+                self.common.resources[payload["type"]] = {}
             if "id" in payload["data"]:
-                self.resources[payload["type"]][payload["data"]["id"]] = payload["data"]
+                self.common.resources[payload["type"]][payload["data"]["id"]] = payload["data"]
 
     def heartbeat(self, headers, payload, node_id):
         self.last_hb_time = time.time()
@@ -49,6 +59,12 @@ class Registry(object):
     def get_heartbeats(self):
         return self.heartbeats
 
+    def get_port(self):
+        return self.port
+
+    def get_resources(self):
+        return self.common.resources
+
     def enable(self):
         self.enabled = True
 
@@ -57,7 +73,8 @@ class Registry(object):
 
 
 NUM_REGISTRIES = 5
-REGISTRIES = [Registry() for i in range(NUM_REGISTRIES)]
+REGISTRY_COMMON = RegistryCommon()
+REGISTRIES = [Registry(REGISTRY_COMMON, i) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
 
@@ -70,7 +87,7 @@ def reg_page(version):
     registered = False
     try:
         # Type may not be in the list, so this could throw an exception
-        if request.json["data"]["id"] in registry.resources[request.json["type"]]:
+        if request.json["data"]["id"] in registry.get_resources()[request.json["type"]]:
             registered = True
     except:
         pass
@@ -87,7 +104,7 @@ def heartbeat(version, node_id):
     if not registry.enabled:
         abort(404)
     registry.heartbeat(request.headers, request.json, node_id)
-    if node_id in registry.resources["node"]:
+    if node_id in registry.get_resources()["node"]:
         return jsonify({"health": int(time.time())})
     else:
         abort(404)
