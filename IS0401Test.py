@@ -260,7 +260,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry = self.registries
+        registry = self.registries[0]
         if len(registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 

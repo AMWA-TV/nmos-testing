@@ -74,7 +74,7 @@ class Registry(object):
 
 NUM_REGISTRIES = 5
 REGISTRY_COMMON = RegistryCommon()
-REGISTRIES = [Registry(REGISTRY_COMMON, i) for i in range(NUM_REGISTRIES)]
+REGISTRIES = [Registry(REGISTRY_COMMON, i+1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
 
