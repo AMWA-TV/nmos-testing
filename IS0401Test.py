@@ -43,12 +43,10 @@ class IS0401Test(GenericTest):
         self.is04_utils = IS04Utils(self.node_url)
 
     def set_up_tests(self):
-        self.registry.enable()
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
 
     def tear_down_tests(self):
-        self.registry.disable()
         if self.zc:
             self.zc.close()
             self.zc = None
@@ -60,6 +58,7 @@ class IS0401Test(GenericTest):
             return
 
         self.registry.reset()
+        self.registry.enable()
 
         default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
@@ -87,6 +86,7 @@ class IS0401Test(GenericTest):
                 time.sleep(1)
 
         self.zc.unregister_service(info)
+        self.registry.disable()
 
         self.registry_basics_done = True
 
