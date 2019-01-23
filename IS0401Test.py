@@ -99,8 +99,8 @@ class IS0401Test(GenericTest):
 
             # Once registered, advertise all other registries at different (ascending) priorities
             for index, registry in enumerate(self.registries[1:]):
-                self.zc.register_service(registry_mdns[index + 1])
                 registry.enable()
+                self.zc.register_service(registry_mdns[index + 1])
 
             # Wait for n seconds after advertising the service for the mDNS advertisements to be noticed
             time.sleep(MDNS_ADVERT_TIMEOUT)
