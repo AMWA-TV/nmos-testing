@@ -102,7 +102,7 @@ def reg_page(version):
 def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
-        abort(404)
+        abort(500)
     registry.heartbeat(request.headers, request.json, node_id)
     if node_id in registry.get_resources()["node"]:
         return jsonify({"health": int(time.time())})

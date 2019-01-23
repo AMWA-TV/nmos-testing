@@ -57,7 +57,7 @@ class IS0401Test(GenericTest):
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': priority}
+        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': str(priority)}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite {}._nmos-registration._tcp.local.".format(port),
                            socket.inet_aton(default_ip), port, 0, 0,
@@ -503,8 +503,6 @@ class IS0401Test(GenericTest):
             first_hb_to_registry = registry.get_heartbeats()[0]
             if last_hb:
                 if first_hb_to_registry < last_hb:
-                    # I suspect it's not possible to hit this point given the way the prereqs are handled, but it's
-                    # included just in case
                     return test.FAIL("Node sent a heartbeat to the registry on port {} before the registry on port {}, "
                                      "despite their priorities requiring the opposite behaviour"
                                      .format(registry.get_port(), last_registry.get_port()))

@@ -39,7 +39,7 @@ import IS0801Test
 FLASK_APPS = []
 
 core_app = Flask(__name__)
-core_app.debug = True  # Ensures we can debug exceptions more easily
+core_app.debug = False
 core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 core_app.config['TEST_ACTIVE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
