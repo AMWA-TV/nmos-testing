@@ -102,13 +102,23 @@ class IS0401Test(GenericTest):
                 registry.enable()
                 self.zc.register_service(registry_mdns[index + 1])
 
-            # Wait for n seconds after advertising the service for the mDNS advertisements to be noticed
-            time.sleep(MDNS_ADVERT_TIMEOUT)
-
             # Kill registries one by one to collect data around failover
-            for registry in self.registries:
+            for index, registry in enumerate(self.registries):
                 registry.disable()
-                time.sleep(6)  # Heartbeat interval plus one
+
+                # Prevent access to an out of bounds index below
+                if (index + 1) >= len(self.registries):
+                    break
+
+                heartbeat_countdown = 6  # Heartbeat interval plus one
+                while len(self.registries[index + 1].get_heartbeats()) < 1 and heartbeat_countdown > 0:
+                    # Wait until the heartbeat interval has elapsed or a heartbeat has been received
+                    time.sleep(1)
+                    heartbeat_countdown -= 1
+
+                if len(self.registries[index + 1].get_heartbeats()) < 1:
+                    # Testing has failed at this point, so we might as well abort
+                    break
 
         # Clean up mDNS advertisements and disable registries
         for index, registry in enumerate(self.registries):
@@ -493,6 +503,8 @@ class IS0401Test(GenericTest):
             first_hb_to_registry = registry.get_heartbeats()[0]
             if last_hb:
                 if first_hb_to_registry < last_hb:
+                    # I suspect it's not possible to hit this point given the way the prereqs are handled, but it's
+                    # included just in case
                     return test.FAIL("Node sent a heartbeat to the registry on port {} before the registry on port {}, "
                                      "despite their priorities requiring the opposite behaviour"
                                      .format(registry.get_port(), last_registry.get_port()))
