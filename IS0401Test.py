@@ -477,9 +477,49 @@ class IS0401Test(GenericTest):
         """Node correctly selects a Registration API based on advertised priorities"""
 
         test = Test("Node correctly selects a Registration API based on advertised priorities")
-        return test.MANUAL()
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+
+        last_hb = None
+        last_registry = None
+        for registry in self.registries:
+            if len(registry.get_heartbeats()) < 1:
+                return test.FAIL("Node never made contact with registry advertised on port {}"
+                                 .format(registry.get_port()))
+
+            first_hb_to_registry = registry.get_heartbeats()[0]
+            if last_hb:
+                if first_hb_to_registry < last_hb:
+                    return test.FAIL("Node sent a heartbeat to the registry on port {} before the registry on port {}, "
+                                     "despite their priorities requiring the opposite behaviour"
+                                     .format(registry.get_port(), last_registry.get_port()))
+
+            last_hb = first_hb_to_registry
+            last_registry = registry
+
+        return test.PASS()
 
     def test_16(self):
+        """Node correctly fails over between advertised Registration APIs when one fails"""
+
+        test = Test("Node correctly fails over between advertised Registration APIs when one fails")
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+
+        for index, registry in enumerate(self.registries):
+            if len(registry.get_heartbeats()) < 1:
+                return test.FAIL("Node never made contact with registry advertised on port {}"
+                                 .format(registry.get_port()))
+
+            if index > 0 and len(registry.get_data()) > 0:
+                return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
+                                 "should only have issued a heartbeat")
+
+        return test.PASS()
+
+    def test_17(self):
         """All Node resources use different UUIDs"""
 
         test = Test("All Node resources use different UUIDs")
