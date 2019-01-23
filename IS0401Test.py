@@ -481,6 +481,8 @@ class IS0401Test(GenericTest):
         if not ENABLE_MDNS:
             return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
 
+        self.do_registry_basics_prereqs()
+
         last_hb = None
         last_registry = None
         for registry in self.registries:
@@ -507,6 +509,8 @@ class IS0401Test(GenericTest):
 
         if not ENABLE_MDNS:
             return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+
+        self.do_registry_basics_prereqs()
 
         for index, registry in enumerate(self.registries):
             if len(registry.get_heartbeats()) < 1:
