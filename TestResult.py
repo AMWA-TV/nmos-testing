@@ -38,3 +38,6 @@ class Test(object):
 
     def FAIL(self, detail):
         return [self.description, "Fail", detail, self.name, self._time_elapsed()]
+
+    def OPTIONAL(self, detail):
+        return [self.description, "Not Implemented", detail, self.name, self._time_elapsed()]

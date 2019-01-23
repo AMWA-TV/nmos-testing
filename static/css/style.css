@@ -64,6 +64,11 @@ th {
     font-weight: bold;
 }
 
+.optional {
+    text-align: center;
+    font-weight: bold;
+}
+
 #description {
     margin: auto;
     text-align: left;
@@ -89,5 +94,9 @@ th {
 
     .table td.fail {
       background-color: #dc3545 !important
+    }
+
+    .table td.optional {
+      background-color: #ffc107 !important
     }
 }

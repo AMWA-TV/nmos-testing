@@ -581,7 +581,7 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.NA("Query API signalled that it does not support RQL queries")
+            return test.OPTIONAL("Query API signalled that it does not support RQL queries.")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -610,7 +610,7 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.NA("Query API signalled that it does not support ancestry queries")
+            return test.OPTIONAL("Query API signalled that it does not support ancestry queries")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 

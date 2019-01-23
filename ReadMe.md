@@ -77,6 +77,9 @@ def test_my_stuff(self):
     elif test_na:
         # Test is not applicable to this implementation
         return test.NA("Reason for non-testing")
+    elif test_optional:
+        # Test found an optional aspect of the spec which wasn't implemented
+        return test.OPTIONAL("What wasn't implemented, and why you might require it")
 ```
 
 The following methods may be of use within a given test definition.
