@@ -544,7 +544,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Nodes found in registry. Test cannot proceed.")
+                return test.MANUAL("No Nodes found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -571,7 +571,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Nodes found in registry. Test cannot proceed.")
+                return test.MANUAL("No Nodes found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -600,7 +600,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Sources found in registry. Test cannot proceed.")
+                return test.MANUAL("No Sources found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
