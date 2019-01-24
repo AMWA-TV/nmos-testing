@@ -453,12 +453,12 @@ class IS0401Test(GenericTest):
 
         test = Test("All Node resources use different UUIDs")
 
-        uuids = {}
+        uuids = set()
         valid, response = self.do_request("GET", self.node_url + "self")
         if not valid:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
-            uuids[response.json()["id"]] = True
+            uuids.add(response.json()["id"])
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
@@ -471,7 +471,7 @@ class IS0401Test(GenericTest):
                     if resource["id"] in uuids:
                         return test.FAIL("Duplicate ID '{}' found in Node API '{}' resource".format(resource["id"],
                                                                                                     resource_type))
-                    uuids[resource["id"]] = True
+                    uuids.add(resource["id"])
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
