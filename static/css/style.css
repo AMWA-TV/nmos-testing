@@ -23,8 +23,12 @@ h1 {
     text-align: center;
 }
 
+.top_alert {
+    margin-top: 25px;
+}
+
 .input_data {
-    padding-top: 50px;
+    padding-top: 25px;
 }
 
 .input_data_fld {
