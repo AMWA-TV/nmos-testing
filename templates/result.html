@@ -52,7 +52,7 @@
                         {% elif curr_result[1] == "N/A" %}
                             <td class="bg-secondary notavailable">{{ curr_result[1] }}</td>
                         {% elif curr_result[1] == "Not Implemented" %}
-                            <td class="bg-warning optional">{{ curr_result[1] }}</td>
+                            <td class="bg-warning notimplemented">{{ curr_result[1] }}</td>
                         {% else %}
                             <td class="bg-danger fail">{{ curr_result[1] }}</td>
                         {% endif %}

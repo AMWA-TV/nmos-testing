@@ -68,7 +68,7 @@ th {
     font-weight: bold;
 }
 
-.optional {
+.notimplemented {
     text-align: center;
     font-weight: bold;
 }
@@ -100,7 +100,7 @@ th {
       background-color: #dc3545 !important
     }
 
-    .table td.optional {
+    .table td.notimplemented {
       background-color: #ffc107 !important
     }
 }
