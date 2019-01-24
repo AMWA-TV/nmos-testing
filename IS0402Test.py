@@ -19,6 +19,8 @@ import socket
 import uuid
 import json
 from copy import deepcopy
+from jsonschema import ValidationError, RefResolver, Draft4Validator
+import os
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -890,6 +892,15 @@ class IS0402Test(GenericTest):
                                      .format(r.status_code, r.text))
 
             # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
+
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
+                schema = self.load_schema("query", "queryapi-v1.0-subscriptions-websocket.json")
+            else:
+                schema = self.load_schema("query", "queryapi-subscriptions-websocket.json")
+
+            resolver = RefResolver(self.file_prefix + os.path.abspath(self.apis["query"]["spec_path"] +
+                                                                      '/APIs/schemas/') + os.sep, schema)
+
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
                 sleep(0.5)
@@ -897,6 +908,13 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Error opening websocket: {}".format(websockets[resource].get_error_message()))
 
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema, resolver=resolver).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 # Verify data inside messages
                 grain_data = list()
