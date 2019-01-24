@@ -34,9 +34,9 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registry, node):
+    def __init__(self, apis, registries, node):
         GenericTest.__init__(self, apis)
-        self.registry = registry
+        self.registries = registries
         self.node = node
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
@@ -51,42 +51,79 @@ class IS0401Test(GenericTest):
             self.zc.close()
             self.zc = None
 
+    def _registry_mdns_info(self, port, priority=0):
+        """Get an mDNS ServiceInfo object in order to create an advertisement"""
+        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+
+        # TODO: Add another test which checks support for parsing CSV string in api_ver
+        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': str(priority)}
+        info = ServiceInfo("_nmos-registration._tcp.local.",
+                           "NMOS Test Suite {}._nmos-registration._tcp.local.".format(port),
+                           socket.inet_aton(default_ip), port, 0, 0,
+                           txt, "nmos-test.local.")
+        return info
+
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
 
         if self.registry_basics_done or not ENABLE_MDNS:
             return
 
-        self.registry.reset()
-        self.registry.enable()
+        registry_mdns = []
+        priority = 0
+        for registry in self.registries:
+            info = self._registry_mdns_info(registry.get_port(), priority)
+            registry_mdns.append(info)
+            priority += 10
 
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+        registry = self.registries[0]
+        self.registries[0].reset()
+        self.registries[0].enable()
 
-        # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': '0'}
-        info = ServiceInfo("_nmos-registration._tcp.local.",
-                           "NMOS Test Suite._nmos-registration._tcp.local.",
-                           socket.inet_aton(default_ip), 5000, 0, 0,
-                           txt, "nmos-test.local.")
-
-        self.zc.register_service(info)
+        # Advertise a registry at pri 0 and allow the Node to do a basic registration
+        self.zc.register_service(registry_mdns[0])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.registry.last_time) < 6:
+        while (time.time() - self.registries[0].last_time) < 6:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.registry.get_heartbeats()) == 1:
+        if len(self.registries[0].get_heartbeats()) > 0:
             # It is heartbeating, but we don't have enough of them yet
-            while len(self.registry.get_heartbeats()) < 2:
+            while len(self.registries[0].get_heartbeats()) < 2:
                 time.sleep(1)
 
-        self.zc.unregister_service(info)
-        self.registry.disable()
+            # Once registered, advertise all other registries at different (ascending) priorities
+            for index, registry in enumerate(self.registries[1:]):
+                registry.enable()
+                self.zc.register_service(registry_mdns[index + 1])
+
+            # Kill registries one by one to collect data around failover
+            for index, registry in enumerate(self.registries):
+                registry.disable()
+
+                # Prevent access to an out of bounds index below
+                if (index + 1) >= len(self.registries):
+                    break
+
+                heartbeat_countdown = 6  # Heartbeat interval plus one
+                while len(self.registries[index + 1].get_heartbeats()) < 1 and heartbeat_countdown > 0:
+                    # Wait until the heartbeat interval has elapsed or a heartbeat has been received
+                    time.sleep(1)
+                    heartbeat_countdown -= 1
+
+                if len(self.registries[index + 1].get_heartbeats()) < 1:
+                    # Testing has failed at this point, so we might as well abort
+                    break
+
+        # Clean up mDNS advertisements and disable registries
+        for index, registry in enumerate(self.registries):
+            self.zc.unregister_service(registry_mdns[index])
+            registry.disable()
 
         self.registry_basics_done = True
 
@@ -100,7 +137,8 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_data()) > 0:
+        registry = self.registries[0]
+        if len(registry.get_data()) > 0:
             return test.PASS()
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
@@ -122,10 +160,11 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_data()) == 0:
+        registry = self.registries[0]
+        if len(registry.get_data()) == 0:
             return test.FAIL("No registrations found")
 
-        for resource in self.registry.get_data():
+        for resource in registry.get_data():
             if "Content-Type" not in resource[1]["headers"]:
                 return test.FAIL("Node failed to signal its Content-Type correctly when registering.")
             elif resource[1]["headers"]["Content-Type"] != "application/json":
@@ -151,7 +190,8 @@ class IS0401Test(GenericTest):
         found_resource = None
         if ENABLE_MDNS:
             # Look up data in local mock registry
-            for resource in self.registry.get_data():
+            registry = self.registries[0]
+            for resource in registry.get_data():
                 if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
                     found_resource = resource[1]["payload"]["data"]
         else:
@@ -230,11 +270,12 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_heartbeats()) < 2:
+        registry = self.registries[0]
+        if len(registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
         last_hb = None
-        for heartbeat in self.registry.get_heartbeats():
+        for heartbeat in registry.get_heartbeats():
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
@@ -244,7 +285,7 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
-                initial_node = self.registry.get_data()[0]
+                initial_node = registry.get_data()[0]
                 if (heartbeat[0] - initial_node[0]) > 5.5:
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
@@ -446,9 +487,53 @@ class IS0401Test(GenericTest):
         """Node correctly selects a Registration API based on advertised priorities"""
 
         test = Test("Node correctly selects a Registration API based on advertised priorities")
-        return test.MANUAL()
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+
+        self.do_registry_basics_prereqs()
+
+        last_hb = None
+        last_registry = None
+        for registry in self.registries:
+            if len(registry.get_heartbeats()) < 1:
+                return test.FAIL("Node never made contact with registry advertised on port {}"
+                                 .format(registry.get_port()))
+
+            first_hb_to_registry = registry.get_heartbeats()[0]
+            if last_hb:
+                if first_hb_to_registry < last_hb:
+                    return test.FAIL("Node sent a heartbeat to the registry on port {} before the registry on port {}, "
+                                     "despite their priorities requiring the opposite behaviour"
+                                     .format(registry.get_port(), last_registry.get_port()))
+
+            last_hb = first_hb_to_registry
+            last_registry = registry
+
+        return test.PASS()
 
     def test_16(self):
+        """Node correctly fails over between advertised Registration APIs when one fails"""
+
+        test = Test("Node correctly fails over between advertised Registration APIs when one fails")
+
+        if not ENABLE_MDNS:
+            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+
+        self.do_registry_basics_prereqs()
+
+        for index, registry in enumerate(self.registries):
+            if len(registry.get_heartbeats()) < 1:
+                return test.FAIL("Node never made contact with registry advertised on port {}"
+                                 .format(registry.get_port()))
+
+            if index > 0 and len(registry.get_data()) > 0:
+                return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
+                                 "should only have issued a heartbeat")
+
+        return test.PASS()
+
+    def test_17(self):
         """All Node resources use different UUIDs"""
 
         test = Test("All Node resources use different UUIDs")
