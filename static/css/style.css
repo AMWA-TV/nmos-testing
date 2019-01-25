@@ -63,7 +63,7 @@ th {
     font-weight: bold;
 }
 
-.notavailable {
+.notapplicable {
     text-align: center;
     font-weight: bold;
 }
@@ -92,7 +92,7 @@ th {
         background-color: #17a2b8 !important
     }
 
-    .table td.notavailable {
+    .table td.notapplicable {
         background-color: #6c757d !important
     }
 
