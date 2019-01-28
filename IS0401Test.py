@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import requests
 import time
 import socket
 import netifaces
@@ -199,8 +198,8 @@ class IS0401Test(GenericTest):
             url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
                   self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s/" + res_id
             try:
-                r = requests.get(url)
-                if r.status_code == 200:
+                valid, r = self.do_request("GET", url)
+                if valid and r.status_code == 200:
                     found_resource = r.json()
                 else:
                     raise Exception
@@ -223,31 +222,28 @@ class IS0401Test(GenericTest):
             url = "{}self".format(self.node_url)
         else:
             url = "{}{}s".format(self.node_url, res_type)
-        try:
-            # Get data from node itself
-            r = requests.get(url)
-            if r.status_code == 200:
-                try:
-                    node_resources = self.get_node_resources(r.json())
+        # Get data from node itself
+        valid, r = self.do_request("GET", url)
+        if valid and r.status_code == 200:
+            try:
+                node_resources = self.get_node_resources(r.json())
 
-                    if len(node_resources) == 0:
-                        return test.NA("No {} resources were found on the Node.".format(res_type.title()))
+                if len(node_resources) == 0:
+                    return test.NA("No {} resources were found on the Node.".format(res_type.title()))
 
-                    for res_id in node_resources:
-                        reg_resource = self.get_registry_resource(res_type, res_id)
-                        if not reg_resource:
-                            return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
-                        elif reg_resource != node_resources[res_id]:
-                            return test.FAIL("Node API JSON does not match data in registry for "
-                                             "{} {}.".format(res_type.title(), res_id))
+                for res_id in node_resources:
+                    reg_resource = self.get_registry_resource(res_type, res_id)
+                    if not reg_resource:
+                        return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
+                    elif reg_resource != node_resources[res_id]:
+                        return test.FAIL("Node API JSON does not match data in registry for "
+                                         "{} {}.".format(res_type.title(), res_id))
 
-                    return test.PASS()
-                except ValueError:
-                    return test.FAIL("Invalid JSON received!")
-            else:
-                return test.FAIL("Could not reach Node!")
-        except requests.ConnectionError:
-            return test.FAIL("Connection error for {}".format(url))
+                return test.PASS()
+            except ValueError:
+                return test.FAIL("Invalid JSON received!")
+        else:
+            return test.FAIL("Could not reach Node!")
 
     def test_04(self):
         """Node can register a valid Node resource with the network registration service,

@@ -31,6 +31,9 @@ QUERY_API_PORT = 80
 # Path to store the specification file cache in. Relative to the base of the testing repository.
 CACHE_PATH = 'cache'
 
+# Timeout for any HTTP requests
+HTTP_TIMEOUT = 1
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
