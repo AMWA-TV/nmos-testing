@@ -77,8 +77,11 @@ class IS0401Test(GenericTest):
             registry_mdns.append(info)
             priority += 10
 
+        # Reset all registries to clear previous heartbeats, etc.
+        for registry in self.registries:
+            registry.reset()
+
         registry = self.registries[0]
-        self.registries[0].reset()
         self.registries[0].enable()
 
         # Advertise a registry at pri 0 and allow the Node to do a basic registration
@@ -88,7 +91,7 @@ class IS0401Test(GenericTest):
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.registries[0].last_time) < 6:
+        while (time.time() - self.registries[0].last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
@@ -110,7 +113,7 @@ class IS0401Test(GenericTest):
                 if (index + 1) >= len(self.registries):
                     break
 
-                heartbeat_countdown = 6  # Heartbeat interval plus one
+                heartbeat_countdown = HEARTBEAT_INTERVAL + 1
                 while len(self.registries[index + 1].get_heartbeats()) < 1 and heartbeat_countdown > 0:
                     # Wait until the heartbeat interval has elapsed or a heartbeat has been received
                     time.sleep(1)
@@ -274,8 +277,14 @@ class IS0401Test(GenericTest):
         if len(registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
+        initial_node = registry.get_data()[0]
+
         last_hb = None
         for heartbeat in registry.get_heartbeats():
+            # Ensure the Node ID for heartbeats matches the registrations
+            if heartbeat[1]["node_id"] != initial_node[1]["payload"]["data"]["id"]:
+                return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
+
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
@@ -285,13 +294,8 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
-                initial_node = registry.get_data()[0]
                 if (heartbeat[0] - initial_node[0]) > HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
-
-                # Ensure the Node ID for heartbeats matches the registrations
-                if heartbeat[1]["node_id"] != initial_node[1]["payload"]["data"]["id"]:
-                    return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
 
             # Ensure the heartbeat request body is empty
             if heartbeat[1]["payload"] is not None:
