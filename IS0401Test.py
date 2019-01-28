@@ -91,7 +91,7 @@ class IS0401Test(GenericTest):
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.registries[0].last_time) < 6:
+        while (time.time() - self.registries[0].last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
@@ -113,7 +113,7 @@ class IS0401Test(GenericTest):
                 if (index + 1) >= len(self.registries):
                     break
 
-                heartbeat_countdown = 6  # Heartbeat interval plus one
+                heartbeat_countdown = HEARTBEAT_INTERVAL + 1
                 while len(self.registries[index + 1].get_heartbeats()) < 1 and heartbeat_countdown > 0:
                     # Wait until the heartbeat interval has elapsed or a heartbeat has been received
                     time.sleep(1)
