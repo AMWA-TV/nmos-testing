@@ -25,7 +25,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
 from IS04Utils import IS04Utils
-from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT
+from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
 
 NODE_API_KEY = "node"
 
@@ -123,7 +123,7 @@ class IS0401Test(GenericTest):
                     # Testing has failed at this point, so we might as well abort
                     break
 
-        # Clean up mDNS advertisements and disable other registries
+        # Clean up mDNS advertisements and disable registries
         for index, registry in enumerate(self.registries):
             self.zc.unregister_service(registry_mdns[index])
             registry.disable()
@@ -288,13 +288,13 @@ class IS0401Test(GenericTest):
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
-                if time_diff > 5.5:
+                if time_diff > HEARTBEAT_INTERVAL  + 0.5:
                     return test.FAIL("Heartbeats are not frequent enough.")
-                elif time_diff < 4.5:
+                elif time_diff < HEARTBEAT_INTERVAL - 0.5:
                     return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
-                if (heartbeat[0] - initial_node[0]) > 5.5:
+                if (heartbeat[0] - initial_node[0]) > HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
             # Ensure the heartbeat request body is empty
