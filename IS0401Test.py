@@ -105,10 +105,6 @@ class IS0401Test(GenericTest):
                 registry.enable()
                 self.zc.register_service(registry_mdns[index + 1])
 
-            # Remove mDNS advertisement for the first registry so that the Node won't retry this one
-            # even if its "discovered list" is empty, triggering it to perform a re-query
-            self.zc.unregister_service(registry_mdns[0])
-
             # Kill registries one by one to collect data around failover
             for index, registry in enumerate(self.registries):
                 registry.disable()
@@ -128,8 +124,8 @@ class IS0401Test(GenericTest):
                     break
 
         # Clean up mDNS advertisements and disable other registries
-        for index, registry in enumerate(self.registries[1:]):
-            self.zc.unregister_service(registry_mdns[index + 1])
+        for index, registry in enumerate(self.registries):
+            self.zc.unregister_service(registry_mdns[index])
             registry.disable()
 
         self.registry_basics_done = True
