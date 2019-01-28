@@ -18,6 +18,9 @@ ENABLE_MDNS = True
 # Number of seconds to wait after an mDNS advert is created for a client to notice and perform an action
 MDNS_ADVERT_TIMEOUT = 5
 
+# Number of seconds expected between heartbeats
+HEARTBEAT_INTERVAL = 5
+
 # Number of seconds to wait for the garbage collection
 GARBAGE_COLLECTION_TIMEOUT = 12
 
