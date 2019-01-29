@@ -273,7 +273,7 @@ class GenericTest(object):
                                                         api,
                                                         self.apis[api]["version"],
                                                         resource[0].rstrip("/")), self.auto_test_name())
-                return test.NA("No resources found to perform this test")
+                return test.UNCLEAR("No resources found to perform this test")
 
         # Test general URLs with no parameters
         elif not resource[1]['params']:

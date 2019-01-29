@@ -106,7 +106,7 @@ class IS0501Test(GenericTest):
                             return test.FAIL(smsg)
                     return test.PASS()
                 else:
-                    return test.NA("Not tested. No resources found.")
+                    return test.UNCLEAR("Not tested. No resources found.")
             else:
                 return test.FAIL(amsg)
         else:
@@ -135,7 +135,7 @@ class IS0501Test(GenericTest):
                             return test.FAIL(smsg)
                     return test.PASS()
                 else:
-                    return test.NA("Not tested. No resources found.")
+                    return test.UNCLEAR("Not tested. No resources found.")
             else:
                 return test.FAIL(amsg)
         else:
@@ -167,7 +167,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_06(self):
         """Index of /single/receivers/<uuid>/ matches the spec"""
@@ -194,7 +194,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_07(self):
         """Return of /single/senders/<uuid>/constraints/ meets the schema"""
@@ -210,7 +210,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(msg)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_08(self):
         """Return of /single/receivers/<uuid>/constraints/ meets the schema"""
@@ -226,7 +226,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(msg)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_09(self):
         """All params listed in /single/senders/<uuid>/constraints/ matches /staged/ and /active/"""
@@ -237,11 +237,11 @@ class IS0501Test(GenericTest):
                 return test.PASS()
             else:
                 if "Not tested. No resources found." in response:
-                    return test.NA(response)
+                    return test.UNCLEAR(response)
                 else:
                     return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_10(self):
         """All params listed in /single/receivers/<uuid>/constraints/ matches /staged/ and /active/"""
@@ -252,11 +252,11 @@ class IS0501Test(GenericTest):
                 return test.PASS()
             else:
                 if "Not tested. No resources found." in response:
-                    return test.NA(response)
+                    return test.UNCLEAR(response)
                 else:
                     return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_11(self):
         """Senders are using valid combination of parameters"""
@@ -300,7 +300,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_12(self):
         """Receiver are using valid combination of parameters"""
@@ -342,7 +342,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_13(self):
         """Return of /single/senders/<uuid>/staged/ meets the schema"""
@@ -358,7 +358,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(msg)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_14(self):
         """Return of /single/receivers/<uuid>/staged/ meets the schema"""
@@ -374,7 +374,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(msg)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_15(self):
         """Staged parameters for senders comply with constraints"""
@@ -386,7 +386,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_16(self):
         """Staged parameters for receivers comply with constraints"""
@@ -398,7 +398,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_17(self):
         """Sender patch response schema is valid"""
@@ -410,7 +410,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_18(self):
         """Receiver patch response schema is valid"""
@@ -422,7 +422,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_19(self):
         """Sender invalid patch is refused"""
@@ -434,7 +434,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_20(self):
         """Receiver invalid patch is refused"""
@@ -446,7 +446,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_21(self):
         """Sender id on staged receiver is changeable"""
@@ -475,7 +475,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_22(self):
         """Receiver id on staged sender is changeable"""
@@ -504,7 +504,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_23(self):
         """Sender transport parameters are changeable"""
@@ -523,7 +523,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(values)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_24(self):
         """Receiver transport parameters are changeable"""
@@ -543,7 +543,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(values)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_25(self):
         """Immediate activation of a sender is possible"""
@@ -558,7 +558,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_26(self):
         """Immediate activation of a receiver is possible"""
@@ -573,7 +573,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_27(self):
         """Relative activation of a sender is possible"""
@@ -588,7 +588,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_28(self):
         """Relative activation of a receiver is possible"""
@@ -603,7 +603,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_29(self):
         """Absolute activation of a sender is possible"""
@@ -618,7 +618,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_30(self):
         """Absolute activation of a receiver is possible"""
@@ -633,7 +633,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_31(self):
         """Sender active response schema is valid"""
@@ -649,7 +649,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_32(self):
         """Receiver active response schema is valid"""
@@ -665,7 +665,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_33(self):
         """/bulk/ endpoint returns correct JSON"""
@@ -712,7 +712,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_37(self):
         """Bulk interface can be used to change destination port on all receivers"""
@@ -724,7 +724,7 @@ class IS0501Test(GenericTest):
             else:
                 return test.FAIL(response)
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_38(self):
         """Number of legs matches on constraints, staged and active endpoint for senders"""
@@ -739,7 +739,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_39(self):
         """Number of legs matches on constraints, staged and active endpoint for receivers"""
@@ -754,7 +754,7 @@ class IS0501Test(GenericTest):
                     return test.FAIL(response)
             return test.PASS()
         else:
-            return test.NA("Not tested. No resources found.")
+            return test.UNCLEAR("Not tested. No resources found.")
 
     def test_40(self):
         """Only valid transport types for a given API version are advertised"""
@@ -781,7 +781,7 @@ class IS0501Test(GenericTest):
                         return test.FAIL("Unexpected response from active resource for Receiver {}".format(receiver))
                 return test.PASS()
             else:
-                return test.NA("Not tested. No resources found.")
+                return test.UNCLEAR("Not tested. No resources found.")
         else:
             if len(self.senders) or len(self.receivers):
                 for sender in self.senders:
@@ -804,7 +804,7 @@ class IS0501Test(GenericTest):
                         return test.FAIL("Unexpected response from transporttype resource for Receiver {}".format(receiver))
                 return test.PASS()
             else:
-                return test.NA("Not tested. No resources found.")
+                return test.UNCLEAR("Not tested. No resources found.")
 
 
     def check_bulk_stage(self, port, portList):

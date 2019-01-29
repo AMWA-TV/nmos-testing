@@ -350,7 +350,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is05_resources[resource_type]) == 0:
-            return test.NA("Could not find any IS-05 Receivers to test")
+            return test.UNCLEAR("Could not find any IS-05 Receivers to test")
 
         valid, response = self.activate_check_version(resource_type)
         if not valid:
@@ -373,7 +373,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is05_resources[resource_type]) == 0:
-            return test.NA("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
         valid, response = self.activate_check_version(resource_type)
         if not valid:
@@ -396,7 +396,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is05_resources[resource_type]) == 0:
-            return test.NA("Could not find any IS-05 Receivers to test")
+            return test.UNCLEAR("Could not find any IS-05 Receivers to test")
 
         valid, response = self.activate_check_parked(resource_type)
         if not valid:
@@ -423,7 +423,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is05_resources[resource_type]) == 0:
-            return test.NA("Could not find any IS-05 Receivers to test")
+            return test.UNCLEAR("Could not find any IS-05 Receivers to test")
 
         valid, response = self.activate_check_parked(resource_type)
         if not valid:
@@ -454,7 +454,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is05_resources[resource_type]) == 0:
-            return test.NA("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
         valid, response = self.activate_check_parked(resource_type)
         if not valid:
@@ -485,7 +485,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is05_resources[resource_type]) == 0:
-            return test.NA("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
         valid, response = self.activate_check_parked(resource_type)
         if not valid:
@@ -516,7 +516,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is05_resources[resource_type]) == 0:
-            return test.NA("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
         valid, response = self.activate_check_parked(resource_type)
         if not valid:
