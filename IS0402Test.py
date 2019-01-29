@@ -526,7 +526,107 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        return test.MANUAL()
+        # Initial /nodes Request
+        # Check all required response headers are present
+
+        valid, r = self.do_request("GET", self.query_url + "nodes")
+        if not valid:
+            return test.FAIL("Query API failed to respond to query")
+
+        PAGING_HEADERS = ('Link', 'X-Paging-Limit', 'X-Paging-Since', 'X-Paging-Until')
+
+        paging_headers = {k: r.headers[k] for k in PAGING_HEADERS if k in r.headers}
+        if (len(paging_headers) == 0):
+            return test.OPTIONAL("Query API response did not include any pagination headers. Query APIs should support pagination for scalability.")
+        elif (len(paging_headers) != len(PAGING_HEADERS)):
+            return test.FAIL("Query API response did not include all pagination headers, only: {}".format(list(paging_headers.keys())))
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") >= 0:
+            return test.FAIL("Version > 1 not supported yet.")
+
+        # Post a Node and some Devices for the following pagination tests
+
+        node_id = str(uuid.uuid4())
+        node_data = deepcopy(self.test_data["node"])
+        node_data["description"]  = "test_21"
+
+        node_data["id"] = node_id
+        self.bump_resource_version(node_data)
+        valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node",
+                                                                            "data": node_data})
+        if not valid:
+            return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
+        elif r.status_code != 201:
+            return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
+                                .format(r.status_code, r.text))
+
+        device_ids = []
+
+        device_data = deepcopy(self.test_data["device"])
+        device_data["description"]  = "test_21"
+
+        for _ in range(10):
+            device_ids.append(str(uuid.uuid4()))
+
+            device_data["id"] = device_ids[-1]
+            device_data["node_id"] = node_id
+            self.bump_resource_version(device_data)
+            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
+                                                                                "data": device_data})
+            if not valid:
+                return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
+            elif r.status_code != 201:
+                return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
+                                    .format(r.status_code, r.text))
+
+        # Check the most recently POSTed resource is at the top of the initial page of results
+
+        try:
+            valid, r = self.do_request("GET", self.query_url + "devices")
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif len(r.json()) == 0 or r.json()[0]["id"] != device_ids[-1]:
+                return test.FAIL("Query API did not return the expected device first.")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # From here on, use basic query syntax to limit the returned resources to the ones POSTed by this test
+
+        query_string = "?description=test_21"
+
+        try:
+            valid, r = self.do_request("GET", self.query_url + "devices" + query_string)
+            if not valid:
+                return test.FAIL("Query API failed to respond to query: {}".format(query_string))
+            elif len(r.json()) == 0 or r.json()[0]["id"] != device_ids[-1]:
+                return test.FAIL("Query API did not return the expected device first in response to query: {}".format(query_string))
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # Check paging.limit restricts the response to the specified number of results
+
+        # Use a small value, since implementations may specify their own default and maximum for the limit
+        paging_limit = "&paging.limit=3"
+        initial_page_ids = device_ids[:-4:-1]
+
+        try:
+            valid, r = self.do_request("GET", self.query_url + "devices" + query_string + paging_limit)
+            if not valid:
+                return test.FAIL("Query API failed to respond to query: {}".format(query_string))
+            elif initial_page_ids != [ device["id"] for device in r.json() ]:
+                return test.FAIL("Query API did not return the expected devices in response to query: {}".format(query_string + paging_limit))
+
+            # Check response headers
+
+            # TO DO!
+
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # MORE TO DO!
+
+        return test.MANUAL(""This test is incomplete, but the implementation passed so far as it goes!")
 
     def test_22(self):
         """Query API implements downgrade queries"""
