@@ -19,8 +19,7 @@ import socket
 import uuid
 import json
 from copy import deepcopy
-from jsonschema import ValidationError, RefResolver, Draft4Validator
-import os
+from jsonschema import ValidationError, Draft4Validator
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -28,7 +27,7 @@ from TestResult import Test
 from GenericTest import GenericTest, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT
-from TestHelper import WebsocketWorker
+from TestHelper import WebsocketWorker, load_resolved_schema
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -893,13 +892,13 @@ class IS0402Test(GenericTest):
 
             # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
 
+            # Load schema
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
-                schema = self.load_schema("query", "queryapi-v1.0-subscriptions-websocket.json")
+                schema = load_resolved_schema(self.apis["query"]["spec_path"],
+                                              "queryapi-v1.0-subscriptions-websocket.json")
             else:
-                schema = self.load_schema("query", "queryapi-subscriptions-websocket.json")
-
-            resolver = RefResolver(self.file_prefix + os.path.abspath(self.apis["query"]["spec_path"] +
-                                                                      '/APIs/schemas/') + os.sep, schema)
+                schema = load_resolved_schema(self.apis["query"]["spec_path"],
+                                              "queryapi-subscriptions-websocket.json")
 
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
@@ -912,7 +911,7 @@ class IS0402Test(GenericTest):
                 # Validate received data against schema
                 for message in received_messages:
                     try:
-                        Draft4Validator(schema, resolver=resolver).validate(json.loads(message))
+                        Draft4Validator(schema).validate(json.loads(message))
                     except ValidationError as e:
                         return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
@@ -955,6 +954,13 @@ class IS0402Test(GenericTest):
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
                 # Verify data inside messages
                 grain_data = list()
 
@@ -994,6 +1000,13 @@ class IS0402Test(GenericTest):
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
                 # Verify data inside messages
                 grain_data = list()
 
@@ -1030,6 +1043,13 @@ class IS0402Test(GenericTest):
             sleep(1)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 grain_data = list()
                 # Verify data inside messages
