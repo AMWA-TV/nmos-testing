@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import requests
 import time
 import socket
 import netifaces
@@ -25,7 +24,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
 from IS04Utils import IS04Utils
-from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT
+from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
 
 NODE_API_KEY = "node"
 
@@ -77,8 +76,11 @@ class IS0401Test(GenericTest):
             registry_mdns.append(info)
             priority += 10
 
+        # Reset all registries to clear previous heartbeats, etc.
+        for registry in self.registries:
+            registry.reset()
+
         registry = self.registries[0]
-        self.registries[0].reset()
         self.registries[0].enable()
 
         # Advertise a registry at pri 0 and allow the Node to do a basic registration
@@ -88,7 +90,7 @@ class IS0401Test(GenericTest):
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.registries[0].last_time) < 6:
+        while (time.time() - self.registries[0].last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
@@ -110,7 +112,7 @@ class IS0401Test(GenericTest):
                 if (index + 1) >= len(self.registries):
                     break
 
-                heartbeat_countdown = 6  # Heartbeat interval plus one
+                heartbeat_countdown = HEARTBEAT_INTERVAL + 1
                 while len(self.registries[index + 1].get_heartbeats()) < 1 and heartbeat_countdown > 0:
                     # Wait until the heartbeat interval has elapsed or a heartbeat has been received
                     time.sleep(1)
@@ -199,8 +201,8 @@ class IS0401Test(GenericTest):
             url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
                   self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s/" + res_id
             try:
-                r = requests.get(url)
-                if r.status_code == 200:
+                valid, r = self.do_request("GET", url)
+                if valid and r.status_code == 200:
                     found_resource = r.json()
                 else:
                     raise Exception
@@ -223,31 +225,28 @@ class IS0401Test(GenericTest):
             url = "{}self".format(self.node_url)
         else:
             url = "{}{}s".format(self.node_url, res_type)
-        try:
-            # Get data from node itself
-            r = requests.get(url)
-            if r.status_code == 200:
-                try:
-                    node_resources = self.get_node_resources(r.json())
+        # Get data from node itself
+        valid, r = self.do_request("GET", url)
+        if valid and r.status_code == 200:
+            try:
+                node_resources = self.get_node_resources(r.json())
 
-                    if len(node_resources) == 0:
-                        return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
+                if len(node_resources) == 0:
+                    return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
 
-                    for res_id in node_resources:
-                        reg_resource = self.get_registry_resource(res_type, res_id)
-                        if not reg_resource:
-                            return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
-                        elif reg_resource != node_resources[res_id]:
-                            return test.FAIL("Node API JSON does not match data in registry for "
-                                             "{} {}.".format(res_type.title(), res_id))
+                for res_id in node_resources:
+                    reg_resource = self.get_registry_resource(res_type, res_id)
+                    if not reg_resource:
+                        return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
+                    elif reg_resource != node_resources[res_id]:
+                        return test.FAIL("Node API JSON does not match data in registry for "
+                                         "{} {}.".format(res_type.title(), res_id))
 
-                    return test.PASS()
-                except ValueError:
-                    return test.FAIL("Invalid JSON received!")
-            else:
-                return test.FAIL("Could not reach Node!")
-        except requests.ConnectionError:
-            return test.FAIL("Connection error for {}".format(url))
+                return test.PASS()
+            except ValueError:
+                return test.FAIL("Invalid JSON received!")
+        else:
+            return test.FAIL("Could not reach Node!")
 
     def test_04(self):
         """Node can register a valid Node resource with the network registration service,
@@ -274,24 +273,25 @@ class IS0401Test(GenericTest):
         if len(registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
+        initial_node = registry.get_data()[0]
+
         last_hb = None
         for heartbeat in registry.get_heartbeats():
+            # Ensure the Node ID for heartbeats matches the registrations
+            if heartbeat[1]["node_id"] != initial_node[1]["payload"]["data"]["id"]:
+                return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
+
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
-                if time_diff > 5.5:
+                if time_diff > HEARTBEAT_INTERVAL  + 0.5:
                     return test.FAIL("Heartbeats are not frequent enough.")
-                elif time_diff < 4.5:
+                elif time_diff < HEARTBEAT_INTERVAL - 0.5:
                     return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
-                initial_node = registry.get_data()[0]
-                if (heartbeat[0] - initial_node[0]) > 5.5:
+                if (heartbeat[0] - initial_node[0]) > HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
-
-                # Ensure the Node ID for heartbeats matches the registrations
-                if heartbeat[1]["node_id"] != initial_node[1]["payload"]["data"]["id"]:
-                    return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
 
             # Ensure the heartbeat request body is empty
             if heartbeat[1]["payload"] is not None:

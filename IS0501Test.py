@@ -15,7 +15,6 @@
 # limitations under the License.
 
 
-import requests
 import uuid
 import os
 from jsonschema import ValidationError, SchemaError, RefResolver, Draft4Validator
@@ -825,15 +824,15 @@ class IS0501Test(GenericTest):
                 data.append(toAdd)
             else:
                 return False, response
-        try:
-            r = requests.post(url, json=data)
+        valid, r = self.do_request("POST", url, data)
+        if valid:
             msg = "Expected a 200 response from {}, got {}".format(url, r.status_code)
             if r.status_code == 200:
                 pass
             else:
                 return False, msg
-        except requests.exceptions.RequestException as e:
-            return False, str(e)
+        else:
+            return False, r
 
         schema = self.get_schema(CONN_API_KEY, "POST", "/bulk/" + port + "s", 200)
         try:

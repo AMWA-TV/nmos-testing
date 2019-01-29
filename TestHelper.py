@@ -15,10 +15,12 @@
 # limitations under the License.
 
 
-import requests
-from copy import copy
 import threading
+from copy import copy
+import requests
 import websocket
+
+from Config import HTTP_TIMEOUT
 
 
 def ordered(obj):
@@ -45,7 +47,7 @@ def do_request(method, url, data=None):
         else:
             req = requests.Request(method, url)
         prepped = req.prepare()
-        r = s.send(prepped)
+        r = s.send(prepped, timeout=HTTP_TIMEOUT)
         return True, r
     except requests.exceptions.Timeout:
         return False, "Connection timeout"
@@ -55,6 +57,7 @@ def do_request(method, url, data=None):
         return False, str(e)
     except requests.exceptions.RequestException as e:
         return False, str(e)
+
 
 class WebsocketWorker(threading.Thread):
     """Websocket Client Worker Thread"""

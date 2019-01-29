@@ -685,7 +685,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Cannot execute test, as expected resources are not registered")
 
             # Wait for garbage collection
-            sleep(GARBAGE_COLLECTION_TIMEOUT)
+            sleep(GARBAGE_COLLECTION_TIMEOUT + 0.5)
 
             # Verify all resources are removed
             for resource in resources:
