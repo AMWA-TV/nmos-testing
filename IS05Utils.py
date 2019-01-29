@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import re
-import requests
 import time
 import TestHelper
 
@@ -558,42 +557,38 @@ class IS05Utils(NMOSUtils):
     def get_senders(self):
         """Gets a list of the available senders on the API"""
         toReturn = []
-        try:
-            r = requests.get(self.url + "single/senders/")
+        valid, r = TestHelper.do_request("GET", self.url + "single/senders/")
+        if valid:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
             except ValueError:
                 pass
-        except requests.exceptions.RequestException:
-            pass
         return toReturn
 
     def get_receivers(self):
         """Gets a list of the available receivers on the API"""
         toReturn = []
-        try:
-            r = requests.get(self.url + "single/receivers/")
+        valid, r = TestHelper.do_request("GET", self.url + "single/receivers/")
+        if valid:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
             except ValueError:
                 pass
-        except requests.exceptions.RequestException:
-            pass
         return toReturn
 
     def get_num_paths(self, port, portType):
         """Returns the number or redundant paths on a port"""
         url = self.url + "single/" + portType + "s/" + port + "/constraints/"
-        try:
-            r = requests.get(url)
+        valid, r = TestHelper.do_request("GET", url)
+        if valid:
             try:
                 rjson = r.json()
                 return len(rjson)
             except ValueError:
                 return 0
-        except requests.exceptions.RequestException:
+        else:
             return 0
 
     def park_resource(self, resource_type, resource_id):
