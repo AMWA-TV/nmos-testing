@@ -79,7 +79,7 @@ class IS0402Test(GenericTest):
                     if priority < 0:
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.FAIL("Priority ('pri') TXT record must be less than 100 for a production instance.")
+                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production instance.")
                 except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
@@ -93,9 +93,11 @@ class IS0402Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Registration API advertisement.")
+                    elif properties["api_proto"] == "https":
+                        return test.MANUAL("API protocol is not advertised as 'http'. "
+                                           "This test suite does not currently support 'https'.")
                     elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol is not advertised as 'http'. "
-                                         "This test suite does not currently support 'https'.")
+                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Registration API.")
@@ -120,7 +122,7 @@ class IS0402Test(GenericTest):
                     if priority < 0:
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.FAIL("Priority ('pri') TXT record must be less than 100 for a production instance.")
+                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production instance.")
                 except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
@@ -134,9 +136,11 @@ class IS0402Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Query API advertisement.")
+                    elif properties["api_proto"] == "https":
+                        return test.MANUAL("API protocol is not advertised as 'http'. "
+                                           "This test suite does not currently support 'https'.")
                     elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol is not advertised as 'http'. "
-                                         "This test suite does not currently support 'https'.")
+                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Query API.")
@@ -544,7 +548,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Nodes found in registry. Test cannot proceed.")
+                return test.UNCLEAR("No Nodes found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -571,7 +575,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Nodes found in registry. Test cannot proceed.")
+                return test.UNCLEAR("No Nodes found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -600,7 +604,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Sources found in registry. Test cannot proceed.")
+                return test.UNCLEAR("No Sources found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 

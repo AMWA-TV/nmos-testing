@@ -44,21 +44,11 @@
             <tbody>
                 {% for curr_result in result %}
                     <tr>
-                        <td>{{ curr_result[3] }}</td>
-                        {% if curr_result[1] == "Pass" %}
-                            <td class="bg-success pass">{{ curr_result[1] }}</td>
-                        {% elif curr_result[1] == "Manual" %}
-                            <td class="bg-info manual">{{ curr_result[1] }}</td>
-                        {% elif curr_result[1] == "N/A" %}
-                            <td class="bg-secondary notavailable">{{ curr_result[1] }}</td>
-                        {% elif curr_result[1] == "Not Implemented" %}
-                            <td class="bg-warning optional">{{ curr_result[1] }}</td>
-                        {% else %}
-                            <td class="bg-danger fail">{{ curr_result[1] }}</td>
-                        {% endif %}
-                        <td>{{ curr_result[0] }}</td>
-                        <td>{{ curr_result[2] }}</td>
                         <td>{{ curr_result[4] }}</td>
+                        <td class="{{ curr_result[2] }} pass_state">{{ curr_result[1] }}</td>
+                        <td>{{ curr_result[0] }}</td>
+                        <td>{{ curr_result[3] }}</td>
+                        <td>{{ curr_result[5] }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

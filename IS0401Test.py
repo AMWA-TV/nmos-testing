@@ -135,7 +135,7 @@ class IS0401Test(GenericTest):
         test = Test("Node can discover network registration service via mDNS")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -158,7 +158,7 @@ class IS0401Test(GenericTest):
         test = Test("Registration API interactions use the correct Content-Type")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -232,7 +232,7 @@ class IS0401Test(GenericTest):
                 node_resources = self.get_node_resources(r.json())
 
                 if len(node_resources) == 0:
-                    return test.NA("No {} resources were found on the Node.".format(res_type.title()))
+                    return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
 
                 for res_id in node_resources:
                     reg_resource = self.get_registry_resource(res_type, res_id)
@@ -265,7 +265,7 @@ class IS0401Test(GenericTest):
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -439,7 +439,7 @@ class IS0401Test(GenericTest):
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.NA("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any Receivers")
 
     def test_14(self):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
@@ -481,7 +481,7 @@ class IS0401Test(GenericTest):
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.NA("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any Receivers")
 
     def test_15(self):
         """Node correctly selects a Registration API based on advertised priorities"""
@@ -489,7 +489,7 @@ class IS0401Test(GenericTest):
         test = Test("Node correctly selects a Registration API based on advertised priorities")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
@@ -518,7 +518,7 @@ class IS0401Test(GenericTest):
         test = Test("Node correctly fails over between advertised Registration APIs when one fails")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 

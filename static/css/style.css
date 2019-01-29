@@ -48,27 +48,7 @@ th {
     text-align: center;
 }
 
-.pass {
-    text-align: center;
-    font-weight: bold;
-}
-
-.fail {
-    text-align: center;
-    font-weight: bold;
-}
-
-.manual {
-    text-align: center;
-    font-weight: bold;
-}
-
-.notavailable {
-    text-align: center;
-    font-weight: bold;
-}
-
-.optional {
+.pass_state {
     text-align: center;
     font-weight: bold;
 }
@@ -84,23 +64,27 @@ th {
 
 /* Override bootstrap print behaviour */
 @media print{
-    .table td.pass {
+    .table td.bg-success {
         background-color: #28a745 !important
     }
 
-    .table td.manual {
+    .table td.bg-info {
         background-color: #17a2b8 !important
     }
 
-    .table td.notavailable {
+    .table td.bg-primary {
+        background-color: #007bff !important
+    }
+
+    .table td.bg-secondary {
         background-color: #6c757d !important
     }
 
-    .table td.fail {
+    .table td.bg-danger {
       background-color: #dc3545 !important
     }
 
-    .table td.optional {
+    .table td.bg-warning {
       background-color: #ffc107 !important
     }
 }
