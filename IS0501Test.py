@@ -548,7 +548,7 @@ class IS0501Test(GenericTest):
         """Immediate activation of a sender is possible"""
         test = Test("Immediate activation of a sender is possible")
         if len(self.senders) > 0:
-            for sender in self.senders:
+            for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_immediate_activation)
                 if valid:
@@ -563,13 +563,14 @@ class IS0501Test(GenericTest):
         """Immediate activation of a receiver is possible"""
         test = Test("Immediate activation of a receiver is possible")
         if len(self.receivers) > 0:
-            for receiver in self.receivers:
+            for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_immediate_activation)
                 if valid:
                     pass
                 else:
                     return test.FAIL(response)
+
             return test.PASS()
         else:
             return test.NA("Not tested. No resources found.")
@@ -578,7 +579,7 @@ class IS0501Test(GenericTest):
         """Relative activation of a sender is possible"""
         test = Test("Relative activation of a sender is possible")
         if len(self.senders) > 0:
-            for sender in self.senders:
+            for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_relative_activation)
                 if valid:
@@ -593,7 +594,7 @@ class IS0501Test(GenericTest):
         """Relative activation of a receiver is possible"""
         test = Test("Relative activation of a receiver is possible")
         if len(self.receivers) > 0:
-            for receiver in self.receivers:
+            for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_relative_activation)
                 if valid:
@@ -608,7 +609,7 @@ class IS0501Test(GenericTest):
         """Absolute activation of a sender is possible"""
         test = Test("Absolute activation of a sender is possible")
         if len(self.senders) > 0:
-            for sender in self.senders:
+            for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_absolute_activation)
                 if valid:
@@ -623,7 +624,7 @@ class IS0501Test(GenericTest):
         """Absolute activation of a receiver is possible"""
         test = Test("Absolute activation of a receiver is possible")
         if len(self.receivers) > 0:
-            for receiver in self.receivers:
+            for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_absolute_activation)
                 if valid:
@@ -804,7 +805,6 @@ class IS0501Test(GenericTest):
                 return test.PASS()
             else:
                 return test.NA("Not tested. No resources found.")
-
 
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""

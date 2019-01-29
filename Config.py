@@ -34,6 +34,10 @@ CACHE_PATH = 'cache'
 # Timeout for any HTTP requests
 HTTP_TIMEOUT = 1
 
+# Restrict the maximum number of resources that time consuming tests run against.
+# 0 = unlimited for a really thorough test!
+MAX_TEST_ITERATIONS = 0
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
