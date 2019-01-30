@@ -894,7 +894,7 @@ class IS0402Test(GenericTest):
 
             # Load schema
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
-                schema = load_resolved_schema(self.apis["query"]["spec_path"],
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
                                               "queryapi-v1.0-subscriptions-websocket.json")
             else:
                 schema = load_resolved_schema(self.apis["query"]["spec_path"],
