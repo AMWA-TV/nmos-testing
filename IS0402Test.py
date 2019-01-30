@@ -897,7 +897,7 @@ class IS0402Test(GenericTest):
                 schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
                                               "queryapi-v1.0-subscriptions-websocket.json")
             else:
-                schema = load_resolved_schema(self.apis["query"]["spec_path"],
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
                                               "queryapi-subscriptions-websocket.json")
 
             for resource, resource_data in test_data.items():
