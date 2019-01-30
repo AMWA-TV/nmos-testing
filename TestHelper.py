@@ -19,6 +19,8 @@ import threading
 from copy import copy
 import requests
 import websocket
+import os
+import jsonref
 
 from Config import HTTP_TIMEOUT
 
@@ -58,6 +60,27 @@ def do_request(method, url, data=None):
     except requests.exceptions.RequestException as e:
         return False, str(e)
 
+def load_resolved_schema(spec_path, file_name):
+    """
+    Parses JSON as well as resolves any `$ref`s, including references to
+    local files and remote (HTTP/S) files.
+    """
+    base_path = os.path.abspath(os.path.join(spec_path, "APIs/schemas/"))
+    json_file = os.path.join(base_path, file_name)
+
+    if not base_path.endswith("/"):
+        base_path = base_path + "/"
+    if os.name == "nt":
+        base_path = "file:///" + base_path.replace('\\', '/')
+    else:
+        base_path = "file://" + base_path
+
+    loader = jsonref.JsonLoader(cache_results=False)
+
+    with open(json_file, "r") as f:
+        schema = jsonref.load(f, base_uri=base_path, loader=loader, jsonschema=True)
+
+    return schema
 
 class WebsocketWorker(threading.Thread):
     """Websocket Client Worker Thread"""
