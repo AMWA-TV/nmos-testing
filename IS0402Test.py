@@ -527,7 +527,7 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        return test.MANUAL()
+        return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination")
 
     def test_22(self):
         """Query API implements downgrade queries"""
@@ -537,7 +537,7 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        return test.MANUAL()
+        return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
 
     def test_23(self):
         """Query API implements basic query parameters"""
@@ -586,7 +586,9 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support RQL queries.")
+            return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                 "scalability.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -615,7 +617,8 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support ancestry queries")
+            return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
