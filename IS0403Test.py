@@ -61,7 +61,8 @@ class IS0403Test(GenericTest):
                     try:
                         version = int(properties[ver_txt])
                         if version < 0:
-                            return test.FAIL("Version ('{}') TXT record must be greater than zero.".format(ver_txt))
+                            return test.FAIL("Version ('{}') TXT record must be greater than or equal to zero."
+                                             .format(ver_txt))
                         elif version > 255:
                             return test.WARNING("Version ('{}') TXT record must be less than or equal to 255."
                                                 .format(ver_txt))
