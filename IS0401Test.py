@@ -397,7 +397,10 @@ class IS0401Test(GenericTest):
                         return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
 
                 return test.PASS()
-        return test.FAIL("No matching mDNS announcement found for Node.")
+
+        return test.WARNING("No matching mDNS announcement found for Node. This will not affect operation in registered"
+                            " mode but may indicate a lack of support for peer to peer operation.",
+                            "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted

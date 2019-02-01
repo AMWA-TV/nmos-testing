@@ -84,7 +84,9 @@ class IS0403Test(GenericTest):
                         return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
 
                 return test.PASS()
-        return test.FAIL("No matching mDNS announcement found for Node.")
+
+        return test.FAIL("No matching mDNS announcement found for Node. Peer to peer mode will not function correctly.",
+                         "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
 
     def test_02_node_mdns_txt_increment(self):
         """Node increments its ver_* TXT records when its matching Node API resources change"""
