@@ -5,6 +5,7 @@ This tool creates a simple web service which tests implementations of the NMOS A
 The following test sets are currently supported:
 *   IS-04 Node API
 *   IS-04 Registry APIs
+*   IS-04 Node API (Peer to Peer)
 *   IS-05 Connection Management API
 *   IS-05 Interaction with IS-04
 *   IS-06 Network Control API
