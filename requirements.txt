@@ -7,3 +7,5 @@ netifaces
 gitpython
 ramlfications
 websocket-client
+jsonref
+

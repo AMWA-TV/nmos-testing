@@ -40,6 +40,7 @@ Python packages:
 *   netifaces
 *   gitpython
 *   ramlfications
+*   jsonref
 
 ## Known Issues
 

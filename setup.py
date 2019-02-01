@@ -81,7 +81,8 @@ packages_required = [
     "netifaces",
     "gitpython",
     "ramlfications",
-    "websocket-client"
+    "websocket-client",
+    "jsonref"
 ]
 
 deps_required = []
