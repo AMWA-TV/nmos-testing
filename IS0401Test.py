@@ -379,9 +379,28 @@ class IS0401Test(GenericTest):
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
                     if "ver_" in prop:
-                        return test.FAIL("Found 'ver_'-txt record while node is registered.")
+                        return test.FAIL("Found 'ver_' TXT record while Node is registered.")
+
+                api = self.apis[NODE_API_KEY]
+                if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    if "api_ver" not in properties:
+                        return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
+                    elif api["version"] not in properties["api_ver"].split(","):
+                        return test.FAIL("Node does not claim to support version under test.")
+
+                    if "api_proto" not in properties:
+                        return test.FAIL("No 'api_proto' TXT record found in Node API advertisement.")
+                    elif properties["api_proto"] == "https":
+                        return test.MANUAL("API protocol is not advertised as 'http'. "
+                                           "This test suite does not currently support 'https'.")
+                    elif properties["api_proto"] != "http":
+                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
+
                 return test.PASS()
-        return test.FAIL("No matching mdns announcement found for node.")
+
+        return test.WARNING("No matching mDNS announcement found for Node. This will not affect operation in registered"
+                            " mode but may indicate a lack of support for peer to peer operation.",
+                            "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
