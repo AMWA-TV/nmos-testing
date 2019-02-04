@@ -48,8 +48,10 @@ def do_request(method, url, data=None):
             req = requests.Request(method, url, json=data)
         else:
             req = requests.Request(method, url)
-        prepped = req.prepare()
-        r = s.send(prepped, timeout=HTTP_TIMEOUT)
+        prepped = s.prepare_request(req)
+        # Second argument would be None if not for https://github.com/requests/requests/issues/4959
+        settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
+        r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         return True, r
     except requests.exceptions.Timeout:
         return False, "Connection timeout"
