@@ -556,8 +556,12 @@ class IS0402Test(GenericTest):
         random_label = uuid.uuid4()
         query_string = "?label=" + str(random_label)
         valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
+        api = self.apis[QUERY_API_KEY]
         if not valid:
             return test.FAIL("Query API failed to respond to query")
+        elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
+            return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important for"
+                                 " scalability.", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
