@@ -27,7 +27,7 @@ class Test(object):
         self.timer = time.time()
 
     def _current_time(self):
-        return str(datetime.datetime.now().time())
+        return str(datetime.datetime.now().time())[:-3]
 
     def _time_elapsed(self):
         return "{0:.3f}s".format(time.time() - self.timer)
