@@ -19,6 +19,7 @@ import socket
 import uuid
 import json
 from copy import deepcopy
+from jsonschema import ValidationError, Draft4Validator
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -26,7 +27,7 @@ from TestResult import Test
 from GenericTest import GenericTest, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT
-from TestHelper import WebsocketWorker
+from TestHelper import WebsocketWorker, load_resolved_schema
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -626,7 +627,7 @@ class IS0402Test(GenericTest):
 
         # MORE TO DO!
 
-        return test.MANUAL(""This test is incomplete, but the implementation passed so far as it goes!")
+        return test.MANUAL("This test is incomplete, but the implementation passed so far as it goes!", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination")
 
     def test_22(self):
         """Query API implements downgrade queries"""
@@ -636,7 +637,7 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        return test.MANUAL()
+        return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
 
     def test_23(self):
         """Query API implements basic query parameters"""
@@ -685,7 +686,9 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support RQL queries.")
+            return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                 "scalability.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -714,7 +717,8 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support ancestry queries")
+            return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -994,6 +998,15 @@ class IS0402Test(GenericTest):
                                      .format(r.status_code, r.text))
 
             # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
+
+            # Load schema
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-v1.0-subscriptions-websocket.json")
+            else:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-subscriptions-websocket.json")
+
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
                 sleep(0.5)
@@ -1001,6 +1014,13 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Error opening websocket: {}".format(websockets[resource].get_error_message()))
 
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 # Verify data inside messages
                 grain_data = list()
@@ -1041,6 +1061,13 @@ class IS0402Test(GenericTest):
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
                 # Verify data inside messages
                 grain_data = list()
 
@@ -1080,6 +1107,13 @@ class IS0402Test(GenericTest):
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
                 # Verify data inside messages
                 grain_data = list()
 
@@ -1116,6 +1150,13 @@ class IS0402Test(GenericTest):
             sleep(1)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 grain_data = list()
                 # Verify data inside messages

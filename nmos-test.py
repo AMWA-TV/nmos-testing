@@ -30,6 +30,7 @@ import threading
 
 import IS0401Test
 import IS0402Test
+import IS0403Test
 import IS0501Test
 import IS0502Test
 import IS0601Test
@@ -72,6 +73,14 @@ TEST_DEFINITIONS = {
             "api_key": "query"
         }],
         "class": IS0402Test.IS0402Test
+    },
+    "IS-04-03": {
+        "name": "IS-04 Node API (Peer to Peer)",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": IS0403Test.IS0403Test
     },
     "IS-05-01": {
         "name": "IS-05 Connection Management API",

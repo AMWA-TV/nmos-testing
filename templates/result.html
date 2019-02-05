@@ -38,17 +38,24 @@
                     <th>Pass</th>
                     <th>Description</th>
                     <th>Reason</th>
+                    <th>Completion Time</th>
                     <th>Time Elapsed</th>
                 </tr>
             </thead>
             <tbody>
                 {% for curr_result in result %}
                     <tr>
-                        <td>{{ curr_result[4] }}</td>
-                        <td class="{{ curr_result[2] }} pass_state">{{ curr_result[1] }}</td>
                         <td>{{ curr_result[0] }}</td>
+                        <td class="{{ curr_result[2] }} pass_state">{{ curr_result[1] }}</td>
                         <td>{{ curr_result[3] }}</td>
-                        <td>{{ curr_result[5] }}</td>
+                        <td>
+                          {{ curr_result[4] }}
+                          {% if curr_result[5] %}
+                            <a href="{{ curr_result[5] }}" target="_blank">More Information</a>
+                          {% endif %}
+                        </td>
+                        <td>{{ curr_result[6] }}</td>
+                        <td>{{ curr_result[7] }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

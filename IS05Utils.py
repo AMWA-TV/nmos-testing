@@ -119,12 +119,21 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
+    def perform_activation(self, port, portId, activateMode="activate_immediate", activateTime=None):
+        # Request an immediate activation
+        stagedUrl = "single/" + port + "s/" + portId + "/staged"
+        data = {"activation": {"mode": activateMode}}
+        code = 200
+        if activateMode != "activate_immediate":
+            data["activation"]["requested_time"] = activateTime
+            code = 202
+        return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
+
     def check_perform_immediate_activation(self, port, portId, stagedParams):
         # Request an immediate activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        data = {"activation": {"mode": "activate_immediate"}}
-        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
+        valid, response = self.perform_activation(port, portId)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -200,8 +209,7 @@ class IS05Utils(NMOSUtils):
         # Request an relative activation 2 nanoseconds in the future
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        data = {"activation": {"mode": "activate_scheduled_relative", "requested_time": "0:2"}}
-        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=202)
+        valid, response = self.perform_activation(port, portId, "activate_scheduled_relative", "0:2")
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -284,8 +292,7 @@ class IS05Utils(NMOSUtils):
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
         TAItime = self.get_TAI_time(1)
-        data = {"activation": {"mode": "activate_scheduled_absolute", "requested_time": TAItime}}
-        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=202)
+        valid, response = self.perform_activation(port, portId, "activate_scheduled_absolute", TAItime)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -600,9 +607,8 @@ class IS05Utils(NMOSUtils):
                 staged_params = response['transport_params']
             except KeyError:
                 return False, "Staged resource did not return 'transport_params' in PATCH response"
-            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
-                                                                        resource_id,
-                                                                        staged_params)
+            valid2, response2 = self.perform_activation(resource_type.rstrip("s"),
+                                                        resource_id)
             if not valid2:
                 return False, response2
         else:
@@ -632,9 +638,8 @@ class IS05Utils(NMOSUtils):
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
             staged_params = response['transport_params']
-            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
-                                                                        resource_id,
-                                                                        staged_params)
+            valid2, response2 = self.perform_activation(resource_type.rstrip("s"),
+                                                        resource_id)
             if not valid2:
                 return False, response2
         else:
