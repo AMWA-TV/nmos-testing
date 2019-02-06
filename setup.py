@@ -82,7 +82,8 @@ packages_required = [
     "gitpython",
     "ramlfications",
     "websocket-client",
-    "jsonref"
+    "jsonref",
+    "dnslib"
 ]
 
 deps_required = []

@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Enable or disable mDNS advertisements. Browsing is always permitted.
-ENABLE_MDNS = True
+# Enable or disable DNS-SD advertisements. Browsing is always permitted.
+ENABLE_DNS_SD = True
 
-# Number of seconds to wait after an mDNS advert is created for a client to notice and perform an action
-MDNS_ADVERT_TIMEOUT = 5
+# Set the DNS-SD mode to either 'multicast' or 'unicast'
+DNS_SD_MODE = 'unicast'
+
+# Number of seconds to wait after a DNS-SD advert is created for a client to notice and perform an action
+DNS_SD_ADVERT_TIMEOUT = 5
 
 # Number of seconds expected between heartbeats
 HEARTBEAT_INTERVAL = 5

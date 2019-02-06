@@ -20,11 +20,13 @@ import netifaces
 import json
 
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
+from dnslib.server import DNSServer
+from dnslib.zoneresolver import ZoneResolver
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
 from IS04Utils import IS04Utils
-from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
+from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
 
 NODE_API_KEY = "node"
 
@@ -40,41 +42,58 @@ class IS0401Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.is04_utils = IS04Utils(self.node_url)
+        self.zc = None
+        self.zc_listener = None
+        self.dns_server = None
+        self.default_gw_interface = None
+        self.default_ip = None
 
     def set_up_tests(self):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
+        self.default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+        self.default_ip = netifaces.ifaddresses(self.default_gw_interface)[netifaces.AF_INET][0]['addr']
+        if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+            zone_file = open("test_data/IS0401/dns.zone").read()
+            zone_file.replace("127.0.0.1", self.default_ip)
+            resolver = ZoneResolver(zone_file)
+            try:
+                self.dns_server = DNSServer(resolver, port=53, address="0.0.0.0")
+                self.dns_server.start_thread()
+            except Exception as e:
+                print(" * ERROR: Unable to bind to port 53. DNS server could not start: {}".format(e))
 
     def tear_down_tests(self):
         if self.zc:
             self.zc.close()
             self.zc = None
+        if self.dns_server:
+            self.dns_server.stop()
+            self.dns_server = None
 
     def _registry_mdns_info(self, port, priority=0):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
-
         # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': str(priority)}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite {}._nmos-registration._tcp.local.".format(port),
-                           socket.inet_aton(default_ip), port, 0, 0,
+                           socket.inet_aton(self.default_ip), port, 0, 0,
                            txt, "nmos-test.local.")
         return info
 
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
 
-        if self.registry_basics_done or not ENABLE_MDNS:
+        if self.registry_basics_done or not ENABLE_DNS_SD:
             return
 
-        registry_mdns = []
-        priority = 0
-        for registry in self.registries:
-            info = self._registry_mdns_info(registry.get_port(), priority)
-            registry_mdns.append(info)
-            priority += 10
+        if DNS_SD_MODE == "multicast":
+            registry_mdns = []
+            priority = 0
+            for registry in self.registries:
+                info = self._registry_mdns_info(registry.get_port(), priority)
+                registry_mdns.append(info)
+                priority += 10
 
         # Reset all registries to clear previous heartbeats, etc.
         for registry in self.registries:
@@ -83,11 +102,12 @@ class IS0401Test(GenericTest):
         registry = self.registries[0]
         self.registries[0].enable()
 
-        # Advertise a registry at pri 0 and allow the Node to do a basic registration
-        self.zc.register_service(registry_mdns[0])
+        if DNS_SD_MODE == "multicast":
+            # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            self.zc.register_service(registry_mdns[0])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
-        time.sleep(MDNS_ADVERT_TIMEOUT)
+        time.sleep(DNS_SD_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
         while (time.time() - self.registries[0].last_time) < HEARTBEAT_INTERVAL + 1:
@@ -102,7 +122,8 @@ class IS0401Test(GenericTest):
             # Once registered, advertise all other registries at different (ascending) priorities
             for index, registry in enumerate(self.registries[1:]):
                 registry.enable()
-                self.zc.register_service(registry_mdns[index + 1])
+                if DNS_SD_MODE == "multicast":
+                    self.zc.register_service(registry_mdns[index + 1])
 
             # Kill registries one by one to collect data around failover
             for index, registry in enumerate(self.registries):
@@ -124,18 +145,20 @@ class IS0401Test(GenericTest):
 
         # Clean up mDNS advertisements and disable registries
         for index, registry in enumerate(self.registries):
-            self.zc.unregister_service(registry_mdns[index])
+            if DNS_SD_MODE == "multicast":
+                self.zc.unregister_service(registry_mdns[index])
             registry.disable()
 
         self.registry_basics_done = True
 
     def test_01(self):
-        """Node can discover network registration service via mDNS"""
+        """Node can discover network registration service via multicast DNS"""
 
-        test = Test("Node can discover network registration service via mDNS")
+        test = Test("Node can discover network registration service via multicast DNS")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'multicast'")
 
         self.do_registry_basics_prereqs()
 
@@ -148,17 +171,27 @@ class IS0401Test(GenericTest):
     def test_02(self):
         """Node can discover network registration service via unicast DNS"""
 
-        # TODO: Provide an option for the user to set up their own unicast DNS server?
         test = Test("Node can discover network registration service via unicast DNS")
-        return test.MANUAL()
+
+        if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'unicast'")
+
+        self.do_registry_basics_prereqs()
+
+        registry = self.registries[0]
+        if len(registry.get_data()) > 0:
+            return test.PASS()
+
+        return test.FAIL("Node did not attempt to register with the advertised registry.")
 
     def test_03(self):
         """Registration API interactions use the correct Content-Type"""
 
         test = Test("Registration API interactions use the correct Content-Type")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
@@ -190,7 +223,7 @@ class IS0401Test(GenericTest):
 
     def get_registry_resource(self, res_type, res_id):
         found_resource = None
-        if ENABLE_MDNS:
+        if ENABLE_DNS_SD:
             # Look up data in local mock registry
             registry = self.registries[0]
             for resource in registry.get_data():
@@ -264,8 +297,8 @@ class IS0401Test(GenericTest):
 
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
@@ -507,8 +540,8 @@ class IS0401Test(GenericTest):
 
         test = Test("Node correctly selects a Registration API based on advertised priorities")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
@@ -536,8 +569,8 @@ class IS0401Test(GenericTest):
 
         test = Test("Node correctly fails over between advertised Registration APIs when one fails")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 

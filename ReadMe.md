@@ -15,7 +15,7 @@ The following test sets are currently supported:
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'N/A' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
 **Attention:**
-*   The IS-04 Node tests create a mock registry on the network unless the Config.py ENABLE_MDNS parameter is set to False. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time.
+*   The IS-04 Node tests create mock registry mDNS announcements on the network unless the Config.py ENABLE_DNS_SD parameter is set to False, or the DNS_SD_MODE parameter is set to 'unicast'. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time.
 *   For IS-05 tests #29 and #30 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.
 
 ## Usage
@@ -26,6 +26,10 @@ $ python3 nmos-test.py
 
 This tool provides a simple web service which is available on `http://localhost:5000`.
 Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test from the checklist. The result of the test will be shown after a few seconds.
+
+### Testing Unicast discovery
+
+In order to test unicast discovery, ensure the 'DNS_SD_MODE' is set to 'unicast'. Additionally, ensure that the unit under test has its search domain set to 'testsuite.nmos.tv' and the DNS server IP to the IP address of the server which is running the test suite instance.
 
 ## External Dependencies
 
