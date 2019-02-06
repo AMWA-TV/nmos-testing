@@ -20,8 +20,6 @@ import netifaces
 import json
 
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
-from dnslib.server import DNSServer
-from dnslib.zoneresolver import ZoneResolver
 from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
@@ -44,40 +42,25 @@ class IS0401Test(GenericTest):
         self.is04_utils = IS04Utils(self.node_url)
         self.zc = None
         self.zc_listener = None
-        self.dns_server = None
-        self.default_gw_interface = None
-        self.default_ip = None
 
     def set_up_tests(self):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
-        self.default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        self.default_ip = netifaces.ifaddresses(self.default_gw_interface)[netifaces.AF_INET][0]['addr']
-        if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
-            zone_file = open("test_data/IS0401/dns.zone").read()
-            zone_file.replace("127.0.0.1", self.default_ip)
-            resolver = ZoneResolver(zone_file)
-            try:
-                self.dns_server = DNSServer(resolver, port=53, address="0.0.0.0")
-                self.dns_server.start_thread()
-            except Exception as e:
-                print(" * ERROR: Unable to bind to port 53. DNS server could not start: {}".format(e))
 
     def tear_down_tests(self):
         if self.zc:
             self.zc.close()
             self.zc = None
-        if self.dns_server:
-            self.dns_server.stop()
-            self.dns_server = None
 
     def _registry_mdns_info(self, port, priority=0):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
+        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
         # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': str(priority)}
         info = ServiceInfo("_nmos-registration._tcp.local.",
                            "NMOS Test Suite {}._nmos-registration._tcp.local.".format(port),
-                           socket.inet_aton(self.default_ip), port, 0, 0,
+                           socket.inet_aton(default_ip), port, 0, 0,
                            txt, "nmos-test.local.")
         return info
 
