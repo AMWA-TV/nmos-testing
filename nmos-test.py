@@ -18,7 +18,7 @@ from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
 from datetime import datetime, timedelta
 
 import git
@@ -27,6 +27,7 @@ import json
 import copy
 import pickle
 import threading
+import sys
 
 import IS0401Test
 import IS0402Test
@@ -247,6 +248,10 @@ def index_page():
 
 
 if __name__ == '__main__':
+    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast" and os.geteuid() != 0:
+        print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
+        sys.exit(1)
+
     print(" * Initialising specification repositories...")
 
     if not os.path.exists(CACHE_PATH):
