@@ -309,14 +309,14 @@ if __name__ == '__main__':
 
     dns_server = None
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
-        print(" * Starting DNS server")
         default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+        print(" * Starting DNS server on {}:53".format(default_ip))
         zone_file = open("test_data/IS0401/dns.zone").read()
         zone_file.replace("127.0.0.1", default_ip)
         resolver = ZoneResolver(zone_file)
         try:
-            dns_server = DNSServer(resolver, port=53, address="0.0.0.0")
+            dns_server = DNSServer(resolver, port=53, address=default_ip)
             dns_server.start_thread()
         except Exception as e:
             print(" * ERROR: Unable to bind to port 53. DNS server could not start: {}".format(e))
