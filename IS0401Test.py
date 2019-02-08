@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import requests
 import time
 import socket
 import netifaces
@@ -25,7 +24,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest
 from IS04Utils import IS04Utils
-from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT
+from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
 
 NODE_API_KEY = "node"
 
@@ -34,24 +33,35 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registry, node):
+    def __init__(self, apis, registries, node):
         GenericTest.__init__(self, apis)
-        self.registry = registry
+        self.registries = registries
         self.node = node
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.is04_utils = IS04Utils(self.node_url)
 
     def set_up_tests(self):
-        self.registry.enable()
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
 
     def tear_down_tests(self):
-        self.registry.disable()
         if self.zc:
             self.zc.close()
             self.zc = None
+
+    def _registry_mdns_info(self, port, priority=0):
+        """Get an mDNS ServiceInfo object in order to create an advertisement"""
+        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+
+        # TODO: Add another test which checks support for parsing CSV string in api_ver
+        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': str(priority)}
+        info = ServiceInfo("_nmos-registration._tcp.local.",
+                           "NMOS Test Suite {}._nmos-registration._tcp.local.".format(port),
+                           socket.inet_aton(default_ip), port, 0, 0,
+                           txt, "nmos-test.local.")
+        return info
 
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
@@ -59,34 +69,63 @@ class IS0401Test(GenericTest):
         if self.registry_basics_done or not ENABLE_MDNS:
             return
 
-        self.registry.reset()
+        registry_mdns = []
+        priority = 0
+        for registry in self.registries:
+            info = self._registry_mdns_info(registry.get_port(), priority)
+            registry_mdns.append(info)
+            priority += 10
 
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+        # Reset all registries to clear previous heartbeats, etc.
+        for registry in self.registries:
+            registry.reset()
 
-        # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': '0'}
-        info = ServiceInfo("_nmos-registration._tcp.local.",
-                           "NMOS Test Suite._nmos-registration._tcp.local.",
-                           socket.inet_aton(default_ip), 5000, 0, 0,
-                           txt, "nmos-test.local.")
+        registry = self.registries[0]
+        self.registries[0].enable()
 
-        self.zc.register_service(info)
+        # Advertise a registry at pri 0 and allow the Node to do a basic registration
+        self.zc.register_service(registry_mdns[0])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         time.sleep(MDNS_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.registry.last_time) < 6:
+        while (time.time() - self.registries[0].last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.registry.get_heartbeats()) == 1:
+        if len(self.registries[0].get_heartbeats()) > 0:
             # It is heartbeating, but we don't have enough of them yet
-            while len(self.registry.get_heartbeats()) < 2:
+            while len(self.registries[0].get_heartbeats()) < 2:
                 time.sleep(1)
 
-        self.zc.unregister_service(info)
+            # Once registered, advertise all other registries at different (ascending) priorities
+            for index, registry in enumerate(self.registries[1:]):
+                registry.enable()
+                self.zc.register_service(registry_mdns[index + 1])
+
+            # Kill registries one by one to collect data around failover
+            for index, registry in enumerate(self.registries):
+                registry.disable()
+
+                # Prevent access to an out of bounds index below
+                if (index + 1) >= len(self.registries):
+                    break
+
+                heartbeat_countdown = HEARTBEAT_INTERVAL + 1
+                while len(self.registries[index + 1].get_heartbeats()) < 1 and heartbeat_countdown > 0:
+                    # Wait until the heartbeat interval has elapsed or a heartbeat has been received
+                    time.sleep(1)
+                    heartbeat_countdown -= 1
+
+                if len(self.registries[index + 1].get_heartbeats()) < 1:
+                    # Testing has failed at this point, so we might as well abort
+                    break
+
+        # Clean up mDNS advertisements and disable registries
+        for index, registry in enumerate(self.registries):
+            self.zc.unregister_service(registry_mdns[index])
+            registry.disable()
 
         self.registry_basics_done = True
 
@@ -96,11 +135,12 @@ class IS0401Test(GenericTest):
         test = Test("Node can discover network registration service via mDNS")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_data()) > 0:
+        registry = self.registries[0]
+        if len(registry.get_data()) > 0:
             return test.PASS()
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
@@ -118,14 +158,15 @@ class IS0401Test(GenericTest):
         test = Test("Registration API interactions use the correct Content-Type")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_data()) == 0:
+        registry = self.registries[0]
+        if len(registry.get_data()) == 0:
             return test.FAIL("No registrations found")
 
-        for resource in self.registry.get_data():
+        for resource in registry.get_data():
             if "Content-Type" not in resource[1]["headers"]:
                 return test.FAIL("Node failed to signal its Content-Type correctly when registering.")
             elif resource[1]["headers"]["Content-Type"] != "application/json":
@@ -151,7 +192,8 @@ class IS0401Test(GenericTest):
         found_resource = None
         if ENABLE_MDNS:
             # Look up data in local mock registry
-            for resource in self.registry.get_data():
+            registry = self.registries[0]
+            for resource in registry.get_data():
                 if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
                     found_resource = resource[1]["payload"]["data"]
         else:
@@ -159,8 +201,8 @@ class IS0401Test(GenericTest):
             url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
                   self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s/" + res_id
             try:
-                r = requests.get(url)
-                if r.status_code == 200:
+                valid, r = self.do_request("GET", url)
+                if valid and r.status_code == 200:
                     found_resource = r.json()
                 else:
                     raise Exception
@@ -183,31 +225,28 @@ class IS0401Test(GenericTest):
             url = "{}self".format(self.node_url)
         else:
             url = "{}{}s".format(self.node_url, res_type)
-        try:
-            # Get data from node itself
-            r = requests.get(url)
-            if r.status_code == 200:
-                try:
-                    node_resources = self.get_node_resources(r.json())
+        # Get data from node itself
+        valid, r = self.do_request("GET", url)
+        if valid and r.status_code == 200:
+            try:
+                node_resources = self.get_node_resources(r.json())
 
-                    if len(node_resources) == 0:
-                        return test.NA("No {} resources were found on the Node.".format(res_type.title()))
+                if len(node_resources) == 0:
+                    return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
 
-                    for res_id in node_resources:
-                        reg_resource = self.get_registry_resource(res_type, res_id)
-                        if not reg_resource:
-                            return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
-                        elif reg_resource != node_resources[res_id]:
-                            return test.FAIL("Node API JSON does not match data in registry for "
-                                             "{} {}.".format(res_type.title(), res_id))
+                for res_id in node_resources:
+                    reg_resource = self.get_registry_resource(res_type, res_id)
+                    if not reg_resource:
+                        return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
+                    elif reg_resource != node_resources[res_id]:
+                        return test.FAIL("Node API JSON does not match data in registry for "
+                                         "{} {}.".format(res_type.title(), res_id))
 
-                    return test.PASS()
-                except ValueError:
-                    return test.FAIL("Invalid JSON received!")
-            else:
-                return test.FAIL("Could not reach Node!")
-        except requests.ConnectionError:
-            return test.FAIL("Connection error for {}".format(url))
+                return test.PASS()
+            except ValueError:
+                return test.FAIL("Invalid JSON received!")
+        else:
+            return test.FAIL("Could not reach Node!")
 
     def test_04(self):
         """Node can register a valid Node resource with the network registration service,
@@ -226,31 +265,33 @@ class IS0401Test(GenericTest):
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
 
         if not ENABLE_MDNS:
-            return test.MANUAL("This test cannot be performed when ENABLE_MDNS is False")
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
 
         self.do_registry_basics_prereqs()
 
-        if len(self.registry.get_heartbeats()) < 2:
+        registry = self.registries[0]
+        if len(registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
+        initial_node = registry.get_data()[0]
+
         last_hb = None
-        for heartbeat in self.registry.get_heartbeats():
+        for heartbeat in registry.get_heartbeats():
+            # Ensure the Node ID for heartbeats matches the registrations
+            if heartbeat[1]["node_id"] != initial_node[1]["payload"]["data"]["id"]:
+                return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
+
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
-                if time_diff > 5.5:
+                if time_diff > HEARTBEAT_INTERVAL  + 0.5:
                     return test.FAIL("Heartbeats are not frequent enough.")
-                elif time_diff < 4.5:
+                elif time_diff < HEARTBEAT_INTERVAL - 0.5:
                     return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
-                initial_node = self.registry.get_data()[0]
-                if (heartbeat[0] - initial_node[0]) > 5.5:
+                if (heartbeat[0] - initial_node[0]) > HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
-
-                # Ensure the Node ID for heartbeats matches the registrations
-                if heartbeat[1]["node_id"] != initial_node[1]["payload"]["data"]["id"]:
-                    return test.FAIL("Heartbeats matched a different Node ID to the initial registration.")
 
             # Ensure the heartbeat request body is empty
             if heartbeat[1]["payload"] is not None:
@@ -338,9 +379,28 @@ class IS0401Test(GenericTest):
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
                     if "ver_" in prop:
-                        return test.FAIL("Found 'ver_'-txt record while node is registered.")
+                        return test.FAIL("Found 'ver_' TXT record while Node is registered.")
+
+                api = self.apis[NODE_API_KEY]
+                if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    if "api_ver" not in properties:
+                        return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
+                    elif api["version"] not in properties["api_ver"].split(","):
+                        return test.FAIL("Node does not claim to support version under test.")
+
+                    if "api_proto" not in properties:
+                        return test.FAIL("No 'api_proto' TXT record found in Node API advertisement.")
+                    elif properties["api_proto"] == "https":
+                        return test.MANUAL("API protocol is not advertised as 'http'. "
+                                           "This test suite does not currently support 'https'.")
+                    elif properties["api_proto"] != "http":
+                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
+
                 return test.PASS()
-        return test.FAIL("No matching mdns announcement found for node.")
+
+        return test.WARNING("No matching mDNS announcement found for Node. This will not affect operation in registered"
+                            " mode but may indicate a lack of support for peer to peer operation.",
+                            "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
@@ -356,7 +416,11 @@ class IS0401Test(GenericTest):
         try:
             formats_tested = []
             for receiver in receivers.json():
-                stream_type = receiver["format"].split(":")[-1]
+                try:
+                    stream_type = receiver["format"].split(":")[-1]
+                except TypeError:
+                    return test.FAIL("Unexpected Receiver format: {}".format(receiver))
+
                 # Test each available receiver format once
                 if stream_type in formats_tested:
                     continue
@@ -394,7 +458,7 @@ class IS0401Test(GenericTest):
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.NA("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any Receivers")
 
     def test_14(self):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
@@ -436,13 +500,86 @@ class IS0401Test(GenericTest):
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.NA("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any Receivers")
 
     def test_15(self):
         """Node correctly selects a Registration API based on advertised priorities"""
 
         test = Test("Node correctly selects a Registration API based on advertised priorities")
-        return test.MANUAL()
+
+        if not ENABLE_MDNS:
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+
+        self.do_registry_basics_prereqs()
+
+        last_hb = None
+        last_registry = None
+        for registry in self.registries:
+            if len(registry.get_heartbeats()) < 1:
+                return test.FAIL("Node never made contact with registry advertised on port {}"
+                                 .format(registry.get_port()))
+
+            first_hb_to_registry = registry.get_heartbeats()[0]
+            if last_hb:
+                if first_hb_to_registry < last_hb:
+                    return test.FAIL("Node sent a heartbeat to the registry on port {} before the registry on port {}, "
+                                     "despite their priorities requiring the opposite behaviour"
+                                     .format(registry.get_port(), last_registry.get_port()))
+
+            last_hb = first_hb_to_registry
+            last_registry = registry
+
+        return test.PASS()
+
+    def test_16(self):
+        """Node correctly fails over between advertised Registration APIs when one fails"""
+
+        test = Test("Node correctly fails over between advertised Registration APIs when one fails")
+
+        if not ENABLE_MDNS:
+            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+
+        self.do_registry_basics_prereqs()
+
+        for index, registry in enumerate(self.registries):
+            if len(registry.get_heartbeats()) < 1:
+                return test.FAIL("Node never made contact with registry advertised on port {}"
+                                 .format(registry.get_port()))
+
+            if index > 0 and len(registry.get_data()) > 0:
+                return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
+                                 "should only have issued a heartbeat")
+
+        return test.PASS()
+
+    def test_17(self):
+        """All Node resources use different UUIDs"""
+
+        test = Test("All Node resources use different UUIDs")
+
+        uuids = set()
+        valid, response = self.do_request("GET", self.node_url + "self")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            uuids.add(response.json()["id"])
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        for resource_type in ["devices", "sources", "flows", "senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + resource_type)
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            try:
+                for resource in response.json():
+                    if resource["id"] in uuids:
+                        return test.FAIL("Duplicate ID '{}' found in Node API '{}' resource".format(resource["id"],
+                                                                                                    resource_type))
+                    uuids.add(resource["id"])
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
 
     def do_receiver_put(self, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""

@@ -14,6 +14,9 @@
 
 import time
 from urllib.parse import urlparse
+from random import sample
+
+from Config import MAX_TEST_ITERATIONS
 
 # The UTC leap seconds table below was extracted from the information provided at
 # http://www.ietf.org/timezones/data/leap-seconds.list
@@ -137,3 +140,9 @@ class NMOSUtils(object):
             return False
 
         return True
+
+    def sampled_list(self, resource_list):
+        if MAX_TEST_ITERATIONS > 0:
+            return sample(resource_list, min(MAX_TEST_ITERATIONS, len(resource_list)))
+        else:
+            return resource_list

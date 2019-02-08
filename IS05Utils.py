@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import re
-import requests
 import time
 import TestHelper
 
@@ -120,12 +119,21 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
+    def perform_activation(self, port, portId, activateMode="activate_immediate", activateTime=None):
+        # Request an immediate activation
+        stagedUrl = "single/" + port + "s/" + portId + "/staged"
+        data = {"activation": {"mode": activateMode}}
+        code = 200
+        if activateMode != "activate_immediate":
+            data["activation"]["requested_time"] = activateTime
+            code = 202
+        return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
+
     def check_perform_immediate_activation(self, port, portId, stagedParams):
         # Request an immediate activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        data = {"activation": {"mode": "activate_immediate"}}
-        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
+        valid, response = self.perform_activation(port, portId)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -201,8 +209,7 @@ class IS05Utils(NMOSUtils):
         # Request an relative activation 2 nanoseconds in the future
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        data = {"activation": {"mode": "activate_scheduled_relative", "requested_time": "0:2"}}
-        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=202)
+        valid, response = self.perform_activation(port, portId, "activate_scheduled_relative", "0:2")
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -285,8 +292,7 @@ class IS05Utils(NMOSUtils):
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
         TAItime = self.get_TAI_time(1)
-        data = {"activation": {"mode": "activate_scheduled_absolute", "requested_time": TAItime}}
-        valid, response = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=202)
+        valid, response = self.perform_activation(port, portId, "activate_scheduled_absolute", TAItime)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -558,42 +564,38 @@ class IS05Utils(NMOSUtils):
     def get_senders(self):
         """Gets a list of the available senders on the API"""
         toReturn = []
-        try:
-            r = requests.get(self.url + "single/senders/")
+        valid, r = TestHelper.do_request("GET", self.url + "single/senders/")
+        if valid:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
             except ValueError:
                 pass
-        except requests.exceptions.RequestException:
-            pass
         return toReturn
 
     def get_receivers(self):
         """Gets a list of the available receivers on the API"""
         toReturn = []
-        try:
-            r = requests.get(self.url + "single/receivers/")
+        valid, r = TestHelper.do_request("GET", self.url + "single/receivers/")
+        if valid:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
             except ValueError:
                 pass
-        except requests.exceptions.RequestException:
-            pass
         return toReturn
 
     def get_num_paths(self, port, portType):
         """Returns the number or redundant paths on a port"""
         url = self.url + "single/" + portType + "s/" + port + "/constraints/"
-        try:
-            r = requests.get(url)
+        valid, r = TestHelper.do_request("GET", url)
+        if valid:
             try:
                 rjson = r.json()
                 return len(rjson)
             except ValueError:
                 return 0
-        except requests.exceptions.RequestException:
+        else:
             return 0
 
     def park_resource(self, resource_type, resource_id):
@@ -601,10 +603,12 @@ class IS05Utils(NMOSUtils):
         data = {"master_enable": False}
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
-            staged_params = response['transport_params']
-            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
-                                                                        resource_id,
-                                                                        staged_params)
+            try:
+                staged_params = response['transport_params']
+            except KeyError:
+                return False, "Staged resource did not return 'transport_params' in PATCH response"
+            valid2, response2 = self.perform_activation(resource_type.rstrip("s"),
+                                                        resource_id)
             if not valid2:
                 return False, response2
         else:
@@ -634,9 +638,8 @@ class IS05Utils(NMOSUtils):
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
             staged_params = response['transport_params']
-            valid2, response2 = self.check_perform_immediate_activation(resource_type.rstrip("s"),
-                                                                        resource_id,
-                                                                        staged_params)
+            valid2, response2 = self.perform_activation(resource_type.rstrip("s"),
+                                                        resource_id)
             if not valid2:
                 return False, response2
         else:

@@ -18,6 +18,9 @@ ENABLE_MDNS = True
 # Number of seconds to wait after an mDNS advert is created for a client to notice and perform an action
 MDNS_ADVERT_TIMEOUT = 5
 
+# Number of seconds expected between heartbeats
+HEARTBEAT_INTERVAL = 5
+
 # Number of seconds to wait for the garbage collection
 GARBAGE_COLLECTION_TIMEOUT = 12
 
@@ -27,6 +30,13 @@ QUERY_API_PORT = 80
 
 # Path to store the specification file cache in. Relative to the base of the testing repository.
 CACHE_PATH = 'cache'
+
+# Timeout for any HTTP requests
+HTTP_TIMEOUT = 1
+
+# Restrict the maximum number of resources that time consuming tests run against.
+# 0 = unlimited for a really thorough test!
+MAX_TEST_ITERATIONS = 0
 
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {

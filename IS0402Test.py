@@ -19,6 +19,7 @@ import socket
 import uuid
 import json
 from copy import deepcopy
+from jsonschema import ValidationError, Draft4Validator
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -26,7 +27,7 @@ from TestResult import Test
 from GenericTest import GenericTest, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT
-from TestHelper import WebsocketWorker
+from TestHelper import WebsocketWorker, load_resolved_schema
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -79,8 +80,8 @@ class IS0402Test(GenericTest):
                     if priority < 0:
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.FAIL("Priority ('pri') TXT record must be less than 100 for a production instance.")
-                except Exception as e:
+                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production instance.")
+                except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
@@ -93,9 +94,11 @@ class IS0402Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Registration API advertisement.")
+                    elif properties["api_proto"] == "https":
+                        return test.MANUAL("API protocol is not advertised as 'http'. "
+                                           "This test suite does not currently support 'https'.")
                     elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol is not advertised as 'http'. "
-                                         "This test suite does not currently support 'https'.")
+                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Registration API.")
@@ -120,8 +123,8 @@ class IS0402Test(GenericTest):
                     if priority < 0:
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.FAIL("Priority ('pri') TXT record must be less than 100 for a production instance.")
-                except Exception as e:
+                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production instance.")
+                except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
@@ -134,9 +137,11 @@ class IS0402Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Query API advertisement.")
+                    elif properties["api_proto"] == "https":
+                        return test.MANUAL("API protocol is not advertised as 'http'. "
+                                           "This test suite does not currently support 'https'.")
                     elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol is not advertised as 'http'. "
-                                         "This test suite does not currently support 'https'.")
+                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Query API.")
@@ -159,7 +164,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -226,7 +232,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -259,7 +266,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -291,7 +299,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -323,7 +332,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 201:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -357,7 +367,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -415,7 +426,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -444,7 +456,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -472,7 +485,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -500,7 +514,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -512,7 +527,7 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        return test.MANUAL()
+        return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination")
 
     def test_22(self):
         """Query API implements downgrade queries"""
@@ -522,7 +537,7 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        return test.MANUAL()
+        return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
 
     def test_23(self):
         """Query API implements basic query parameters"""
@@ -534,7 +549,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Nodes found in registry. Test cannot proceed.")
+                return test.UNCLEAR("No Nodes found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -561,7 +576,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Nodes found in registry. Test cannot proceed.")
+                return test.UNCLEAR("No Nodes found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -571,7 +586,9 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.NA("Query API signalled that it does not support RQL queries")
+            return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                 "scalability.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -590,7 +607,7 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
-                return test.NA("No Sources found in registry. Test cannot proceed.")
+                return test.UNCLEAR("No Sources found in registry. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -600,7 +617,8 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.NA("Query API signalled that it does not support ancestry queries")
+            return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -671,7 +689,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Cannot execute test, as expected resources are not registered")
 
             # Wait for garbage collection
-            sleep(GARBAGE_COLLECTION_TIMEOUT)
+            sleep(GARBAGE_COLLECTION_TIMEOUT + 0.5)
 
             # Verify all resources are removed
             for resource in resources:
@@ -717,8 +735,12 @@ class IS0402Test(GenericTest):
                         "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
 
             # Remove Node
-            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}".format(self.test_data["node"]["id"]))
-            if not valid or r.status_code != 204:
+            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}"
+                                       .format(self.test_data["node"]["id"]))
+            if not valid:
+                return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {}"
+                                 .format(r))
+            elif r.status_code != 204:
                 return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
                                  .format(r.status_code, r.text))
 
@@ -743,25 +765,26 @@ class IS0402Test(GenericTest):
         api = self.apis[REG_API_KEY]
 
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-                sub_json = deepcopy(self.subscription_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
+            sub_json = deepcopy(self.subscription_data)
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
 
-                valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+            if not valid:
+                return test.FAIL("Query API did not respond as expected")
+            elif r.status_code == 200 or r.status_code == 201:
+                # Test if subscription is available
+                sub_id = r.json()["id"]
+                valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
                 if not valid:
                     return test.FAIL("Query API did not respond as expected")
-                elif r.status_code == 200 or r.status_code == 201:
-                    # Test if subscription is available
-                    sub_id = r.json()["id"]
-                    valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
-                    if not valid:
-                        return test.FAIL("Query API did not respond as expected")
-                    elif r.status_code == 200:
-                        return test.PASS()
-                    else:
-                        return test.FAIL("Query API does not provide requested subscription: {} {}".format(r.status_code, r.text))
+                elif r.status_code == 200:
+                    return test.PASS()
                 else:
-                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                    return test.FAIL("Query API does not provide requested subscription: {} {}"
+                                     .format(r.status_code, r.text))
+            else:
+                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -783,7 +806,8 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200 or r.status_code == 201:
                 pass
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
 
             # Post heartbeat
             valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
@@ -792,21 +816,23 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200:
                 return test.PASS()
             else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Registration API returned an unexpected response: {} {}"
+                                 .format(r.status_code, r.text))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
     def test_31(self):
         """Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED"""
 
-        test = Test("Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED")
+        test = Test("Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED "
+                    "and REMOVED")
         api = self.apis[QUERY_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
 
             # Check for clean state // delete resources if needed
             valid, r = self.do_request("GET", "{}nodes/{}".format(self.query_url, self.test_data["node"]["id"]))
             if not valid:
-                return test.FAIL("Query API returned an unexpected response: {}".format(r.status_code, r.text))
+                return test.FAIL("Query API returned an unexpected response: {}".format(r))
             else:
                 if r.status_code == 200:
                     # Delete resource
@@ -814,11 +840,11 @@ class IS0402Test(GenericTest):
                                                              .format(self.reg_url,
                                                                      self.test_data["node"]["id"]))
                     if not valid_delete:
-                        return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                        return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
                     else:
                         if r_delete.status_code != 204:
                             return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
-                                             .format(r.status_code, r.text))
+                                             .format(r_delete.status_code, r_delete.text))
                         else:
                             # Verify all other resources are not available
                             remaining_resources = ["device", "flow", "source", "sender", "receiver"]
@@ -827,10 +853,13 @@ class IS0402Test(GenericTest):
                                                                         .format(self.query_url,
                                                                                 curr_resource,
                                                                                 self.test_data[curr_resource]["id"]))
-                                if not v or r_resource_deleted.status_code != 404:
-                                    return test.FAIL(
-                                        "Query API returned an unexpected response: {} {}. Cannot execute test.".format(
-                                            r.status_code, r.text))
+                                if not v:
+                                    return test.FAIL("Query API returned an unexpected response: {}. Cannot execute "
+                                                     "test.".format(r_resource_deleted))
+                                elif r_resource_deleted.status_code != 404:
+                                    return test.FAIL("Query API returned an unexpected response: {} {}. Cannot execute "
+                                                     "test.".format(r_resource_deleted.status_code,
+                                                                    r_resource_deleted.text))
                 elif r.status_code == 404:
                     pass
                 else:
@@ -850,25 +879,34 @@ class IS0402Test(GenericTest):
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
                 if not valid:
-                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code,
-                                                                                               r.text))
+                    return test.FAIL("Query API returned an unexpected response: {}".format(r))
                 else:
                     if r.status_code == 200 or r.status_code == 201:
                         websockets[resource] = WebsocketWorker(r.json()["ws_href"])
                     else:
-                        return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}".format(
-                            r.status_code,
-                            r.text))
+                        return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}"
+                                         .format(r.status_code, r.text))
 
             # Post sample data
             for resource in resources_to_post:
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
                                                                                     "data": test_data[resource]})
-                if not valid or r.status_code != 201:
+                if not valid:
+                    return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
+                elif r.status_code != 201:
                     return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
             # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
+
+            # Load schema
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-v1.0-subscriptions-websocket.json")
+            else:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-subscriptions-websocket.json")
+
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
                 sleep(0.5)
@@ -876,6 +914,13 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Error opening websocket: {}".format(websockets[resource].get_error_message()))
 
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 # Verify data inside messages
                 grain_data = list()
@@ -905,7 +950,9 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(resource_data)
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
                                                                                     "data": resource_data})
-                if not valid or r.status_code != 200:
+                if not valid:
+                    return test.FAIL("Cannot update sample data. Cannot execute test: {}".format(r))
+                elif r.status_code != 200:
                     return test.FAIL("Cannot update sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
@@ -913,6 +960,13 @@ class IS0402Test(GenericTest):
 
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 # Verify data inside messages
                 grain_data = list()
@@ -941,14 +995,24 @@ class IS0402Test(GenericTest):
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
                 valid, r = self.do_request("DELETE", self.reg_url + "resource/{}s/{}".format(resource,
-                                                                                            test_data[resource]["id"]))
-                if not valid or r.status_code != 204:
+                                                                                             test_data[resource]["id"]))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
+                                     .format(resource, r))
+                elif r.status_code != 204:
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
                                      .format(resource, r.status_code, r.text))
 
             sleep(1)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 # Verify data inside messages
                 grain_data = list()
@@ -977,13 +1041,22 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(test_data[resource])
                 valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
                                                                                     "data": test_data[resource]})
-                if not valid or r.status_code != 201:
+                if not valid:
+                    return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
+                elif r.status_code != 201:
                     return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
                                      .format(r.status_code, r.text))
 
             sleep(1)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        Draft4Validator(schema).validate(json.loads(message))
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
                 grain_data = list()
                 # Verify data inside messages
@@ -1032,7 +1105,7 @@ class IS0402Test(GenericTest):
             resource_json = json.load(resource_data)
             if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
                 return self.downgrade_resource("subscription", resource_json, self.apis[QUERY_API_KEY]["version"])
-            return resource_json 
+            return resource_json
 
     def do_400_check(self, test, resource_type, data):
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})

@@ -5,6 +5,7 @@ This tool creates a simple web service which tests implementations of the NMOS A
 The following test sets are currently supported:
 *   IS-04 Node API
 *   IS-04 Registry APIs
+*   IS-04 Node API (Peer to Peer)
 *   IS-05 Connection Management API
 *   IS-05 Interaction with IS-04
 *   IS-06 Network Control API
@@ -39,6 +40,7 @@ Python packages:
 *   netifaces
 *   gitpython
 *   ramlfications
+*   jsonref
 
 ## Known Issues
 
@@ -77,6 +79,9 @@ def test_my_stuff(self):
     elif test_na:
         # Test is not applicable to this implementation
         return test.NA("Reason for non-testing")
+    elif test_optional:
+        # Test found an optional aspect of the spec which wasn't implemented
+        return test.OPTIONAL("What wasn't implemented, and why you might require it")
 ```
 
 The following methods may be of use within a given test definition.

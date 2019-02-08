@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import inspect
+import datetime
 import time
+
 
 class Test(object):
     def __init__(self, description, name=None):
@@ -24,17 +26,50 @@ class Test(object):
             self.name = inspect.stack()[1][3]
         self.timer = time.time()
 
+    def _current_time(self):
+        return datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
     def _time_elapsed(self):
         return "{0:.3f}s".format(time.time() - self.timer)
 
-    def PASS(self, detail=""):
-        return [self.description, "Pass", detail, self.name, self._time_elapsed()]
+    # Pass: Successful test case
+    def PASS(self, detail="", link=None):
+        return [self.name, "Pass", "bg-success", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
 
-    def MANUAL(self, detail=""):
-        return [self.description, "Manual", detail, self.name, self._time_elapsed()]
+    # Warning: Not a failure, but the API being tested is responding or configured in a way which is
+    # not recommended in most cases
+    def WARNING(self, detail="", link=None):
+        return [self.name, "Warning", "bg-warning", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
 
-    def NA(self, detail):
-        return [self.description, "N/A", detail, self.name, self._time_elapsed()]
+    # Manual: Test suite does not currently test this feature, so it must be tested manually
+    def MANUAL(self, detail="", link=None):
+        return [self.name, "Manual", "bg-primary", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
 
-    def FAIL(self, detail):
-        return [self.description, "Fail", detail, self.name, self._time_elapsed()]
+    # Not Applicable: Test is not applicable, e.g. due to the version of the specification being tested
+    def NA(self, detail, link=None):
+        return [self.name, "Not Applicable", "bg-secondary", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
+
+    # Fail: Required feature of the specification has been found to be implemented incorrectly
+    def FAIL(self, detail, link=None):
+        return [self.name, "Fail", "bg-danger", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
+
+    # Optional: Recommended/optional feature of the specifications has been found to be not implemented
+    # Detail message should explain the effect of this feature being unimplemented
+    def OPTIONAL(self, detail, link=None):
+        return [self.name, "Not Implemented", "bg-warning", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
+
+    # Disabled: Test is disabled due to test suite configuration; change the config or test manually
+    def DISABLED(self, detail="", link=None):
+        return [self.name, "Test Disabled", "bg-warning", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
+
+    # Unclear: Test was not run due to prior responses from the API, which may be OK, or indicate a fault
+    def UNCLEAR(self, detail="", link=None):
+        return [self.name, "Could Not Test", "bg-warning", self.description, detail, link, self._current_time(),
+                self._time_elapsed()]
