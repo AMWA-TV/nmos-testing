@@ -375,7 +375,7 @@ class IS0401Test(GenericTest):
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            if address in self.node_url and ":{}".format(port) in self.node_url:
+            if "/{}:{}/".format(address, port) in self.node_url:
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
                     if "ver_" in prop:

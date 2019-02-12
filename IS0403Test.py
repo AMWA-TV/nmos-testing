@@ -53,7 +53,7 @@ class IS0403Test(GenericTest):
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            if address in self.node_url and ":{}".format(port) in self.node_url:
+            if "/{}:{}/".format(address, port) in self.node_url:
                 properties = self.convert_bytes(node.properties)
                 for ver_txt in ["ver_slf", "ver_src", "ver_flw", "ver_dvc", "ver_snd", "ver_rcv"]:
                     if ver_txt not in properties:
