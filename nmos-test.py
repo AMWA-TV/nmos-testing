@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import Flask, render_template, flash, request
+from flask import Flask, render_template, flash, request, make_response
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from Node import NODE, NODE_API
@@ -235,7 +235,9 @@ def index_page():
                     raise ex
                 finally:
                     core_app.config['TEST_ACTIVE'] = False
-                return render_template("result.html", url=base_url, test=test_def["name"], result=result)
+                r = make_response(render_template("result.html", url=base_url, test=test_def["name"], result=result))
+                r.headers['Cache-Control'] = 'no-cache, no-store'
+                return r
             else:
                 flash("Error: This test definition does not exist")
         else:
@@ -243,8 +245,9 @@ def index_page():
     elif request.method == "POST":
         flash("Error: A test is currently in progress. Please wait until it has completed or restart the testing tool.")
 
-    return render_template("index.html", form=form)
-
+    r = make_response(render_template("index.html", form=form))
+    r.headers['Cache-Control'] = 'no-cache, no-store'
+    return r
 
 if __name__ == '__main__':
     print(" * Initialising specification repositories...")
