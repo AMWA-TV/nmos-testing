@@ -65,7 +65,11 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API advertises correctly via mDNS")
 
-        browser = ServiceBrowser(self.zc, "_nmos-registration._tcp.local.", self.zc_listener)
+        service_type = "_nmos-registration._tcp.local."
+        if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.3") >= 0:
+            service_type = "_nmos-register._tcp.local."
+
+        browser = ServiceBrowser(self.zc, service_type, self.zc_listener)
         sleep(2)
         serv_list = self.zc_listener.get_service_list()
         for api in serv_list:
