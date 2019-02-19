@@ -882,21 +882,80 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
-    # TODO
-    def _test_21_7(self):
-        """Query API implements pagination (paging.order=create)"""
-
-        test = Test("Query API implements pagination (paging.order=create)")
-        self.check_paged_trait(test)
-        description = "test_21_7"
-
-        return test.MANUAL()
-
-    # TODO
-    def _test_21_8(self):
+    def test_21_7(self):
         """Query API implements pagination (updates between paged requests)"""
 
         test = Test("Query API implements pagination (updates between paged requests)")
+        self.check_paged_trait(test)
+        description = "test_21_7"
+
+        count = 3
+        ts, ids = self.post_sample_nodes(test, count, description)
+
+        # initial paged request
+
+        response = self.do_paged_request(description = description, limit = count)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids,
+                                  expected_since = "0:0", expected_until = ts[-1], expected_limit = count)
+
+        resources = response[1].json()
+        resources.reverse()
+
+        # 'next' page should be empty
+
+        response = self.do_paged_request(description = description, limit = count, since = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts[-1], expected_until = None, expected_limit = count)
+
+        # 'current' page should be same as initial response
+
+        response = self.do_paged_request(description = description, limit = count, until = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = ids,
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count) 
+
+        # after an update, the 'next' page should now contain only the updated resource
+
+        self.post_resource(test, "node", resources[1], 200)
+
+        response = self.do_paged_request(description = description, limit = count, since = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [ids[1]],
+                                  expected_since = ts[-1], expected_until = None, expected_limit = count)
+
+        # and what was the 'current' page should now contain only the unchanged resources
+
+        response = self.do_paged_request(description = description, limit = count, until = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [ids[0], ids[2]],
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count) 
+
+        # after the other resources are also updated, what was the 'current' page should now be empty
+
+        self.post_resource(test, "node", resources[2], 200)
+        self.post_resource(test, "node", resources[0], 200)
+
+        response = self.do_paged_request(description = description, limit = count, until = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count)   
+
+        # and what was the 'next' page should now contain all the resources in the update order
+
+        response = self.do_paged_request(description = description, limit = count, since = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [ids[1], ids[2], ids[0]],
+                                  expected_since = ts[-1], expected_until = None, expected_limit = count) 
+
+        return test.PASS()
+
+    # TODO
+    def _test_21_8(self):
+        """Query API implements pagination (paging.order=create)"""
+
+        test = Test("Query API implements pagination (paging.order=create)")
         self.check_paged_trait(test)
         description = "test_21_8"
 
