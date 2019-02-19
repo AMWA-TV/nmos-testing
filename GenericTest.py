@@ -352,12 +352,6 @@ class GenericTest(object):
                 self.saved_entities[path] = subresources
             else:
                 self.saved_entities[path] += subresources
-
-    def load_schema(self, api_name, path):
-        """Used to load in schemas"""
-        real_path = os.path.join(self.apis[api_name]["spec_path"] + '/APIs/schemas/', path)
-        f = open(real_path, "r")
-        return json.loads(f.read())
-
+    
     def get_schema(self, api_name, method, path, status_code):
         return self.apis[api_name]["spec"].get_schema(method, path, status_code)
