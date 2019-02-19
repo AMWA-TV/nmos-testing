@@ -15,7 +15,7 @@ The following test sets are currently supported:
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'N/A' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
 **Attention:**
-*   The IS-04 Node tests create a mock registry on the network unless the `Config.py` `ENABLE_MDNS` parameter is set to `False`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLED_MDNS` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `Config.py`.
+*   The IS-04 Node tests create a mock registry on the network unless the `Config.py` `ENABLE_MDNS` parameter is set to `False`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_MDNS` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `Config.py`.
 *   For IS-05 tests #29 and #30 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.
 
 ## Usage
