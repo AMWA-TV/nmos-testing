@@ -71,7 +71,7 @@ class NMOSUtils(object):
         return secs + leap_sec + is_leap, nanos
 
     def get_TAI_time(self, offset=0.0):
-        """Get the current TAI time as a colon seperated string"""
+        """Get the current TAI time as a colon-separated string"""
         myTime = time.time() + offset
         secs = int(myTime)
         nanos = int((myTime - secs) * 1e9)
