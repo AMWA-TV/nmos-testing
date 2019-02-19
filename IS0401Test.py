@@ -22,7 +22,7 @@ import json
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest
+from GenericTest import GenericTest, NMOSTestException
 from IS04Utils import IS04Utils
 from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
 
@@ -434,9 +434,7 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
                 request_data = self.node.get_sender(stream_type)
-                result, error = self.do_receiver_put(receiver["id"], request_data)
-                if not result:
-                    return test.FAIL(error)
+                self.do_receiver_put(test, receiver["id"], request_data)
 
                 # TODO: Define the sleep time globally for all connection tests
                 time.sleep(1)
@@ -479,9 +477,7 @@ class IS0401Test(GenericTest):
         try:
             if len(receivers.json()) > 0:
                 receiver = receivers.json()[0]
-                result, error = self.do_receiver_put(receiver["id"], {})
-                if not result:
-                    return test.FAIL(error)
+                self.do_receiver_put(test, receiver["id"], {})
 
                 # TODO: Define the sleep time globally for all connection tests
                 time.sleep(1)
@@ -586,15 +582,23 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def do_receiver_put(self, receiver_id, data):
+    def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
         valid, put_response = self.do_request("PUT", self.node_url + "receivers/" + receiver_id + "/target", data)
         if not valid:
-            return False, "Unexpected response from the Node API: {}".format(put_response)
+            raise NMOSTestException(test.FAIL("Unexpected response from the Node API: {}".format(put_response)))
 
-        if put_response.status_code != 202:
-            return False, "Receiver target PATCH did not produce a 202 response code: \
-                          {}".format(put_response.status_code)
-        else:
-            return True, ""
+        if put_response.status_code == 501:
+            api = self.apis[NODE_API_KEY]
+            if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                raise NMOSTestException(test.OPTIONAL("Node indicated that basic connection management is not "
+                                                      "supported", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
+                                                      "basic-connection-management"))
+            else:
+                raise NMOSTestException(test.WARNING("501 'Not Implemented' status code is not supported below API "
+                                                     "version v1.3", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
+                                                     "basic-connection-management"))
+        elif put_response.status_code != 202:
+            raise NMOSTestException(test.FAIL("Receiver target PATCH did not produce a 202 response code: "
+                                              "{}".format(put_response.status_code)))
