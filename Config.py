@@ -13,6 +13,8 @@
 # limitations under the License.
 
 # Enable or disable mDNS advertisements. Browsing is always permitted.
+# The IS-04 Node tests create a mock registry on the network unless the `ENABLE_MDNS` parameter is set to `False`.
+# If set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT`.
 ENABLE_MDNS = True
 
 # Number of seconds to wait after an mDNS advert is created for a client to notice and perform an action
