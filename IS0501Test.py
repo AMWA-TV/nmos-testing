@@ -928,6 +928,6 @@ class IS0501Test(GenericTest):
         """Compares the response from an endpoint to a schema"""
         valid, response = self.is05_utils.checkCleanRequest("GET", endpoint, code=status_code)
         if valid:
-            return self.check_response(CONN_API_KEY, schema, "GET", response)
+            return self.check_response(schema, "GET", response)
         else:
             return False, "Invalid response while getting data: " + response

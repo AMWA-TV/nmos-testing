@@ -219,16 +219,13 @@ class GenericTest(object):
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned")
 
-    def check_response(self, api_name, schema, method, response):
+    def check_response(self, schema, method, response):
         """Confirm that a given Requests response conforms to the expected schema and has any expected headers"""
         if not self.validate_CORS(method, response):
             return False, "Incorrect CORS headers: {}".format(response.headers)
 
         try:
-            resolver = jsonschema.RefResolver(self.file_prefix + os.path.abspath(self.apis[api_name]["spec_path"] +
-                                                                                 '/APIs/schemas/') + os.sep,
-                                              schema)
-            jsonschema.validate(response.json(), schema, resolver=resolver)
+            jsonschema.validate(response.json(), schema)
         except jsonschema.ValidationError:
             return False, "Response schema validation error"
         except json.decoder.JSONDecodeError:
@@ -319,7 +316,7 @@ class GenericTest(object):
         if not schema:
             return test.MANUAL("Test suite unable to locate schema")
 
-        valid, message = self.check_response(api, schema, resource[1]["method"], response)
+        valid, message = self.check_response(schema, resource[1]["method"], response)
 
         if valid:
             return test.PASS()
@@ -352,6 +349,6 @@ class GenericTest(object):
                 self.saved_entities[path] = subresources
             else:
                 self.saved_entities[path] += subresources
-    
+
     def get_schema(self, api_name, method, path, status_code):
         return self.apis[api_name]["spec"].get_schema(method, path, status_code)
