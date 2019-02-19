@@ -30,18 +30,8 @@ Provide the URL of the relevant API under test (see the detailed description on 
 ## External Dependencies
 
 *   Python 3
-
-Python packages:
-*   flask
-*   wtforms
-*   jsonschema
-*   zeroconf-monkey
-*   requests
-*   netifaces
-*   gitpython
-*   ramlfications
-*   jsonref
-*   websocket-client
+*   Git
+*   See [requirements.txt](requirements.txt) for additional packages
 
 ## Known Issues
 
