@@ -41,6 +41,7 @@ Python packages:
 *   gitpython
 *   ramlfications
 *   jsonref
+*   websocket-client
 
 ## Known Issues
 
