@@ -20,11 +20,12 @@ import uuid
 import json
 from copy import deepcopy
 from jsonschema import ValidationError, Draft4Validator
+import re
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest, test_depends
+from GenericTest import GenericTest, NMOSTestException, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT
 from TestHelper import WebsocketWorker, load_resolved_schema
@@ -519,115 +520,484 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-    def test_21(self):
-        """Query API implements pagination"""
+    def check_paged_trait(self, test):
+        """Precondition check that the 'paged' trait applies to the API version under test"""
 
-        test = Test("Query API implements pagination")
+        api = self.apis[QUERY_API_KEY]
+        if self.is04_query_utils.compare_api_version(api["version"], "v1.1") < 0:
+            raise NMOSTestException(test.NA("This test does not apply to v1.0"))
+        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") >= 0:
+            raise NMOSTestException(test.FAIL("Version > 1 not supported yet."))
 
-        if self.apis[QUERY_API_KEY]["version"] == "v1.0":
-            return test.NA("This test does not apply to v1.0")
+    def post_sample_nodes(self, test, count, description, labeller = None):
+        """Perform a POST request on the Registration API to register a number of sample nodes"""
 
-        # Initial /nodes Request
-        # Check all required response headers are present
-
-        valid, r = self.do_request("GET", self.query_url + "nodes")
-        if not valid:
-            return test.FAIL("Query API failed to respond to query")
-
-        PAGING_HEADERS = ('Link', 'X-Paging-Limit', 'X-Paging-Since', 'X-Paging-Until')
-
-        paging_headers = {k: r.headers[k] for k in PAGING_HEADERS if k in r.headers}
-        if (len(paging_headers) == 0):
-            return test.OPTIONAL("Query API response did not include any pagination headers. Query APIs should support pagination for scalability.")
-        elif (len(paging_headers) != len(PAGING_HEADERS)):
-            return test.FAIL("Query API response did not include all pagination headers, only: {}".format(list(paging_headers.keys())))
-
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") >= 0:
-            return test.FAIL("Version > 1 not supported yet.")
-
-        # Post a Node and some Devices for the following pagination tests
-
-        node_id = str(uuid.uuid4())
         node_data = deepcopy(self.test_data["node"])
-        node_data["description"]  = "test_21"
+        node_data["description"] = description
 
-        node_data["id"] = node_id
-        self.bump_resource_version(node_data)
-        valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node",
-                                                                            "data": node_data})
-        if not valid:
-            return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
-        elif r.status_code != 201:
-            return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
-                                .format(r.status_code, r.text))
+        update_timestamps = []
+        ids = []
 
-        device_ids = []
+        for _ in range(count):
+            ids.append(str(uuid.uuid4()))
 
-        device_data = deepcopy(self.test_data["device"])
-        device_data["description"]  = "test_21"
+            node_data["id"] = ids[-1]
+            self.bump_resource_version(node_data)
 
-        for _ in range(10):
-            device_ids.append(str(uuid.uuid4()))
+            if labeller != None:
+                node_data["label"] = labeller(_)
 
-            device_data["id"] = device_ids[-1]
-            device_data["node_id"] = node_id
-            self.bump_resource_version(device_data)
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
-                                                                                "data": device_data})
-            if not valid:
-                return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
+            # For debugging
+            node_data["tags"]["index"] = [str(_)]
+
+            valid_post, r = self.do_request("POST", self.reg_url + "resource",
+                                            data = {"type": "node", "data": node_data})
+            if not valid_post:
+                raise NMOSTestException(test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r)))
             elif r.status_code != 201:
-                return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
-                                    .format(r.status_code, r.text))
+                raise NMOSTestException(test.FAIL("Cannot POST sample data. Cannot execute test: "
+                                                  "{} {}".format(r.status_code, r.text)))
 
-        # Check the most recently POSTed resource is at the top of the initial page of results
+            # Perform a Query API request to get the update timestamp of the most recently POSTed node
+            # Wish there was a better way, as this puts the cart before the horse!
+            # Another alternative would be to POST at say 1 second intervals, and use local timestamps
+            # with approximate matching?
+
+            valid_get, q = self.do_request("GET", self.query_url + "nodes")
+            if not valid_get:
+                raise NMOSTestException(test.FAIL("Cannot GET the POSTed sample data. Cannot execute test: "
+                                                  "{}".format(q)))
+            elif q.json()[0]["id"] != node_data["id"]: 
+                raise NMOSTestException(test.FAIL("Query API response did not have the most recently POSTed node first"))
+
+            update_timestamps.append(q.headers["X-Paging-Until"])
+
+        # Bear in mind that the returned arrays are in forward order
+        # whereas Query API responses are required to be in reverse order
+        return update_timestamps, ids
+
+    def do_paged_request(self, resource_type = "nodes", limit = None, since = None, until = None,
+                         description = None, label = None, id = None):
+        """Perform a GET request on the Query API"""
+
+        query_parameters = []
+
+        if limit != None:
+            query_parameters.append("paging.limit=" + str(limit))
+        if until != None:
+            query_parameters.append("paging.until=" + until)
+        if since != None:
+            query_parameters.append("paging.since=" + since)
+
+        if description != None: 
+            query_parameters.append("description=" + description)
+        if label != None: 
+            query_parameters.append("label=" + label)
+        if id != None:
+            query_parameters.append("id=" + id)
+
+        query_string = "?" + "&".join(query_parameters) if len(query_parameters) !=0 else ""
+
+        valid, response = self.do_request("GET", self.query_url + resource_type + query_string)
+
+        return valid, response, query_parameters
+
+    def check_paged_response(self, test, paged_response,
+                             expected_ids,
+                             expected_since, expected_until, expected_limit = None):
+        """Check the result of a paged request, and when there's an error, raise an NMOSTestException"""
+
+        valid, response, query_parameters = paged_response
+
+        query_string = "?" + "&".join(query_parameters) if len(query_parameters) !=0 else ""
+
+        if not valid:
+            raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
+                                              "for query: {}".format(query_string)))
+
+        PAGING_HEADERS = ["Link", "X-Paging-Limit", "X-Paging-Since", "X-Paging-Until"]
+
+        absent_paging_headers = [_ for _ in PAGING_HEADERS if _ not in response.headers]
+        if (len(absent_paging_headers) == len(PAGING_HEADERS)):
+            raise NMOSTestException(test.OPTIONAL("Query API response did not include any pagination headers. "
+                                                  "Query APIs should support pagination for scalability.",
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+        elif (len(absent_paging_headers) != 0):
+            raise NMOSTestException(test.FAIL("Query API response did not include all pagination headers, "
+                                              "missing: {}".format(absent_paging_headers)))
+
+        if expected_ids is not None:
+            try:
+                if len(response.json()) != len(expected_ids):
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct number of resources, "
+                                                      "for query: {}".format(query_string)))
+
+                for i in range(len(response.json())):
+                    if (response.json()[i]["id"]) != expected_ids[-(i + 1)]:
+                        raise NMOSTestException(test.FAIL("Query API response did not include the correct resources, "
+                                                          "for query: {}".format(query_string)))
+
+            except json.decoder.JSONDecodeError:
+                raise NMOSTestException(test.FAIL("Non-JSON response returned"))
 
         try:
-            valid, r = self.do_request("GET", self.query_url + "devices")
-            if not valid:
-                return test.FAIL("Query API failed to respond to query")
-            elif len(r.json()) == 0 or r.json()[0]["id"] != device_ids[-1]:
-                return test.FAIL("Query API did not return the expected device first.")
-        except json.decoder.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned")
+            if expected_since is not None and response.headers["X-Paging-Since"] != expected_since:
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Since header, "
+                                                  "for query: {}".format(query_string)))
+            
+            if expected_until is not None and response.headers["X-Paging-Until"] != expected_until:
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Until header, "
+                                                  "for query: {}".format(query_string)))
 
-        # From here on, use basic query syntax to limit the returned resources to the ones POSTed by this test
+            if expected_limit is not None and response.headers["X-Paging-Limit"] != str(expected_limit):
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Limit header, "
+                                                  "for query: {}".format(query_string)))
 
-        query_string = "?description=test_21"
+            LINK_PATTERN = re.compile('<(?P<url>.+)>; rel="(?P<rel>.+)"')
 
-        try:
-            valid, r = self.do_request("GET", self.query_url + "devices" + query_string)
-            if not valid:
-                return test.FAIL("Query API failed to respond to query: {}".format(query_string))
-            elif len(r.json()) == 0 or r.json()[0]["id"] != device_ids[-1]:
-                return test.FAIL("Query API did not return the expected device first in response to query: {}".format(query_string))
-        except json.decoder.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned")
+            link_header = {rel: url for (rel, url) in
+                [(_.group("rel"), _.group("url")) for _ in
+                    [LINK_PATTERN.search(_) for _ in
+                        response.headers["Link"].split(",")]]}
 
-        # Check paging.limit restricts the response to the specified number of results
+            prev = link_header["prev"]
+            next = link_header["next"]
+            
+            if expected_since is not None and "paging.until=" + expected_since not in prev or "paging.since=" in prev:
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct 'prev' value "
+                                                  "in the Link header, for query: {}".format(query_string)))
 
-        # Use a small value, since implementations may specify their own default and maximum for the limit
-        paging_limit = "&paging.limit=3"
-        initial_page_ids = device_ids[:-4:-1]
+            if expected_until is not None and "paging.since=" + expected_until not in next or "paging.until=" in next:
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct 'next' value "
+                                                  "in the Link header, for query: {}".format(query_string)))
 
-        try:
-            valid, r = self.do_request("GET", self.query_url + "devices" + query_string + paging_limit)
-            if not valid:
-                return test.FAIL("Query API failed to respond to query: {}".format(query_string))
-            elif initial_page_ids != [ device["id"] for device in r.json() ]:
-                return test.FAIL("Query API did not return the expected devices in response to query: {}".format(query_string + paging_limit))
+            # 'first' and 'last' are optional, though there's no obvious reason for them to be
+            first = link_header["first"] if "first" in link_header else None
+            last = link_header["last"] if "last" in link_header else None
 
-            # Check response headers
+            if first is not None:
+                if "paging.since=0:0" not in first or "paging.until=" in first:
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct 'first' value "
+                                                      "in the Link header, for query: {}".format(query_string)))
 
-            # TO DO!
+            if last is not None:
+                if "paging.until=" in last or "paging.since=" in last:
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct 'last' value "
+                                                      "in the Link header, for query: {}".format(query_string)))
 
-        except json.decoder.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned")
+            for rel in ["first", "prev", "next", "last"]:
+                if rel not in link_header:
+                    continue
 
-        # MORE TO DO!
+                if expected_limit is not None and "paging.limit=" + str(expected_limit) not in link_header[rel]:
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct '{}' value "
+                                                      "in the Link header, for query: {}".format(rel, query_string)))
 
-        return test.MANUAL("This test is incomplete, but the implementation passed so far as it goes!", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination")
+                for param in query_parameters:
+                    if "paging." in param:
+                        continue
+                    if param not in link_header[rel]:
+                        raise NMOSTestException(test.FAIL("Query API response did not include the correct '{}' value "
+                                                          "in the Link header, for query: {}".format(rel, query_string)))
+
+        except KeyError as ex:
+            raise NMOSTestException(test.FAIL("Query API response did not include the expected value "
+                                              "in the Link header: {}".format(ex)))
+
+    def test_21_1(self):
+        """Query API implements pagination (no query or paging parameters)"""
+
+        test = Test("Query API implements pagination (no query or paging parameters)")
+        self.check_paged_trait(test)
+        # description = inspect.currentframe().f_code.co_name
+        description = "test_21_1"
+
+        # Perform a query with no query or paging parameters
+        response = self.do_paged_request()
+        # Check whether the response contains the X-Paging- headers but don't check values
+        self.check_paged_response(test, response,
+                                  expected_ids = None,
+                                  expected_since = None, expected_until = None, expected_limit = None)
+
+        return test.PASS()
+
+    def test_21_2(self):
+        """Query API implements pagination (documentation examples)"""
+
+        test = Test("Query API implements pagination (documentation examples)")
+        self.check_paged_trait(test)
+        description = "test_21_2"
+
+        # Initial test cases based on the examples in NMOS documentation
+        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/docs/2.5.%20APIs%20-%20Query%20Parameters.md#pagination
+
+        ts, ids = self.post_sample_nodes(test, 20, description)
+
+        # In order to make the array indices match up with the documentation more clearly
+        # insert an extra element 0 in both arrays
+        ts.insert(0, None)
+        ids.insert(0, None)
+
+        # Example 1: Initial /nodes Request
+
+        # Ideally, we shouldn't specify the limit, and adapt the checks for whatever the default limit turns out to be
+        response = self.do_paged_request(description = description, limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[11:20 + 1],
+                                  expected_since = ts[10], expected_until = ts[20], expected_limit = 10)
+
+        # Example 2: Request With Custom Limit
+
+        response = self.do_paged_request(description = description, limit = 5)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[16:20 + 1],
+                                  expected_since = ts[15], expected_until = ts[20], expected_limit = 5)
+
+        # Example 3: Request With Since Parameter
+
+        response = self.do_paged_request(description = description, since = ts[4], limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[5:14 + 1],
+                                  expected_since = ts[4], expected_until = ts[14], expected_limit = 10)
+
+        # Example 4: Request With Until Parameter
+
+        response = self.do_paged_request(description = description, until = ts[16], limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[7:16 + 1],
+                                  expected_since = ts[6], expected_until = ts[16], expected_limit = 10)
+
+        # Example 5: Request With Since & Until Parameters
+
+        response = self.do_paged_request(description = description, since = ts[4], until = ts[16], limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[5:14 + 1],
+                                  expected_since = ts[4], expected_until = ts[14], expected_limit = 10)
+
+        return test.PASS()
+
+    def test_21_3(self):
+        """Query API implements pagination (edge cases)"""
+
+        test = Test("Query API implements pagination (edge cases)")
+        self.check_paged_trait(test)
+        description = "test_21_3"
+
+        # Some additional test cases based on Basecamp discussion
+        # See https://basecamp.com/1791706/projects/10192586/messages/70545892
+
+        timestamps, ids = self.post_sample_nodes(test, 20, description)
+
+        after = "{}:0".format(int (timestamps[-1].split(":")[0]) + 1)
+        before = "{}:0".format(int (timestamps[0].split(":")[0]) - 1)
+
+        # Check the header values when a client specifies a paging.since value after the newest resource's timestamp
+
+        self.check_paged_response(test, self.do_paged_request(description = description, since = after),
+                                  expected_ids = [],
+                                  expected_since = after, expected_until = after)
+
+        # Check the header values when a client specifies a paging.until value before the oldest resource's timestamp
+
+        self.check_paged_response(test, self.do_paged_request(description = description, until = before),
+                                  expected_ids = [],
+                                  expected_since = "0:0", expected_until = before)
+
+        # Check the header values for a query that results in only one resource, without any paging parameters
+
+        # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
+        self.check_paged_response(test, self.do_paged_request(id = ids[12]),
+                                  expected_ids = [ids[12]],
+                                  expected_since = "0:0", expected_until = timestamps[-1])
+
+        # Check the header values for a query that results in no resources, without any paging parameters
+
+        # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
+        self.check_paged_response(test, self.do_paged_request(id = str(uuid.uuid4())),
+                                  expected_ids = [],
+                                  expected_since = "0:0", expected_until = timestamps[-1])
+    
+        return test.PASS()
+
+    def test_21_4(self):
+        """Query API implements pagination (requests that require empty responses)"""
+
+        test = Test("Query API implements pagination (requests that require empty responses)")
+        self.check_paged_trait(test)
+        description = "test_21_4"
+
+        timestamps, ids = self.post_sample_nodes(test, 20, description)
+
+        ts = timestamps[12]
+
+        # Check paging.since == paging.until
+
+        response = self.do_paged_request(description = description, since = ts, until = ts, limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts, expected_until = ts, expected_limit = 10)
+
+        # Check paging.limit == 0, paging.since specified
+
+        response = self.do_paged_request(description = description, since = ts, limit = 0)
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts, expected_until = ts, expected_limit = 0)
+
+        # Check paging.limit == 0, paging.since not specified
+
+        response = self.do_paged_request(description = description, until = ts, limit = 0)
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts, expected_until = ts, expected_limit = 0)
+
+        return test.PASS()
+
+    def test_21_5(self):
+        """Query API implements pagination (with filters that select discontiguous resources)"""
+
+        test = Test("Query API implements pagination (with filters that select discontiguous resources)")
+        self.check_paged_trait(test)
+        description = "test_21_5"
+
+        foo = lambda index: 3 > (index + 1) % 5
+        bar = lambda index: not foo(index)
+ 
+        ts, ids = self.post_sample_nodes(test, 20, description, lambda index: "foo" if foo(index) else "bar")
+
+        # Specify paging.limit in the requests with 'default paging parameters' in the following tests
+        # because we can't rely on the implementation's default being 10
+
+        # Query 1: "foo", default paging parameters
+        #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
+        #          request      (                                                                      ]
+        #          response           (       ^  ^  ^        ^   ^   ^           ^   ^   ^           ^ ]
+
+        # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
+        # expected_since check could be more forgiving, i.e. >= ts[1] and < ts[4]
+        self.check_paged_response(test, self.do_paged_request(label = "foo", limit = 10),
+                                  expected_ids = [ids[i] for i in range(len(ids)) if foo(i)][-10:],
+                                  expected_since = ts[1], expected_until = ts[19], expected_limit = 10)
+
+        # Query 2: 'prev' of Query 1
+        #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
+        #          request      (      ]
+        #          response     ( ^  ^ ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "foo", until = ts[1], limit = 10),
+                                  expected_ids = [ids[i] for i in range(len(ids)) if foo(i)][0:-10],
+                                  expected_since = "0:0", expected_until = ts[1], expected_limit = 10)
+
+        # Query 3: 'next' of Query 1
+        #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
+        #          request                                                                            (]
+        #          response                                                                           (]
+
+        self.check_paged_response(test, self.do_paged_request(label = "foo", since = ts[19], limit = 10),
+                                  expected_ids = [],
+                                  expected_since = ts[19], expected_until = ts[19], expected_limit = 10)
+
+        # Query 4: "bar", default paging parameters
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request      (                                                                      ]
+        #          response     (       ^  ^           ^  ^              ^   ^               ^   ^     ]
+
+        # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
+        self.check_paged_response(test, self.do_paged_request(label = "bar", limit = 10),
+                                  expected_ids = [ids[i] for i in range(len(ids)) if bar(i)],
+                                  expected_since = "0:0", expected_until = ts[19], expected_limit = 10)
+
+        # Query 5: "bar", limited to 3
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request      (                                                                      ]
+        #          response                                               (  ^               ^   ^     ]
+
+        # expected_until check could be more forgiving, i.e. >= ts[18] and <= 'now'
+        # expected_since check could be more forgiving, i.e. >= ts[12] and < ts[13]
+        self.check_paged_response(test, self.do_paged_request(label = "bar", limit = 3),
+                                  expected_ids = [ids[13], ids[17], ids[18]],
+                                  expected_since = ts[12], expected_until = ts[19], expected_limit = 3)
+
+        # Query 6: 'prev' of Query 5
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request      (                                          ]
+        #          response                 (          ^  ^              ^ ]
+
+        # expected_since check could be more forgiving, i.e. >= ts[3] and < ts[7]
+        self.check_paged_response(test, self.do_paged_request(label = "bar", until = ts[12], limit = 3),
+                                  expected_ids = [ids[7], ids[8], ids[12]],
+                                  expected_since = ts[3], expected_until = ts[12], expected_limit = 3)
+
+        # Query 7: like Query 5, with paging.since specified, but still enough matches
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request                     (                           ]
+        #          response                    (       ^  ^              ^ ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "bar", since = ts[4], until = ts[12], limit = 3),
+                                  expected_ids = [ids[7], ids[8], ids[12]],
+                                  expected_since = ts[4], expected_until = ts[12], expected_limit = 3)
+
+        # Query 8: like Query 5, with paging.since specified, and not enough matches
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request                                    (            ]
+        #          response                                   (          ^ ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "bar", since = ts[9], until = ts[12], limit = 3),
+                                  expected_ids = [ids[12]],
+                                  expected_since = ts[9], expected_until = ts[12], expected_limit = 3)
+
+        # Query 9: like Query 5, but no matches
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request                                    (        ]
+        #          response                                   (        ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "bar", since = ts[9], until = ts[11], limit = 3),
+                                  expected_ids = [],
+                                  expected_since = ts[9], expected_until = ts[11], expected_limit = 3)
+
+        return test.PASS()
+
+    def test_21_6(self):
+        """Query API implements pagination (bad requests)"""
+
+        test = Test("Query API implements pagination (bad requests)")
+        self.check_paged_trait(test)
+        description = "test_21_6"
+
+        before = self.is04_query_utils.get_TAI_time()
+        after = self.is04_query_utils.get_TAI_time(1)
+
+        # Specifying since after until is a bad request
+        valid, response, query_string = self.do_paged_request(since = after, until = before)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
+                                              "for query: {}".format(query_string)))
+        elif response.status_code != 400:
+            raise NMOSTestException(test.FAIL("Query API responded with wrong HTTP code, "
+                                              "for query: {}".format(query_string)))
+
+        return test.PASS()
+
+    # TODO
+    def _test_21_7(self):
+        """Query API implements pagination (paging.order=create)"""
+
+        test = Test("Query API implements pagination (with paging.order=create)")
+        self.check_paged_trait(test)
+        description = "test_21_7"
+
+        return test.MANUAL()
+
+    # TODO
+    def _test_21_8(self):
+        """Query API implements pagination (with updates between paged requests)"""
+
+        test = Test("Query API implements pagination (with updates between paged requests)")
+        self.check_paged_trait(test)
+        description = "test_21_8"
+
+        return test.MANUAL()
 
     def test_22(self):
         """Query API implements downgrade queries"""
