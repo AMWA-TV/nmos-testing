@@ -560,17 +560,25 @@ class IS0402Test(GenericTest):
 
             # Perform a Query API request to get the update timestamp of the most recently POSTed node
             # Wish there was a better way, as this puts the cart before the horse!
-            # Another alternative would be to POST at say 1 second intervals, and use local timestamps
-            # with approximate matching?
+            # Another alternative would be to use local timestamps, provided clocks were synchronised?
 
             valid_get, q = self.do_request("GET", self.query_url + "nodes")
             if not valid_get:
                 raise NMOSTestException(test.FAIL("Cannot GET the POSTed sample data. Cannot execute test: "
                                                   "{}".format(q)))
-            elif q.json()[0]["id"] != node_data["id"]: 
-                raise NMOSTestException(test.FAIL("Query API response did not have the most recently POSTed node first"))
+            elif q.status_code != 200:
+                raise NMOSTestException(test.FAIL("Cannot GET the POSTed sample data. Cannot execute test: "
+                                                  "{} {}".format(q.status_code, q.text)))
 
-            update_timestamps.append(q.headers["X-Paging-Until"])
+            try:
+                if q.json()[0]["id"] != node_data["id"]:
+                    raise NMOSTestException(test.FAIL("Query API response did not have the most recently POSTed node first"))
+                update_timestamps.append(q.headers["X-Paging-Until"])
+            except json.decoder.JSONDecodeError:
+                raise NMOSTestException(test.FAIL("Non-JSON response returned"))
+            except KeyError:
+                raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
+                                                  "for query: {}".format(query_string)))
 
         # Bear in mind that the returned arrays are in forward order
         # whereas Query API responses are required to be in reverse order
@@ -584,14 +592,14 @@ class IS0402Test(GenericTest):
 
         if limit != None:
             query_parameters.append("paging.limit=" + str(limit))
-        if until != None:
-            query_parameters.append("paging.until=" + until)
         if since != None:
             query_parameters.append("paging.since=" + since)
+        if until != None:
+            query_parameters.append("paging.until=" + until)
 
-        if description != None: 
+        if description != None:
             query_parameters.append("description=" + description)
-        if label != None: 
+        if label != None:
             query_parameters.append("label=" + label)
         if id != None:
             query_parameters.append("id=" + id)
@@ -640,16 +648,23 @@ class IS0402Test(GenericTest):
             except json.decoder.JSONDecodeError:
                 raise NMOSTestException(test.FAIL("Non-JSON response returned"))
 
+        def check_timestamp(expected, actual):
+            return expected is None or self.is04_query_utils.compare_resource_version(expected, actual) == 0
+
         try:
-            if expected_since is not None and response.headers["X-Paging-Since"] != expected_since:
+            since = response.headers["X-Paging-Since"]
+            until = response.headers["X-Paging-Until"]
+            limit = response.headers["X-Paging-Limit"]
+
+            if not check_timestamp(expected_since, since):
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Since header, "
                                                   "for query: {}".format(query_string)))
-            
-            if expected_until is not None and response.headers["X-Paging-Until"] != expected_until:
+
+            if not check_timestamp(expected_until, until):
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Until header, "
                                                   "for query: {}".format(query_string)))
 
-            if expected_limit is not None and response.headers["X-Paging-Limit"] != str(expected_limit):
+            if not (expected_limit is None or str(expected_limit) == limit):
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Limit header, "
                                                   "for query: {}".format(query_string)))
 
@@ -662,12 +677,12 @@ class IS0402Test(GenericTest):
 
             prev = link_header["prev"]
             next = link_header["next"]
-            
-            if expected_since is not None and "paging.until=" + expected_since not in prev or "paging.since=" in prev:
+
+            if "paging.until=" + since not in prev or "paging.since=" in prev:
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct 'prev' value "
                                                   "in the Link header, for query: {}".format(query_string)))
 
-            if expected_until is not None and "paging.since=" + expected_until not in next or "paging.until=" in next:
+            if "paging.since=" + until not in next or "paging.until=" in next:
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct 'next' value "
                                                   "in the Link header, for query: {}".format(query_string)))
 
@@ -689,7 +704,7 @@ class IS0402Test(GenericTest):
                 if rel not in link_header:
                     continue
 
-                if expected_limit is not None and "paging.limit=" + str(expected_limit) not in link_header[rel]:
+                if "paging.limit=" + limit not in link_header[rel]:
                     raise NMOSTestException(test.FAIL("Query API response did not include the correct '{}' value "
                                                       "in the Link header, for query: {}".format(rel, query_string)))
 
@@ -816,7 +831,7 @@ class IS0402Test(GenericTest):
         self.check_paged_response(test, self.do_paged_request(id = str(uuid.uuid4())),
                                   expected_ids = [],
                                   expected_since = "0:0", expected_until = timestamps[-1])
-    
+
         return test.PASS()
 
     def test_21_4(self):
@@ -854,15 +869,15 @@ class IS0402Test(GenericTest):
         return test.PASS()
 
     def test_21_5(self):
-        """Query API implements pagination (with filters that select discontiguous resources)"""
+        """Query API implements pagination (filters that select discontiguous resources)"""
 
-        test = Test("Query API implements pagination (with filters that select discontiguous resources)")
+        test = Test("Query API implements pagination (filters that select discontiguous resources)")
         self.check_paged_trait(test)
         description = "test_21_5"
 
         foo = lambda index: 3 > (index + 1) % 5
         bar = lambda index: not foo(index)
- 
+
         ts, ids = self.post_sample_nodes(test, 20, description, lambda index: "foo" if foo(index) else "bar")
 
         # Specify paging.limit in the requests with 'default paging parameters' in the following tests
@@ -983,7 +998,7 @@ class IS0402Test(GenericTest):
     def _test_21_7(self):
         """Query API implements pagination (paging.order=create)"""
 
-        test = Test("Query API implements pagination (with paging.order=create)")
+        test = Test("Query API implements pagination (paging.order=create)")
         self.check_paged_trait(test)
         description = "test_21_7"
 
@@ -991,9 +1006,9 @@ class IS0402Test(GenericTest):
 
     # TODO
     def _test_21_8(self):
-        """Query API implements pagination (with updates between paged requests)"""
+        """Query API implements pagination (updates between paged requests)"""
 
-        test = Test("Query API implements pagination (with updates between paged requests)")
+        test = Test("Query API implements pagination (updates between paged requests)")
         self.check_paged_trait(test)
         description = "test_21_8"
 
