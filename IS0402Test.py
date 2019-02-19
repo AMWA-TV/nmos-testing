@@ -71,7 +71,7 @@ class IS0402Test(GenericTest):
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
             port = api.port
-            if address in self.reg_url and ":{}".format(port) in self.reg_url:
+            if "/{}:{}/".format(address, port) in self.reg_url:
                 properties = self.convert_bytes(api.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Registration API advertisement.")
@@ -114,7 +114,7 @@ class IS0402Test(GenericTest):
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
             port = api.port
-            if address in self.query_url and ":{}".format(port) in self.query_url:
+            if "/{}:{}/".format(address, port) in self.query_url:
                 properties = self.convert_bytes(api.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Query API advertisement.")
