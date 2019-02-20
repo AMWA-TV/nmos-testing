@@ -1031,6 +1031,9 @@ class IS0402Test(GenericTest):
         elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
             return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important for"
                                  " scalability.", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+        elif r.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -1062,6 +1065,13 @@ class IS0402Test(GenericTest):
             return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
                                  "scalability.",
                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        elif r.status_code == 400:
+            return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
+                                 "{}".format(query_string),
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        elif r.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -1092,6 +1102,13 @@ class IS0402Test(GenericTest):
         elif r.status_code == 501:
             return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+        elif r.status_code == 400:
+            return test.OPTIONAL("Query API signalled that it refused to support this ancestry query: "
+                                 "{}".format(query_string),
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+        elif r.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
