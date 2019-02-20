@@ -454,23 +454,12 @@ class IS0402Test(GenericTest):
             # Wish there was a better way, as this puts the cart before the horse!
             # Another alternative would be to use local timestamps, provided clocks were synchronised?
 
-            valid, r = self.do_request("GET", self.query_url + "nodes")
-            if not valid:
-                raise NMOSTestException(test.FAIL("Cannot GET the POSTed sample data. Cannot execute test: "
-                                                  "{}".format(r)))
-            elif r.status_code != 200:
-                raise NMOSTestException(test.FAIL("Cannot GET the POSTed sample data. Cannot execute test: "
-                                                  "{} {}".format(r.status_code, r.text)))
-
-            try:
-                if r.json()[0]["id"] != node_data["id"]:
-                    raise NMOSTestException(test.FAIL("Query API response did not have the most recently POSTed node first"))
-                update_timestamps.append(r.headers["X-Paging-Until"])
-            except json.decoder.JSONDecodeError:
-                raise NMOSTestException(test.FAIL("Non-JSON response returned"))
-            except KeyError:
-                raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
-                                                  "for query: {}".format(query_string)))
+            response = self.do_paged_request(limit = 1)
+            self.check_paged_response(test, response,
+                                      expected_ids = [node_data["id"]],
+                                      expected_since = None, expected_until = None)
+            valid, r, query_parameters = response
+            update_timestamps.append(r.headers["X-Paging-Until"])
 
         # Bear in mind that the returned arrays are in forward order
         # whereas Query API responses are required to be in reverse order
@@ -912,11 +901,18 @@ class IS0402Test(GenericTest):
         after = self.is04_query_utils.get_TAI_time(1)
 
         # Specifying since after until is a bad request
-        valid, response, query_string = self.do_paged_request(since = after, until = before)
+        valid, response, query_parameters = self.do_paged_request(since = after, until = before)
+
+        query_string = "?" + "&".join(query_parameters) if len(query_parameters) !=0 else ""
 
         if not valid:
             raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
                                               "for query: {}".format(query_string)))
+        elif response.status_code == 501:
+            raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
+                                                  "Query APIs should support pagination for scalability."
+                                                  .format(query_string),
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
         elif response.status_code != 400:
             raise NMOSTestException(test.FAIL("Query API responded with wrong HTTP code, "
                                               "for query: {}".format(query_string)))
