@@ -316,7 +316,7 @@ class IS0402Test(GenericTest):
     @test_depends
     def test_15(self):
         """Updating Node resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Node")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Node")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -333,7 +333,7 @@ class IS0402Test(GenericTest):
     @test_depends
     def test_16(self):
         """Updating Device resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Device")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Device")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -351,7 +351,7 @@ class IS0402Test(GenericTest):
     @test_depends
     def test_17(self):
         """Updating Source resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Source")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Source")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -368,7 +368,7 @@ class IS0402Test(GenericTest):
     @test_depends
     def test_18(self):
         """Updating Flow resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Flow")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Flow")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -386,7 +386,7 @@ class IS0402Test(GenericTest):
     @test_depends
     def test_19(self):
         """Updating Sender resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Sender")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Sender")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -403,7 +403,7 @@ class IS0402Test(GenericTest):
     @test_depends
     def test_20(self):
         """Updating Receiver resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Receiver")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Receiver")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
