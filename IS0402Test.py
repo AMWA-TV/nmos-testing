@@ -515,6 +515,8 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                               "{} {}".format(response.status_code, response.text)))
 
+        # check *presence* of paging headers before checking response body
+
         PAGING_HEADERS = ["Link", "X-Paging-Limit", "X-Paging-Since", "X-Paging-Until"]
 
         absent_paging_headers = [_ for _ in PAGING_HEADERS if _ not in response.headers]
@@ -525,6 +527,8 @@ class IS0402Test(GenericTest):
         elif (len(absent_paging_headers) != 0):
             raise NMOSTestException(test.FAIL("Query API response did not include all pagination headers, "
                                               "missing: {}".format(absent_paging_headers)))
+
+        # check response body
 
         if expected_ids is not None:
             try:
@@ -542,6 +546,8 @@ class IS0402Test(GenericTest):
             except KeyError:
                 raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
                                                   "for query: {}".format(query_string)))
+
+        # check *values* of paging headers after body
 
         def check_timestamp(expected, actual):
             return expected is None or self.is04_query_utils.compare_resource_version(expected, actual) == 0
@@ -908,12 +914,25 @@ class IS0402Test(GenericTest):
         if not valid:
             raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
                                               "for query: {}".format(query_string)))
-        elif response.status_code == 501:
+
+        if response.status_code == 501:
             raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
                                                   "Query APIs should support pagination for scalability."
                                                   .format(query_string),
                                                   "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
-        elif response.status_code != 400:
+
+        # 200 OK *without* any paging headers also indicates not implemented (paging parameters ignored)
+        PAGING_HEADERS = ["Link", "X-Paging-Limit", "X-Paging-Since", "X-Paging-Until"]
+
+        absent_paging_headers = [_ for _ in PAGING_HEADERS if _ not in response.headers]
+        if response.status_code == 200 and len(absent_paging_headers) == len(PAGING_HEADERS):
+            raise NMOSTestException(test.OPTIONAL("Query API response did not include any pagination headers. "
+                                                  "Query APIs should support pagination for scalability.",
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+
+        # 200 OK *with* any paging headers indicates the Query API failed to identify the bad request
+        # which is an error like any code other than the expected 400 Bad Request
+        if response.status_code != 400:
             raise NMOSTestException(test.FAIL("Query API responded with wrong HTTP code, "
                                               "for query: {}".format(query_string)))
 
