@@ -18,8 +18,10 @@ from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
 from datetime import datetime, timedelta
+from dnslib.server import DNSServer
+from dnslib.zoneresolver import ZoneResolver
 
 import git
 import os
@@ -27,6 +29,8 @@ import json
 import copy
 import pickle
 import threading
+import sys
+import netifaces
 
 import IS0401Test
 import IS0402Test
@@ -247,6 +251,10 @@ def index_page():
 
 
 if __name__ == '__main__':
+    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast" and os.geteuid() != 0:
+        print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
+        sys.exit(1)
+
     print(" * Initialising specification repositories...")
 
     if not os.path.exists(CACHE_PATH):
@@ -299,4 +307,23 @@ if __name__ == '__main__':
         t.start()
         port += 1
 
+    dns_server = None
+    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+        print(" * Starting DNS server on {}:53".format(default_ip))
+        zone_file = open("test_data/IS0401/dns.zone").read()
+        zone_file.replace("127.0.0.1", default_ip)
+        resolver = ZoneResolver(zone_file)
+        try:
+            dns_server = DNSServer(resolver, port=53, address=default_ip)
+            dns_server.start_thread()
+        except Exception as e:
+            print(" * ERROR: Unable to bind to port 53. DNS server could not start: {}".format(e))
+
+    # This call will block until interrupted
     core_app.run(host='0.0.0.0', port=5000, threaded=True)
+
+    print(" * Exiting")
+    if dns_server:
+        dns_server.stop()
