@@ -66,13 +66,17 @@ class IS0402Test(GenericTest):
 
         test = Test("Registration API advertises correctly via mDNS")
 
-        browser = ServiceBrowser(self.zc, "_nmos-registration._tcp.local.", self.zc_listener)
+        service_type = "_nmos-registration._tcp.local."
+        if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.3") >= 0:
+            service_type = "_nmos-register._tcp.local."
+
+        browser = ServiceBrowser(self.zc, service_type, self.zc_listener)
         sleep(2)
         serv_list = self.zc_listener.get_service_list()
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
             port = api.port
-            if address in self.reg_url and ":{}".format(port) in self.reg_url:
+            if "/{}:{}/".format(address, port) in self.reg_url:
                 properties = self.convert_bytes(api.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Registration API advertisement.")
@@ -115,7 +119,7 @@ class IS0402Test(GenericTest):
         for api in serv_list:
             address = socket.inet_ntoa(api.address)
             port = api.port
-            if address in self.query_url and ":{}".format(port) in self.query_url:
+            if "/{}:{}/".format(address, port) in self.query_url:
                 properties = self.convert_bytes(api.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Query API advertisement.")
@@ -1025,12 +1029,12 @@ class IS0402Test(GenericTest):
         random_label = uuid.uuid4()
         query_string = "?label=" + str(random_label)
         valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
+        api = self.apis[QUERY_API_KEY]
         if not valid:
             return test.FAIL("Query API failed to respond to query")
-        elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support query parameters. "
-                                 "Query APIs should support basic query parameters for scalability.",
-                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+        elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
+            return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important for"
+                                 " scalability.", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
