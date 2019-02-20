@@ -450,18 +450,18 @@ class IS0402Test(GenericTest):
             # Wish there was a better way, as this puts the cart before the horse!
             # Another alternative would be to use local timestamps, provided clocks were synchronised?
 
-            valid_get, q = self.do_request("GET", self.query_url + "nodes")
-            if not valid_get:
+            valid, r = self.do_request("GET", self.query_url + "nodes")
+            if not valid:
                 raise NMOSTestException(test.FAIL("Cannot GET the POSTed sample data. Cannot execute test: "
-                                                  "{}".format(q)))
-            elif q.status_code != 200:
+                                                  "{}".format(r)))
+            elif r.status_code != 200:
                 raise NMOSTestException(test.FAIL("Cannot GET the POSTed sample data. Cannot execute test: "
-                                                  "{} {}".format(q.status_code, q.text)))
+                                                  "{} {}".format(r.status_code, r.text)))
 
             try:
-                if q.json()[0]["id"] != node_data["id"]:
+                if r.json()[0]["id"] != node_data["id"]:
                     raise NMOSTestException(test.FAIL("Query API response did not have the most recently POSTed node first"))
-                update_timestamps.append(q.headers["X-Paging-Until"])
+                update_timestamps.append(r.headers["X-Paging-Until"])
             except json.decoder.JSONDecodeError:
                 raise NMOSTestException(test.FAIL("Non-JSON response returned"))
             except KeyError:
@@ -510,6 +510,17 @@ class IS0402Test(GenericTest):
         if not valid:
             raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
                                               "for query: {}".format(query_string)))
+        elif response.status_code == 501:
+            # Many of the paged queries also use basic query parameters, which means that
+            # a 501 could indicate lack of support for either basic queries or pagination.
+            # The initial "test_21_1" therefore does not use basic query parameters.
+            raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
+                                                  "Query APIs should support pagination for scalability."
+                                                  .format(query_string),
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+        elif response.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(response.status_code, response.text)))
 
         PAGING_HEADERS = ["Link", "X-Paging-Limit", "X-Paging-Since", "X-Paging-Until"]
 
@@ -535,6 +546,9 @@ class IS0402Test(GenericTest):
 
             except json.decoder.JSONDecodeError:
                 raise NMOSTestException(test.FAIL("Non-JSON response returned"))
+            except KeyError:
+                raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
+                                                  "for query: {}".format(query_string)))
 
         def check_timestamp(expected, actual):
             return expected is None or self.is04_query_utils.compare_resource_version(expected, actual) == 0
@@ -615,8 +629,26 @@ class IS0402Test(GenericTest):
         # description = inspect.currentframe().f_code.co_name
         description = "test_21_1"
 
-        # Perform a query with no query or paging parameters
+        # Perform a query with no query or paging parameters (see note in check_paged_response regarding 501)
         response = self.do_paged_request()
+
+        # Check whether the response contains the X-Paging- headers but don't check values
+        self.check_paged_response(test, response,
+                                  expected_ids = None,
+                                  expected_since = None, expected_until = None, expected_limit = None)
+
+        return test.PASS()
+
+    def test_21_1_1(self):
+        """Query API implements pagination (when explicitly requested)"""
+
+        test = Test("Query API implements pagination (when explicitly requested)")
+        self.check_paged_trait(test)
+        description = "test_21_1_1"
+
+        # Same as above, but query with paging.limit to clearly 'opt in'
+        response = self.do_paged_request(limit = 10)
+
         # Check whether the response contains the X-Paging- headers but don't check values
         self.check_paged_response(test, response,
                                   expected_ids = None,
@@ -640,6 +672,11 @@ class IS0402Test(GenericTest):
         # insert an extra element 0 in both arrays
         ts.insert(0, None)
         ids.insert(0, None)
+
+        # "Implementations may specify their own default and maximum for the limit"
+        # so theoretically, if a Query API had a very low maximum limit, that number could be returned
+        # rather than the requested limit, for many of the following tests.
+        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/APIs/QueryAPI.raml#L37
 
         # Example 1: Initial /nodes Request
 
@@ -990,6 +1027,10 @@ class IS0402Test(GenericTest):
         valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
         if not valid:
             return test.FAIL("Query API failed to respond to query")
+        elif r.status_code == 501:
+            return test.OPTIONAL("Query API signalled that it does not support query parameters. "
+                                 "Query APIs should support basic query parameters for scalability.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
