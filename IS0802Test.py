@@ -158,7 +158,7 @@ class IS0802Test(GenericTest):
             if sourceID is None:
                 sourceRegistered = True
             else:
-                self.findSourceID(sourceID)
+                sourceRegistered = self.findSourceID(sourceID)
             if not sourceRegistered:
                 allSourcesRegistered = False
 
