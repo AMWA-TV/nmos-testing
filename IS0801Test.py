@@ -413,4 +413,4 @@ class IS0801Test(GenericTest):
         except NMOSTestException:
             return test.PASS()
 
-        return Test.FAIL("Was able to break block size routing constraint")
+        return test.FAIL("Was able to break block size routing constraint")
