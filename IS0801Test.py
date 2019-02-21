@@ -16,7 +16,8 @@ from GenericTest import GenericTest, NMOSTestException
 from TestHelper import compare_json
 from TestResult import Test
 from NMOSUtils import NMOSUtils
-from is08 import Action, Activation
+from is08.action import Action
+from is08.activation import Activation
 from is08.inputs import getInputList
 from is08.outputs import getOutputList
 from is08.active import Active
@@ -291,20 +292,24 @@ class IS0801Test(GenericTest):
 
         for constrainedOutput in constrainedOutputList:
             forbiddenRoutes = copy.deepcopy(inputIDList)
+
             for routableInputID in constrainedOutput['routableInputs']:
-                forbiddenRoutes.pop(routableInputID)
+                forbiddenRoutes.remove(routableInputID)
 
-            action = Action(forbiddenRoutes[0], constrainedOutput['output'].id)
-            activation = Activation()
-            activation.addAction(action)
+            if len(forbiddenRoutes) > 0:
 
-            try:
-                activation.checkReject()
-            except NMOSTestException:
-                msg = ("Was able to create a forbidden route between input {}"
-                       " and output {} despite routing constraint."
-                       "".format(forbiddenRoutes[0], outputInstance.id))
-                return test.FAIL(msg)
+                action = Action(forbiddenRoutes[0], constrainedOutput['output'].id)
+                activation = Activation()
+                activation.addAction(action)
+
+                try:
+                    activation.checkReject()
+                except NMOSTestException:
+                    msg = ("Was able to create a forbidden route between input {}"
+                           " and output {} despite routing constraint."
+                           "".format(forbiddenRoutes[0], outputInstance.id))
+                    return test.FAIL(msg)
+        return test.NA("Could not test - no route is forbidden.")
 
     def test_14_reordering_constraint(self):
         """It is not possible to re-order channels when re-ordering is
