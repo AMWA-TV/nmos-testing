@@ -236,7 +236,6 @@ class IS0801Test(GenericTest):
         """Human readable description provided in the props resource"""
         test = Test("Check for human readable description provided in the props resource.")
         return test.MANUAL()
-        pass
 
     def test_11(self):
         """Inputs have at least one channel represented in their channels resource"""
