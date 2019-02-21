@@ -411,6 +411,6 @@ class IS0801Test(GenericTest):
         try:
             activation.fireActivation()
         except NMOSTestException:
-            return Test.PASS()
+            return test.PASS()
 
         return Test.FAIL("Was able to break block size routing constraint")
