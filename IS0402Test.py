@@ -1007,13 +1007,28 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_21_8(self):
+        """Query API implements pagination (correct encoding of URLs in Link header)"""
+
+        test = Test("Query API implements pagination (correct encoding of URLs in Link header)")
+        self.check_paged_trait(test)
+        description = "test_21_8"
+
+        # check '&' is returned encoded
+        response = self.do_paged_request(label = "foo%26bar")
+        self.check_paged_response(test, response,
+                                  expected_ids = None,
+                                  expected_since = None, expected_until = None) 
+        
+        return test.PASS()
+
     # TODO
-    def _test_21_8(self):
+    def _test_21_x(self):
         """Query API implements pagination (paging.order=create)"""
 
         test = Test("Query API implements pagination (paging.order=create)")
         self.check_paged_trait(test)
-        description = "test_21_8"
+        description = "test_21_x"
 
         return test.MANUAL()
 
