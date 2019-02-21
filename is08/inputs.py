@@ -17,6 +17,7 @@ from is08.helperTools import getIOList
 from is08.testConfig import globalConfig
 from is08.calls import Call
 from is08.outputs import getOutputList
+from GenericTest import NMOSTestException
 
 
 def getInputList():
@@ -64,15 +65,19 @@ class ACMInput:
         try:
             return self.getConstraints()['block_size']
         except KeyError:
-            return globalConfig.test.FAIL("Could not find `block_size` parameter in"
-                                          " input caps for input {}".format(self.id))
+            raise NMOSTestException(
+                globalConfig.test.FAIL("Could not find `block_size` parameter in"
+                                       " input caps for input {}".format(self.id))
+            )
 
     def getReordering(self):
         try:
             return self.getConstraints()['reordering']
         except KeyError:
-            return globalConfig.test.FAIL("Could not find `reordering` parameter in"
-                                          " input caps for input {}".format(self.id))
+            raise NMOSTestException(
+                globalConfig.test.FAIL("Could not find `reordering` parameter in"
+                                       " input caps for input {}".format(self.id))
+            )
 
     def getRoutableOutputs(self):
         routableOutputList = []
