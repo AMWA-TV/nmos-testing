@@ -86,7 +86,7 @@ class IS0802Test(GenericTest):
 
         return devicesWithAdvertisements
 
-    def test_01(self):
+    def test_01_version_incrememnt(self):
         """ Activations result in a Device version number increment"""
         test = Test(" Activations result in a Device version number increment")
         globalConfig.test = test
@@ -118,7 +118,7 @@ class IS0802Test(GenericTest):
         else:
             return test.FAIL("No devices in the Node API incremented version number on activation.")
 
-    def test_02(self):
+    def test_02_control_advertisement(self):
         """ API is correctly advertised as a control endpoint"""
 
         test = Test(" API is correctly advertised as a control endpoint")
@@ -145,7 +145,7 @@ class IS0802Test(GenericTest):
                 return True
         return False
 
-    def test_03(self):
+    def test_03_source_ids_in_is04(self):
         """ All Output Source IDs match up to the IS-04 Node API"""
         test = Test("All Source IDs match up to the IS-04 Node API and registry")
         globalConfig.test = test
@@ -167,7 +167,7 @@ class IS0802Test(GenericTest):
         else:
             return test.FAIL("Not all Output sources IDs were advertised in the Node API")
 
-    def test_04(self):
+    def test_04_input_output_in_is04(self):
         """All Input Source/Receiver IDs match up to the IS-04 Node API"""
         test = Test("All Input Source/Receiver IDs match up to the IS-04 Node API")
         globalConfig.test = test
