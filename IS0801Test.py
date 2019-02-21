@@ -270,7 +270,7 @@ class IS0801Test(GenericTest):
         for outputInstance in outputList:
             constraints = outputInstance.getCaps()
             try:
-                routableInputs = constraints['routeable_inputs']
+                routableInputs = constraints['routable_inputs']
             except KeyError:
                 pass
             else:
