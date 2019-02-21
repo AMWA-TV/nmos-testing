@@ -20,11 +20,12 @@ import uuid
 import json
 from copy import deepcopy
 from jsonschema import ValidationError, Draft4Validator
+import re
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest, test_depends
+from GenericTest import GenericTest, NMOSTestException, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT
 from TestHelper import WebsocketWorker, load_resolved_schema
@@ -161,15 +162,9 @@ class IS0402Test(GenericTest):
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+            self.post_resource(test, "node", node_json, 201)
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -194,16 +189,9 @@ class IS0402Test(GenericTest):
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
-                                                                                "data": device_json})
+            self.post_resource(test, "device", device_json, 201)
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
-                                                                                                  r.text))
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -228,16 +216,9 @@ class IS0402Test(GenericTest):
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
-                                                                                "data": source_json})
+            self.post_resource(test, "source", source_json, 201)
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -262,16 +243,10 @@ class IS0402Test(GenericTest):
 
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
-                                                                                "data": flow_json})
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+            self.post_resource(test, "flow", flow_json, 201)
+
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -295,16 +270,10 @@ class IS0402Test(GenericTest):
             sender_json = deepcopy(self.test_data["sender"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
-                                                                                "data": sender_json})
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+            self.post_resource(test, "sender", sender_json, 201)
+
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -328,16 +297,10 @@ class IS0402Test(GenericTest):
             receiver_json = deepcopy(self.test_data["receiver"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
-                                                                                "data": receiver_json})
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+            self.post_resource(test, "receiver", receiver_json, 201)
+
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -353,34 +316,24 @@ class IS0402Test(GenericTest):
     @test_depends
     def test_15(self):
         """Updating Node resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Node")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Node")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             node_json = deepcopy(self.test_data["node"])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-            self.bump_resource_version(node_json)
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
+            self.post_resource(test, "node", node_json, 200)
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.FAIL("Registration API returned wrong HTTP code.")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
-
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_16(self):
         """Updating Device resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Device")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Device")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -389,28 +342,16 @@ class IS0402Test(GenericTest):
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
 
-            self.bump_resource_version(device_json)
+            self.post_resource(test, "device", device_json, 200)
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "device",
-                                                                                "data": device_json})
-
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.FAIL("Registration API returned wrong HTTP code.")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}".format(r.status_code,
-                                                                                                  r.text))
-
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_17(self):
         """Updating Source resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Source")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Source")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -418,28 +359,16 @@ class IS0402Test(GenericTest):
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
 
-            self.bump_resource_version(source_json)
+            self.post_resource(test, "source", source_json, 200)
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "source",
-                                                                                "data": source_json})
-
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.FAIL("Registration API returned wrong HTTP code.")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
-
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_18(self):
         """Updating Flow resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Flow")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Flow")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -448,28 +377,16 @@ class IS0402Test(GenericTest):
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
 
-            self.bump_resource_version(flow_json)
+            self.post_resource(test, "flow", flow_json, 200)
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "flow",
-                                                                                "data": flow_json})
-
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.FAIL("Registration API returned wrong HTTP code.")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
-
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_19(self):
         """Updating Sender resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Sender")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Sender")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -477,28 +394,16 @@ class IS0402Test(GenericTest):
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
 
-            self.bump_resource_version(sender_json)
+            self.post_resource(test, "sender", sender_json, 200)
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "sender",
-                                                                                "data": sender_json})
-
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.FAIL("Registration API returned wrong HTTP code.")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
-
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_20(self):
         """Updating Receiver resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating an registered Receiver")
+        test = Test("Registration API responds with 200 HTTP code on updating a registered Receiver")
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -507,31 +412,625 @@ class IS0402Test(GenericTest):
                 receiver_json = self.downgrade_resource("receiver", receiver_json,
                                                         self.apis[REG_API_KEY]["version"])
 
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "receiver",
-                                                                                "data": receiver_json})
-            self.bump_resource_version(receiver_json)
+            self.post_resource(test, "receiver", receiver_json, 200)
 
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 201:
-                return test.FAIL("Registration API returned wrong HTTP code.")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-    def test_21(self):
-        """Query API implements pagination"""
+    def check_paged_trait(self, test):
+        """Precondition check that the 'paged' trait applies to the API version under test"""
 
-        test = Test("Query API implements pagination")
+        api = self.apis[QUERY_API_KEY]
+        if self.is04_query_utils.compare_api_version(api["version"], "v1.1") < 0:
+            raise NMOSTestException(test.NA("This test does not apply to v1.0"))
+        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") >= 0:
+            raise NMOSTestException(test.FAIL("Version > 1 not supported yet."))
 
-        if self.apis[QUERY_API_KEY]["version"] == "v1.0":
-            return test.NA("This test does not apply to v1.0")
+    def post_sample_nodes(self, test, count, description, labeller = None):
+        """Perform a POST request on the Registration API to register a number of sample nodes"""
 
-        return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination")
+        node_data = deepcopy(self.test_data["node"])
+        node_data["description"] = description
+
+        update_timestamps = []
+        ids = []
+
+        for _ in range(count):
+            ids.append(str(uuid.uuid4()))
+
+            node_data["id"] = ids[-1]
+            self.bump_resource_version(node_data)
+
+            if labeller != None:
+                node_data["label"] = labeller(_)
+
+            # For debugging
+            node_data["tags"]["index"] = [str(_)]
+
+            self.post_resource(test, "node", node_data, 201)
+
+            # Perform a Query API request to get the update timestamp of the most recently POSTed node
+            # Wish there was a better way, as this puts the cart before the horse!
+            # Another alternative would be to use local timestamps, provided clocks were synchronised?
+
+            response = self.do_paged_request(limit = 1)
+            self.check_paged_response(test, response,
+                                      expected_ids = [node_data["id"]],
+                                      expected_since = None, expected_until = None)
+            valid, r, query_parameters = response
+            update_timestamps.append(r.headers["X-Paging-Until"])
+
+        # Bear in mind that the returned arrays are in forward order
+        # whereas Query API responses are required to be in reverse order
+        return update_timestamps, ids
+
+    def do_paged_request(self, resource_type = "nodes", limit = None, since = None, until = None,
+                         description = None, label = None, id = None):
+        """Perform a GET request on the Query API"""
+
+        query_parameters = []
+
+        if limit != None:
+            query_parameters.append("paging.limit=" + str(limit))
+        if since != None:
+            query_parameters.append("paging.since=" + since)
+        if until != None:
+            query_parameters.append("paging.until=" + until)
+
+        if description != None:
+            query_parameters.append("description=" + description)
+        if label != None:
+            query_parameters.append("label=" + label)
+        if id != None:
+            query_parameters.append("id=" + id)
+
+        query_string = "?" + "&".join(query_parameters) if len(query_parameters) !=0 else ""
+
+        valid, response = self.do_request("GET", self.query_url + resource_type + query_string)
+
+        return valid, response, query_parameters
+
+    def check_paged_response(self, test, paged_response,
+                             expected_ids,
+                             expected_since, expected_until, expected_limit = None):
+        """Check the result of a paged request, and when there's an error, raise an NMOSTestException"""
+
+        valid, response, query_parameters = paged_response
+
+        query_string = "?" + "&".join(query_parameters) if len(query_parameters) !=0 else ""
+
+        if not valid:
+            raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
+                                              "for query: {}".format(query_string)))
+        elif response.status_code == 501:
+            # Many of the paged queries also use basic query parameters, which means that
+            # a 501 could indicate lack of support for either basic queries or pagination.
+            # The initial "test_21_1" therefore does not use basic query parameters.
+            raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
+                                                  "Query APIs should support pagination for scalability."
+                                                  .format(query_string),
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+        elif response.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(response.status_code, response.text)))
+
+        # check *presence* of paging headers before checking response body
+
+        PAGING_HEADERS = ["Link", "X-Paging-Limit", "X-Paging-Since", "X-Paging-Until"]
+
+        absent_paging_headers = [_ for _ in PAGING_HEADERS if _ not in response.headers]
+        if (len(absent_paging_headers) == len(PAGING_HEADERS)):
+            raise NMOSTestException(test.OPTIONAL("Query API response did not include any pagination headers. "
+                                                  "Query APIs should support pagination for scalability.",
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+        elif (len(absent_paging_headers) != 0):
+            raise NMOSTestException(test.FAIL("Query API response did not include all pagination headers, "
+                                              "missing: {}".format(absent_paging_headers)))
+
+        # check response body
+
+        if expected_ids is not None:
+            try:
+                if len(response.json()) != len(expected_ids):
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct number of resources, "
+                                                      "for query: {}".format(query_string)))
+
+                for i in range(len(response.json())):
+                    if (response.json()[i]["id"]) != expected_ids[-(i + 1)]:
+                        raise NMOSTestException(test.FAIL("Query API response did not include the correct resources, "
+                                                          "for query: {}".format(query_string)))
+
+            except json.decoder.JSONDecodeError:
+                raise NMOSTestException(test.FAIL("Non-JSON response returned"))
+            except KeyError:
+                raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
+                                                  "for query: {}".format(query_string)))
+
+        # check *values* of paging headers after body
+
+        def check_timestamp(expected, actual):
+            return expected is None or self.is04_query_utils.compare_resource_version(expected, actual) == 0
+
+        try:
+            since = response.headers["X-Paging-Since"]
+            until = response.headers["X-Paging-Until"]
+            limit = response.headers["X-Paging-Limit"]
+
+            if not check_timestamp(expected_since, since):
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Since header, "
+                                                  "for query: {}".format(query_string)))
+
+            if not check_timestamp(expected_until, until):
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Until header, "
+                                                  "for query: {}".format(query_string)))
+
+            if not (expected_limit is None or str(expected_limit) == limit):
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Limit header, "
+                                                  "for query: {}".format(query_string)))
+
+            LINK_PATTERN = re.compile('<(?P<url>.+)>; rel="(?P<rel>.+)"')
+
+            link_header = {rel: url for (rel, url) in
+                [(_.group("rel"), _.group("url")) for _ in
+                    [LINK_PATTERN.search(_) for _ in
+                        response.headers["Link"].split(",")]]}
+
+            prev = link_header["prev"]
+            next = link_header["next"]
+
+            if "paging.until=" + since not in prev or "paging.since=" in prev:
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct 'prev' value "
+                                                  "in the Link header, for query: {}".format(query_string)))
+
+            if "paging.since=" + until not in next or "paging.until=" in next:
+                raise NMOSTestException(test.FAIL("Query API response did not include the correct 'next' value "
+                                                  "in the Link header, for query: {}".format(query_string)))
+
+            # 'first' and 'last' are optional, though there's no obvious reason for them to be
+            first = link_header["first"] if "first" in link_header else None
+            last = link_header["last"] if "last" in link_header else None
+
+            if first is not None:
+                if "paging.since=0:0" not in first or "paging.until=" in first:
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct 'first' value "
+                                                      "in the Link header, for query: {}".format(query_string)))
+
+            if last is not None:
+                if "paging.until=" in last or "paging.since=" in last:
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct 'last' value "
+                                                      "in the Link header, for query: {}".format(query_string)))
+
+            for rel in ["first", "prev", "next", "last"]:
+                if rel not in link_header:
+                    continue
+
+                if "paging.limit=" + limit not in link_header[rel]:
+                    raise NMOSTestException(test.FAIL("Query API response did not include the correct '{}' value "
+                                                      "in the Link header, for query: {}".format(rel, query_string)))
+
+                for param in query_parameters:
+                    if "paging." in param:
+                        continue
+                    if param not in link_header[rel]:
+                        raise NMOSTestException(test.FAIL("Query API response did not include the correct '{}' value "
+                                                          "in the Link header, for query: {}".format(rel, query_string)))
+
+        except KeyError as ex:
+            raise NMOSTestException(test.FAIL("Query API response did not include the expected value "
+                                              "in the Link header: {}".format(ex)))
+
+    def test_21_1(self):
+        """Query API implements pagination (no query or paging parameters)"""
+
+        test = Test("Query API implements pagination (no query or paging parameters)")
+        self.check_paged_trait(test)
+        # description = inspect.currentframe().f_code.co_name
+        description = "test_21_1"
+
+        # Perform a query with no query or paging parameters (see note in check_paged_response regarding 501)
+        response = self.do_paged_request()
+
+        # Check whether the response contains the X-Paging- headers but don't check values
+        self.check_paged_response(test, response,
+                                  expected_ids = None,
+                                  expected_since = None, expected_until = None, expected_limit = None)
+
+        return test.PASS()
+
+    def test_21_1_1(self):
+        """Query API implements pagination (when explicitly requested)"""
+
+        test = Test("Query API implements pagination (when explicitly requested)")
+        self.check_paged_trait(test)
+        description = "test_21_1_1"
+
+        # Same as above, but query with paging.limit to clearly 'opt in'
+        response = self.do_paged_request(limit = 10)
+
+        # Check whether the response contains the X-Paging- headers but don't check values
+        self.check_paged_response(test, response,
+                                  expected_ids = None,
+                                  expected_since = None, expected_until = None, expected_limit = None)
+
+        return test.PASS()
+
+    def test_21_2(self):
+        """Query API implements pagination (documentation examples)"""
+
+        test = Test("Query API implements pagination (documentation examples)")
+        self.check_paged_trait(test)
+        description = "test_21_2"
+
+        # Initial test cases based on the examples in NMOS documentation
+        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/docs/2.5.%20APIs%20-%20Query%20Parameters.md#pagination
+
+        ts, ids = self.post_sample_nodes(test, 20, description)
+
+        # In order to make the array indices match up with the documentation more clearly
+        # insert an extra element 0 in both arrays
+        ts.insert(0, None)
+        ids.insert(0, None)
+
+        # "Implementations may specify their own default and maximum for the limit"
+        # so theoretically, if a Query API had a very low maximum limit, that number could be returned
+        # rather than the requested limit, for many of the following tests.
+        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/APIs/QueryAPI.raml#L37
+
+        # Example 1: Initial /nodes Request
+
+        # Ideally, we shouldn't specify the limit, and adapt the checks for whatever the default limit turns out to be
+        response = self.do_paged_request(description = description, limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[11:20 + 1],
+                                  expected_since = ts[10], expected_until = ts[20], expected_limit = 10)
+
+        # Example 2: Request With Custom Limit
+
+        response = self.do_paged_request(description = description, limit = 5)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[16:20 + 1],
+                                  expected_since = ts[15], expected_until = ts[20], expected_limit = 5)
+
+        # Example 3: Request With Since Parameter
+
+        response = self.do_paged_request(description = description, since = ts[4], limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[5:14 + 1],
+                                  expected_since = ts[4], expected_until = ts[14], expected_limit = 10)
+
+        # Example 4: Request With Until Parameter
+
+        response = self.do_paged_request(description = description, until = ts[16], limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[7:16 + 1],
+                                  expected_since = ts[6], expected_until = ts[16], expected_limit = 10)
+
+        # Example 5: Request With Since & Until Parameters
+
+        response = self.do_paged_request(description = description, since = ts[4], until = ts[16], limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids[5:14 + 1],
+                                  expected_since = ts[4], expected_until = ts[14], expected_limit = 10)
+
+        return test.PASS()
+
+    def test_21_3(self):
+        """Query API implements pagination (edge cases)"""
+
+        test = Test("Query API implements pagination (edge cases)")
+        self.check_paged_trait(test)
+        description = "test_21_3"
+
+        # Some additional test cases based on Basecamp discussion
+        # See https://basecamp.com/1791706/projects/10192586/messages/70545892
+
+        timestamps, ids = self.post_sample_nodes(test, 20, description)
+
+        after = "{}:0".format(int (timestamps[-1].split(":")[0]) + 1)
+        before = "{}:0".format(int (timestamps[0].split(":")[0]) - 1)
+
+        # Check the header values when a client specifies a paging.since value after the newest resource's timestamp
+
+        self.check_paged_response(test, self.do_paged_request(description = description, since = after),
+                                  expected_ids = [],
+                                  expected_since = after, expected_until = after)
+
+        # Check the header values when a client specifies a paging.until value before the oldest resource's timestamp
+
+        self.check_paged_response(test, self.do_paged_request(description = description, until = before),
+                                  expected_ids = [],
+                                  expected_since = "0:0", expected_until = before)
+
+        # Check the header values for a query that results in only one resource, without any paging parameters
+
+        # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
+        self.check_paged_response(test, self.do_paged_request(id = ids[12]),
+                                  expected_ids = [ids[12]],
+                                  expected_since = "0:0", expected_until = timestamps[-1])
+
+        # Check the header values for a query that results in no resources, without any paging parameters
+
+        # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
+        self.check_paged_response(test, self.do_paged_request(id = str(uuid.uuid4())),
+                                  expected_ids = [],
+                                  expected_since = "0:0", expected_until = timestamps[-1])
+
+        return test.PASS()
+
+    def test_21_4(self):
+        """Query API implements pagination (requests that require empty responses)"""
+
+        test = Test("Query API implements pagination (requests that require empty responses)")
+        self.check_paged_trait(test)
+        description = "test_21_4"
+
+        timestamps, ids = self.post_sample_nodes(test, 20, description)
+
+        ts = timestamps[12]
+
+        # Check paging.since == paging.until
+
+        response = self.do_paged_request(description = description, since = ts, until = ts, limit = 10)
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts, expected_until = ts, expected_limit = 10)
+
+        # Check paging.limit == 0, paging.since specified
+
+        response = self.do_paged_request(description = description, since = ts, limit = 0)
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts, expected_until = ts, expected_limit = 0)
+
+        # Check paging.limit == 0, paging.since not specified
+
+        response = self.do_paged_request(description = description, until = ts, limit = 0)
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts, expected_until = ts, expected_limit = 0)
+
+        return test.PASS()
+
+    def test_21_5(self):
+        """Query API implements pagination (filters that select discontiguous resources)"""
+
+        test = Test("Query API implements pagination (filters that select discontiguous resources)")
+        self.check_paged_trait(test)
+        description = "test_21_5"
+
+        foo = lambda index: 3 > (index + 1) % 5
+        bar = lambda index: not foo(index)
+
+        ts, ids = self.post_sample_nodes(test, 20, description, lambda index: "foo" if foo(index) else "bar")
+
+        # Specify paging.limit in the requests with 'default paging parameters' in the following tests
+        # because we can't rely on the implementation's default being 10
+
+        # Query 1: "foo", default paging parameters
+        #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
+        #          request      (                                                                      ]
+        #          response           (       ^  ^  ^        ^   ^   ^           ^   ^   ^           ^ ]
+
+        # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
+        # expected_since check could be more forgiving, i.e. >= ts[1] and < ts[4]
+        self.check_paged_response(test, self.do_paged_request(label = "foo", limit = 10),
+                                  expected_ids = [ids[i] for i in range(len(ids)) if foo(i)][-10:],
+                                  expected_since = ts[1], expected_until = ts[19], expected_limit = 10)
+
+        # Query 2: 'prev' of Query 1
+        #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
+        #          request      (      ]
+        #          response     ( ^  ^ ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "foo", until = ts[1], limit = 10),
+                                  expected_ids = [ids[i] for i in range(len(ids)) if foo(i)][0:-10],
+                                  expected_since = "0:0", expected_until = ts[1], expected_limit = 10)
+
+        # Query 3: 'next' of Query 1
+        #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
+        #          request                                                                            (]
+        #          response                                                                           (]
+
+        self.check_paged_response(test, self.do_paged_request(label = "foo", since = ts[19], limit = 10),
+                                  expected_ids = [],
+                                  expected_since = ts[19], expected_until = ts[19], expected_limit = 10)
+
+        # Query 4: "bar", default paging parameters
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request      (                                                                      ]
+        #          response     (       ^  ^           ^  ^              ^   ^               ^   ^     ]
+
+        # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
+        self.check_paged_response(test, self.do_paged_request(label = "bar", limit = 10),
+                                  expected_ids = [ids[i] for i in range(len(ids)) if bar(i)],
+                                  expected_since = "0:0", expected_until = ts[19], expected_limit = 10)
+
+        # Query 5: "bar", limited to 3
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request      (                                                                      ]
+        #          response                                               (  ^               ^   ^     ]
+
+        # expected_until check could be more forgiving, i.e. >= ts[18] and <= 'now'
+        # expected_since check could be more forgiving, i.e. >= ts[12] and < ts[13]
+        self.check_paged_response(test, self.do_paged_request(label = "bar", limit = 3),
+                                  expected_ids = [ids[13], ids[17], ids[18]],
+                                  expected_since = ts[12], expected_until = ts[19], expected_limit = 3)
+
+        # Query 6: 'prev' of Query 5
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request      (                                          ]
+        #          response                 (          ^  ^              ^ ]
+
+        # expected_since check could be more forgiving, i.e. >= ts[3] and < ts[7]
+        self.check_paged_response(test, self.do_paged_request(label = "bar", until = ts[12], limit = 3),
+                                  expected_ids = [ids[7], ids[8], ids[12]],
+                                  expected_since = ts[3], expected_until = ts[12], expected_limit = 3)
+
+        # Query 7: like Query 5, with paging.since specified, but still enough matches
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request                     (                           ]
+        #          response                    (       ^  ^              ^ ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "bar", since = ts[4], until = ts[12], limit = 3),
+                                  expected_ids = [ids[7], ids[8], ids[12]],
+                                  expected_since = ts[4], expected_until = ts[12], expected_limit = 3)
+
+        # Query 8: like Query 5, with paging.since specified, and not enough matches
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request                                    (            ]
+        #          response                                   (          ^ ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "bar", since = ts[9], until = ts[12], limit = 3),
+                                  expected_ids = [ids[12]],
+                                  expected_since = ts[9], expected_until = ts[12], expected_limit = 3)
+
+        # Query 9: like Query 5, but no matches
+        #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
+        #          request                                    (        ]
+        #          response                                   (        ]
+
+        self.check_paged_response(test, self.do_paged_request(label = "bar", since = ts[9], until = ts[11], limit = 3),
+                                  expected_ids = [],
+                                  expected_since = ts[9], expected_until = ts[11], expected_limit = 3)
+
+        return test.PASS()
+
+    def test_21_6(self):
+        """Query API implements pagination (bad requests)"""
+
+        test = Test("Query API implements pagination (bad requests)")
+        self.check_paged_trait(test)
+        description = "test_21_6"
+
+        before = self.is04_query_utils.get_TAI_time()
+        after = self.is04_query_utils.get_TAI_time(1)
+
+        # Specifying since after until is a bad request
+        valid, response, query_parameters = self.do_paged_request(since = after, until = before)
+
+        query_string = "?" + "&".join(query_parameters) if len(query_parameters) !=0 else ""
+
+        if not valid:
+            raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
+                                              "for query: {}".format(query_string)))
+
+        if response.status_code == 501:
+            raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
+                                                  "Query APIs should support pagination for scalability."
+                                                  .format(query_string),
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+
+        # 200 OK *without* any paging headers also indicates not implemented (paging parameters ignored)
+        PAGING_HEADERS = ["Link", "X-Paging-Limit", "X-Paging-Since", "X-Paging-Until"]
+
+        absent_paging_headers = [_ for _ in PAGING_HEADERS if _ not in response.headers]
+        if response.status_code == 200 and len(absent_paging_headers) == len(PAGING_HEADERS):
+            raise NMOSTestException(test.OPTIONAL("Query API response did not include any pagination headers. "
+                                                  "Query APIs should support pagination for scalability.",
+                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+
+        # 200 OK *with* any paging headers indicates the Query API failed to identify the bad request
+        # which is an error like any code other than the expected 400 Bad Request
+        if response.status_code != 400:
+            raise NMOSTestException(test.FAIL("Query API responded with wrong HTTP code, "
+                                              "for query: {}".format(query_string)))
+
+        return test.PASS()
+
+    def test_21_7(self):
+        """Query API implements pagination (updates between paged requests)"""
+
+        test = Test("Query API implements pagination (updates between paged requests)")
+        self.check_paged_trait(test)
+        description = "test_21_7"
+
+        count = 3
+        ts, ids = self.post_sample_nodes(test, count, description)
+
+        # initial paged request
+
+        response = self.do_paged_request(description = description, limit = count)
+        self.check_paged_response(test, response,
+                                  expected_ids = ids,
+                                  expected_since = "0:0", expected_until = ts[-1], expected_limit = count)
+
+        resources = response[1].json()
+        resources.reverse()
+
+        # 'next' page should be empty
+
+        response = self.do_paged_request(description = description, limit = count, since = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = ts[-1], expected_until = None, expected_limit = count)
+
+        # 'current' page should be same as initial response
+
+        response = self.do_paged_request(description = description, limit = count, until = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = ids,
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count) 
+
+        # after an update, the 'next' page should now contain only the updated resource
+
+        self.post_resource(test, "node", resources[1], 200)
+
+        response = self.do_paged_request(description = description, limit = count, since = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [ids[1]],
+                                  expected_since = ts[-1], expected_until = None, expected_limit = count)
+
+        # and what was the 'current' page should now contain only the unchanged resources
+
+        response = self.do_paged_request(description = description, limit = count, until = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [ids[0], ids[2]],
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count) 
+
+        # after the other resources are also updated, what was the 'current' page should now be empty
+
+        self.post_resource(test, "node", resources[2], 200)
+        self.post_resource(test, "node", resources[0], 200)
+
+        response = self.do_paged_request(description = description, limit = count, until = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [],
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count)   
+
+        # and what was the 'next' page should now contain all the resources in the update order
+
+        response = self.do_paged_request(description = description, limit = count, since = ts[-1])
+        self.check_paged_response(test, response,
+                                  expected_ids = [ids[1], ids[2], ids[0]],
+                                  expected_since = ts[-1], expected_until = None, expected_limit = count) 
+
+        return test.PASS()
+
+    def test_21_8(self):
+        """Query API implements pagination (correct encoding of URLs in Link header)"""
+
+        test = Test("Query API implements pagination (correct encoding of URLs in Link header)")
+        self.check_paged_trait(test)
+        description = "test_21_8"
+
+        # check '&' is returned encoded
+        response = self.do_paged_request(label = "foo%26bar")
+        self.check_paged_response(test, response,
+                                  expected_ids = None,
+                                  expected_since = None, expected_until = None) 
+        
+        return test.PASS()
+
+    # TODO
+    def _test_21_x(self):
+        """Query API implements pagination (paging.order=create)"""
+
+        test = Test("Query API implements pagination (paging.order=create)")
+        self.check_paged_trait(test)
+        description = "test_21_x"
+
+        return test.MANUAL()
 
     def test_22(self):
         """Query API implements downgrade queries"""
@@ -566,6 +1065,9 @@ class IS0402Test(GenericTest):
         elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
             return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important for"
                                  " scalability.", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+        elif r.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -597,6 +1099,13 @@ class IS0402Test(GenericTest):
             return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
                                  "scalability.",
                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        elif r.status_code == 400:
+            return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
+                                 "{}".format(query_string),
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        elif r.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -627,6 +1136,13 @@ class IS0402Test(GenericTest):
         elif r.status_code == 501:
             return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+        elif r.status_code == 400:
+            return test.OPTIONAL("Query API signalled that it refused to support this ancestry query: "
+                                 "{}".format(query_string),
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+        elif r.status_code != 200:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
         elif len(r.json()) > 0:
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
@@ -658,18 +1174,7 @@ class IS0402Test(GenericTest):
                 else:
                     resource_json["device_id"] = str(uuid.uuid4())
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": curr_resource,
-                                                                                    "data": resource_json})
-
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 200 or r.status_code == 201:
-                    return test.FAIL("Registration API returned wrong HTTP code.")
-                elif r.status_code == 400:
-                    pass
-                else:
-                    return test.FAIL(
-                        "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                self.post_resource(test, curr_resource, resource_json, 400)
 
             return test.PASS()
 
@@ -732,15 +1237,7 @@ class IS0402Test(GenericTest):
                     resource_json = self.downgrade_resource(resource, resource_json,
                                                             self.apis[REG_API_KEY]["version"])
 
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
-                                                                                    "data": resource_json})
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected")
-                elif r.status_code == 200 or r.status_code == 201:
-                    pass
-                else:
-                    return test.FAIL(
-                        "Registration API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                self.post_resource(test, resource, resource_json)
 
             # Remove Node
             valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}"
@@ -807,15 +1304,7 @@ class IS0402Test(GenericTest):
                 node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
 
             # Post Node
-            valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": "node", "data": node_json})
-
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 200 or r.status_code == 201:
-                pass
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+            self.post_resource(test, "node", node_json)
 
             # Post heartbeat
             valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
@@ -897,13 +1386,7 @@ class IS0402Test(GenericTest):
 
             # Post sample data
             for resource in resources_to_post:
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
-                                                                                    "data": test_data[resource]})
-                if not valid:
-                    return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
-                elif r.status_code != 201:
-                    return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
-                                     .format(r.status_code, r.text))
+                self.post_resource(test, resource, test_data[resource], 201)
 
             # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
 
@@ -955,14 +1438,7 @@ class IS0402Test(GenericTest):
             old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
             for resource, resource_data in test_data.items():
                 # Update resource
-                self.bump_resource_version(resource_data)
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
-                                                                                    "data": resource_data})
-                if not valid:
-                    return test.FAIL("Cannot update sample data. Cannot execute test: {}".format(r))
-                elif r.status_code != 200:
-                    return test.FAIL("Cannot update sample data. Cannot execute test: {} {}"
-                                     .format(r.status_code, r.text))
+                self.post_resource(test, resource, resource_data, 200)
 
             sleep(1)
 
@@ -1045,15 +1521,9 @@ class IS0402Test(GenericTest):
             # Verify if corresponding message received via Websocket: ADDED
             # Post sample data again
             for resource in resources_to_post:
-                # Update resource
+                # Recreate resource with updated version
                 self.bump_resource_version(test_data[resource])
-                valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource,
-                                                                                    "data": test_data[resource]})
-                if not valid:
-                    return test.FAIL("Cannot POST sample data. Cannot execute test: {}".format(r))
-                elif r.status_code != 201:
-                    return test.FAIL("Cannot POST sample data. Cannot execute test: {} {}"
-                                     .format(r.status_code, r.text))
+                self.post_resource(test, resource, test_data[resource], 201)
 
             sleep(1)
             for resource, resource_data in test_data.items():
@@ -1259,3 +1729,24 @@ class IS0402Test(GenericTest):
             v[0] += 1
             v[1] = 0
         resource["version"] = str(v[0]) + ':' + str(v[1])
+
+    def post_resource(self, test, type, data, code = None):
+        """Perform a POST request on the Registration API to create or update a resource registration"""
+
+        # As a convenience, bump the version if this is expected to be an update
+        if code == 200:
+            self.bump_resource_version(data)
+
+        valid, r = self.do_request("POST", self.reg_url + "resource",
+                                   data = {"type": type, "data": data})
+        if not valid:
+            raise NMOSTestException(test.FAIL("Registration API did not respond as expected"))
+
+        expected_codes = [200, 201] if code is None else [code]
+        wrong_codes = [_ for _ in [200, 201] if _ not in expected_codes]
+
+        if r.status_code in wrong_codes:
+            raise NMOSTestException(test.FAIL("Registration API returned wrong HTTP code"))
+        elif r.status_code not in expected_codes:
+            raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
