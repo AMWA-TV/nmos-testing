@@ -1040,6 +1040,19 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
+        # Find the API versions supported by the Reg/Query APIs
+
+        # If we're testing the lowest API version, exit with an N/A or warning indicating we can't test at this level
+
+        # Register a Node at each API version available (up to the version under test)
+
+        # Make a request to the Query API using the API version under test without a downgrade to ensure the others
+        # are not visible
+
+        # Make a request with downgrades turned on for each API version down to the minimum
+        # Raise an error if resources below the requested version are returned, or those for the relevant API versions
+        # are not returned. Otherwise pass.
+
         return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
 
     def test_23(self):
