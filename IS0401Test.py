@@ -33,10 +33,11 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registries, node):
+    def __init__(self, apis, registries, node, dns_server):
         GenericTest.__init__(self, apis)
         self.registries = registries
         self.node = node
+        self.dns_server = dns_server
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.is04_utils = IS04Utils(self.node_url)
@@ -46,11 +47,15 @@ class IS0401Test(GenericTest):
     def set_up_tests(self):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
+        if self.dns_server:
+            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"])
 
     def tear_down_tests(self):
         if self.zc:
             self.zc.close()
             self.zc = None
+        if self.dns_server:
+            self.dns_server.reset()
 
     def _registry_mdns_info(self, port, priority=0):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""

@@ -19,9 +19,8 @@ from wtforms import Form, validators, StringField, SelectField, IntegerField, Hi
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from Node import NODE, NODE_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
+from DNS import DNS
 from datetime import datetime, timedelta
-from dnslib.server import DNSServer
-from dnslib.zoneresolver import ZoneResolver
 
 import git
 import os
@@ -30,7 +29,6 @@ import copy
 import pickle
 import threading
 import sys
-import netifaces
 import platform
 
 import IS0401Test
@@ -43,6 +41,7 @@ import IS0701Test
 import IS0801Test
 
 FLASK_APPS = []
+DNS_SERVER = None
 
 core_app = Flask(__name__)
 core_app.debug = False
@@ -228,7 +227,7 @@ def index_page():
                 test_obj = None
                 if test == "IS-04-01":
                     # This test has an unusual constructor as it requires a registry instance
-                    test_obj = test_def["class"](apis, REGISTRIES, NODE)
+                    test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
                 else:
                     test_obj = test_def["class"](apis)
 
@@ -316,23 +315,12 @@ if __name__ == '__main__':
         t.start()
         port += 1
 
-    dns_server = None
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
-        print(" * Starting DNS server on {}:53".format(default_ip))
-        zone_file = open("test_data/IS0401/dns.zone").read()
-        zone_file.replace("127.0.0.1", default_ip)
-        resolver = ZoneResolver(zone_file)
-        try:
-            dns_server = DNSServer(resolver, port=53, address=default_ip)
-            dns_server.start_thread()
-        except Exception as e:
-            print(" * ERROR: Unable to bind to port 53. DNS server could not start: {}".format(e))
+        DNS_SERVER = DNS()
 
     # This call will block until interrupted
     core_app.run(host='0.0.0.0', port=5000, threaded=True)
 
     print(" * Exiting")
-    if dns_server:
-        dns_server.stop()
+    if DNS_SERVER:
+        DNS_SERVER.stop()
