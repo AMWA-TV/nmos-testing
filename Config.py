@@ -18,7 +18,7 @@
 ENABLE_DNS_SD = True
 
 # Set the DNS-SD mode to either 'multicast' or 'unicast'
-DNS_SD_MODE = 'unicast'
+DNS_SD_MODE = 'multicast'
 
 # Number of seconds to wait after a DNS-SD advert is created for a client to notice and perform an action
 DNS_SD_ADVERT_TIMEOUT = 5
