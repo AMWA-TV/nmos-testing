@@ -306,14 +306,6 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_06(self):
-        """Node correctly handles HTTP 4XX and 5XX codes from the registry,
-        re-registering or trying alternative Registration APIs as required"""
-
-        test = Test("Node correctly handles HTTP 4XX and 5XX codes from the registry, "
-                    "re-registering or trying alternative Registration APIs as required")
-        return test.MANUAL()
-
     def test_07(self):
         """Node can register a valid Device resource with the network registration service, matching its
         Node API Device resource"""
