@@ -25,7 +25,7 @@ import re
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest, NMOSTestException, test_depends
+from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT
 from TestHelper import WebsocketWorker, load_resolved_schema
@@ -46,6 +46,8 @@ class IS0402Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
+        if self.apis[REG_API_KEY]["version"] != self.apis[QUERY_API_KEY]["version"]:
+            raise NMOSInitException("The Registration and Query API versions under test must be identical")
         self.zc = None
         self.zc_listener = None
         self.is04_reg_utils = IS04Utils(self.reg_url)

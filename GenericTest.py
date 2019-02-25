@@ -33,8 +33,17 @@ def test_depends(func):
             return func(self)
     return invalid
 
+
 class NMOSTestException(Exception):
+    """ Provides a way to exit a single test, by providing the TestResult return statement as the first exception
+        parameter"""
     pass
+
+
+class NMOSInitException(Exception):
+    """ The test set was run in an invalid mode. Causes all tests to abort"""
+    pass
+
 
 class GenericTest(object):
     """
