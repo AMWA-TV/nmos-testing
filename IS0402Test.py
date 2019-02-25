@@ -1107,7 +1107,7 @@ class IS0402Test(GenericTest):
                 elif r.status_code == 404 and api_version == self.apis[QUERY_API_KEY]["version"]:
                     return test.FAIL("Query API failed to expose a {} resource at {}"
                                      .format(api_version, self.apis[QUERY_API_KEY]["version"]))
-                elif r.status_code != 200 and r.status_code != 404 and r.status_code != 409:
+                elif r.status_code not in [200, 404, 409]:
                     return test.FAIL("Query API returned an unexpected response code: {}".format(r.status_code))
 
         # Make a request with downgrades turned on for each API version down to the minimum
