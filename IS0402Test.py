@@ -1080,11 +1080,13 @@ class IS0402Test(GenericTest):
 
         # Register a Node at each API version available (up to the version under test)
         node_ids = {}
+        test_id = str(uuid.uuid4())
         for api_version in query_versions:
             # Note: We iterate over the Query API versions, not the Reg API as it's the Query API that's under test
             test_data = deepcopy(self.test_data["node"])
             test_data = self.downgrade_resource("node", test_data, api_version)
             test_data["id"] = str(uuid.uuid4())
+            test_data["description"] = test_id
             node_ids[api_version] = test_data["id"]
             valid, r = self.do_request("POST", "{}/{}/resource"
                                                .format(self.reg_url.rstrip(self.apis[REG_API_KEY]["version"] + "/"),
@@ -1105,7 +1107,7 @@ class IS0402Test(GenericTest):
                 elif r.status_code == 404 and api_version == self.apis[QUERY_API_KEY]["version"]:
                     return test.FAIL("Query API failed to expose a {} resource at {}"
                                      .format(api_version, self.apis[QUERY_API_KEY]["version"]))
-                elif r.status_code != 200 and r.status_code != 404:
+                elif r.status_code != 200 and r.status_code != 404 and r.status_code != 409:
                     return test.FAIL("Query API returned an unexpected response code: {}".format(r.status_code))
 
         # Make a request with downgrades turned on for each API version down to the minimum
@@ -1113,15 +1115,37 @@ class IS0402Test(GenericTest):
         # are not returned. Otherwise pass.
         for api_version in query_versions:
             valid, r = self.do_request("GET", self.query_url + "nodes/{}?query.downgrade={}".format(node_ids[api_version],
-                                                                                                  api_version))
+                                                                                                    api_version))
             if not valid:
                 return test.FAIL("Query API failed to respond to request")
             elif r.status_code != 200:
                 return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
                                  .format(api_version))
 
-        # TODO: Use basic queries to assist with testing the plain /nodes resource without an ID on the end
-        # TODO: Test that a v1.0 Node isn't visible if you request a downgrade to v1.1 from a v1.2 API (for example)
+        # Make a request at each API version again, filtering with the test ID as the description
+        for api_version in query_versions:
+            # Find which Nodes should and shouldn't be visible
+            expected_nodes = []
+            for node_api_version, node_id in node_ids.items():
+                if self.is04_query_utils.compare_api_version(node_api_version, api_version) >= 0:
+                    expected_nodes.append(node_id)
+
+            valid, r = self.do_request("GET", self.query_url + "nodes?query.downgrade={}&description={}"
+                                                               .format(api_version, test_id))
+            if not valid:
+                return test.FAIL("Query API failed to respond to request")
+            elif r.status_code != 200:
+                return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
+                                 .format(api_version))
+            else:
+                for node in r.json():
+                    if node["id"] not in expected_nodes:
+                        return test.FAIL("Query API exposed a Node from a lower version than expected when downgrading "
+                                         "to {}".format(api_version))
+                    expected_nodes.remove(node["id"])
+                if len(expected_nodes) > 0:
+                    return test.FAIL("Query API failed to expose an expected Node when downgrading to {}"
+                                     .format(api_version))
 
         return test.PASS()
 
