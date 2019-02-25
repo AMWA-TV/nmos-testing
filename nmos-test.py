@@ -17,6 +17,7 @@
 from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
+from GenericTest import NMOSInitException
 from Node import NODE, NODE_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
 from DNS import DNS
@@ -225,21 +226,25 @@ def index_page():
 
                 # Instantiate the test class
                 test_obj = None
-                if test == "IS-04-01":
-                    # This test has an unusual constructor as it requires a registry instance
-                    test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-                else:
-                    test_obj = test_def["class"](apis)
-
-                core_app.config['TEST_ACTIVE'] = True
                 try:
-                    result = test_obj.run_tests(test_selection)
-                except Exception as ex:
-                    print(" * ERROR: {}".format(ex))
-                    raise ex
-                finally:
-                    core_app.config['TEST_ACTIVE'] = False
-                return render_template("result.html", url=base_url, test=test_def["name"], result=result)
+                    if test == "IS-04-01":
+                        # This test has an unusual constructor as it requires a registry instance
+                        test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
+                    else:
+                        test_obj = test_def["class"](apis)
+                except NMOSInitException as e:
+                    flash("Error: " + str(e))
+
+                if test_obj:
+                    core_app.config['TEST_ACTIVE'] = True
+                    try:
+                        result = test_obj.run_tests(test_selection)
+                    except Exception as ex:
+                        print(" * ERROR: {}".format(ex))
+                        raise ex
+                    finally:
+                        core_app.config['TEST_ACTIVE'] = False
+                    return render_template("result.html", url=base_url, test=test_def["name"], result=result)
             else:
                 flash("Error: This test definition does not exist")
         else:
