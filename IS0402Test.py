@@ -971,7 +971,7 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description = description, limit = count, until = ts[-1])
         self.check_paged_response(test, response,
                                   expected_ids = ids,
-                                  expected_since = None, expected_until = ts[-1], expected_limit = count) 
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count)
 
         # after an update, the 'next' page should now contain only the updated resource
 
@@ -987,7 +987,7 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description = description, limit = count, until = ts[-1])
         self.check_paged_response(test, response,
                                   expected_ids = [ids[0], ids[2]],
-                                  expected_since = None, expected_until = ts[-1], expected_limit = count) 
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count)
 
         # after the other resources are also updated, what was the 'current' page should now be empty
 
@@ -997,14 +997,14 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description = description, limit = count, until = ts[-1])
         self.check_paged_response(test, response,
                                   expected_ids = [],
-                                  expected_since = None, expected_until = ts[-1], expected_limit = count)   
+                                  expected_since = None, expected_until = ts[-1], expected_limit = count)
 
         # and what was the 'next' page should now contain all the resources in the update order
 
         response = self.do_paged_request(description = description, limit = count, since = ts[-1])
         self.check_paged_response(test, response,
                                   expected_ids = [ids[1], ids[2], ids[0]],
-                                  expected_since = ts[-1], expected_until = None, expected_limit = count) 
+                                  expected_since = ts[-1], expected_until = None, expected_limit = count)
 
         return test.PASS()
 
@@ -1019,8 +1019,8 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(label = "foo%26bar")
         self.check_paged_response(test, response,
                                   expected_ids = None,
-                                  expected_since = None, expected_until = None) 
-        
+                                  expected_since = None, expected_until = None)
+
         return test.PASS()
 
     # TODO
@@ -1041,7 +1041,118 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
-        return test.MANUAL("", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
+        # Find the API versions supported by the Reg API
+        valid, r = self.do_request("GET", self.reg_url.rstrip(self.apis[REG_API_KEY]["version"] + "/"))
+        if not valid:
+            return test.FAIL("Registration API failed to respond to request")
+        else:
+            reg_versions = [version.rstrip("/") for version in r.json()]
+
+        # Sort the list and remove API versions higher than the one under test
+        reg_versions = self.is04_reg_utils.sort_versions(reg_versions)
+        for api_version in list(reg_versions):
+            if self.is04_reg_utils.compare_api_version(api_version, self.apis[REG_API_KEY]["version"]) > 0:
+                reg_versions.remove(api_version)
+
+        # Find the API versions supported by the Query API
+        valid, r = self.do_request("GET", self.query_url.rstrip(self.apis[QUERY_API_KEY]["version"] + "/"))
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            query_versions = [version.rstrip("/") for version in r.json()]
+
+        # Sort the list and remove API versions higher than the one under test
+        query_versions = self.is04_query_utils.sort_versions(query_versions)
+        for api_version in list(query_versions):
+            if self.is04_query_utils.compare_api_version(api_version, self.apis[QUERY_API_KEY]["version"]) > 0:
+                query_versions.remove(api_version)
+
+        # If we're testing the lowest API version, exit with an N/A or warning indicating we can't test at this level
+        if query_versions[0] == self.apis[QUERY_API_KEY]["version"]:
+            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of"
+                           "a Query API")
+
+        # Exit if the Registration API doesn't support the required versions
+        for api_version in query_versions:
+            if api_version not in reg_versions:
+                return test.MANUAL("This test cannot run automatically as the Registration API does not support all"
+                                   "of the API versions that the Query API does",
+                                   "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
+
+        # Register a Node at each API version available (up to the version under test)
+        node_ids = {}
+        test_id = str(uuid.uuid4())
+        for api_version in query_versions:
+            # Note: We iterate over the Query API versions, not the Reg API as it's the Query API that's under test
+            test_data = deepcopy(self.test_data["node"])
+            test_data = self.downgrade_resource("node", test_data, api_version)
+            test_data["id"] = str(uuid.uuid4())
+            test_data["description"] = test_id
+            node_ids[api_version] = test_data["id"]
+            valid, r = self.do_request("POST", "{}/{}/resource"
+                                               .format(self.reg_url.rstrip(self.apis[REG_API_KEY]["version"] + "/"),
+                                                       api_version),
+                                       data={"type": "node", "data": test_data})
+            if not valid or r.status_code != 201:
+                return test.FAIL("Bad status code: {}".format(r.status_code))
+
+        # Make a request to the Query API for each Node POSTed to ensure it's visible (or not) at the version under test
+        for api_version in query_versions:
+            valid, r = self.do_request("GET", self.query_url + "nodes/{}".format(node_ids[api_version]))
+            if not valid:
+                return test.FAIL("Query API failed to respond to request")
+            else:
+                if r.status_code == 200 and api_version != self.apis[QUERY_API_KEY]["version"]:
+                    return test.FAIL("Query API incorrectly exposed a {} resource at {}"
+                                     .format(api_version, self.apis[QUERY_API_KEY]["version"]))
+                elif r.status_code == 404 and api_version == self.apis[QUERY_API_KEY]["version"]:
+                    return test.FAIL("Query API failed to expose a {} resource at {}"
+                                     .format(api_version, self.apis[QUERY_API_KEY]["version"]))
+                elif r.status_code not in [200, 404, 409]:
+                    return test.FAIL("Query API returned an unexpected response code: {}".format(r.status_code))
+
+        # Make a request with downgrades turned on for each API version down to the minimum
+        # Raise an error if resources below the requested version are returned, or those for the relevant API versions
+        # are not returned. Otherwise pass.
+        for api_version in query_versions:
+            valid, r = self.do_request("GET", self.query_url + "nodes/{}?query.downgrade={}".format(node_ids[api_version],
+                                                                                                    api_version))
+            if not valid:
+                return test.FAIL("Query API failed to respond to request")
+            elif self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and r.status_code == 501:
+                return test.OPTIONAL("Query API signalled that it does not support downgrade queries. This may be "
+                                     "important for multi-version support.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
+            elif r.status_code != 200:
+                return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
+                                 .format(api_version))
+
+        # Make a request at each API version again, filtering with the test ID as the description
+        for api_version in query_versions:
+            # Find which Nodes should and shouldn't be visible
+            expected_nodes = []
+            for node_api_version, node_id in node_ids.items():
+                if self.is04_query_utils.compare_api_version(node_api_version, api_version) >= 0:
+                    expected_nodes.append(node_id)
+
+            valid, r = self.do_request("GET", self.query_url + "nodes?query.downgrade={}&description={}"
+                                                               .format(api_version, test_id))
+            if not valid:
+                return test.FAIL("Query API failed to respond to request")
+            elif r.status_code != 200:
+                return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
+                                 .format(api_version))
+            else:
+                for node in r.json():
+                    if node["id"] not in expected_nodes:
+                        return test.FAIL("Query API exposed a Node from a lower version than expected when downgrading "
+                                         "to {}".format(api_version))
+                    expected_nodes.remove(node["id"])
+                if len(expected_nodes) > 0:
+                    return test.FAIL("Query API failed to expose an expected Node when downgrading to {}"
+                                     .format(api_version))
+
+        return test.PASS()
 
     def test_23(self):
         """Query API implements basic query parameters"""

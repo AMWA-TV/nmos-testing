@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import time
+import functools
 from urllib.parse import urlparse
 from random import sample
 
@@ -146,3 +147,6 @@ class NMOSUtils(object):
             return sample(resource_list, min(MAX_TEST_ITERATIONS, len(resource_list)))
         else:
             return resource_list
+
+    def sort_versions(self, versions_list):
+        return sorted(versions_list, key=functools.cmp_to_key(self.compare_api_version))
