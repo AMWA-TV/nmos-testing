@@ -18,7 +18,8 @@ from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
+from DNS import DNS
 from datetime import datetime, timedelta
 
 import git
@@ -27,6 +28,8 @@ import json
 import copy
 import pickle
 import threading
+import sys
+import platform
 
 import IS0401Test
 import IS0402Test
@@ -38,6 +41,7 @@ import IS0701Test
 import IS0801Test
 
 FLASK_APPS = []
+DNS_SERVER = None
 
 core_app = Flask(__name__)
 core_app.debug = False
@@ -223,7 +227,7 @@ def index_page():
                 test_obj = None
                 if test == "IS-04-01":
                     # This test has an unusual constructor as it requires a registry instance
-                    test_obj = test_def["class"](apis, REGISTRIES, NODE)
+                    test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
                 else:
                     test_obj = test_def["class"](apis)
 
@@ -247,6 +251,18 @@ def index_page():
 
 
 if __name__ == '__main__':
+    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+        is_admin = False
+        if platform.system() == "Windows":
+            from ctypes import windll
+            if windll.shell32.IsUserAnAdmin():
+                is_admin = True
+        elif os.geteuid() == 0:
+            is_admin = True
+        if not is_admin:
+            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
+            sys.exit(1)
+
     print(" * Initialising specification repositories...")
 
     if not os.path.exists(CACHE_PATH):
@@ -299,4 +315,12 @@ if __name__ == '__main__':
         t.start()
         port += 1
 
+    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+        DNS_SERVER = DNS()
+
+    # This call will block until interrupted
     core_app.run(host='0.0.0.0', port=5000, threaded=True)
+
+    print(" * Exiting")
+    if DNS_SERVER:
+        DNS_SERVER.stop()

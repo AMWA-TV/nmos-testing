@@ -47,6 +47,7 @@ class IS0402Test(GenericTest):
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
         self.zc = None
+        self.zc_listener = None
         self.is04_reg_utils = IS04Utils(self.reg_url)
         self.is04_query_utils = IS04Utils(self.query_url)
         self.test_data = self.load_resource_data()
