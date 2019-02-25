@@ -1118,6 +1118,10 @@ class IS0402Test(GenericTest):
                                                                                                     api_version))
             if not valid:
                 return test.FAIL("Query API failed to respond to request")
+            elif self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and r.status_code == 501:
+                return test.OPTIONAL("Query API signalled that it does not support downgrade queries. This may be "
+                                     "important for multi-version support.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
             elif r.status_code != 200:
                 return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
                                  .format(api_version))
