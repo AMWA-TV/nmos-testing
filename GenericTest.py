@@ -52,7 +52,6 @@ class GenericTest(object):
     """
     def __init__(self, apis, omit_paths=None):
         self.apis = apis
-        self.file_prefix = "file:///" if os.name == "nt" else "file:"
         self.saved_entities = {}
         self.auto_test_count = 0
         self.test_individual = False

@@ -21,6 +21,7 @@ import requests
 import websocket
 import os
 import jsonref
+from pathlib import Path
 
 from Config import HTTP_TIMEOUT
 
@@ -73,24 +74,23 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None):
     assert bool(file_name) != bool(schema_obj)
 
     base_path = os.path.abspath(os.path.join(spec_path, "APIs/schemas/"))
-
     if not base_path.endswith("/"):
         base_path = base_path + "/"
     if os.name == "nt":
-        base_path = "file:///" + base_path.replace('\\', '/')
+        base_uri_path = "file:///" + base_path.replace('\\', '/')
     else:
-        base_path = "file://" + base_path
+        base_uri_path = "file://" + base_path
 
     loader = jsonref.JsonLoader(cache_results=False)
 
     if file_name:
-        json_file = os.path.join(base_path, file_name)
+        json_file = str(Path(base_path) / file_name)
         with open(json_file, "r") as f:
-            schema = jsonref.load(f, base_uri=base_path, loader=loader, jsonschema=True)
+            schema = jsonref.load(f, base_uri=base_uri_path, loader=loader, jsonschema=True)
     elif schema_obj:
         # Work around an exception when there's nothing to resolve using an object
         if "$ref" in schema_obj:
-            schema = jsonref.JsonRef.replace_refs(schema_obj, base_uri=base_path, loader=loader, jsonschema=True)
+            schema = jsonref.JsonRef.replace_refs(schema_obj, base_uri=base_uri_path, loader=loader, jsonschema=True)
         else:
             schema = schema_obj
 
