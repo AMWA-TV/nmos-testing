@@ -31,6 +31,8 @@ import pickle
 import threading
 import sys
 import platform
+import argparse
+import time
 
 import IS0401Test
 import IS0402Test
@@ -199,54 +201,23 @@ def index_page():
     if request.method == "POST" and not core_app.config['TEST_ACTIVE']:
         if form.validate():
             test = request.form["test"]
-            if test in TEST_DEFINITIONS:
-                test_def = TEST_DEFINITIONS[test]
-                apis = {}
-                spec_count = 0
-                for spec in test_def["specs"]:
-                    ip = request.form["endpoints-{}-ip".format(spec_count)]
-                    port = request.form["endpoints-{}-port".format(spec_count)]
-                    version = request.form["endpoints-{}-version".format(spec_count)]
-                    base_url = "http://{}:{}".format(ip, str(port))
+            try:
+                if test in TEST_DEFINITIONS:
+                    test_def = TEST_DEFINITIONS[test]
+                    endpoints = []
+                    for index, spec in enumerate(test_def["specs"]):
+                        ip = request.form["endpoints-{}-ip".format(index)]
+                        port = request.form["endpoints-{}-port".format(index)]
+                        version = request.form["endpoints-{}-version".format(index)]
+                        endpoints.append({"ip": ip, "port": port, "version": version})
 
-                    spec_key = spec["spec_key"]
-                    api_key = spec["api_key"]
-                    apis[api_key] = {
-                        "raml": SPECIFICATIONS[spec_key]["apis"][api_key]["raml"],
-                        "base_url": base_url,
-                        "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, version),
-                        "spec_path": CACHE_PATH + '/' + spec_key,
-                        "version": version,
-                        "spec": None  # Used inside GenericTest
-                    }
-
-                    spec_count += 1
-
-                test_selection = request.form["test_selection"]
-
-                # Instantiate the test class
-                test_obj = None
-                try:
-                    if test == "IS-04-01":
-                        # This test has an unusual constructor as it requires a registry instance
-                        test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-                    else:
-                        test_obj = test_def["class"](apis)
-                except NMOSInitException as e:
-                    flash("Error: " + str(e))
-
-                if test_obj:
-                    core_app.config['TEST_ACTIVE'] = True
-                    try:
-                        result = test_obj.run_tests(test_selection)
-                    except Exception as ex:
-                        print(" * ERROR: {}".format(ex))
-                        raise ex
-                    finally:
-                        core_app.config['TEST_ACTIVE'] = False
-                    return render_template("result.html", url=base_url, test=test_def["name"], result=result)
-            else:
-                flash("Error: This test definition does not exist")
+                    test_selection = request.form["test_selection"]
+                    results = run_test(test, endpoints, test_selection)
+                    return render_template("result.html", url=results["base_url"], test=results["name"], result=results["result"])
+                else:
+                    raise flash("Error: This test definition does not exist")
+            except Exception as e:
+                flash("Error: {}".format(e))
         else:
             flash("Error: {}".format(form.errors))
     elif request.method == "POST":
@@ -255,19 +226,44 @@ def index_page():
     return render_template("index.html", form=form)
 
 
-if __name__ == '__main__':
-    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
-        is_admin = False
-        if platform.system() == "Windows":
-            from ctypes import windll
-            if windll.shell32.IsUserAnAdmin():
-                is_admin = True
-        elif os.geteuid() == 0:
-            is_admin = True
-        if not is_admin:
-            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
-            sys.exit(1)
+def run_test(test, endpoints, test_selection="all"):
+    if test in TEST_DEFINITIONS:
+        test_def = TEST_DEFINITIONS[test]
+        apis = {}
+        for index, spec in enumerate(test_def["specs"]):
+            base_url = "http://{}:{}".format(endpoints[index]["ip"], str(endpoints[index]["port"]))
+            spec_key = spec["spec_key"]
+            api_key = spec["api_key"]
+            apis[api_key] = {
+                "raml": SPECIFICATIONS[spec_key]["apis"][api_key]["raml"],
+                "base_url": base_url,
+                "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
+                "spec_path": CACHE_PATH + '/' + spec_key,
+                "version": endpoints[index]["version"],
+                "spec": None  # Used inside GenericTest
+            }
 
+        # Instantiate the test class
+        if test == "IS-04-01":
+            # This test has an unusual constructor as it requires a registry instance
+            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
+        else:
+            test_obj = test_def["class"](apis)
+
+        core_app.config['TEST_ACTIVE'] = True
+        try:
+            result = test_obj.run_tests(test_selection)
+        except Exception as ex:
+            print(" * ERROR: {}".format(ex))
+            raise ex
+        finally:
+            core_app.config['TEST_ACTIVE'] = False
+        return {"result": result, "name": test_def["name"], "base_url": base_url}
+    else:
+        raise NMOSInitException("This test definition does not exist")
+
+
+def init_spec_cache():
     print(" * Initialising specification repositories...")
 
     if not os.path.exists(CACHE_PATH):
@@ -313,6 +309,27 @@ if __name__ == '__main__':
 
     print(" * Initialisation complete")
 
+
+if __name__ == '__main__':
+    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+        is_admin = False
+        if platform.system() == "Windows":
+            from ctypes import windll
+            if windll.shell32.IsUserAnAdmin():
+                is_admin = True
+        elif os.geteuid() == 0:
+            is_admin = True
+        if not is_admin:
+            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
+            sys.exit(1)
+
+    parser = argparse.ArgumentParser(description='NMOS Test Suite')
+    parser.add_argument('--noninteractive', action='store_true', help="run the test suite directly from the command line")
+
+    args = parser.parse_args()
+
+    init_spec_cache()
+
     port = 5001
     for app in FLASK_APPS:
         t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
@@ -324,8 +341,23 @@ if __name__ == '__main__':
         DNS_SERVER = DNS()
 
     # This call will block until interrupted
-    core_app.run(host='0.0.0.0', port=5000, threaded=True)
+    t = threading.Thread(target=core_app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'threaded': True})
+    t.daemon = True
+    t.start()
+
+    exit_code = 0  # Worst result. PASS=0, WARN=1, FAIL=2 etc. -1 = other general suite error
+    if not args.noninteractive:
+        try:
+            while True:
+                time.sleep(0.2)
+        except KeyboardInterrupt:
+            pass
+    else:
+        print("Running tests")
+        exit_code = 1
+        print("Done")
 
     print(" * Exiting")
     if DNS_SERVER:
         DNS_SERVER.stop()
+    sys.exit(exit_code)
