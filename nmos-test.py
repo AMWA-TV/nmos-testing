@@ -40,6 +40,7 @@ import IS0502Test
 import IS0601Test
 import IS0701Test
 import IS0801Test
+import BCP00302Test
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -129,6 +130,14 @@ TEST_DEFINITIONS = {
             "api_key": "channelmapping"
         }],
         "class": IS0801Test.IS0801Test
+    },
+    "BCP-003-02": {
+        "name": "BCP-003-02 Authorization API",
+        "specs": [{
+            "spec_key": 'bcp-003',
+            "api_key": "oauth"
+        }],
+        "class": BCP00302Test.BCP00302Test
     }
 }
 

@@ -107,5 +107,16 @@ SPECIFICATIONS = {
                 "raml": "ChannelMappingAPI.raml"
             }
         }
+    },
+    "bcp-003": {
+        "repo": "nmos-api-security",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "oauth": {
+                "name": "Authorization API",
+                "raml": "AuthorizationAPI.raml"
+            }
+        }
     }
 }
