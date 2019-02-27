@@ -35,10 +35,52 @@ function updateDropdown() {
     }
 }
 
+function loadSettings() {
+    try {
+        if (typeof(localStorage) !== "undefined") {
+            if (localStorage.getItem("test") !== null) {
+                document.getElementById("test").value = localStorage.getItem("test");
+                updateDropdown();
+                document.getElementById("test_selection").value = localStorage.getItem("test_selection");
+                var maxOptions = document.getElementById('hidden_options').value;
+                for (var apiNum=0; apiNum<maxOptions; apiNum++) {
+                    document.getElementById("endpoints-" + apiNum.toString() + "-ip").value = localStorage.getItem("endpoints-" + apiNum.toString() + "-ip");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-port").value = localStorage.getItem("endpoints-" + apiNum.toString() + "-port");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-version").value = localStorage.getItem("endpoints-" + apiNum.toString() + "-version");
+                }
+                return;
+            }
+        }
+    }
+    catch (e) {
+        console.log("Error using localStorage.");
+    }
+    updateDropdown();
+}
+
+function saveSettings() {
+    try {
+        if (typeof(localStorage) !== "undefined") {
+            if (localStorage.getItem("test") !== null) {
+                localStorage.setItem("test", document.getElementById("test").value);
+                localStorage.setItem("test_selection", document.getElementById("test_selection").value);
+                var maxOptions = document.getElementById('hidden_options').value;
+                for (var apiNum=0; apiNum<maxOptions; apiNum++) {
+                    localStorage.setItem("endpoints-" + apiNum.toString() + "-ip", document.getElementById("endpoints-" + apiNum.toString() + "-ip",).value);
+                    localStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
+                    localStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
+                }
+            }
+        }
+    }
+    catch (e) {
+        console.log("Error using localStorage.");
+    }
+};
+
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("test").onchange = function() {
         updateDropdown();
     }
-
-    updateDropdown();
+    loadSettings();
 });
