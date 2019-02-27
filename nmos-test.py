@@ -22,6 +22,7 @@ from Node import NODE, NODE_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
 from DNS import DNS
 from datetime import datetime, timedelta
+from junit_xml import TestSuite, TestCase
 
 import git
 import os
@@ -136,7 +137,7 @@ TEST_DEFINITIONS = {
 
 
 def enumerate_tests(class_def):
-    tests = []
+    tests = ["all", "auto"]
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
             method = getattr(class_def, method_name)
@@ -187,7 +188,7 @@ class DataForm(Form):
     for test_id in TEST_DEFINITIONS:
         test_data[test_id] = copy.deepcopy(TEST_DEFINITIONS[test_id])
         test_data[test_id].pop("class")
-        test_data[test_id]["tests"] = ["all", "auto"] + enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
+        test_data[test_id]["tests"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
@@ -324,9 +325,35 @@ if __name__ == '__main__':
             sys.exit(1)
 
     parser = argparse.ArgumentParser(description='NMOS Test Suite')
-    parser.add_argument('--noninteractive', action='store_true', help="run the test suite directly from the command line")
+    parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
+    parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
+    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
+    parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
+    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
+    parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
 
     args = parser.parse_args()
+
+    if args.suite:
+        if args.suite not in TEST_DEFINITIONS:
+            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
+            sys.exit(-1)
+        if args.list:
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
+            for test_name in tests:
+                print(test_name)
+            sys.exit(0)
+        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+            print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
+                  .format(args.selection, args.suite))
+            sys.exit(-1)
+        if len(args.ip) != len(args.port) != len(args.version):
+            print(" * ERROR: IPs, ports and versions must contain the same number of elements")
+            sys.exit(-1)
+        if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
+            print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
+                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
+            sys.exit(-1)
 
     init_spec_cache()
 
@@ -346,16 +373,39 @@ if __name__ == '__main__':
     t.start()
 
     exit_code = 0  # Worst result. PASS=0, WARN=1, FAIL=2 etc. -1 = other general suite error
-    if not args.noninteractive:
+    if not args.suite:
         try:
             while True:
                 time.sleep(0.2)
         except KeyboardInterrupt:
             pass
     else:
-        print("Running tests")
-        exit_code = 1
-        print("Done")
+        endpoints = []
+        for i in range(len(args.ip)):
+            endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
+        results = run_test(args.suite, endpoints, args.selection)
+        test_cases = []
+        for test_result in results["result"]:
+            test_case = TestCase(test_result[0], elapsed_sec=float(test_result[7].rstrip("s")), timestamp=test_result[6])
+            if test_result[1] in ["Manual", "Not Applicable", "Not Implemented"]:
+                test_case.add_skipped_info(test_result[4])
+            elif test_result[1] in ["Fail"]:
+                test_case.add_failure_info(test_result[4], failure_type=test_result[1])
+                exit_code = max(exit_code, 2)
+            elif test_result[1] in ["Warning"]:
+                test_case.add_error_info(test_result[4], error_type=test_result[1])
+                exit_code = max(exit_code, 1)
+            elif test_result[1] in ["Test Disabled", "Could Not Test"]:
+                test_case.is_enabled = False
+            elif test_result[1] != "Pass":
+                test_case.add_error_info(test_result[4], error_type=test_result[1])
+            test_cases.append(test_case)
+
+        ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
+        file_name = "results.xml"
+        with open(file_name, "w") as f:
+            TestSuite.to_file(f, [ts], prettyprint=False)
+            print(" * Test results written to file: {}".format(file_name))
 
     print(" * Exiting")
     if DNS_SERVER:

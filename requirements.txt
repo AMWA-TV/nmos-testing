@@ -10,3 +10,4 @@ websocket-client
 jsonref
 dnslib
 jinja2
+junit-xml
