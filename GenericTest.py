@@ -27,8 +27,8 @@ def test_depends(func):
     """ Decorator to prevent a test being executed in individual mode"""
     def invalid(self):
         if self.test_individual:
-            test = Test("Invalid")
-            return test.FAIL("This test cannot be performed individually")
+            test = Test("Invalid", func.__name__)
+            return test.DISABLED("This test cannot be performed individually")
         else:
             return func(self)
     return invalid
@@ -128,7 +128,7 @@ class GenericTest(object):
     def uncaught_exception(self, test_name, exception):
         """Print a traceback and provide a test FAIL result for uncaught exceptions"""
         traceback.print_exc()
-        test = Test("Error executing {}".format(test_name))
+        test = Test("Error executing {}".format(test_name), test_name)
         return test.FAIL("Uncaught exception. Please report the traceback from the terminal to "
                          "https://github.com/amwa-tv/nmos-testing/issues. {}".format(exception))
 
