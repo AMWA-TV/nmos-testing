@@ -35,10 +35,50 @@ function updateDropdown() {
     }
 }
 
+function loadSettings() {
+    try {
+        if (typeof(sessionStorage) !== "undefined") {
+            if (sessionStorage.getItem("test") !== null) {
+                document.getElementById("test").value = sessionStorage.getItem("test");
+                updateDropdown();
+                document.getElementById("test_selection").value = sessionStorage.getItem("test_selection");
+                var maxOptions = document.getElementById('hidden_options').value;
+                for (var apiNum=0; apiNum<maxOptions; apiNum++) {
+                    document.getElementById("endpoints-" + apiNum.toString() + "-ip").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-ip");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-port").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-port");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-version").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-version");
+                }
+                return;
+            }
+        }
+    }
+    catch (e) {
+        console.log("Error using sessionStorage.");
+    }
+    updateDropdown();
+}
+
+function saveSettings() {
+    try {
+        if (typeof(sessionStorage) !== "undefined") {
+            sessionStorage.setItem("test", document.getElementById("test").value);
+            sessionStorage.setItem("test_selection", document.getElementById("test_selection").value);
+            var maxOptions = document.getElementById('hidden_options').value;
+            for (var apiNum=0; apiNum<maxOptions; apiNum++) {
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-ip", document.getElementById("endpoints-" + apiNum.toString() + "-ip",).value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
+            }
+        }
+    }
+    catch (e) {
+        console.log("Error using sessionStorage.");
+    }
+};
+
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("test").onchange = function() {
         updateDropdown();
     }
-
-    updateDropdown();
+    loadSettings();
 });
