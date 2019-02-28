@@ -27,14 +27,23 @@ def test_depends(func):
     """ Decorator to prevent a test being executed in individual mode"""
     def invalid(self):
         if self.test_individual:
-            test = Test("Invalid")
-            return test.FAIL("This test cannot be performed individually")
+            test = Test("Invalid", func.__name__)
+            return test.DISABLED("This test cannot be performed individually")
         else:
             return func(self)
     return invalid
 
+
 class NMOSTestException(Exception):
+    """ Provides a way to exit a single test, by providing the TestResult return statement as the first exception
+        parameter"""
     pass
+
+
+class NMOSInitException(Exception):
+    """ The test set was run in an invalid mode. Causes all tests to abort"""
+    pass
+
 
 class GenericTest(object):
     """
@@ -43,7 +52,6 @@ class GenericTest(object):
     """
     def __init__(self, apis, omit_paths=None):
         self.apis = apis
-        self.file_prefix = "file:///" if os.name == "nt" else "file:"
         self.saved_entities = {}
         self.auto_test_count = 0
         self.test_individual = False
@@ -120,7 +128,7 @@ class GenericTest(object):
     def uncaught_exception(self, test_name, exception):
         """Print a traceback and provide a test FAIL result for uncaught exceptions"""
         traceback.print_exc()
-        test = Test("Error executing {}".format(test_name))
+        test = Test("Error executing {}".format(test_name), test_name)
         return test.FAIL("Uncaught exception. Please report the traceback from the terminal to "
                          "https://github.com/amwa-tv/nmos-testing/issues. {}".format(exception))
 
@@ -210,16 +218,13 @@ class GenericTest(object):
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned")
 
-    def check_response(self, api_name, schema, method, response):
+    def check_response(self, schema, method, response):
         """Confirm that a given Requests response conforms to the expected schema and has any expected headers"""
         if not self.validate_CORS(method, response):
             return False, "Incorrect CORS headers: {}".format(response.headers)
 
         try:
-            resolver = jsonschema.RefResolver(self.file_prefix + os.path.abspath(self.apis[api_name]["spec_path"] +
-                                                                                 '/APIs/schemas/') + os.sep,
-                                              schema)
-            jsonschema.validate(response.json(), schema, resolver=resolver)
+            jsonschema.validate(response.json(), schema)
         except jsonschema.ValidationError:
             return False, "Response schema validation error"
         except json.decoder.JSONDecodeError:
@@ -310,7 +315,7 @@ class GenericTest(object):
         if not schema:
             return test.MANUAL("Test suite unable to locate schema")
 
-        valid, message = self.check_response(api, schema, resource[1]["method"], response)
+        valid, message = self.check_response(schema, resource[1]["method"], response)
 
         if valid:
             return test.PASS()
@@ -343,12 +348,6 @@ class GenericTest(object):
                 self.saved_entities[path] = subresources
             else:
                 self.saved_entities[path] += subresources
-
-    def load_schema(self, api_name, path):
-        """Used to load in schemas"""
-        real_path = os.path.join(self.apis[api_name]["spec_path"] + '/APIs/schemas/', path)
-        f = open(real_path, "r")
-        return json.loads(f.read())
 
     def get_schema(self, api_name, method, path, status_code):
         return self.apis[api_name]["spec"].get_schema(method, path, status_code)

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import time
+import functools
 from urllib.parse import urlparse
 from random import sample
 
@@ -71,7 +72,7 @@ class NMOSUtils(object):
         return secs + leap_sec + is_leap, nanos
 
     def get_TAI_time(self, offset=0.0):
-        """Get the current TAI time as a colon seperated string"""
+        """Get the current TAI time as a colon-separated string"""
         myTime = time.time() + offset
         secs = int(myTime)
         nanos = int((myTime - secs) * 1e9)
@@ -146,3 +147,6 @@ class NMOSUtils(object):
             return sample(resource_list, min(MAX_TEST_ITERATIONS, len(resource_list)))
         else:
             return resource_list
+
+    def sort_versions(self, versions_list):
+        return sorted(versions_list, key=functools.cmp_to_key(self.compare_api_version))

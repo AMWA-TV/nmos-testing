@@ -22,9 +22,9 @@ import json
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from TestResult import Test
-from GenericTest import GenericTest
+from GenericTest import GenericTest, NMOSTestException
 from IS04Utils import IS04Utils
-from Config import ENABLE_MDNS, QUERY_API_HOST, QUERY_API_PORT, MDNS_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
+from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
 
 NODE_API_KEY = "node"
 
@@ -33,32 +33,43 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registries, node):
+    def __init__(self, apis, registries, node, dns_server):
         GenericTest.__init__(self, apis)
         self.registries = registries
         self.node = node
+        self.dns_server = dns_server
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.is04_utils = IS04Utils(self.node_url)
+        self.zc = None
+        self.zc_listener = None
 
     def set_up_tests(self):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
+        if self.dns_server:
+            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"])
 
     def tear_down_tests(self):
         if self.zc:
             self.zc.close()
             self.zc = None
+        if self.dns_server:
+            self.dns_server.reset()
 
     def _registry_mdns_info(self, port, priority=0):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
-
         # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': str(priority)}
-        info = ServiceInfo("_nmos-registration._tcp.local.",
-                           "NMOS Test Suite {}._nmos-registration._tcp.local.".format(port),
+
+        service_type = "_nmos-registration._tcp.local."
+        if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
+            service_type = "_nmos-register._tcp.local."
+
+        info = ServiceInfo(service_type,
+                           "NMOSTestSuite{}.{}".format(port, service_type),
                            socket.inet_aton(default_ip), port, 0, 0,
                            txt, "nmos-test.local.")
         return info
@@ -66,15 +77,16 @@ class IS0401Test(GenericTest):
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
 
-        if self.registry_basics_done or not ENABLE_MDNS:
+        if self.registry_basics_done or not ENABLE_DNS_SD:
             return
 
-        registry_mdns = []
-        priority = 0
-        for registry in self.registries:
-            info = self._registry_mdns_info(registry.get_port(), priority)
-            registry_mdns.append(info)
-            priority += 10
+        if DNS_SD_MODE == "multicast":
+            registry_mdns = []
+            priority = 0
+            for registry in self.registries:
+                info = self._registry_mdns_info(registry.get_port(), priority)
+                registry_mdns.append(info)
+                priority += 10
 
         # Reset all registries to clear previous heartbeats, etc.
         for registry in self.registries:
@@ -83,11 +95,12 @@ class IS0401Test(GenericTest):
         registry = self.registries[0]
         self.registries[0].enable()
 
-        # Advertise a registry at pri 0 and allow the Node to do a basic registration
-        self.zc.register_service(registry_mdns[0])
+        if DNS_SD_MODE == "multicast":
+            # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            self.zc.register_service(registry_mdns[0])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
-        time.sleep(MDNS_ADVERT_TIMEOUT)
+        time.sleep(DNS_SD_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
         while (time.time() - self.registries[0].last_time) < HEARTBEAT_INTERVAL + 1:
@@ -102,7 +115,8 @@ class IS0401Test(GenericTest):
             # Once registered, advertise all other registries at different (ascending) priorities
             for index, registry in enumerate(self.registries[1:]):
                 registry.enable()
-                self.zc.register_service(registry_mdns[index + 1])
+                if DNS_SD_MODE == "multicast":
+                    self.zc.register_service(registry_mdns[index + 1])
 
             # Kill registries one by one to collect data around failover
             for index, registry in enumerate(self.registries):
@@ -124,18 +138,20 @@ class IS0401Test(GenericTest):
 
         # Clean up mDNS advertisements and disable registries
         for index, registry in enumerate(self.registries):
-            self.zc.unregister_service(registry_mdns[index])
+            if DNS_SD_MODE == "multicast":
+                self.zc.unregister_service(registry_mdns[index])
             registry.disable()
 
         self.registry_basics_done = True
 
     def test_01(self):
-        """Node can discover network registration service via mDNS"""
+        """Node can discover network registration service via multicast DNS"""
 
-        test = Test("Node can discover network registration service via mDNS")
+        test = Test("Node can discover network registration service via multicast DNS")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'multicast'")
 
         self.do_registry_basics_prereqs()
 
@@ -148,17 +164,27 @@ class IS0401Test(GenericTest):
     def test_02(self):
         """Node can discover network registration service via unicast DNS"""
 
-        # TODO: Provide an option for the user to set up their own unicast DNS server?
         test = Test("Node can discover network registration service via unicast DNS")
-        return test.MANUAL()
+
+        if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'unicast'")
+
+        self.do_registry_basics_prereqs()
+
+        registry = self.registries[0]
+        if len(registry.get_data()) > 0:
+            return test.PASS()
+
+        return test.FAIL("Node did not attempt to register with the advertised registry.")
 
     def test_03(self):
         """Registration API interactions use the correct Content-Type"""
 
         test = Test("Registration API interactions use the correct Content-Type")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
@@ -190,7 +216,7 @@ class IS0401Test(GenericTest):
 
     def get_registry_resource(self, res_type, res_id):
         found_resource = None
-        if ENABLE_MDNS:
+        if ENABLE_DNS_SD:
             # Look up data in local mock registry
             registry = self.registries[0]
             for resource in registry.get_data():
@@ -264,8 +290,8 @@ class IS0401Test(GenericTest):
 
         test = Test("Node maintains itself in the registry via periodic calls to the health resource")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
@@ -300,14 +326,6 @@ class IS0401Test(GenericTest):
             last_hb = heartbeat
 
         return test.PASS()
-
-    def test_06(self):
-        """Node correctly handles HTTP 4XX and 5XX codes from the registry,
-        re-registering or trying alternative Registration APIs as required"""
-
-        test = Test("Node correctly handles HTTP 4XX and 5XX codes from the registry, "
-                    "re-registering or trying alternative Registration APIs as required")
-        return test.MANUAL()
 
     def test_07(self):
         """Node can register a valid Device resource with the network registration service, matching its
@@ -375,7 +393,7 @@ class IS0401Test(GenericTest):
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            if address in self.node_url and ":{}".format(port) in self.node_url:
+            if "/{}:{}/".format(address, port) in self.node_url:
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
                     if "ver_" in prop:
@@ -429,9 +447,7 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
                 request_data = self.node.get_sender(stream_type)
-                result, error = self.do_receiver_put(receiver["id"], request_data)
-                if not result:
-                    return test.FAIL(error)
+                self.do_receiver_put(test, receiver["id"], request_data)
 
                 # TODO: Define the sleep time globally for all connection tests
                 time.sleep(1)
@@ -474,9 +490,7 @@ class IS0401Test(GenericTest):
         try:
             if len(receivers.json()) > 0:
                 receiver = receivers.json()[0]
-                result, error = self.do_receiver_put(receiver["id"], {})
-                if not result:
-                    return test.FAIL(error)
+                self.do_receiver_put(test, receiver["id"], {})
 
                 # TODO: Define the sleep time globally for all connection tests
                 time.sleep(1)
@@ -507,8 +521,8 @@ class IS0401Test(GenericTest):
 
         test = Test("Node correctly selects a Registration API based on advertised priorities")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
@@ -536,8 +550,8 @@ class IS0401Test(GenericTest):
 
         test = Test("Node correctly fails over between advertised Registration APIs when one fails")
 
-        if not ENABLE_MDNS:
-            return test.DISABLED("This test cannot be performed when ENABLE_MDNS is False")
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
@@ -581,15 +595,23 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def do_receiver_put(self, receiver_id, data):
+    def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
         valid, put_response = self.do_request("PUT", self.node_url + "receivers/" + receiver_id + "/target", data)
         if not valid:
-            return False, "Unexpected response from the Node API: {}".format(put_response)
+            raise NMOSTestException(test.FAIL("Unexpected response from the Node API: {}".format(put_response)))
 
-        if put_response.status_code != 202:
-            return False, "Receiver target PATCH did not produce a 202 response code: \
-                          {}".format(put_response.status_code)
-        else:
-            return True, ""
+        if put_response.status_code == 501:
+            api = self.apis[NODE_API_KEY]
+            if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                raise NMOSTestException(test.OPTIONAL("Node indicated that basic connection management is not "
+                                                      "supported", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
+                                                      "basic-connection-management"))
+            else:
+                raise NMOSTestException(test.WARNING("501 'Not Implemented' status code is not supported below API "
+                                                     "version v1.3", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
+                                                     "basic-connection-management"))
+        elif put_response.status_code != 202:
+            raise NMOSTestException(test.FAIL("Receiver target PATCH did not produce a 202 response code: "
+                                              "{}".format(put_response.status_code)))

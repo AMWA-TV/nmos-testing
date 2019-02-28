@@ -16,13 +16,12 @@
 
 
 import uuid
-import os
-from jsonschema import ValidationError, SchemaError, RefResolver, Draft4Validator
+from jsonschema import ValidationError, SchemaError, Draft4Validator
 
-import TestHelper
 from TestResult import Test
 from GenericTest import GenericTest
 from IS05Utils import IS05Utils
+from TestHelper import compare_json, load_resolved_schema
 
 CONN_API_KEY = "connection"
 
@@ -59,7 +58,7 @@ class IS0501Test(GenericTest):
         if valid:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
                 .format(dest, result)
-            if TestHelper.compare_json(expected, result):
+            if compare_json(expected, result):
                 return test.PASS()
             else:
                 return test.FAIL(msg)
@@ -75,7 +74,7 @@ class IS0501Test(GenericTest):
         if valid:
             msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
                 .format(dest, result)
-            if TestHelper.compare_json(expected, result):
+            if compare_json(expected, result):
                 return test.PASS()
             else:
                 return test.FAIL(msg)
@@ -158,7 +157,7 @@ class IS0501Test(GenericTest):
                     expected.append("transporttype/")
                 msg = "Sender root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
                 if valid:
-                    if TestHelper.compare_json(expected, response):
+                    if compare_json(expected, response):
                         pass
                     else:
                         return test.FAIL(msg)
@@ -185,7 +184,7 @@ class IS0501Test(GenericTest):
                     expected.append("transporttype/")
                 msg = "Receiver root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
                 if valid:
-                    if TestHelper.compare_json(expected, response):
+                    if compare_json(expected, response):
                         pass
                     else:
                         return test.FAIL(msg)
@@ -675,7 +674,7 @@ class IS0501Test(GenericTest):
         if valid:
             expected = ['senders/', 'receivers/']
             msg = "Got wrong response from {}, expected an array containing {}, got {}".format(url, expected, response)
-            if TestHelper.compare_json(expected, response):
+            if compare_json(expected, response):
                 return test.PASS()
             else:
                 return test.FAIL(msg)
@@ -890,12 +889,11 @@ class IS0501Test(GenericTest):
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
             if valid:
                 try:
-                    schema = self.load_schema(CONN_API_KEY, port + "_transport_params_rtp.json")
+                    schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
+                                                  port + "_transport_params_rtp.json")
                 except FileNotFoundError:
-                    schema = self.load_schema(CONN_API_KEY, "v1.0_" + port + "_transport_params_rtp.json")
-                resolver = RefResolver(self.file_prefix + os.path.abspath(self.apis[CONN_API_KEY]["spec_path"] +
-                                                                          '/APIs/schemas/') + os.sep,
-                                       schema)
+                    schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
+                                                  "v1.0_" + port + "_transport_params_rtp.json")
                 constraints_valid, constraints_response = self.is05_utils.checkCleanRequestJSON("GET", "single/" +
                                                                                                 port + "s/" + myPort +
                                                                                                 "/constraints/")
@@ -909,7 +907,7 @@ class IS0501Test(GenericTest):
                                 return False, "Number of 'legs' in constraints does not match the number in " \
                                               "transport_params"
                             try:
-                                Draft4Validator(schema['items'], resolver=resolver).validate(params)
+                                Draft4Validator(schema['items']).validate(params)
                             except ValidationError as e:
                                 return False, "Staged endpoint does not comply with constraints in leg {}: " \
                                               "{}".format(count, str(e))
@@ -930,6 +928,6 @@ class IS0501Test(GenericTest):
         """Compares the response from an endpoint to a schema"""
         valid, response = self.is05_utils.checkCleanRequest("GET", endpoint, code=status_code)
         if valid:
-            return self.check_response(CONN_API_KEY, schema, "GET", response)
+            return self.check_response(schema, "GET", response)
         else:
             return False, "Invalid response while getting data: " + response
