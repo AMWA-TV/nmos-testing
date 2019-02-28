@@ -61,15 +61,13 @@ function loadSettings() {
 function saveSettings() {
     try {
         if (typeof(localStorage) !== "undefined") {
-            if (localStorage.getItem("test") !== null) {
-                localStorage.setItem("test", document.getElementById("test").value);
-                localStorage.setItem("test_selection", document.getElementById("test_selection").value);
-                var maxOptions = document.getElementById('hidden_options').value;
-                for (var apiNum=0; apiNum<maxOptions; apiNum++) {
-                    localStorage.setItem("endpoints-" + apiNum.toString() + "-ip", document.getElementById("endpoints-" + apiNum.toString() + "-ip",).value);
-                    localStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
-                    localStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
-                }
+            localStorage.setItem("test", document.getElementById("test").value);
+            localStorage.setItem("test_selection", document.getElementById("test_selection").value);
+            var maxOptions = document.getElementById('hidden_options').value;
+            for (var apiNum=0; apiNum<maxOptions; apiNum++) {
+                localStorage.setItem("endpoints-" + apiNum.toString() + "-ip", document.getElementById("endpoints-" + apiNum.toString() + "-ip",).value);
+                localStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
+                localStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
             }
         }
     }
