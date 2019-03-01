@@ -325,13 +325,13 @@ def write_test_results(results, args):
             test_case.is_enabled = False
         elif test_result.state in [TestStates.MANUAL, TestStates.NA, TestStates.OPTIONAL]:
             test_case.add_skipped_info(test_result.detail)
-        elif test_result.state is TestStates.FAIL:
+        elif test_result.state == TestStates.FAIL:
             test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
             exit_code = max(exit_code, ExitCodes.FAIL)
-        elif test_result.state is TestStates.WARNING:
+        elif test_result.state == TestStates.WARNING:
             test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
             exit_code = max(exit_code, ExitCodes.WARNING)
-        elif test_result.state is not TestStates.PASS:
+        elif test_result.state != TestStates.PASS:
             test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
         test_cases.append(test_case)
 
@@ -348,9 +348,9 @@ def print_test_results(results, args):
     print("----------------------------")
     total_time = 0
     for test_result in results["result"]:
-        if test_result.state is TestStates.FAIL:
+        if test_result.state == TestStates.FAIL:
             exit_code = max(exit_code, ExitCodes.FAIL)
-        elif test_result.state is TestStates.WARNING:
+        elif test_result.state == TestStates.WARNING:
             exit_code = max(exit_code, ExitCodes.WARNING)
         result_str = "{} ... {}".format(test_result.name, str(test_result.state))
         print(result_str)
