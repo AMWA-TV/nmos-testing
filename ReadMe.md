@@ -20,7 +20,11 @@ When testing any of the above APIs it is important that they contain representat
 
 ## Usage
 
-Install the dependencies with `pip3 install -r requirements.txt` and start the service with `python3 nmos-test.py`.
+Install the dependencies with `pip3 install -r requirements.txt` and start the service as follows:
+
+```shell
+python3 nmos-test.py
+```
 
 This tool provides a simple web service which is available on `http://localhost:5000`.
 Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test from the checklist. The result of the test will be shown after a few seconds.
@@ -28,6 +32,18 @@ Provide the URL of the relevant API under test (see the detailed description on 
 ### Testing Unicast discovery
 
 In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast'`. Additionally, ensure that the unit under test has its search domain set to 'testsuite.nmos.tv' and the DNS server IP to the IP address of the server which is running the test suite instance.
+
+### Non-Interative Mode
+
+The test suite supports non-interactive operation in order use it within continuous integration systems. An example of this usage can be seen below:
+
+```shell
+# List the available tests for a given test definition
+python3 nmos-test.py --suite IS-04-02 --list
+
+# Run a test set, saving the output as a JUnit XML file
+python3 nmos-test.py --suite IS-04-02 --selection auto --ip 128.66.12.5 128.66.12.6 --port 80 80 --version v1.2 v1.2 --ignore auto_5 auto_6 --output results.xml
+```
 
 ## External Dependencies
 
