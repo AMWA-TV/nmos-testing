@@ -21,6 +21,7 @@ import requests
 import websocket
 import os
 import jsonref
+from pathlib import Path
 
 from Config import HTTP_TIMEOUT
 
@@ -62,27 +63,39 @@ def do_request(method, url, data=None):
     except requests.exceptions.RequestException as e:
         return False, str(e)
 
-def load_resolved_schema(spec_path, file_name):
+
+def load_resolved_schema(spec_path, file_name=None, schema_obj=None):
     """
     Parses JSON as well as resolves any `$ref`s, including references to
     local files and remote (HTTP/S) files.
     """
-    base_path = os.path.abspath(os.path.join(spec_path, "APIs/schemas/"))
-    json_file = os.path.join(base_path, file_name)
 
+    # Only one of file_name or schema_obj must be set
+    assert bool(file_name) != bool(schema_obj)
+
+    base_path = os.path.abspath(os.path.join(spec_path, "APIs/schemas/"))
     if not base_path.endswith("/"):
         base_path = base_path + "/"
     if os.name == "nt":
-        base_path = "file:///" + base_path.replace('\\', '/')
+        base_uri_path = "file:///" + base_path.replace('\\', '/')
     else:
-        base_path = "file://" + base_path
+        base_uri_path = "file://" + base_path
 
     loader = jsonref.JsonLoader(cache_results=False)
 
-    with open(json_file, "r") as f:
-        schema = jsonref.load(f, base_uri=base_path, loader=loader, jsonschema=True)
+    if file_name:
+        json_file = str(Path(base_path) / file_name)
+        with open(json_file, "r") as f:
+            schema = jsonref.load(f, base_uri=base_uri_path, loader=loader, jsonschema=True)
+    elif schema_obj:
+        # Work around an exception when there's nothing to resolve using an object
+        if "$ref" in schema_obj:
+            schema = jsonref.JsonRef.replace_refs(schema_obj, base_uri=base_uri_path, loader=loader, jsonschema=True)
+        else:
+            schema = schema_obj
 
     return schema
+
 
 class WebsocketWorker(threading.Thread):
     """Websocket Client Worker Thread"""

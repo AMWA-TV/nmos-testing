@@ -103,7 +103,7 @@ Returns a tuple of the request status (True/False) and a Requests library Respon
 
 **Testing an API's response**
 ```python
-self.check_response(api_name, schema, method, response)
+self.check_response(schema, method, response)
 ```
 Return a tuple of the test status (True/False) and a string indicating the error in the case this is False.
 

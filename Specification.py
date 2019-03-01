@@ -17,6 +17,7 @@ import json
 import ramlfications
 
 from Patches import _parse_json
+from TestHelper import load_resolved_schema
 
 
 try:
@@ -119,12 +120,14 @@ class Specification(object):
         if resource.body is not None:
             for attr in resource.body:
                 if attr.mime_type == "schema":
-                    body_schema = self._deref_schema(os.path.dirname(file_path), schema=attr.raw)
+                    apis_path = os.path.dirname(file_path)
+                    spec_path = os.path.dirname(apis_path)
+                    body_schema = load_resolved_schema(spec_path, schema_obj=attr.raw)
                     break
         return body_schema
 
     def _extract_response_schema(self, response, file_path):
-        """Find schemas defined for a given API response and return the file path or global schema name"""
+        """Find schemas defined for a given API response and return the schema object"""
         schema_loc = None
         if not response.body:
             # Handle parsing errors in ramlfications manually, notably for schemas in RAML 1.0
@@ -139,34 +142,14 @@ class Specification(object):
                     if "type" in entry.raw:
                         schema_loc = entry.raw["type"]
 
+        apis_path = os.path.dirname(file_path)
+        spec_path = os.path.dirname(apis_path)
         if isinstance(schema_loc, dict):
-            return self._deref_schema(os.path.dirname(file_path), schema=schema_loc)
-        elif schema_loc in self.global_schemas:
-            return self._deref_schema(os.path.dirname(file_path), schema=self.global_schemas[schema_loc])
+            return load_resolved_schema(spec_path, schema_obj=schema_loc)
+        elif schema_loc in self.global_schemas and self.global_schemas[schema_loc] is not None:
+            return load_resolved_schema(spec_path, schema_obj=self.global_schemas[schema_loc])
         else:
             return None
-
-    def _deref_schema(self, dir, name=None, schema=None):
-        """Resolve $ref cases to the correct files in schema JSON"""
-        # TODO: Is the python jsonschema RefResolver capable of doing this on its own?
-        def process(obj):
-            if isinstance(obj, dict):
-                if len(obj) == 1 and "$ref" in obj:
-                    return self._deref_schema(dir, name=obj['$ref'])
-                return {k: process(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [process(x) for x in obj]
-            else:
-                return obj
-
-        local = {}
-        if name:
-            filename = "{}/{}".format(dir, name)
-            with open(filename, 'r') as fh:
-                local = process(json.load(fh))
-            return local
-        else:
-            return process(schema)
 
     def get_schema(self, method, path, response_code):
         """Get the response schema for a given method, path and response code if available"""

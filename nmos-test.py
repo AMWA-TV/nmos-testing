@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import Flask, render_template, flash, request
+from flask import Flask, render_template, flash, request, make_response
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
@@ -218,7 +218,10 @@ def index_page():
                     results = run_test(test, endpoints, test_selection)
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
-                    return render_template("result.html", url=results["base_url"], test=results["name"], result=results["result"])
+                    r = make_response(render_template("result.html", url=results["base_url"], test=results["name"],
+                                                      result=results["result"]))
+                    r.headers['Cache-Control'] = 'no-cache, no-store'
+                    return r
                 else:
                     raise flash("Error: This test definition does not exist")
             except Exception as e:
@@ -228,8 +231,9 @@ def index_page():
     elif request.method == "POST":
         flash("Error: A test is currently in progress. Please wait until it has completed or restart the testing tool.")
 
-    return render_template("index.html", form=form)
-
+    r = make_response(render_template("index.html", form=form))
+    r.headers['Cache-Control'] = 'no-cache, no-store'
+    return r
 
 def run_test(test, endpoints, test_selection="all"):
     if test in TEST_DEFINITIONS:
