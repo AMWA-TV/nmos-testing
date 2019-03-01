@@ -24,6 +24,7 @@ from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
+from enum import IntEnum
 
 import git
 import os
@@ -314,7 +315,98 @@ def init_spec_cache():
     print(" * Initialisation complete")
 
 
+def format_junit_xml(results, args):
+    exit_code = ExitCodes.OK
+    test_cases = []
+    for test_result in results["result"]:
+        test_case = TestCase(test_result.name, elapsed_sec=test_result.elapsed_time,
+                             timestamp=test_result.timestamp)
+        if test_result.state in [TestStates.DISABLED, TestStates.UNCLEAR] or test_result.name in args.ignore:
+            test_case.is_enabled = False
+        elif test_result.state in [TestStates.MANUAL, TestStates.NA, TestStates.OPTIONAL]:
+            test_case.add_skipped_info(test_result.detail)
+        elif test_result.state is TestStates.FAIL:
+            test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
+            exit_code = max(exit_code, ExitCodes.FAIL)
+        elif test_result.state is TestStates.WARNING:
+            test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
+            exit_code = max(exit_code, ExitCodes.WARNING)
+        elif test_result.state is not TestStates.PASS:
+            test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
+        test_cases.append(test_case)
+
+    return TestSuite(results["name"] + ": " + results["base_url"], test_cases), exit_code
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='NMOS Test Suite')
+    parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
+    parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
+    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
+    parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
+    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
+    parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
+    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
+    parser.add_argument('--output', default="results.xml", help="filename to save test results to")
+    return parser.parse_args()
+
+
+def validate_args(args):
+    if args.suite:
+        if args.suite not in TEST_DEFINITIONS:
+            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
+            sys.exit(ExitCodes.ERROR)
+        if args.list:
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
+            for test_name in tests:
+                print(test_name)
+            sys.exit(ExitCodes.OK)
+        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+            print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
+                  .format(args.selection, args.suite))
+            sys.exit(ExitCodes.ERROR)
+        if len(args.ip) != len(args.port) != len(args.version):
+            print(" * ERROR: IPs, ports and versions must contain the same number of elements")
+            sys.exit(ExitCodes.ERROR)
+        if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
+            print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
+                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
+            sys.exit(ExitCodes.ERROR)
+
+
+def start_web_servers():
+    port = 5001
+    for app in FLASK_APPS:
+        t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
+        t.daemon = True
+        t.start()
+        port += 1
+    t = threading.Thread(target=core_app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'threaded': True})
+    t.daemon = True
+    t.start()
+
+
+def run_noninteractive_tests(args):
+    endpoints = []
+    for i in range(len(args.ip)):
+        endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
+    results = run_test(args.suite, endpoints, args.selection)
+    ts, exit_code = format_junit_xml(results, args)
+    with open(args.output, "w") as f:
+        TestSuite.to_file(f, [ts], prettyprint=False)
+        print(" * Test results written to file: {}".format(args.output))
+    return exit_code
+
+
+class ExitCodes(IntEnum):
+    ERROR = -1  # General test suite error
+    OK = 0  # Normal exit condition, or all tests passed in non-interactive mode
+    WARNING = 1  # Worst case test was a warning in non-interactive mode
+    FAIL = 2  # Worst case test was a failure in non-interactive mode
+
+
 if __name__ == '__main__':
+    # Check if we're testing unicast DNS discovery, and if so ensure we have elevated privileges
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
         is_admin = False
         if platform.system() == "Windows":
@@ -325,94 +417,40 @@ if __name__ == '__main__':
             is_admin = True
         if not is_admin:
             print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
-            sys.exit(1)
+            sys.exit(ExitCodes.ERROR)
 
-    parser = argparse.ArgumentParser(description='NMOS Test Suite')
-    parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
-    parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
-    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
-    parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
-    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
-    parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
-    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
-    parser.add_argument('--output', default="results.xml", help="filename to save test results to")
+    # Parse and validate command line arguments
+    args = parse_arguments()
+    validate_args(args)
 
-    args = parser.parse_args()
-
-    if args.suite:
-        if args.suite not in TEST_DEFINITIONS:
-            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
-            sys.exit(-1)
-        if args.list:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
-            for test_name in tests:
-                print(test_name)
-            sys.exit(0)
-        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
-            print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
-                  .format(args.selection, args.suite))
-            sys.exit(-1)
-        if len(args.ip) != len(args.port) != len(args.version):
-            print(" * ERROR: IPs, ports and versions must contain the same number of elements")
-            sys.exit(-1)
-        if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
-            print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
-                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
-            sys.exit(-1)
-
+    # Download up to date versions of each API specification
     init_spec_cache()
 
-    port = 5001
-    for app in FLASK_APPS:
-        t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
-        t.daemon = True
-        t.start()
-        port += 1
-
+    # Start the DNS server
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
-    # This call will block until interrupted
-    t = threading.Thread(target=core_app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'threaded': True})
-    t.daemon = True
-    t.start()
+    # Start the HTTP servers
+    start_web_servers()
 
-    exit_code = 0  # Worst result. PASS=0, WARN=1, FAIL=2 etc. -1 = other general suite error
+    exit_code = 0
     if not args.suite:
+        # Interactive testing mode. Await user input.
         try:
             while True:
                 time.sleep(0.2)
         except KeyboardInterrupt:
             pass
     else:
-        endpoints = []
-        for i in range(len(args.ip)):
-            endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
-        results = run_test(args.suite, endpoints, args.selection)
-        test_cases = []
-        for test_result in results["result"]:
-            test_case = TestCase(test_result.name, elapsed_sec=test_result.elapsed_time,
-                                 timestamp=test_result.timestamp)
-            if test_result.state in [TestStates.DISABLED, TestStates.UNCLEAR] or test_result.name in args.ignore:
-                test_case.is_enabled = False
-            elif test_result.state in [TestStates.MANUAL, TestStates.NA, TestStates.OPTIONAL]:
-                test_case.add_skipped_info(test_result.detail)
-            elif test_result.state is TestStates.FAIL:
-                test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
-                exit_code = max(exit_code, 2)
-            elif test_result.state is TestStates.WARNING:
-                test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
-                exit_code = max(exit_code, 1)
-            elif test_result.state is not TestStates.PASS:
-                test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
-            test_cases.append(test_case)
+        # Non-interactive testing mode. Tests carried out automatically.
+        exit_code = run_noninteractive_tests(args)
 
-        ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
-        with open(args.output, "w") as f:
-            TestSuite.to_file(f, [ts], prettyprint=False)
-            print(" * Test results written to file: {}".format(args.output))
-
+    # Testing complete
     print(" * Exiting")
+
+    # Stop the DNS server
     if DNS_SERVER:
         DNS_SERVER.stop()
+
+    # Exit the application with the desired code
     sys.exit(exit_code)
