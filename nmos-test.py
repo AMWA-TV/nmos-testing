@@ -18,6 +18,7 @@ from flask import Flask, render_template, flash, request
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
+from TestResult import TestStates
 from Node import NODE, NODE_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
 from DNS import DNS
@@ -214,6 +215,8 @@ def index_page():
 
                     test_selection = request.form["test_selection"]
                     results = run_test(test, endpoints, test_selection)
+                    for index, result in enumerate(results["result"]):
+                        results["result"][index] = result.output()
                     return render_template("result.html", url=results["base_url"], test=results["name"], result=results["result"])
                 else:
                     raise flash("Error: This test definition does not exist")
@@ -388,19 +391,20 @@ if __name__ == '__main__':
         results = run_test(args.suite, endpoints, args.selection)
         test_cases = []
         for test_result in results["result"]:
-            test_case = TestCase(test_result[0], elapsed_sec=float(test_result[7].rstrip("s")), timestamp=test_result[6])
-            if test_result[1] in ["Test Disabled", "Could Not Test"] or test_result[0] in args.ignore:
+            test_case = TestCase(test_result.name, elapsed_sec=test_result.elapsed_time,
+                                 timestamp=test_result.timestamp)
+            if test_result.state in [TestStates.DISABLED, TestStates.UNCLEAR] or test_result.name in args.ignore:
                 test_case.is_enabled = False
-            elif test_result[1] in ["Manual", "Not Applicable", "Not Implemented"]:
-                test_case.add_skipped_info(test_result[4])
-            elif test_result[1] in ["Fail"]:
-                test_case.add_failure_info(test_result[4], failure_type=test_result[1])
+            elif test_result.state in [TestStates.MANUAL, TestStates.NA, TestStates.OPTIONAL]:
+                test_case.add_skipped_info(test_result.detail)
+            elif test_result.state is TestStates.FAIL:
+                test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
                 exit_code = max(exit_code, 2)
-            elif test_result[1] in ["Warning"]:
-                test_case.add_error_info(test_result[4], error_type=test_result[1])
+            elif test_result.state is TestStates.WARNING:
+                test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
                 exit_code = max(exit_code, 1)
-            elif test_result[1] != "Pass":
-                test_case.add_error_info(test_result[4], error_type=test_result[1])
+            elif test_result.state is not TestStates.PASS:
+                test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
             test_cases.append(test_case)
 
         ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
