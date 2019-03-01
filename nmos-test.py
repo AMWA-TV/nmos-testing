@@ -223,7 +223,7 @@ def index_page():
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
-                    raise flash("Error: This test definition does not exist")
+                    flash("Error: This test definition does not exist")
             except Exception as e:
                 flash("Error: {}".format(e))
         else:
