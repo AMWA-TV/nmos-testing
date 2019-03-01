@@ -315,7 +315,7 @@ def init_spec_cache():
     print(" * Initialisation complete")
 
 
-def format_junit_xml(results, args):
+def write_test_results(results, args):
     exit_code = ExitCodes.OK
     test_cases = []
     for test_result in results["result"]:
@@ -335,7 +335,29 @@ def format_junit_xml(results, args):
             test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
         test_cases.append(test_case)
 
-    return TestSuite(results["name"] + ": " + results["base_url"], test_cases), exit_code
+    ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
+    with open(args.output, "w") as f:
+        TestSuite.to_file(f, [ts], prettyprint=False)
+        print(" * Test results written to file: {}".format(args.output))
+    return exit_code
+
+
+def print_test_results(results, args):
+    exit_code = ExitCodes.OK
+    print("\r\nPrinting test results for suite '{}' using API '{}'".format(results["name"], results["base_url"]))
+    print("----------------------------")
+    total_time = 0
+    for test_result in results["result"]:
+        if test_result.state is TestStates.FAIL:
+            exit_code = max(exit_code, ExitCodes.FAIL)
+        elif test_result.state is TestStates.WARNING:
+            exit_code = max(exit_code, ExitCodes.WARNING)
+        result_str = "{} ... {}".format(test_result.name, str(test_result.state))
+        print(result_str)
+        total_time += test_result.elapsed_time
+    print("----------------------------")
+    print("Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n")
+    return exit_code
 
 
 def parse_arguments():
@@ -347,7 +369,7 @@ def parse_arguments():
     parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
     parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
     parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
-    parser.add_argument('--output', default="results.xml", help="filename to save test results to")
+    parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
     return parser.parse_args()
 
 
@@ -391,10 +413,10 @@ def run_noninteractive_tests(args):
     for i in range(len(args.ip)):
         endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
     results = run_test(args.suite, endpoints, args.selection)
-    ts, exit_code = format_junit_xml(results, args)
-    with open(args.output, "w") as f:
-        TestSuite.to_file(f, [ts], prettyprint=False)
-        print(" * Test results written to file: {}".format(args.output))
+    if args.output:
+        exit_code = write_test_results(results, args)
+    else:
+        exit_code = print_test_results(results, args)
     return exit_code
 
 
