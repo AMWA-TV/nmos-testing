@@ -331,6 +331,8 @@ if __name__ == '__main__':
     parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
     parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
     parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
+    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
+    parser.add_argument('--output', default="results.xml", help="filename to save test results to")
 
     args = parser.parse_args()
 
@@ -387,7 +389,9 @@ if __name__ == '__main__':
         test_cases = []
         for test_result in results["result"]:
             test_case = TestCase(test_result[0], elapsed_sec=float(test_result[7].rstrip("s")), timestamp=test_result[6])
-            if test_result[1] in ["Manual", "Not Applicable", "Not Implemented"]:
+            if test_result[1] in ["Test Disabled", "Could Not Test"] or test_result[0] in args.ignore:
+                test_case.is_enabled = False
+            elif test_result[1] in ["Manual", "Not Applicable", "Not Implemented"]:
                 test_case.add_skipped_info(test_result[4])
             elif test_result[1] in ["Fail"]:
                 test_case.add_failure_info(test_result[4], failure_type=test_result[1])
@@ -395,17 +399,14 @@ if __name__ == '__main__':
             elif test_result[1] in ["Warning"]:
                 test_case.add_error_info(test_result[4], error_type=test_result[1])
                 exit_code = max(exit_code, 1)
-            elif test_result[1] in ["Test Disabled", "Could Not Test"]:
-                test_case.is_enabled = False
             elif test_result[1] != "Pass":
                 test_case.add_error_info(test_result[4], error_type=test_result[1])
             test_cases.append(test_case)
 
         ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
-        file_name = "results.xml"
-        with open(file_name, "w") as f:
+        with open(args.output, "w") as f:
             TestSuite.to_file(f, [ts], prettyprint=False)
-            print(" * Test results written to file: {}".format(file_name))
+            print(" * Test results written to file: {}".format(args.output))
 
     print(" * Exiting")
     if DNS_SERVER:
