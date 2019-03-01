@@ -412,11 +412,15 @@ def run_noninteractive_tests(args):
     endpoints = []
     for i in range(len(args.ip)):
         endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
-    results = run_test(args.suite, endpoints, args.selection)
-    if args.output:
-        exit_code = write_test_results(results, args)
-    else:
-        exit_code = print_test_results(results, args)
+    try:
+        results = run_test(args.suite, endpoints, args.selection)
+        if args.output:
+            exit_code = write_test_results(results, args)
+        else:
+            exit_code = print_test_results(results, args)
+    except Exception as e:
+        print(" * ERROR: {}".format(str(e)))
+        exit_code = ExitCodes.ERROR
     return exit_code
 
 
