@@ -18,10 +18,13 @@ from flask import Flask, render_template, flash, request, make_response
 from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
+from TestResult import TestStates
 from Node import NODE, NODE_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
 from DNS import DNS
 from datetime import datetime, timedelta
+from junit_xml import TestSuite, TestCase
+from enum import IntEnum
 
 import git
 import os
@@ -31,6 +34,8 @@ import pickle
 import threading
 import sys
 import platform
+import argparse
+import time
 
 import IS0401Test
 import IS0402Test
@@ -134,7 +139,7 @@ TEST_DEFINITIONS = {
 
 
 def enumerate_tests(class_def):
-    tests = []
+    tests = ["all", "auto"]
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
             method = getattr(class_def, method_name)
@@ -185,7 +190,7 @@ class DataForm(Form):
     for test_id in TEST_DEFINITIONS:
         test_data[test_id] = copy.deepcopy(TEST_DEFINITIONS[test_id])
         test_data[test_id].pop("class")
-        test_data[test_id]["tests"] = ["all", "auto"] + enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
+        test_data[test_id]["tests"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
@@ -199,56 +204,28 @@ def index_page():
     if request.method == "POST" and not core_app.config['TEST_ACTIVE']:
         if form.validate():
             test = request.form["test"]
-            if test in TEST_DEFINITIONS:
-                test_def = TEST_DEFINITIONS[test]
-                apis = {}
-                spec_count = 0
-                for spec in test_def["specs"]:
-                    ip = request.form["endpoints-{}-ip".format(spec_count)]
-                    port = request.form["endpoints-{}-port".format(spec_count)]
-                    version = request.form["endpoints-{}-version".format(spec_count)]
-                    base_url = "http://{}:{}".format(ip, str(port))
+            try:
+                if test in TEST_DEFINITIONS:
+                    test_def = TEST_DEFINITIONS[test]
+                    endpoints = []
+                    for index, spec in enumerate(test_def["specs"]):
+                        ip = request.form["endpoints-{}-ip".format(index)]
+                        port = request.form["endpoints-{}-port".format(index)]
+                        version = request.form["endpoints-{}-version".format(index)]
+                        endpoints.append({"ip": ip, "port": port, "version": version})
 
-                    spec_key = spec["spec_key"]
-                    api_key = spec["api_key"]
-                    apis[api_key] = {
-                        "raml": SPECIFICATIONS[spec_key]["apis"][api_key]["raml"],
-                        "base_url": base_url,
-                        "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, version),
-                        "spec_path": CACHE_PATH + '/' + spec_key,
-                        "version": version,
-                        "spec": None  # Used inside GenericTest
-                    }
-
-                    spec_count += 1
-
-                test_selection = request.form["test_selection"]
-
-                # Instantiate the test class
-                test_obj = None
-                try:
-                    if test == "IS-04-01":
-                        # This test has an unusual constructor as it requires a registry instance
-                        test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-                    else:
-                        test_obj = test_def["class"](apis)
-                except NMOSInitException as e:
-                    flash("Error: " + str(e))
-
-                if test_obj:
-                    core_app.config['TEST_ACTIVE'] = True
-                    try:
-                        result = test_obj.run_tests(test_selection)
-                    except Exception as ex:
-                        print(" * ERROR: {}".format(ex))
-                        raise ex
-                    finally:
-                        core_app.config['TEST_ACTIVE'] = False
-                    r = make_response(render_template("result.html", url=base_url, test=test_def["name"], result=result))
+                    test_selection = request.form["test_selection"]
+                    results = run_test(test, endpoints, test_selection)
+                    for index, result in enumerate(results["result"]):
+                        results["result"][index] = result.output()
+                    r = make_response(render_template("result.html", url=results["base_url"], test=results["name"],
+                                                      result=results["result"]))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
-            else:
-                flash("Error: This test definition does not exist")
+                else:
+                    flash("Error: This test definition does not exist")
+            except Exception as e:
+                flash("Error: {}".format(e))
         else:
             flash("Error: {}".format(form.errors))
     elif request.method == "POST":
@@ -258,19 +235,44 @@ def index_page():
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
 
-if __name__ == '__main__':
-    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
-        is_admin = False
-        if platform.system() == "Windows":
-            from ctypes import windll
-            if windll.shell32.IsUserAnAdmin():
-                is_admin = True
-        elif os.geteuid() == 0:
-            is_admin = True
-        if not is_admin:
-            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
-            sys.exit(1)
+def run_test(test, endpoints, test_selection="all"):
+    if test in TEST_DEFINITIONS:
+        test_def = TEST_DEFINITIONS[test]
+        apis = {}
+        for index, spec in enumerate(test_def["specs"]):
+            base_url = "http://{}:{}".format(endpoints[index]["ip"], str(endpoints[index]["port"]))
+            spec_key = spec["spec_key"]
+            api_key = spec["api_key"]
+            apis[api_key] = {
+                "raml": SPECIFICATIONS[spec_key]["apis"][api_key]["raml"],
+                "base_url": base_url,
+                "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
+                "spec_path": CACHE_PATH + '/' + spec_key,
+                "version": endpoints[index]["version"],
+                "spec": None  # Used inside GenericTest
+            }
 
+        # Instantiate the test class
+        if test == "IS-04-01":
+            # This test has an unusual constructor as it requires a registry instance
+            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
+        else:
+            test_obj = test_def["class"](apis)
+
+        core_app.config['TEST_ACTIVE'] = True
+        try:
+            result = test_obj.run_tests(test_selection)
+        except Exception as ex:
+            print(" * ERROR: {}".format(ex))
+            raise ex
+        finally:
+            core_app.config['TEST_ACTIVE'] = False
+        return {"result": result, "name": test_def["name"], "base_url": base_url}
+    else:
+        raise NMOSInitException("This test definition does not exist")
+
+
+def init_spec_cache():
     print(" * Initialising specification repositories...")
 
     if not os.path.exists(CACHE_PATH):
@@ -316,19 +318,171 @@ if __name__ == '__main__':
 
     print(" * Initialisation complete")
 
+
+def write_test_results(results, args):
+    exit_code = ExitCodes.OK
+    test_cases = []
+    for test_result in results["result"]:
+        test_case = TestCase(test_result.name, elapsed_sec=test_result.elapsed_time,
+                             timestamp=test_result.timestamp)
+        if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
+                                                                    TestStates.UNCLEAR,
+                                                                    TestStates.MANUAL,
+                                                                    TestStates.NA,
+                                                                    TestStates.OPTIONAL]:
+            test_case.add_skipped_info(test_result.detail)
+        elif test_result.state in [TestStates.WARNING, TestStates.FAIL]:
+            test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
+            if test_result.state == TestStates.FAIL:
+                exit_code = max(exit_code, ExitCodes.FAIL)
+            elif test_result.state == TestStates.WARNING:
+                exit_code = max(exit_code, ExitCodes.WARNING)
+        elif test_result.state != TestStates.PASS:
+            test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
+        test_cases.append(test_case)
+
+    ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
+    with open(args.output, "w") as f:
+        TestSuite.to_file(f, [ts], prettyprint=False)
+        print(" * Test results written to file: {}".format(args.output))
+    return exit_code
+
+
+def print_test_results(results, args):
+    exit_code = ExitCodes.OK
+    print("\r\nPrinting test results for suite '{}' using API '{}'".format(results["name"], results["base_url"]))
+    print("----------------------------")
+    total_time = 0
+    for test_result in results["result"]:
+        if test_result.state == TestStates.FAIL:
+            exit_code = max(exit_code, ExitCodes.FAIL)
+        elif test_result.state == TestStates.WARNING:
+            exit_code = max(exit_code, ExitCodes.WARNING)
+        result_str = "{} ... {}".format(test_result.name, str(test_result.state))
+        print(result_str)
+        total_time += test_result.elapsed_time
+    print("----------------------------")
+    print("Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n")
+    return exit_code
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='NMOS Test Suite')
+    parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
+    parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
+    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
+    parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
+    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
+    parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
+    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
+    parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
+    return parser.parse_args()
+
+
+def validate_args(args):
+    if args.suite:
+        if args.suite not in TEST_DEFINITIONS:
+            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
+            sys.exit(ExitCodes.ERROR)
+        if args.list:
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
+            for test_name in tests:
+                print(test_name)
+            sys.exit(ExitCodes.OK)
+        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+            print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
+                  .format(args.selection, args.suite))
+            sys.exit(ExitCodes.ERROR)
+        if len(args.ip) != len(args.port) or len(args.ip) != len(args.version):
+            print(" * ERROR: IPs, ports and versions must contain the same number of elements")
+            sys.exit(ExitCodes.ERROR)
+        if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
+            print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
+                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
+            sys.exit(ExitCodes.ERROR)
+
+
+def start_web_servers():
     port = 5001
     for app in FLASK_APPS:
         t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
         t.daemon = True
         t.start()
         port += 1
+    t = threading.Thread(target=core_app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'threaded': True})
+    t.daemon = True
+    t.start()
 
+
+def run_noninteractive_tests(args):
+    endpoints = []
+    for i in range(len(args.ip)):
+        endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
+    try:
+        results = run_test(args.suite, endpoints, args.selection)
+        if args.output:
+            exit_code = write_test_results(results, args)
+        else:
+            exit_code = print_test_results(results, args)
+    except Exception as e:
+        print(" * ERROR: {}".format(str(e)))
+        exit_code = ExitCodes.ERROR
+    return exit_code
+
+
+class ExitCodes(IntEnum):
+    ERROR = -1  # General test suite error
+    OK = 0  # Normal exit condition, or all tests passed in non-interactive mode
+    WARNING = 1  # Worst case test was a warning in non-interactive mode
+    FAIL = 2  # Worst case test was a failure in non-interactive mode
+
+
+if __name__ == '__main__':
+    # Check if we're testing unicast DNS discovery, and if so ensure we have elevated privileges
+    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+        is_admin = False
+        if platform.system() == "Windows":
+            from ctypes import windll
+            if windll.shell32.IsUserAnAdmin():
+                is_admin = True
+        elif os.geteuid() == 0:
+            is_admin = True
+        if not is_admin:
+            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
+            sys.exit(ExitCodes.ERROR)
+
+    # Parse and validate command line arguments
+    args = parse_arguments()
+    validate_args(args)
+
+    # Download up to date versions of each API specification
+    init_spec_cache()
+
+    # Start the DNS server
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
-    # This call will block until interrupted
-    core_app.run(host='0.0.0.0', port=5000, threaded=True)
+    # Start the HTTP servers
+    start_web_servers()
 
+    exit_code = 0
+    if not args.suite:
+        # Interactive testing mode. Await user input.
+        try:
+            while True:
+                time.sleep(0.2)
+        except KeyboardInterrupt:
+            pass
+    else:
+        # Non-interactive testing mode. Tests carried out automatically.
+        exit_code = run_noninteractive_tests(args)
+
+    # Testing complete
     print(" * Exiting")
+
+    # Stop the DNS server
     if DNS_SERVER:
         DNS_SERVER.stop()
+
+    # Exit the application with the desired code
+    sys.exit(exit_code)
