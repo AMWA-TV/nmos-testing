@@ -16,7 +16,7 @@
 
 
 import uuid
-from jsonschema import ValidationError, SchemaError, Draft4Validator, draft4_format_checker
+from jsonschema import ValidationError, SchemaError
 
 from TestResult import Test
 from GenericTest import GenericTest
@@ -835,7 +835,7 @@ class IS0501Test(GenericTest):
 
         schema = self.get_schema(CONN_API_KEY, "POST", "/bulk/" + port + "s", 200)
         try:
-            Draft4Validator(schema, format_checker=draft4_format_checker).validate(r.json())
+            self.validate_schema(r.json(), schema)
         except ValidationError as e:
             return False, "Response to post at {} did not validate against schema: {}".format(url, str(e))
         except:
@@ -874,7 +874,7 @@ class IS0501Test(GenericTest):
             if valid:
                 schema = self.get_schema(CONN_API_KEY, "PATCH", "/single/" + port + "s/{" + port + "Id}/staged", 200)
                 try:
-                    Draft4Validator(schema, format_checker=draft4_format_checker).validate(response)
+                    self.validate_schema(response, schema)
                 except ValidationError as e:
                     return False, "Response to empty patch to {} does not comply with schema: {}".format(url, str(e))
             else:
@@ -908,7 +908,7 @@ class IS0501Test(GenericTest):
                                               "transport_params"
                             schema["items"]["$schema"] = "http://json-schema.org/draft-04/schema#"
                             try:
-                                Draft4Validator(schema["items"], format_checker=draft4_format_checker).validate(params)
+                                self.validate_schema(params, schema["items"])
                             except ValidationError as e:
                                 return False, "Staged endpoint does not comply with constraints in leg {}: " \
                                               "{}".format(count, str(e))

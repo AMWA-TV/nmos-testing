@@ -19,7 +19,7 @@ import socket
 import uuid
 import json
 from copy import deepcopy
-from jsonschema import ValidationError, Draft4Validator, draft4_format_checker
+from jsonschema import ValidationError
 import re
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
@@ -1523,7 +1523,7 @@ class IS0402Test(GenericTest):
                 # Validate received data against schema
                 for message in received_messages:
                     try:
-                        Draft4Validator(schema, format_checker=draft4_format_checker).validate(json.loads(message))
+                        self.validate_schema(json.loads(message), schema)
                     except ValidationError as e:
                         return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
@@ -1562,7 +1562,7 @@ class IS0402Test(GenericTest):
                 # Validate received data against schema
                 for message in received_messages:
                     try:
-                        Draft4Validator(schema, format_checker=draft4_format_checker).validate(json.loads(message))
+                        self.validate_schema(json.loads(message), schema)
                     except ValidationError as e:
                         return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
@@ -1608,7 +1608,7 @@ class IS0402Test(GenericTest):
                 # Validate received data against schema
                 for message in received_messages:
                     try:
-                        Draft4Validator(schema, format_checker=draft4_format_checker).validate(json.loads(message))
+                        self.validate_schema(json.loads(message), schema)
                     except ValidationError as e:
                         return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
@@ -1646,7 +1646,7 @@ class IS0402Test(GenericTest):
                 # Validate received data against schema
                 for message in received_messages:
                     try:
-                        Draft4Validator(schema, format_checker=draft4_format_checker).validate(json.loads(message))
+                        self.validate_schema(json.loads(message), schema)
                     except ValidationError as e:
                         return test.FAIL("Received event message is invalid: {}".format(str(e)))
 

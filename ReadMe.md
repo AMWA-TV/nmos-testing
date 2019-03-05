@@ -97,6 +97,12 @@ self.get_schema(api_name, method, path, status_code)
 ```
 Returns a JSON schema, or None if it is unavailable.
 
+**Validating a JSON schema**
+```python
+self.validate_schema(payload, schema)
+```
+Raises an exception upon validation failure.
+
 ## Testing a New Specification
 
 When adding tests for a completely new API, the first set of basic tests have already been written for you. Provided a specification is available in the standard NMOS layout (using RAML 1.0), the test suite can automatically download and interpret it. Simply create a new test file which looks like the following:
