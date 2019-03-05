@@ -224,13 +224,16 @@ class GenericTest(object):
             return False, "Incorrect CORS headers: {}".format(response.headers)
 
         try:
-            jsonschema.validate(response.json(), schema, format_checker=jsonschema.draft4_format_checker)
+            self.validate_schema(response.json(), schema)
         except jsonschema.ValidationError:
             return False, "Response schema validation error"
         except json.decoder.JSONDecodeError:
             return False, "Invalid JSON received"
 
         return True, ""
+
+    def validate_schema(self, payload, schema):
+        return jsonschema.validate(payload, schema, format_checker=jsonschema.draft4_format_checker)
 
     def do_request(self, method, url, data=None):
         return TestHelper.do_request(method, url, data)
