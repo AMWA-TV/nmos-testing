@@ -1441,42 +1441,28 @@ class IS0402Test(GenericTest):
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
 
             # Check for clean state // delete resources if needed
-            valid, r = self.do_request("GET", "{}nodes/{}".format(self.query_url, self.test_data["node"]["id"]))
-            if not valid:
-                return test.FAIL("Query API returned an unexpected response: {}".format(r))
-            else:
-                if r.status_code == 200:
-                    # Delete resource
-                    valid_delete, r_delete = self.do_request("DELETE", "{}resource/nodes/{}"
+            resource_types = ["node", "device", "source", "flow", "sender", "receiver"]
+            for curr_resource in resource_types:
+                valid, r = self.do_request("GET", "{}{}s/{}".format(self.query_url,
+                                                                    curr_resource,
+                                                                    self.test_data[curr_resource]["id"]))
+                if not valid:
+                    return test.FAIL("Query API returned an unexpected response: {}".format(r))
+                elif r.status_code == 200:
+                    valid_delete, r_delete = self.do_request("DELETE", "{}resource/{}s/{}"
                                                              .format(self.reg_url,
-                                                                     self.test_data["node"]["id"]))
+                                                                     curr_resource,
+                                                                     self.test_data[curr_resource]["id"]))
                     if not valid_delete:
                         return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
-                    else:
-                        if r_delete.status_code != 204:
-                            return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
-                                             .format(r_delete.status_code, r_delete.text))
-                        else:
-                            # Verify all other resources are not available
-                            remaining_resources = ["device", "flow", "source", "sender", "receiver"]
-                            for curr_resource in remaining_resources:
-                                v, r_resource_deleted = self.do_request("GET", "{}{}s/{}"
-                                                                        .format(self.query_url,
-                                                                                curr_resource,
-                                                                                self.test_data[curr_resource]["id"]))
-                                if not v:
-                                    return test.FAIL("Query API returned an unexpected response: {}. Cannot execute "
-                                                     "test.".format(r_resource_deleted))
-                                elif r_resource_deleted.status_code != 404:
-                                    return test.FAIL("Query API returned an unexpected response: {} {}. Cannot execute "
-                                                     "test.".format(r_resource_deleted.status_code,
-                                                                    r_resource_deleted.text))
+                    elif r_delete.status_code != 204:
+                        return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
+                                         .format(r_delete.status_code, r_delete.text))
                 elif r.status_code == 404:
                     pass
                 else:
-                    return test.FAIL(
-                        "Query API returned an unexpected response: {} {}. Cannot execute test.".format(r.status_code,
-                                                                                                        r.text))
+                    return test.FAIL("Query API returned an unexpected response: {} {}. Cannot execute test."
+                                     .format(r.status_code, r.text))
 
             # Request websocket subscription / ws_href on resource topic
             test_data = deepcopy(self.test_data)
