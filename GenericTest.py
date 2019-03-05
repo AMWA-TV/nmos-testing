@@ -224,7 +224,7 @@ class GenericTest(object):
             return False, "Incorrect CORS headers: {}".format(response.headers)
 
         try:
-            jsonschema.validate(response.json(), schema)
+            jsonschema.validate(response.json(), schema, format_checker=jsonschema.draft4_format_checker)
         except jsonschema.ValidationError:
             return False, "Response schema validation error"
         except json.decoder.JSONDecodeError:
