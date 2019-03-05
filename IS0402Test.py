@@ -1372,7 +1372,7 @@ class IS0402Test(GenericTest):
                         return test.FAIL("Query API returned not 404 on a resource which should have been "
                                          "removed because parent resource was deleted")
                 else:
-                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                    return test.FAIL("Query API did not respond as expected")
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
