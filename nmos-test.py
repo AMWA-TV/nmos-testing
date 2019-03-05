@@ -325,16 +325,18 @@ def write_test_results(results, args):
     for test_result in results["result"]:
         test_case = TestCase(test_result.name, elapsed_sec=test_result.elapsed_time,
                              timestamp=test_result.timestamp)
-        if test_result.state in [TestStates.DISABLED, TestStates.UNCLEAR] or test_result.name in args.ignore:
-            test_case.is_enabled = False
-        elif test_result.state in [TestStates.MANUAL, TestStates.NA, TestStates.OPTIONAL]:
+        if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
+                                                                    TestStates.UNCLEAR,
+                                                                    TestStates.MANUAL,
+                                                                    TestStates.NA,
+                                                                    TestStates.OPTIONAL]:
             test_case.add_skipped_info(test_result.detail)
-        elif test_result.state == TestStates.FAIL:
+        elif test_result.state in [TestStates.WARNING, TestStates.FAIL]:
             test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
-            exit_code = max(exit_code, ExitCodes.FAIL)
-        elif test_result.state == TestStates.WARNING:
-            test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
-            exit_code = max(exit_code, ExitCodes.WARNING)
+            if test_result.state == TestStates.FAIL:
+                exit_code = max(exit_code, ExitCodes.FAIL)
+            elif test_result.state == TestStates.WARNING:
+                exit_code = max(exit_code, ExitCodes.WARNING)
         elif test_result.state != TestStates.PASS:
             test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
         test_cases.append(test_case)
@@ -391,7 +393,7 @@ def validate_args(args):
             print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
                   .format(args.selection, args.suite))
             sys.exit(ExitCodes.ERROR)
-        if len(args.ip) != len(args.port) != len(args.version):
+        if len(args.ip) != len(args.port) or len(args.ip) != len(args.version):
             print(" * ERROR: IPs, ports and versions must contain the same number of elements")
             sys.exit(ExitCodes.ERROR)
         if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
