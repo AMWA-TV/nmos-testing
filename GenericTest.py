@@ -233,7 +233,7 @@ class GenericTest(object):
         return True, ""
 
     def validate_schema(self, payload, schema):
-        checker = jsonschema.FormatChecker(["ipv4", "ipv6"])
+        checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
         return jsonschema.validate(payload, schema, format_checker=checker)
 
     def do_request(self, method, url, data=None):
