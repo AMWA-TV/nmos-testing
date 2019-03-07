@@ -595,6 +595,54 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
+    def test_18(self):
+        """All Node clocks are unique, and relate to any visible Sources' clocks"""
+
+        test = Test("All Node clocks are unique, and relate to any visible Sources' clocks")
+
+        api = self.apis[NODE_API_KEY]
+        if self.is04_utils.compare_api_version(api["version"], "v1.1") < 0:
+            return test.NA("Clocks are not available until IS-04 v1.1")
+
+        clocks = set()
+        valid, response = self.do_request("GET", self.node_url + "self")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            for clock in response.json()["clocks"]:
+                clock_name = clock["name"]
+                if clock_name in clocks:
+                    return test.FAIL("Duplicate clock name '{}' found in Node API self resource".format(clock_name))
+                clocks.add(clock_name)
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
+
+    def test_19(self):
+        """All Node interfaces are unique, and relate to any visible Senders and Receivers' interface_bindings"""
+
+        test = Test("All Node interfaces are unique, and relate to any visible Senders and Receivers' interface_bindings")
+
+        api = self.apis[NODE_API_KEY]
+        if self.is04_utils.compare_api_version(api["version"], "v1.2") < 0:
+            return test.NA("Interfaces are not available until IS-04 v1.2")
+
+        interfaces = set()
+        valid, response = self.do_request("GET", self.node_url + "self")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            for interface in response.json()["interfaces"]:
+                interface_name = interface["name"]
+                if interface_name in interfaces:
+                    return test.FAIL("Duplicate clock name '{}' found in Node API self resource".format(interface_name))
+                interfaces.add(interface_name)
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
