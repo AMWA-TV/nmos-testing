@@ -647,7 +647,8 @@ class IS0401Test(GenericTest):
             for interface in response.json()["interfaces"]:
                 interface_name = interface["name"]
                 if interface_name in interfaces:
-                    return test.FAIL("Duplicate clock name '{}' found in Node API self resource".format(interface_name))
+                    return test.FAIL("Duplicate interface name '{}' found in Node API self resource"
+                                     .format(interface_name))
                 interfaces.add(interface_name)
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
