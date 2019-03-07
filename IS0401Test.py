@@ -617,6 +617,17 @@ class IS0401Test(GenericTest):
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
+        valid, response = self.do_request("GET", self.node_url + "sources")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            for source in response.json():
+                clock_name = source["clock_name"]
+                if clock_name not in clocks and clock_name is not None:
+                    return test.FAIL("Source '{}' uses a non-existent clock name '{}'".format(source["id"], clock_name))
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
         return test.PASS()
 
     def test_19(self):
@@ -638,6 +649,32 @@ class IS0401Test(GenericTest):
                 if interface_name in interfaces:
                     return test.FAIL("Duplicate clock name '{}' found in Node API self resource".format(interface_name))
                 interfaces.add(interface_name)
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        valid, response = self.do_request("GET", self.node_url + "senders")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            for sender in response.json():
+                interface_bindings = sender["interface_bindings"]
+                for interface_name in interface_bindings:
+                    if interface_name not in interfaces:
+                        return test.FAIL("Sender '{}' uses a non-existent interface name '{}'"
+                                         .format(sender["id"], interface_name))
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        valid, response = self.do_request("GET", self.node_url + "receivers")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            for receiver in response.json():
+                interface_bindings = receiver["interface_bindings"]
+                for interface_name in interface_bindings:
+                    if interface_name not in interfaces:
+                        return test.FAIL("Receiver '{}' uses a non-existent interface name '{}'"
+                                         .format(receiver["id"], interface_name))
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
