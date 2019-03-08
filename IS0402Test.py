@@ -1338,6 +1338,9 @@ class IS0402Test(GenericTest):
         sleep(0.5)
         received_messages = websocket.get_messages()
 
+        if len(received_messages) < 1:
+            return test.FAIL("Expected at least one message via WebSocket subscription")
+
         # Validate received data against schema
         for message in received_messages:
             try:
@@ -1369,6 +1372,9 @@ class IS0402Test(GenericTest):
         # Ensure it disappears from the subscription
         sleep(0.5)
         received_messages = websocket.get_messages()
+
+        if len(received_messages) < 1:
+            return test.FAIL("Expected at least one message via WebSocket subscription")
 
         # Validate received data against schema
         for message in received_messages:
