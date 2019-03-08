@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from flask import Flask, render_template, flash, request, make_response
-from wtforms import Form, validators, StringField, SelectField, IntegerField, HiddenField, FormField, FieldList
+from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField, FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
@@ -153,6 +153,11 @@ class NonValidatingSelectField(SelectField):
         pass
 
 
+class NonValidatingMultipleSelectField(SelectMultipleField):
+    def pre_validate(self, form):
+        pass
+
+
 class EndpointForm(Form):
     ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address."),
                                               validators.optional()])
@@ -170,7 +175,7 @@ class DataForm(Form):
     # Define the primary test selection dropdown
     test_choices = [(test_id, TEST_DEFINITIONS[test_id]["name"]) for test_id in TEST_DEFINITIONS]
     test_choices = sorted(test_choices, key=lambda x: x[0])
-    test = SelectField(label="Select test:", choices=test_choices)
+    test = SelectField(label="Test Suite:", choices=test_choices)
 
     # Determine how many sets of IP/Port/Version to display at most
     specs_per_test = [(test_id, TEST_DEFINITIONS[test_id]["specs"]) for test_id in TEST_DEFINITIONS]
@@ -182,8 +187,8 @@ class DataForm(Form):
     endpoints = FieldList(FormField(EndpointForm, label=""), min_entries=max_endpoints)
 
     # Define the secondary test selection dropdown
-    test_selection = NonValidatingSelectField(label="Test Selection:", choices=[("all", "all"),
-                                                                                ("auto", "auto")])
+    test_selection = NonValidatingMultipleSelectField(label="Test Selection:", choices=[("all", "all"),
+                                                                                        ("auto", "auto")])
 
     # Hide test data in the web form for dynamic modification of behaviour
     test_data = {}
@@ -214,11 +219,11 @@ def index_page():
                         version = request.form["endpoints-{}-version".format(index)]
                         endpoints.append({"ip": ip, "port": port, "version": version})
 
-                    test_selection = request.form["test_selection"]
-                    results = run_test(test, endpoints, test_selection)
+                    test_selection = request.form.getlist("test_selection")
+                    results = run_tests(test, endpoints, test_selection)
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
-                    r = make_response(render_template("result.html", url=results["base_url"], test=results["name"],
+                    r = make_response(render_template("result.html", form=form, url=results["base_url"], test=results["name"],
                                                       result=results["result"]))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
@@ -235,7 +240,7 @@ def index_page():
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
 
-def run_test(test, endpoints, test_selection="all"):
+def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
         apis = {}
@@ -419,7 +424,7 @@ def run_noninteractive_tests(args):
     for i in range(len(args.ip)):
         endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
     try:
-        results = run_test(args.suite, endpoints, args.selection)
+        results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
             exit_code = write_test_results(results, args)
         else:

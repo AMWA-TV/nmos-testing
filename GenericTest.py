@@ -91,8 +91,15 @@ class GenericTest(object):
         for api in self.apis:
             self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"]))
 
-    def execute_tests(self, test_name):
-        """Perform all tests defined within this class"""
+    def execute_tests(self, test_names):
+        """Perform tests defined within this class"""
+
+        for test_name in test_names:
+            self.execute_test(test_name)
+
+    def execute_test(self, test_name):
+        """Perform a test defined within this class"""
+        self.test_individual = (test_name != "all")
 
         # Run automatically defined tests
         if test_name in ["auto", "all"]:
@@ -140,9 +147,8 @@ class GenericTest(object):
         """Called after a set of tests is run. Override this method with teardown code."""
         pass
 
-    def run_tests(self, test_name="all"):
+    def run_tests(self, test_name=["all"]):
         """Perform tests and return the results as a list"""
-        self.test_individual = (test_name != "all")
 
         # Set up
         test = Test("Test setup")
