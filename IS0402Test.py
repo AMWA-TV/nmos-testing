@@ -1156,6 +1156,94 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_22_1(self):
+        """Query API subscriptions resource does not support downgrade queries"""
+
+        test = Test("Query API subscriptions resource does not support downgrade queries")
+
+        api = self.apis[QUERY_API_KEY]
+        if api["version"] == "v1.0":
+            return test.NA("This test does not apply to v1.0")
+
+        # Find the API versions supported by the Query API
+        valid, r = self.do_request("GET", self.query_url.rstrip(api["version"] + "/"))
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            query_versions = [version.rstrip("/") for version in r.json()]
+
+        # Sort the list and remove API versions higher than the one under test
+        query_versions = self.is04_query_utils.sort_versions(query_versions)
+        for api_version in list(query_versions):
+            if self.is04_query_utils.compare_api_version(api_version, api["version"]) > 0:
+                query_versions.remove(api_version)
+
+        # If we're testing the lowest API version, exit with an N/A or warning indicating we can't test at this level
+        if query_versions[0] == api["version"]:
+            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of"
+                           "a Query API")
+
+        # Generate a subscription at the API version under test and the version below that
+        valid_sub_id = None
+        invalid_sub_id = None
+        sub_json = deepcopy(self.subscription_data)
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+        valid, r = self.do_request("POST", self.query_url + "subscriptions", sub_json)
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            if r.status_code not in [200, 201]:
+                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
+                                 .format(r.status_code))
+            else:
+                try:
+                    valid_sub_id = r.json()["id"]
+                except json.decoder.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned")
+
+        previous_version = query_versions[-2]
+        query_sub_url = self.query_url.replace(api["version"], previous_version) + "subscriptions"
+        if self.is04_reg_utils.compare_api_version(previous_version, "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, previous_version)
+        valid, r = self.do_request("POST", query_sub_url, sub_json)
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            if r.status_code not in [200, 201]:
+                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
+                                 .format(r.status_code))
+            else:
+                try:
+                    invalid_sub_id = r.json()["id"]
+                except json.decoder.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned")
+
+        # Test a request to GET subscriptions
+        subscription_ids = set()
+        valid, r = self.do_request("GET", self.query_url + "subscriptions?query.downgrade={}".format(previous_version))
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            if r.status_code != 200:
+                return test.FAIL("Query API did not respond as expected for subscription GET request: {}"
+                                 .format(r.status_code))
+            else:
+                try:
+                    for subscription in r.json():
+                        subscription_ids.add(subscription["id"])
+                except json.decoder.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned")
+
+        if valid_sub_id not in subscription_ids:
+            return test.FAIL("Unable to find {} subscription in request to GET /subscriptions?query.downgrade={}"
+                             .format(api["version"], previous_version))
+        elif invalid_sub_id in subscription_ids:
+            return test.FAIL("Found {} subscription in request to GET /subscriptions?query.downgrade={}"
+                             .format(previous_version, previous_version))
+
+        return test.PASS()
+
     def test_23(self):
         """Query API implements basic query parameters"""
 
