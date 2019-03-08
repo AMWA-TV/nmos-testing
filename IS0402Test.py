@@ -1244,6 +1244,13 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_22_2(self):
+        """Query API WebSockets implement downgrade queries"""
+
+        test = Test("Query API WebSockets implement downgrade queries")
+
+        return test.MANUAL()
+
     def test_23(self):
         """Query API implements basic query parameters"""
 
@@ -1274,6 +1281,13 @@ class IS0402Test(GenericTest):
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
         return test.PASS()
+
+    def test_23_1(self):
+        """Query API WebSockets implement basic query parameters"""
+
+        test = Test("Query API WebSockets implement basic query parameters")
+
+        return test.MANUAL()
 
     def test_24(self):
         """Query API implements RQL"""
@@ -1313,6 +1327,13 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_24_1(self):
+        """Query API WebSockets implement RQL"""
+
+        test = Test("Query API WebSockets implement RQL")
+
+        return test.MANUAL()
+
     def test_25(self):
         """Query API implements ancestry queries"""
 
@@ -1349,6 +1370,13 @@ class IS0402Test(GenericTest):
             return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
         return test.PASS()
+
+    def test_25_1(self):
+        """Query API WebSockets implement ancestry queries"""
+
+        test = Test("Query API WebSockets implement ancestry queries")
+
+        return test.MANUAL()
 
     def test_26(self):
         """Posting resource without parent results in 400"""
