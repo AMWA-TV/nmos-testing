@@ -1261,6 +1261,7 @@ class IS0402Test(GenericTest):
             test_data = deepcopy(self.test_data["node"])
             test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
             test_data["id"] = str(uuid.uuid4())
+            test_data["label"] = "test_23"
             test_data["description"] = node_desc
             self.post_resource(test, "node", test_data)
 
@@ -1340,6 +1341,7 @@ class IS0402Test(GenericTest):
             test_data = deepcopy(self.test_data["node"])
             test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
             test_data["id"] = node_id
+            test_data["label"] = "test_23_1"
             test_data["description"] = node_id
             self.post_resource(test, "node", test_data)
 
@@ -1383,6 +1385,7 @@ class IS0402Test(GenericTest):
         test_data = deepcopy(self.test_data["node"])
         test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
         test_data["id"] = node_ids[0]
+        test_data["label"] = "test_23_1"
         test_data["description"] = str(uuid.uuid4)
         self.post_resource(test, "node", test_data)
 
@@ -1431,6 +1434,7 @@ class IS0402Test(GenericTest):
             test_data = deepcopy(self.test_data["node"])
             test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
             test_data["id"] = str(uuid.uuid4())
+            test_data["label"] = "test_24"
             test_data["description"] = node_desc
             self.post_resource(test, "node", test_data)
 
@@ -1520,6 +1524,7 @@ class IS0402Test(GenericTest):
             test_data = deepcopy(self.test_data["node"])
             test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
             test_data["id"] = node_id
+            test_data["label"] = "test_24_1"
             test_data["description"] = node_id
             self.post_resource(test, "node", test_data)
 
@@ -1563,6 +1568,7 @@ class IS0402Test(GenericTest):
         test_data = deepcopy(self.test_data["node"])
         test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
         test_data["id"] = node_ids[0]
+        test_data["label"] = "test_24_1"
         test_data["description"] = str(uuid.uuid4)
         self.post_resource(test, "node", test_data)
 
