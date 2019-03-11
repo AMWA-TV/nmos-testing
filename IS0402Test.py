@@ -1295,6 +1295,18 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API WebSockets implement basic query parameters")
 
+        # Perform a basic test for APIs <= v1.2 checking for support
+        try:
+            valid, r = self.do_request("GET", self.query_url + "nodes?description={}".format(str(uuid.uuid4())))
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
+                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
+                                     " for scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
         # Create subscription to a specific Node description
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
         sub_json = deepcopy(self.subscription_data)
@@ -1307,6 +1319,11 @@ class IS0402Test(GenericTest):
         else:
             if r.status_code == 200 or r.status_code == 201:
                 websocket = WebsocketWorker(r.json()["ws_href"])
+            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
+                   r.status_code == 501):
+                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
+                                     " for scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
             else:
                 return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
                                  .format(r.status_code, r.text))
@@ -1335,7 +1352,7 @@ class IS0402Test(GenericTest):
                                           "queryapi-subscriptions-websocket.json")
 
         # Check that the single Node is reflected in the subscription
-        sleep(0.5)
+        sleep(1)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1358,7 +1375,7 @@ class IS0402Test(GenericTest):
         for curr_data in grain_data:
             if "pre" in curr_data:
                 return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
-            post_data = json.dumps(curr_data["post"], sort_keys=True)
+            post_data = curr_data["post"]
             if post_data["description"] != node_ids[0]:
                 return test.FAIL("Node 'post' 'description' received via WebSocket did not match the basic query filter")
 
@@ -1370,7 +1387,7 @@ class IS0402Test(GenericTest):
         self.post_resource(test, "node", test_data)
 
         # Ensure it disappears from the subscription
-        sleep(0.5)
+        sleep(1)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1393,7 +1410,7 @@ class IS0402Test(GenericTest):
         for curr_data in grain_data:
             if "post" in curr_data:
                 return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
-            pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+            pre_data = curr_data["pre"]
             if pre_data["description"] != node_ids[0]:
                 return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the basic query filter")
 
@@ -1452,10 +1469,24 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API WebSockets implement RQL")
 
+        # Perform a basic test for APIs <= v1.2 checking for support
+        try:
+            valid, r = self.do_request("GET", self.query_url + "nodes?query.rql=eq(description,{})"
+                                                               .format(str(uuid.uuid4())))
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
+                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                     "scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
         # Create subscription to a specific Node description
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
         sub_json = deepcopy(self.subscription_data)
-        sub_json["params"]["query.rql"] = "eq(description," + str(node_ids[0]) + ")"
+        query_string = "eq(description," + str(node_ids[0]) + ")"
+        sub_json["params"]["query.rql"] = query_string
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
         websocket = None
 
@@ -1464,6 +1495,15 @@ class IS0402Test(GenericTest):
         else:
             if r.status_code == 200 or r.status_code == 201:
                 websocket = WebsocketWorker(r.json()["ws_href"])
+            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
+                   r.status_code == 501):
+                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                     "scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+            elif r.status_code == 400:
+                return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
+                                     "{}".format(query_string),
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
             else:
                 return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
                                  .format(r.status_code, r.text))
@@ -1492,7 +1532,7 @@ class IS0402Test(GenericTest):
                                           "queryapi-subscriptions-websocket.json")
 
         # Check that the single Node is reflected in the subscription
-        sleep(0.5)
+        sleep(1)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1515,9 +1555,9 @@ class IS0402Test(GenericTest):
         for curr_data in grain_data:
             if "pre" in curr_data:
                 return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
-            post_data = json.dumps(curr_data["post"], sort_keys=True)
+            post_data = curr_data["post"]
             if post_data["description"] != node_ids[0]:
-                return test.FAIL("Node 'post' 'description' received via WebSocket did not match the basic query filter")
+                return test.FAIL("Node 'post' 'description' received via WebSocket did not match the RQL filter")
 
         # Update the Node to no longer have that description
         test_data = deepcopy(self.test_data["node"])
@@ -1527,7 +1567,7 @@ class IS0402Test(GenericTest):
         self.post_resource(test, "node", test_data)
 
         # Ensure it disappears from the subscription
-        sleep(0.5)
+        sleep(1)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1550,9 +1590,9 @@ class IS0402Test(GenericTest):
         for curr_data in grain_data:
             if "post" in curr_data:
                 return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
-            pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+            pre_data = curr_data["pre"]
             if pre_data["description"] != node_ids[0]:
-                return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the basic query filter")
+                return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the RQL filter")
 
         websocket.close()
 
