@@ -27,7 +27,7 @@ function fixUpTestSelection(source) {
     }
 
     // If any failed test checkbox is now unchecked, the "failed_all" checkbox should be too
-    fail_all = true;
+    fail_all = 0 != fail_checkboxes.length;
     fail_checkboxes = document.getElementsByClassName("failed");
     for (var i = 0, n = fail_checkboxes.length; i < n; i++) {
         if (!fail_checkboxes[i].checked) {
@@ -37,3 +37,8 @@ function fixUpTestSelection(source) {
     }
     document.getElementById("failed_all").checked = fail_all;
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+    fail_checkboxes = document.getElementsByClassName("failed");
+    document.getElementById("failed_all").disabled = 0 == fail_checkboxes.length
+});
