@@ -27,7 +27,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
 from IS04Utils import IS04Utils
-from Config import GARBAGE_COLLECTION_TIMEOUT
+from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT
 from TestHelper import WebsocketWorker, load_resolved_schema
 
 REG_API_KEY = "registration"
@@ -1354,7 +1354,7 @@ class IS0402Test(GenericTest):
                                           "queryapi-subscriptions-websocket.json")
 
         # Check that the single Node is reflected in the subscription
-        sleep(1)
+        sleep(WS_MESSAGE_TIMEOUT)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1390,7 +1390,7 @@ class IS0402Test(GenericTest):
         self.post_resource(test, "node", test_data)
 
         # Ensure it disappears from the subscription
-        sleep(1)
+        sleep(WS_MESSAGE_TIMEOUT)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1512,7 +1512,7 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
                                  .format(r.status_code, r.text))
         websocket.start()
-        sleep(0.5)
+        sleep(WS_MESSAGE_TIMEOUT)
         if websocket.did_error_occur():
             return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
@@ -1537,7 +1537,7 @@ class IS0402Test(GenericTest):
                                           "queryapi-subscriptions-websocket.json")
 
         # Check that the single Node is reflected in the subscription
-        sleep(1)
+        sleep(WS_MESSAGE_TIMEOUT)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1573,7 +1573,7 @@ class IS0402Test(GenericTest):
         self.post_resource(test, "node", test_data)
 
         # Ensure it disappears from the subscription
-        sleep(1)
+        sleep(WS_MESSAGE_TIMEOUT)
         received_messages = websocket.get_messages()
 
         if len(received_messages) < 1:
@@ -1886,7 +1886,7 @@ class IS0402Test(GenericTest):
 
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
-                sleep(0.5)
+                sleep(WS_MESSAGE_TIMEOUT)
                 if websockets[resource].did_error_occur():
                     return test.FAIL("Error opening websocket: {}".format(websockets[resource].get_error_message()))
 
@@ -1926,7 +1926,7 @@ class IS0402Test(GenericTest):
                 # Update resource
                 self.post_resource(test, resource, resource_data, 200)
 
-            sleep(1)
+            sleep(WS_MESSAGE_TIMEOUT)
 
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
@@ -1973,7 +1973,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
                                      .format(resource, r.status_code, r.text))
 
-            sleep(1)
+            sleep(WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
@@ -2011,7 +2011,7 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(test_data[resource])
                 self.post_resource(test, resource, test_data[resource], 201)
 
-            sleep(1)
+            sleep(WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
