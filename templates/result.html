@@ -26,7 +26,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <a href="javascript:history.back()" class="backlink">Go Back</a>
+    <a href="../" class="backlink">More Options</a>
     <h1 style="text-align: center">NMOS Test</h1>
     <div class="text text_result" style="text-align: center">
         <h5>Result for test suite <b>{{ test }}</b> on <b><a href={{ url }}>{{ url }}</a></b></h5>
@@ -46,6 +46,7 @@
                 {% endfor %}
                 <input type="checkbox" unchecked id="auto_all" name="test_selection" value="auto"/>
             </div>
+            <br/>
             <table class="table table-striped table-hover">
                 <thead>
                     <tr onclick="document.getElementById('failed_all').click();">
@@ -69,7 +70,7 @@
                         {% set curr_test = curr_result[0].startswith("test_") or curr_auto %}
                         {% set curr_fail = curr_result[2]=='bg-danger' %}
                         <tr {% if curr_test %} onclick="document.getElementById('{{ curr_result[0] }}').click();" {% endif %}>
-                            <td> 
+                            <td>
                                 {% if curr_test %}
                                     <input type="checkbox"
                                         {% if not curr_auto %}
