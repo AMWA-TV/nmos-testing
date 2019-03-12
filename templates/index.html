@@ -64,7 +64,9 @@
                 {% endfor %}
                 <br />
                 <div class="input dropdown input_data_fld">
-                    {{ form.test_selection.label }} {{ form.test_selection }}
+                    {{ form.test_selection.label }}
+                    <br />
+                    {{ form.test_selection }}
                 </div>
                 <br/><br/>
                 {% with messages = get_flashed_messages(with_categories=true) %}
