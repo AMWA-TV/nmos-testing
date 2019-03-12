@@ -27,7 +27,20 @@ python3 nmos-test.py
 ```
 
 This tool provides a simple web service which is available on `http://localhost:5000`.
-Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test from the checklist. The result of the test will be shown after a few seconds.
+Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test suite from the checklist. The result of the tests will be shown after a few seconds.
+
+The result of each test case will be one of the following:
+
+| Pass | Reason |
+| - | - |
+| ![Pass](https://place-hold.it/128x32/28a745.png?text=Pass&fontsize=12&bold)| Successful test case. | 
+| ![Fail](https://place-hold.it/128x32/dc3545.png?text=Fail&fontsize=12&bold) | Required feature of the specification has been found to be implemented incorrectly. |
+| ![Warning](https://place-hold.it/128x32/ffc107.png?text=Warning&fontsize=12&bold) | Not a failure, but the API being tested is responding or configured in a way which is not recommended in most cases. |
+| ![Test Disabled](https://place-hold.it/128x32/ffc107.png?text=Test%20Disabled&fontsize=12&bold) | Test is disabled due to test suite configuration; change the config or test manually. |
+| ![Could Not Test](https://place-hold.it/128x32/ffc107.png?text=Could%20Not%20Test&fontsize=12&bold) | Test was not run due to prior responses from the API, which may be OK, or indicate a fault. |
+| ![Not Implemented](https://place-hold.it/128x32/ffc107.png?text=Not%20Implemented&fontsize=12&bold) | Recommended/optional feature of the specifications has been found to be not implemented. |
+| ![Manual](https://place-hold.it/128x32/007bff.png?text=Manual&fontsize=12&bold) | Test suite does not currently test this feature, so it must be tested manually. |
+| ![Not Applicable](https://place-hold.it/128x32/6c757d.png?text=Not%20Applicable&fontsize=12&bold) | Test is not applicable, e.g. due to the version of the specification being tested. |
 
 ### Testing Unicast discovery
 
@@ -71,26 +84,34 @@ All test classes inherit from 'GenericTest' which implements some basic schema c
 Each manually defined test is expected to be defined as a method starting with 'test_'. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class Test. An example is included below:
 
 ```python
-from TestHelper import Test
+from TestResult import Test
 
 def test_my_stuff(self):
     test = Test("My test description")
-
+    # Test code
     if test_passed:
-        # Pass the test
-        return test.PASS()
+        return test.PASS("Successful test case.")
     elif test_failed:
-        # Fail the test
-        return test.FAIL("Reason for failure")
+        return test.FAIL("Required feature of the specification has been found to be "
+                         "implemented incorrectly")
+    elif test_warning:
+        return test.WARNING("Not a failure, but the API being tested is responding "
+                            "or configured in a way which is not recommended in most cases.")
+    elif test_disabled:
+        return test.DISABLED("Test is disabled due to test suite configuration; change the "
+                             "config or test manually.")
+    elif test_could_not_test:
+        return test.UNCLEAR("Test was not run due to prior responses from the API, which "
+                            "may be OK, or indicate a fault.")
+    elif test_not_implemented:
+        return test.OPTIONAL("Recommended/optional feature of the specifications has been "
+                             "found to be not implemented.")
     elif test_manual:
-        # Test must be performed manually
-        return test.MANUAL()
-    elif test_na:
-        # Test is not applicable to this implementation
-        return test.NA("Reason for non-testing")
-    elif test_optional:
-        # Test found an optional aspect of the spec which wasn't implemented
-        return test.OPTIONAL("What wasn't implemented, and why you might require it")
+        return test.MANUAL("Test suite does not currently test this feature, so it must be "
+                           "tested manually.")
+    elif test_not_applicable:
+        return test.NA("Test is not applicable, e.g. due to the version of the specification "
+                       "being tested.")
 ```
 
 The following methods may be of use within a given test definition.
