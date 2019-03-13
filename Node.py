@@ -16,6 +16,7 @@ import uuid
 import netifaces
 
 from flask import Blueprint, make_response, abort
+from Config import ENABLE_HTTPS
 
 
 class Node(object):
@@ -25,6 +26,9 @@ class Node(object):
     def get_sender(self, stream_type="video"):
         default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
+        protocol = "http"
+        if ENABLE_HTTPS:
+            protocol = "https"
         # TODO: Provide the means to downgrade this to a <v1.2 JSON representation
         sender = {
             "id": str(uuid.uuid4()),
@@ -33,7 +37,7 @@ class Node(object):
             "version": "50:50",
             "caps": {},
             "tags": {},
-            "manifest_href": "http://{}:5000/{}.sdp".format(default_ip, stream_type),
+            "manifest_href": "{}://{}:5000/{}.sdp".format(protocol, default_ip, stream_type),
             "flow_id": str(uuid.uuid4()),
             "transport": "urn:x-nmos:transport:rtp.mcast",
             "device_id": str(uuid.uuid4()),

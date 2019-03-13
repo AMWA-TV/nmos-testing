@@ -20,7 +20,7 @@ from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
@@ -243,9 +243,12 @@ def index_page():
 def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
+        protocol = "http"
+        if ENABLE_HTTPS:
+            protocol = "https"
         apis = {}
         for index, spec in enumerate(test_def["specs"]):
-            base_url = "http://{}:{}".format(endpoints[index]["ip"], str(endpoints[index]["port"]))
+            base_url = "{}://{}:{}".format(protocol, endpoints[index]["ip"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
             apis[api_key] = {

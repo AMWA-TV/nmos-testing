@@ -43,6 +43,10 @@ HTTP_TIMEOUT = 1
 # 0 = unlimited for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
+# Test using HTTPS rather than HTTP as-per AMWA BCP003-01
+# WARNING: This setting is currently not fully implemented and classed as experimental.
+ENABLE_HTTPS = False
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {

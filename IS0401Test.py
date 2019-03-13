@@ -24,7 +24,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, NMOSTestException
 from IS04Utils import IS04Utils
-from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
+from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL, ENABLE_HTTPS
 
 NODE_API_KEY = "node"
 
@@ -224,7 +224,10 @@ class IS0401Test(GenericTest):
                     found_resource = resource[1]["payload"]["data"]
         else:
             # Look up data from a configured Query API
-            url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
+            protocol = "http"
+            if ENABLE_HTTPS:
+                protocol = "https"
+            url = protocol + "://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
                   self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s/" + res_id
             try:
                 valid, r = self.do_request("GET", url)
