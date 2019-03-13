@@ -20,7 +20,7 @@ from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
@@ -236,7 +236,23 @@ def index_page():
     elif request.method == "POST":
         flash("Error: A test is currently in progress. Please wait until it has completed or restart the testing tool.")
 
-    r = make_response(render_template("index.html", form=form))
+    # Prepare configuration strings to display via the UI
+    protocol = "HTTP"
+    if ENABLE_HTTPS:
+        protocol = "HTTPS"
+    discovery_mode = None
+    if ENABLE_DNS_SD:
+        if DNS_SD_MODE == "multicast":
+            discovery_mode = "Multicast DNS"
+        elif DNS_SD_MODE == "unicast":
+            discovery_mode = "Unicast DNS"
+        else:
+            discovery_mode = "Invalid Configuration"
+    else:
+        discovery_mode = "Disabled (Using Query API {}:{})".format(QUERY_API_HOST, QUERY_API_PORT)
+
+    r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
+                                                                       "protocol": protocol}))
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
 

@@ -63,6 +63,17 @@
                     </div>
                 {% endfor %}
                 <br />
+                <div>
+                    <label>Protocol:</label>
+                    <select disabled>
+                        <option>{{ config.protocol }}</option>
+                    </select><br />
+                    <label>Discovery Mode:</label>
+                    <select disabled>
+                      <option>{{ config.discovery }}</option>
+                    </select><br />
+                </div>
+                <br />
                 <div class="input dropdown input_data_fld">
                     {{ form.test_selection.label }}
                     <br />
