@@ -21,6 +21,7 @@ import traceback
 
 from Specification import Specification
 from TestResult import Test
+from Config import ENABLE_HTTPS
 
 
 def test_depends(func):
@@ -56,6 +57,9 @@ class GenericTest(object):
         self.auto_test_count = 0
         self.test_individual = False
         self.result = list()
+        self.protocol = "http"
+        if ENABLE_HTTPS:
+            self.protocol = "https"
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
