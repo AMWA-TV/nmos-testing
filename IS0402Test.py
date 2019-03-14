@@ -1831,7 +1831,7 @@ class IS0402Test(GenericTest):
             v[1] = 0
         resource["version"] = str(v[0]) + ':' + str(v[1])
 
-    def post_resource(self, test, type, data, code = None):
+    def post_resource(self, test, type, data, code=None):
         """Perform a POST request on the Registration API to create or update a resource registration"""
 
         # As a convenience, bump the version if this is expected to be an update
@@ -1839,7 +1839,7 @@ class IS0402Test(GenericTest):
             self.bump_resource_version(data)
 
         valid, r = self.do_request("POST", self.reg_url + "resource",
-                                   data = {"type": type, "data": data})
+                                   data={"type": type, "data": data})
         if not valid:
             raise NMOSTestException(test.FAIL("Registration API did not respond as expected"))
 
@@ -1851,3 +1851,9 @@ class IS0402Test(GenericTest):
         elif r.status_code not in expected_codes:
             raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
+        elif r.status_code in [200, 201]:
+            if "Location" not in r.headers:
+                raise NMOSTestException(test.FAIL("Registration API failed to return a 'Location' response header"))
+            elif not r.headers["Location"].startswith("/") and not r.headers["Location"].startswith(self.protocol + "://"):
+                raise NMOSTestException(test.FAIL("Registration API response Location header is invalid for the "
+                                                  "current protocol: Location: {}".format(r.headers["Location"])))
