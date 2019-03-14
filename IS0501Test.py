@@ -269,6 +269,8 @@ class IS0501Test(GenericTest):
                       'rtcp_source_port']
         combinedParams = rtcpParams + fecParams
         rtcpParams = rtcpParams + generalParams
+        websocketParams = ['connection_uri', 'ext_is_07_rest_api_url', 'ext_is_07_source_id']
+        mqttParams = ['destination_host', 'source_host', 'broker_topic', 'source_port', 'destination_port']
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -285,6 +287,10 @@ class IS0501Test(GenericTest):
                             elif sorted(params) == sorted(rtcpParams):
                                 pass
                             elif sorted(params) == sorted(combinedParams):
+                                pass
+                            elif sorted(params) == sorted(websocketParams):
+                                pass
+                            elif sorted(params) == sorted(mqttParams):
                                 pass
                             else:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
@@ -509,10 +515,10 @@ class IS0501Test(GenericTest):
         test = Test("Sender transport parameters are changeable")
         if len(self.senders) > 0:
             for sender in self.senders:
-                valid, values = self.is05_utils.generate_destination_ports("sender", sender)
+                valid, values, changeable_param = self.is05_utils.generate_changeable_param("sender", sender)
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("sender", self.senders,
-                                                                                     "destination_port", values, sender)
+                                                                                     changeable_param, values, sender)
                     if valid2:
                         pass
                     else:
@@ -528,10 +534,10 @@ class IS0501Test(GenericTest):
         test = Test("Receiver transport parameters are changeable")
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                valid, values = self.is05_utils.generate_destination_ports("receiver", receiver)
+                valid, values, changeable_param = self.is05_utils.generate_changeable_param("receiver", receiver)
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("receiver", self.receivers,
-                                                                                     "destination_port", values,
+                                                                                     changeable_param, values,
                                                                                      receiver)
                     if valid2:
                         pass
@@ -811,7 +817,7 @@ class IS0501Test(GenericTest):
         data = []
         ports = {}
         for portInst in portList:
-            valid, response = self.is05_utils.generate_destination_ports(port, portInst)
+            valid, response, changeable_param = self.is05_utils.generate_changeable_param(port, portInst)
             if valid:
                 ports[portInst] = response
                 toAdd = {}
@@ -819,7 +825,7 @@ class IS0501Test(GenericTest):
                 toAdd['params'] = {}
                 toAdd['params']['transport_params'] = []
                 for portNum in ports[portInst]:
-                    toAdd['params']['transport_params'].append({"destination_port": portNum})
+                    toAdd['params']['transport_params'].append({changeable_param: portNum})
                 data.append(toAdd)
             else:
                 return False, response
@@ -849,13 +855,13 @@ class IS0501Test(GenericTest):
             if valid:
                 for i in range(0, self.is05_utils.get_num_paths(portInst, port)):
                     try:
-                        value = response['transport_params'][i]['destination_port']
+                        value = response['transport_params'][i][changeable_param]
                     except KeyError:
-                        return False, "Could not find `destination_port` parameter at {} on leg {}, got{}".format(
-                            activeUrl, i,
+                        return False, "Could not find {} parameter at {} on leg {}, got{}".format(
+                            changeable_param, activeUrl, i,
                             response)
                     portNum = ports[portInst][i]
-                    msg = "Problem updating destination_port value in bulk update, expected {} got {}".format(portNum,
+                    msg = "Problem updating {} value in bulk update, expected {} got {}".format(changeable_param, portNum,
                                                                                                               value)
                     if value == portNum:
                         pass

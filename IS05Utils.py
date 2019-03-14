@@ -129,7 +129,7 @@ class IS05Utils(NMOSUtils):
             code = 202
         return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
 
-    def check_perform_immediate_activation(self, port, portId, stagedParams):
+    def check_perform_immediate_activation(self, port, portId, stagedParams, changeableParam):
         # Request an immediate activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
@@ -170,18 +170,18 @@ class IS05Utils(NMOSUtils):
                 if valid3:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = response3['transport_params'][i]['destination_port']
+                            activePort = response3['transport_params'][i][changeableParam]
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, activeUrl, response3)
+                            return False, "Could not find active {} entry on leg {} from {}, " \
+                                          "got {}".format(changeableParam, i, activeUrl, response3)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 activeUrl, i, type(response3), response3)
                         try:
-                            stagedPort = stagedParams[i]['destination_port']
+                            stagedPort = stagedParams[i][changeableParam]
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, stagedUrl, stagedParams)
+                            return False, "Could not find staged {} entry on leg {} from {}, " \
+                                          "got {}".format(changeableParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 stagedUrl, i, type(response3), stagedParams)
@@ -205,7 +205,7 @@ class IS05Utils(NMOSUtils):
             return False, response
         return True, ""
 
-    def check_perform_relative_activation(self, port, portId, stagedParams):
+    def check_perform_relative_activation(self, port, portId, stagedParams, changeableParam):
         # Request an relative activation 2 nanoseconds in the future
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
@@ -246,18 +246,18 @@ class IS05Utils(NMOSUtils):
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = activeParams['transport_params'][i]['destination_port']
+                            activePort = activeParams['transport_params'][i][changeableParam]
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, activeUrl, activeParams)
+                            return False, "Could not find active {} entry on leg {} from {}, " \
+                                          "got {}".format(changeableParam, i, activeUrl, activeParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
-                            stagedPort = stagedParams[i]['destination_port']
+                            stagedPort = stagedParams[i][changeableParam]
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, stagedUrl, stagedParams)
+                            return False, "Could not find staged {} entry on leg {} from {}, " \
+                                          "got {}".format(changeableParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(stagedUrl, i, type(activeParams), stagedParams)
@@ -287,7 +287,7 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
-    def check_perform_absolute_activation(self, port, portId, stagedParams):
+    def check_perform_absolute_activation(self, port, portId, stagedParams, changeableParam):
         # request an absolute activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
@@ -339,18 +339,18 @@ class IS05Utils(NMOSUtils):
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = activeParams['transport_params'][i]['destination_port']
+                            activePort = activeParams['transport_params'][i][changeableParam]
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, activeUrl, activeParams)
+                            return False, "Could not find active {} entry on leg {} from {}, " \
+                                          "got {}".format(changeableParam, i, activeUrl, activeParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
                                           "{}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
-                            stagedPort = stagedParams[i]['destination_port']
+                            stagedPort = stagedParams[i][changeableParam]
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, stagedUrl, stagedParams)
+                            return False, "Could not find staged {} entry on leg {} from {}, " \
+                                          "got {}".format(changeableParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
                                           "{}".format(stagedUrl, i, type(activeParams), stagedParams)
@@ -383,12 +383,12 @@ class IS05Utils(NMOSUtils):
         """Checks that when an immediate activation is called staged parameters are moved
         to active and the activation is correctly displayed in the /active endpoint"""
         # Set a new destination port in staged
-        valid, destinationPort = self.generate_destination_ports(port, portId)
+        valid, destinationPort, changeableParam = self.generate_changeable_param(port, portId)
         if valid:
             stagedUrl = "single/" + port + "s/" + portId + "/staged"
             data = {"transport_params": []}
             for i in range(0, self.get_num_paths(portId, port)):
-                data['transport_params'].append({"destination_port": destinationPort[i]})
+                data['transport_params'].append({changeableParam: destinationPort[i]})
             valid2, r = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
             if valid2:
                 try:
@@ -398,13 +398,13 @@ class IS05Utils(NMOSUtils):
                 except TypeError:
                     return False, "Expected a dict to be returned from {}, got a {}".format(stagedUrl,
                                                                                             type(stagedParams))
-                return activationMethod(port, portId, stagedParams)
+                return activationMethod(port, portId, stagedParams, changeableParam)
             else:
                 return False, r
         else:
             return False, destinationPort
 
-    def generate_destination_ports(self, port, portId):
+    def generate_changeable_param(self, port, portId):
         """Uses a port's constraints to generate an allowable destination
         ports for it"""
         url = "single/" + port + "s/" + portId + "/constraints/"
@@ -413,25 +413,33 @@ class IS05Utils(NMOSUtils):
             toReturn = []
             try:
                 for entry in constraints:
-                    if "enum" in entry['destination_port']:
-                        values = entry['destination_port']['enum']
-                        toReturn.append(values[randint(0, len(values) - 1)])
-                    else:
-                        if "minimum" in entry['destination_port']:
-                            min = entry['destination_port']['minimum']
+                    #rtp,mqtt
+                    if "destination_port" in entry:
+                        changeable_param = "destination_port"
+                        if "enum" in entry['destination_port']:
+                            values = entry['destination_port']['enum']
+                            toReturn.append(values[randint(0, len(values) - 1)])
                         else:
-                            min = 5000
-                        if "maximum" in entry['destination_port']:
-                            max = entry['destination_port']['maximum']
-                        else:
-                            max = 49151
-                        toReturn.append(randint(min, max))
-                return True, toReturn
-            except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
-                                                                                            constraints)
+                            if "minimum" in entry['destination_port']:
+                                min = entry['destination_port']['minimum']
+                            else:
+                                min = 5000
+                            if "maximum" in entry['destination_port']:
+                                max = entry['destination_port']['maximum']
+                            else:
+                                max = 49151
+                            toReturn.append(randint(min, max))
+                    #websocket
+                    elif "connection_uri" in entry:
+                        changeable_param = "connection_uri"
+                        toReturn.append("wss://hostwithrandomport:" + repr(randint(5000, 50000)))
+
+                return True, toReturn, changeable_param
+            except TypeError as e:
+                return False, "Type error {}, url {}, got a {}: {}".format(e, url, type(constraints),
+                                                                                            constraints), "noparam"
         else:
-            return False, constraints
+            return False, constraints, "noparam"
 
     def check_change_transport_param(self, port, portList, paramName, paramValues, myPort):
         """Check that we can update a transport parameter"""
