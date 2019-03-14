@@ -681,7 +681,7 @@ class IS0401Test(GenericTest):
             if not node_self["href"].startswith(self.protocol + "://"):
                 return test.FAIL("Node 'href' does not match the current protocol")
             if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                for endpoint in node_self["endpoints"]:
+                for endpoint in node_self["api"]["endpoints"]:
                     if endpoint["protocol"] != self.protocol:
                         return test.FAIL("One or more Node 'endpoints' do not match the current protocol")
             for service in node_self["services"]:
