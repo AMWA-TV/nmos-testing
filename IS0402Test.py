@@ -27,7 +27,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
 from IS04Utils import IS04Utils
-from Config import GARBAGE_COLLECTION_TIMEOUT
+from Config import GARBAGE_COLLECTION_TIMEOUT, ENABLE_HTTPS
 from TestHelper import WebsocketWorker, load_resolved_schema
 
 REG_API_KEY = "registration"
@@ -1386,8 +1386,15 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API did not respond as expected")
             elif r.status_code == 200 or r.status_code == 201:
+                # Check protocol
+                response_json = r.json()
+                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
+                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+                if response_json["secure"] is not ENABLE_HTTPS:
+                    return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+
                 # Test if subscription is available
-                sub_id = r.json()["id"]
+                sub_id = response_json["id"]
                 valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
                 if not valid:
                     return test.FAIL("Query API did not respond as expected")

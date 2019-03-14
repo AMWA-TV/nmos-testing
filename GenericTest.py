@@ -58,8 +58,10 @@ class GenericTest(object):
         self.test_individual = False
         self.result = list()
         self.protocol = "http"
+        self.ws_protocol = "ws"
         if ENABLE_HTTPS:
             self.protocol = "https"
+            self.ws_protocol = "wss"
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
