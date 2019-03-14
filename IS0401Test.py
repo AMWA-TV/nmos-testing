@@ -664,6 +664,65 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
+    def test_20(self):
+        """Node's resources correctly signal the current protocol"""
+
+        test = Test("Node's resources correctly signal the current protocol")
+
+        service_href_warn = False
+        device_href_warn = False
+
+        api = self.apis[NODE_API_KEY]
+        valid, response = self.do_request("GET", self.node_url + "self")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            node_self = response.json()
+            if not node_self["href"].startswith(self.protocol + "://"):
+                return test.FAIL("Node 'href' does not match the current protocol")
+            if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                for endpoint in node_self["endpoints"]:
+                    if endpoint["protocol"] != self.protocol:
+                        return test.FAIL("One or more Node 'endpoints' do not match the current protocol")
+            for service in node_self["services"]:
+                if not service["href"].startswith(self.protocol):
+                    # Only warn about these at the end so that more major failures are flagged first
+                    service_href_warn = True
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            valid, response = self.do_request("GET", self.node_url + "devices")
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            try:
+                node_devices = response.json()
+                for device in node_devices:
+                    for control in device["controls"]:
+                        if not control["href"].startswith(self.protocol):
+                            # Only warn about these at the end so that more major failures are flagged first
+                            device_href_warn = True
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        valid, response = self.do_request("GET", self.node_url + "senders")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            node_senders = response.json()
+            for sender in node_senders:
+                if sender["manifest_href"] != "" and not sender["manifest_href"].startswith(self.protocol):
+                    return test.FAIL("One or more Sender 'manifest_href' values do not match the current protocol")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        if service_href_warn:
+            return test.WARNING("One or more Node service 'href' values does not match the current protocol.")
+        elif device_href_warn:
+            return test.WARNING("One or more Device control 'href' values does not match the current protocol.")
+
+        return test.PASS()
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
