@@ -281,6 +281,34 @@ class IS0402Test(GenericTest):
             return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
+    def test_11_1(self):
+        """Registration API accepts and stores a valid Sender resource with null flow_id"""
+
+        test = Test("Registration API accepts and stores a valid Sender resource with null flow_id")
+
+        api = self.apis[REG_API_KEY]
+        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
+
+            # v1.1 introduced null for flow_id to "permit Senders without attached Flows
+            # to model a Device before internal routing has been performed"
+
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.1") < 0:
+                return test.NA("This test does not apply to v1.0")
+
+            sender_json = deepcopy(self.test_data["sender"])
+            sender_json["id"] = str(uuid.uuid4())
+            sender_json["flow_id"] = None
+
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+
+            self.post_resource(test, "sender", sender_json, 201)
+
+            return test.PASS()
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
+    @test_depends
     def test_12(self):
         """Registration API rejects an invalid Sender resource with a 400 HTTP code"""
 
