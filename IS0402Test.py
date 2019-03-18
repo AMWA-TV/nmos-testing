@@ -1263,7 +1263,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_23"
             test_data["description"] = node_desc
-            self.post_resource(test, "node", test_data)
+            self.post_resource(test, "node", test_data, 201)
 
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
@@ -1343,7 +1343,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = node_id
             test_data["label"] = "test_23_1"
             test_data["description"] = node_id
-            self.post_resource(test, "node", test_data)
+            self.post_resource(test, "node", test_data, 201)
 
         # Load schema
         if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
@@ -1387,7 +1387,7 @@ class IS0402Test(GenericTest):
         test_data["id"] = node_ids[0]
         test_data["label"] = "test_23_1"
         test_data["description"] = str(uuid.uuid4)
-        self.post_resource(test, "node", test_data)
+        self.post_resource(test, "node", test_data, 200)
 
         # Ensure it disappears from the subscription
         sleep(WS_MESSAGE_TIMEOUT)
@@ -1436,7 +1436,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_24"
             test_data["description"] = node_desc
-            self.post_resource(test, "node", test_data)
+            self.post_resource(test, "node", test_data, 201)
 
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
@@ -1526,7 +1526,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = node_id
             test_data["label"] = "test_24_1"
             test_data["description"] = node_id
-            self.post_resource(test, "node", test_data)
+            self.post_resource(test, "node", test_data, 201)
 
         # Load schema
         if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
@@ -1570,7 +1570,7 @@ class IS0402Test(GenericTest):
         test_data["id"] = node_ids[0]
         test_data["label"] = "test_24_1"
         test_data["description"] = str(uuid.uuid4)
-        self.post_resource(test, "node", test_data)
+        self.post_resource(test, "node", test_data, 200)
 
         # Ensure it disappears from the subscription
         sleep(WS_MESSAGE_TIMEOUT)
