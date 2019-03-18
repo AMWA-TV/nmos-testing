@@ -84,7 +84,7 @@ All test classes inherit from 'GenericTest' which implements some basic schema c
 Each manually defined test is expected to be defined as a method starting with 'test_'. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class Test.
 
 The first argument, `details`, is used to specify the reason for the test result.
-It is required for `FAIL``, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
+It is required for `FAIL`, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
 
 The second argument, `link`, is optional. It may be used to specify a link to more information, such as to a sub-heading on one of the NMOS Wiki [Specifications](https://github.com/AMWA-TV/nmos/wiki/Specifications) pages.
 It is recommended especially to provide further explanation of the effect of an `OPTIONAL` feature being unimplemented.
