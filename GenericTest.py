@@ -298,7 +298,7 @@ class GenericTest(object):
 
         # Test general URLs with no parameters
         elif not resource[1]['params']:
-            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
+            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0].rstrip("/"))
             test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                     api,
                                                     self.apis[api]["version"],
