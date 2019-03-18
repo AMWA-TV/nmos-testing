@@ -104,19 +104,19 @@ def test_my_stuff(self):
     elif test_warning:
         return test.WARNING("Reason the API configuration or response is not recommended")
     elif test_disabled:
-        return test.DISABLED("Explanation of why the test is disabled and e.g. how to change the test suite config "
-                             "to allow it to be run")
+        return test.DISABLED("Explanation of why the test is disabled and e.g. how to change the test suite "
+                             "config to allow it to be run")
     elif test_could_not_test:
         return test.UNCLEAR("Explanation of what prior responses prevented this test being run")
     elif test_not_implemented:
         return test.OPTIONAL("Explanation of what wasn't implemented, and why you might require it",
                              "https://github.com/AMWA-TV/nmos/wiki/Specifications#what-is-required-vs-optional")
     elif test_manual:
-        return test.MANUAL("Explanation of why the test is not (yet) tested automatically, and e.g. how to run it "
-                           "manually")
+        return test.MANUAL("Explanation of why the test is not (yet) tested automatically, and e.g. how to "
+                           "run it manually")
     elif test_not_applicable:
-        return test.NA("Explanation of why the test is not applicable, e.g. due to the version of the specification "
-                       "being tested")
+        return test.NA("Explanation of why the test is not applicable, e.g. due to the version of the "
+                       "specification being tested")
 ```
 
 The following methods may be of use within a given test definition.
