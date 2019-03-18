@@ -27,7 +27,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
 from IS04Utils import IS04Utils
-from Config import GARBAGE_COLLECTION_TIMEOUT
+from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT
 from TestHelper import WebsocketWorker, load_resolved_schema
 
 REG_API_KEY = "registration"
@@ -1184,22 +1184,125 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_22_1(self):
+        """Query API subscriptions resource does not support downgrade queries"""
+
+        test = Test("Query API subscriptions resource does not support downgrade queries")
+
+        api = self.apis[QUERY_API_KEY]
+        if api["version"] == "v1.0":
+            return test.NA("This test does not apply to v1.0")
+
+        # Find the API versions supported by the Query API
+        valid, r = self.do_request("GET", self.query_url.rstrip(api["version"] + "/"))
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            query_versions = [version.rstrip("/") for version in r.json()]
+
+        # Sort the list and remove API versions higher than the one under test
+        query_versions = self.is04_query_utils.sort_versions(query_versions)
+        for api_version in list(query_versions):
+            if self.is04_query_utils.compare_api_version(api_version, api["version"]) > 0:
+                query_versions.remove(api_version)
+
+        # If we're testing the lowest API version, exit with an N/A or warning indicating we can't test at this level
+        if query_versions[0] == api["version"]:
+            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of"
+                           "a Query API")
+
+        # Generate a subscription at the API version under test and the version below that
+        valid_sub_id = None
+        invalid_sub_id = None
+        sub_json = deepcopy(self.subscription_data)
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+        valid, r = self.do_request("POST", self.query_url + "subscriptions", sub_json)
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            if r.status_code not in [200, 201]:
+                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
+                                 .format(r.status_code))
+            else:
+                try:
+                    valid_sub_id = r.json()["id"]
+                except json.decoder.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned")
+
+        previous_version = query_versions[-2]
+        query_sub_url = self.query_url.replace(api["version"], previous_version) + "subscriptions"
+        if self.is04_reg_utils.compare_api_version(previous_version, "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, previous_version)
+        valid, r = self.do_request("POST", query_sub_url, sub_json)
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            if r.status_code not in [200, 201]:
+                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
+                                 .format(r.status_code))
+            else:
+                try:
+                    invalid_sub_id = r.json()["id"]
+                except json.decoder.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned")
+
+        # Test a request to GET subscriptions
+        subscription_ids = set()
+        valid, r = self.do_request("GET", self.query_url + "subscriptions?query.downgrade={}".format(previous_version))
+        if not valid:
+            return test.FAIL("Query API failed to respond to request")
+        else:
+            if r.status_code != 200:
+                return test.FAIL("Query API did not respond as expected for subscription GET request: {}"
+                                 .format(r.status_code))
+            else:
+                try:
+                    for subscription in r.json():
+                        subscription_ids.add(subscription["id"])
+                except json.decoder.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned")
+
+        if valid_sub_id not in subscription_ids:
+            return test.FAIL("Unable to find {} subscription in request to GET /subscriptions?query.downgrade={}"
+                             .format(api["version"], previous_version))
+        elif invalid_sub_id in subscription_ids:
+            return test.FAIL("Found {} subscription in request to GET /subscriptions?query.downgrade={}"
+                             .format(previous_version, previous_version))
+
+        return test.PASS()
+
+    def test_22_2(self):
+        """Query API WebSockets implement downgrade queries"""
+
+        test = Test("Query API WebSockets implement downgrade queries")
+
+        return test.MANUAL()
+
     def test_23(self):
         """Query API implements basic query parameters"""
 
         test = Test("Query API implements basic query parameters")
 
+        node_descriptions = [str(uuid.uuid4()), str(uuid.uuid4())]
+        for node_desc in node_descriptions:
+            test_data = deepcopy(self.test_data["node"])
+            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data["id"] = str(uuid.uuid4())
+            test_data["label"] = "test_23"
+            test_data["description"] = node_desc
+            self.post_resource(test, "node", test_data, 201)
+
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
-            elif len(r.json()) == 0:
-                return test.UNCLEAR("No Nodes found in registry. Test cannot proceed.")
+            elif len(r.json()) < 2:
+                return test.UNCLEAR("Fewer Nodes found in registry than expected. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
-        random_label = uuid.uuid4()
-        query_string = "?label=" + str(random_label)
+        query_string = "?description=" + node_descriptions[0]
         valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
         api = self.apis[QUERY_API_KEY]
         if not valid:
@@ -1210,8 +1313,139 @@ class IS0402Test(GenericTest):
         elif r.status_code != 200:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
-        elif len(r.json()) > 0:
-            return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
+        elif len(r.json()) != 1:
+            return test.FAIL("Query API returned {} records for query {} when 1 was expected"
+                             .format(len(r.json()), query_string))
+
+        return test.PASS()
+
+    def test_23_1(self):
+        """Query API WebSockets implement basic query parameters"""
+
+        test = Test("Query API WebSockets implement basic query parameters")
+
+        # Perform a basic test for APIs <= v1.2 checking for support
+        try:
+            valid, r = self.do_request("GET", self.query_url + "nodes?description={}".format(str(uuid.uuid4())))
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
+                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
+                                     " for scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # Create subscription to a specific Node description
+        node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+        sub_json = deepcopy(self.subscription_data)
+        sub_json["params"]["description"] = node_ids[0]
+        valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+        websocket = None
+
+        if not valid:
+            return test.FAIL("Query API returned an unexpected response: {}".format(r))
+        else:
+            if r.status_code == 200 or r.status_code == 201:
+                websocket = WebsocketWorker(r.json()["ws_href"])
+            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
+                   r.status_code == 501):
+                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
+                                     " for scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+            else:
+                return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
+                                 .format(r.status_code, r.text))
+        websocket.start()
+        sleep(0.5)
+        if websocket.did_error_occur():
+            return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
+
+        # Discard SYNC messages
+        received_messages = websocket.get_messages()
+
+        # Register a matching Node and one non-matching Node
+        for node_id in node_ids:
+            test_data = deepcopy(self.test_data["node"])
+            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data["id"] = node_id
+            test_data["label"] = "test_23_1"
+            test_data["description"] = node_id
+            self.post_resource(test, "node", test_data, 201)
+
+        # Load schema
+        if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
+            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                          "queryapi-v1.0-subscriptions-websocket.json")
+        else:
+            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                          "queryapi-subscriptions-websocket.json")
+
+        # Check that the single Node is reflected in the subscription
+        sleep(WS_MESSAGE_TIMEOUT)
+        received_messages = websocket.get_messages()
+
+        if len(received_messages) < 1:
+            return test.FAIL("Expected at least one message via WebSocket subscription")
+
+        # Validate received data against schema
+        for message in received_messages:
+            try:
+                self.validate_schema(json.loads(message), schema)
+            except ValidationError as e:
+                return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+        # Verify data inside messages
+        grain_data = list()
+
+        for curr_msg in received_messages:
+            json_msg = json.loads(curr_msg)
+            grain_data.extend(json_msg["grain"]["data"])
+
+        for curr_data in grain_data:
+            if "pre" in curr_data:
+                return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
+            post_data = curr_data["post"]
+            if post_data["description"] != node_ids[0]:
+                return test.FAIL("Node 'post' 'description' received via WebSocket did not match the basic query filter")
+
+        # Update the Node to no longer have that description
+        test_data = deepcopy(self.test_data["node"])
+        test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+        test_data["id"] = node_ids[0]
+        test_data["label"] = "test_23_1"
+        test_data["description"] = str(uuid.uuid4)
+        self.post_resource(test, "node", test_data, 200)
+
+        # Ensure it disappears from the subscription
+        sleep(WS_MESSAGE_TIMEOUT)
+        received_messages = websocket.get_messages()
+
+        if len(received_messages) < 1:
+            return test.FAIL("Expected at least one message via WebSocket subscription")
+
+        # Validate received data against schema
+        for message in received_messages:
+            try:
+                self.validate_schema(json.loads(message), schema)
+            except ValidationError as e:
+                return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+        # Verify data inside messages
+        grain_data = list()
+
+        for curr_msg in received_messages:
+            json_msg = json.loads(curr_msg)
+            grain_data.extend(json_msg["grain"]["data"])
+
+        for curr_data in grain_data:
+            if "post" in curr_data:
+                return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
+            pre_data = curr_data["pre"]
+            if pre_data["description"] != node_ids[0]:
+                return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the basic query filter")
+
+        websocket.close()
 
         return test.PASS()
 
@@ -1223,17 +1457,25 @@ class IS0402Test(GenericTest):
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
+        node_descriptions = [str(uuid.uuid4()), str(uuid.uuid4())]
+        for node_desc in node_descriptions:
+            test_data = deepcopy(self.test_data["node"])
+            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data["id"] = str(uuid.uuid4())
+            test_data["label"] = "test_24"
+            test_data["description"] = node_desc
+            self.post_resource(test, "node", test_data, 201)
+
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
-            elif len(r.json()) == 0:
-                return test.UNCLEAR("No Nodes found in registry. Test cannot proceed.")
+            elif len(r.json()) < 2:
+                return test.UNCLEAR("Fewer Nodes found in registry than expected. Test cannot proceed.")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
-        random_label = uuid.uuid4()
-        query_string = "?query.rql=eq(label," + str(random_label) + ")"
+        query_string = "?query.rql=eq(description," + str(node_descriptions[0]) + ")"
         valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
         if not valid:
             return test.FAIL("Query API failed to respond to query")
@@ -1248,8 +1490,145 @@ class IS0402Test(GenericTest):
         elif r.status_code != 200:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
-        elif len(r.json()) > 0:
-            return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
+        elif len(r.json()) != 1:
+            return test.FAIL("Query API returned {} records for query {} when 1 was expected"
+                             .format(len(r.json()), query_string))
+
+        return test.PASS()
+
+    def test_24_1(self):
+        """Query API WebSockets implement RQL"""
+
+        test = Test("Query API WebSockets implement RQL")
+
+        # Perform a basic test for APIs <= v1.2 checking for support
+        try:
+            valid, r = self.do_request("GET", self.query_url + "nodes?query.rql=eq(description,{})"
+                                                               .format(str(uuid.uuid4())))
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
+                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                     "scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # Create subscription to a specific Node description
+        node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+        sub_json = deepcopy(self.subscription_data)
+        query_string = "eq(description," + str(node_ids[0]) + ")"
+        sub_json["params"]["query.rql"] = query_string
+        valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+        websocket = None
+
+        if not valid:
+            return test.FAIL("Query API returned an unexpected response: {}".format(r))
+        else:
+            if r.status_code == 200 or r.status_code == 201:
+                websocket = WebsocketWorker(r.json()["ws_href"])
+            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
+                   r.status_code == 501):
+                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                     "scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+            elif r.status_code == 400:
+                return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
+                                     "{}".format(query_string),
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+            else:
+                return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
+                                 .format(r.status_code, r.text))
+        websocket.start()
+        sleep(WS_MESSAGE_TIMEOUT)
+        if websocket.did_error_occur():
+            return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
+
+        # Discard SYNC messages
+        received_messages = websocket.get_messages()
+
+        # Register a matching Node and one non-matching Node
+        for node_id in node_ids:
+            test_data = deepcopy(self.test_data["node"])
+            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data["id"] = node_id
+            test_data["label"] = "test_24_1"
+            test_data["description"] = node_id
+            self.post_resource(test, "node", test_data, 201)
+
+        # Load schema
+        if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
+            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                          "queryapi-v1.0-subscriptions-websocket.json")
+        else:
+            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                          "queryapi-subscriptions-websocket.json")
+
+        # Check that the single Node is reflected in the subscription
+        sleep(WS_MESSAGE_TIMEOUT)
+        received_messages = websocket.get_messages()
+
+        if len(received_messages) < 1:
+            return test.FAIL("Expected at least one message via WebSocket subscription")
+
+        # Validate received data against schema
+        for message in received_messages:
+            try:
+                self.validate_schema(json.loads(message), schema)
+            except ValidationError as e:
+                return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+        # Verify data inside messages
+        grain_data = list()
+
+        for curr_msg in received_messages:
+            json_msg = json.loads(curr_msg)
+            grain_data.extend(json_msg["grain"]["data"])
+
+        for curr_data in grain_data:
+            if "pre" in curr_data:
+                return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
+            post_data = curr_data["post"]
+            if post_data["description"] != node_ids[0]:
+                return test.FAIL("Node 'post' 'description' received via WebSocket did not match the RQL filter")
+
+        # Update the Node to no longer have that description
+        test_data = deepcopy(self.test_data["node"])
+        test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+        test_data["id"] = node_ids[0]
+        test_data["label"] = "test_24_1"
+        test_data["description"] = str(uuid.uuid4)
+        self.post_resource(test, "node", test_data, 200)
+
+        # Ensure it disappears from the subscription
+        sleep(WS_MESSAGE_TIMEOUT)
+        received_messages = websocket.get_messages()
+
+        if len(received_messages) < 1:
+            return test.FAIL("Expected at least one message via WebSocket subscription")
+
+        # Validate received data against schema
+        for message in received_messages:
+            try:
+                self.validate_schema(json.loads(message), schema)
+            except ValidationError as e:
+                return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+        # Verify data inside messages
+        grain_data = list()
+
+        for curr_msg in received_messages:
+            json_msg = json.loads(curr_msg)
+            grain_data.extend(json_msg["grain"]["data"])
+
+        for curr_data in grain_data:
+            if "post" in curr_data:
+                return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
+            pre_data = curr_data["pre"]
+            if pre_data["description"] != node_ids[0]:
+                return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the RQL filter")
+
+        websocket.close()
 
         return test.PASS()
 
@@ -1290,6 +1669,13 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_25_1(self):
+        """Query API WebSockets implement ancestry queries"""
+
+        test = Test("Query API WebSockets implement ancestry queries")
+
+        return test.MANUAL()
+
     def test_26(self):
         """Posting resource without parent results in 400"""
         test = Test("Registration API responds with 400 HTTP code on posting a resource without parent")
@@ -1323,7 +1709,6 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-    @test_depends
     def test_27(self):
         """Node and sub-resources should be removed after a timeout because of missing heartbeats"""
         test = Test("Registration API cleans up Nodes and their sub-resources when a heartbeat doesn’t occur for "
@@ -1333,6 +1718,15 @@ class IS0402Test(GenericTest):
 
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             resources = ["node", "device", "source", "flow", "sender", "receiver"]
+
+            # (Re-)post all resources
+            for resource in resources:
+                resource_json = deepcopy(self.test_data[resource])
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    resource_json = self.downgrade_resource(resource, resource_json,
+                                                            self.apis[REG_API_KEY]["version"])
+                self.bump_resource_version(resource_json)
+                self.post_resource(test, resource, resource_json)
 
             # Check if all resources are registered
             for resource in resources:
@@ -1354,7 +1748,7 @@ class IS0402Test(GenericTest):
                 valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
                 if valid:
                     if r.status_code != 404:
-                        return test.FAIL("Query API returned not 404 on a resource which should have been "
+                        return test.FAIL("Query API did not return 404 on a resource which should have been "
                                          "removed due to missing heartbeats")
                 else:
                     return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
@@ -1397,7 +1791,7 @@ class IS0402Test(GenericTest):
                                                                                    self.test_data[resource]["id"]))
                 if valid:
                     if r.status_code != 404:
-                        return test.FAIL("Query API returned not 404 on a resource which should have been "
+                        return test.FAIL("Query API did not return 404 on a resource which should have been "
                                          "removed because parent resource was deleted")
                 else:
                     return test.FAIL("Query API did not respond as expected")
@@ -1528,7 +1922,7 @@ class IS0402Test(GenericTest):
 
             for resource, resource_data in test_data.items():
                 websockets[resource].start()
-                sleep(0.5)
+                sleep(WS_MESSAGE_TIMEOUT)
                 if websockets[resource].did_error_occur():
                     return test.FAIL("Error opening websocket: {}".format(websockets[resource].get_error_message()))
 
@@ -1568,7 +1962,7 @@ class IS0402Test(GenericTest):
                 # Update resource
                 self.post_resource(test, resource, resource_data, 200)
 
-            sleep(1)
+            sleep(WS_MESSAGE_TIMEOUT)
 
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
@@ -1615,7 +2009,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
                                      .format(resource, r.status_code, r.text))
 
-            sleep(1)
+            sleep(WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
@@ -1653,7 +2047,7 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(test_data[resource])
                 self.post_resource(test, resource, test_data[resource], 201)
 
-            sleep(1)
+            sleep(WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
