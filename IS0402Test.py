@@ -602,6 +602,10 @@ class IS0402Test(GenericTest):
                 if rel not in link_header:
                     continue
 
+                if not link_header[rel].startswith(self.protocol + "://"):
+                    raise NMOSTestException(test.FAIL("Query API Link header is invalid for the current protocol. "
+                                                      "Expected '{}://'".format(self.protocol)))
+
                 if "paging.limit=" + limit not in link_header[rel]:
                     raise NMOSTestException(test.FAIL("Query API response did not include the correct '{}' value "
                                                       "in the Link header, for query: {}".format(rel, query_string)))
