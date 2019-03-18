@@ -79,15 +79,15 @@ This test suite is intended to be straightforward to extend. If you encounter an
 
 ## Test Suite Structure
 
-All test classes inherit from 'GenericTest' which implements some basic schema checks on GET/HEAD/OPTIONS methods from the specification. It also provides access to a 'Specification' object which contains a parsed version of the API RAML, and provides access to schemas for the development of additional tests.
+All test classes inherit from `GenericTest` which implements some basic schema checks on GET/HEAD/OPTIONS methods from the specification. It also provides access to a 'Specification' object which contains a parsed version of the API RAML, and provides access to schemas for the development of additional tests.
 
-Each manually defined test is expected to be defined as a method starting with 'test_'. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class Test.
+Each manually defined test is expected to be defined as a method starting with `test_`. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class `Test`.
 
-The first argument, `details`, is used to specify the reason for the test result.
-It is required for `FAIL`, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
+* The first argument, `details`, is used to specify the reason for the test result.
+  It is required for `FAIL`, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
 
-The second argument, `link`, is optional. It may be used to specify a link to more information, such as to a sub-heading on one of the NMOS Wiki [Specifications](https://github.com/AMWA-TV/nmos/wiki/Specifications) pages.
-It is recommended especially to provide further explanation of the effect of an `OPTIONAL` feature being unimplemented.
+* The second argument, `link`, is optional. It may be used to specify a link to more information, such as to a sub-heading on one of the NMOS Wiki [Specifications](https://github.com/AMWA-TV/nmos/wiki/Specifications) pages.
+  It is recommended especially to provide further explanation of the effect of an `OPTIONAL` feature being unimplemented.
 
 Examples of each result are included below:
 
