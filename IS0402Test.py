@@ -1681,7 +1681,6 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
-    @test_depends
     def test_27(self):
         """Node and sub-resources should be removed after a timeout because of missing heartbeats"""
         test = Test("Registration API cleans up Nodes and their sub-resources when a heartbeat doesn’t occur for "
@@ -1691,6 +1690,15 @@ class IS0402Test(GenericTest):
 
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             resources = ["node", "device", "source", "flow", "sender", "receiver"]
+
+            # (Re-)post all resources
+            for resource in resources:
+                resource_json = deepcopy(self.test_data[resource])
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    resource_json = self.downgrade_resource(resource, resource_json,
+                                                            self.apis[REG_API_KEY]["version"])
+                self.bump_resource_version(resource_json)
+                self.post_resource(test, resource, resource_json)
 
             # Check if all resources are registered
             for resource in resources:
@@ -1712,7 +1720,7 @@ class IS0402Test(GenericTest):
                 valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
                 if valid:
                     if r.status_code != 404:
-                        return test.FAIL("Query API returned not 404 on a resource which should have been "
+                        return test.FAIL("Query API did not return 404 on a resource which should have been "
                                          "removed due to missing heartbeats")
                 else:
                     return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
@@ -1755,7 +1763,7 @@ class IS0402Test(GenericTest):
                                                                                    self.test_data[resource]["id"]))
                 if valid:
                     if r.status_code != 404:
-                        return test.FAIL("Query API returned not 404 on a resource which should have been "
+                        return test.FAIL("Query API did not return 404 on a resource which should have been "
                                          "removed because parent resource was deleted")
                 else:
                     return test.FAIL("Query API did not respond as expected")
