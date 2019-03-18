@@ -12,7 +12,7 @@ The following test sets are currently supported:
 *   IS-07 Event & Tally API
 *   IS-08 Channel Mapping API
 
-When testing any of the above APIs it is important that they contain representative data. The test results will generate 'N/A' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
+When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
 **Attention:**
 *   The IS-04 Node tests create mock registry mDNS announcements on the network unless the `Config.py` `ENABLE_DNS_SD` parameter is set to `False`, or the `DNS_SD_MODE` parameter is set to `'unicast'`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_DNS_SD` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `Config.py`.
@@ -33,7 +33,7 @@ The result of each test case will be one of the following:
 
 | Pass | Reason |
 | - | - |
-| ![Pass](https://place-hold.it/128x32/28a745.png?text=Pass&fontsize=12&bold)| Successful test case. | 
+| ![Pass](https://place-hold.it/128x32/28a745.png?text=Pass&fontsize=12&bold)| Successful test case. |
 | ![Fail](https://place-hold.it/128x32/dc3545.png?text=Fail&fontsize=12&bold) | Required feature of the specification has been found to be implemented incorrectly. |
 | ![Warning](https://place-hold.it/128x32/ffc107.png?text=Warning&fontsize=12&bold) | Not a failure, but the API being tested is responding or configured in a way which is not recommended in most cases. |
 | ![Test Disabled](https://place-hold.it/128x32/ffc107.png?text=Test%20Disabled&fontsize=12&bold) | Test is disabled due to test suite configuration; change the config or test manually. |
@@ -81,7 +81,15 @@ This test suite is intended to be straightforward to extend. If you encounter an
 
 All test classes inherit from 'GenericTest' which implements some basic schema checks on GET/HEAD/OPTIONS methods from the specification. It also provides access to a 'Specification' object which contains a parsed version of the API RAML, and provides access to schemas for the development of additional tests.
 
-Each manually defined test is expected to be defined as a method starting with 'test_'. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class Test. An example is included below:
+Each manually defined test is expected to be defined as a method starting with 'test_'. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class Test.
+
+The first argument, `details`, is used to specify the reason for the test result.
+It is required for `FAIL``, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
+
+The second argument, `link`, is optional. It may be used to specify a link to more information, such as to a sub-heading on one of the NMOS Wiki [Specifications](https://github.com/AMWA-TV/nmos/wiki/Specifications) pages.
+It is recommended especially to provide further explanation of the effect of an `OPTIONAL` feature being unimplemented.
+
+Examples of each result are included below:
 
 ```python
 from TestResult import Test
@@ -90,28 +98,25 @@ def test_my_stuff(self):
     test = Test("My test description")
     # Test code
     if test_passed:
-        return test.PASS("Successful test case.")
+        return test.PASS()
     elif test_failed:
-        return test.FAIL("Required feature of the specification has been found to be "
-                         "implemented incorrectly")
+        return test.FAIL("Reason for failure")
     elif test_warning:
-        return test.WARNING("Not a failure, but the API being tested is responding "
-                            "or configured in a way which is not recommended in most cases.")
+        return test.WARNING("Reason the API configuration or response is not recommended")
     elif test_disabled:
-        return test.DISABLED("Test is disabled due to test suite configuration; change the "
-                             "config or test manually.")
+        return test.DISABLED("Explanation of why the test is disabled and e.g. how to change the test suite config "
+                             "to allow it to be run")
     elif test_could_not_test:
-        return test.UNCLEAR("Test was not run due to prior responses from the API, which "
-                            "may be OK, or indicate a fault.")
+        return test.UNCLEAR("Explanation of what prior responses prevented this test being run")
     elif test_not_implemented:
-        return test.OPTIONAL("Recommended/optional feature of the specifications has been "
-                             "found to be not implemented.")
+        return test.OPTIONAL("Explanation of what wasn't implemented, and why you might require it",
+                             "https://github.com/AMWA-TV/nmos/wiki/Specifications#what-is-required-vs-optional")
     elif test_manual:
-        return test.MANUAL("Test suite does not currently test this feature, so it must be "
-                           "tested manually.")
+        return test.MANUAL("Explanation of why the test is not (yet) tested automatically, and e.g. how to run it "
+                           "manually")
     elif test_not_applicable:
-        return test.NA("Test is not applicable, e.g. due to the version of the specification "
-                       "being tested.")
+        return test.NA("Explanation of why the test is not applicable, e.g. due to the version of the specification "
+                       "being tested")
 ```
 
 The following methods may be of use within a given test definition.
