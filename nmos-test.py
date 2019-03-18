@@ -289,7 +289,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "base_url": base_url,
                 "hostname": endpoints[index]["host"],
                 "ip": ip_address,
-                "port": endpoints[index]["port"],
+                "port": int(endpoints[index]["port"]),
                 "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest

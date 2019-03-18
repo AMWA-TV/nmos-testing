@@ -15,9 +15,12 @@
 import os
 import subprocess
 import json
+import ssl
+import socket
+import ipaddress
 
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException
-from Config import ENABLE_HTTPS
+from Config import ENABLE_HTTPS, HTTP_TIMEOUT
 from TestResult import Test
 
 BCP_API_KEY = "bcp-003-01"
@@ -117,7 +120,29 @@ class BCP00301Test(GenericTest):
             else:
                 return test.PASS()
 
-    def test_03_hsts(self):
+    def test_03_cn_san(self):
+        test = Test("Certificate does not use IP addresses in CN/SANs")
+        ret = self.perform_test_ssl(test, ["-S"])
+        if ret != 0:
+            return test.FAIL("Unable to test. See the console for further information.")
+        else:
+            with open(TMPFILE) as tls_data:
+                tls_data = json.load(tls_data)
+                for report in tls_data:
+                    if report["id"] == "cert_commonName":
+                        try:
+                            ipaddress.ip_address(report["finding"])
+                            return test.FAIL("CN is an IP address: {}".format(report["finding"]))
+                        except ValueError:
+                            pass
+                    elif report["id"] == "cert_subjectAltName":
+                        if report["finding"].startswith("No SAN"):
+                            return test.WARNING("No SAN was found in the certificate")
+                        # TODO: Check the SAN contains the CN and no IP addresses
+
+            return test.PASS()
+
+    def test_04_hsts(self):
         test = Test("HSTS Header")
         ret = self.perform_test_ssl(test, ["-h"])
         if ret != 0:
@@ -139,7 +164,21 @@ class BCP00301Test(GenericTest):
             else:
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
 
-    def test_04_vulnerabilities(self):
+    def test_05_ocsp_stapling(self):
+        test = Test("OCSP Stapling")
+        ret = self.perform_test_ssl(test, ["-S"])
+        if ret != 0:
+            return test.FAIL("Unable to test. See the console for further information.")
+        else:
+            with open(TMPFILE) as tls_data:
+                tls_data = json.load(tls_data)
+                for report in tls_data:
+                    if report["id"] == "OCSP_stapling":
+                        if report["finding"] == "not offered":
+                            return test.WARNING("OCSP stapling is not offered by this server")
+            return test.PASS()
+
+    def test_06_vulnerabilities(self):
         test = Test("TLS Vulnerabilities")
         ret = self.perform_test_ssl(test, ["-U"])
         if ret != 0:
@@ -155,3 +194,19 @@ class BCP00301Test(GenericTest):
                 return test.PASS()
             else:
                 return test.WARNING("Server may be vulnerable to the following: {}".format(vulnerabilities))
+
+    def test_07_verify_host(self):
+        test = Test("Certificate is valid and matches the host under test")
+        try:
+            context = ssl.create_default_context()
+            hostname = self.apis[BCP_API_KEY]["hostname"]
+            sock = context.wrap_socket(socket.socket(), server_hostname=hostname)
+            sock.settimeout(HTTP_TIMEOUT)
+            # Verification of certificate and CN/SAN matches is performed during connect
+            sock.connect((hostname, self.apis[BCP_API_KEY]["port"]))
+            sock.close()
+            return test.PASS()
+        except ssl.CertificateError as e:
+            return test.FAIL("Certificate verification error: {}".format(e))
+        except Exception as e:
+            return test.FAIL(str(e))
