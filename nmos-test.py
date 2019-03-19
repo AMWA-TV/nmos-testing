@@ -36,6 +36,7 @@ import sys
 import platform
 import argparse
 import time
+import traceback
 
 import IS0401Test
 import IS0402Test
@@ -45,6 +46,7 @@ import IS0502Test
 import IS0601Test
 import IS0701Test
 import IS0801Test
+import BCP00301Test
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -134,6 +136,14 @@ TEST_DEFINITIONS = {
             "api_key": "channelmapping"
         }],
         "class": IS0801Test.IS0801Test
+    },
+    "BCP-003-01": {
+        "name": "BCP-003-01 Secure API Communications",
+        "specs": [{
+            "spec_key": "bcp-003-01",
+            "api_key": "bcp-003-01"
+        }],
+        "class": BCP00301Test.BCP00301Test
     }
 }
 
@@ -230,6 +240,7 @@ def index_page():
                 else:
                     flash("Error: This test definition does not exist")
             except Exception as e:
+                traceback.print_exc()
                 flash("Error: {}".format(e))
         else:
             flash("Error: {}".format(form.errors))
@@ -256,6 +267,7 @@ def index_page():
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
 
+
 def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
@@ -268,13 +280,16 @@ def run_tests(test, endpoints, test_selection=["all"]):
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
             apis[api_key] = {
-                "raml": SPECIFICATIONS[spec_key]["apis"][api_key]["raml"],
                 "base_url": base_url,
+                "hostname": endpoints[index]["ip"],
+                "port": endpoints[index]["port"],
                 "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
-                "spec_path": CACHE_PATH + '/' + spec_key,
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
             }
+            if SPECIFICATIONS[spec_key]["repo"] is not None and api_key in SPECIFICATIONS[spec_key]["apis"]:
+                apis[api_key]["spec_path"] = CACHE_PATH + '/' + spec_key
+                apis[api_key]["raml"] = SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
 
         # Instantiate the test class
         if test == "IS-04-01":
@@ -316,22 +331,23 @@ def init_spec_cache():
 
     for repo_key, repo_data in SPECIFICATIONS.items():
         path = os.path.join(CACHE_PATH + '/' + repo_key)
-        if not os.path.exists(path):
-            print(" * Initialising repository '{}'".format(repo_data["repo"]))
-            repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
-            update_last_pull = True
-        else:
-            repo = git.Repo(path)
-            repo.git.reset('--hard')
-            # Only pull if we haven't in the last hour
-            if (last_pull_time + timedelta(hours=1)) <= time_now:
-                print(" * Pulling latest files for repository '{}'".format(repo_data["repo"]))
-                try:
-                    repo.remotes.origin.pull()
-                    update_last_pull = True
-                except Exception as e:
-                    print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
-                          "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
+        if repo_data["repo"] is not None:
+            if not os.path.exists(path):
+                print(" * Initialising repository '{}'".format(repo_data["repo"]))
+                repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
+                update_last_pull = True
+            else:
+                repo = git.Repo(path)
+                repo.git.reset('--hard')
+                # Only pull if we haven't in the last hour
+                if (last_pull_time + timedelta(hours=1)) <= time_now:
+                    print(" * Pulling latest files for repository '{}'".format(repo_data["repo"]))
+                    try:
+                        repo.remotes.origin.pull()
+                        update_last_pull = True
+                    except Exception as e:
+                        print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
+                              "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
 
     if update_last_pull:
         try:

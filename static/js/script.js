@@ -20,7 +20,11 @@ function updateDropdown() {
           versionDropdown.options[i] = new Option(specData[specKey]["versions"][i], specData[specKey]["versions"][i]);
         }
         versionDropdown.value = specData[specKey]["default_version"];
-        label.innerHTML = specData[specKey]["apis"][apiKey]["name"] + ":";
+        if (apiKey in specData[specKey]["apis"]) {
+          label.innerHTML = specData[specKey]["apis"][apiKey]["name"] + ":";
+        } else {
+          label.innerHTML = "";
+        }
         div.style.display = "block";
       } else {
         div.style.display = "none";
