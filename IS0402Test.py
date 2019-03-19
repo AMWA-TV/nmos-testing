@@ -1805,6 +1805,7 @@ class IS0402Test(GenericTest):
 
         if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
             sub_json = deepcopy(self.subscription_data)
+            sub_json["secure"] = ENABLE_HTTPS
             if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
                 sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
 
