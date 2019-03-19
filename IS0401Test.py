@@ -293,6 +293,8 @@ class IS0401Test(GenericTest):
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
+        api = self.apis[NODE_API_KEY]
+
         self.do_registry_basics_prereqs()
 
         registry = self.registries[0]
@@ -320,8 +322,10 @@ class IS0401Test(GenericTest):
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
             # Ensure the heartbeat request body is empty
-            if heartbeat[1]["payload"] is not None:
-                return test.FAIL("Heartbeat POST contained a payload body.")
+            if heartbeat[1]["payload"] is not bytes():
+                return test.WARNING("Heartbeat POST contained a payload body.", "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies".format(api["spec_branch"]))
+            if "Content-Type" in heartbeat[1]["headers"]:
+                return test.WARNING("Heartbeat POST contained a Content-Type header.", "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies".format(api["spec_branch"]))
 
             last_hb = heartbeat
 
