@@ -40,5 +40,8 @@ function fixUpTestSelection(source) {
 
 document.addEventListener("DOMContentLoaded", function() {
     fail_checkboxes = document.getElementsByClassName("failed");
-    document.getElementById("failed_all").disabled = 0 == fail_checkboxes.length
+    if (fail_checkboxes.length == 0) {
+        document.getElementById("failed_all").disabled = true;
+        document.getElementById("failed_all_label").style.opacity = 0.5;
+    }
 });

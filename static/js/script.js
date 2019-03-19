@@ -102,6 +102,7 @@ function saveSettings() {
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("test").onchange = function() {
         updateDropdown();
+        document.getElementById("test_selection").selectedIndex = 0;
     }
 
     document.getElementById("test_selection").onchange = function(event) {
