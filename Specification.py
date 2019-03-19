@@ -70,6 +70,7 @@ class Specification(object):
                     if in_schemas and not line.startswith(" "):
                         # Detect that we've reached the first line after the schemas/types section
                         in_schemas = False
+                        type_name = None
 
                     if in_schemas and "!include" not in line:
                         # This is a correct RAML 1.0 type definition
@@ -86,7 +87,7 @@ class Specification(object):
                         # We've hit the global schema/type definition section
                         in_schemas = True
 
-                    if line.startswith("traits:"):
+                    if line.startswith("traits:") or line.startswith("securitySchemes:"):
                         # Remove traits to work around an issue with ramlfications util.py '_remove_duplicates'
                         line = "bugfix:\r\n"
 
@@ -108,7 +109,7 @@ class Specification(object):
             for schema in api_raml.schemas:
                 keys = list(schema.keys())
                 self.global_schemas[keys[0]] = schema[keys[0]]
-        elif "types" in api_raml.raw:
+        elif "types" in api_raml.raw and api_raml.raw["types"] is not None:
             # Handle RAML 1.0 parsing manually as ramlfications doesn't support it
             for schema in api_raml.raw["types"]:
                 keys = list(schema.keys())

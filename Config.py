@@ -108,12 +108,12 @@ SPECIFICATIONS = {
             }
         }
     },
-    "bcp-003": {
+    "bcp-003-02": {
         "repo": "nmos-api-security",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
-            "oauth": {
+            "auth": {
                 "name": "Authorization API",
                 "raml": "AuthorizationAPI.raml"
             }

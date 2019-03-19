@@ -134,8 +134,8 @@ TEST_DEFINITIONS = {
     "BCP-003-02": {
         "name": "BCP-003-02 Authorization API",
         "specs": [{
-            "spec_key": 'bcp-003',
-            "api_key": "oauth"
+            "spec_key": 'bcp-003-02',
+            "api_key": "auth"
         }],
         "class": BCP00302Test.BCP00302Test
     }
