@@ -78,6 +78,8 @@ class GenericTest(object):
             if not spec_branch:
                 raise Exception("No branch matching the expected patterns was found in the Git repository")
 
+            api_data["spec_branch"] = spec_branch
+
             repo.git.reset('--hard')
             repo.git.checkout(spec_branch)
             repo.git.rebase("origin/" + spec_branch)
