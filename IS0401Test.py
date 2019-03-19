@@ -320,8 +320,10 @@ class IS0401Test(GenericTest):
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
             # Ensure the heartbeat request body is empty
-            if heartbeat[1]["payload"] is not None:
-                return test.FAIL("Heartbeat POST contained a payload body.")
+            if heartbeat[1]["payload"] is not bytes():
+                return test.WARNING("Heartbeat POST contained a payload body.", "https://amwa-tv.github.io/nmos-discovery-registration/tags/v1.2.1/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies")
+            if "Content-Type" in heartbeat[1]["headers"]:
+                return test.WARNING("Heartbeat POST contained a Content-Type header.", "https://amwa-tv.github.io/nmos-discovery-registration/tags/v1.2.1/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies")
 
             last_hb = heartbeat
 
