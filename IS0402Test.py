@@ -1801,11 +1801,11 @@ class IS0402Test(GenericTest):
         """Query API supports websocket subscription request"""
         test = Test("Query API supports request of a websocket subscription")
 
-        api = self.apis[REG_API_KEY]
+        api = self.apis[QUERY_API_KEY]
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
+        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
             sub_json = deepcopy(self.subscription_data)
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
                 sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
 
             valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
@@ -1816,8 +1816,9 @@ class IS0402Test(GenericTest):
                 response_json = r.json()
                 if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
                     return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
-                if response_json["secure"] is not ENABLE_HTTPS:
-                    return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    if response_json["secure"] is not ENABLE_HTTPS:
+                        return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
 
                 # Test if subscription is available
                 sub_id = response_json["id"]
