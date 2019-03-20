@@ -1213,7 +1213,8 @@ class IS0402Test(GenericTest):
         valid_sub_id = None
         invalid_sub_id = None
         sub_json = deepcopy(self.subscription_data)
-        if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
         valid, r = self.do_request("POST", self.query_url + "subscriptions", sub_json)
         if not valid:
@@ -1230,7 +1231,9 @@ class IS0402Test(GenericTest):
 
         previous_version = query_versions[-2]
         query_sub_url = self.query_url.replace(api["version"], previous_version) + "subscriptions"
-        if self.is04_reg_utils.compare_api_version(previous_version, "v1.2") < 0:
+        sub_json = deepcopy(self.subscription_data)
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(previous_version, "v1.2") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, previous_version)
         valid, r = self.do_request("POST", query_sub_url, sub_json)
         if not valid:
@@ -1338,6 +1341,9 @@ class IS0402Test(GenericTest):
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
         sub_json = deepcopy(self.subscription_data)
         sub_json["params"]["description"] = node_ids[0]
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
         websocket = None
 
@@ -1517,6 +1523,9 @@ class IS0402Test(GenericTest):
         sub_json = deepcopy(self.subscription_data)
         query_string = "eq(description," + str(node_ids[0]) + ")"
         sub_json["params"]["query.rql"] = query_string
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
         websocket = None
 
@@ -1807,7 +1816,7 @@ class IS0402Test(GenericTest):
             sub_json = deepcopy(self.subscription_data)
             sub_json["secure"] = ENABLE_HTTPS
             if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
+                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
 
             valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
             if not valid:
@@ -1902,6 +1911,9 @@ class IS0402Test(GenericTest):
             for resource in resources_to_post:
                 sub_json = deepcopy(self.subscription_data)
                 sub_json["resource_path"] = "/{}s".format(resource)
+                sub_json["secure"] = ENABLE_HTTPS
+                if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
                 if not valid:
