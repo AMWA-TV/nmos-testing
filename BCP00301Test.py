@@ -16,7 +16,8 @@ import os
 import subprocess
 import json
 
-from GenericTest import GenericTest
+from GenericTest import GenericTest, NMOSTestException, NMOSInitException
+from Config import ENABLE_HTTPS
 from TestResult import Test
 
 BCP_API_KEY = "bcp-003-01"
@@ -29,14 +30,26 @@ class BCP00301Test(GenericTest):
     """
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
+        if not ENABLE_HTTPS:
+            raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in Config.py")
 
-    def test_01(self):
+    def perform_test_ssl(self, test, args=None):
         if os.path.exists(TMPFILE):
             os.remove(TMPFILE)
+        if args is None:
+            args = []
+        try:
+            ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off"] + args +
+                                 ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"], self.apis[BCP_API_KEY]["port"])])
+        except Exception as e:
+            raise NMOSTestException(test.FAIL("Unable to execute testssl.sh. Please see the README for installation "
+                                              "instructions: {}".format(e)))
+        return ret.returncode
+
+    def test_01(self):
         test = Test("TLS Protocols")
-        ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off", "-p",
-                              "{}:{}".format(self.apis[BCP_API_KEY]["hostname"], self.apis[BCP_API_KEY]["port"])])
-        if ret.returncode != 0:
+        ret = self.perform_test_ssl(test, ["-p"])
+        if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
             with open(TMPFILE) as tls_data:
@@ -51,12 +64,9 @@ class BCP00301Test(GenericTest):
             return test.PASS()
 
     def test_02(self):
-        if os.path.exists(TMPFILE):
-            os.remove(TMPFILE)
         test = Test("TLS Ciphers")
-        ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off", "-E",
-                              "{}:{}".format(self.apis[BCP_API_KEY]["hostname"], self.apis[BCP_API_KEY]["port"])])
-        if ret.returncode != 0:
+        ret = self.perform_test_ssl(test, ["-E"])
+        if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
             with open(TMPFILE) as tls_data:
