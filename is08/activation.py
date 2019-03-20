@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from GenericTest import NMOSTestException
+from NMOSUtils import IMMEDIATE_ACTIVATION
 from is08.calls import Call
 from is08.testConfig import globalConfig
 import re
@@ -20,14 +21,10 @@ import re
 
 class Activation:
 
-    IMMEDIATE_ACTIVATION = 'activate_immediate'
-    SCHEDULED_ABSOLUTE_ACTIVATION = 'activate_scheduled_absolute'
-    SCHEDULED_RELATIVE_ACTIVATION = 'activate_scheduled_relative'
-
     def __init__(self):
         self.test = globalConfig.test
         self.urlBase = globalConfig.apiUrl
-        self.type = self.IMMEDIATE_ACTIVATION
+        self.type = IMMEDIATE_ACTIVATION
         self.activationTimestamp = "0:0"
         self.actionList = []
         self.activationID = None
@@ -40,7 +37,7 @@ class Activation:
         activationObject = {
             "mode": self.type
         }
-        if self.type != self.IMMEDIATE_ACTIVATION:
+        if self.type != IMMEDIATE_ACTIVATION:
             activationObject['requested_time'] = self.activationTimestamp
         return activationObject
 
@@ -58,7 +55,7 @@ class Activation:
         return postObject
 
     def _setExpectedResponseCode(self):
-        if self.type == self.IMMEDIATE_ACTIVATION:
+        if self.type == IMMEDIATE_ACTIVATION:
             self._callInstance.expectedCode = 200
         else:
             self._callInstance.expectedCode = 202
@@ -86,8 +83,10 @@ class Activation:
     def fireActivation(self):
         postObject = self._buildPOSTObject()
         self._setExpectedResponseCode()
-        self._callInstance.responseSchema = globalConfig.testSuite.get_schema(globalConfig.apiKey, "POST", "/map/activations", 200)
-        activationResponse = self._callInstance.post(postObject)        
+        self._callInstance.responseSchema = globalConfig.testSuite.get_schema(
+            globalConfig.apiKey, "POST", "/map/activations", 200
+        )
+        activationResponse = self._callInstance.post(postObject)
         self._getActivationIDFromActivationResponse(activationResponse)
         return self.activationID
 

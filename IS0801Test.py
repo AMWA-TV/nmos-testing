@@ -112,7 +112,7 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         offset = "2:0"
-        self.check_delayed_activation(offset, Activation.SCHEDULED_RELATIVE_ACTIVATION)
+        self.check_delayed_activation(offset, NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION)
 
         return test.PASS()
 
@@ -122,7 +122,7 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         timestamp = NMOSUtils(globalConfig.apiUrl).get_TAI_time(offset=2.0)
-        self.check_delayed_activation(timestamp, Activation.SCHEDULED_ABSOLUTE_ACTIVATION)
+        self.check_delayed_activation(timestamp, NMOSUtils.SCHEDULED_ABSOLUTE_ACTIVATION)
 
         return test.PASS()
 
@@ -136,7 +136,7 @@ class IS0801Test(GenericTest):
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
-        activation.type = Activation.SCHEDULED_RELATIVE_ACTIVATION
+        activation.type = NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION
         activation.activationTimestamp = "2:0"
         try:
             activation.fireActivation()
@@ -159,7 +159,7 @@ class IS0801Test(GenericTest):
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
-        activation.type = Activation.SCHEDULED_RELATIVE_ACTIVATION
+        activation.type = NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION
         activation.activationTimestamp = "5:0"
         activation.fireActivation()
         activation.checkLock()
