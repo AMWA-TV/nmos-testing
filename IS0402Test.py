@@ -1213,34 +1213,22 @@ class IS0402Test(GenericTest):
         valid_sub_id = None
         invalid_sub_id = None
         sub_json = self.prepare_subscription("/nodes")
-        valid, r = self.do_request("POST", self.query_url + "subscriptions", sub_json)
-        if not valid:
-            return test.FAIL("Query API failed to respond to request")
+        status_code, r_json = self.post_subscription(test, sub_json)
+        if status_code not in [200, 201]:
+            return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
+                             .format(status_code))
         else:
-            if r.status_code not in [200, 201]:
-                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
-                                 .format(r.status_code))
-            else:
-                try:
-                    valid_sub_id = r.json()["id"]
-                except json.decoder.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned")
+            valid_sub_id = r_json["id"]
 
         previous_version = query_versions[-2]
-        query_sub_url = self.query_url.replace(api["version"], previous_version) + "subscriptions"
+        query_sub_url = self.query_url.replace(api["version"], previous_version)
         sub_json = self.prepare_subscription("/nodes", api_ver=previous_version)
-        valid, r = self.do_request("POST", query_sub_url, sub_json)
-        if not valid:
-            return test.FAIL("Query API failed to respond to request")
+        status_code, r_json = self.post_subscription(test, sub_json, query_url=query_sub_url)
+        if status_code not in [200, 201]:
+            return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
+                             .format(status_code))
         else:
-            if r.status_code not in [200, 201]:
-                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
-                                 .format(r.status_code))
-            else:
-                try:
-                    invalid_sub_id = r.json()["id"]
-                except json.decoder.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned")
+            invalid_sub_id = r_json["id"]
 
         # Test a request to GET subscriptions
         subscription_ids = set()
@@ -1334,22 +1322,18 @@ class IS0402Test(GenericTest):
         # Create subscription to a specific Node description
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
         sub_json = self.prepare_subscription("/nodes", params={"description": node_ids[0]})
-        valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+        status_code, r_json = self.post_subscription(test, sub_json)
         websocket = None
-
-        if not valid:
-            return test.FAIL("Query API returned an unexpected response: {}".format(r))
+        if status_code in [200, 201]:
+            websocket = WebsocketWorker(r_json["ws_href"])
+        elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
+              status_code == 501):
+            return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
+                                 " for scalability.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
         else:
-            if r.status_code == 200 or r.status_code == 201:
-                websocket = WebsocketWorker(r.json()["ws_href"])
-            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
-                   r.status_code == 501):
-                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
-                                     " for scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
-            else:
-                return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
-                                 .format(r.status_code, r.text))
+            return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
+                             .format(status_code, r_json))
         websocket.start()
         sleep(0.5)
         if websocket.did_error_occur():
@@ -1512,26 +1496,23 @@ class IS0402Test(GenericTest):
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
         query_string = "eq(description," + str(node_ids[0]) + ")"
         sub_json = self.prepare_subscription("/nodes", params={"query.rql": query_string})
-        valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+        status_code, r_json = self.post_subscription(test, sub_json)
         websocket = None
 
-        if not valid:
-            return test.FAIL("Query API returned an unexpected response: {}".format(r))
+        if status_code in [200, 201]:
+            websocket = WebsocketWorker(r_json["ws_href"])
+        elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
+              status_code == 501):
+            return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
+                                 "scalability.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        elif status_code == 400:
+            return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
+                                 "{}".format(query_string),
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
         else:
-            if r.status_code == 200 or r.status_code == 201:
-                websocket = WebsocketWorker(r.json()["ws_href"])
-            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
-                   r.status_code == 501):
-                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
-                                     "scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
-            elif r.status_code == 400:
-                return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
-                                     "{}".format(query_string),
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
-            else:
-                return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
-                                 .format(r.status_code, r.text))
+            return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
+                             .format(status_code, r_json))
         websocket.start()
         sleep(WS_MESSAGE_TIMEOUT)
         if websocket.did_error_occur():
@@ -1800,30 +1781,27 @@ class IS0402Test(GenericTest):
 
         if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
             sub_json = self.prepare_subscription("/nodes")
-            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
-            if not valid:
-                return test.FAIL("Query API did not respond as expected")
-            elif r.status_code == 200 or r.status_code == 201:
+            status_code, r_json = self.post_subscription(test, sub_json)
+            if status_code in [200, 201]:
                 # Check protocol
-                response_json = r.json()
                 if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                    if response_json["secure"] is not ENABLE_HTTPS:
+                    if r_json["secure"] is not ENABLE_HTTPS:
                         return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
-                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
+                if not r_json["ws_href"].startswith(self.ws_protocol + "://"):
                     return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
 
                 # Test if subscription is available
-                sub_id = response_json["id"]
+                sub_id = r_json["id"]
                 valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
                 if not valid:
                     return test.FAIL("Query API did not respond as expected")
-                elif r.status_code == 200:
+                elif status_code == 200:
                     return test.PASS()
                 else:
                     return test.FAIL("Query API does not provide requested subscription: {} {}"
-                                     .format(r.status_code, r.text))
+                                     .format(status_code, r_json))
             else:
-                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Query API returned an unexpected response: {} {}".format(status_code, r_json))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -1837,21 +1815,18 @@ class IS0402Test(GenericTest):
             sub_json = self.prepare_subscription("/nodes")
             if "secure" in sub_json:
                 del sub_json["secure"]  # This is the key element under test
-            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
-            if not valid:
-                return test.FAIL("Query API did not respond as expected")
-            elif r.status_code == 200 or r.status_code == 201:
+            status_code, r_json = self.post_subscription(test, sub_json)
+            if status_code in [200, 201]:
                 # Check protocol
-                response_json = r.json()
                 if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                    if response_json["secure"] is not ENABLE_HTTPS:
+                    if r_json["secure"] is not ENABLE_HTTPS:
                         return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
-                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
+                if not r_json["ws_href"].startswith(self.ws_protocol + "://"):
                     return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
 
                 return test.PASS()
             else:
-                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Query API returned an unexpected response: {} {}".format(status_code, r_json))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -1920,16 +1895,13 @@ class IS0402Test(GenericTest):
 
             for resource in resources_to_post:
                 sub_json = self.prepare_subscription("/{}s".format(resource))
-                valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+                status_code, r_json = self.post_subscription(test, sub_json)
 
-                if not valid:
-                    return test.FAIL("Query API returned an unexpected response: {}".format(r))
+                if status_code in [200, 201]:
+                    websockets[resource] = WebsocketWorker(r_json["ws_href"])
                 else:
-                    if r.status_code == 200 or r.status_code == 201:
-                        websockets[resource] = WebsocketWorker(r.json()["ws_href"])
-                    else:
-                        return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}"
-                                         .format(r.status_code, r.text))
+                    return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}"
+                                     .format(status_code, r_json))
 
             # Post sample data
             for resource in resources_to_post:
@@ -2278,6 +2250,7 @@ class IS0402Test(GenericTest):
         resource["version"] = str(v[0]) + ':' + str(v[1])
 
     def prepare_subscription(self, resource_path, params=None, api_ver=None):
+        """Prepare an object ready to send as the request body for a Query API subscription"""
         if params is None:
             params = {}
         if api_ver is None:
@@ -2289,6 +2262,23 @@ class IS0402Test(GenericTest):
         if self.is04_query_utils.compare_api_version(api_ver, "v1.2") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, api_ver)
         return sub_json
+
+    def post_subscription(self, test, sub_json, query_url=None):
+        """Perform a POST request to a Query API to create a subscription"""
+        if query_url is None:
+            query_url = self.query_url
+        valid, r = self.do_request("POST", "{}subscriptions".format(query_url), data=sub_json)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: {}".format(r)))
+
+        try:
+            if r.status_code in [200, 201]:
+                return r.status_code, r.json()
+            else:
+                return r.status_code, r.text
+        except json.decoder.JSONDecodeError:
+            raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
     def post_resource(self, test, type, data, code=None):
         """Perform a POST request on the Registration API to create or update a resource registration"""
