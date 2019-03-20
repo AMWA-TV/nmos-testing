@@ -104,3 +104,6 @@ ENV/
 
 # Other
 cache/
+testssl/
+!testssl/README.md
+tls-report.json
