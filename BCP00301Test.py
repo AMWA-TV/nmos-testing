@@ -55,7 +55,7 @@ class BCP00301Test(GenericTest):
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
-                    if report["id"] in ["SSLv2", "SSLv3", "TLS1", "TLS1_1"] and report["finding"] != "not offered":
+                    if report["id"] in ["SSLv2", "SSLv3", "TLS1", "TLS1_1"] and "not offered" not in report["finding"]:
                         return test.FAIL("Protocol {} must not be offered".format(report["id"].replace("_", ".")))
                     elif report["id"] in ["TLS1_2"] and report["finding"] != "offered":
                         return test.FAIL("Protocol {} must be offered".format(report["id"].replace("_", ".")))
