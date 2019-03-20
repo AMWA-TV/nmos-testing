@@ -78,11 +78,8 @@ class IS0403Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Node API advertisement.")
-                    elif properties["api_proto"] == "https":
-                        return test.MANUAL("API protocol is not advertised as 'http'. "
-                                           "This test suite does not currently support 'https'.")
-                    elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
+                    elif properties["api_proto"] != self.protocol:
+                        return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
 

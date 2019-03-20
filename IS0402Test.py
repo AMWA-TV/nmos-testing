@@ -27,7 +27,7 @@ from MdnsListener import MdnsListener
 from TestResult import Test
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
 from IS04Utils import IS04Utils
-from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT
+from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
 from TestHelper import WebsocketWorker, load_resolved_schema
 
 REG_API_KEY = "registration"
@@ -102,11 +102,8 @@ class IS0402Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Registration API advertisement.")
-                    elif properties["api_proto"] == "https":
-                        return test.MANUAL("API protocol is not advertised as 'http'. "
-                                           "This test suite does not currently support 'https'.")
-                    elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
+                    elif properties["api_proto"] != self.protocol:
+                        return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Registration API.")
@@ -145,11 +142,8 @@ class IS0402Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Query API advertisement.")
-                    elif properties["api_proto"] == "https":
-                        return test.MANUAL("API protocol is not advertised as 'http'. "
-                                           "This test suite does not currently support 'https'.")
-                    elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
+                    elif properties["api_proto"] != self.protocol:
+                        return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Query API.")
@@ -635,6 +629,10 @@ class IS0402Test(GenericTest):
             for rel in ["first", "prev", "next", "last"]:
                 if rel not in link_header:
                     continue
+
+                if not link_header[rel].startswith(self.protocol + "://"):
+                    raise NMOSTestException(test.FAIL("Query API Link header is invalid for the current protocol. "
+                                                      "Expected '{}://'".format(self.protocol)))
 
                 if "paging.limit=" + limit not in link_header[rel]:
                     raise NMOSTestException(test.FAIL("Query API response did not include the correct '{}' value "
@@ -1215,7 +1213,8 @@ class IS0402Test(GenericTest):
         valid_sub_id = None
         invalid_sub_id = None
         sub_json = deepcopy(self.subscription_data)
-        if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
         valid, r = self.do_request("POST", self.query_url + "subscriptions", sub_json)
         if not valid:
@@ -1232,7 +1231,9 @@ class IS0402Test(GenericTest):
 
         previous_version = query_versions[-2]
         query_sub_url = self.query_url.replace(api["version"], previous_version) + "subscriptions"
-        if self.is04_reg_utils.compare_api_version(previous_version, "v1.2") < 0:
+        sub_json = deepcopy(self.subscription_data)
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(previous_version, "v1.2") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, previous_version)
         valid, r = self.do_request("POST", query_sub_url, sub_json)
         if not valid:
@@ -1340,6 +1341,9 @@ class IS0402Test(GenericTest):
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
         sub_json = deepcopy(self.subscription_data)
         sub_json["params"]["description"] = node_ids[0]
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
         websocket = None
 
@@ -1519,6 +1523,9 @@ class IS0402Test(GenericTest):
         sub_json = deepcopy(self.subscription_data)
         query_string = "eq(description," + str(node_ids[0]) + ")"
         sub_json["params"]["query.rql"] = query_string
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
         websocket = None
 
@@ -1803,19 +1810,28 @@ class IS0402Test(GenericTest):
         """Query API supports websocket subscription request"""
         test = Test("Query API supports request of a websocket subscription")
 
-        api = self.apis[REG_API_KEY]
+        api = self.apis[QUERY_API_KEY]
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
+        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
             sub_json = deepcopy(self.subscription_data)
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sub_json = self.downgrade_resource("subscription", sub_json, self.apis[REG_API_KEY]["version"])
+            sub_json["secure"] = ENABLE_HTTPS
+            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
 
             valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
             if not valid:
                 return test.FAIL("Query API did not respond as expected")
             elif r.status_code == 200 or r.status_code == 201:
+                # Check protocol
+                response_json = r.json()
+                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    if response_json["secure"] is not ENABLE_HTTPS:
+                        return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
+                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+
                 # Test if subscription is available
-                sub_id = r.json()["id"]
+                sub_id = response_json["id"]
                 valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
                 if not valid:
                     return test.FAIL("Query API did not respond as expected")
@@ -1824,6 +1840,36 @@ class IS0402Test(GenericTest):
                 else:
                     return test.FAIL("Query API does not provide requested subscription: {} {}"
                                      .format(r.status_code, r.text))
+            else:
+                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
+    def test_29_1(self):
+        """Query API websocket subscription requests default to the current protocol"""
+        test = Test("Query API websocket subscription requests default to the current protocol")
+
+        api = self.apis[QUERY_API_KEY]
+
+        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
+            sub_json = deepcopy(self.subscription_data)
+            del sub_json["secure"]  # This is the key element under test
+            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+
+            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+            if not valid:
+                return test.FAIL("Query API did not respond as expected")
+            elif r.status_code == 200 or r.status_code == 201:
+                # Check protocol
+                response_json = r.json()
+                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    if response_json["secure"] is not ENABLE_HTTPS:
+                        return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
+                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+
+                return test.PASS()
             else:
                 return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
         else:
@@ -1895,6 +1941,9 @@ class IS0402Test(GenericTest):
             for resource in resources_to_post:
                 sub_json = deepcopy(self.subscription_data)
                 sub_json["resource_path"] = "/{}s".format(resource)
+                sub_json["secure"] = ENABLE_HTTPS
+                if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
+                    sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
                 if not valid:
@@ -2252,7 +2301,7 @@ class IS0402Test(GenericTest):
             v[1] = 0
         resource["version"] = str(v[0]) + ':' + str(v[1])
 
-    def post_resource(self, test, type, data, code = None):
+    def post_resource(self, test, type, data, code=None):
         """Perform a POST request on the Registration API to create or update a resource registration"""
 
         # As a convenience, bump the version if this is expected to be an update
@@ -2260,7 +2309,7 @@ class IS0402Test(GenericTest):
             self.bump_resource_version(data)
 
         valid, r = self.do_request("POST", self.reg_url + "resource",
-                                   data = {"type": type, "data": data})
+                                   data={"type": type, "data": data})
         if not valid:
             raise NMOSTestException(test.FAIL("Registration API did not respond as expected"))
 
@@ -2272,3 +2321,9 @@ class IS0402Test(GenericTest):
         elif r.status_code not in expected_codes:
             raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
+        elif r.status_code in [200, 201]:
+            if "Location" not in r.headers:
+                raise NMOSTestException(test.FAIL("Registration API failed to return a 'Location' response header"))
+            elif not r.headers["Location"].startswith("/") and not r.headers["Location"].startswith(self.protocol + "://"):
+                raise NMOSTestException(test.FAIL("Registration API response Location header is invalid for the "
+                                                  "current protocol: Location: {}".format(r.headers["Location"])))

@@ -48,7 +48,7 @@ class IS0401Test(GenericTest):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"])
+            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol)
 
     def tear_down_tests(self):
         if self.zc:
@@ -62,7 +62,7 @@ class IS0401Test(GenericTest):
         default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': 'http', 'pri': str(priority)}
+        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': self.protocol, 'pri': str(priority)}
 
         service_type = "_nmos-registration._tcp.local."
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
@@ -200,20 +200,6 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def check_mdns_pri(self):
-        # Set priority to 100
-        # Ensure nothing registers
-        pass
-
-    def check_mdns_proto(self):
-        # Set proto to https
-        # Ensure https used, otherwise fail
-        pass
-
-    def check_mdns_ver(self):
-        # Set ver to something else comma separated?
-        pass
-
     def get_registry_resource(self, res_type, res_id):
         found_resource = None
         if ENABLE_DNS_SD:
@@ -224,7 +210,7 @@ class IS0401Test(GenericTest):
                     found_resource = resource[1]["payload"]["data"]
         else:
             # Look up data from a configured Query API
-            url = "http://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
+            url = self.protocol + "://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
                   self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s/" + res_id
             try:
                 valid, r = self.do_request("GET", url)
@@ -412,11 +398,8 @@ class IS0401Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Node API advertisement.")
-                    elif properties["api_proto"] == "https":
-                        return test.MANUAL("API protocol is not advertised as 'http'. "
-                                           "This test suite does not currently support 'https'.")
-                    elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
+                    elif properties["api_proto"] != self.protocol:
+                        return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
 
@@ -682,6 +665,67 @@ class IS0401Test(GenericTest):
                                          .format(receiver["id"], interface_name))
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
+
+    def test_20(self):
+        """Node's resources correctly signal the current protocol"""
+
+        test = Test("Node's resources correctly signal the current protocol")
+
+        service_href_warn = False
+        device_href_warn = False
+
+        api = self.apis[NODE_API_KEY]
+        valid, response = self.do_request("GET", self.node_url + "self")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            node_self = response.json()
+            if not node_self["href"].startswith(self.protocol + "://"):
+                return test.FAIL("Node 'href' does not match the current protocol")
+            if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                for endpoint in node_self["api"]["endpoints"]:
+                    if endpoint["protocol"] != self.protocol:
+                        return test.FAIL("One or more Node 'endpoints' do not match the current protocol")
+            for service in node_self["services"]:
+                if service["href"].startswith("http") and not service["href"].startswith(self.protocol):
+                    # Only warn about these at the end so that more major failures are flagged first
+                    # Protocols other than HTTP may be used, so don't incorrectly flag those too
+                    service_href_warn = True
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            valid, response = self.do_request("GET", self.node_url + "devices")
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            try:
+                node_devices = response.json()
+                for device in node_devices:
+                    for control in device["controls"]:
+                        if control["href"].startswith("http") and not control["href"].startswith(self.protocol):
+                            # Only warn about these at the end so that more major failures are flagged first
+                            # Protocols other than HTTP may be used, so don't incorrectly flag those too
+                            device_href_warn = True
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        valid, response = self.do_request("GET", self.node_url + "senders")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            node_senders = response.json()
+            for sender in node_senders:
+                if sender["manifest_href"] != "" and not sender["manifest_href"].startswith(self.protocol):
+                    return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        if service_href_warn:
+            return test.WARNING("One or more Node service 'href' values does not match the current protocol.")
+        elif device_href_warn:
+            return test.WARNING("One or more Device control 'href' values does not match the current protocol.")
 
         return test.PASS()
 
