@@ -76,7 +76,7 @@ class Active:
 
         if idFail:
             msg = self.test.FAIL("Did not get expected input channel index in active"
-                                    " map, expected {}, got {} for Output {}".format(
+                                 " map, expected {}, got {} for Output {}".format(
                                         action.inputChannel,
                                         inputChannelIndex,
                                         output.id
