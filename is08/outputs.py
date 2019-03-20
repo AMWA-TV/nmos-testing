@@ -51,6 +51,8 @@ class ACMOutput:
             else:
                 call = Call(url)
             toReturn[ioId] = call.get()
+        if toReturn['source_id'] == "null":
+            toReturn['source_id'] = None
         return toReturn
 
     def getRoutableInputList(self):
