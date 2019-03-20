@@ -1212,10 +1212,7 @@ class IS0402Test(GenericTest):
         # Generate a subscription at the API version under test and the version below that
         valid_sub_id = None
         invalid_sub_id = None
-        sub_json = deepcopy(self.subscription_data)
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+        sub_json = self.prepare_subscription("/nodes")
         valid, r = self.do_request("POST", self.query_url + "subscriptions", sub_json)
         if not valid:
             return test.FAIL("Query API failed to respond to request")
@@ -1231,10 +1228,7 @@ class IS0402Test(GenericTest):
 
         previous_version = query_versions[-2]
         query_sub_url = self.query_url.replace(api["version"], previous_version) + "subscriptions"
-        sub_json = deepcopy(self.subscription_data)
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(previous_version, "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, previous_version)
+        sub_json = self.prepare_subscription("/nodes", api_ver=previous_version)
         valid, r = self.do_request("POST", query_sub_url, sub_json)
         if not valid:
             return test.FAIL("Query API failed to respond to request")
@@ -1339,11 +1333,7 @@ class IS0402Test(GenericTest):
 
         # Create subscription to a specific Node description
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
-        sub_json = deepcopy(self.subscription_data)
-        sub_json["params"]["description"] = node_ids[0]
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
+        sub_json = self.prepare_subscription("/nodes", params={"description": node_ids[0]})
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
         websocket = None
 
@@ -1520,12 +1510,8 @@ class IS0402Test(GenericTest):
 
         # Create subscription to a specific Node description
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
-        sub_json = deepcopy(self.subscription_data)
         query_string = "eq(description," + str(node_ids[0]) + ")"
-        sub_json["params"]["query.rql"] = query_string
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
+        sub_json = self.prepare_subscription("/nodes", params={"query.rql": query_string})
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
         websocket = None
 
@@ -1813,11 +1799,7 @@ class IS0402Test(GenericTest):
         api = self.apis[QUERY_API_KEY]
 
         if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sub_json = deepcopy(self.subscription_data)
-            sub_json["secure"] = ENABLE_HTTPS
-            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
-
+            sub_json = self.prepare_subscription("/nodes")
             valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
             if not valid:
                 return test.FAIL("Query API did not respond as expected")
@@ -1852,11 +1834,9 @@ class IS0402Test(GenericTest):
         api = self.apis[QUERY_API_KEY]
 
         if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sub_json = deepcopy(self.subscription_data)
-            del sub_json["secure"]  # This is the key element under test
-            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
-
+            sub_json = self.prepare_subscription("/nodes")
+            if "secure" in sub_json:
+                del sub_json["secure"]  # This is the key element under test
             valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
             if not valid:
                 return test.FAIL("Query API did not respond as expected")
@@ -1939,11 +1919,7 @@ class IS0402Test(GenericTest):
             resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
 
             for resource in resources_to_post:
-                sub_json = deepcopy(self.subscription_data)
-                sub_json["resource_path"] = "/{}s".format(resource)
-                sub_json["secure"] = ENABLE_HTTPS
-                if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+                sub_json = self.prepare_subscription("/{}s".format(resource))
                 valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
                 if not valid:
@@ -2300,6 +2276,19 @@ class IS0402Test(GenericTest):
             v[0] += 1
             v[1] = 0
         resource["version"] = str(v[0]) + ':' + str(v[1])
+
+    def prepare_subscription(self, resource_path, params=None, api_ver=None):
+        if params is None:
+            params = {}
+        if api_ver is None:
+            api_ver = self.apis[QUERY_API_KEY]["version"]
+        sub_json = deepcopy(self.subscription_data)
+        sub_json["resource_path"] = resource_path
+        sub_json["params"] = params
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(api_ver, "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, api_ver)
+        return sub_json
 
     def post_resource(self, test, type, data, code=None):
         """Perform a POST request on the Registration API to create or update a resource registration"""
