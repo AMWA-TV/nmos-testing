@@ -291,7 +291,7 @@ if __name__ == '__main__':
                 try:
                     repo.remotes.origin.pull()
                     update_last_pull = True
-                except Exception as e:
+                except Exception:
                     print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
                           "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
 
