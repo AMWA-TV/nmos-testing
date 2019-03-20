@@ -39,6 +39,93 @@ class IS0802Test(GenericTest):
         self.is04_resources = {"senders": [], "receivers": [], "devices": [], "sources": [], "_requested": []}        
         self.node_url = self.apis[NODE_API_KEY]["url"]
 
+    def test_01_version_incrememnt(self):
+        """ Activations result in a Device version number increment"""
+        test = Test(" Activations result in a Device version number increment")
+        globalConfig.test = test
+
+        devicesWithAdvertisements = self.find_device_advertisement()
+
+        versionNumbersBeforeActivation = []
+        for device in devicesWithAdvertisements:
+            versionNumbersBeforeActivation.append(device['version'])
+        
+        output = getOutputList()[0]
+        action = output.findAcceptableTestRoute()
+        activation = Activation()
+        activation.addAction(action)
+        activation.fireActivation()
+
+        versionIncremented = False
+
+        counter = 0
+
+        devicesWithAdvertisements = self.find_device_advertisement()
+
+        for device in devicesWithAdvertisements:
+            if device['version'] != versionNumbersBeforeActivation[counter]:
+                versionIncremented = True
+
+        if versionIncremented:
+            return test.PASS()
+        else:
+            return test.FAIL("No devices in the Node API incremented version number on activation.")
+
+    def test_02_control_advertisement(self):
+        """ API is correctly advertised as a control endpoint"""
+
+        test = Test(" API is correctly advertised as a control endpoint")
+
+        if len(self.find_device_advertisement()) > 0:
+            return test.PASS()
+        return test.FAIL("Could not find a Device advertisement for the API")
+
+    def test_03_source_ids_in_is04(self):
+        """ All Output Source IDs match up to the IS-04 Node API"""
+        test = Test("All Source IDs match up to the IS-04 Node API and registry")
+        globalConfig.test = test
+
+        outputList = getOutputList()
+        allSourcesRegistered = True
+        for outputInstance in outputList:
+            sourceRegistered = False
+            sourceID = outputInstance.getSourceID()
+            if sourceID is None:
+                sourceRegistered = True
+            else:
+                sourceRegistered = self.findSourceID(sourceID)
+            if not sourceRegistered:
+                allSourcesRegistered = False
+
+        if allSourcesRegistered:
+            return test.PASS()
+        else:
+            return test.FAIL("Not all Output sources IDs were advertised in the Node API")
+
+    def test_04_input_output_in_is04(self):
+        """All Input Source/Receiver IDs match up to the IS-04 Node API"""
+        test = Test("All Input Source/Receiver IDs match up to the IS-04 Node API")
+        globalConfig.test = test
+
+        inputList = getInputList()
+        allIdsRegistered = True
+        for inputInstance in inputList:
+            idRegistered = False
+            parent = inputInstance.getParent()
+            if parent['type'] == "source":
+                idRegistered = self.findSourceID(parent['id'])
+            elif parent['type'] == "receiver":
+                idRegistered = self.findReceiverID(parent['id'])
+            else:
+                idRegistered = True
+            if not idRegistered:
+                allIdsRegistered = False
+
+        if allIdsRegistered:
+            return test.PASS()
+        else:
+            return test.FAIL("Not all Input Sources/Receivers are present in the Node API.")
+
     def get_is04_resources(self, resource_type):
         """Retrieve all Senders or Receivers from a Node API, keeping hold of the returned objects"""
         assert(resource_type in ["senders", "receivers", "devices", "sources"])
@@ -86,47 +173,6 @@ class IS0802Test(GenericTest):
 
         return devicesWithAdvertisements
 
-    def test_01_version_incrememnt(self):
-        """ Activations result in a Device version number increment"""
-        test = Test(" Activations result in a Device version number increment")
-        globalConfig.test = test
-
-        devicesWithAdvertisements = self.find_device_advertisement()
-
-        versionNumbersBeforeActivation = []
-        for device in devicesWithAdvertisements:
-            versionNumbersBeforeActivation.append(device['version'])
-        
-        output = getOutputList()[0]
-        action = output.findAcceptableTestRoute()
-        activation = Activation()
-        activation.addAction(action)
-        activation.fireActivation()
-
-        versionIncremented = False
-
-        counter = 0
-
-        devicesWithAdvertisements = self.find_device_advertisement()
-
-        for device in devicesWithAdvertisements:
-            if device['version'] != versionNumbersBeforeActivation[counter]:
-                versionIncremented = True
-
-        if versionIncremented:
-            return test.PASS()
-        else:
-            return test.FAIL("No devices in the Node API incremented version number on activation.")
-
-    def test_02_control_advertisement(self):
-        """ API is correctly advertised as a control endpoint"""
-
-        test = Test(" API is correctly advertised as a control endpoint")
-
-        if len(self.find_device_advertisement()) > 0:
-            return test.PASS()
-        return test.FAIL("Could not find a Device advertisement for the API")
-
     def findSourceID(self, sourceID):
         if not self.get_is04_resources("sources"):
             return globalConfig.test.FAIL("Could not get sources from Node API")
@@ -144,49 +190,3 @@ class IS0802Test(GenericTest):
             if receiver['id'] == receiverID:
                 return True
         return False
-
-    def test_03_source_ids_in_is04(self):
-        """ All Output Source IDs match up to the IS-04 Node API"""
-        test = Test("All Source IDs match up to the IS-04 Node API and registry")
-        globalConfig.test = test
-
-        outputList = getOutputList()
-        allSourcesRegistered = True
-        for outputInstance in outputList:
-            sourceRegistered = False
-            sourceID = outputInstance.getSourceID()
-            if sourceID is None:
-                sourceRegistered = True
-            else:
-                sourceRegistered = self.findSourceID(sourceID)
-            if not sourceRegistered:
-                allSourcesRegistered = False
-
-        if allSourcesRegistered:
-            return test.PASS()
-        else:
-            return test.FAIL("Not all Output sources IDs were advertised in the Node API")
-
-    def test_04_input_output_in_is04(self):
-        """All Input Source/Receiver IDs match up to the IS-04 Node API"""
-        test = Test("All Input Source/Receiver IDs match up to the IS-04 Node API")
-        globalConfig.test = test
-
-        inputList = getInputList()
-        allIdsRegistered = True
-        for inputInstance in inputList:
-            idRegistered = False
-            parent = inputInstance.getParent()
-            if parent['type'] == "source":
-                idRegistered = self.findSourceID(parent['id'])
-            elif parent['type'] == "receiver":
-                idRegistered = self.findReceiverID(parent['id'])
-            else:
-                idRegistered = True
-            if not idRegistered:
-                allIdsRegistered = False
-
-        if allIdsRegistered:
-            return test.PASS()
-        else:
-            return test.FAIL("Not all Input Sources/Receivers are present in the Node API.")

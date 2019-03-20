@@ -78,34 +78,6 @@ class IS0801Test(GenericTest):
         activeResource.assertActionCompleted(testRouteAction)
         return test.PASS()
 
-    def check_delayed_activation(self, activationTime, activationType):
-        active = Active()
-        active.unrouteAll()
-        preActivationState = active.buildJSONObject()
-
-        outputList = getOutputList()
-        testRouteAction = outputList[0].findAcceptableTestRoute()
-        activation = Activation()
-        activation.addAction(testRouteAction)
-        activation.type = activationType
-        activation.activationTimestamp = activationTime
-        try:
-            activation.fireActivation()
-        except NMOSTestException as e:
-            time.sleep(2)
-            raise e
-
-        pendingState = active.buildJSONObject()
-        if not compare_json(preActivationState, pendingState):
-            msg = globalConfig.test.FAIL("Scheduled Activation completed immediately")
-            raise NMOSTestException(msg)
-
-        time.sleep(2)
-
-        active.assertActionCompleted(testRouteAction, retries=5)
-
-        time.sleep(1)
-
     def test_03_relative_activation(self):
         """Relative offset activations can be called on the API"""
         test = Test("Relative offset activations can be called on the API")
@@ -418,3 +390,31 @@ class IS0801Test(GenericTest):
             return test.PASS()
 
         return test.FAIL("Was able to break block size routing constraint")
+
+    def check_delayed_activation(self, activationTime, activationType):
+        active = Active()
+        active.unrouteAll()
+        preActivationState = active.buildJSONObject()
+
+        outputList = getOutputList()
+        testRouteAction = outputList[0].findAcceptableTestRoute()
+        activation = Activation()
+        activation.addAction(testRouteAction)
+        activation.type = activationType
+        activation.activationTimestamp = activationTime
+        try:
+            activation.fireActivation()
+        except NMOSTestException as e:
+            time.sleep(2)
+            raise e
+
+        pendingState = active.buildJSONObject()
+        if not compare_json(preActivationState, pendingState):
+            msg = globalConfig.test.FAIL("Scheduled Activation completed immediately")
+            raise NMOSTestException(msg)
+
+        time.sleep(2)
+
+        active.assertActionCompleted(testRouteAction, retries=5)
+
+        time.sleep(1)
