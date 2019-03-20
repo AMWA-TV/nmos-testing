@@ -1845,6 +1845,36 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
+    def test_29_1(self):
+        """Query API websocket subscription requests default to the current protocol"""
+        test = Test("Query API websocket subscription requests default to the current protocol")
+
+        api = self.apis[QUERY_API_KEY]
+
+        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
+            sub_json = deepcopy(self.subscription_data)
+            del sub_json["secure"]  # This is the key element under test
+            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
+                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+
+            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+            if not valid:
+                return test.FAIL("Query API did not respond as expected")
+            elif r.status_code == 200 or r.status_code == 201:
+                # Check protocol
+                response_json = r.json()
+                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                    if response_json["secure"] is not ENABLE_HTTPS:
+                        return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
+                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+
+                return test.PASS()
+            else:
+                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        else:
+            return test.FAIL("Version > 1 not supported yet.")
+
     def test_30(self):
         """Registration API accepts heartbeat requests for a Node held in the registry"""
         test = Test("Registration API accepts heartbeat requests for a Node held in the registry")
