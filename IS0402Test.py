@@ -1824,11 +1824,11 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200 or r.status_code == 201:
                 # Check protocol
                 response_json = r.json()
-                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
-                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
                 if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if response_json["secure"] is not ENABLE_HTTPS:
                         return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
+                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
 
                 # Test if subscription is available
                 sub_id = response_json["id"]

@@ -685,8 +685,9 @@ class IS0401Test(GenericTest):
                     if endpoint["protocol"] != self.protocol:
                         return test.FAIL("One or more Node 'endpoints' do not match the current protocol")
             for service in node_self["services"]:
-                if not service["href"].startswith(self.protocol):
+                if service["href"].startswith("http") and not service["href"].startswith(self.protocol):
                     # Only warn about these at the end so that more major failures are flagged first
+                    # Protocols other than HTTP may be used, so don't incorrectly flag those too
                     service_href_warn = True
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
@@ -699,8 +700,9 @@ class IS0401Test(GenericTest):
                 node_devices = response.json()
                 for device in node_devices:
                     for control in device["controls"]:
-                        if not control["href"].startswith(self.protocol):
+                        if control["href"].startswith("http") and not control["href"].startswith(self.protocol):
                             # Only warn about these at the end so that more major failures are flagged first
+                            # Protocols other than HTTP may be used, so don't incorrectly flag those too
                             device_href_warn = True
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
@@ -712,7 +714,7 @@ class IS0401Test(GenericTest):
             node_senders = response.json()
             for sender in node_senders:
                 if sender["manifest_href"] != "" and not sender["manifest_href"].startswith(self.protocol):
-                    return test.FAIL("One or more Sender 'manifest_href' values do not match the current protocol")
+                    return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
