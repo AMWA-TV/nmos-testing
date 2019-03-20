@@ -22,6 +22,7 @@ import websocket
 import os
 import jsonref
 from pathlib import Path
+import urllib3
 
 from Config import HTTP_TIMEOUT
 
@@ -50,8 +51,9 @@ def do_request(method, url, data=None):
         else:
             req = requests.Request(method, url)
         prepped = s.prepare_request(req)
-        # Second argument would be None if not for https://github.com/requests/requests/issues/4959
-        settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
+        # TODO: Provide a mechanism to establish trust for certificates to avoid verify=False and disabling warnings
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        settings = s.merge_environment_settings(prepped.url, {}, None, False, None)
         r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         return True, r
     except requests.exceptions.Timeout:
@@ -117,7 +119,8 @@ class WebsocketWorker(threading.Thread):
         self.error_message = ""
 
     def run(self):
-        self.ws.run_forever()
+        # TODO: Provide a mechanism to establish trust for certificates to avoid check_hostname=False
+        self.ws.run_forever(sslopt={"check_hostname": False})
 
     def on_open(self):
         pass
