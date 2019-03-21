@@ -1309,8 +1309,9 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important for"
-                                 " scalability.", "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+            return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
+                                 "important for scalability.",
+                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
         elif r.status_code != 200:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
@@ -1331,8 +1332,8 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
-                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
-                                     " for scalability.",
+                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
+                                     "important for scalability.",
                                      "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
@@ -1345,111 +1346,116 @@ class IS0402Test(GenericTest):
         if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+
         websocket = None
-
-        if not valid:
-            return test.FAIL("Query API returned an unexpected response: {}".format(r))
-        else:
-            if r.status_code == 200 or r.status_code == 201:
-                websocket = WebsocketWorker(r.json()["ws_href"])
-            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
-                   r.status_code == 501):
-                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be important"
-                                     " for scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+        try:
+            if not valid:
+                return test.FAIL("Query API returned an unexpected response: {}".format(r))
             else:
-                return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
-                                 .format(r.status_code, r.text))
-        websocket.start()
-        sleep(0.5)
-        if websocket.did_error_occur():
-            return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
+                if r.status_code == 200 or r.status_code == 201:
+                    websocket = WebsocketWorker(r.json()["ws_href"])
+                elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0
+                      and r.status_code == 501):
+                    return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
+                                         "important for scalability.",
+                                         "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+                else:
+                    return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
+                                     .format(r.status_code, r.text))
+            websocket.start()
+            sleep(0.5)
+            if websocket.did_error_occur():
+                return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
-        # Discard SYNC messages
-        received_messages = websocket.get_messages()
+            # Discard SYNC messages
+            received_messages = websocket.get_messages()
 
-        # Register a matching Node and one non-matching Node
-        for node_id in node_ids:
+            # Register a matching Node and one non-matching Node
+            for node_id in node_ids:
+                test_data = deepcopy(self.test_data["node"])
+                test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+                test_data["id"] = node_id
+                test_data["label"] = "test_23_1"
+                test_data["description"] = node_id
+                self.post_resource(test, "node", test_data, 201)
+
+            # Load schema
+            if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-v1.0-subscriptions-websocket.json")
+            else:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-subscriptions-websocket.json")
+
+            # Check that the single Node is reflected in the subscription
+            sleep(WS_MESSAGE_TIMEOUT)
+            received_messages = websocket.get_messages()
+
+            if len(received_messages) < 1:
+                return test.FAIL("Expected at least one message via WebSocket subscription")
+
+            # Validate received data against schema
+            for message in received_messages:
+                try:
+                    self.validate_schema(json.loads(message), schema)
+                except ValidationError as e:
+                    return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+            # Verify data inside messages
+            grain_data = list()
+
+            for curr_msg in received_messages:
+                json_msg = json.loads(curr_msg)
+                grain_data.extend(json_msg["grain"]["data"])
+
+            for curr_data in grain_data:
+                if "pre" in curr_data:
+                    return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
+                post_data = curr_data["post"]
+                if post_data["description"] != node_ids[0]:
+                    return test.FAIL("Node 'post' 'description' received via WebSocket did not match "
+                                     "the basic query filter")
+
+            # Update the Node to no longer have that description
             test_data = deepcopy(self.test_data["node"])
             test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
-            test_data["id"] = node_id
+            test_data["id"] = node_ids[0]
             test_data["label"] = "test_23_1"
-            test_data["description"] = node_id
-            self.post_resource(test, "node", test_data, 201)
+            test_data["description"] = str(uuid.uuid4)
+            self.post_resource(test, "node", test_data, 200)
 
-        # Load schema
-        if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
-            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                          "queryapi-v1.0-subscriptions-websocket.json")
-        else:
-            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                          "queryapi-subscriptions-websocket.json")
+            # Ensure it disappears from the subscription
+            sleep(WS_MESSAGE_TIMEOUT)
+            received_messages = websocket.get_messages()
 
-        # Check that the single Node is reflected in the subscription
-        sleep(WS_MESSAGE_TIMEOUT)
-        received_messages = websocket.get_messages()
+            if len(received_messages) < 1:
+                return test.FAIL("Expected at least one message via WebSocket subscription")
 
-        if len(received_messages) < 1:
-            return test.FAIL("Expected at least one message via WebSocket subscription")
+            # Validate received data against schema
+            for message in received_messages:
+                try:
+                    self.validate_schema(json.loads(message), schema)
+                except ValidationError as e:
+                    return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
-        # Validate received data against schema
-        for message in received_messages:
-            try:
-                self.validate_schema(json.loads(message), schema)
-            except ValidationError as e:
-                return test.FAIL("Received event message is invalid: {}".format(str(e)))
+            # Verify data inside messages
+            grain_data = list()
 
-        # Verify data inside messages
-        grain_data = list()
+            for curr_msg in received_messages:
+                json_msg = json.loads(curr_msg)
+                grain_data.extend(json_msg["grain"]["data"])
 
-        for curr_msg in received_messages:
-            json_msg = json.loads(curr_msg)
-            grain_data.extend(json_msg["grain"]["data"])
+            for curr_data in grain_data:
+                if "post" in curr_data:
+                    return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
+                pre_data = curr_data["pre"]
+                if pre_data["description"] != node_ids[0]:
+                    return test.FAIL("Node 'pre' 'description' received via WebSocket did not match "
+                                     "the basic query filter")
 
-        for curr_data in grain_data:
-            if "pre" in curr_data:
-                return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
-            post_data = curr_data["post"]
-            if post_data["description"] != node_ids[0]:
-                return test.FAIL("Node 'post' 'description' received via WebSocket did not match the basic query filter")
-
-        # Update the Node to no longer have that description
-        test_data = deepcopy(self.test_data["node"])
-        test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
-        test_data["id"] = node_ids[0]
-        test_data["label"] = "test_23_1"
-        test_data["description"] = str(uuid.uuid4)
-        self.post_resource(test, "node", test_data, 200)
-
-        # Ensure it disappears from the subscription
-        sleep(WS_MESSAGE_TIMEOUT)
-        received_messages = websocket.get_messages()
-
-        if len(received_messages) < 1:
-            return test.FAIL("Expected at least one message via WebSocket subscription")
-
-        # Validate received data against schema
-        for message in received_messages:
-            try:
-                self.validate_schema(json.loads(message), schema)
-            except ValidationError as e:
-                return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-        # Verify data inside messages
-        grain_data = list()
-
-        for curr_msg in received_messages:
-            json_msg = json.loads(curr_msg)
-            grain_data.extend(json_msg["grain"]["data"])
-
-        for curr_data in grain_data:
-            if "post" in curr_data:
-                return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
-            pre_data = curr_data["pre"]
-            if pre_data["description"] != node_ids[0]:
-                return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the basic query filter")
-
-        websocket.close()
+        finally:
+            if websocket:
+                websocket.close()
 
         return test.PASS()
 
@@ -1484,8 +1490,8 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API failed to respond to query")
         elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
-                                 "scalability.",
+            return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
+                                 "important for scalability.",
                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
         elif r.status_code == 400:
             return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
@@ -1512,8 +1518,8 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to query")
             elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
-                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
-                                     "scalability.",
+                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
+                                     "important for scalability.",
                                      "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
@@ -1527,115 +1533,117 @@ class IS0402Test(GenericTest):
         if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
         valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+
         websocket = None
-
-        if not valid:
-            return test.FAIL("Query API returned an unexpected response: {}".format(r))
-        else:
-            if r.status_code == 200 or r.status_code == 201:
-                websocket = WebsocketWorker(r.json()["ws_href"])
-            elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and
-                   r.status_code == 501):
-                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be important for "
-                                     "scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
-            elif r.status_code == 400:
-                return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
-                                     "{}".format(query_string),
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+        try:
+            if not valid:
+                return test.FAIL("Query API returned an unexpected response: {}".format(r))
             else:
-                return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
-                                 .format(r.status_code, r.text))
-        websocket.start()
-        sleep(WS_MESSAGE_TIMEOUT)
-        if websocket.did_error_occur():
-            return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
+                if r.status_code == 200 or r.status_code == 201:
+                    websocket = WebsocketWorker(r.json()["ws_href"])
+                elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0
+                      and r.status_code == 501):
+                    return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
+                                         "important for scalability.",
+                                         "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+                elif r.status_code == 400:
+                    return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
+                                         "{}".format(query_string),
+                                         "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
+                else:
+                    return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
+                                     .format(r.status_code, r.text))
+            websocket.start()
+            sleep(WS_MESSAGE_TIMEOUT)
+            if websocket.did_error_occur():
+                return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
-        # Discard SYNC messages
-        received_messages = websocket.get_messages()
+            # Discard SYNC messages
+            received_messages = websocket.get_messages()
 
-        # Register a matching Node and one non-matching Node
-        for node_id in node_ids:
+            # Register a matching Node and one non-matching Node
+            for node_id in node_ids:
+                test_data = deepcopy(self.test_data["node"])
+                test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+                test_data["id"] = node_id
+                test_data["label"] = "test_24_1"
+                test_data["description"] = node_id
+                self.post_resource(test, "node", test_data, 201)
+
+            # Load schema
+            if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-v1.0-subscriptions-websocket.json")
+            else:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-subscriptions-websocket.json")
+
+            # Check that the single Node is reflected in the subscription
+            sleep(WS_MESSAGE_TIMEOUT)
+            received_messages = websocket.get_messages()
+
+            if len(received_messages) < 1:
+                return test.FAIL("Expected at least one message via WebSocket subscription")
+
+            # Validate received data against schema
+            for message in received_messages:
+                try:
+                    self.validate_schema(json.loads(message), schema)
+                except ValidationError as e:
+                    return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+            # Verify data inside messages
+            grain_data = list()
+
+            for curr_msg in received_messages:
+                json_msg = json.loads(curr_msg)
+                grain_data.extend(json_msg["grain"]["data"])
+
+            for curr_data in grain_data:
+                if "pre" in curr_data:
+                    return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
+                post_data = curr_data["post"]
+                if post_data["description"] != node_ids[0]:
+                    return test.FAIL("Node 'post' 'description' received via WebSocket did not match the RQL filter")
+
+            # Update the Node to no longer have that description
             test_data = deepcopy(self.test_data["node"])
             test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
-            test_data["id"] = node_id
+            test_data["id"] = node_ids[0]
             test_data["label"] = "test_24_1"
-            test_data["description"] = node_id
-            self.post_resource(test, "node", test_data, 201)
+            test_data["description"] = str(uuid.uuid4)
+            self.post_resource(test, "node", test_data, 200)
 
-        # Load schema
-        if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
-            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                          "queryapi-v1.0-subscriptions-websocket.json")
-        else:
-            schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                          "queryapi-subscriptions-websocket.json")
+            # Ensure it disappears from the subscription
+            sleep(WS_MESSAGE_TIMEOUT)
+            received_messages = websocket.get_messages()
 
-        # Check that the single Node is reflected in the subscription
-        sleep(WS_MESSAGE_TIMEOUT)
-        received_messages = websocket.get_messages()
+            if len(received_messages) < 1:
+                return test.FAIL("Expected at least one message via WebSocket subscription")
 
-        if len(received_messages) < 1:
-            return test.FAIL("Expected at least one message via WebSocket subscription")
+            # Validate received data against schema
+            for message in received_messages:
+                try:
+                    self.validate_schema(json.loads(message), schema)
+                except ValidationError as e:
+                    return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
-        # Validate received data against schema
-        for message in received_messages:
-            try:
-                self.validate_schema(json.loads(message), schema)
-            except ValidationError as e:
-                return test.FAIL("Received event message is invalid: {}".format(str(e)))
+            # Verify data inside messages
+            grain_data = list()
 
-        # Verify data inside messages
-        grain_data = list()
+            for curr_msg in received_messages:
+                json_msg = json.loads(curr_msg)
+                grain_data.extend(json_msg["grain"]["data"])
 
-        for curr_msg in received_messages:
-            json_msg = json.loads(curr_msg)
-            grain_data.extend(json_msg["grain"]["data"])
-
-        for curr_data in grain_data:
-            if "pre" in curr_data:
-                return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
-            post_data = curr_data["post"]
-            if post_data["description"] != node_ids[0]:
-                return test.FAIL("Node 'post' 'description' received via WebSocket did not match the RQL filter")
-
-        # Update the Node to no longer have that description
-        test_data = deepcopy(self.test_data["node"])
-        test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
-        test_data["id"] = node_ids[0]
-        test_data["label"] = "test_24_1"
-        test_data["description"] = str(uuid.uuid4)
-        self.post_resource(test, "node", test_data, 200)
-
-        # Ensure it disappears from the subscription
-        sleep(WS_MESSAGE_TIMEOUT)
-        received_messages = websocket.get_messages()
-
-        if len(received_messages) < 1:
-            return test.FAIL("Expected at least one message via WebSocket subscription")
-
-        # Validate received data against schema
-        for message in received_messages:
-            try:
-                self.validate_schema(json.loads(message), schema)
-            except ValidationError as e:
-                return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-        # Verify data inside messages
-        grain_data = list()
-
-        for curr_msg in received_messages:
-            json_msg = json.loads(curr_msg)
-            grain_data.extend(json_msg["grain"]["data"])
-
-        for curr_data in grain_data:
-            if "post" in curr_data:
-                return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
-            pre_data = curr_data["pre"]
-            if pre_data["description"] != node_ids[0]:
-                return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the RQL filter")
-
-        websocket.close()
+            for curr_data in grain_data:
+                if "post" in curr_data:
+                    return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
+                pre_data = curr_data["pre"]
+                if pre_data["description"] != node_ids[0]:
+                    return test.FAIL("Node 'pre' 'description' received via WebSocket did not match the RQL filter")
+        finally:
+            if websocket:
+                websocket.close()
 
         return test.PASS()
 
@@ -1936,199 +1944,202 @@ class IS0402Test(GenericTest):
             test_data = deepcopy(self.test_data)
 
             websockets = dict()
-            resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
+            try:
+                resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
 
-            for resource in resources_to_post:
-                sub_json = deepcopy(self.subscription_data)
-                sub_json["resource_path"] = "/{}s".format(resource)
-                sub_json["secure"] = ENABLE_HTTPS
-                if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
-                valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+                for resource in resources_to_post:
+                    sub_json = deepcopy(self.subscription_data)
+                    sub_json["resource_path"] = "/{}s".format(resource)
+                    sub_json["secure"] = ENABLE_HTTPS
+                    if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
+                        sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+                    valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
 
-                if not valid:
-                    return test.FAIL("Query API returned an unexpected response: {}".format(r))
-                else:
-                    if r.status_code == 200 or r.status_code == 201:
-                        websockets[resource] = WebsocketWorker(r.json()["ws_href"])
+                    if not valid:
+                        return test.FAIL("Query API returned an unexpected response: {}".format(r))
                     else:
-                        return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}"
-                                         .format(r.status_code, r.text))
+                        if r.status_code == 200 or r.status_code == 201:
+                            websockets[resource] = WebsocketWorker(r.json()["ws_href"])
+                        else:
+                            return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}"
+                                             .format(r.status_code, r.text))
 
-            # Post sample data
-            for resource in resources_to_post:
-                self.post_resource(test, resource, test_data[resource], 201)
+                # Post sample data
+                for resource in resources_to_post:
+                    self.post_resource(test, resource, test_data[resource], 201)
 
-            # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
+                # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
 
-            # Load schema
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                              "queryapi-v1.0-subscriptions-websocket.json")
-            else:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                              "queryapi-subscriptions-websocket.json")
+                # Load schema
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
+                    schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                                  "queryapi-v1.0-subscriptions-websocket.json")
+                else:
+                    schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                                  "queryapi-subscriptions-websocket.json")
 
-            for resource, resource_data in test_data.items():
-                websockets[resource].start()
+                for resource, resource_data in test_data.items():
+                    websockets[resource].start()
+                    sleep(WS_MESSAGE_TIMEOUT)
+                    if websockets[resource].did_error_occur():
+                        return test.FAIL("Error opening websocket: {}"
+                                         .format(websockets[resource].get_error_message()))
+
+                    received_messages = websockets[resource].get_messages()
+
+                    # Validate received data against schema
+                    for message in received_messages:
+                        try:
+                            self.validate_schema(json.loads(message), schema)
+                        except ValidationError as e:
+                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+                    # Verify data inside messages
+                    grain_data = list()
+
+                    for curr_msg in received_messages:
+                        json_msg = json.loads(curr_msg)
+                        grain_data.extend(json_msg["grain"]["data"])
+
+                    found_data_set = False
+                    for curr_data in grain_data:
+                        pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                        post_data = json.dumps(curr_data["post"], sort_keys=True)
+                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
+                        if pre_data == sorted_resource_data:
+                            if post_data == sorted_resource_data:
+                                found_data_set = True
+
+                    if not found_data_set:
+                        return test.FAIL("Did not find expected data set in websocket UNCHANGED (SYNC) message "
+                                         "for '{}'".format(resource))
+
+                # Verify if corresponding message received via websocket: MODIFIED
+                old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
+                for resource, resource_data in test_data.items():
+                    # Update resource
+                    self.post_resource(test, resource, resource_data, 200)
+
                 sleep(WS_MESSAGE_TIMEOUT)
-                if websockets[resource].did_error_occur():
-                    return test.FAIL("Error opening websocket: {}".format(websockets[resource].get_error_message()))
 
-                received_messages = websockets[resource].get_messages()
+                for resource, resource_data in test_data.items():
+                    received_messages = websockets[resource].get_messages()
 
-                # Validate received data against schema
-                for message in received_messages:
-                    try:
-                        self.validate_schema(json.loads(message), schema)
-                    except ValidationError as e:
-                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+                    # Validate received data against schema
+                    for message in received_messages:
+                        try:
+                            self.validate_schema(json.loads(message), schema)
+                        except ValidationError as e:
+                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
-                # Verify data inside messages
-                grain_data = list()
+                    # Verify data inside messages
+                    grain_data = list()
 
-                for curr_msg in received_messages:
-                    json_msg = json.loads(curr_msg)
-                    grain_data.extend(json_msg["grain"]["data"])
+                    for curr_msg in received_messages:
+                        json_msg = json.loads(curr_msg)
+                        grain_data.extend(json_msg["grain"]["data"])
 
-                found_data_set = False
-                for curr_data in grain_data:
-                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
-                    post_data = json.dumps(curr_data["post"], sort_keys=True)
-                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+                    found_data_set = False
+                    for curr_data in grain_data:
+                        pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                        post_data = json.dumps(curr_data["post"], sort_keys=True)
+                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+                        sorted_old_resource_data = json.dumps(old_resource_data[resource], sort_keys=True)
 
-                    if pre_data == sorted_resource_data:
+                        if pre_data == sorted_old_resource_data:
+                            if post_data == sorted_resource_data:
+                                found_data_set = True
+
+                    if not found_data_set:
+                        return test.FAIL("Did not find expected data set in websocket MODIFIED message "
+                                         "for '{}'".format(resource))
+
+                # Verify if corresponding message received via websocket: REMOVED
+                reversed_resource_list = deepcopy(resources_to_post)
+                reversed_resource_list.reverse()
+                for resource in reversed_resource_list:
+                    valid, r = self.do_request("DELETE", self.reg_url
+                                               + "resource/{}s/{}".format(resource, test_data[resource]["id"]))
+                    if not valid:
+                        return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
+                                         .format(resource, r))
+                    elif r.status_code != 204:
+                        return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
+                                         .format(resource, r.status_code, r.text))
+
+                sleep(WS_MESSAGE_TIMEOUT)
+                for resource, resource_data in test_data.items():
+                    received_messages = websockets[resource].get_messages()
+
+                    # Validate received data against schema
+                    for message in received_messages:
+                        try:
+                            self.validate_schema(json.loads(message), schema)
+                        except ValidationError as e:
+                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+                    # Verify data inside messages
+                    grain_data = list()
+
+                    for curr_msg in received_messages:
+                        json_msg = json.loads(curr_msg)
+                        grain_data.extend(json_msg["grain"]["data"])
+
+                    found_data_set = False
+                    for curr_data in grain_data:
+                        pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
+                        if pre_data == sorted_resource_data:
+                            if "post" not in curr_data:
+                                found_data_set = True
+
+                    if not found_data_set:
+                        return test.FAIL("Did not find expected data set in websocket REMOVED message "
+                                         "for '{}'".format(resource))
+
+                # Verify if corresponding message received via Websocket: ADDED
+                # Post sample data again
+                for resource in resources_to_post:
+                    # Recreate resource with updated version
+                    self.bump_resource_version(test_data[resource])
+                    self.post_resource(test, resource, test_data[resource], 201)
+
+                sleep(WS_MESSAGE_TIMEOUT)
+                for resource, resource_data in test_data.items():
+                    received_messages = websockets[resource].get_messages()
+
+                    # Validate received data against schema
+                    for message in received_messages:
+                        try:
+                            self.validate_schema(json.loads(message), schema)
+                        except ValidationError as e:
+                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+                    grain_data = list()
+                    # Verify data inside messages
+                    for curr_msg in received_messages:
+                        json_msg = json.loads(curr_msg)
+                        grain_data.extend(json_msg["grain"]["data"])
+
+                    found_data_set = False
+                    for curr_data in grain_data:
+                        post_data = json.dumps(curr_data["post"], sort_keys=True)
+                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
                         if post_data == sorted_resource_data:
-                            found_data_set = True
+                            if "pre" not in curr_data:
+                                found_data_set = True
 
-                if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket UNCHANGED (SYNC) message for '{}'"
-                                     .format(resource))
+                    if not found_data_set:
+                        return test.FAIL("Did not find expected data set in websocket ADDED message "
+                                         "for '{}'".format(resource))
 
-            # Verify if corresponding message received via websocket: MODIFIED
-            old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
-            for resource, resource_data in test_data.items():
-                # Update resource
-                self.post_resource(test, resource, resource_data, 200)
-
-            sleep(WS_MESSAGE_TIMEOUT)
-
-            for resource, resource_data in test_data.items():
-                received_messages = websockets[resource].get_messages()
-
-                # Validate received data against schema
-                for message in received_messages:
-                    try:
-                        self.validate_schema(json.loads(message), schema)
-                    except ValidationError as e:
-                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-                # Verify data inside messages
-                grain_data = list()
-
-                for curr_msg in received_messages:
-                    json_msg = json.loads(curr_msg)
-                    grain_data.extend(json_msg["grain"]["data"])
-
-                found_data_set = False
-                for curr_data in grain_data:
-                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
-                    post_data = json.dumps(curr_data["post"], sort_keys=True)
-                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-                    sorted_old_resource_data = json.dumps(old_resource_data[resource], sort_keys=True)
-
-                    if pre_data == sorted_old_resource_data:
-                        if post_data == sorted_resource_data:
-                            found_data_set = True
-
-                if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket MODIFIED message for '{}'"
-                                     .format(resource))
-
-            # Verify if corresponding message received via websocket: REMOVED
-            reversed_resource_list = deepcopy(resources_to_post)
-            reversed_resource_list.reverse()
-            for resource in reversed_resource_list:
-                valid, r = self.do_request("DELETE", self.reg_url + "resource/{}s/{}".format(resource,
-                                                                                             test_data[resource]["id"]))
-                if not valid:
-                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
-                                     .format(resource, r))
-                elif r.status_code != 204:
-                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
-                                     .format(resource, r.status_code, r.text))
-
-            sleep(WS_MESSAGE_TIMEOUT)
-            for resource, resource_data in test_data.items():
-                received_messages = websockets[resource].get_messages()
-
-                # Validate received data against schema
-                for message in received_messages:
-                    try:
-                        self.validate_schema(json.loads(message), schema)
-                    except ValidationError as e:
-                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-                # Verify data inside messages
-                grain_data = list()
-
-                for curr_msg in received_messages:
-                    json_msg = json.loads(curr_msg)
-                    grain_data.extend(json_msg["grain"]["data"])
-
-                found_data_set = False
-                for curr_data in grain_data:
-                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
-                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-
-                    if pre_data == sorted_resource_data:
-                        if "post" not in curr_data:
-                            found_data_set = True
-
-                if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket REMOVED message for '{}'"
-                                     .format(resource))
-
-            # Verify if corresponding message received via Websocket: ADDED
-            # Post sample data again
-            for resource in resources_to_post:
-                # Recreate resource with updated version
-                self.bump_resource_version(test_data[resource])
-                self.post_resource(test, resource, test_data[resource], 201)
-
-            sleep(WS_MESSAGE_TIMEOUT)
-            for resource, resource_data in test_data.items():
-                received_messages = websockets[resource].get_messages()
-
-                # Validate received data against schema
-                for message in received_messages:
-                    try:
-                        self.validate_schema(json.loads(message), schema)
-                    except ValidationError as e:
-                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-                grain_data = list()
-                # Verify data inside messages
-                for curr_msg in received_messages:
-                    json_msg = json.loads(curr_msg)
-                    grain_data.extend(json_msg["grain"]["data"])
-
-                found_data_set = False
-                for curr_data in grain_data:
-                    post_data = json.dumps(curr_data["post"], sort_keys=True)
-                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-
-                    if post_data == sorted_resource_data:
-                        if "pre" not in curr_data:
-                            found_data_set = True
-
-                if not found_data_set:
-                    return test.FAIL("Did not found expected data set in websocket ADDED message for '{}'"
-                                     .format(resource))
-
-                    # Tear down
-            for k, v in websockets.items():
-                v.close()
+            finally:
+                # Tear down
+                for k, v in websockets.items():
+                    v.close() # hmm, can raise OSError
 
             return test.PASS()
         else:
