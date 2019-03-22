@@ -1838,7 +1838,7 @@ class IS0402Test(GenericTest):
                                                                      self.test_data[curr_resource]["id"]))
                     if not valid_delete:
                         return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
-                    elif r_delete.status_code != 204:
+                    elif r_delete.status_code not in [204, 404]:
                         return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
                                          .format(r_delete.status_code, r_delete.text))
                 elif r.status_code == 404:
