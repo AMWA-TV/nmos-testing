@@ -70,26 +70,28 @@ class GenericTest(object):
         test = Test("Test initialisation")
 
         for api_name, api_data in self.apis.items():
-            if "spec_path" in api_data:
-                repo = git.Repo(api_data["spec_path"])
+            if "spec_path" not in api_data:
+                continue
 
-                # List remote branches and check there is a v#.#.x or v#.#-dev
-                branches = repo.git.branch('-a')
-                spec_branch = None
-                branch_names = [api_data["version"] + ".x", api_data["version"] + "-dev"]
-                for branch in branch_names:
-                    if "remotes/origin/" + branch in branches:
-                        spec_branch = branch
-                        break
+            repo = git.Repo(api_data["spec_path"])
 
-                if not spec_branch:
-                    raise Exception("No branch matching the expected patterns was found in the Git repository")
+            # List remote branches and check there is a v#.#.x or v#.#-dev
+            branches = repo.git.branch('-a')
+            spec_branch = None
+            branch_names = [api_data["version"] + ".x", api_data["version"] + "-dev"]
+            for branch in branch_names:
+                if "remotes/origin/" + branch in branches:
+                    spec_branch = branch
+                    break
 
-                api_data["spec_branch"] = spec_branch
+            if not spec_branch:
+                raise Exception("No branch matching the expected patterns was found in the Git repository")
 
-                repo.git.reset('--hard')
-                repo.git.checkout(spec_branch)
-                repo.git.rebase("origin/" + spec_branch)
+            api_data["spec_branch"] = spec_branch
+
+            repo.git.reset('--hard')
+            repo.git.checkout(spec_branch)
+            repo.git.rebase("origin/" + spec_branch)
 
         self.parse_RAML()
 
@@ -98,9 +100,10 @@ class GenericTest(object):
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""
         for api in self.apis:
-            if "spec_path" in self.apis[api]:
-                self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' +
-                                                                    self.apis[api]["raml"]))
+            if "spec_path" not in self.apis[api]:
+                continue
+            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' +
+                                                                self.apis[api]["raml"]))
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
@@ -261,19 +264,22 @@ class GenericTest(object):
         results = []
 
         for api in self.apis:
-            if "spec_path" in self.apis[api]:
-                results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos", api + "/"))
-                results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos/{}".format(api),
-                                                    self.apis[api]["version"] + "/"))
+            if "spec_path" not in self.apis[api]:
+                continue
 
-                for resource in self.apis[api]["spec"].get_reads():
-                    for response_code in resource[1]['responses']:
-                        if response_code == 200 and resource[0] not in self.omit_paths:
-                            # TODO: Test for each of these if the trailing slash version also works and if redirects are
-                            # used on either.
-                            result = self.check_api_resource(resource, response_code, api)
-                            if result is not None:
-                                results.append(result)
+            # We don't check the very base of the URL (before x-nmos) as it may be used for other things
+            results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos", api + "/"))
+            results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos/{}".format(api),
+                                                self.apis[api]["version"] + "/"))
+
+            for resource in self.apis[api]["spec"].get_reads():
+                for response_code in resource[1]['responses']:
+                    if response_code == 200 and resource[0] not in self.omit_paths:
+                        # TODO: Test for each of these if the trailing slash version also works and if redirects are
+                        # used on either.
+                        result = self.check_api_resource(resource, response_code, api)
+                        if result is not None:
+                            results.append(result)
 
         return results
 
