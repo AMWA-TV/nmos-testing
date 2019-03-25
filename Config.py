@@ -114,5 +114,13 @@ SPECIFICATIONS = {
                 "raml": "ChannelMappingAPI.raml"
             }
         }
+    },
+    "bcp-003-01": {
+        "repo": None,
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "secure": {}
+        }
     }
 }

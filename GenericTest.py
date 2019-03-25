@@ -70,6 +70,9 @@ class GenericTest(object):
         test = Test("Test initialisation")
 
         for api_name, api_data in self.apis.items():
+            if "spec_path" not in api_data:
+                continue
+
             repo = git.Repo(api_data["spec_path"])
 
             # List remote branches and check there is a v#.#.x or v#.#-dev
@@ -97,7 +100,10 @@ class GenericTest(object):
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""
         for api in self.apis:
-            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"]))
+            if "spec_path" not in self.apis[api]:
+                continue
+            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' +
+                                                                self.apis[api]["raml"]))
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
@@ -258,9 +264,10 @@ class GenericTest(object):
         results = []
 
         for api in self.apis:
-            # This test isn't mandatory... Many systems will use the base path for other things
-            # results.append(self.check_base_path(self.apis[api]["base_url"], "/", "x-nmos/"))
+            if "spec_path" not in self.apis[api]:
+                continue
 
+            # We don't check the very base of the URL (before x-nmos) as it may be used for other things
             results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos", api + "/"))
             results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos/{}".format(api),
                                                 self.apis[api]["version"] + "/"))

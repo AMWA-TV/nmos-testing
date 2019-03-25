@@ -11,6 +11,7 @@ The following test sets are currently supported:
 *   IS-06 Network Control API
 *   IS-07 Event & Tally API
 *   IS-08 Channel Mapping API
+*   BCP-003-01 Secure API Communications
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
@@ -46,6 +47,10 @@ The result of each test case will be one of the following:
 
 In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast'`. Additionally, ensure that the unit under test has its search domain set to 'testsuite.nmos.tv' and the DNS server IP to the IP address of the server which is running the test suite instance.
 
+### Testing BCP-003-01 TLS
+
+Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see [testssl/README.md](testssl/README.md) for installation instructions.
+
 ### Non-Interative Mode
 
 The test suite supports non-interactive operation in order use it within continuous integration systems. An example of this usage can be seen below:
@@ -62,6 +67,7 @@ python3 nmos-test.py --suite IS-04-02 --selection auto --ip 128.66.12.5 128.66.1
 
 *   Python 3
 *   Git
+*   [testssl.sh](https://testssl.sh) (required for BCP-003-01 testing)
 *   See [requirements.txt](requirements.txt) for additional packages
 
 ## Known Issues
