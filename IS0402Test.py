@@ -88,7 +88,8 @@ class IS0402Test(GenericTest):
                     if priority < 0:
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production instance.")
+                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production "
+                                            "instance.")
                 except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
@@ -128,7 +129,8 @@ class IS0402Test(GenericTest):
                     if priority < 0:
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production instance.")
+                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production "
+                                            "instance.")
                 except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
@@ -1066,11 +1068,14 @@ class IS0402Test(GenericTest):
 
         test = Test("Query API implements downgrade queries")
 
-        if self.apis[QUERY_API_KEY]["version"] == "v1.0":
+        reg_api = self.apis[REG_API_KEY]
+        query_api = self.apis[QUERY_API_KEY]
+
+        if query_api["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
 
         # Find the API versions supported by the Reg API
-        valid, r = self.do_request("GET", self.reg_url.rstrip(self.apis[REG_API_KEY]["version"] + "/"))
+        valid, r = self.do_request("GET", self.reg_url.rstrip(reg_api["version"] + "/"))
         if not valid:
             return test.FAIL("Registration API failed to respond to request")
         else:
@@ -1079,11 +1084,11 @@ class IS0402Test(GenericTest):
         # Sort the list and remove API versions higher than the one under test
         reg_versions = self.is04_reg_utils.sort_versions(reg_versions)
         for api_version in list(reg_versions):
-            if self.is04_reg_utils.compare_api_version(api_version, self.apis[REG_API_KEY]["version"]) > 0:
+            if self.is04_reg_utils.compare_api_version(api_version, reg_api["version"]) > 0:
                 reg_versions.remove(api_version)
 
         # Find the API versions supported by the Query API
-        valid, r = self.do_request("GET", self.query_url.rstrip(self.apis[QUERY_API_KEY]["version"] + "/"))
+        valid, r = self.do_request("GET", self.query_url.rstrip(query_api["version"] + "/"))
         if not valid:
             return test.FAIL("Query API failed to respond to request")
         else:
@@ -1092,18 +1097,18 @@ class IS0402Test(GenericTest):
         # Sort the list and remove API versions higher than the one under test
         query_versions = self.is04_query_utils.sort_versions(query_versions)
         for api_version in list(query_versions):
-            if self.is04_query_utils.compare_api_version(api_version, self.apis[QUERY_API_KEY]["version"]) > 0:
+            if self.is04_query_utils.compare_api_version(api_version, query_api["version"]) > 0:
                 query_versions.remove(api_version)
 
         # If we're testing the lowest API version, exit with an N/A or warning indicating we can't test at this level
-        if query_versions[0] == self.apis[QUERY_API_KEY]["version"]:
-            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of"
+        if query_versions[0] == query_api["version"]:
+            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of "
                            "a Query API")
 
         # Exit if the Registration API doesn't support the required versions
         for api_version in query_versions:
             if api_version not in reg_versions:
-                return test.MANUAL("This test cannot run automatically as the Registration API does not support all"
+                return test.MANUAL("This test cannot run automatically as the Registration API does not support all "
                                    "of the API versions that the Query API does",
                                    "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
 
@@ -1118,7 +1123,7 @@ class IS0402Test(GenericTest):
             test_data["description"] = test_id
             node_ids[api_version] = test_data["id"]
             valid, r = self.do_request("POST", "{}/{}/resource"
-                                               .format(self.reg_url.rstrip(self.apis[REG_API_KEY]["version"] + "/"),
+                                               .format(self.reg_url.rstrip(reg_api["version"] + "/"),
                                                        api_version),
                                        data={"type": "node", "data": test_data})
             if not valid or r.status_code != 201:
@@ -1130,12 +1135,12 @@ class IS0402Test(GenericTest):
             if not valid:
                 return test.FAIL("Query API failed to respond to request")
             else:
-                if r.status_code == 200 and api_version != self.apis[QUERY_API_KEY]["version"]:
+                if r.status_code == 200 and api_version != query_api["version"]:
                     return test.FAIL("Query API incorrectly exposed a {} resource at {}"
-                                     .format(api_version, self.apis[QUERY_API_KEY]["version"]))
-                elif r.status_code == 404 and api_version == self.apis[QUERY_API_KEY]["version"]:
+                                     .format(api_version, query_api["version"]))
+                elif r.status_code == 404 and api_version == query_api["version"]:
                     return test.FAIL("Query API failed to expose a {} resource at {}"
-                                     .format(api_version, self.apis[QUERY_API_KEY]["version"]))
+                                     .format(api_version, query_api["version"]))
                 elif r.status_code not in [200, 404, 409]:
                     return test.FAIL("Query API returned an unexpected response code: {}".format(r.status_code))
 
@@ -1143,11 +1148,11 @@ class IS0402Test(GenericTest):
         # Raise an error if resources below the requested version are returned, or those for the relevant API versions
         # are not returned. Otherwise pass.
         for api_version in query_versions:
-            valid, r = self.do_request("GET", self.query_url + "nodes/{}?query.downgrade={}".format(node_ids[api_version],
-                                                                                                    api_version))
+            valid, r = self.do_request("GET", self.query_url
+                                       + "nodes/{}?query.downgrade={}".format(node_ids[api_version], api_version))
             if not valid:
                 return test.FAIL("Query API failed to respond to request")
-            elif self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0 and r.status_code == 501:
+            elif self.is04_query_utils.compare_api_version(query_api["version"], "v1.3") >= 0 and r.status_code == 501:
                 return test.OPTIONAL("Query API signalled that it does not support downgrade queries. This may be "
                                      "important for multi-version support.",
                                      "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
@@ -1206,47 +1211,21 @@ class IS0402Test(GenericTest):
 
         # If we're testing the lowest API version, exit with an N/A or warning indicating we can't test at this level
         if query_versions[0] == api["version"]:
-            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of"
+            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of "
                            "a Query API")
 
         # Generate a subscription at the API version under test and the version below that
         valid_sub_id = None
         invalid_sub_id = None
-        sub_json = deepcopy(self.subscription_data)
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
-        valid, r = self.do_request("POST", self.query_url + "subscriptions", sub_json)
-        if not valid:
-            return test.FAIL("Query API failed to respond to request")
-        else:
-            if r.status_code not in [200, 201]:
-                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
-                                 .format(r.status_code))
-            else:
-                try:
-                    valid_sub_id = r.json()["id"]
-                except json.decoder.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned")
+        sub_json = self.prepare_subscription("/nodes")
+        resp_json = self.post_subscription(test, sub_json)
+        valid_sub_id = resp_json["id"]
 
         previous_version = query_versions[-2]
-        query_sub_url = self.query_url.replace(api["version"], previous_version) + "subscriptions"
-        sub_json = deepcopy(self.subscription_data)
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(previous_version, "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, previous_version)
-        valid, r = self.do_request("POST", query_sub_url, sub_json)
-        if not valid:
-            return test.FAIL("Query API failed to respond to request")
-        else:
-            if r.status_code not in [200, 201]:
-                return test.FAIL("Query API did not respond as expected for subscription POST request: {}"
-                                 .format(r.status_code))
-            else:
-                try:
-                    invalid_sub_id = r.json()["id"]
-                except json.decoder.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned")
+        query_sub_url = self.query_url.replace(api["version"], previous_version)
+        sub_json = self.prepare_subscription("/nodes", api_ver=previous_version)
+        resp_json = self.post_subscription(test, sub_json, query_url=query_sub_url)
+        invalid_sub_id = resp_json["id"]
 
         # Test a request to GET subscriptions
         subscription_ids = set()
@@ -1340,28 +1319,11 @@ class IS0402Test(GenericTest):
 
         # Create subscription to a specific Node description
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
-        sub_json = deepcopy(self.subscription_data)
-        sub_json["params"]["description"] = node_ids[0]
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
-        valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+        sub_json = self.prepare_subscription("/nodes", params={"description": node_ids[0]})
+        resp_json = self.post_subscription(test, sub_json)
 
-        websocket = None
+        websocket = WebsocketWorker(resp_json["ws_href"])
         try:
-            if not valid:
-                return test.FAIL("Query API returned an unexpected response: {}".format(r))
-            else:
-                if r.status_code == 200 or r.status_code == 201:
-                    websocket = WebsocketWorker(r.json()["ws_href"])
-                elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0
-                      and r.status_code == 501):
-                    return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
-                                         "important for scalability.",
-                                         "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
-                else:
-                    return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
-                                     .format(r.status_code, r.text))
             websocket.start()
             sleep(0.5)
             if websocket.did_error_occur():
@@ -1526,33 +1488,12 @@ class IS0402Test(GenericTest):
 
         # Create subscription to a specific Node description
         node_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
-        sub_json = deepcopy(self.subscription_data)
         query_string = "eq(description," + str(node_ids[0]) + ")"
-        sub_json["params"]["query.rql"] = query_string
-        sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, self.apis[QUERY_API_KEY]["version"])
-        valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+        sub_json = self.prepare_subscription("/nodes", params={"query.rql": query_string})
+        resp_json = self.post_subscription(test, sub_json)
 
-        websocket = None
+        websocket = WebsocketWorker(resp_json["ws_href"])
         try:
-            if not valid:
-                return test.FAIL("Query API returned an unexpected response: {}".format(r))
-            else:
-                if r.status_code == 200 or r.status_code == 201:
-                    websocket = WebsocketWorker(r.json()["ws_href"])
-                elif (self.is04_query_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.3") >= 0
-                      and r.status_code == 501):
-                    return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
-                                         "important for scalability.",
-                                         "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
-                elif r.status_code == 400:
-                    return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
-                                         "{}".format(query_string),
-                                         "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
-                else:
-                    return test.FAIL("Cannot request websocket subscription. Cannot execute test: {} {}"
-                                     .format(r.status_code, r.text))
             websocket.start()
             sleep(WS_MESSAGE_TIMEOUT)
             if websocket.did_error_occur():
@@ -1821,35 +1762,24 @@ class IS0402Test(GenericTest):
         api = self.apis[QUERY_API_KEY]
 
         if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sub_json = deepcopy(self.subscription_data)
-            sub_json["secure"] = ENABLE_HTTPS
-            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+            sub_json = self.prepare_subscription("/nodes")
+            resp_json = self.post_subscription(test, sub_json)
+            # Check protocol
+            if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                if resp_json["secure"] is not ENABLE_HTTPS:
+                    return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+            if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
+                return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
 
-            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
+            # Test if subscription is available
+            sub_id = resp_json["id"]
+            valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
             if not valid:
                 return test.FAIL("Query API did not respond as expected")
-            elif r.status_code == 200 or r.status_code == 201:
-                # Check protocol
-                response_json = r.json()
-                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                    if response_json["secure"] is not ENABLE_HTTPS:
-                        return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
-                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
-                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
-
-                # Test if subscription is available
-                sub_id = response_json["id"]
-                valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
-                if not valid:
-                    return test.FAIL("Query API did not respond as expected")
-                elif r.status_code == 200:
-                    return test.PASS()
-                else:
-                    return test.FAIL("Query API does not provide requested subscription: {} {}"
-                                     .format(r.status_code, r.text))
+            elif r.status_code == 200:
+                return test.PASS()
             else:
-                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+                return test.FAIL("Query API did not provide the requested subscription: {}".format(r.status_code))
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -1860,26 +1790,18 @@ class IS0402Test(GenericTest):
         api = self.apis[QUERY_API_KEY]
 
         if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sub_json = deepcopy(self.subscription_data)
-            del sub_json["secure"]  # This is the key element under test
-            if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
+            sub_json = self.prepare_subscription("/nodes")
+            if "secure" in sub_json:
+                del sub_json["secure"]  # This is the key element under test
+            resp_json = self.post_subscription(test, sub_json)
+            # Check protocol
+            if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                if resp_json["secure"] is not ENABLE_HTTPS:
+                    return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+            if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
+                return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
 
-            valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
-            if not valid:
-                return test.FAIL("Query API did not respond as expected")
-            elif r.status_code == 200 or r.status_code == 201:
-                # Check protocol
-                response_json = r.json()
-                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                    if response_json["secure"] is not ENABLE_HTTPS:
-                        return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
-                if not response_json["ws_href"].startswith(self.ws_protocol + "://"):
-                    return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
-
-                return test.PASS()
-            else:
-                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+            return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
 
@@ -1931,7 +1853,7 @@ class IS0402Test(GenericTest):
                                                                      self.test_data[curr_resource]["id"]))
                     if not valid_delete:
                         return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
-                    elif r_delete.status_code != 204:
+                    elif r_delete.status_code not in [204, 404]:
                         return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
                                          .format(r_delete.status_code, r_delete.text))
                 elif r.status_code == 404:
@@ -1948,21 +1870,9 @@ class IS0402Test(GenericTest):
                 resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
 
                 for resource in resources_to_post:
-                    sub_json = deepcopy(self.subscription_data)
-                    sub_json["resource_path"] = "/{}s".format(resource)
-                    sub_json["secure"] = ENABLE_HTTPS
-                    if self.is04_query_utils.compare_api_version(api["version"], "v1.2") < 0:
-                        sub_json = self.downgrade_resource("subscription", sub_json, api["version"])
-                    valid, r = self.do_request("POST", "{}subscriptions".format(self.query_url), data=sub_json)
-
-                    if not valid:
-                        return test.FAIL("Query API returned an unexpected response: {}".format(r))
-                    else:
-                        if r.status_code == 200 or r.status_code == 201:
-                            websockets[resource] = WebsocketWorker(r.json()["ws_href"])
-                        else:
-                            return test.FAIL("Cannot request websocket subscriptions. Cannot execute test: {} {}"
-                                             .format(r.status_code, r.text))
+                    sub_json = self.prepare_subscription("/{}s".format(resource))
+                    resp_json = self.post_subscription(test, sub_json)
+                    websockets[resource] = WebsocketWorker(resp_json["ws_href"])
 
                 # Post sample data
                 for resource in resources_to_post:
@@ -2312,6 +2222,41 @@ class IS0402Test(GenericTest):
             v[1] = 0
         resource["version"] = str(v[0]) + ':' + str(v[1])
 
+    def prepare_subscription(self, resource_path, params=None, api_ver=None):
+        """Prepare an object ready to send as the request body for a Query API subscription"""
+        if params is None:
+            params = {}
+        if api_ver is None:
+            api_ver = self.apis[QUERY_API_KEY]["version"]
+        sub_json = deepcopy(self.subscription_data)
+        sub_json["resource_path"] = resource_path
+        sub_json["params"] = params
+        sub_json["secure"] = ENABLE_HTTPS
+        if self.is04_query_utils.compare_api_version(api_ver, "v1.2") < 0:
+            sub_json = self.downgrade_resource("subscription", sub_json, api_ver)
+        return sub_json
+
+    def post_subscription(self, test, sub_json, query_url=None):
+        """Perform a POST request to a Query API to create a subscription"""
+        if query_url is None:
+            query_url = self.query_url
+        valid, r = self.do_request("POST", "{}subscriptions".format(query_url), data=sub_json)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: {}".format(r)))
+
+        try:
+            if r.status_code in [200, 201]:
+                return r.json()
+            elif r.status_code in [400, 501]:
+                raise NMOSTestException(test.FAIL("Query API signalled that it does not support the requested "
+                                                  "subscription parameters: {} {}".format(r.status_code, sub_json)))
+            else:
+                raise NMOSTestException(test.FAIL("Cannot request websocket subscription. Cannot execute test: {}"
+                                                  .format(r.status_code)))
+        except json.decoder.JSONDecodeError:
+            raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
+
     def post_resource(self, test, type, data, code=None):
         """Perform a POST request on the Registration API to create or update a resource registration"""
 
@@ -2335,6 +2280,7 @@ class IS0402Test(GenericTest):
         elif r.status_code in [200, 201]:
             if "Location" not in r.headers:
                 raise NMOSTestException(test.FAIL("Registration API failed to return a 'Location' response header"))
-            elif not r.headers["Location"].startswith("/") and not r.headers["Location"].startswith(self.protocol + "://"):
+            elif (not r.headers["Location"].startswith("/")
+                  and not r.headers["Location"].startswith(self.protocol + "://")):
                 raise NMOSTestException(test.FAIL("Registration API response Location header is invalid for the "
                                                   "current protocol: Location: {}".format(r.headers["Location"])))
