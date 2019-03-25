@@ -42,8 +42,8 @@ class BCP00301Test(GenericTest):
             ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off"] + args +
                                  ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"], self.apis[BCP_API_KEY]["port"])])
         except Exception as e:
-            raise NMOSTestException(test.DISABLED("Unable to execute testssl.sh. Please see the README for installation"
-                                                  " instructions: {}".format(e)))
+            raise NMOSTestException(test.DISABLED("Unable to execute testssl.sh. Please see the README for "
+                                                  "installation instructions: {}".format(e)))
         return ret.returncode
 
     def test_01(self):

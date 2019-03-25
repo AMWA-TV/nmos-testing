@@ -331,23 +331,24 @@ def init_spec_cache():
 
     for repo_key, repo_data in SPECIFICATIONS.items():
         path = os.path.join(CACHE_PATH + '/' + repo_key)
-        if repo_data["repo"] is not None:
-            if not os.path.exists(path):
-                print(" * Initialising repository '{}'".format(repo_data["repo"]))
-                repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
-                update_last_pull = True
-            else:
-                repo = git.Repo(path)
-                repo.git.reset('--hard')
-                # Only pull if we haven't in the last hour
-                if (last_pull_time + timedelta(hours=1)) <= time_now:
-                    print(" * Pulling latest files for repository '{}'".format(repo_data["repo"]))
-                    try:
-                        repo.remotes.origin.pull()
-                        update_last_pull = True
-                    except Exception as e:
-                        print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
-                              "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
+        if repo_data["repo"] is None:
+            continue
+        if not os.path.exists(path):
+            print(" * Initialising repository '{}'".format(repo_data["repo"]))
+            repo = git.Repo.clone_from('https://github.com/AMWA-TV/' + repo_data["repo"] + '.git', path)
+            update_last_pull = True
+        else:
+            repo = git.Repo(path)
+            repo.git.reset('--hard')
+            # Only pull if we haven't in the last hour
+            if (last_pull_time + timedelta(hours=1)) <= time_now:
+                print(" * Pulling latest files for repository '{}'".format(repo_data["repo"]))
+                try:
+                    repo.remotes.origin.pull()
+                    update_last_pull = True
+                except Exception as e:
+                    print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
+                          "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
 
     if update_last_pull:
         try:
