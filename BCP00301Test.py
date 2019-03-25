@@ -90,14 +90,14 @@ class BCP00301Test(GenericTest):
                     tls1_3_should = ["TLS_AES_256_GCM_SHA384",
                                      "TLS_CHACHA20_POLY1305_SHA256"]
                     if report["finding"].startswith("TLS 1.2"):
-                        cipher = report["finding"].split("\t")[-1]
+                        cipher = report["finding"].split()[-1]
                         if cipher in tls1_2_shall:
                             tls1_2_shall.remove(cipher)
                         elif cipher in tls1_2_should:
                             tls1_2_should.remove(cipher)
                     elif report["finding"].startswith("TLS 1.3"):
                         tls1_3_supported = True
-                        cipher = report["finding"].split("\t")[-1]
+                        cipher = report["finding"].split()[-1]
                         if cipher in tls1_3_shall:
                             tls1_3_shall.remove(cipher)
                         elif cipher in tls1_3_should:
