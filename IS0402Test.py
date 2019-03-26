@@ -986,7 +986,7 @@ class IS0402Test(GenericTest):
                                   expected_ids=ids,
                                   expected_since="0:0", expected_until=ts[-1], expected_limit=count)
 
-        resources = response[1].json()
+        resources = response[1].json() # valid json guaranteed by check_paged_response
         resources.reverse()
 
         # 'next' page should be empty
@@ -1075,11 +1075,14 @@ class IS0402Test(GenericTest):
             return test.NA("This test does not apply to v1.0")
 
         # Find the API versions supported by the Reg API
-        valid, r = self.do_request("GET", self.reg_url.rstrip(reg_api["version"] + "/"))
-        if not valid:
-            return test.FAIL("Registration API failed to respond to request")
-        else:
-            reg_versions = [version.rstrip("/") for version in r.json()]
+        try:
+            valid, r = self.do_request("GET", self.reg_url.rstrip(reg_api["version"] + "/"))
+            if not valid:
+                return test.FAIL("Registration API failed to respond to request")
+            else:
+                reg_versions = [version.rstrip("/") for version in r.json()]
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
 
         # Sort the list and remove API versions higher than the one under test
         reg_versions = self.is04_reg_utils.sort_versions(reg_versions)
@@ -1088,11 +1091,14 @@ class IS0402Test(GenericTest):
                 reg_versions.remove(api_version)
 
         # Find the API versions supported by the Query API
-        valid, r = self.do_request("GET", self.query_url.rstrip(query_api["version"] + "/"))
-        if not valid:
-            return test.FAIL("Query API failed to respond to request")
-        else:
-            query_versions = [version.rstrip("/") for version in r.json()]
+        try:
+            valid, r = self.do_request("GET", self.query_url.rstrip(query_api["version"] + "/"))
+            if not valid:
+                return test.FAIL("Query API failed to respond to request")
+            else:
+                query_versions = [version.rstrip("/") for version in r.json()]
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
 
         # Sort the list and remove API versions higher than the one under test
         query_versions = self.is04_query_utils.sort_versions(query_versions)
@@ -1168,22 +1174,25 @@ class IS0402Test(GenericTest):
                 if self.is04_query_utils.compare_api_version(node_api_version, api_version) >= 0:
                     expected_nodes.append(node_id)
 
-            valid, r = self.do_request("GET", self.query_url + "nodes?query.downgrade={}&description={}"
-                                                               .format(api_version, test_id))
-            if not valid:
-                return test.FAIL("Query API failed to respond to request")
-            elif r.status_code != 200:
-                return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
-                                 .format(api_version))
-            else:
-                for node in r.json():
-                    if node["id"] not in expected_nodes:
-                        return test.FAIL("Query API exposed a Node from a lower version than expected when downgrading "
-                                         "to {}".format(api_version))
-                    expected_nodes.remove(node["id"])
-                if len(expected_nodes) > 0:
-                    return test.FAIL("Query API failed to expose an expected Node when downgrading to {}"
+            try:
+                valid, r = self.do_request("GET", self.query_url + "nodes?query.downgrade={}&description={}"
+                                                                   .format(api_version, test_id))
+                if not valid:
+                    return test.FAIL("Query API failed to respond to request")
+                elif r.status_code != 200:
+                    return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
                                      .format(api_version))
+                else:
+                    for node in r.json():
+                        if node["id"] not in expected_nodes:
+                            return test.FAIL("Query API exposed a Node from a lower version than expected when "
+                                             "downgrading to {}".format(api_version))
+                        expected_nodes.remove(node["id"])
+                    if len(expected_nodes) > 0:
+                        return test.FAIL("Query API failed to expose an expected Node when downgrading to {}"
+                                         .format(api_version))
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned")
 
         return test.PASS()
 
@@ -1197,11 +1206,14 @@ class IS0402Test(GenericTest):
             return test.NA("This test does not apply to v1.0")
 
         # Find the API versions supported by the Query API
-        valid, r = self.do_request("GET", self.query_url.rstrip(api["version"] + "/"))
-        if not valid:
-            return test.FAIL("Query API failed to respond to request")
-        else:
-            query_versions = [version.rstrip("/") for version in r.json()]
+        try:
+            valid, r = self.do_request("GET", self.query_url.rstrip(api["version"] + "/"))
+            if not valid:
+                return test.FAIL("Query API failed to respond to request")
+            else:
+                query_versions = [version.rstrip("/") for version in r.json()]
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
 
         # Sort the list and remove API versions higher than the one under test
         query_versions = self.is04_query_utils.sort_versions(query_versions)
@@ -1279,24 +1291,24 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) < 2:
                 return test.UNCLEAR("Fewer Nodes found in registry than expected. Test cannot proceed.")
+
+            query_string = "?description=" + node_descriptions[0]
+            valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
+            api = self.apis[QUERY_API_KEY]
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
+                return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
+                                     "important for scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+            elif r.status_code != 200:
+                raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                                  "{} {}".format(r.status_code, r.text)))
+            elif len(r.json()) != 1:
+                return test.FAIL("Query API returned {} records for query {} when 1 was expected"
+                                 .format(len(r.json()), query_string))
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
-
-        query_string = "?description=" + node_descriptions[0]
-        valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
-        api = self.apis[QUERY_API_KEY]
-        if not valid:
-            return test.FAIL("Query API failed to respond to query")
-        elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
-                                 "important for scalability.",
-                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
-        elif r.status_code != 200:
-            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
-                                              "{} {}".format(r.status_code, r.text)))
-        elif len(r.json()) != 1:
-            return test.FAIL("Query API returned {} records for query {} when 1 was expected"
-                             .format(len(r.json()), query_string))
 
         return test.PASS()
 
@@ -1444,27 +1456,29 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) < 2:
                 return test.UNCLEAR("Fewer Nodes found in registry than expected. Test cannot proceed.")
+
+            query_string = "?query.rql=eq(description," + str(node_descriptions[0]) + ")"
+            valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif r.status_code == 501:
+                return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
+                                     "important for scalability.",
+                                     "https://github.com/AMWA-TV/nmos/wiki"
+                                     "/IS-04#registries-resource-query-language-rql")
+            elif r.status_code == 400:
+                return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
+                                     "{}".format(query_string),
+                                     "https://github.com/AMWA-TV/nmos/wiki"
+                                     "/IS-04#registries-resource-query-language-rql")
+            elif r.status_code != 200:
+                raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                                  "{} {}".format(r.status_code, r.text)))
+            elif len(r.json()) != 1:
+                return test.FAIL("Query API returned {} records for query {} when 1 was expected"
+                                 .format(len(r.json()), query_string))
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
-
-        query_string = "?query.rql=eq(description," + str(node_descriptions[0]) + ")"
-        valid, r = self.do_request("GET", self.query_url + "nodes" + query_string)
-        if not valid:
-            return test.FAIL("Query API failed to respond to query")
-        elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
-                                 "important for scalability.",
-                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
-        elif r.status_code == 400:
-            return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
-                                 "{}".format(query_string),
-                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-resource-query-language-rql")
-        elif r.status_code != 200:
-            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
-                                              "{} {}".format(r.status_code, r.text)))
-        elif len(r.json()) != 1:
-            return test.FAIL("Query API returned {} records for query {} when 1 was expected"
-                             .format(len(r.json()), query_string))
 
         return test.PASS()
 
@@ -1602,26 +1616,26 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Query API failed to respond to query")
             elif len(r.json()) == 0:
                 return test.UNCLEAR("No Sources found in registry. Test cannot proceed.")
+
+            random_label = uuid.uuid4()
+            query_string = "?query.ancestry_id=" + str(random_label) + "&query.ancestry_type=children"
+            valid, r = self.do_request("GET", self.query_url + "sources" + query_string)
+            if not valid:
+                return test.FAIL("Query API failed to respond to query")
+            elif r.status_code == 501:
+                return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+            elif r.status_code == 400:
+                return test.OPTIONAL("Query API signalled that it refused to support this ancestry query: "
+                                     "{}".format(query_string),
+                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+            elif r.status_code != 200:
+                raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                                  "{} {}".format(r.status_code, r.text)))
+            elif len(r.json()) > 0:
+                return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
-
-        random_label = uuid.uuid4()
-        query_string = "?query.ancestry_id=" + str(random_label) + "&query.ancestry_type=children"
-        valid, r = self.do_request("GET", self.query_url + "sources" + query_string)
-        if not valid:
-            return test.FAIL("Query API failed to respond to query")
-        elif r.status_code == 501:
-            return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
-                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
-        elif r.status_code == 400:
-            return test.OPTIONAL("Query API signalled that it refused to support this ancestry query: "
-                                 "{}".format(query_string),
-                                 "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
-        elif r.status_code != 200:
-            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
-                                              "{} {}".format(r.status_code, r.text)))
-        elif len(r.json()) > 0:
-            return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
 
         return test.PASS()
 
