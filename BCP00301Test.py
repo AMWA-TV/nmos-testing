@@ -46,8 +46,9 @@ class BCP00301Test(GenericTest):
                                                   "installation instructions: {}".format(e)))
         return ret.returncode
 
-    def test_01(self):
-        test = Test("TLS Protocols")
+    def test_01(self, test):
+        """TLS Protocols"""
+
         ret = self.perform_test_ssl(test, ["-p"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -63,8 +64,9 @@ class BCP00301Test(GenericTest):
                         return test.WARNING("Protocol {} should be offered".format(report["id"].replace("_", ".")))
             return test.PASS()
 
-    def test_02(self):
-        test = Test("TLS Ciphers")
+    def test_02(self, test):
+        """TLS Ciphers"""
+
         ret = self.perform_test_ssl(test, ["-E"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")

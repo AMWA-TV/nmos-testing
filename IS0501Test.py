@@ -49,10 +49,8 @@ class IS0501Test(GenericTest):
         self.senders = self.is05_utils.get_senders()
         self.receivers = self.is05_utils.get_receivers()
 
-    def test_01(self):
+    def test_01(self, test):
         """API root matches the spec"""
-
-        test = Test()
 
         expected = ["single/", "bulk/"]
         dest = ""
@@ -67,10 +65,8 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(result)
 
-    def test_02(self):
+    def test_02(self, test):
         """Single endpoint root matches the spec"""
-
-        test = Test()
 
         expected = ["receivers/", "senders/"]
         dest = "single/"
@@ -85,10 +81,8 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(result)
 
-    def test_03(self):
+    def test_03(self, test):
         """Root of /single/senders/ matches the spec"""
-
-        test = Test()
 
         dest = "single/senders/"
         valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
@@ -116,10 +110,8 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(response)
 
-    def test_04(self):
+    def test_04(self, test):
         """Root of /single/receivers/ matches the spec"""
-
-        test = Test()
 
         dest = "single/receivers/"
         valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
@@ -147,10 +139,8 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(response)
 
-    def test_05(self):
+    def test_05(self, test):
         """Index of /single/senders/{senderId}/ matches the spec"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -177,10 +167,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_06(self):
+    def test_06(self, test):
         """Index of /single/receivers/{receiverId}/ matches the spec"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -206,10 +194,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_07(self):
+    def test_07(self, test):
         """Return of /single/senders/{senderId}/constraints/ meets the schema"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -224,10 +210,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_08(self):
+    def test_08(self, test):
         """Return of /single/receivers/{receiverId}/constraints/ meets the schema"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -242,10 +226,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_09(self):
+    def test_09(self, test):
         """All params listed in /single/senders/{senderId}/constraints/ matches /staged/ and /active/"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             valid, response = self.is05_utils.check_params_match("senders", self.senders)
@@ -259,10 +241,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_10(self):
+    def test_10(self, test):
         """All params listed in /single/receivers/{receiverId}/constraints/ matches /staged/ and /active/"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             valid, response = self.is05_utils.check_params_match("receivers", self.receivers)
@@ -276,10 +256,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_11(self):
+    def test_11(self, test):
         """Senders are using valid combination of parameters"""
-
-        test = Test()
 
         generalParams = ['source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode', 'fec_type',
@@ -321,10 +299,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_12(self):
+    def test_12(self, test):
         """Receiver are using valid combination of parameters"""
-
-        test = Test()
 
         generalParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode',
@@ -364,10 +340,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_13(self):
+    def test_13(self, test):
         """Return of /single/senders/{senderId}/staged/ meets the schema"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -382,10 +356,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_14(self):
+    def test_14(self, test):
         """Return of /single/receivers/{receiverId}/staged/ meets the schema"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -400,10 +372,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_15(self):
+    def test_15(self, test):
         """Staged parameters for senders comply with constraints"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             valid, response = self.check_staged_complies_with_constraints("sender", self.senders)
@@ -414,10 +384,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_16(self):
+    def test_16(self, test):
         """Staged parameters for receivers comply with constraints"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             valid, response = self.check_staged_complies_with_constraints("receiver", self.receivers)
@@ -428,10 +396,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_17(self):
+    def test_17(self, test):
         """Sender patch response schema is valid"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             valid, response = self.check_patch_response_schema_valid("sender", self.senders)
@@ -442,10 +408,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_18(self):
+    def test_18(self, test):
         """Receiver patch response schema is valid"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             valid, response = self.check_patch_response_schema_valid("receiver", self.receivers)
@@ -456,10 +420,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_19(self):
+    def test_19(self, test):
         """Sender invalid patch is refused"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             valid, response = self.is05_utils.check_refuses_invalid_patch("sender", self.senders)
@@ -470,10 +432,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_20(self):
+    def test_20(self, test):
         """Receiver invalid patch is refused"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             valid, response = self.is05_utils.check_refuses_invalid_patch("receiver", self.receivers)
@@ -484,10 +444,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_21(self):
+    def test_21(self, test):
         """Sender id on staged receiver is changeable"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -515,10 +473,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_22(self):
+    def test_22(self, test):
         """Receiver id on staged sender is changeable"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -546,10 +502,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_23(self):
+    def test_23(self, test):
         """Sender transport parameters are changeable"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -567,10 +521,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_24(self):
+    def test_24(self, test):
         """Receiver transport parameters are changeable"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -589,11 +541,9 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_25(self):
+    def test_25(self, test):
         """Immediate activation of a sender is possible"""
 
-        test = Test()
-
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
@@ -606,11 +556,9 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_26(self):
+    def test_26(self, test):
         """Immediate activation of a receiver is possible"""
 
-        test = Test()
-
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
@@ -624,11 +572,9 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_27(self):
+    def test_27(self, test):
         """Relative activation of a sender is possible"""
 
-        test = Test()
-
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
@@ -641,11 +587,9 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_28(self):
+    def test_28(self, test):
         """Relative activation of a receiver is possible"""
 
-        test = Test()
-
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
@@ -658,10 +602,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_29(self):
+    def test_29(self, test):
         """Absolute activation of a sender is possible"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
@@ -675,10 +617,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_30(self):
+    def test_30(self, test):
         """Absolute activation of a receiver is possible"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
@@ -692,10 +632,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_31(self):
+    def test_31(self, test):
         """Sender active response schema is valid"""
-
-        test = Test()
 
         if len(self.senders):
             for sender in self.senders:
@@ -710,10 +648,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_32(self):
+    def test_32(self, test):
         """Receiver active response schema is valid"""
-
-        test = Test()
 
         if len(self.receivers):
             for receiver in self.receivers:
@@ -728,10 +664,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_33(self):
+    def test_33(self, test):
         """/bulk/ endpoint returns correct JSON"""
-
-        test = Test()
 
         url = "bulk/"
         valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
@@ -745,10 +679,8 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(response)
 
-    def test_34(self):
+    def test_34(self, test):
         """GET on /bulk/senders returns 405"""
-
-        test = Test()
 
         url = "bulk/senders"
         valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
@@ -757,10 +689,8 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(response)
 
-    def test_35(self):
+    def test_35(self, test):
         """GET on /bulk/receivers returns 405"""
-
-        test = Test()
 
         url = "bulk/receivers"
         valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
@@ -769,10 +699,8 @@ class IS0501Test(GenericTest):
         else:
             return test.FAIL(response)
 
-    def test_36(self):
+    def test_36(self, test):
         """Bulk interface can be used to change destination port on all senders"""
-
-        test = Test()
 
         if len(self.senders) > 0:
             valid, response = self.check_bulk_stage("sender", self.senders)
@@ -783,10 +711,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_37(self):
+    def test_37(self, test):
         """Bulk interface can be used to change destination port on all receivers"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             valid, response = self.check_bulk_stage("receiver", self.receivers)
@@ -797,11 +723,9 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_38(self):
+    def test_38(self, test):
         """Number of legs matches on constraints, staged and active endpoint for senders"""
         
-        test = Test()
-
         if len(self.senders) > 0:
             for sender in self.senders:
                 url = "single/senders/{}/".format(sender)
@@ -814,10 +738,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_39(self):
+    def test_39(self, test):
         """Number of legs matches on constraints, staged and active endpoint for receivers"""
-
-        test = Test()
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -831,10 +753,8 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-    def test_40(self):
+    def test_40(self, test):
         """Only valid transport types for a given API version are advertised"""
-
-        test = Test()
 
         api = self.apis[CONN_API_KEY]
         if self.is05_utils.compare_api_version(api["version"], "v1.0") == 0:

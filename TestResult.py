@@ -59,21 +59,12 @@ class TestResult(object):
 
 
 class Test(object):
-    def __init__(self, description=None, name=None):
+    def __init__(self, description, name=None):
         self.description = description
         self.name = name
-
-        caller_frame = inspect.currentframe().f_back
-        caller_self = caller_frame.f_locals.get('self')
-        caller_method = getattr(caller_self, caller_frame.f_code.co_name, None)
-
-        if caller_method and not self.name:
+        if not self.name:
             # Get name of calling function
-            self.name = caller_method.__name__
-        if not self.description:
-            # Get docstring of calling function
-            self.description = inspect.getdoc(caller_method)
-
+            self.name = inspect.stack()[1][3]
         self.timer = time.time()
 
     def _current_time(self):
