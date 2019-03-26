@@ -46,7 +46,7 @@ class BCP00301Test(GenericTest):
                                                   "installation instructions: {}".format(e)))
         return ret.returncode
 
-    def test_01(self):
+    def test_01_tls_protocols(self):
         test = Test("TLS Protocols")
         ret = self.perform_test_ssl(test, ["-p"])
         if ret != 0:
@@ -63,7 +63,7 @@ class BCP00301Test(GenericTest):
                         return test.WARNING("Protocol {} should be offered".format(report["id"].replace("_", ".")))
             return test.PASS()
 
-    def test_02(self):
+    def test_02_tls_ciphers(self):
         test = Test("TLS Ciphers")
         ret = self.perform_test_ssl(test, ["-E"])
         if ret != 0:
@@ -116,3 +116,42 @@ class BCP00301Test(GenericTest):
                                     .format(",".join(tls1_3_should)))
             else:
                 return test.PASS()
+
+    def test_03_hsts(self):
+        test = Test("HSTS Header")
+        ret = self.perform_test_ssl(test, ["-h"])
+        if ret != 0:
+            return test.FAIL("Unable to test. See the console for further information.")
+        else:
+            hsts_supported = False
+            with open(TMPFILE) as tls_data:
+                tls_data = json.load(tls_data)
+                for report in tls_data:
+                    if report["id"] == "HSTS":
+                        if report["severity"] == "OK":
+                            hsts_supported = True
+                        elif report["finding"] != "not offered":
+                            hsts_supported = report["finding"]
+            if hsts_supported is True:
+                return test.PASS()
+            elif hsts_supported is False:
+                return test.WARNING("Strict Transport Security (HSTS) should be supported")
+            else:
+                return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
+
+    def test_04_vulnerabilities(self):
+        test = Test("TLS Vulnerabilities")
+        ret = self.perform_test_ssl(test, ["-U"])
+        if ret != 0:
+            return test.FAIL("Unable to test. See the console for further information.")
+        else:
+            vulnerabilities = {}
+            with open(TMPFILE) as tls_data:
+                tls_data = json.load(tls_data)
+                for report in tls_data:
+                    if report["severity"] not in ["OK", "INFO"]:
+                        vulnerabilities[report["id"]] = report["finding"]
+            if len(vulnerabilities) == 0:
+                return test.PASS()
+            else:
+                return test.WARNING("Server may be vulnerable to the following: {}".format(vulnerabilities))
