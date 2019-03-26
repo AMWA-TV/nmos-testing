@@ -18,6 +18,7 @@ import git
 import jsonschema
 import TestHelper
 import traceback
+import inspect
 
 from Specification import Specification
 from TestResult import Test
@@ -25,31 +26,33 @@ from Config import ENABLE_HTTPS
 
 
 def test_depends(func):
-    """ Decorator to prevent a test being executed in individual mode"""
-    def invalid(self):
+    """Decorator to prevent a test being executed in individual mode"""
+    def invalid(self, test):
         if self.test_individual:
-            test = Test("Invalid", func.__name__)
+            test.description = "Invalid"
             return test.DISABLED("This test cannot be performed individually")
         else:
-            return func(self)
+            return func(self, test)
+    invalid.__name__ = func.__name__
+    invalid.__doc__ = func.__doc__
     return invalid
 
 
 class NMOSTestException(Exception):
-    """ Provides a way to exit a single test, by providing the TestResult return statement as the first exception
-        parameter"""
+    """Provides a way to exit a single test, by providing the TestResult return statement as the first exception
+       parameter"""
     pass
 
 
 class NMOSInitException(Exception):
-    """ The test set was run in an invalid mode. Causes all tests to abort"""
+    """The test set was run in an invalid mode. Causes all tests to abort"""
     pass
 
 
 class GenericTest(object):
     """
     Generic testing class.
-    Can be inhereted from in order to perform detailed testing.
+    Can be inherited from in order to perform detailed testing.
     """
     def __init__(self, apis, omit_paths=None):
         self.apis = apis
@@ -127,8 +130,9 @@ class GenericTest(object):
                     method = getattr(self, method_name)
                     if callable(method):
                         print(" * Running " + method_name)
+                        test = Test(inspect.getdoc(method), method_name)
                         try:
-                            self.result.append(method())
+                            self.result.append(method(test))
                         except NMOSTestException as e:
                             self.result.append(e.args[0])
                         except Exception as e:
@@ -139,8 +143,9 @@ class GenericTest(object):
             method = getattr(self, test_name)
             if callable(method):
                 print(" * Running " + test_name)
+                test = Test(inspect.getdoc(method), test_name)
                 try:
-                    self.result.append(method())
+                    self.result.append(method(test))
                 except NMOSTestException as e:
                     self.result.append(e.args[0])
                 except Exception as e:

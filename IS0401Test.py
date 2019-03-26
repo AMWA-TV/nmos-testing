@@ -144,10 +144,8 @@ class IS0401Test(GenericTest):
 
         self.registry_basics_done = True
 
-    def test_01(self):
+    def test_01(self, test):
         """Node can discover network registration service via multicast DNS"""
-
-        test = Test("Node can discover network registration service via multicast DNS")
 
         if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
@@ -161,10 +159,8 @@ class IS0401Test(GenericTest):
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
 
-    def test_02(self):
+    def test_02(self, test):
         """Node can discover network registration service via unicast DNS"""
-
-        test = Test("Node can discover network registration service via unicast DNS")
 
         if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
@@ -178,10 +174,8 @@ class IS0401Test(GenericTest):
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
 
-    def test_03(self):
+    def test_03(self, test):
         """Registration API interactions use the correct Content-Type"""
-
-        test = Test("Registration API interactions use the correct Content-Type")
 
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
@@ -260,21 +254,16 @@ class IS0401Test(GenericTest):
         else:
             return test.FAIL("Could not reach Node!")
 
-    def test_04(self):
+    def test_04(self, test):
         """Node can register a valid Node resource with the network registration service,
         matching its Node API self resource"""
-
-        test = Test("Node can register a valid Node resource with the network registration service, "
-                    "matching its Node API self resource")
 
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "node")
 
-    def test_05(self):
+    def test_05(self, test):
         """Node maintains itself in the registry via periodic calls to the health resource"""
-
-        test = Test("Node maintains itself in the registry via periodic calls to the health resource")
 
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
@@ -309,74 +298,64 @@ class IS0401Test(GenericTest):
 
             # Ensure the heartbeat request body is empty
             if heartbeat[1]["payload"] is not bytes():
-                return test.WARNING("Heartbeat POST contained a payload body.", "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies".format(api["spec_branch"]))
+                return test.WARNING("Heartbeat POST contained a payload body.", 
+                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                    "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
+                                    .format(api["spec_branch"]))
             if "Content-Type" in heartbeat[1]["headers"]:
-                return test.WARNING("Heartbeat POST contained a Content-Type header.", "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies".format(api["spec_branch"]))
+                return test.WARNING("Heartbeat POST contained a Content-Type header.", 
+                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                    "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
+                                    .format(api["spec_branch"]))
 
             last_hb = heartbeat
 
         return test.PASS()
 
-    def test_07(self):
+    def test_07(self, test):
         """Node can register a valid Device resource with the network registration service, matching its
         Node API Device resource"""
-
-        test = Test("Node can register a valid Device resource with the network registration service, "
-                    "matching its Node API Device resource")
 
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "device")
 
-    def test_08(self):
+    def test_08(self, test):
         """Node can register a valid Source resource with the network
         registration service, matching its Node API Source resource"""
-
-        test = Test("Node can register a valid Source resource with the network registration service, "
-                    "matching its Node API Source resource")
 
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "source")
 
-    def test_09(self):
+    def test_09(self, test):
         """Node can register a valid Flow resource with the network
         registration service, matching its Node API Flow resource"""
-
-        test = Test("Node can register a valid Flow resource with the network registration service, "
-                    "matching its Node API Flow resource")
 
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "flow")
 
-    def test_10(self):
+    def test_10(self, test):
         """Node can register a valid Sender resource with the network
         registration service, matching its Node API Sender resource"""
-
-        test = Test("Node can register a valid Sender resource with the network registration service, "
-                    "matching its Node API Sender resource")
 
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "sender")
 
-    def test_11(self):
+    def test_11(self, test):
         """Node can register a valid Receiver resource with the network
         registration service, matching its Node API Receiver resource"""
-
-        test = Test("Node can register a valid Receiver resource with the network registration service, "
-                    "matching its Node API Receiver resource")
 
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "receiver")
 
-    def test_12(self):
+    def test_12(self, test):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
         in the presence of a Registration API"""
-        test = Test("Node advertises a Node type mDNS announcement with no ver_* TXT records in the presence "
-                    "of a Registration API")
+
         browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(1)
         node_list = self.zc_listener.get_service_list()
@@ -407,12 +386,9 @@ class IS0401Test(GenericTest):
                             " mode but may indicate a lack of support for peer to peer operation.",
                             "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
 
-    def test_13(self):
+    def test_13(self, test):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
         and connects the Receiver to a stream"""
-
-        test = Test("PUTing to a Receiver target resource with a Sender resource payload " \
-                    "is accepted and connects the Receiver to a stream")
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid:
@@ -463,12 +439,9 @@ class IS0401Test(GenericTest):
 
         return test.UNCLEAR("Node API does not expose any Receivers")
 
-    def test_14(self):
+    def test_14(self, test):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
         disconnects the Receiver from a stream"""
-
-        test = Test("PUTing to a Receiver target resource with an empty JSON object payload "
-                    "is accepted and disconnects the Receiver from a stream")
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid:
@@ -503,10 +476,8 @@ class IS0401Test(GenericTest):
 
         return test.UNCLEAR("Node API does not expose any Receivers")
 
-    def test_15(self):
+    def test_15(self, test):
         """Node correctly selects a Registration API based on advertised priorities"""
-
-        test = Test("Node correctly selects a Registration API based on advertised priorities")
 
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
@@ -532,10 +503,8 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_16(self):
+    def test_16(self, test):
         """Node correctly fails over between advertised Registration APIs when one fails"""
-
-        test = Test("Node correctly fails over between advertised Registration APIs when one fails")
 
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
@@ -553,10 +522,8 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_17(self):
+    def test_17(self, test):
         """All Node resources use different UUIDs"""
-
-        test = Test("All Node resources use different UUIDs")
 
         uuids = set()
         valid, response = self.do_request("GET", self.node_url + "self")
@@ -582,10 +549,8 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_18(self):
+    def test_18(self, test):
         """All Node clocks are unique, and relate to any visible Sources' clocks"""
-
-        test = Test("All Node clocks are unique, and relate to any visible Sources' clocks")
 
         api = self.apis[NODE_API_KEY]
         if self.is04_utils.compare_api_version(api["version"], "v1.1") < 0:
@@ -617,10 +582,8 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_19(self):
+    def test_19(self, test):
         """All Node interfaces are unique, and relate to any visible Senders and Receivers' interface_bindings"""
-
-        test = Test("All Node interfaces are unique, and relate to any visible Senders and Receivers' interface_bindings")
 
         api = self.apis[NODE_API_KEY]
         if self.is04_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -668,10 +631,8 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
-    def test_20(self):
+    def test_20(self, test):
         """Node's resources correctly signal the current protocol"""
-
-        test = Test("Node's resources correctly signal the current protocol")
 
         service_href_warn = False
         device_href_warn = False
