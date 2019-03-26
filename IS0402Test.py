@@ -67,7 +67,7 @@ class IS0402Test(GenericTest):
     def test_01(self):
         """Registration API advertises correctly via mDNS"""
 
-        test = Test("Registration API advertises correctly via mDNS")
+        test = Test()
 
         service_type = "_nmos-registration._tcp.local."
         if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.3") >= 0:
@@ -112,7 +112,7 @@ class IS0402Test(GenericTest):
     def test_02(self):
         """Query API advertises correctly via mDNS"""
 
-        test = Test("Query API advertises correctly via mDNS")
+        test = Test()
 
         browser = ServiceBrowser(self.zc, "_nmos-query._tcp.local.", self.zc_listener)
         sleep(2)
@@ -153,7 +153,7 @@ class IS0402Test(GenericTest):
     def test_03(self):
         """Registration API accepts and stores a valid Node resource"""
 
-        test = Test("Registration API accepts and stores a valid Node resource")
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -170,7 +170,7 @@ class IS0402Test(GenericTest):
     def test_04(self):
         """Registration API rejects an invalid Node resource with a 400 HTTP code"""
 
-        test = Test("Registration API rejects an invalid Node resource with a 400 HTTP code")
+        test = Test()
 
         bad_json = {"notanode": True}
         return self.do_400_check(test, "node", bad_json)
@@ -179,7 +179,7 @@ class IS0402Test(GenericTest):
     def test_05(self):
         """Registration API accepts and stores a valid Device resource"""
 
-        test = Test("Registration API accepts and stores a valid Device resource")
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -198,7 +198,7 @@ class IS0402Test(GenericTest):
     def test_06(self):
         """Registration API rejects an invalid Device resource with a 400 HTTP code"""
 
-        test = Test("Registration API rejects an invalid Device resource with a 400 HTTP code")
+        test = Test()
 
         bad_json = {"notadevice": True}
         return self.do_400_check(test, "device", bad_json)
@@ -207,7 +207,7 @@ class IS0402Test(GenericTest):
     def test_07(self):
         """Registration API accepts and stores a valid Source resource"""
 
-        test = Test("Registration API accepts and stores a valid Source resource")
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -225,7 +225,7 @@ class IS0402Test(GenericTest):
     def test_08(self):
         """Registration API rejects an invalid Source resource with a 400 HTTP code"""
 
-        test = Test("Registration API rejects an invalid Source resource with a 400 HTTP code")
+        test = Test()
 
         bad_json = {"notasource": True}
         return self.do_400_check(test, "source", bad_json)
@@ -234,7 +234,7 @@ class IS0402Test(GenericTest):
     def test_09(self):
         """Registration API accepts and stores a valid Flow resource"""
 
-        test = Test("Registration API accepts and stores a valid Flow resource")
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -253,7 +253,7 @@ class IS0402Test(GenericTest):
     def test_10(self):
         """Registration API rejects an invalid Flow resource with a 400 HTTP code"""
 
-        test = Test("Registration API rejects an invalid Flow resource with a 400 HTTP code")
+        test = Test()
 
         bad_json = {"notaflow": True}
         return self.do_400_check(test, "flow", bad_json)
@@ -262,7 +262,7 @@ class IS0402Test(GenericTest):
     def test_11(self):
         """Registration API accepts and stores a valid Sender resource"""
 
-        test = Test("Registration API accepts and stores a valid Sender resource")
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -280,7 +280,7 @@ class IS0402Test(GenericTest):
     def test_11_1(self):
         """Registration API accepts and stores a valid Sender resource with null flow_id"""
 
-        test = Test("Registration API accepts and stores a valid Sender resource with null flow_id")
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -308,7 +308,7 @@ class IS0402Test(GenericTest):
     def test_12(self):
         """Registration API rejects an invalid Sender resource with a 400 HTTP code"""
 
-        test = Test("Registration API rejects an invalid Sender resource with a 400 HTTP code")
+        test = Test()
 
         bad_json = {"notasender": True}
         return self.do_400_check(test, "sender", bad_json)
@@ -317,7 +317,7 @@ class IS0402Test(GenericTest):
     def test_13(self):
         """Registration API accepts and stores a valid Receiver resource"""
 
-        test = Test("Registration API accepts and stores a valid Receiver resource")
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -335,15 +335,16 @@ class IS0402Test(GenericTest):
     def test_14(self):
         """Registration API rejects an invalid Receiver resource with a 400 HTTP code"""
 
-        test = Test("Registration API rejects an invalid Receiver resource with a 400 HTTP code")
+        test = Test()
 
         bad_json = {"notareceiver": True}
         return self.do_400_check(test, "receiver", bad_json)
 
     @test_depends
     def test_15(self):
-        """Updating Node resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating a registered Node")
+        """Registration API responds with 200 HTTP code on updating a registered Node"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -359,8 +360,9 @@ class IS0402Test(GenericTest):
 
     @test_depends
     def test_16(self):
-        """Updating Device resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating a registered Device")
+        """Registration API responds with 200 HTTP code on updating a registered Device"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -377,8 +379,9 @@ class IS0402Test(GenericTest):
 
     @test_depends
     def test_17(self):
-        """Updating Source resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating a registered Source")
+        """Registration API responds with 200 HTTP code on updating a registered Source"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -394,8 +397,9 @@ class IS0402Test(GenericTest):
 
     @test_depends
     def test_18(self):
-        """Updating Flow resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating a registered Flow")
+        """Registration API responds with 200 HTTP code on updating a registered Flow"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -412,8 +416,9 @@ class IS0402Test(GenericTest):
 
     @test_depends
     def test_19(self):
-        """Updating Sender resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating a registered Sender")
+        """Registration API responds with 200 HTTP code on updating a registered Sender"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -429,8 +434,9 @@ class IS0402Test(GenericTest):
 
     @test_depends
     def test_20(self):
-        """Updating Receiver resource results in 200"""
-        test = Test("Registration API responds with 200 HTTP code on updating a registered Receiver")
+        """Registration API responds with 200 HTTP code on updating a registered Receiver"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -654,9 +660,9 @@ class IS0402Test(GenericTest):
     def test_21_1(self):
         """Query API implements pagination (no query or paging parameters)"""
 
-        test = Test("Query API implements pagination (no query or paging parameters)")
+        test = Test()
+
         self.check_paged_trait(test)
-        # description = inspect.currentframe().f_code.co_name
         description = "test_21_1"
 
         # Perform a query with no query or paging parameters (see note in check_paged_response regarding 501)
@@ -672,7 +678,8 @@ class IS0402Test(GenericTest):
     def test_21_1_1(self):
         """Query API implements pagination (when explicitly requested)"""
 
-        test = Test("Query API implements pagination (when explicitly requested)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_1_1"
 
@@ -689,7 +696,8 @@ class IS0402Test(GenericTest):
     def test_21_2(self):
         """Query API implements pagination (documentation examples)"""
 
-        test = Test("Query API implements pagination (documentation examples)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_2"
 
@@ -749,7 +757,8 @@ class IS0402Test(GenericTest):
     def test_21_3(self):
         """Query API implements pagination (edge cases)"""
 
-        test = Test("Query API implements pagination (edge cases)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_3"
 
@@ -792,7 +801,8 @@ class IS0402Test(GenericTest):
     def test_21_4(self):
         """Query API implements pagination (requests that require empty responses)"""
 
-        test = Test("Query API implements pagination (requests that require empty responses)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_4"
 
@@ -826,7 +836,8 @@ class IS0402Test(GenericTest):
     def test_21_5(self):
         """Query API implements pagination (filters that select discontiguous resources)"""
 
-        test = Test("Query API implements pagination (filters that select discontiguous resources)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_5"
 
@@ -930,7 +941,8 @@ class IS0402Test(GenericTest):
     def test_21_6(self):
         """Query API implements pagination (bad requests)"""
 
-        test = Test("Query API implements pagination (bad requests)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_6"
 
@@ -972,7 +984,8 @@ class IS0402Test(GenericTest):
     def test_21_7(self):
         """Query API implements pagination (updates between paged requests)"""
 
-        test = Test("Query API implements pagination (updates between paged requests)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_7"
 
@@ -1041,7 +1054,8 @@ class IS0402Test(GenericTest):
     def test_21_8(self):
         """Query API implements pagination (correct encoding of URLs in Link header)"""
 
-        test = Test("Query API implements pagination (correct encoding of URLs in Link header)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_8"
 
@@ -1057,7 +1071,8 @@ class IS0402Test(GenericTest):
     def _test_21_x(self):
         """Query API implements pagination (paging.order=create)"""
 
-        test = Test("Query API implements pagination (paging.order=create)")
+        test = Test()
+
         self.check_paged_trait(test)
         description = "test_21_x"
 
@@ -1066,7 +1081,7 @@ class IS0402Test(GenericTest):
     def test_22(self):
         """Query API implements downgrade queries"""
 
-        test = Test("Query API implements downgrade queries")
+        test = Test()
 
         reg_api = self.apis[REG_API_KEY]
         query_api = self.apis[QUERY_API_KEY]
@@ -1190,7 +1205,7 @@ class IS0402Test(GenericTest):
     def test_22_1(self):
         """Query API subscriptions resource does not support downgrade queries"""
 
-        test = Test("Query API subscriptions resource does not support downgrade queries")
+        test = Test()
 
         api = self.apis[QUERY_API_KEY]
         if api["version"] == "v1.0":
@@ -1255,14 +1270,14 @@ class IS0402Test(GenericTest):
     def test_22_2(self):
         """Query API WebSockets implement downgrade queries"""
 
-        test = Test("Query API WebSockets implement downgrade queries")
+        test = Test()
 
         return test.MANUAL()
 
     def test_23(self):
         """Query API implements basic query parameters"""
 
-        test = Test("Query API implements basic query parameters")
+        test = Test()
 
         node_descriptions = [str(uuid.uuid4()), str(uuid.uuid4())]
         for node_desc in node_descriptions:
@@ -1303,7 +1318,7 @@ class IS0402Test(GenericTest):
     def test_23_1(self):
         """Query API WebSockets implement basic query parameters"""
 
-        test = Test("Query API WebSockets implement basic query parameters")
+        test = Test()
 
         # Perform a basic test for APIs <= v1.2 checking for support
         try:
@@ -1424,7 +1439,7 @@ class IS0402Test(GenericTest):
     def test_24(self):
         """Query API implements RQL"""
 
-        test = Test("Query API implements RQL")
+        test = Test()
 
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
@@ -1471,7 +1486,7 @@ class IS0402Test(GenericTest):
     def test_24_1(self):
         """Query API WebSockets implement RQL"""
 
-        test = Test("Query API WebSockets implement RQL")
+        test = Test()
 
         # Perform a basic test for APIs <= v1.2 checking for support
         try:
@@ -1591,7 +1606,7 @@ class IS0402Test(GenericTest):
     def test_25(self):
         """Query API implements ancestry queries"""
 
-        test = Test("Query API implements ancestry queries")
+        test = Test()
 
         if self.apis[QUERY_API_KEY]["version"] == "v1.0":
             return test.NA("This test does not apply to v1.0")
@@ -1628,13 +1643,14 @@ class IS0402Test(GenericTest):
     def test_25_1(self):
         """Query API WebSockets implement ancestry queries"""
 
-        test = Test("Query API WebSockets implement ancestry queries")
+        test = Test()
 
         return test.MANUAL()
 
     def test_26(self):
-        """Posting resource without parent results in 400"""
-        test = Test("Registration API responds with 400 HTTP code on posting a resource without parent")
+        """Registration API responds with 400 HTTP code on posting a resource without parent"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
 
@@ -1666,9 +1682,10 @@ class IS0402Test(GenericTest):
             return test.FAIL("Version > 1 not supported yet.")
 
     def test_27(self):
-        """Node and sub-resources should be removed after a timeout because of missing heartbeats"""
-        test = Test("Registration API cleans up Nodes and their sub-resources when a heartbeat doesn’t occur for "
-                    "the duration of a fixed timeout period")
+        """Registration API cleans up Nodes and their sub-resources when a heartbeat doesn't occur for
+        the duration of a fixed timeout period"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
 
@@ -1713,9 +1730,9 @@ class IS0402Test(GenericTest):
             return test.FAIL("Version > 1 not supported yet.")
 
     def test_28(self):
-        """Child-resources of a Node which unregistered it's resources in an incorrect order must be removed by
-        the registry"""
-        test = Test("Registry removes stale child-resources of an incorrectly unregistered Node")
+        """Registry removes stale child-resources of an incorrectly unregistered Node"""
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
 
@@ -1757,7 +1774,8 @@ class IS0402Test(GenericTest):
 
     def test_29(self):
         """Query API supports websocket subscription request"""
-        test = Test("Query API supports request of a websocket subscription")
+
+        test = Test()
 
         api = self.apis[QUERY_API_KEY]
 
@@ -1785,7 +1803,8 @@ class IS0402Test(GenericTest):
 
     def test_29_1(self):
         """Query API websocket subscription requests default to the current protocol"""
-        test = Test("Query API websocket subscription requests default to the current protocol")
+
+        test = Test()
 
         api = self.apis[QUERY_API_KEY]
 
@@ -1807,7 +1826,8 @@ class IS0402Test(GenericTest):
 
     def test_30(self):
         """Registration API accepts heartbeat requests for a Node held in the registry"""
-        test = Test("Registration API accepts heartbeat requests for a Node held in the registry")
+
+        test = Test()
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
@@ -1833,8 +1853,8 @@ class IS0402Test(GenericTest):
     def test_31(self):
         """Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED"""
 
-        test = Test("Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED "
-                    "and REMOVED")
+        test = Test()
+
         api = self.apis[QUERY_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
 

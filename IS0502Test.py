@@ -251,7 +251,7 @@ class IS0502Test(GenericTest):
     def test_01_node_api_1_2_or_greater(self):
         """Check that version 1.2 or greater of the Node API is available"""
 
-        test = Test("Check that version 1.2 or greater of the Node API is available")
+        test = Test()
 
         api = self.apis[NODE_API_KEY]
         if self.is05_utils.compare_api_version(api["version"], "v1.2") >= 0:
@@ -266,7 +266,7 @@ class IS0502Test(GenericTest):
     def test_02_device_control_present(self):
         """At least one Device is showing an IS-05 control advertisement matching the API under test"""
 
-        test = Test("At least one Device is showing an IS-05 control advertisement matching the API under test")
+        test = Test()
 
         valid, devices = self.do_request("GET", self.node_url + "devices")
         if not valid:
@@ -298,7 +298,7 @@ class IS0502Test(GenericTest):
     def test_03_is04_is05_rx_match(self):
         """Receivers shown in Connection API matches those shown in Node API"""
 
-        test = Test("Receivers shown in Connection API matches those shown in Node API")
+        test = Test()
 
         valid, result = self.get_is04_resources("receivers")
         if not valid:
@@ -318,7 +318,7 @@ class IS0502Test(GenericTest):
     def test_04_is04_is05_tx_match(self):
         """Senders shown in Connection API matches those shown in Node API"""
 
-        test = Test("Senders shown in Connection API matches those shown in Node API")
+        test = Test()
 
         valid, result = self.get_is04_resources("senders")
         if not valid:
@@ -338,7 +338,7 @@ class IS0502Test(GenericTest):
     def test_05_rx_activate_updates_ver(self):
         """Activation of a receiver increments the version timestamp"""
 
-        test = Test("Activation of a receiver increments the version timestamp")
+        test = Test()
 
         resource_type = "receivers"
 
@@ -361,7 +361,7 @@ class IS0502Test(GenericTest):
     def test_06_tx_activate_updates_ver(self):
         """Activation of a sender increments the version timestamp"""
 
-        test = Test("Activation of a sender increments the version timestamp")
+        test = Test()
 
         resource_type = "senders"
 
@@ -384,7 +384,7 @@ class IS0502Test(GenericTest):
     def test_07_rx_nmos_updates_sub(self):
         """Activation of a receiver from an NMOS sender updates the IS-04 subscription"""
 
-        test = Test("Activation of a receiver from an NMOS sender updates the IS-04 subscription")
+        test = Test()
 
         resource_type = "receivers"
 
@@ -411,7 +411,7 @@ class IS0502Test(GenericTest):
     def test_08_rx_ext_updates_sub(self):
         """Activation of a receiver from a non-NMOS sender updates the IS-04 subscription"""
 
-        test = Test("Activation of a receiver from a non-NMOS sender updates the IS-04 subscription")
+        test = Test()
 
         resource_type = "receivers"
 
@@ -438,7 +438,7 @@ class IS0502Test(GenericTest):
     def test_09_tx_mcast_updates_sub(self):
         """Activation of a sender to a multicast address updates the IS-04 subscription"""
 
-        test = Test("Activation of a sender to a multicast address updates the IS-04 subscription")
+        test = Test()
 
         api = self.apis[NODE_API_KEY]
         if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -469,7 +469,7 @@ class IS0502Test(GenericTest):
     def test_10_tx_ucast_nmos_updates_sub(self):
         """Activation of a sender to a unicast NMOS receiver updates the IS-04 subscription"""
 
-        test = Test("Activation of a sender to a unicast NMOS receiver updates the IS-04 subscription")
+        test = Test()
 
         api = self.apis[NODE_API_KEY]
         if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -500,7 +500,7 @@ class IS0502Test(GenericTest):
     def test_11_tx_ucast_ext_updates_sub(self):
         """Activation of a sender to a unicast non-NMOS receiver updates the IS-04 subscription"""
 
-        test = Test("Activation of a sender to a unicast non-NMOS receiver updates the IS-04 subscription")
+        test = Test()
 
         api = self.apis[NODE_API_KEY]
         if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
@@ -531,7 +531,7 @@ class IS0502Test(GenericTest):
     def test_12_interface_bindings_length(self):
         """IS-04 interface bindings array matches length of IS-05 transport_params array"""
 
-        test = Test("IS-04 interface bindings array matches length of IS-05 transport_params array")
+        test = Test()
 
         for resource_type in ["senders", "receivers"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -567,7 +567,7 @@ class IS0502Test(GenericTest):
     def test_13_transport_files_match(self):
         """IS-04 manifest_href matches IS-05 transportfile"""
 
-        test = Test("IS-04 manifest_href matches IS-05 transportfile")
+        test = Test()
 
         valid, result = self.get_is04_resources("senders")
         if not valid:

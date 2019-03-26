@@ -25,31 +25,33 @@ from Config import ENABLE_HTTPS
 
 
 def test_depends(func):
-    """ Decorator to prevent a test being executed in individual mode"""
+    """Decorator to prevent a test being executed in individual mode"""
     def invalid(self):
         if self.test_individual:
             test = Test("Invalid", func.__name__)
             return test.DISABLED("This test cannot be performed individually")
         else:
             return func(self)
+    invalid.__name__ = func.__name__
+    invalid.__doc__ = func.__doc__
     return invalid
 
 
 class NMOSTestException(Exception):
-    """ Provides a way to exit a single test, by providing the TestResult return statement as the first exception
-        parameter"""
+    """Provides a way to exit a single test, by providing the TestResult return statement as the first exception
+       parameter"""
     pass
 
 
 class NMOSInitException(Exception):
-    """ The test set was run in an invalid mode. Causes all tests to abort"""
+    """The test set was run in an invalid mode. Causes all tests to abort"""
     pass
 
 
 class GenericTest(object):
     """
     Generic testing class.
-    Can be inhereted from in order to perform detailed testing.
+    Can be inherited from in order to perform detailed testing.
     """
     def __init__(self, apis, omit_paths=None):
         self.apis = apis

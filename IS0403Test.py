@@ -45,8 +45,9 @@ class IS0403Test(GenericTest):
     def test_01_node_mdns_with_txt(self):
         """Node advertises a Node type mDNS announcement with ver_* TXT records
         in the absence of a Registration API"""
-        test = Test("Node advertises a Node type mDNS announcement with ver_* TXT records in the absence "
-                    "of a Registration API")
+
+        test = Test()
+
         browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(1)
         node_list = self.zc_listener.get_service_list()
@@ -88,6 +89,7 @@ class IS0403Test(GenericTest):
 
     def test_02_node_mdns_txt_increment(self):
         """Node increments its ver_* TXT records when its matching Node API resources change"""
-        test = Test("Node increments its ver_* TXT records when its matching Node API resources change")
+
+        test = Test()
 
         return test.MANUAL()
