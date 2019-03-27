@@ -19,6 +19,7 @@ from TestResult import Test
 from is08.activation import Activation
 from is08.outputs import getOutputList
 from is08.inputs import getInputList
+from NMOSUtils import NMOSUtils
 import json
 
 MAPPING_API_KEY = "channelmapping"
@@ -36,10 +37,11 @@ class IS0802Test(GenericTest):
         globalConfig.testSuite = self
         globalConfig.apiKey = MAPPING_API_KEY
         self.is05_resources = {"senders": [], "receivers": [], "devices": [], "sources": [], "_requested": []}
-        self.is04_resources = {"senders": [], "receivers": [], "devices": [], "sources": [], "_requested": []}        
+        self.is04_resources = {"senders": [], "receivers": [], "devices": [], "sources": [], "_requested": []}
         self.node_url = self.apis[NODE_API_KEY]["url"]
+        self.nmos_utils = NMOSUtils(globalConfig.apiUrl)
 
-    def test_01_version_incrememnt(self):
+    def test_01_version_increment(self):
         """ Activations result in a Device version number increment"""
         test = Test(" Activations result in a Device version number increment")
         globalConfig.test = test
@@ -49,7 +51,7 @@ class IS0802Test(GenericTest):
         versionNumbersBeforeActivation = []
         for device in devicesWithAdvertisements:
             versionNumbersBeforeActivation.append(device['version'])
-        
+
         output = getOutputList()[0]
         action = output.findAcceptableTestRoute()
         activation = Activation()
@@ -163,6 +165,7 @@ class IS0802Test(GenericTest):
             return test.FAIL("")
 
         devicesWithAdvertisements = []
+        found_api_match = False
         for device in self.is04_resources["devices"]:
             alreadyAdded = False
             for control in device['controls']:
@@ -170,6 +173,11 @@ class IS0802Test(GenericTest):
                     if not alreadyAdded:
                         devicesWithAdvertisements.append(device)
                         alreadyAdded = True
+                        if self.nmos_utils.compare_urls(globalConfig.apiUrl, control["href"]):
+                            found_api_match = True
+
+        if len(devicesWithAdvertisements) > 0 and not found_api_match:
+            return test.FAIL("Found one or more Device controls, but no href matched the Mapping API under test")
 
         return devicesWithAdvertisements
 
