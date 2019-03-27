@@ -1,0 +1,14 @@
+$ORIGIN testsuite.nmos.tv.
+$TTL 60s
+
+testsuite.nmos.tv.  IN  SOA   ns.testsuite.nmos.tv. postmaster.testsuite.nmos.tv. ( 2007120710 1d 2h 4w 1h )
+testsuite           IN  A     {{ ip_address }}
+
+; These lines indicate to clients that this server supports DNS Service Discovery
+b._dns-sd._udp	IN	PTR	@
+lb._dns-sd._udp	IN	PTR	@
+
+; These lines indicate to clients which service types this server may advertise
+_services._dns-sd._udp	PTR	_nmos-registration._tcp
+_services._dns-sd._udp	PTR	_nmos-register._tcp
+_services._dns-sd._udp	PTR	_nmos-query._tcp

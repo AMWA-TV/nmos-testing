@@ -72,18 +72,8 @@ def find_packages(path, base=""):
 packages = find_packages(".")
 package_names = packages.keys()
 
-packages_required = [
-    "flask",
-    "wtforms",
-    "jsonschema",
-    "zeroconf-monkey",
-    "requests",
-    "netifaces",
-    "gitpython",
-    "ramlfications",
-    "websocket-client",
-    "jsonref"
-]
+with open("requirements.txt") as requirements_file:
+    packages_required = requirements_file.read().splitlines()
 
 deps_required = []
 

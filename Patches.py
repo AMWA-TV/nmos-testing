@@ -29,12 +29,12 @@ def _parse_json(self, jsonfile, base_path):
     if not base_path.endswith("/"):
         base_path = base_path + "/"
     if os.name == "nt":
-        base_path = "file:///" + base_path.replace('\\', '/')
+        base_uri_path = "file:///" + base_path.replace('\\', '/')
     else:
-        base_path = "file://" + base_path
+        base_uri_path = "file://" + base_path
 
     loader = jsonref.JsonLoader(cache_results=False)
 
     with open(jsonfile, "r") as f:
-        schema = jsonref.load(f, base_uri=base_path, loader=loader, jsonschema=True)
+        schema = jsonref.load(f, base_uri=base_uri_path, loader=loader, jsonschema=True)
     return schema

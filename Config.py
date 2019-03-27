@@ -12,11 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Enable or disable mDNS advertisements. Browsing is always permitted.
-ENABLE_MDNS = True
+# Enable or disable DNS-SD advertisements. Browsing is always permitted.
+# The IS-04 Node tests create a mock registry on the network unless the `ENABLE_DNS_SD` parameter is set to `False`.
+# If set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT`.
+ENABLE_DNS_SD = True
 
-# Number of seconds to wait after an mDNS advert is created for a client to notice and perform an action
-MDNS_ADVERT_TIMEOUT = 5
+# Set the DNS-SD mode to either 'multicast' or 'unicast'
+DNS_SD_MODE = 'multicast'
+
+# Number of seconds to wait after a DNS-SD advert is created for a client to notice and perform an action
+DNS_SD_ADVERT_TIMEOUT = 5
 
 # Number of seconds expected between heartbeats
 HEARTBEAT_INTERVAL = 5
@@ -24,7 +29,10 @@ HEARTBEAT_INTERVAL = 5
 # Number of seconds to wait for the garbage collection
 GARBAGE_COLLECTION_TIMEOUT = 12
 
-# Set a Query API hostname/IP and port for use when operating without mDNS
+# Number of seconds to wait for messages to appear via a WebSocket subscription
+WS_MESSAGE_TIMEOUT = 1
+
+# Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80
 
@@ -37,6 +45,10 @@ HTTP_TIMEOUT = 1
 # Restrict the maximum number of resources that time consuming tests run against.
 # 0 = unlimited for a really thorough test!
 MAX_TEST_ITERATIONS = 0
+
+# Test using HTTPS rather than HTTP as-per AMWA BCP003-01
+# WARNING: This setting is currently not fully implemented and classed as experimental.
+ENABLE_HTTPS = False
 
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
@@ -101,6 +113,14 @@ SPECIFICATIONS = {
                 "name": "Channel Mapping API",
                 "raml": "ChannelMappingAPI.raml"
             }
+        }
+    },
+    "bcp-003-01": {
+        "repo": None,
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "secure": {}
         }
     }
 }

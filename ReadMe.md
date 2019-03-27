@@ -12,36 +12,64 @@ The following test sets are currently supported:
 *   IS-07 Event & Tally API
 *   IS-08 Channel Mapping API
 *   IS-08 Interaction with IS-04
+*   BCP-003-01 Secure API Communications
 
-When testing any of the above APIs it is important that they contain representative data. The test results will generate 'N/A' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
+When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
 **Attention:**
-*   The IS-04 Node tests create a mock registry on the network unless the Config.py ENABLE_MDNS parameter is set to False. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time.
+*   The IS-04 Node tests create mock registry mDNS announcements on the network unless the `Config.py` `ENABLE_DNS_SD` parameter is set to `False`, or the `DNS_SD_MODE` parameter is set to `'unicast'`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_DNS_SD` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `Config.py`.
 *   For IS-05 tests #29 and #30 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.
 
 ## Usage
 
-```
-$ python3 nmos-test.py
+Install the dependencies with `pip3 install -r requirements.txt` and start the service as follows:
+
+```shell
+python3 nmos-test.py
 ```
 
 This tool provides a simple web service which is available on `http://localhost:5000`.
-Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test from the checklist. The result of the test will be shown after a few seconds.
+Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test suite from the checklist. The result of the tests will be shown after a few seconds.
+
+The result of each test case will be one of the following:
+
+| Pass | Reason |
+| - | - |
+| ![Pass](https://place-hold.it/128x32/28a745.png?text=Pass&fontsize=12&bold)| Successful test case. |
+| ![Fail](https://place-hold.it/128x32/dc3545.png?text=Fail&fontsize=12&bold) | Required feature of the specification has been found to be implemented incorrectly. |
+| ![Warning](https://place-hold.it/128x32/ffc107.png?text=Warning&fontsize=12&bold) | Not a failure, but the API being tested is responding or configured in a way which is not recommended in most cases. |
+| ![Test Disabled](https://place-hold.it/128x32/ffc107.png?text=Test%20Disabled&fontsize=12&bold) | Test is disabled due to test suite configuration; change the config or test manually. |
+| ![Could Not Test](https://place-hold.it/128x32/ffc107.png?text=Could%20Not%20Test&fontsize=12&bold) | Test was not run due to prior responses from the API, which may be OK, or indicate a fault. |
+| ![Not Implemented](https://place-hold.it/128x32/ffc107.png?text=Not%20Implemented&fontsize=12&bold) | Recommended/optional feature of the specifications has been found to be not implemented. |
+| ![Manual](https://place-hold.it/128x32/007bff.png?text=Manual&fontsize=12&bold) | Test suite does not currently test this feature, so it must be tested manually. |
+| ![Not Applicable](https://place-hold.it/128x32/6c757d.png?text=Not%20Applicable&fontsize=12&bold) | Test is not applicable, e.g. due to the version of the specification being tested. |
+
+### Testing Unicast discovery
+
+In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast'`. Additionally, ensure that the unit under test has its search domain set to 'testsuite.nmos.tv' and the DNS server IP to the IP address of the server which is running the test suite instance.
+
+### Testing BCP-003-01 TLS
+
+Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see [testssl/README.md](testssl/README.md) for installation instructions.
+
+### Non-Interative Mode
+
+The test suite supports non-interactive operation in order use it within continuous integration systems. An example of this usage can be seen below:
+
+```shell
+# List the available tests for a given test definition
+python3 nmos-test.py --suite IS-04-02 --list
+
+# Run a test set, saving the output as a JUnit XML file
+python3 nmos-test.py --suite IS-04-02 --selection auto --ip 128.66.12.5 128.66.12.6 --port 80 80 --version v1.2 v1.2 --ignore auto_5 auto_6 --output results.xml
+```
 
 ## External Dependencies
 
 *   Python 3
-
-Python packages:
-*   flask
-*   wtforms
-*   jsonschema
-*   zeroconf-monkey
-*   requests
-*   netifaces
-*   gitpython
-*   ramlfications
-*   jsonref
+*   Git
+*   [testssl.sh](https://testssl.sh) (required for BCP-003-01 testing)
+*   See [requirements.txt](requirements.txt) for additional packages
 
 ## Known Issues
 
@@ -58,31 +86,46 @@ This test suite is intended to be straightforward to extend. If you encounter an
 
 ## Test Suite Structure
 
-All test classes inherit from 'GenericTest' which implements some basic schema checks on GET/HEAD/OPTIONS methods from the specification. It also provides access to a 'Specification' object which contains a parsed version of the API RAML, and provides access to schemas for the development of additional tests.
+All test classes inherit from `GenericTest` which implements some basic schema checks on GET/HEAD/OPTIONS methods from the specification. It also provides access to a 'Specification' object which contains a parsed version of the API RAML, and provides access to schemas for the development of additional tests.
 
-Each manually defined test is expected to be defined as a method starting with 'test_'. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class Test. An example is included below:
+Each manually defined test case is expected to be defined as a method starting with `test_`, taking an object of class `Test`. This will allow it to be automatically discovered and run by the test suite.
+The return type for each test case must be the result of calling one of the methods on the `Test` object shown below.
+
+* The first argument, `details`, is used to specify the reason for the test result.
+  It is required for `FAIL`, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
+
+* The second argument, `link`, is optional. It may be used to specify a link to more information, such as to a sub-heading on one of the NMOS Wiki [Specifications](https://github.com/AMWA-TV/nmos/wiki/Specifications) pages.
+  It is recommended especially to provide further explanation of the effect of an `OPTIONAL` feature being unimplemented.
+
+Examples of each result are included below:
 
 ```python
-from TestHelper import Test
+from TestResult import Test
 
-def test_my_stuff(self):
-    test = Test("My test description")
+def test_my_stuff(self, test):
+    """My test description"""
 
+    # Test code
     if test_passed:
-        # Pass the test
         return test.PASS()
     elif test_failed:
-        # Fail the test
         return test.FAIL("Reason for failure")
+    elif test_warning:
+        return test.WARNING("Reason the API configuration or response is not recommended")
+    elif test_disabled:
+        return test.DISABLED("Explanation of why the test is disabled and e.g. how to change the test suite "
+                             "config to allow it to be run")
+    elif test_could_not_test:
+        return test.UNCLEAR("Explanation of what prior responses prevented this test being run")
+    elif test_not_implemented:
+        return test.OPTIONAL("Explanation of what wasn't implemented, and why you might require it",
+                             "https://github.com/AMWA-TV/nmos/wiki/Specifications#what-is-required-vs-optional")
     elif test_manual:
-        # Test must be performed manually
-        return test.MANUAL()
-    elif test_na:
-        # Test is not applicable to this implementation
-        return test.NA("Reason for non-testing")
-    elif test_optional:
-        # Test found an optional aspect of the spec which wasn't implemented
-        return test.OPTIONAL("What wasn't implemented, and why you might require it")
+        return test.MANUAL("Explanation of why the test is not (yet) tested automatically, and e.g. how to "
+                           "run it manually")
+    elif test_not_applicable:
+        return test.NA("Explanation of why the test is not applicable, e.g. due to the version of the "
+                       "specification being tested")
 ```
 
 The following methods may be of use within a given test definition.
@@ -95,7 +138,7 @@ Returns a tuple of the request status (True/False) and a Requests library Respon
 
 **Testing an API's response**
 ```python
-self.check_response(api_name, schema, method, response)
+self.check_response(schema, method, response)
 ```
 Return a tuple of the test status (True/False) and a string indicating the error in the case this is False.
 
@@ -104,6 +147,12 @@ Return a tuple of the test status (True/False) and a string indicating the error
 self.get_schema(api_name, method, path, status_code)
 ```
 Returns a JSON schema, or None if it is unavailable.
+
+**Validating a JSON schema**
+```python
+self.validate_schema(payload, schema)
+```
+Raises an exception upon validation failure.
 
 ## Testing a New Specification
 

@@ -1,0 +1,64 @@
+; These lines give the fully qualified DNS names to the IP addresses of the hosts which we'd like to discover
+registration5001.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+query5001.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+registration5002.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+query5002.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+registration5003.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+query5003.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+registration5004.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+query5004.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+registration5005.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+query5005.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+
+; There should be one PTR record for each instance of the service you wish to advertise.
+_nmos-registration._tcp	PTR	reg-api-5001._nmos-registration._tcp
+_nmos-register._tcp	PTR	reg-api-5001._nmos-register._tcp
+_nmos-query._tcp	PTR	qry-api-5001._nmos-query._tcp
+_nmos-registration._tcp	PTR	reg-api-5002._nmos-registration._tcp
+_nmos-register._tcp	PTR	reg-api-5002._nmos-register._tcp
+_nmos-query._tcp	PTR	qry-api-5002._nmos-query._tcp
+_nmos-registration._tcp	PTR	reg-api-5003._nmos-registration._tcp
+_nmos-register._tcp	PTR	reg-api-5003._nmos-register._tcp
+_nmos-query._tcp	PTR	qry-api-5003._nmos-query._tcp
+_nmos-registration._tcp	PTR	reg-api-5004._nmos-registration._tcp
+_nmos-register._tcp	PTR	reg-api-5004._nmos-register._tcp
+_nmos-query._tcp	PTR	qry-api-5004._nmos-query._tcp
+_nmos-registration._tcp	PTR	reg-api-5005._nmos-registration._tcp
+_nmos-register._tcp	PTR	reg-api-5005._nmos-register._tcp
+_nmos-query._tcp	PTR	qry-api-5005._nmos-query._tcp
+
+; Next we have a SRV and a TXT record corresponding to each PTR above, first the Registration API
+; The SRV links the PTR name to a resolvable DNS name (see the A records above) and identify the port which the API runs on
+; The TXT records indicate additional metadata relevant to the IS-04 spec
+reg-api-5001._nmos-registration._tcp	SRV	0 0 5001 registration5001.testsuite.nmos.tv.
+reg-api-5001._nmos-register._tcp	SRV	0 0 5001 registration5001.testsuite.nmos.tv.
+reg-api-5001._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=0"
+reg-api-5001._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=0"
+reg-api-5002._nmos-registration._tcp	SRV	0 0 5002 registration5002.testsuite.nmos.tv.
+reg-api-5002._nmos-register._tcp	SRV	0 0 5002 registration5002.testsuite.nmos.tv.
+reg-api-5002._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=10"
+reg-api-5002._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=10"
+reg-api-5003._nmos-registration._tcp	SRV	0 0 5003 registration5003.testsuite.nmos.tv.
+reg-api-5003._nmos-register._tcp	SRV	0 0 5003 registration5003.testsuite.nmos.tv.
+reg-api-5003._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=20"
+reg-api-5003._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=20"
+reg-api-5004._nmos-registration._tcp	SRV	0 0 5004 registration5004.testsuite.nmos.tv.
+reg-api-5004._nmos-register._tcp	SRV	0 0 5004 registration5004.testsuite.nmos.tv.
+reg-api-5004._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
+reg-api-5004._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
+reg-api-5005._nmos-registration._tcp	SRV	0 0 5005 registration5005.testsuite.nmos.tv.
+reg-api-5005._nmos-register._tcp	SRV	0 0 5005 registration5005.testsuite.nmos.tv.
+reg-api-5005._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
+reg-api-5005._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
+
+; Finally, the SRV and TXT for the Query API
+qry-api-5001._nmos-query._tcp	SRV	0 0 5001 query5001.testsuite.nmos.tv.
+qry-api-5001._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=0"
+qry-api-5002._nmos-query._tcp	SRV	0 0 5002 query5002.testsuite.nmos.tv.
+qry-api-5002._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=10"
+qry-api-5003._nmos-query._tcp	SRV	0 0 5003 query5003.testsuite.nmos.tv.
+qry-api-5003._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=20"
+qry-api-5004._nmos-query._tcp	SRV	0 0 5004 query5004.testsuite.nmos.tv.
+qry-api-5004._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
+qry-api-5005._nmos-query._tcp	SRV	0 0 5005 query5005.testsuite.nmos.tv.
+qry-api-5005._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"

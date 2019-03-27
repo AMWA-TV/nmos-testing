@@ -1,3 +1,4 @@
+/*
 # Copyright (C) 2018 Riedel Communications GmbH & Co. KG
 #
 # Modifications Copyright 2018 British Broadcasting Corporation
@@ -13,6 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+*/
 
 h1 {
     text-align: center;
@@ -36,12 +38,16 @@ h1 {
     padding-right: 10px;
 }
 
-.text_result {
-
+#test_selection {
+    resize: vertical;
+    overflow: auto;
+    min-height: 24px;
+    max-height: 450px;
 }
 
 .backlink {
-    float: right;
+    position: absolute;
+    right: 0;
 }
 
 th {
