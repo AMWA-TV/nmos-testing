@@ -76,10 +76,11 @@ class IS0402Test(GenericTest):
         browser = ServiceBrowser(self.zc, service_type, self.zc_listener)
         sleep(2)
         serv_list = self.zc_listener.get_service_list()
-        for api in serv_list:
-            address = socket.inet_ntoa(api.address)
-            port = api.port
-            if "/{}:{}/".format(address, port) in self.reg_url:
+        for service in serv_list:
+            address = socket.inet_ntoa(service.address)
+            port = service.port
+            api = self.apis[REG_API_KEY]
+            if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(api.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Registration API advertisement.")
@@ -94,7 +95,6 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
-                api = self.apis[REG_API_KEY]
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Registration API advertisement.")
@@ -107,7 +107,8 @@ class IS0402Test(GenericTest):
                         return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
-        return test.FAIL("No matching mDNS announcement found for Registration API.")
+        return test.FAIL("No matching mDNS announcement found for Registration API with IP/Port {}:{}."
+                         .format(self.apis[REG_API_KEY]["ip"], self.apis[REG_API_KEY]["port"]))
 
     def test_02(self):
         """Query API advertises correctly via mDNS"""
@@ -117,10 +118,11 @@ class IS0402Test(GenericTest):
         browser = ServiceBrowser(self.zc, "_nmos-query._tcp.local.", self.zc_listener)
         sleep(2)
         serv_list = self.zc_listener.get_service_list()
-        for api in serv_list:
-            address = socket.inet_ntoa(api.address)
-            port = api.port
-            if "/{}:{}/".format(address, port) in self.query_url:
+        for service in serv_list:
+            address = socket.inet_ntoa(service.address)
+            port = service.port
+            api = self.apis[QUERY_API_KEY]
+            if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(api.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Query API advertisement.")
@@ -135,7 +137,6 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 # Other TXT records only came in for IS-04 v1.1+
-                api = self.apis[QUERY_API_KEY]
                 if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Query API advertisement.")
@@ -148,7 +149,8 @@ class IS0402Test(GenericTest):
                         return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
-        return test.FAIL("No matching mDNS announcement found for Query API.")
+        return test.FAIL("No matching mDNS announcement found for Query API with IP/Port {}:{}."
+                         .format(self.apis[QUERY_API_KEY]["ip"], self.apis[QUERY_API_KEY]["port"]))
 
     def test_03(self):
         """Registration API accepts and stores a valid Node resource"""

@@ -37,6 +37,8 @@ import platform
 import argparse
 import time
 import traceback
+import ipaddress
+import socket
 
 import IS0401Test
 import IS0402Test
@@ -169,8 +171,7 @@ class NonValidatingMultipleSelectField(SelectMultipleField):
 
 
 class EndpointForm(Form):
-    ip = StringField(label="IP:", validators=[validators.IPAddress(message="Please enter a valid IPv4 address."),
-                                              validators.optional()])
+    host = StringField(label="IP/Hostname:", validators=[validators.optional()])
     port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
                                                                           message="Please enter a valid port number "
                                                                                   "(0-65535)."),
@@ -224,17 +225,17 @@ def index_page():
                     test_def = TEST_DEFINITIONS[test]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
-                        ip = request.form["endpoints-{}-ip".format(index)]
+                        host = request.form["endpoints-{}-host".format(index)]
                         port = request.form["endpoints-{}-port".format(index)]
                         version = request.form["endpoints-{}-version".format(index)]
-                        endpoints.append({"ip": ip, "port": port, "version": version})
+                        endpoints.append({"host": host, "port": port, "version": version})
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
-                    r = make_response(render_template("result.html", form=form, url=results["base_url"], test=results["name"],
-                                                      result=results["result"]))
+                    r = make_response(render_template("result.html", form=form, url=results["base_url"],
+                                                      test=results["name"], result=results["result"]))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
@@ -276,12 +277,18 @@ def run_tests(test, endpoints, test_selection=["all"]):
             protocol = "https"
         apis = {}
         for index, spec in enumerate(test_def["specs"]):
-            base_url = "{}://{}:{}".format(protocol, endpoints[index]["ip"], str(endpoints[index]["port"]))
+            base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
+            try:
+                ipaddress.ip_address(endpoints[index]["host"])
+                ip_address = endpoints[index]["host"]
+            except ValueError:
+                ip_address = socket.gethostbyname(endpoints[index]["host"])
             apis[api_key] = {
                 "base_url": base_url,
-                "hostname": endpoints[index]["ip"],
+                "hostname": endpoints[index]["host"],
+                "ip": ip_address,
                 "port": endpoints[index]["port"],
                 "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
                 "version": endpoints[index]["version"],
@@ -412,7 +419,7 @@ def parse_arguments():
     parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
     parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
     parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
-    parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
+    parser.add_argument('--host', default=list(), nargs="*", help="space separated hostnames or IPs of the APIs under test")
     parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
     parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
     parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
@@ -434,11 +441,11 @@ def validate_args(args):
             print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
                   .format(args.selection, args.suite))
             sys.exit(ExitCodes.ERROR)
-        if len(args.ip) != len(args.port) or len(args.ip) != len(args.version):
-            print(" * ERROR: IPs, ports and versions must contain the same number of elements")
+        if len(args.host) != len(args.port) or len(args.host) != len(args.version):
+            print(" * ERROR: Hostnames/IPs, ports and versions must contain the same number of elements")
             sys.exit(ExitCodes.ERROR)
-        if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
-            print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
+        if len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
+            print(" * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)"
                   .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
             sys.exit(ExitCodes.ERROR)
 
@@ -457,8 +464,8 @@ def start_web_servers():
 
 def run_noninteractive_tests(args):
     endpoints = []
-    for i in range(len(args.ip)):
-        endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
+    for i in range(len(args.host)):
+        endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
