@@ -19,7 +19,7 @@ import time
 import TestHelper
 
 from random import randint
-from NMOSUtils import NMOSUtils
+from NMOSUtils import NMOSUtils, IMMEDIATE_ACTIVATION, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
 
 
 class IS05Utils(NMOSUtils):
@@ -119,12 +119,12 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
-    def perform_activation(self, port, portId, activateMode="activate_immediate", activateTime=None):
+    def perform_activation(self, port, portId, activateMode=IMMEDIATE_ACTIVATION, activateTime=None):
         # Request an immediate activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         data = {"activation": {"mode": activateMode}}
         code = 200
-        if activateMode != "activate_immediate":
+        if activateMode != IMMEDIATE_ACTIVATION:
             data["activation"]["requested_time"] = activateTime
             code = 202
         return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
@@ -147,7 +147,7 @@ class IS05Utils(NMOSUtils):
             mmsg = "Unexpected mode returned: expected `activate_immediate`, got {}".format(mode)
             rmsg = "Expected null requested time for immediate activation, got {}".format(requested)
             amsg = "Expected an activation time matching the regex ^[0-9]+:[0-9]+$, but got {}".format(activation)
-            if mode == "activate_immediate":
+            if mode == IMMEDIATE_ACTIVATION:
                 pass
             else:
                 return False, mmsg
@@ -193,7 +193,7 @@ class IS05Utils(NMOSUtils):
 
                     msg = "Activation mode was not set to `activate_immediate` at {} " \
                           "after an immediate activation".format(activeUrl)
-                    if response3['activation']['mode'] == "activate_immediate":
+                    if response3['activation']['mode'] == IMMEDIATE_ACTIVATION:
                         pass
                     else:
                         return False, msg
@@ -209,7 +209,7 @@ class IS05Utils(NMOSUtils):
         # Request an relative activation 2 nanoseconds in the future
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        valid, response = self.perform_activation(port, portId, "activate_scheduled_relative", "0:2")
+        valid, response = self.perform_activation(port, portId, SCHEDULED_RELATIVE_ACTIVATION, "0:2")
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -223,7 +223,7 @@ class IS05Utils(NMOSUtils):
             mmsg = "Expected mode `activate_sechduled_relative` for relative activation, got {}".format(mode)
             rmsg = "Expected requested time `0:2` for relative activation, got {}".format(requested)
             amsg = "Expected activation time to match regex ^[0-9]+:[0-9]+$, got {}".format(activation)
-            if mode == "activate_scheduled_relative":
+            if mode == SCHEDULED_RELATIVE_ACTIVATION:
                 pass
             else:
                 return False, mmsg
@@ -269,7 +269,7 @@ class IS05Utils(NMOSUtils):
 
                     if finished:
                         try:
-                            if activeParams['activation']['mode'] == "activate_scheduled_relative":
+                            if activeParams['activation']['mode'] == SCHEDULED_RELATIVE_ACTIVATION:
                                 if retries > 0:
                                     return True, "(Retries: {})".format(str(retries))
                                 else:
@@ -292,7 +292,7 @@ class IS05Utils(NMOSUtils):
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
         TAItime = self.get_TAI_time(1)
-        valid, response = self.perform_activation(port, portId, "activate_scheduled_absolute", TAItime)
+        valid, response = self.perform_activation(port, portId, SCHEDULED_ABSOLUTE_ACTIVATION, TAItime)
         if valid:
             try:
                 mode = response['activation']['mode']
@@ -307,7 +307,7 @@ class IS05Utils(NMOSUtils):
             rmsg = "Expected requested time `{}` for relative activation, got {}".format(TAItime, requested)
             amsg = "Expected activation time to match regex ^[0-9]+:[0-9]+$, got {}".format(activation)
             try:
-                if response['activation']['mode'] == "activate_scheduled_absolute":
+                if response['activation']['mode'] == SCHEDULED_ABSOLUTE_ACTIVATION:
                     pass
                 else:
                     return False, mmsg
@@ -362,7 +362,7 @@ class IS05Utils(NMOSUtils):
 
                     if finished:
                         try:
-                            if activeParams['activation']['mode'] == "activate_scheduled_absolute":
+                            if activeParams['activation']['mode'] == SCHEDULED_ABSOLUTE_ACTIVATION:
                                 if retries > 0:
                                     return True, "(Retries: {})".format(str(retries))
                                 else:

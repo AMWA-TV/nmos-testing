@@ -11,6 +11,7 @@ The following test sets are currently supported:
 *   IS-06 Network Control API
 *   IS-07 Event & Tally API
 *   IS-08 Channel Mapping API
+*   IS-08 Interaction with IS-04
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'N/A' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 

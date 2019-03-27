@@ -84,11 +84,7 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         offset = "2:0"
-<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
-        self.check_delayed_activation(offset, NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION)
-=======
         self.check_delayed_activation(offset, SCHEDULED_RELATIVE_ACTIVATION)
->>>>>>> Re-factor activations out into NMOS Utils
 
         return test.PASS()
 
@@ -98,11 +94,7 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         timestamp = NMOSUtils(globalConfig.apiUrl).get_TAI_time(offset=2.0)
-<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
-        self.check_delayed_activation(timestamp, NMOSUtils.SCHEDULED_ABSOLUTE_ACTIVATION)
-=======
         self.check_delayed_activation(timestamp, SCHEDULED_ABSOLUTE_ACTIVATION)
->>>>>>> Re-factor activations out into NMOS Utils
 
         return test.PASS()
 
@@ -116,11 +108,7 @@ class IS0801Test(GenericTest):
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
-<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
-        activation.type = NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION
-=======
         activation.type = SCHEDULED_RELATIVE_ACTIVATION
->>>>>>> Re-factor activations out into NMOS Utils
         activation.activationTimestamp = "2:0"
         try:
             activation.fireActivation()
@@ -143,11 +131,7 @@ class IS0801Test(GenericTest):
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
-<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
-        activation.type = NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION
-=======
         activation.type = SCHEDULED_RELATIVE_ACTIVATION
->>>>>>> Re-factor activations out into NMOS Utils
         activation.activationTimestamp = "5:0"
         activation.fireActivation()
         activation.checkLock()
@@ -206,11 +190,11 @@ class IS0801Test(GenericTest):
 
         for route in forbiddenRoutes:
             outputCaps = route['output'].getCaps()
-            msg = ("It is possible to create a loop using re-entrant matricies" 
+            msg = ("It is possible to create a loop using re-entrant matricies"
                    " between input {} and output {}".format(route['input'].id, route['output'].id))
             try:
                 routableInputs = outputCaps['routable_inputs']
-            except KeyError:                
+            except KeyError:
                 return test.FAIL(msg)
             if route['output'].id not in routableInputs:
                 return test.FAIL(msg)
