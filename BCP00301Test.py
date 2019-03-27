@@ -49,8 +49,9 @@ class BCP00301Test(GenericTest):
                                                   "installation instructions: {}".format(e)))
         return ret.returncode
 
-    def test_01_tls_protocols(self):
-        test = Test("TLS Protocols")
+    def test_01_tls_protocols(self, test):
+        """TLS Protocols"""
+
         ret = self.perform_test_ssl(test, ["-p"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -66,8 +67,9 @@ class BCP00301Test(GenericTest):
                         return test.WARNING("Protocol {} should be offered".format(report["id"].replace("_", ".")))
             return test.PASS()
 
-    def test_02_tls_ciphers(self):
-        test = Test("TLS Ciphers")
+    def test_02_tls_ciphers(self, test):
+        """TLS Ciphers"""
+
         ret = self.perform_test_ssl(test, ["-E"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -120,8 +122,9 @@ class BCP00301Test(GenericTest):
             else:
                 return test.PASS()
 
-    def test_03_cn_san(self):
-        test = Test("Certificate does not use IP addresses in CN/SANs")
+    def test_03_cn_san(self, test):
+        """Certificate does not use IP addresses in CN/SANs"""
+
         ret = self.perform_test_ssl(test, ["-S"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -156,8 +159,9 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_04_hsts(self):
-        test = Test("HSTS Header")
+    def test_04_hsts(self, test):
+        """HSTS Header"""
+
         ret = self.perform_test_ssl(test, ["-h"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -178,8 +182,9 @@ class BCP00301Test(GenericTest):
             else:
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
 
-    def test_05_revocation(self):
-        test = Test("Certificate revocation method")
+    def test_05_revocation(self, test):
+        """Certificate revocation method"""
+
         ret = self.perform_test_ssl(test, ["-S"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -198,8 +203,9 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_06_ocsp_stapling(self):
-        test = Test("OCSP Stapling")
+    def test_06_ocsp_stapling(self, test):
+        """OCSP Stapling"""
+
         ret = self.perform_test_ssl(test, ["-S"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -218,8 +224,9 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_07_vulnerabilities(self):
-        test = Test("TLS Vulnerabilities")
+    def test_07_vulnerabilities(self, test):
+        """TLS Vulnerabilities"""
+
         ret = self.perform_test_ssl(test, ["-U"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
@@ -235,8 +242,9 @@ class BCP00301Test(GenericTest):
             else:
                 return test.WARNING("Server may be vulnerable to the following: {}".format(vulnerabilities))
 
-    def test_08_verify_host(self):
-        test = Test("Certificate is valid and matches the host under test")
+    def test_08_verify_host(self, test):
+        """Certificate is valid and matches the host under test"""
+        
         try:
             context = ssl.create_default_context()
             hostname = self.apis[BCP_API_KEY]["hostname"]

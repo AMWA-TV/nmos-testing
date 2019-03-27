@@ -87,7 +87,8 @@ This test suite is intended to be straightforward to extend. If you encounter an
 
 All test classes inherit from `GenericTest` which implements some basic schema checks on GET/HEAD/OPTIONS methods from the specification. It also provides access to a 'Specification' object which contains a parsed version of the API RAML, and provides access to schemas for the development of additional tests.
 
-Each manually defined test is expected to be defined as a method starting with `test_`. This will allow it to be automatically discovered and run by the test suite. The return type for each test must be the result of calling one of the following methods on an object of class `Test`.
+Each manually defined test case is expected to be defined as a method starting with `test_`, taking an object of class `Test`. This will allow it to be automatically discovered and run by the test suite.
+The return type for each test case must be the result of calling one of the methods on the `Test` object shown below.
 
 * The first argument, `details`, is used to specify the reason for the test result.
   It is required for `FAIL`, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
@@ -100,8 +101,9 @@ Examples of each result are included below:
 ```python
 from TestResult import Test
 
-def test_my_stuff(self):
-    test = Test("My test description")
+def test_my_stuff(self, test):
+    """My test description"""
+
     # Test code
     if test_passed:
         return test.PASS()
