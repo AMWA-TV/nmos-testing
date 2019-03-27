@@ -103,6 +103,12 @@ function saveSettings() {
     }
 };
 
+function disableRunbtn() {
+    var runbtn = document.getElementById("runbtn");
+    runbtn.value = "Executing tests...";
+    runbtn.disabled = true;
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("test").onchange = function() {
         updateDropdown();
@@ -121,6 +127,15 @@ document.addEventListener("DOMContentLoaded", function() {
         else {
             testOptions[0].selected = false;
         }
+
+        test_any = false;
+        for (var i = 0, n = testOptions.length; i < n; i++) {
+            if (testOptions[i].selected) {
+                test_any = true;
+                break;
+            }
+        }
+        document.getElementById("runbtn").disabled = !test_any;
     }
 
     loadSettings();
