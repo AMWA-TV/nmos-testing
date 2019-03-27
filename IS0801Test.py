@@ -15,7 +15,7 @@
 from GenericTest import GenericTest, NMOSTestException
 from TestHelper import compare_json
 from TestResult import Test
-from NMOSUtils import NMOSUtils
+from NMOSUtils import NMOSUtils, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
 from is08.action import Action
 from is08.activation import Activation
 from is08.inputs import getInputList
@@ -84,7 +84,11 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         offset = "2:0"
+<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
         self.check_delayed_activation(offset, NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION)
+=======
+        self.check_delayed_activation(offset, SCHEDULED_RELATIVE_ACTIVATION)
+>>>>>>> Re-factor activations out into NMOS Utils
 
         return test.PASS()
 
@@ -94,7 +98,11 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         timestamp = NMOSUtils(globalConfig.apiUrl).get_TAI_time(offset=2.0)
+<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
         self.check_delayed_activation(timestamp, NMOSUtils.SCHEDULED_ABSOLUTE_ACTIVATION)
+=======
+        self.check_delayed_activation(timestamp, SCHEDULED_ABSOLUTE_ACTIVATION)
+>>>>>>> Re-factor activations out into NMOS Utils
 
         return test.PASS()
 
@@ -108,7 +116,11 @@ class IS0801Test(GenericTest):
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
+<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
         activation.type = NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION
+=======
+        activation.type = SCHEDULED_RELATIVE_ACTIVATION
+>>>>>>> Re-factor activations out into NMOS Utils
         activation.activationTimestamp = "2:0"
         try:
             activation.fireActivation()
@@ -131,7 +143,11 @@ class IS0801Test(GenericTest):
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
+<<<<<<< 26cdb6d9c647b1f1754cf7ce44ec7ea0b7b05adf
         activation.type = NMOSUtils.SCHEDULED_RELATIVE_ACTIVATION
+=======
+        activation.type = SCHEDULED_RELATIVE_ACTIVATION
+>>>>>>> Re-factor activations out into NMOS Utils
         activation.activationTimestamp = "5:0"
         activation.fireActivation()
         activation.checkLock()

@@ -16,6 +16,7 @@ from GenericTest import NMOSTestException
 from NMOSUtils import IMMEDIATE_ACTIVATION
 from is08.calls import Call
 from is08.testConfig import globalConfig
+from NMOSUtils import IMMEDIATE_ACTIVATION
 import re
 
 
