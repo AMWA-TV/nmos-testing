@@ -15,7 +15,6 @@
 
 from GenericTest import GenericTest
 from is08.testConfig import globalConfig
-from TestResult import Test
 from is08.activation import Activation
 from is08.outputs import getOutputList
 from is08.inputs import getInputList

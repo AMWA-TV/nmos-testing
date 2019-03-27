@@ -14,7 +14,6 @@
 
 from GenericTest import GenericTest, NMOSTestException
 from TestHelper import compare_json
-from TestResult import Test
 from NMOSUtils import NMOSUtils, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
 from is08.action import Action
 from is08.activation import Activation

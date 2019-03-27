@@ -18,7 +18,6 @@ import json
 
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from Config import ENABLE_HTTPS
-from TestResult import Test
 
 BCP_API_KEY = "bcp-003-01"
 TMPFILE = "tls-report.json"
