@@ -27,13 +27,13 @@
 </head>
 <body>
     <a href="../" class="backlink">More Options</a>
-    <h1 style="text-align: center">NMOS Test</h1>
-    <div class="text text_result" style="text-align: center">
+    <h1>NMOS Test</h1>
+    <div class="text text_result">
         <h5>Result for test suite <b>{{ test }}</b> on <b><a href={{ url }}>{{ url }}</a></b></h5>
     </div>
     <div class="text text_result">
-        <form action="" method="POST">
-            <input type="submit" id="runbtn" value="Run" style="margin:auto; display:block;" onclick="document.getElementById('runbtn').value='Executing tests...';document.getElementById('runbtn').className +='disabled';"/>
+        <form action="" method="POST" onsubmit="disableRunbtn(); return true;">
+            <input type="submit" id="runbtn" value="Run" style="margin:auto; display:block;"/>
             <div style="display: none;">
                 {{ form.test }}
                 {{ form.hidden_tests }}
@@ -51,7 +51,7 @@
                 <thead>
                     <tr onclick="document.getElementById('failed_all').click();">
                         <th>
-                            <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); fixUpTestSelection(this);"/>
+                            <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); changeTestSelection(this);"/>
                             <label id="failed_all_label" style="opacity: 1;"> Failed Tests</label>
                         </th>
                     </tr>
@@ -77,7 +77,7 @@
                                             name="test_selection" value="{{ curr_result[0] }}"
                                         {% endif %}
                                         class="{% if curr_auto %}auto{% endif %} {% if curr_fail %}failed{% endif %}"
-                                        id="{{ curr_result[0] }}" onclick="event.stopPropagation(); fixUpTestSelection(this);"
+                                        id="{{ curr_result[0] }}" onclick="event.stopPropagation(); changeTestSelection(this);"
                                     />
                                     <label>
                                         {{ curr_result[0] }}
