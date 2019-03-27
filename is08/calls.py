@@ -70,7 +70,6 @@ class Call:
     def _checkResponseSchema(self):
         if self.responseSchema is not None:
             globalConfig.testSuite.check_response(
-                globalConfig.apiKey,
                 self.responseSchema,
                 self._method,
                 self._responseObject

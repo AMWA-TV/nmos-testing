@@ -23,7 +23,6 @@ from GenericTest import NMOSTestException
 def getInputList():
     idList = getIOList("input")
     instanceList = []
-    print(idList)
     for id in idList:
         instanceList.append(ACMInput(id))
     return instanceList
