@@ -183,23 +183,18 @@ class BCP00301Test(GenericTest):
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
 
     def test_05_revocation(self, test):
-        """Certificate revocation method"""
+        """Certificate revocation method is available"""
 
         ret = self.perform_test_ssl(test, ["-S"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
-            revocation_found = False
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
                     if report["id"] == "cert_revocation":
-                        revocation_found = True
                         if report["severity"] == "HIGH":
                             return test.FAIL("No certificate revocation method was provided by the server")
-
-            if not revocation_found:
-                return test.UNCLEAR("Unable to find certificate revocation results in the testssl report")
 
             return test.PASS()
 
@@ -244,7 +239,7 @@ class BCP00301Test(GenericTest):
 
     def test_08_verify_host(self, test):
         """Certificate is valid and matches the host under test"""
-        
+
         try:
             context = ssl.create_default_context()
             hostname = self.apis[BCP_API_KEY]["hostname"]
