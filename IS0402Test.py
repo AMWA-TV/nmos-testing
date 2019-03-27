@@ -24,7 +24,6 @@ import re
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
-from TestResult import Test
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
