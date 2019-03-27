@@ -126,19 +126,33 @@ class BCP00301Test(GenericTest):
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
+            common_name = None
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
                     if report["id"] == "cert_commonName":
+                        common_name = report["finding"]
                         try:
                             ipaddress.ip_address(report["finding"])
-                            return test.FAIL("CN is an IP address: {}".format(report["finding"]))
+                            return test.WARNING("CN is an IP address: {}".format(report["finding"]))
                         except ValueError:
                             pass
                     elif report["id"] == "cert_subjectAltName":
                         if report["finding"].startswith("No SAN"):
                             return test.WARNING("No SAN was found in the certificate")
-                        # TODO: Check the SAN contains the CN and no IP addresses
+                        else:
+                            alt_names = report["finding"].split()
+                            if common_name not in alt_names:
+                                return test.FAIL("CN {} was not found in the SANs".format(common_name))
+                            for name in alt_names:
+                                try:
+                                    ipaddress.ip_address(name)
+                                    return test.WARNING("SAN is an IP address: {}".format(name))
+                                except ValueError:
+                                    pass
+
+            if common_name is None:
+                return test.UNCLEAR("Unable to find CN in the testssl report")
 
             return test.PASS()
 
@@ -164,21 +178,47 @@ class BCP00301Test(GenericTest):
             else:
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
 
-    def test_05_ocsp_stapling(self):
+    def test_05_revocation(self):
+        test = Test("Certificate revocation method")
+        ret = self.perform_test_ssl(test, ["-S"])
+        if ret != 0:
+            return test.FAIL("Unable to test. See the console for further information.")
+        else:
+            revocation_found = False
+            with open(TMPFILE) as tls_data:
+                tls_data = json.load(tls_data)
+                for report in tls_data:
+                    if report["id"] == "cert_revocation":
+                        revocation_found = True
+                        if report["severity"] == "HIGH":
+                            return test.FAIL("No certificate revocation method was provided by the server")
+
+            if not revocation_found:
+                return test.UNCLEAR("Unable to find certificate revocation results in the testssl report")
+
+            return test.PASS()
+
+    def test_06_ocsp_stapling(self):
         test = Test("OCSP Stapling")
         ret = self.perform_test_ssl(test, ["-S"])
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
+            ocsp_found = False
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
                     if report["id"] == "OCSP_stapling":
+                        ocsp_found = True
                         if report["finding"] == "not offered":
                             return test.WARNING("OCSP stapling is not offered by this server")
+
+            if not ocsp_found:
+                return test.UNCLEAR("Unable to find OCSP stapling results in the testssl report")
+
             return test.PASS()
 
-    def test_06_vulnerabilities(self):
+    def test_07_vulnerabilities(self):
         test = Test("TLS Vulnerabilities")
         ret = self.perform_test_ssl(test, ["-U"])
         if ret != 0:
@@ -195,7 +235,7 @@ class BCP00301Test(GenericTest):
             else:
                 return test.WARNING("Server may be vulnerable to the following: {}".format(vulnerabilities))
 
-    def test_07_verify_host(self):
+    def test_08_verify_host(self):
         test = Test("Certificate is valid and matches the host under test")
         try:
             context = ssl.create_default_context()
