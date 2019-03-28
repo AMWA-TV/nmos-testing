@@ -18,7 +18,6 @@
 import uuid
 from jsonschema import ValidationError, SchemaError
 
-from TestResult import Test
 from GenericTest import GenericTest
 from IS05Utils import IS05Utils
 from TestHelper import compare_json, load_resolved_schema
@@ -725,7 +724,7 @@ class IS0501Test(GenericTest):
 
     def test_38(self, test):
         """Number of legs matches on constraints, staged and active endpoint for senders"""
-        
+
         if len(self.senders) > 0:
             for sender in self.senders:
                 url = "single/senders/{}/".format(sender)

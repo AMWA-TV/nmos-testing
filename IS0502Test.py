@@ -16,7 +16,6 @@ import json
 import time
 import uuid
 
-from TestResult import Test
 from GenericTest import GenericTest
 from IS05Utils import IS05Utils
 

@@ -31,6 +31,7 @@ import os
 import json
 import copy
 import pickle
+import random
 import threading
 import sys
 import platform
@@ -48,10 +49,13 @@ import IS0502Test
 import IS0601Test
 import IS0701Test
 import IS0801Test
+import IS0802Test
 import BCP00301Test
 
 FLASK_APPS = []
 DNS_SERVER = None
+
+CACHEBUSTER = random.randint(1, 10000)
 
 core_app = Flask(__name__)
 core_app.debug = False
@@ -138,6 +142,17 @@ TEST_DEFINITIONS = {
             "api_key": "channelmapping"
         }],
         "class": IS0801Test.IS0801Test
+    },
+    "IS-08-02": {
+        "name": "IS-08 Interaction with Node API",
+        "specs": [{
+            "spec_key": 'is-08',
+            "api_key": "channelmapping"
+        },  {
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": IS0802Test.IS0802Test
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure API Communications",
@@ -235,7 +250,8 @@ def index_page():
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, url=results["base_url"],
-                                                      test=results["name"], result=results["result"]))
+                                                      test=results["name"], result=results["result"],
+                                                      cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
@@ -264,7 +280,8 @@ def index_page():
         discovery_mode = "Disabled (Using Query API {}:{})".format(QUERY_API_HOST, QUERY_API_PORT)
 
     r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
-                                                                       "protocol": protocol}))
+                                                                       "protocol": protocol},
+                                      cachebuster=CACHEBUSTER))
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
 
@@ -353,7 +370,7 @@ def init_spec_cache():
                 try:
                     repo.remotes.origin.pull()
                     update_last_pull = True
-                except Exception as e:
+                except Exception:
                     print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
                           "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
 

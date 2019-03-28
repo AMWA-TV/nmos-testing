@@ -17,7 +17,6 @@ import socket
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
-from TestResult import Test
 from GenericTest import GenericTest
 from IS04Utils import IS04Utils
 

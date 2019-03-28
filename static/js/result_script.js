@@ -1,4 +1,4 @@
-function fixUpTestSelection(source) {
+function changeTestSelection(source) {
 
     // Toggling the "failed_all" checkbox should apply to all failed test checkboxes
     failed_auto = false;
@@ -36,6 +36,22 @@ function fixUpTestSelection(source) {
         }
     }
     document.getElementById("failed_all").checked = fail_all;
+
+    test_any = false;
+    test_checkboxes = document.getElementsByName("test_selection");
+    for (var i = 0, n = test_checkboxes.length; i < n; i++) {
+        if (test_checkboxes[i].checked) {
+            test_any = true;
+            break;
+        }
+    }
+    document.getElementById("runbtn").disabled = !test_any;
+}
+
+function disableRunbtn() {
+    var runbtn = document.getElementById("runbtn");
+    runbtn.value = "Executing tests...";
+    runbtn.disabled = true;
 }
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -44,4 +60,5 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById("failed_all").disabled = true;
         document.getElementById("failed_all_label").style.opacity = 0.5;
     }
+    document.getElementById("runbtn").disabled = true;
 });

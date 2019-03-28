@@ -21,8 +21,8 @@
     <meta charset="UTF-8">
     <title>NMOS Tests</title>
     <link rel="stylesheet" href="static/css/bootstrap.min.css">
-    <link rel="stylesheet" href="static/css/style.css">
-    <script src="static/js/script.js"></script>
+    <link rel="stylesheet" href="static/css/style.css?nocache-{{ cachebuster }}">
+    <script src="static/js/script.js?nocache-{{ cachebuster }}"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
@@ -37,7 +37,7 @@
             This test suite is under active development and does not yet provide 100% coverage of specifications.<br />
             We recommend regularly re-testing implementations as new tests are developed.
         </div>
-        <form action="" method='POST'>
+        <form action="" method='POST' onsubmit="disableRunbtn(); saveSettings(); return true;">
             <div class="input_data">
                 <div class="input dropdown input_data_fld">
                     {{ form.test.label }} {{ form.test }}
@@ -100,7 +100,7 @@
                 {% endwith %}
                 <br/>
                 <div class="input submit input_data_fld">
-                    <input type="submit" id="runbtn" value="Run" onclick="document.getElementById('runbtn').value='Executing tests...';document.getElementById('runbtn').className += 'disabled'; saveSettings();"/>
+                    <input type="submit" id="runbtn" value="Run"/>
                 </div>
             </div>
 

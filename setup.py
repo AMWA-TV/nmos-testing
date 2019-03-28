@@ -78,7 +78,7 @@ with open("requirements.txt") as requirements_file:
 deps_required = []
 
 setup(name="nmos-testing",
-      version="0.0.1",
+      version="0.1.1",
       description="NMOS Test Suite",
       url='https://github.com/bbc/nmos-testing',
       author='Andrew Bonney',

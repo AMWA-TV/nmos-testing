@@ -46,7 +46,8 @@ h1 {
 }
 
 .backlink {
-    float: right;
+    position: absolute;
+    right: 0;
 }
 
 th {

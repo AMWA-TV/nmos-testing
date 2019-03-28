@@ -21,7 +21,6 @@ import json
 
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
-from TestResult import Test
 from GenericTest import GenericTest, NMOSTestException
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
@@ -298,12 +297,12 @@ class IS0401Test(GenericTest):
 
             # Ensure the heartbeat request body is empty
             if heartbeat[1]["payload"] is not bytes():
-                return test.WARNING("Heartbeat POST contained a payload body.", 
+                return test.WARNING("Heartbeat POST contained a payload body.",
                                     "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
             if "Content-Type" in heartbeat[1]["headers"]:
-                return test.WARNING("Heartbeat POST contained a Content-Type header.", 
+                return test.WARNING("Heartbeat POST contained a Content-Type header.",
                                     "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
