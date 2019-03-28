@@ -191,7 +191,7 @@ class BCP00301Test(GenericTest):
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
-                    if report["id"] == "cert_revocation":
+                    if report["id"].split()[0] == "cert_revocation":
                         if report["severity"] == "HIGH":
                             return test.FAIL("No certificate revocation method was provided by the server")
 
@@ -208,7 +208,7 @@ class BCP00301Test(GenericTest):
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
-                    if report["id"] == "OCSP_stapling":
+                    if report["id"].split()[0] == "OCSP_stapling":
                         ocsp_found = True
                         if report["finding"] == "not offered":
                             return test.WARNING("OCSP stapling is not offered by this server")
