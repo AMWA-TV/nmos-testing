@@ -49,6 +49,7 @@ import IS0701Test
 import IS0801Test
 import IS0802Test
 import BCP00301Test
+import BCP00302Test
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -159,6 +160,14 @@ TEST_DEFINITIONS = {
             "api_key": "bcp-003-01"
         }],
         "class": BCP00301Test.BCP00301Test
+    },
+    "BCP-003-02": {
+        "name": "BCP-003-02 Authorization API",
+        "specs": [{
+            "spec_key": 'bcp-003-02',
+            "api_key": "auth"
+        }],
+        "class": BCP00302Test.BCP00302Test
     }
 }
 
