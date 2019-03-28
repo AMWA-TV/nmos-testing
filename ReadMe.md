@@ -11,13 +11,9 @@ The following test sets are currently supported:
 *   IS-06 Network Control API
 *   IS-07 Event & Tally API
 *   IS-08 Channel Mapping API
-<<<<<<< HEAD
-*   BCP-003-02 Authorization API
-=======
 *   IS-08 Interaction with IS-04
 *   BCP-003-01 Secure API Communications
 *   BCP-003-02 Authorization API
->>>>>>> origin/master
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
