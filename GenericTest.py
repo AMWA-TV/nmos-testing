@@ -18,37 +18,41 @@ import git
 import jsonschema
 import TestHelper
 import traceback
+import inspect
 
 from Specification import Specification
 from TestResult import Test
+from Config import ENABLE_HTTPS
 
 
 def test_depends(func):
-    """ Decorator to prevent a test being executed in individual mode"""
-    def invalid(self):
+    """Decorator to prevent a test being executed in individual mode"""
+    def invalid(self, test):
         if self.test_individual:
-            test = Test("Invalid", func.__name__)
+            test.description = "Invalid"
             return test.DISABLED("This test cannot be performed individually")
         else:
-            return func(self)
+            return func(self, test)
+    invalid.__name__ = func.__name__
+    invalid.__doc__ = func.__doc__
     return invalid
 
 
 class NMOSTestException(Exception):
-    """ Provides a way to exit a single test, by providing the TestResult return statement as the first exception
-        parameter"""
+    """Provides a way to exit a single test, by providing the TestResult return statement as the first exception
+       parameter"""
     pass
 
 
 class NMOSInitException(Exception):
-    """ The test set was run in an invalid mode. Causes all tests to abort"""
+    """The test set was run in an invalid mode. Causes all tests to abort"""
     pass
 
 
 class GenericTest(object):
     """
     Generic testing class.
-    Can be inhereted from in order to perform detailed testing.
+    Can be inherited from in order to perform detailed testing.
     """
     def __init__(self, apis, omit_paths=None):
         self.apis = apis
@@ -56,6 +60,11 @@ class GenericTest(object):
         self.auto_test_count = 0
         self.test_individual = False
         self.result = list()
+        self.protocol = "http"
+        self.ws_protocol = "ws"
+        if ENABLE_HTTPS:
+            self.protocol = "https"
+            self.ws_protocol = "wss"
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
@@ -64,6 +73,9 @@ class GenericTest(object):
         test = Test("Test initialisation")
 
         for api_name, api_data in self.apis.items():
+            if "spec_path" not in api_data:
+                continue
+
             repo = git.Repo(api_data["spec_path"])
 
             # List remote branches and check there is a v#.#.x or v#.#-dev
@@ -78,6 +90,8 @@ class GenericTest(object):
             if not spec_branch:
                 raise Exception("No branch matching the expected patterns was found in the Git repository")
 
+            api_data["spec_branch"] = spec_branch
+
             repo.git.reset('--hard')
             repo.git.checkout(spec_branch)
             repo.git.rebase("origin/" + spec_branch)
@@ -89,10 +103,20 @@ class GenericTest(object):
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""
         for api in self.apis:
-            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"]))
+            if "spec_path" not in self.apis[api]:
+                continue
+            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' +
+                                                                self.apis[api]["raml"]))
 
-    def execute_tests(self, test_name):
-        """Perform all tests defined within this class"""
+    def execute_tests(self, test_names):
+        """Perform tests defined within this class"""
+
+        for test_name in test_names:
+            self.execute_test(test_name)
+
+    def execute_test(self, test_name):
+        """Perform a test defined within this class"""
+        self.test_individual = (test_name != "all")
 
         # Run automatically defined tests
         if test_name in ["auto", "all"]:
@@ -106,8 +130,9 @@ class GenericTest(object):
                     method = getattr(self, method_name)
                     if callable(method):
                         print(" * Running " + method_name)
+                        test = Test(inspect.getdoc(method), method_name)
                         try:
-                            self.result.append(method())
+                            self.result.append(method(test))
                         except NMOSTestException as e:
                             self.result.append(e.args[0])
                         except Exception as e:
@@ -118,8 +143,9 @@ class GenericTest(object):
             method = getattr(self, test_name)
             if callable(method):
                 print(" * Running " + test_name)
+                test = Test(inspect.getdoc(method), test_name)
                 try:
-                    self.result.append(method())
+                    self.result.append(method(test))
                 except NMOSTestException as e:
                     self.result.append(e.args[0])
                 except Exception as e:
@@ -140,9 +166,8 @@ class GenericTest(object):
         """Called after a set of tests is run. Override this method with teardown code."""
         pass
 
-    def run_tests(self, test_name="all"):
+    def run_tests(self, test_name=["all"]):
         """Perform tests and return the results as a list"""
-        self.test_individual = (test_name != "all")
 
         # Set up
         test = Test("Test setup")
@@ -224,13 +249,17 @@ class GenericTest(object):
             return False, "Incorrect CORS headers: {}".format(response.headers)
 
         try:
-            jsonschema.validate(response.json(), schema)
+            self.validate_schema(response.json(), schema)
         except jsonschema.ValidationError:
             return False, "Response schema validation error"
         except json.decoder.JSONDecodeError:
             return False, "Invalid JSON received"
 
         return True, ""
+
+    def validate_schema(self, payload, schema):
+        checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
+        return jsonschema.validate(payload, schema, format_checker=checker)
 
     def do_request(self, method, url, data=None):
         return TestHelper.do_request(method, url, data)
@@ -240,9 +269,10 @@ class GenericTest(object):
         results = []
 
         for api in self.apis:
-            # This test isn't mandatory... Many systems will use the base path for other things
-            # results.append(self.check_base_path(self.apis[api]["base_url"], "/", "x-nmos/"))
+            if "spec_path" not in self.apis[api]:
+                continue
 
+            # We don't check the very base of the URL (before x-nmos) as it may be used for other things
             results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos", api + "/"))
             results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos/{}".format(api),
                                                 self.apis[api]["version"] + "/"))
@@ -282,7 +312,7 @@ class GenericTest(object):
 
         # Test general URLs with no parameters
         elif not resource[1]['params']:
-            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0])
+            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0].rstrip("/"))
             test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                     api,
                                                     self.apis[api]["version"],

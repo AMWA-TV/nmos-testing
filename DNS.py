@@ -29,12 +29,13 @@ class DNS(object):
         self.base_zone_data = None
         self.reset()
 
-    def load_zone(self, api_version):
+    def load_zone(self, api_version, api_protocol):
         zone_file = open("test_data/IS0401/dns_records.zone").read()
         template = Template(zone_file)
-        zone_data = template.render(ip_address=self.default_ip, api_ver=api_version)
+        zone_data = template.render(ip_address=self.default_ip, api_ver=api_version, api_proto=api_protocol)
         self.resolver = ZoneResolver(self.base_zone_data + zone_data)
         self.stop()
+        print(" * Loading DNS zone file with api_ver={}".format(api_version))
         self.start()
 
     def reset(self):
@@ -43,6 +44,7 @@ class DNS(object):
         self.base_zone_data = template.render(ip_address=self.default_ip)
         self.resolver = ZoneResolver(self.base_zone_data)
         self.stop()
+        print(" * Loading DNS zone base file")
         self.start()
 
     def start(self):
@@ -56,5 +58,6 @@ class DNS(object):
 
     def stop(self):
         if self.server:
+            print(" * Stopping DNS server on {}:53".format(self.default_ip))
             self.server.stop()
             self.server = None

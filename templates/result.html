@@ -21,45 +21,86 @@
     <meta charset="UTF-8">
     <title>NMOS Tests</title>
     <link rel="stylesheet" href="static/css/bootstrap.min.css">
-    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="static/css/style.css?nocache-{{ cachebuster }}">
+    <script src="static/js/result_script.js?nocache-{{ cachebuster }}"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <a href="../" class="backlink">Go Back</a>
+    <a href="../" class="backlink">More Options</a>
     <h1>NMOS Test</h1>
     <div class="text text_result">
-        <h5>Result for test <b>{{ test }}</b> on <b><a href={{ url }}>{{ url }}</a></b></h5>
+        <h5>Result for test suite <b>{{ test }}</b> on <b><a href={{ url }}>{{ url }}</a></b></h5>
     </div>
     <div class="text text_result">
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Test</th>
-                    <th>Pass</th>
-                    <th>Description</th>
-                    <th>Reason</th>
-                    <th>Completion Time</th>
-                    <th>Time Elapsed</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for curr_result in result %}
-                    <tr>
-                        <td>{{ curr_result[0] }}</td>
-                        <td class="{{ curr_result[2] }} pass_state">{{ curr_result[1] }}</td>
-                        <td>{{ curr_result[3] }}</td>
-                        <td>
-                          {{ curr_result[4] }}
-                          {% if curr_result[5] %}
-                            <a href="{{ curr_result[5] }}" target="_blank">More Information</a>
-                          {% endif %}
-                        </td>
-                        <td>{{ curr_result[6] }}</td>
-                        <td>{{ curr_result[7] }}</td>
-                    </tr>
+        <form action="" method="POST" onsubmit="disableRunbtn(); return true;">
+            <input type="submit" id="runbtn" value="Run" style="margin:auto; display:block;"/>
+            <div style="display: none;">
+                {{ form.test }}
+                {{ form.hidden_tests }}
+                {{ form.hidden_specs }}
+                {{ form.hidden_options }}
+                {% for endpoint in form.endpoints %}
+                    {{ endpoint.ip }}
+                    {{ endpoint.port }}
+                    {{ endpoint.version }}
                 {% endfor %}
-            </tbody>
-        </table>
+                <input type="checkbox" unchecked id="auto_all" name="test_selection" value="auto"/>
+            </div>
+            <br/>
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr onclick="document.getElementById('failed_all').click();">
+                        <th>
+                            <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); changeTestSelection(this);"/>
+                            <label id="failed_all_label" style="opacity: 1;"> Failed Tests</label>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Test</th>
+                        <th>Pass</th>
+                        <th>Description</th>
+                        <th>Reason</th>
+                        <th>Completion Time</th>
+                        <th>Time Elapsed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for curr_result in result %}
+                        {% set curr_auto = curr_result[0].startswith("auto_") %}
+                        {% set curr_test = curr_result[0].startswith("test_") or curr_auto %}
+                        {% set curr_fail = curr_result[2]=='bg-danger' %}
+                        <tr {% if curr_test %} onclick="document.getElementById('{{ curr_result[0] }}').click();" {% endif %}>
+                            <td>
+                                {% if curr_test %}
+                                    <input type="checkbox"
+                                        {% if not curr_auto %}
+                                            name="test_selection" value="{{ curr_result[0] }}"
+                                        {% endif %}
+                                        class="{% if curr_auto %}auto{% endif %} {% if curr_fail %}failed{% endif %}"
+                                        id="{{ curr_result[0] }}" onclick="event.stopPropagation(); changeTestSelection(this);"
+                                    />
+                                    <label>
+                                        {{ curr_result[0] }}
+                                    </label>
+                                {% else %}
+                                    {{ curr_result[0] }}
+                                {% endif %}
+                            </td>
+                            <td class="{{ curr_result[2] }} pass_state">{{ curr_result[1] }}</td>
+                            <td>{{ curr_result[3] }}</td>
+                            <td>
+                                {{ curr_result[4] }}
+                                {% if curr_result[5] %}
+                                    <a href="{{ curr_result[5] }}" target="_blank">More Information</a>
+                                {% endif %}
+                            </td>
+                            <td>{{ curr_result[6] }}</td>
+                            <td>{{ curr_result[7] }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </form>
     </div>
 </body>
 </html>

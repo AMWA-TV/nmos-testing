@@ -20,7 +20,11 @@ function updateDropdown() {
           versionDropdown.options[i] = new Option(specData[specKey]["versions"][i], specData[specKey]["versions"][i]);
         }
         versionDropdown.value = specData[specKey]["default_version"];
-        label.innerHTML = specData[specKey]["apis"][apiKey]["name"] + ":";
+        if (apiKey in specData[specKey]["apis"]) {
+          label.innerHTML = specData[specKey]["apis"][apiKey]["name"] + ":";
+        } else {
+          label.innerHTML = "";
+        }
         div.style.display = "block";
       } else {
         div.style.display = "none";
@@ -35,10 +39,104 @@ function updateDropdown() {
     }
 }
 
+function loadSettings() {
+    try {
+        if (typeof(sessionStorage) !== "undefined") {
+            if (sessionStorage.getItem("test") !== null) {
+                document.getElementById("test").value = sessionStorage.getItem("test");
+                updateDropdown();
+
+                var selectedOptions;
+                try {
+                    selectedOptions = JSON.parse(sessionStorage.getItem("test_selection"));
+                }
+                catch (e) {
+                    selectedOptions = [sessionStorage.getItem("test_selection")];
+                }
+                var testOptions = document.getElementById("test_selection").options;
+                for (var i = 0, n = testOptions.length; i < n; i++) {
+                    if (selectedOptions.includes(testOptions[i].value)) {
+                        testOptions[i].selected = true;
+                    }
+                }
+
+                var maxOptions = document.getElementById('hidden_options').value;
+                for (var apiNum=0; apiNum<maxOptions; apiNum++) {
+                    document.getElementById("endpoints-" + apiNum.toString() + "-ip").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-ip");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-port").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-port");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-version").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-version");
+                }
+                return;
+            }
+        }
+    }
+    catch (e) {
+        console.log("Error using sessionStorage.");
+    }
+    updateDropdown();
+}
+
+function saveSettings() {
+    try {
+        if (typeof(sessionStorage) !== "undefined") {
+            sessionStorage.setItem("test", document.getElementById("test").value);
+
+            var selectedOptions = []
+            var testOptions = document.getElementById("test_selection").options;
+            for (var i = 0, n = testOptions.length; i < n; i++) {
+                if (testOptions[i].selected) {
+                    selectedOptions.push(testOptions[i].value);
+                }
+            }
+            sessionStorage.setItem("test_selection", JSON.stringify(selectedOptions));
+
+            var maxOptions = document.getElementById('hidden_options').value;
+            for (var apiNum=0; apiNum<maxOptions; apiNum++) {
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-ip", document.getElementById("endpoints-" + apiNum.toString() + "-ip",).value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
+            }
+        }
+    }
+    catch (e) {
+        console.log("Error using sessionStorage.");
+    }
+};
+
+function disableRunbtn() {
+    var runbtn = document.getElementById("runbtn");
+    runbtn.value = "Executing tests...";
+    runbtn.disabled = true;
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("test").onchange = function() {
         updateDropdown();
+        document.getElementById("test_selection").selectedIndex = 0;
     }
 
-    updateDropdown();
+    document.getElementById("test_selection").onchange = function(event) {
+
+        // Prohibit "all" and individual test cases being selected
+        testOptions = document.getElementById("test_selection").options;
+        if (event.target.value == "all") {
+            for (var i = 1, n = testOptions.length; i < n; i++) {
+                testOptions[i].selected = false;
+            }
+        }
+        else {
+            testOptions[0].selected = false;
+        }
+
+        test_any = false;
+        for (var i = 0, n = testOptions.length; i < n; i++) {
+            if (testOptions[i].selected) {
+                test_any = true;
+                break;
+            }
+        }
+        document.getElementById("runbtn").disabled = !test_any;
+    }
+
+    loadSettings();
 });

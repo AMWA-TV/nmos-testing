@@ -17,7 +17,6 @@ import socket
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
-from TestResult import Test
 from GenericTest import GenericTest
 from IS04Utils import IS04Utils
 
@@ -42,11 +41,10 @@ class IS0403Test(GenericTest):
             self.zc.close()
             self.zc = None
 
-    def test_01_node_mdns_with_txt(self):
+    def test_01_node_mdns_with_txt(self, test):
         """Node advertises a Node type mDNS announcement with ver_* TXT records
         in the absence of a Registration API"""
-        test = Test("Node advertises a Node type mDNS announcement with ver_* TXT records in the absence "
-                    "of a Registration API")
+
         browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(1)
         node_list = self.zc_listener.get_service_list()
@@ -78,19 +76,15 @@ class IS0403Test(GenericTest):
 
                     if "api_proto" not in properties:
                         return test.FAIL("No 'api_proto' TXT record found in Node API advertisement.")
-                    elif properties["api_proto"] == "https":
-                        return test.MANUAL("API protocol is not advertised as 'http'. "
-                                           "This test suite does not currently support 'https'.")
-                    elif properties["api_proto"] != "http":
-                        return test.FAIL("API protocol ('api_proto') TXT record is not 'http' or 'https'.")
+                    elif properties["api_proto"] != self.protocol:
+                        return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
 
         return test.FAIL("No matching mDNS announcement found for Node. Peer to peer mode will not function correctly.",
                          "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
 
-    def test_02_node_mdns_txt_increment(self):
+    def test_02_node_mdns_txt_increment(self, test):
         """Node increments its ver_* TXT records when its matching Node API resources change"""
-        test = Test("Node increments its ver_* TXT records when its matching Node API resources change")
 
         return test.MANUAL()
