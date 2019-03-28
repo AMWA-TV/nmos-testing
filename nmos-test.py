@@ -31,6 +31,7 @@ import os
 import json
 import copy
 import pickle
+import random
 import threading
 import sys
 import platform
@@ -50,6 +51,8 @@ import BCP00301Test
 
 FLASK_APPS = []
 DNS_SERVER = None
+
+CACHEBUSTER = random.randint(1, 10000)
 
 core_app = Flask(__name__)
 core_app.debug = False
@@ -234,7 +237,7 @@ def index_page():
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, url=results["base_url"], test=results["name"],
-                                                      result=results["result"]))
+                                                      result=results["result"], cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
@@ -263,7 +266,8 @@ def index_page():
         discovery_mode = "Disabled (Using Query API {}:{})".format(QUERY_API_HOST, QUERY_API_PORT)
 
     r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
-                                                                       "protocol": protocol}))
+                                                                       "protocol": protocol},
+                                      cachebuster=CACHEBUSTER))
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
 
