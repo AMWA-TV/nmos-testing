@@ -150,12 +150,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = deepcopy(self.test_data["node"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "node", node_json, 201)
-
+            self.post_resource(test, "node", codes=[201])
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -172,13 +167,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            device_json = deepcopy(self.test_data["device"])
-
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "device", device_json, 201)
-
+            self.post_resource(test, "device", codes=[201])
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -196,12 +185,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            source_json = deepcopy(self.test_data["source"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "source", source_json, 201)
-
+            self.post_resource(test, "source", codes=[201])
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -219,13 +203,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            flow_json = deepcopy(self.test_data["flow"])
-
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "flow", flow_json, 201)
-
+            self.post_resource(test, "flow", codes=[201])
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -243,12 +221,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sender_json = deepcopy(self.test_data["sender"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "sender", sender_json, 201)
-
+            self.post_resource(test, "sender", codes=[201])
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -271,9 +244,9 @@ class IS0402Test(GenericTest):
             sender_json["flow_id"] = None
 
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+                sender_json = self.downgrade_resource("sender", sender_json, api["version"])
 
-            self.post_resource(test, "sender", sender_json, 201)
+            self.post_resource(test, "sender", sender_json, codes=[201])
 
             return test.PASS()
         else:
@@ -292,12 +265,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            receiver_json = deepcopy(self.test_data["receiver"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "receiver", receiver_json, 201)
-
+            self.post_resource(test, "receiver", codes=[201])
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -315,12 +283,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = deepcopy(self.test_data["node"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "node", node_json, 200)
-
+            self.post_resource(test, "node", codes=[200])
             return test.PASS()
         else:
             return test.FAIL("Version > 1 not supported yet.")
@@ -331,12 +294,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            device_json = deepcopy(self.test_data["device"])
-
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "device", device_json, 200)
+            self.post_resource(test, "device", codes=[200])
 
             return test.PASS()
         else:
@@ -348,11 +306,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            source_json = deepcopy(self.test_data["source"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "source", source_json, 200)
+            self.post_resource(test, "source", codes=[200])
 
             return test.PASS()
         else:
@@ -364,12 +318,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            flow_json = deepcopy(self.test_data["flow"])
-
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "flow", flow_json, 200)
+            self.post_resource(test, "flow", codes=[200])
 
             return test.PASS()
         else:
@@ -381,11 +330,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sender_json = deepcopy(self.test_data["sender"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "sender", sender_json, 200)
+            self.post_resource(test, "sender", codes=[200])
 
             return test.PASS()
         else:
@@ -397,12 +342,7 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            receiver_json = deepcopy(self.test_data["receiver"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                receiver_json = self.downgrade_resource("receiver", receiver_json,
-                                                        self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "receiver", receiver_json, 200)
+            self.post_resource(test, "receiver", codes=[200])
 
             return test.PASS()
         else:
@@ -438,7 +378,7 @@ class IS0402Test(GenericTest):
             # For debugging
             node_data["tags"]["index"] = [str(_)]
 
-            self.post_resource(test, "node", node_data, 201)
+            self.post_resource(test, "node", node_data, codes=[201])
 
             # Perform a Query API request to get the update timestamp of the most recently POSTed node
             # Wish there was a better way, as this puts the cart before the horse!
@@ -959,7 +899,7 @@ class IS0402Test(GenericTest):
 
         # after an update, the 'next' page should now contain only the updated resource
 
-        self.post_resource(test, "node", resources[1], 200)
+        self.post_resource(test, "node", resources[1], codes=[200])
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.check_paged_response(test, response,
@@ -975,8 +915,8 @@ class IS0402Test(GenericTest):
 
         # after the other resources are also updated, what was the 'current' page should now be empty
 
-        self.post_resource(test, "node", resources[2], 200)
-        self.post_resource(test, "node", resources[0], 200)
+        self.post_resource(test, "node", resources[2], codes=[200])
+        self.post_resource(test, "node", resources[0], codes=[200])
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.check_paged_response(test, response,
@@ -1078,12 +1018,9 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["description"] = test_id
             node_ids[api_version] = test_data["id"]
-            valid, r = self.do_request("POST", "{}/{}/resource"
-                                               .format(self.reg_url.rstrip(reg_api["version"] + "/"),
-                                                       api_version),
-                                       data={"type": "node", "data": test_data})
-            if not valid or r.status_code != 201:
-                return test.FAIL("Bad status code: {}".format(r.status_code))
+
+            reg_url = "{}/{}/".format(self.reg_url.rstrip(reg_api["version"] + "/"), api_version)
+            self.post_resource(test, "node", test_data, codes=[201], reg_url=reg_url)
 
         # Make a request to the Query API for each Node POSTed to ensure it's visible (or not) at the version under test
         for api_version in query_versions:
@@ -1227,7 +1164,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_23"
             test_data["description"] = node_desc
-            self.post_resource(test, "node", test_data, 201)
+            self.post_resource(test, "node", test_data, codes=[201])
 
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
@@ -1293,7 +1230,7 @@ class IS0402Test(GenericTest):
                 test_data["id"] = node_id
                 test_data["label"] = "test_23_1"
                 test_data["description"] = node_id
-                self.post_resource(test, "node", test_data, 201)
+                self.post_resource(test, "node", test_data, codes=[201])
 
             # Load schema
             if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
@@ -1338,7 +1275,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = node_ids[0]
             test_data["label"] = "test_23_1"
             test_data["description"] = str(uuid.uuid4)
-            self.post_resource(test, "node", test_data, 200)
+            self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
             sleep(WS_MESSAGE_TIMEOUT)
@@ -1388,7 +1325,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_24"
             test_data["description"] = node_desc
-            self.post_resource(test, "node", test_data, 201)
+            self.post_resource(test, "node", test_data, codes=[201])
 
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
@@ -1461,7 +1398,7 @@ class IS0402Test(GenericTest):
                 test_data["id"] = node_id
                 test_data["label"] = "test_24_1"
                 test_data["description"] = node_id
-                self.post_resource(test, "node", test_data, 201)
+                self.post_resource(test, "node", test_data, codes=[201])
 
             # Load schema
             if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
@@ -1505,7 +1442,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = node_ids[0]
             test_data["label"] = "test_24_1"
             test_data["description"] = str(uuid.uuid4)
-            self.post_resource(test, "node", test_data, 200)
+            self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
             sleep(WS_MESSAGE_TIMEOUT)
@@ -1605,7 +1542,7 @@ class IS0402Test(GenericTest):
                 else:
                     resource_json["device_id"] = str(uuid.uuid4())
 
-                self.post_resource(test, curr_resource, resource_json, 400)
+                self.post_resource(test, curr_resource, resource_json, codes=[400])
 
             return test.PASS()
 
@@ -1623,17 +1560,11 @@ class IS0402Test(GenericTest):
 
             # (Re-)post all resources
             for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    resource_json = self.downgrade_resource(resource, resource_json,
-                                                            self.apis[REG_API_KEY]["version"])
-                self.bump_resource_version(resource_json)
-                self.post_resource(test, resource, resource_json)
+                self.post_resource(test, resource, codes=[200, 201])
 
             # Check if all resources are registered
             for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                curr_id = resource_json["id"]
+                curr_id = self.test_data[resource]["id"]
 
                 valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
                 if not valid or r.status_code != 200:
@@ -1644,8 +1575,7 @@ class IS0402Test(GenericTest):
 
             # Verify all resources are removed
             for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                curr_id = resource_json["id"]
+                curr_id = self.test_data[resource]["id"]
 
                 valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
                 if valid:
@@ -1668,12 +1598,7 @@ class IS0402Test(GenericTest):
 
             # Post all resources
             for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    resource_json = self.downgrade_resource(resource, resource_json,
-                                                            self.apis[REG_API_KEY]["version"])
-
-                self.post_resource(test, resource, resource_json)
+                self.post_resource(test, resource, codes=[201])
 
             # Remove Node
             valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}"
@@ -1752,15 +1677,11 @@ class IS0402Test(GenericTest):
 
         api = self.apis[REG_API_KEY]
         if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = deepcopy(self.test_data["node"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-
             # Post Node
-            self.post_resource(test, "node", node_json)
+            self.post_resource(test, "node")
 
             # Post heartbeat
-            valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
+            valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, self.test_data["node"]["id"]))
             if not valid:
                 return test.FAIL("Registration API did not respond as expected")
             elif r.status_code == 200:
@@ -1815,7 +1736,7 @@ class IS0402Test(GenericTest):
 
                 # Post sample data
                 for resource in resources_to_post:
-                    self.post_resource(test, resource, test_data[resource], 201)
+                    self.post_resource(test, resource, test_data[resource], codes=[201])
 
                 # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
 
@@ -1868,7 +1789,7 @@ class IS0402Test(GenericTest):
                 old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
                 for resource, resource_data in test_data.items():
                     # Update resource
-                    self.post_resource(test, resource, resource_data, 200)
+                    self.post_resource(test, resource, resource_data, codes=[200])
 
                 sleep(WS_MESSAGE_TIMEOUT)
 
@@ -1953,7 +1874,7 @@ class IS0402Test(GenericTest):
                 for resource in resources_to_post:
                     # Recreate resource with updated version
                     self.bump_resource_version(test_data[resource])
-                    self.post_resource(test, resource, test_data[resource], 201)
+                    self.post_resource(test, resource, test_data[resource], codes=[201])
 
                 sleep(WS_MESSAGE_TIMEOUT)
                 for resource, resource_data in test_data.items():
@@ -2154,12 +2075,7 @@ class IS0402Test(GenericTest):
 
     def bump_resource_version(self, resource):
         """Bump version timestamp of the given resource"""
-        v = [int(i) for i in resource["version"].split(':')]
-        v[1] += 1
-        if v[1] == 1e9:
-            v[0] += 1
-            v[1] = 0
-        resource["version"] = str(v[0]) + ':' + str(v[1])
+        resource["version"] = self.is04_reg_utils.get_TAI_time()
 
     def prepare_subscription(self, resource_path, params=None, api_ver=None):
         """Prepare an object ready to send as the request body for a Query API subscription"""
@@ -2196,24 +2112,32 @@ class IS0402Test(GenericTest):
         except json.decoder.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
-    def post_resource(self, test, type, data, code=None):
+    def post_resource(self, test, type, data=None, reg_url=None, codes=[200, 201]):
         """Perform a POST request on the Registration API to create or update a resource registration"""
 
-        # As a convenience, bump the version if this is expected to be an update
-        if code == 200:
+        if not data:
+            api = self.apis[REG_API_KEY]
+            data = deepcopy(self.test_data[type])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                data = self.downgrade_resource(type, data, api["version"])
+
+        if not reg_url:
+            reg_url = self.reg_url
+
+        # As a convenience, bump the version if this is allowed to be an update
+        if 200 in codes:
             self.bump_resource_version(data)
 
-        valid, r = self.do_request("POST", self.reg_url + "resource",
+        valid, r = self.do_request("POST", reg_url + "resource",
                                    data={"type": type, "data": data})
         if not valid:
             raise NMOSTestException(test.FAIL("Registration API did not respond as expected"))
 
-        expected_codes = [200, 201] if code is None else [code]
-        wrong_codes = [_ for _ in [200, 201] if _ not in expected_codes]
+        wrong_codes = [_ for _ in [200, 201] if _ not in codes]
 
         if r.status_code in wrong_codes:
             raise NMOSTestException(test.FAIL("Registration API returned wrong HTTP code"))
-        elif r.status_code not in expected_codes:
+        elif r.status_code not in codes:
             raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
         elif r.status_code in [200, 201]:
