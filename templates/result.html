@@ -33,7 +33,6 @@
     </div>
     <div class="text text_result">
         <form action="" method="POST" onsubmit="disableRunbtn(); return true;">
-            <input type="submit" id="runbtn" value="Run" style="margin:auto; display:block;"/>
             <div style="display: none;">
                 {{ form.test }}
                 {{ form.hidden_tests }}
@@ -49,11 +48,17 @@
             <br/>
             <table class="table table-striped table-hover">
                 <thead>
+                    <tr>
+                        <th colspan="6">
+                            <input type="submit" id="runbtn" value="Run" style="margin:auto; display:block;"/>
+                        </th>
+                    </tr>
                     <tr onclick="document.getElementById('failed_all').click();">
                         <th>
                             <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); changeTestSelection(this);"/>
                             <label id="failed_all_label" style="opacity: 1;"> Failed Tests</label>
                         </th>
+                        <th colspan="5"/>
                     </tr>
                     <tr>
                         <th>Test</th>

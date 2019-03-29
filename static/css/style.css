@@ -50,8 +50,10 @@ h1 {
     right: 0;
 }
 
-th {
+.table thead th {
     text-align: center;
+    background-color: white;
+    border: 0;
 }
 
 .pass_state {
