@@ -1531,8 +1531,9 @@ class IS0402Test(GenericTest):
             if not valid or r.status_code != 200:
                 return test.FAIL("Cannot execute test, as expected resources are not registered")
 
-        # Wait for garbage collection
-        sleep(GARBAGE_COLLECTION_TIMEOUT + 0.5)
+        # Wait for garbage collection (plus one whole second, since health is in whole seconds so
+        # a registry may wait that much longer to guarantee a minimum garbage collection interval)
+        sleep(GARBAGE_COLLECTION_TIMEOUT + 1)
 
         # Verify all resources are removed
         for resource in resources:
@@ -1555,9 +1556,9 @@ class IS0402Test(GenericTest):
 
         resources = ["node", "device", "source", "flow", "sender", "receiver"]
 
-        # Post all resources
+        # (Re-)post all resources
         for resource in resources:
-            self.post_resource(test, resource, codes=[201])
+            self.post_resource(test, resource, codes=[200, 201])
 
         # Remove Node
         valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}"
