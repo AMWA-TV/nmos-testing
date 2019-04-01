@@ -66,10 +66,6 @@ h1 {
     text-align: left;
 }
 
-.disabled {
-    pointer-events: none;
-}
-
 /* Override bootstrap print behaviour */
 @media print{
     .table td.bg-success {
