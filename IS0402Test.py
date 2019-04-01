@@ -2063,7 +2063,7 @@ class IS0402Test(GenericTest):
         except json.decoder.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
-    def post_resource(self, test, type, data=None, reg_url=None, codes=[200, 201]):
+    def post_resource(self, test, type, data=None, reg_url=None, codes=None):
         """Perform a POST request on the Registration API to create or update a resource registration"""
 
         if not data:
@@ -2074,6 +2074,9 @@ class IS0402Test(GenericTest):
 
         if not reg_url:
             reg_url = self.reg_url
+
+        if not codes:
+            codes = [200, 201]
 
         # As a convenience, bump the version if this is allowed to be an update
         if 200 in codes:
