@@ -52,8 +52,11 @@ h1 {
 
 .table thead th {
     text-align: center;
+    vertical-align: bottom;
+    /* for stylish sticky headers */
     background-color: white;
     border: 0;
+    box-sizing: content-box;
 }
 
 .pass_state {

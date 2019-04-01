@@ -50,15 +50,12 @@
                 <thead>
                     <tr>
                         <th colspan="6">
-                            <input type="submit" id="runbtn" value="Run" style="margin:auto; display:block;"/>
+                            <div style="position: absolute" onclick="document.getElementById('failed_all').click();">
+                                <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); changeTestSelection(this);"/>
+                                <label id="failed_all_label" style="opacity: 1;"> Failed Tests</label>
+                            </div>
+                            <input  type="submit" id="runbtn" value="Run"/>
                         </th>
-                    </tr>
-                    <tr onclick="document.getElementById('failed_all').click();">
-                        <th>
-                            <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); changeTestSelection(this);"/>
-                            <label id="failed_all_label" style="opacity: 1;"> Failed Tests</label>
-                        </th>
-                        <th colspan="5"/>
                     </tr>
                     <tr>
                         <th>Test</th>
