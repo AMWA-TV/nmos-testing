@@ -132,14 +132,14 @@ class BCP00301Test(GenericTest):
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
-                    if report["id"] == "cert_commonName":
+                    if report["id"].startswith("cert_commonName") and "_wo_SNI" not in report["id"]:
                         common_name = report["finding"]
                         try:
                             ipaddress.ip_address(report["finding"])
                             return test.WARNING("CN is an IP address: {}".format(report["finding"]))
                         except ValueError:
                             pass
-                    elif report["id"] == "cert_subjectAltName":
+                    elif report["id"].startswith("cert_subjectAltName"):
                         if report["finding"].startswith("No SAN"):
                             return test.WARNING("No SAN was found in the certificate")
                         else:
