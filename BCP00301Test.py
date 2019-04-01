@@ -125,6 +125,7 @@ class BCP00301Test(GenericTest):
         """Certificate does not use IP addresses in CN/SANs"""
 
         ret = self.perform_test_ssl(test, ["-S"])
+        # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
@@ -132,14 +133,14 @@ class BCP00301Test(GenericTest):
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
-                    if report["id"].startswith("cert_commonName") and "_wo_SNI" not in report["id"]:
+                    if report["id"].split()[0] == "cert_commonName":
                         common_name = report["finding"]
                         try:
                             ipaddress.ip_address(report["finding"])
                             return test.WARNING("CN is an IP address: {}".format(report["finding"]))
                         except ValueError:
                             pass
-                    elif report["id"].startswith("cert_subjectAltName"):
+                    elif report["id"].split()[0] == "cert_subjectAltName":
                         if report["finding"].startswith("No SAN"):
                             return test.WARNING("No SAN was found in the certificate")
                         else:
@@ -185,6 +186,7 @@ class BCP00301Test(GenericTest):
         """Certificate revocation method is available"""
 
         ret = self.perform_test_ssl(test, ["-S"])
+        # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
@@ -201,6 +203,7 @@ class BCP00301Test(GenericTest):
         """OCSP Stapling"""
 
         ret = self.perform_test_ssl(test, ["-S"])
+        # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
@@ -209,9 +212,11 @@ class BCP00301Test(GenericTest):
                 tls_data = json.load(tls_data)
                 for report in tls_data:
                     if report["id"].split()[0] == "OCSP_stapling":
-                        ocsp_found = True
                         if report["finding"] == "not offered":
                             return test.WARNING("OCSP stapling is not offered by this server")
+                    elif report["id"].split()[0] == "crtl_ocspURL":
+                        if report["finding"].startswith("http"):
+                            ocsp_found = True
 
             if not ocsp_found:
                 return test.UNCLEAR("Unable to find OCSP stapling results in the testssl report")
