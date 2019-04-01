@@ -148,17 +148,9 @@ class IS0402Test(GenericTest):
     def test_03(self, test):
         """Registration API accepts and stores a valid Node resource"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = deepcopy(self.test_data["node"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "node", node_json, 201)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        self.check_api_v1_x(test)
+        self.post_resource(test, "node", codes=[201])
+        return test.PASS()
 
     def test_04(self, test):
         """Registration API rejects an invalid Node resource with a 400 HTTP code"""
@@ -170,18 +162,9 @@ class IS0402Test(GenericTest):
     def test_05(self, test):
         """Registration API accepts and stores a valid Device resource"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            device_json = deepcopy(self.test_data["device"])
-
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "device", device_json, 201)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        self.check_api_v1_x(test)
+        self.post_resource(test, "device", codes=[201])
+        return test.PASS()
 
     @test_depends
     def test_06(self, test):
@@ -194,17 +177,9 @@ class IS0402Test(GenericTest):
     def test_07(self, test):
         """Registration API accepts and stores a valid Source resource"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            source_json = deepcopy(self.test_data["source"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "source", source_json, 201)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        self.check_api_v1_x(test)
+        self.post_resource(test, "source", codes=[201])
+        return test.PASS()
 
     @test_depends
     def test_08(self, test):
@@ -217,18 +192,9 @@ class IS0402Test(GenericTest):
     def test_09(self, test):
         """Registration API accepts and stores a valid Flow resource"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            flow_json = deepcopy(self.test_data["flow"])
-
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "flow", flow_json, 201)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        self.check_api_v1_x(test)
+        self.post_resource(test, "flow", codes=[201])
+        return test.PASS()
 
     @test_depends
     def test_10(self, test):
@@ -241,43 +207,33 @@ class IS0402Test(GenericTest):
     def test_11(self, test):
         """Registration API accepts and stores a valid Sender resource"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sender_json = deepcopy(self.test_data["sender"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "sender", sender_json, 201)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        self.check_api_v1_x(test)
+        self.post_resource(test, "sender", codes=[201])
+        return test.PASS()
 
     @test_depends
     def test_11_1(self, test):
         """Registration API accepts and stores a valid Sender resource with null flow_id"""
 
+        self.check_api_v1_x(test)
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
 
-            # v1.1 introduced null for flow_id to "permit Senders without attached Flows
-            # to model a Device before internal routing has been performed"
+        # v1.1 introduced null for flow_id to "permit Senders without attached Flows
+        # to model a Device before internal routing has been performed"
 
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.1") < 0:
-                return test.NA("This test does not apply to v1.0")
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.1") < 0:
+            return test.NA("This test does not apply to v1.0")
 
-            sender_json = deepcopy(self.test_data["sender"])
-            sender_json["id"] = str(uuid.uuid4())
-            sender_json["flow_id"] = None
+        sender_json = deepcopy(self.test_data["sender"])
+        sender_json["id"] = str(uuid.uuid4())
+        sender_json["flow_id"] = None
 
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+            sender_json = self.downgrade_resource("sender", sender_json, api["version"])
 
-            self.post_resource(test, "sender", sender_json, 201)
+        self.post_resource(test, "sender", sender_json, codes=[201])
 
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        return test.PASS()
 
     @test_depends
     def test_12(self, test):
@@ -290,17 +246,9 @@ class IS0402Test(GenericTest):
     def test_13(self, test):
         """Registration API accepts and stores a valid Receiver resource"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            receiver_json = deepcopy(self.test_data["receiver"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                receiver_json = self.downgrade_resource("receiver", receiver_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "receiver", receiver_json, 201)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        self.check_api_v1_x(test)
+        self.post_resource(test, "receiver", codes=[201])
+        return test.PASS()
 
     @test_depends
     def test_14(self, test):
@@ -313,100 +261,55 @@ class IS0402Test(GenericTest):
     def test_15(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Node"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = deepcopy(self.test_data["node"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "node", node_json, 200)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        self.check_api_v1_x(test)
+        self.post_resource(test, "node", codes=[200])
+        return test.PASS()
 
     @test_depends
     def test_16(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Device"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            device_json = deepcopy(self.test_data["device"])
+        self.check_api_v1_x(test)
+        self.post_resource(test, "device", codes=[200])
 
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                device_json = self.downgrade_resource("device", device_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "device", device_json, 200)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        return test.PASS()
 
     @test_depends
     def test_17(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Source"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            source_json = deepcopy(self.test_data["source"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                source_json = self.downgrade_resource("source", source_json, self.apis[REG_API_KEY]["version"])
+        self.check_api_v1_x(test)
+        self.post_resource(test, "source", codes=[200])
 
-            self.post_resource(test, "source", source_json, 200)
+        return test.PASS()
 
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
 
     @test_depends
     def test_18(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Flow"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            flow_json = deepcopy(self.test_data["flow"])
+        self.check_api_v1_x(test)
+        self.post_resource(test, "flow", codes=[200])
 
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                flow_json = self.downgrade_resource("flow", flow_json, self.apis[REG_API_KEY]["version"])
-
-            self.post_resource(test, "flow", flow_json, 200)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        return test.PASS()
 
     @test_depends
     def test_19(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Sender"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sender_json = deepcopy(self.test_data["sender"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                sender_json = self.downgrade_resource("sender", sender_json, self.apis[REG_API_KEY]["version"])
+        self.check_api_v1_x(test)
+        self.post_resource(test, "sender", codes=[200])
 
-            self.post_resource(test, "sender", sender_json, 200)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        return test.PASS()
 
     @test_depends
     def test_20(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Receiver"""
 
-        api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            receiver_json = deepcopy(self.test_data["receiver"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                receiver_json = self.downgrade_resource("receiver", receiver_json,
-                                                        self.apis[REG_API_KEY]["version"])
+        self.check_api_v1_x(test)
+        self.post_resource(test, "receiver", codes=[200])
 
-            self.post_resource(test, "receiver", receiver_json, 200)
-
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        return test.PASS()
 
     def check_paged_trait(self, test):
         """Precondition check that the 'paged' trait applies to the API version under test"""
@@ -438,7 +341,7 @@ class IS0402Test(GenericTest):
             # For debugging
             node_data["tags"]["index"] = [str(_)]
 
-            self.post_resource(test, "node", node_data, 201)
+            self.post_resource(test, "node", node_data, codes=[201])
 
             # Perform a Query API request to get the update timestamp of the most recently POSTed node
             # Wish there was a better way, as this puts the cart before the horse!
@@ -959,7 +862,7 @@ class IS0402Test(GenericTest):
 
         # after an update, the 'next' page should now contain only the updated resource
 
-        self.post_resource(test, "node", resources[1], 200)
+        self.post_resource(test, "node", resources[1], codes=[200])
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.check_paged_response(test, response,
@@ -975,8 +878,8 @@ class IS0402Test(GenericTest):
 
         # after the other resources are also updated, what was the 'current' page should now be empty
 
-        self.post_resource(test, "node", resources[2], 200)
-        self.post_resource(test, "node", resources[0], 200)
+        self.post_resource(test, "node", resources[2], codes=[200])
+        self.post_resource(test, "node", resources[0], codes=[200])
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.check_paged_response(test, response,
@@ -1078,12 +981,9 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["description"] = test_id
             node_ids[api_version] = test_data["id"]
-            valid, r = self.do_request("POST", "{}/{}/resource"
-                                               .format(self.reg_url.rstrip(reg_api["version"] + "/"),
-                                                       api_version),
-                                       data={"type": "node", "data": test_data})
-            if not valid or r.status_code != 201:
-                return test.FAIL("Bad status code: {}".format(r.status_code))
+
+            reg_url = "{}/{}/".format(self.reg_url.rstrip(reg_api["version"] + "/"), api_version)
+            self.post_resource(test, "node", test_data, codes=[201], reg_url=reg_url)
 
         # Make a request to the Query API for each Node POSTed to ensure it's visible (or not) at the version under test
         for api_version in query_versions:
@@ -1227,7 +1127,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_23"
             test_data["description"] = node_desc
-            self.post_resource(test, "node", test_data, 201)
+            self.post_resource(test, "node", test_data, codes=[201])
 
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
@@ -1293,7 +1193,7 @@ class IS0402Test(GenericTest):
                 test_data["id"] = node_id
                 test_data["label"] = "test_23_1"
                 test_data["description"] = node_id
-                self.post_resource(test, "node", test_data, 201)
+                self.post_resource(test, "node", test_data, codes=[201])
 
             # Load schema
             if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
@@ -1338,7 +1238,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = node_ids[0]
             test_data["label"] = "test_23_1"
             test_data["description"] = str(uuid.uuid4)
-            self.post_resource(test, "node", test_data, 200)
+            self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
             sleep(WS_MESSAGE_TIMEOUT)
@@ -1388,7 +1288,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_24"
             test_data["description"] = node_desc
-            self.post_resource(test, "node", test_data, 201)
+            self.post_resource(test, "node", test_data, codes=[201])
 
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes")
@@ -1461,7 +1361,7 @@ class IS0402Test(GenericTest):
                 test_data["id"] = node_id
                 test_data["label"] = "test_24_1"
                 test_data["description"] = node_id
-                self.post_resource(test, "node", test_data, 201)
+                self.post_resource(test, "node", test_data, codes=[201])
 
             # Load schema
             if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
@@ -1505,7 +1405,7 @@ class IS0402Test(GenericTest):
             test_data["id"] = node_ids[0]
             test_data["label"] = "test_24_1"
             test_data["description"] = str(uuid.uuid4)
-            self.post_resource(test, "node", test_data, 200)
+            self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
             sleep(WS_MESSAGE_TIMEOUT)
@@ -1583,416 +1483,388 @@ class IS0402Test(GenericTest):
     def test_26(self, test):
         """Registration API responds with 400 HTTP code on posting a resource without parent"""
 
+        self.check_api_v1_x(test)
         api = self.apis[REG_API_KEY]
 
         resources = ["device", "source", "flow", "sender", "receiver"]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            for curr_resource in resources:
-                resource_json = deepcopy(self.test_data[curr_resource])
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    resource_json = self.downgrade_resource(curr_resource, resource_json,
-                                                            self.apis[REG_API_KEY]["version"])
 
-                resource_json["id"] = str(uuid.uuid4())
+        for curr_resource in resources:
+            resource_json = deepcopy(self.test_data[curr_resource])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                resource_json = self.downgrade_resource(curr_resource, resource_json,
+                                                        self.apis[REG_API_KEY]["version"])
 
-                # Set random uuid for parent (depending on resource type and version)
-                if curr_resource == "device":
-                    resource_json["node_id"] = str(uuid.uuid4())
-                elif curr_resource == "flow":
-                    if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") > 0:
-                        resource_json["device_id"] = str(uuid.uuid4())
-                    resource_json["source_id"] = str(uuid.uuid4())
-                else:
+            resource_json["id"] = str(uuid.uuid4())
+
+            # Set random uuid for parent (depending on resource type and version)
+            if curr_resource == "device":
+                resource_json["node_id"] = str(uuid.uuid4())
+            elif curr_resource == "flow":
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") > 0:
                     resource_json["device_id"] = str(uuid.uuid4())
+                resource_json["source_id"] = str(uuid.uuid4())
+            else:
+                resource_json["device_id"] = str(uuid.uuid4())
 
-                self.post_resource(test, curr_resource, resource_json, 400)
+            self.post_resource(test, curr_resource, resource_json, codes=[400])
 
-            return test.PASS()
-
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        return test.PASS()
 
     def test_27(self, test):
         """Registration API cleans up Nodes and their sub-resources when a heartbeat doesn't occur for
         the duration of a fixed timeout period"""
 
+        self.check_api_v1_x(test)
         api = self.apis[REG_API_KEY]
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            resources = ["node", "device", "source", "flow", "sender", "receiver"]
+        resources = ["node", "device", "source", "flow", "sender", "receiver"]
 
-            # (Re-)post all resources
-            for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    resource_json = self.downgrade_resource(resource, resource_json,
-                                                            self.apis[REG_API_KEY]["version"])
-                self.bump_resource_version(resource_json)
-                self.post_resource(test, resource, resource_json)
+        # (Re-)post all resources
+        for resource in resources:
+            self.post_resource(test, resource, codes=[200, 201])
 
-            # Check if all resources are registered
-            for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                curr_id = resource_json["id"]
+        # Check if all resources are registered
+        for resource in resources:
+            curr_id = self.test_data[resource]["id"]
 
-                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
-                if not valid or r.status_code != 200:
-                    return test.FAIL("Cannot execute test, as expected resources are not registered")
+            valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+            if not valid or r.status_code != 200:
+                return test.FAIL("Cannot execute test, as expected resources are not registered")
 
-            # Wait for garbage collection
-            sleep(GARBAGE_COLLECTION_TIMEOUT + 0.5)
+        # Wait for garbage collection (plus one whole second, since health is in whole seconds so
+        # a registry may wait that much longer to guarantee a minimum garbage collection interval)
+        sleep(GARBAGE_COLLECTION_TIMEOUT + 1)
 
-            # Verify all resources are removed
-            for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                curr_id = resource_json["id"]
+        # Verify all resources are removed
+        for resource in resources:
+            curr_id = self.test_data[resource]["id"]
 
-                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
-                if valid:
-                    if r.status_code != 404:
-                        return test.FAIL("Query API did not return 404 on a resource which should have been "
-                                         "removed due to missing heartbeats")
-                else:
-                    return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+            valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource, curr_id))
+            if valid:
+                if r.status_code != 404:
+                    return test.FAIL("Query API did not return 404 on a resource which should have been "
+                                     "removed due to missing heartbeats")
+            else:
+                return test.FAIL("Query API returned an unexpected response: {} {}".format(r.status_code, r.text))
+        return test.PASS()
 
     def test_28(self, test):
         """Registry removes stale child-resources of an incorrectly unregistered Node"""
 
+        self.check_api_v1_x(test)
         api = self.apis[REG_API_KEY]
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            resources = ["node", "device", "source", "flow", "sender", "receiver"]
+        resources = ["node", "device", "source", "flow", "sender", "receiver"]
 
-            # Post all resources
-            for resource in resources:
-                resource_json = deepcopy(self.test_data[resource])
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                    resource_json = self.downgrade_resource(resource, resource_json,
-                                                            self.apis[REG_API_KEY]["version"])
+        # (Re-)post all resources
+        for resource in resources:
+            self.post_resource(test, resource, codes=[200, 201])
 
-                self.post_resource(test, resource, resource_json)
+        # Remove Node
+        valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}"
+                                   .format(self.test_data["node"]["id"]))
+        if not valid:
+            return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {}"
+                             .format(r))
+        elif r.status_code != 204:
+            return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
+                             .format(r.status_code, r.text))
 
-            # Remove Node
-            valid, r = self.do_request("DELETE", self.reg_url + "resource/nodes/{}"
-                                       .format(self.test_data["node"]["id"]))
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {}"
-                                 .format(r))
-            elif r.status_code != 204:
-                return test.FAIL("Registration API did not respond as expected: Cannot delete Node: {} {}"
-                                 .format(r.status_code, r.text))
-
-            # Check if node and all child_resources are removed
-            for resource in resources:
-                valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource,
-                                                                                   self.test_data[resource]["id"]))
-                if valid:
-                    if r.status_code != 404:
-                        return test.FAIL("Query API did not return 404 on a resource which should have been "
-                                         "removed because parent resource was deleted")
-                else:
-                    return test.FAIL("Query API did not respond as expected")
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        # Check if node and all child_resources are removed
+        for resource in resources:
+            valid, r = self.do_request("GET", self.query_url + "{}s/{}".format(resource,
+                                                                               self.test_data[resource]["id"]))
+            if valid:
+                if r.status_code != 404:
+                    return test.FAIL("Query API did not return 404 on a resource which should have been "
+                                     "removed because parent resource was deleted")
+            else:
+                return test.FAIL("Query API did not respond as expected")
+        return test.PASS()
 
     def test_29(self, test):
         """Query API supports websocket subscription request"""
 
+        self.check_api_v1_x(test)
         api = self.apis[QUERY_API_KEY]
 
-        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sub_json = self.prepare_subscription("/nodes")
-            resp_json = self.post_subscription(test, sub_json)
-            # Check protocol
-            if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                if resp_json["secure"] is not ENABLE_HTTPS:
-                    return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
-            if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
-                return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+        sub_json = self.prepare_subscription("/nodes")
+        resp_json = self.post_subscription(test, sub_json)
+        # Check protocol
+        if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            if resp_json["secure"] is not ENABLE_HTTPS:
+                return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+        if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
+            return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
 
-            # Test if subscription is available
-            sub_id = resp_json["id"]
-            valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
-            if not valid:
-                return test.FAIL("Query API did not respond as expected")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Query API did not provide the requested subscription: {}".format(r.status_code))
+        # Test if subscription is available
+        sub_id = resp_json["id"]
+        valid, r = self.do_request("GET", "{}subscriptions/{}".format(self.query_url, sub_id))
+        if not valid:
+            return test.FAIL("Query API did not respond as expected")
+        elif r.status_code == 200:
+            return test.PASS()
         else:
-            return test.FAIL("Version > 1 not supported yet.")
+            return test.FAIL("Query API did not provide the requested subscription: {}".format(r.status_code))
 
     def test_29_1(self, test):
         """Query API websocket subscription requests default to the current protocol"""
 
+        self.check_api_v1_x(test)
         api = self.apis[QUERY_API_KEY]
 
-        if self.is04_query_utils.compare_api_version(api["version"], "v2.0") < 0:
-            sub_json = self.prepare_subscription("/nodes")
-            if "secure" in sub_json:
-                del sub_json["secure"]  # This is the key element under test
-            resp_json = self.post_subscription(test, sub_json)
-            # Check protocol
-            if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                if resp_json["secure"] is not ENABLE_HTTPS:
-                    return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
-            if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
-                return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+        sub_json = self.prepare_subscription("/nodes")
+        if "secure" in sub_json:
+            del sub_json["secure"]  # This is the key element under test
+        resp_json = self.post_subscription(test, sub_json)
+        # Check protocol
+        if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            if resp_json["secure"] is not ENABLE_HTTPS:
+                return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+        if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
+            return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
 
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+        return test.PASS()
 
     def test_30(self, test):
         """Registration API accepts heartbeat requests for a Node held in the registry"""
 
+        self.check_api_v1_x(test)
         api = self.apis[REG_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
-            node_json = deepcopy(self.test_data["node"])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                node_json = self.downgrade_resource("node", node_json, self.apis[REG_API_KEY]["version"])
 
-            # Post Node
-            self.post_resource(test, "node", node_json)
+        # Post Node
+        self.post_resource(test, "node")
 
-            # Post heartbeat
-            valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, node_json["id"]))
-            if not valid:
-                return test.FAIL("Registration API did not respond as expected")
-            elif r.status_code == 200:
-                return test.PASS()
-            else:
-                return test.FAIL("Registration API returned an unexpected response: {} {}"
-                                 .format(r.status_code, r.text))
+        # Post heartbeat
+        valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, self.test_data["node"]["id"]))
+        if not valid:
+            return test.FAIL("Registration API did not respond as expected")
+        elif r.status_code == 200:
+            return test.PASS()
         else:
-            return test.FAIL("Version > 1 not supported yet.")
+            return test.FAIL("Registration API returned an unexpected response: {} {}"
+                             .format(r.status_code, r.text))
 
     def test_31(self, test):
         """Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED"""
 
+        self.check_api_v1_x(test)
         api = self.apis[QUERY_API_KEY]
-        if self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
 
-            # Check for clean state // delete resources if needed
-            resource_types = ["node", "device", "source", "flow", "sender", "receiver"]
-            for curr_resource in resource_types:
-                valid, r = self.do_request("GET", "{}{}s/{}".format(self.query_url,
-                                                                    curr_resource,
-                                                                    self.test_data[curr_resource]["id"]))
-                if not valid:
-                    return test.FAIL("Query API returned an unexpected response: {}".format(r))
-                elif r.status_code == 200:
-                    valid_delete, r_delete = self.do_request("DELETE", "{}resource/{}s/{}"
-                                                             .format(self.reg_url,
-                                                                     curr_resource,
-                                                                     self.test_data[curr_resource]["id"]))
-                    if not valid_delete:
-                        return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
-                    elif r_delete.status_code not in [204, 404]:
-                        return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
-                                         .format(r_delete.status_code, r_delete.text))
-                elif r.status_code == 404:
-                    pass
-                else:
-                    return test.FAIL("Query API returned an unexpected response: {} {}. Cannot execute test."
-                                     .format(r.status_code, r.text))
+        # Check for clean state // delete resources if needed
+        resource_types = ["node", "device", "source", "flow", "sender", "receiver"]
+        for curr_resource in resource_types:
+            valid, r = self.do_request("GET", "{}{}s/{}".format(self.query_url,
+                                                                curr_resource,
+                                                                self.test_data[curr_resource]["id"]))
+            if not valid:
+                return test.FAIL("Query API returned an unexpected response: {}".format(r))
+            elif r.status_code == 200:
+                valid_delete, r_delete = self.do_request("DELETE", "{}resource/{}s/{}"
+                                                         .format(self.reg_url,
+                                                                 curr_resource,
+                                                                 self.test_data[curr_resource]["id"]))
+                if not valid_delete:
+                    return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
+                elif r_delete.status_code not in [204, 404]:
+                    return test.FAIL("Cannot delete resources. Cannot execute test: {} {}"
+                                     .format(r_delete.status_code, r_delete.text))
+            elif r.status_code == 404:
+                pass
+            else:
+                return test.FAIL("Query API returned an unexpected response: {} {}. Cannot execute test."
+                                 .format(r.status_code, r.text))
 
-            # Request websocket subscription / ws_href on resource topic
-            test_data = deepcopy(self.test_data)
+        # Request websocket subscription / ws_href on resource topic
+        test_data = deepcopy(self.test_data)
 
-            websockets = dict()
-            try:
-                resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
+        websockets = dict()
+        try:
+            resources_to_post = ["node", "device", "source", "flow", "sender", "receiver"]
 
-                for resource in resources_to_post:
-                    sub_json = self.prepare_subscription("/{}s".format(resource))
-                    resp_json = self.post_subscription(test, sub_json)
-                    websockets[resource] = WebsocketWorker(resp_json["ws_href"])
+            for resource in resources_to_post:
+                sub_json = self.prepare_subscription("/{}s".format(resource))
+                resp_json = self.post_subscription(test, sub_json)
+                websockets[resource] = WebsocketWorker(resp_json["ws_href"])
 
-                # Post sample data
-                for resource in resources_to_post:
-                    self.post_resource(test, resource, test_data[resource], 201)
+            # Post sample data
+            for resource in resources_to_post:
+                self.post_resource(test, resource, test_data[resource], codes=[201])
 
-                # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
+            # Verify if corresponding message received via websocket: UNCHANGED (SYNC)
 
-                # Load schema
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
-                    schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                                  "queryapi-v1.0-subscriptions-websocket.json")
-                else:
-                    schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
-                                                  "queryapi-subscriptions-websocket.json")
+            # Load schema
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-v1.0-subscriptions-websocket.json")
+            else:
+                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                                              "queryapi-subscriptions-websocket.json")
 
-                for resource, resource_data in test_data.items():
-                    websockets[resource].start()
-                    sleep(WS_MESSAGE_TIMEOUT)
-                    if websockets[resource].did_error_occur():
-                        return test.FAIL("Error opening websocket: {}"
-                                         .format(websockets[resource].get_error_message()))
-
-                    received_messages = websockets[resource].get_messages()
-
-                    # Validate received data against schema
-                    for message in received_messages:
-                        try:
-                            self.validate_schema(json.loads(message), schema)
-                        except ValidationError as e:
-                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-                    # Verify data inside messages
-                    grain_data = list()
-
-                    for curr_msg in received_messages:
-                        json_msg = json.loads(curr_msg)
-                        grain_data.extend(json_msg["grain"]["data"])
-
-                    found_data_set = False
-                    for curr_data in grain_data:
-                        pre_data = json.dumps(curr_data["pre"], sort_keys=True)
-                        post_data = json.dumps(curr_data["post"], sort_keys=True)
-                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-
-                        if pre_data == sorted_resource_data:
-                            if post_data == sorted_resource_data:
-                                found_data_set = True
-
-                    if not found_data_set:
-                        return test.FAIL("Did not find expected data set in websocket UNCHANGED (SYNC) message "
-                                         "for '{}'".format(resource))
-
-                # Verify if corresponding message received via websocket: MODIFIED
-                old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
-                for resource, resource_data in test_data.items():
-                    # Update resource
-                    self.post_resource(test, resource, resource_data, 200)
-
+            for resource, resource_data in test_data.items():
+                websockets[resource].start()
                 sleep(WS_MESSAGE_TIMEOUT)
+                if websockets[resource].did_error_occur():
+                    return test.FAIL("Error opening websocket: {}"
+                                     .format(websockets[resource].get_error_message()))
 
-                for resource, resource_data in test_data.items():
-                    received_messages = websockets[resource].get_messages()
+                received_messages = websockets[resource].get_messages()
 
-                    # Validate received data against schema
-                    for message in received_messages:
-                        try:
-                            self.validate_schema(json.loads(message), schema)
-                        except ValidationError as e:
-                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        self.validate_schema(json.loads(message), schema)
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
 
-                    # Verify data inside messages
-                    grain_data = list()
+                # Verify data inside messages
+                grain_data = list()
 
-                    for curr_msg in received_messages:
-                        json_msg = json.loads(curr_msg)
-                        grain_data.extend(json_msg["grain"]["data"])
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
 
-                    found_data_set = False
-                    for curr_data in grain_data:
-                        pre_data = json.dumps(curr_data["pre"], sort_keys=True)
-                        post_data = json.dumps(curr_data["post"], sort_keys=True)
-                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-                        sorted_old_resource_data = json.dumps(old_resource_data[resource], sort_keys=True)
+                found_data_set = False
+                for curr_data in grain_data:
+                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                    post_data = json.dumps(curr_data["post"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
 
-                        if pre_data == sorted_old_resource_data:
-                            if post_data == sorted_resource_data:
-                                found_data_set = True
-
-                    if not found_data_set:
-                        return test.FAIL("Did not find expected data set in websocket MODIFIED message "
-                                         "for '{}'".format(resource))
-
-                # Verify if corresponding message received via websocket: REMOVED
-                reversed_resource_list = deepcopy(resources_to_post)
-                reversed_resource_list.reverse()
-                for resource in reversed_resource_list:
-                    valid, r = self.do_request("DELETE", self.reg_url
-                                               + "resource/{}s/{}".format(resource, test_data[resource]["id"]))
-                    if not valid:
-                        return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
-                                         .format(resource, r))
-                    elif r.status_code != 204:
-                        return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
-                                         .format(resource, r.status_code, r.text))
-
-                sleep(WS_MESSAGE_TIMEOUT)
-                for resource, resource_data in test_data.items():
-                    received_messages = websockets[resource].get_messages()
-
-                    # Validate received data against schema
-                    for message in received_messages:
-                        try:
-                            self.validate_schema(json.loads(message), schema)
-                        except ValidationError as e:
-                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-                    # Verify data inside messages
-                    grain_data = list()
-
-                    for curr_msg in received_messages:
-                        json_msg = json.loads(curr_msg)
-                        grain_data.extend(json_msg["grain"]["data"])
-
-                    found_data_set = False
-                    for curr_data in grain_data:
-                        pre_data = json.dumps(curr_data["pre"], sort_keys=True)
-                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-
-                        if pre_data == sorted_resource_data:
-                            if "post" not in curr_data:
-                                found_data_set = True
-
-                    if not found_data_set:
-                        return test.FAIL("Did not find expected data set in websocket REMOVED message "
-                                         "for '{}'".format(resource))
-
-                # Verify if corresponding message received via Websocket: ADDED
-                # Post sample data again
-                for resource in resources_to_post:
-                    # Recreate resource with updated version
-                    self.bump_resource_version(test_data[resource])
-                    self.post_resource(test, resource, test_data[resource], 201)
-
-                sleep(WS_MESSAGE_TIMEOUT)
-                for resource, resource_data in test_data.items():
-                    received_messages = websockets[resource].get_messages()
-
-                    # Validate received data against schema
-                    for message in received_messages:
-                        try:
-                            self.validate_schema(json.loads(message), schema)
-                        except ValidationError as e:
-                            return test.FAIL("Received event message is invalid: {}".format(str(e)))
-
-                    grain_data = list()
-                    # Verify data inside messages
-                    for curr_msg in received_messages:
-                        json_msg = json.loads(curr_msg)
-                        grain_data.extend(json_msg["grain"]["data"])
-
-                    found_data_set = False
-                    for curr_data in grain_data:
-                        post_data = json.dumps(curr_data["post"], sort_keys=True)
-                        sorted_resource_data = json.dumps(resource_data, sort_keys=True)
-
+                    if pre_data == sorted_resource_data:
                         if post_data == sorted_resource_data:
-                            if "pre" not in curr_data:
-                                found_data_set = True
+                            found_data_set = True
 
-                    if not found_data_set:
-                        return test.FAIL("Did not find expected data set in websocket ADDED message "
-                                         "for '{}'".format(resource))
+                if not found_data_set:
+                    return test.FAIL("Did not find expected data set in websocket UNCHANGED (SYNC) message "
+                                     "for '{}'".format(resource))
 
-            finally:
-                # Tear down
-                for k, v in websockets.items():
-                    v.close() # hmm, can raise OSError
+            # Verify if corresponding message received via websocket: MODIFIED
+            old_resource_data = deepcopy(test_data)  # Backup old resource data for later comparison
+            for resource, resource_data in test_data.items():
+                # Update resource
+                self.post_resource(test, resource, resource_data, codes=[200])
 
-            return test.PASS()
-        else:
-            return test.FAIL("Version > 1 not supported yet.")
+            sleep(WS_MESSAGE_TIMEOUT)
+
+            for resource, resource_data in test_data.items():
+                received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        self.validate_schema(json.loads(message), schema)
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+                # Verify data inside messages
+                grain_data = list()
+
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
+
+                found_data_set = False
+                for curr_data in grain_data:
+                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                    post_data = json.dumps(curr_data["post"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+                    sorted_old_resource_data = json.dumps(old_resource_data[resource], sort_keys=True)
+
+                    if pre_data == sorted_old_resource_data:
+                        if post_data == sorted_resource_data:
+                            found_data_set = True
+
+                if not found_data_set:
+                    return test.FAIL("Did not find expected data set in websocket MODIFIED message "
+                                     "for '{}'".format(resource))
+
+            # Verify if corresponding message received via websocket: REMOVED
+            reversed_resource_list = deepcopy(resources_to_post)
+            reversed_resource_list.reverse()
+            for resource in reversed_resource_list:
+                valid, r = self.do_request("DELETE", self.reg_url
+                                           + "resource/{}s/{}".format(resource, test_data[resource]["id"]))
+                if not valid:
+                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
+                                     .format(resource, r))
+                elif r.status_code != 204:
+                    return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
+                                     .format(resource, r.status_code, r.text))
+
+            sleep(WS_MESSAGE_TIMEOUT)
+            for resource, resource_data in test_data.items():
+                received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        self.validate_schema(json.loads(message), schema)
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+                # Verify data inside messages
+                grain_data = list()
+
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
+
+                found_data_set = False
+                for curr_data in grain_data:
+                    pre_data = json.dumps(curr_data["pre"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
+                    if pre_data == sorted_resource_data:
+                        if "post" not in curr_data:
+                            found_data_set = True
+
+                if not found_data_set:
+                    return test.FAIL("Did not find expected data set in websocket REMOVED message "
+                                     "for '{}'".format(resource))
+
+            # Verify if corresponding message received via Websocket: ADDED
+            # Post sample data again
+            for resource in resources_to_post:
+                # Recreate resource with updated version
+                self.bump_resource_version(test_data[resource])
+                self.post_resource(test, resource, test_data[resource], codes=[201])
+
+            sleep(WS_MESSAGE_TIMEOUT)
+            for resource, resource_data in test_data.items():
+                received_messages = websockets[resource].get_messages()
+
+                # Validate received data against schema
+                for message in received_messages:
+                    try:
+                        self.validate_schema(json.loads(message), schema)
+                    except ValidationError as e:
+                        return test.FAIL("Received event message is invalid: {}".format(str(e)))
+
+                grain_data = list()
+                # Verify data inside messages
+                for curr_msg in received_messages:
+                    json_msg = json.loads(curr_msg)
+                    grain_data.extend(json_msg["grain"]["data"])
+
+                found_data_set = False
+                for curr_data in grain_data:
+                    post_data = json.dumps(curr_data["post"], sort_keys=True)
+                    sorted_resource_data = json.dumps(resource_data, sort_keys=True)
+
+                    if post_data == sorted_resource_data:
+                        if "pre" not in curr_data:
+                            found_data_set = True
+
+                if not found_data_set:
+                    return test.FAIL("Did not find expected data set in websocket ADDED message "
+                                     "for '{}'".format(resource))
+
+        finally:
+            # Tear down
+            for k, v in websockets.items():
+                v.close() # hmm, can raise OSError
+
+        return test.PASS()
 
     def load_resource_data(self):
         """Loads test data from files"""
@@ -2154,12 +2026,7 @@ class IS0402Test(GenericTest):
 
     def bump_resource_version(self, resource):
         """Bump version timestamp of the given resource"""
-        v = [int(i) for i in resource["version"].split(':')]
-        v[1] += 1
-        if v[1] == 1e9:
-            v[0] += 1
-            v[1] = 0
-        resource["version"] = str(v[0]) + ':' + str(v[1])
+        resource["version"] = self.is04_reg_utils.get_TAI_time()
 
     def prepare_subscription(self, resource_path, params=None, api_ver=None):
         """Prepare an object ready to send as the request body for a Query API subscription"""
@@ -2196,24 +2063,35 @@ class IS0402Test(GenericTest):
         except json.decoder.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
-    def post_resource(self, test, type, data, code=None):
+    def post_resource(self, test, type, data=None, reg_url=None, codes=None):
         """Perform a POST request on the Registration API to create or update a resource registration"""
 
-        # As a convenience, bump the version if this is expected to be an update
-        if code == 200:
+        if not data:
+            api = self.apis[REG_API_KEY]
+            data = deepcopy(self.test_data[type])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                data = self.downgrade_resource(type, data, api["version"])
+
+        if not reg_url:
+            reg_url = self.reg_url
+
+        if not codes:
+            codes = [200, 201]
+
+        # As a convenience, bump the version if this is allowed to be an update
+        if 200 in codes:
             self.bump_resource_version(data)
 
-        valid, r = self.do_request("POST", self.reg_url + "resource",
+        valid, r = self.do_request("POST", reg_url + "resource",
                                    data={"type": type, "data": data})
         if not valid:
             raise NMOSTestException(test.FAIL("Registration API did not respond as expected"))
 
-        expected_codes = [200, 201] if code is None else [code]
-        wrong_codes = [_ for _ in [200, 201] if _ not in expected_codes]
+        wrong_codes = [_ for _ in [200, 201] if _ not in codes]
 
         if r.status_code in wrong_codes:
             raise NMOSTestException(test.FAIL("Registration API returned wrong HTTP code"))
-        elif r.status_code not in expected_codes:
+        elif r.status_code not in codes:
             raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
         elif r.status_code in [200, 201]:
@@ -2223,3 +2101,8 @@ class IS0402Test(GenericTest):
                   and not r.headers["Location"].startswith(self.protocol + "://")):
                 raise NMOSTestException(test.FAIL("Registration API response Location header is invalid for the "
                                                   "current protocol: Location: {}".format(r.headers["Location"])))
+
+    def check_api_v1_x(self, test):
+        api = self.apis[REG_API_KEY]
+        if not self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
+            raise NMOSTestException(test.FAIL("Version > 1 not supported yet."))
