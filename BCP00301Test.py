@@ -60,9 +60,9 @@ class BCP00301Test(GenericTest):
                 for report in tls_data:
                     if report["id"] in ["SSLv2", "SSLv3", "TLS1", "TLS1_1"] and "not offered" not in report["finding"]:
                         return test.FAIL("Protocol {} must not be offered".format(report["id"].replace("_", ".")))
-                    elif report["id"] in ["TLS1_2"] and report["finding"] != "offered":
+                    elif report["id"] in ["TLS1_2"] and not report["finding"].startswith("offered"):
                         return test.FAIL("Protocol {} must be offered".format(report["id"].replace("_", ".")))
-                    elif report["id"] in ["TLS1_3"] and report["finding"] != "offered":
+                    elif report["id"] in ["TLS1_3"] and not report["finding"].startswith("offered"):
                         return test.WARNING("Protocol {} should be offered".format(report["id"].replace("_", ".")))
             return test.PASS()
 
