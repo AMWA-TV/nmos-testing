@@ -126,6 +126,7 @@ class BCP00301Test(GenericTest):
 
         ret = self.perform_test_ssl(test, ["-S"])
         # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
+        # This is fixed in testssl master, but not yet in a release
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
@@ -146,7 +147,7 @@ class BCP00301Test(GenericTest):
                         else:
                             alt_names = report["finding"].split()
                             if common_name not in alt_names:
-                                return test.FAIL("CN {} was not found in the SANs".format(common_name))
+                                return test.WARNING("CN {} was not found in the SANs".format(common_name))
                             for name in alt_names:
                                 try:
                                     ipaddress.ip_address(name)
@@ -187,6 +188,7 @@ class BCP00301Test(GenericTest):
 
         ret = self.perform_test_ssl(test, ["-S"])
         # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
+        # This is fixed in testssl master, but not yet in a release
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
@@ -204,6 +206,7 @@ class BCP00301Test(GenericTest):
 
         ret = self.perform_test_ssl(test, ["-S"])
         # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
+        # This is fixed in testssl master, but not yet in a release
         if ret != 0:
             return test.FAIL("Unable to test. See the console for further information.")
         else:
