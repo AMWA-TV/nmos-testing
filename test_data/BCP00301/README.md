@@ -4,7 +4,8 @@ In order to ease testing with TLS, the test suite includes a certificate authori
 purpose. Typically storing private keys in a code repository would be bad practice, but in this case as the CA will not
 be used in production this is not a requirement.
 
-This CA was generated with the assistance of <https://jamielinux.com/docs/openssl-certificate-authority>
+This CA was generated with the assistance of <https://jamielinux.com/docs/openssl-certificate-authority>, and can be
+re-generated using the './generateCA' script. Note that re-generating the CA will invalidate any existing certificates.
 
 ## Chain of Trust
 
@@ -19,10 +20,13 @@ The trusted certificate chain is held in the following file:
 
 ## Installing Certificates
 
-In order for requests made to the device under test to be trusted by the test suite, the following private key and
-certificate must be loaded into the device. This will provide the device with the hostname 'testapi.nmos.tv'
+In order for requests made to the device under test to be trusted by the test suite, the following private keys and
+certificates must be loaded into the device. This will provide the device with the hostname 'api.testsuite.nmos.tv'
 
 **IMPORTANT:** Do not leave this private key and certificate installed on a device once testing is complete.
+
+Note that both an RSA and ECDSA certificate are provided in order to meet the requirements of BCP-003-01. Please consult
+your TLS library or application for the configuration required in order to load two certificates at once.
 
 Device under test uses:
 *   intermediate/private/rsa.api.testsuite.nmos.tv.key.pem
@@ -32,15 +36,15 @@ Device under test uses:
 
 ## Additional Certificates
 
-Additional certificates can be generated using this CA if required, following the instructions at the link above. The
-passphase for the private keys in this repository is 'nmostesting'.
+Additional certificates can be generated using this CA if required, using the './generateCerts' script followed by a
+domain name.
 
 ## Other Notes
 
 CA and intermediate are valid for 50 years
 CA/Intermediate CN: ca.testsuite.nmos.tv
 
-Any web servers activated by the test suite itself should use the following private key and certificate:
+Any web servers activated by the test suite itself should use the following private keys and certificates:
 *   intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem
 *   intermediate/private/ecdsa.mocks.testsuite.nmos.tv.pem
 *   intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.key.pem
