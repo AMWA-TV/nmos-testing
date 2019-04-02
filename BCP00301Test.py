@@ -241,25 +241,7 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_07_vulnerabilities(self, test):
-        """TLS Vulnerabilities"""
-
-        ret = self.perform_test_ssl(test, ["-U"])
-        if ret != 0:
-            return test.DISABLED("Unable to test. See the console for further information.")
-        else:
-            vulnerabilities = {}
-            with open(TMPFILE) as tls_data:
-                tls_data = json.load(tls_data)
-                for report in tls_data:
-                    if report["severity"] not in ["OK", "INFO"]:
-                        vulnerabilities[report["id"]] = report["finding"]
-            if len(vulnerabilities) == 0:
-                return test.PASS()
-            else:
-                return test.WARNING("Server may be vulnerable to the following: {}".format(vulnerabilities))
-
-    def test_08_verify_host(self, test):
+    def test_07_verify_host(self, test):
         """Certificate is valid and matches the host under test"""
 
         try:
