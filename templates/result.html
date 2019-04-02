@@ -33,7 +33,6 @@
     </div>
     <div class="text text_result">
         <form action="" method="POST" onsubmit="disableRunbtn(); return true;">
-            <input type="submit" id="runbtn" value="Run" style="margin:auto; display:block;"/>
             <div style="display: none;">
                 {{ form.test }}
                 {{ form.hidden_tests }}
@@ -49,10 +48,13 @@
             <br/>
             <table class="table table-striped table-hover">
                 <thead>
-                    <tr onclick="document.getElementById('failed_all').click();">
-                        <th>
-                            <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); changeTestSelection(this);"/>
-                            <label id="failed_all_label" style="opacity: 1;"> Failed Tests</label>
+                    <tr>
+                        <th colspan="6">
+                            <div style="position: absolute" onclick="document.getElementById('failed_all').click();">
+                                <input type="checkbox" id="failed_all" unchecked onclick="event.stopPropagation(); changeTestSelection(this);"/>
+                                <label id="failed_all_label" style="opacity: 1;"> Failed Tests</label>
+                            </div>
+                            <input  type="submit" id="runbtn" value="Run"/>
                         </th>
                     </tr>
                     <tr>
@@ -70,7 +72,7 @@
                         {% set curr_test = curr_result[0].startswith("test_") or curr_auto %}
                         {% set curr_fail = curr_result[2]=='bg-danger' %}
                         <tr {% if curr_test %} onclick="document.getElementById('{{ curr_result[0] }}').click();" {% endif %}>
-                            <td>
+                            <td style="white-space: nowrap;">
                                 {% if curr_test %}
                                     <input type="checkbox"
                                         {% if not curr_auto %}
@@ -86,8 +88,8 @@
                                     {{ curr_result[0] }}
                                 {% endif %}
                             </td>
-                            <td class="{{ curr_result[2] }} pass_state">{{ curr_result[1] }}</td>
-                            <td>{{ curr_result[3] }}</td>
+                            <td style="white-space: nowrap;" class="{{ curr_result[2] }} pass_state">{{ curr_result[1] }}</td>
+                            <td style="word-break: break-word;">{{ curr_result[3] }}</td>
                             <td>
                                 {{ curr_result[4] }}
                                 {% if curr_result[5] %}

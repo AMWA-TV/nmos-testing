@@ -50,8 +50,13 @@ h1, h2, h3, h4, h5 {
     right: 0;
 }
 
-th {
+.table thead th {
     text-align: center;
+    vertical-align: bottom;
+    /* for stylish sticky headers */
+    background-color: white;
+    border: 0;
+    box-sizing: content-box;
 }
 
 .pass_state {
@@ -62,10 +67,6 @@ th {
 #description {
     margin: auto;
     text-align: left;
-}
-
-.disabled {
-    pointer-events: none;
 }
 
 /* Override bootstrap print behaviour */

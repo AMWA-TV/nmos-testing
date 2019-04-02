@@ -1,3 +1,23 @@
+function makeTableHeadersSticky() {
+    offset = 0;
+    thead_rows = document.getElementsByClassName("table")[0].tHead.children;
+    for (var i = 0, n = thead_rows.length; i < n; i++) {
+        tr_offset = 0;
+        tr_cols = thead_rows[i].children;
+        for (var j = 0, m = tr_cols.length; j < m; j++) {
+            tr_cols[j].style.position = "sticky";
+            tr_cols[j].style.top = offset + "px";
+
+            if (tr_offset < tr_cols[j].offsetHeight) {
+                tr_offset = tr_cols[j].offsetHeight;
+            }
+            // relying on no margins and no borders in the stylesheet to avoid issues like
+            // https://github.com/w3c/csswg-drafts/issues/3136
+        }
+        offset += tr_offset;
+    }
+}
+
 function changeTestSelection(source) {
 
     // Toggling the "failed_all" checkbox should apply to all failed test checkboxes
@@ -60,5 +80,9 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById("failed_all").disabled = true;
         document.getElementById("failed_all_label").style.opacity = 0.5;
     }
+
     document.getElementById("runbtn").disabled = true;
+
+    makeTableHeadersSticky();
+    document.addEventListener("onresize", makeTableHeadersSticky);
 });
