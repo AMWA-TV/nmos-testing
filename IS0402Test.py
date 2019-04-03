@@ -690,8 +690,11 @@ class IS0402Test(GenericTest):
         self.check_paged_trait(test)
         description = "test_21_5"
 
-        foo = lambda index: 3 > (index + 1) % 5
-        bar = lambda index: not foo(index)
+        def foo(index):
+            return 3 > (index + 1) % 5
+
+        def bar(index):
+            return not foo(index)
 
         ts, ids = self.post_sample_nodes(test, 20, description, lambda index: "foo" if foo(index) else "bar")
 
