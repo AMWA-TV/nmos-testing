@@ -20,7 +20,7 @@ import socket
 import ipaddress
 
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException
-from Config import ENABLE_HTTPS, HTTP_TIMEOUT, CERT_TRUST_CHAIN
+from Config import ENABLE_HTTPS, HTTP_TIMEOUT, CERT_TRUST_ROOT_CA
 
 BCP_API_KEY = "bcp-003-01"
 TMPFILE = "tls-report.json"
@@ -42,7 +42,7 @@ class BCP00301Test(GenericTest):
             args = []
         try:
             ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off", "--add-ca",
-                                  CERT_TRUST_CHAIN] + args +
+                                  CERT_TRUST_ROOT_CA] + args +
                                  ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"], self.apis[BCP_API_KEY]["port"])])
         except Exception as e:
             raise NMOSTestException(test.DISABLED("Unable to execute testssl.sh. Please see the README for "
@@ -246,7 +246,7 @@ class BCP00301Test(GenericTest):
         """Certificate is valid and matches the host under test"""
 
         try:
-            context = ssl.create_default_context(cafile=CERT_TRUST_CHAIN)
+            context = ssl.create_default_context(cafile=CERT_TRUST_ROOT_CA)
             hostname = self.apis[BCP_API_KEY]["hostname"]
             sock = context.wrap_socket(socket.socket(), server_hostname=hostname)
             sock.settimeout(HTTP_TIMEOUT)
