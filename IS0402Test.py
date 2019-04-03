@@ -556,8 +556,7 @@ class IS0402Test(GenericTest):
         description = "test_21_2"
 
         # Initial test cases based on the examples in NMOS documentation
-        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/docs/2.5.%20APIs%20-%20Query%20
-        # Parameters.md#pagination
+        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/docs/2.5.%20APIs%20-%20Query%20Parameters.md#pagination # noqa: E501
 
         ts, ids = self.post_sample_nodes(test, 20, description)
 
