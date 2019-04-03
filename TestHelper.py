@@ -66,7 +66,7 @@ def do_request(method, url, data=None):
         return False, str(e)
 
 
-def load_resolved_schema(spec_path, file_name=None, schema_obj=None):
+def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix=True):
     """
     Parses JSON as well as resolves any `$ref`s, including references to
     local files and remote (HTTP/S) files.
@@ -75,7 +75,9 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None):
     # Only one of file_name or schema_obj must be set
     assert bool(file_name) != bool(schema_obj)
 
-    base_path = os.path.abspath(os.path.join(spec_path, "APIs/schemas/"))
+    if path_prefix:
+        spec_path = os.path.join(spec_path, "APIs/schemas/")
+    base_path = os.path.abspath(spec_path)
     if not base_path.endswith("/"):
         base_path = base_path + "/"
     if os.name == "nt":

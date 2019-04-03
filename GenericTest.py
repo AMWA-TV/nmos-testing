@@ -19,6 +19,7 @@ import jsonschema
 import TestHelper
 import traceback
 import inspect
+import uuid
 
 from Specification import Specification
 from TestResult import Test
@@ -286,7 +287,34 @@ class GenericTest(object):
                         if result is not None:
                             results.append(result)
 
+            # Perform an automatic check for an error condition
+            results.append(self.check_404_path(api))
+
         return results
+
+    def check_404_path(self, api_name):
+        api = self.apis[api_name]
+        error_code = 404
+        invalid_path = str(uuid.uuid4())
+        url = "{}/{}".format(api["url"].rstrip("/"), invalid_path)
+        test = Test("GET /x-nmos/{}/{}/{} ({})".format(api_name, api["version"], invalid_path, error_code),
+                    self.auto_test_name())
+
+        valid, response = self.do_request("GET", url)
+        if not valid:
+            return test.FAIL(response)
+
+        if response.status_code != error_code:
+            return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
+
+        schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
+        valid, message = self.check_response(schema, "GET", response)
+        if valid:
+            if response.json()["code"] != error_code:
+                return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
+            return test.PASS()
+        else:
+            return test.FAIL(message)
 
     def check_api_resource(self, resource, response_code, api):
         # Test URLs which include a {resourceId} or similar parameter
@@ -320,8 +348,8 @@ class GenericTest(object):
         else:
             return None
 
-        status, response = self.do_request(resource[1]['method'], url)
-        if not status:
+        valid, response = self.do_request(resource[1]['method'], url)
+        if not valid:
             return test.FAIL(response)
 
         if response.status_code != response_code:
