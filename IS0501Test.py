@@ -16,6 +16,7 @@
 
 
 import uuid
+import subprocess
 from jsonschema import ValidationError, SchemaError
 
 from GenericTest import GenericTest
@@ -801,6 +802,40 @@ class IS0501Test(GenericTest):
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_41(self, test):
+        """SDP transport files pass SDPoker tests"""
+
+        api = self.apis[CONN_API_KEY]
+        rtp_senders = []
+        if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            # Find all RTP senders for v1.1+
+            for sender in self.senders:
+                url = "single/senders/{}/transporttype".format(sender)
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                if valid:
+                    if response == "urn:x-nmos:transport:rtp":
+                        rtp_senders.append(sender)
+                else:
+                    return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
+        else:
+            # RTP is the only transport type for v1.0
+            rtp_senders = self.senders
+
+        if len(rtp_senders) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+        for sender in rtp_senders:
+            path = "single/senders/{}/transportfile".format(sender)
+            try:
+                subprocess.check_output(["sdpoker", "--nmos", "false", self.url + path],
+                                        stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                output = str(e.output, "utf-8")
+                if output.startswith("Found"):
+                    return test.FAIL("Error for Sender {}: {}".format(sender, output))
+                else:
+                    return test.DISABLED("SDPoker may be unavailable on this system")
 
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""

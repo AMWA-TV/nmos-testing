@@ -53,6 +53,10 @@ In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast
 
 Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see [testssl/README.md](testssl/README.md) for installation instructions.
 
+### Testing of SDP files
+
+IS-05 test_41 checks that SDP files conform to the expectations of ST.2110. In order to enable these tests, please ensure that [SDPoker](https://github.com/Streampunk/sdpoker) is available on your system.
+
 ### Non-Interative Mode
 
 The test suite supports non-interactive operation in order use it within continuous integration systems. An example of this usage can be seen below:
