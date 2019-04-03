@@ -300,8 +300,8 @@ class GenericTest(object):
         test = Test("GET /x-nmos/{}/{}/{} ({})".format(api_name, api["version"], invalid_path, error_code),
                     self.auto_test_name())
 
-        status, response = self.do_request("GET", url)
-        if not status:
+        valid, response = self.do_request("GET", url)
+        if not valid:
             return test.FAIL(response)
 
         if response.status_code != error_code:
@@ -348,8 +348,8 @@ class GenericTest(object):
         else:
             return None
 
-        status, response = self.do_request(resource[1]['method'], url)
-        if not status:
+        valid, response = self.do_request(resource[1]['method'], url)
+        if not valid:
             return test.FAIL(response)
 
         if response.status_code != response_code:
