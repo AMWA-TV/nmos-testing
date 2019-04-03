@@ -183,10 +183,10 @@ class BCP00301Test(GenericTest):
             with open(TMPFILE) as tls_data:
                 tls_data = json.load(tls_data)
                 for report in tls_data:
-                    if report["id"] == "HSTS":
+                    if report["id"] == "HSTS_time":
                         if report["severity"] == "OK":
                             hsts_supported = True
-                        elif report["finding"] != "not offered":
+                        else:
                             hsts_supported = report["finding"]
             if hsts_supported is True:
                 return test.PASS()
