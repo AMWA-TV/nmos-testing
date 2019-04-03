@@ -25,6 +25,9 @@ from TestResult import Test
 from Config import ENABLE_HTTPS
 
 
+NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
+
+
 def test_depends(func):
     """Decorator to prevent a test being executed in individual mode"""
     def invalid(self, test):

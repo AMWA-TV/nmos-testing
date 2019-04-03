@@ -17,7 +17,7 @@ import socket
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
-from GenericTest import GenericTest
+from GenericTest import GenericTest, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 
 NODE_API_KEY = "node"
@@ -82,7 +82,7 @@ class IS0403Test(GenericTest):
                 return test.PASS()
 
         return test.FAIL("No matching mDNS announcement found for Node. Peer to peer mode will not function correctly.",
-                         "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
+                         NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
 
     def test_02_node_mdns_txt_increment(self, test):
         """Node increments its ver_* TXT records when its matching Node API resources change"""

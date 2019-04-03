@@ -24,7 +24,7 @@ import re
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
-from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
+from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
 from TestHelper import WebsocketWorker, load_resolved_schema
@@ -402,7 +402,7 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
                                                   "Query APIs should support pagination for scalability."
                                                   .format(query_string),
-                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+                                                  NMOS_WIKI_URL + "/IS-04#registries-pagination"))
         elif response.status_code != 200:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                               "{} {}".format(response.status_code, response.text)))
@@ -415,7 +415,7 @@ class IS0402Test(GenericTest):
         if (len(absent_paging_headers) == len(PAGING_HEADERS)):
             raise NMOSTestException(test.OPTIONAL("Query API response did not include any pagination headers. "
                                                   "Query APIs should support pagination for scalability.",
-                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+                                                  NMOS_WIKI_URL + "/IS-04#registries-pagination"))
         elif (len(absent_paging_headers) != 0):
             raise NMOSTestException(test.FAIL("Query API response did not include all pagination headers, "
                                               "missing: {}".format(absent_paging_headers)))
@@ -812,7 +812,7 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
                                                   "Query APIs should support pagination for scalability."
                                                   .format(query_string),
-                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+                                                  NMOS_WIKI_URL + "/IS-04#registries-pagination"))
 
         # 200 OK *without* any paging headers also indicates not implemented (paging parameters ignored)
         PAGING_HEADERS = ["Link", "X-Paging-Limit", "X-Paging-Since", "X-Paging-Until"]
@@ -821,7 +821,7 @@ class IS0402Test(GenericTest):
         if response.status_code == 200 and len(absent_paging_headers) == len(PAGING_HEADERS):
             raise NMOSTestException(test.OPTIONAL("Query API response did not include any pagination headers. "
                                                   "Query APIs should support pagination for scalability.",
-                                                  "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-pagination"))
+                                                  NMOS_WIKI_URL + "/IS-04#registries-pagination"))
 
         # 200 OK *with* any paging headers indicates the Query API failed to identify the bad request
         # which is an error like any code other than the expected 400 Bad Request
@@ -973,7 +973,7 @@ class IS0402Test(GenericTest):
             if api_version not in reg_versions:
                 return test.MANUAL("This test cannot run automatically as the Registration API does not support all "
                                    "of the API versions that the Query API does",
-                                   "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
+                                   NMOS_WIKI_URL + "/IS-04#registries-downgrade-queries")
 
         # Register a Node at each API version available (up to the version under test)
         node_ids = {}
@@ -1015,7 +1015,7 @@ class IS0402Test(GenericTest):
             elif self.is04_query_utils.compare_api_version(query_api["version"], "v1.3") >= 0 and r.status_code == 501:
                 return test.OPTIONAL("Query API signalled that it does not support downgrade queries. This may be "
                                      "important for multi-version support.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-downgrade-queries")
+                                     NMOS_WIKI_URL + "/IS-04#registries-downgrade-queries")
             elif r.status_code != 200:
                 return test.FAIL("Query API failed to respond with a Node when asked to downgrade to {}"
                                  .format(api_version))
@@ -1148,7 +1148,7 @@ class IS0402Test(GenericTest):
             elif self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0 and r.status_code == 501:
                 return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
                                      "important for scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+                                     NMOS_WIKI_URL + "/IS-04#registries-basic-queries")
             elif r.status_code != 200:
                 raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                                   "{} {}".format(r.status_code, r.text)))
@@ -1171,7 +1171,7 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
                 return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
                                      "important for scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-basic-queries")
+                                     NMOS_WIKI_URL + "/IS-04#registries-basic-queries")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -1308,13 +1308,11 @@ class IS0402Test(GenericTest):
             elif r.status_code == 501:
                 return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
                                      "important for scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki"
-                                     "/IS-04#registries-resource-query-language-rql")
+                                     NMOS_WIKI_URL + "/IS-04#registries-resource-query-language-rql")
             elif r.status_code == 400:
                 return test.OPTIONAL("Query API signalled that it refused to support this RQL query: "
                                      "{}".format(query_string),
-                                     "https://github.com/AMWA-TV/nmos/wiki"
-                                     "/IS-04#registries-resource-query-language-rql")
+                                     NMOS_WIKI_URL + "/IS-04#registries-resource-query-language-rql")
             elif r.status_code != 200:
                 raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                                   "{} {}".format(r.status_code, r.text)))
@@ -1338,8 +1336,7 @@ class IS0402Test(GenericTest):
             elif r.status_code == 200 and len(r.json()) > 0 or r.status_code != 200:
                 return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
                                      "important for scalability.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-"
-                                     "resource-query-language-rql")
+                                     NMOS_WIKI_URL + "/IS-04#registries-resource-query-language-rql")
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
@@ -1465,11 +1462,11 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Query API failed to respond to query")
             elif r.status_code == 501:
                 return test.OPTIONAL("Query API signalled that it does not support ancestry queries.",
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+                                     NMOS_WIKI_URL + "/IS-04#registries-ancestry-queries")
             elif r.status_code == 400:
                 return test.OPTIONAL("Query API signalled that it refused to support this ancestry query: "
                                      "{}".format(query_string),
-                                     "https://github.com/AMWA-TV/nmos/wiki/IS-04#registries-ancestry-queries")
+                                     NMOS_WIKI_URL + "/IS-04#registries-ancestry-queries")
             elif r.status_code != 200:
                 raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
                                                   "{} {}".format(r.status_code, r.text)))

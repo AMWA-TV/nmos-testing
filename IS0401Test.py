@@ -21,7 +21,7 @@ import json
 
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
-from GenericTest import GenericTest, NMOSTestException
+from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
 
@@ -383,7 +383,7 @@ class IS0401Test(GenericTest):
 
         return test.WARNING("No matching mDNS announcement found for Node. This will not affect operation in registered"
                             " mode but may indicate a lack of support for peer to peer operation.",
-                            "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
+                            NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self, test):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
@@ -700,12 +700,12 @@ class IS0401Test(GenericTest):
             api = self.apis[NODE_API_KEY]
             if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                 raise NMOSTestException(test.OPTIONAL("Node indicated that basic connection management is not "
-                                                      "supported", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
-                                                      "basic-connection-management"))
+                                                      "supported",
+                                                      NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
             else:
                 raise NMOSTestException(test.WARNING("501 'Not Implemented' status code is not supported below API "
-                                                     "version v1.3", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
-                                                     "basic-connection-management"))
+                                                     "version v1.3",
+                                                     NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
         elif put_response.status_code != 202:
             raise NMOSTestException(test.FAIL("Receiver target PATCH did not produce a 202 response code: "
                                               "{}".format(put_response.status_code)))
