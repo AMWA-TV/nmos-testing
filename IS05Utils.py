@@ -604,7 +604,7 @@ class IS05Utils(NMOSUtils):
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
             try:
-                staged_params = response['transport_params']
+                response.get('transport_params')
             except KeyError:
                 return False, "Staged resource did not return 'transport_params' in PATCH response"
             valid2, response2 = self.perform_activation(resource_type.rstrip("s"),
@@ -637,7 +637,6 @@ class IS05Utils(NMOSUtils):
 
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
-            staged_params = response['transport_params']
             valid2, response2 = self.perform_activation(resource_type.rstrip("s"),
                                                         resource_id)
             if not valid2:

@@ -45,7 +45,7 @@ class IS0403Test(GenericTest):
         """Node advertises a Node type mDNS announcement with ver_* TXT records
         in the absence of a Registration API"""
 
-        browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
+        ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(1)
         node_list = self.zc_listener.get_service_list()
         for node in node_list:

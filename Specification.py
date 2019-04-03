@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import json
 import ramlfications
 
 from Patches import _parse_json
@@ -92,7 +91,8 @@ class Specification(object):
                         line = "bugfix:\r\n"
 
                     if type_name is None:
-                        # Assuming we're not in the middle of fixing a RAML 1.0 type def, add the line to the output RAML
+                        # Assuming we're not in the middle of fixing a RAML 1.0 type def, add the line to the
+                        # output RAML
                         lines.append(line)
 
                     # Read the next line of the RAML file

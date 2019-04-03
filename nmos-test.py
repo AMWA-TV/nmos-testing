@@ -15,7 +15,8 @@
 # limitations under the License.
 
 from flask import Flask, render_template, flash, request, make_response
-from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField, FormField, FieldList
+from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
+from wtforms import FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
@@ -257,8 +258,9 @@ def index_page():
                     results = run_tests(test, endpoints, test_selection)
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
-                    r = make_response(render_template("result.html", form=form, url=results["base_url"], test=results["name"],
-                                                      result=results["result"], cachebuster=CACHEBUSTER))
+                    r = make_response(render_template("result.html", form=form, url=results["base_url"],
+                                                      test=results["name"], result=results["result"],
+                                                      cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
@@ -436,12 +438,16 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='NMOS Test Suite')
     parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
     parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
-    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
+    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be "
+                        "tested")
     parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
-    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
+    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under "
+                        "test")
     parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
-    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
-    parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
+    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results "
+                        "from")
+    parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise "
+                        "print to stdout")
     return parser.parse_args()
 
 
@@ -514,7 +520,8 @@ if __name__ == '__main__':
         elif os.geteuid() == 0:
             is_admin = True
         if not is_admin:
-            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated permissions")
+            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated "
+                  "permissions")
             sys.exit(ExitCodes.ERROR)
 
     # Parse and validate command line arguments

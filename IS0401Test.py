@@ -286,7 +286,7 @@ class IS0401Test(GenericTest):
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
-                if time_diff > HEARTBEAT_INTERVAL  + 0.5:
+                if time_diff > HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("Heartbeats are not frequent enough.")
                 elif time_diff < HEARTBEAT_INTERVAL - 0.5:
                     return test.FAIL("Heartbeats are too frequent.")
@@ -355,7 +355,7 @@ class IS0401Test(GenericTest):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
         in the presence of a Registration API"""
 
-        browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
+        ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(1)
         node_list = self.zc_listener.get_service_list()
         for node in node_list:
@@ -420,13 +420,13 @@ class IS0401Test(GenericTest):
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] != request_data["id"]:
-                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed " \
+                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed "
                                      "Sender ID".format(receiver["id"]))
 
                 api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if not receiver["subscription"]["active"]:
-                        return test.FAIL("Node API Receiver {} subscription does not indicate an active " \
+                        return test.FAIL("Node API Receiver {} subscription does not indicate an active "
                                          "subscription".format(receiver["id"]))
 
                 formats_tested.append(stream_type)
@@ -460,13 +460,13 @@ class IS0401Test(GenericTest):
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] is not None:
-                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed " \
+                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed "
                                      "Sender ID".format(receiver["id"]))
 
                 api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if receiver["subscription"]["active"]:
-                        return test.FAIL("Node API Receiver {} subscription does not indicate an inactive " \
+                        return test.FAIL("Node API Receiver {} subscription does not indicate an inactive "
                                          "subscription".format(receiver["id"]))
 
                 return test.PASS()
