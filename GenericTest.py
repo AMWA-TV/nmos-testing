@@ -294,20 +294,24 @@ class GenericTest(object):
 
     def check_404_path(self, api_name):
         api = self.apis[api_name]
+        error_code = 404
         invalid_path = str(uuid.uuid4())
         url = "{}/{}".format(api["url"].rstrip("/"), invalid_path)
-        test = Test("GET /x-nmos/{}/{}/{} (404)".format(api_name, api["version"], invalid_path), self.auto_test_name())
+        test = Test("GET /x-nmos/{}/{}/{} ({})".format(api_name, api["version"], invalid_path, error_code),
+                    self.auto_test_name())
 
         status, response = self.do_request("GET", url)
         if not status:
             return test.FAIL(response)
 
-        if response.status_code != 404:
-            return test.FAIL("Incorrect response code, expected 404: {}".format(response.status_code))
+        if response.status_code != error_code:
+            return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
 
         schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
         valid, message = self.check_response(schema, "GET", response)
         if valid:
+            if response.json()["code"] != error_code:
+                return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
             return test.PASS()
         else:
             return test.FAIL(message)
