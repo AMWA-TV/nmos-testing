@@ -521,7 +521,6 @@ class IS0402Test(GenericTest):
         """Query API implements pagination (no query or paging parameters)"""
 
         self.check_paged_trait(test)
-        description = "test_21_1"
 
         # Perform a query with no query or paging parameters (see note in check_paged_response regarding 501)
         response = self.do_paged_request()
@@ -537,7 +536,6 @@ class IS0402Test(GenericTest):
         """Query API implements pagination (when explicitly requested)"""
 
         self.check_paged_trait(test)
-        description = "test_21_1_1"
 
         # Same as above, but query with paging.limit to clearly 'opt in'
         response = self.do_paged_request(limit=10)
@@ -793,7 +791,6 @@ class IS0402Test(GenericTest):
         """Query API implements pagination (bad requests)"""
 
         self.check_paged_trait(test)
-        description = "test_21_6"
 
         before = self.is04_query_utils.get_TAI_time()
         after = self.is04_query_utils.get_TAI_time(1)
@@ -911,15 +908,6 @@ class IS0402Test(GenericTest):
                                   expected_since=None, expected_until=None)
 
         return test.PASS()
-
-    # TODO
-    def _test_21_x(self, test):
-        """Query API implements pagination (paging.order=create)"""
-
-        self.check_paged_trait(test)
-        description = "test_21_x"
-
-        return test.MANUAL()
 
     def test_22(self, test):
         """Query API implements downgrade queries"""
