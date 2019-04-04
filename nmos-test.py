@@ -38,6 +38,7 @@ import platform
 import argparse
 import time
 import traceback
+import inspect
 
 import IS0401Test
 import IS0402Test
@@ -172,13 +173,18 @@ TEST_DEFINITIONS = {
 }
 
 
-def enumerate_tests(class_def):
-    tests = ["all", "auto"]
+def enumerate_tests(class_def, describe=False):
+    tests = []
+    if not describe:
+        tests.extend(["all", "auto"])
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
             method = getattr(class_def, method_name)
             if callable(method):
-                tests.append(method_name)
+                description = method_name
+                if describe:
+                    description += ": " + inspect.getdoc(method).replace('\n', ' ').replace('\r', '')
+                tests.append(description)
     return tests
 
 
@@ -434,8 +440,11 @@ def print_test_results(results, args):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='NMOS Test Suite')
+    parser.add_argument('--list-suites', action='store_true', help="list available test suites")
+    parser.add_argument('--describe-suites', action='store_true', help="describe the available test suites")
     parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
-    parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
+    parser.add_argument('--list-tests', action='store_true', help="list available tests for a given suite")
+    parser.add_argument('--describe-tests', action='store_true', help="describe the available tests for a given suite")
     parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
     parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
     parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
@@ -446,14 +455,27 @@ def parse_arguments():
 
 
 def validate_args(args):
+    if args.list_suites:
+        for test_suite in sorted(TEST_DEFINITIONS):
+            print(test_suite)
+        sys.exit(ExitCodes.OK)
+    elif args.describe_suites:
+        for test_suite in sorted(TEST_DEFINITIONS):
+            print(test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"])
+        sys.exit(ExitCodes.OK)
     if args.suite:
         if args.suite not in TEST_DEFINITIONS:
             print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
             sys.exit(ExitCodes.ERROR)
-        if args.list:
+        if args.list_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
             for test_name in tests:
                 print(test_name)
+            sys.exit(ExitCodes.OK)
+        if args.describe_tests:
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
+            for test_description in tests:
+                print(test_description)
             sys.exit(ExitCodes.OK)
         if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
             print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
