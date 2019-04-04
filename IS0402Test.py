@@ -78,7 +78,7 @@ class IS0402Test(GenericTest):
             port = service.port
             api = self.apis[REG_API_KEY]
             if address == api["ip"] and port == api["port"]:
-                properties = self.convert_bytes(api.properties)
+                properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Registration API advertisement.")
                 try:
@@ -118,7 +118,7 @@ class IS0402Test(GenericTest):
             port = service.port
             api = self.apis[QUERY_API_KEY]
             if address == api["ip"] and port == api["port"]:
-                properties = self.convert_bytes(api.properties)
+                properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in Query API advertisement.")
                 try:
