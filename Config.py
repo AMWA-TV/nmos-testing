@@ -50,6 +50,11 @@ MAX_TEST_ITERATIONS = 0
 # WARNING: This setting is currently not fully implemented and classed as experimental.
 ENABLE_HTTPS = False
 
+# Which certificate authority to trust when performing requests in HTTPS mode.
+# Defaults to the CA contained within this test suite
+CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
+CERT_TRUST_CHAIN = "test_data/BCP00301/ca/intermediate/certs/ca-chain.cert.pem"
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
