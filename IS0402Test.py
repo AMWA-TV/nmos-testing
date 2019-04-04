@@ -66,6 +66,8 @@ class IS0402Test(GenericTest):
     def test_01(self, test):
         """Registration API advertises correctly via mDNS"""
 
+        api = self.apis[REG_API_KEY]
+
         service_type = "_nmos-registration._tcp.local."
         if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.3") >= 0:
             service_type = "_nmos-register._tcp.local."
@@ -76,7 +78,6 @@ class IS0402Test(GenericTest):
         for service in serv_list:
             address = socket.inet_ntoa(service.address)
             port = service.port
-            api = self.apis[REG_API_KEY]
             if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
@@ -105,10 +106,12 @@ class IS0402Test(GenericTest):
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Registration API with IP/Port {}:{}."
-                         .format(self.apis[REG_API_KEY]["ip"], self.apis[REG_API_KEY]["port"]))
+                         .format(api["ip"], api["port"]))
 
     def test_02(self, test):
         """Query API advertises correctly via mDNS"""
+
+        api = self.apis[QUERY_API_KEY]
 
         browser = ServiceBrowser(self.zc, "_nmos-query._tcp.local.", self.zc_listener)
         sleep(2)
@@ -116,7 +119,6 @@ class IS0402Test(GenericTest):
         for service in serv_list:
             address = socket.inet_ntoa(service.address)
             port = service.port
-            api = self.apis[QUERY_API_KEY]
             if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
@@ -145,7 +147,7 @@ class IS0402Test(GenericTest):
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for Query API with IP/Port {}:{}."
-                         .format(self.apis[QUERY_API_KEY]["ip"], self.apis[QUERY_API_KEY]["port"]))
+                         .format(api["ip"], api["port"]))
 
     def test_03(self, test):
         """Registration API accepts and stores a valid Node resource"""
