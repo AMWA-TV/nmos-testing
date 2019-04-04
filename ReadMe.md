@@ -62,10 +62,10 @@ The test suite supports non-interactive operation in order use it within continu
 python3 nmos-test.py --list-suites
 
 # List the available tests for a given test definition
-python3 nmos-test.py --suite IS-04-02 --list-tests
+python3 nmos-test.py suite --key IS-04-02 --list-tests
 
 # Run a test set, saving the output as a JUnit XML file
-python3 nmos-test.py --suite IS-04-02 --selection auto --ip 128.66.12.5 128.66.12.6 --port 80 80 --version v1.2 v1.2 --ignore auto_5 auto_6 --output results.xml
+python3 nmos-test.py suite --key IS-04-02 --selection auto --ip 128.66.12.5 128.66.12.6 --port 80 80 --version v1.2 v1.2 --ignore auto_5 auto_6 --output results.xml
 ```
 
 ## External Dependencies

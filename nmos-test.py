@@ -444,15 +444,19 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='NMOS Test Suite')
     parser.add_argument('--list-suites', action='store_true', help="list available test suites")
     parser.add_argument('--describe-suites', action='store_true', help="describe the available test suites")
-    parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
-    parser.add_argument('--list-tests', action='store_true', help="list available tests for a given suite")
-    parser.add_argument('--describe-tests', action='store_true', help="describe the available tests for a given suite")
-    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
-    parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
-    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
-    parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
-    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
-    parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
+
+    subparsers = parser.add_subparsers()
+    suite_parser = subparsers.add_parser("suite", help="select a test suite to run tests from in non-interactive mode")
+    suite_parser.add_argument("--key", help="select a test suite to run tests from in non-interactive mode", required=True)
+    suite_parser.add_argument('--list-tests', action='store_true', help="list available tests for a given suite")
+    suite_parser.add_argument('--describe-tests', action='store_true', help="describe the available tests for a given suite")
+    suite_parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
+    suite_parser.add_argument('--ip', default=list(), nargs="*", help="space separated IP addresses of the APIs under test")
+    suite_parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
+    suite_parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
+    suite_parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
+    suite_parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
+
     return parser.parse_args()
 
 
@@ -466,49 +470,30 @@ def validate_args(args):
             print(test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"])
         sys.exit(ExitCodes.OK)
 
-    if args.suite:
-        if args.suite not in TEST_DEFINITIONS:
-            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
+    if "key" in vars(args):
+        if args.key not in TEST_DEFINITIONS:
+            print(" * ERROR: The requested test suite '{}' does not exist".format(args.key))
             sys.exit(ExitCodes.ERROR)
         if args.list_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
+            tests = enumerate_tests(TEST_DEFINITIONS[args.key]["class"])
             for test_name in tests:
                 print(test_name)
             sys.exit(ExitCodes.OK)
         if args.describe_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
+            tests = enumerate_tests(TEST_DEFINITIONS[args.key]["class"], describe=True)
             for test_description in tests:
                 print(test_description)
             sys.exit(ExitCodes.OK)
-        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.key]["class"]):
             print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
-                  .format(args.selection, args.suite))
+                  .format(args.selection, args.key))
             sys.exit(ExitCodes.ERROR)
         if len(args.ip) != len(args.port) or len(args.ip) != len(args.version):
             print(" * ERROR: IPs, ports and versions must contain the same number of elements")
             sys.exit(ExitCodes.ERROR)
-        if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
+        if len(args.ip) != len(TEST_DEFINITIONS[args.key]["specs"]):
             print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
-                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
-            sys.exit(ExitCodes.ERROR)
-    else:
-        arg_error = False
-        for arg_name in vars(args):
-            arg_value = getattr(args, arg_name)
-            if isinstance(arg_value, bool):
-                if arg_value is True:
-                    arg_error = arg_name
-                    break
-            elif isinstance(arg_value, list):
-                if len(arg_value) > 0:
-                    arg_error = arg_name
-                    break
-            elif isinstance(arg_value, str):
-                if arg_value not in ["", "all"]:
-                    arg_error = arg_name
-                    break
-        if arg_error:
-            print(" * ERROR: A '--suite' must be specified when using the '--{}' argument".format(arg_error))
+                  .format(len(TEST_DEFINITIONS[args.key]["specs"])))
             sys.exit(ExitCodes.ERROR)
 
 
@@ -529,7 +514,7 @@ def run_noninteractive_tests(args):
     for i in range(len(args.ip)):
         endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
     try:
-        results = run_tests(args.suite, endpoints, [args.selection])
+        results = run_tests(args.key, endpoints, [args.selection])
         if args.output:
             exit_code = write_test_results(results, args)
         else:
@@ -576,7 +561,7 @@ if __name__ == '__main__':
     start_web_servers()
 
     exit_code = 0
-    if not args.suite:
+    if "key" not in vars(args):
         # Interactive testing mode. Await user input.
         try:
             while True:
