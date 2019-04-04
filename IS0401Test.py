@@ -361,13 +361,13 @@ class IS0401Test(GenericTest):
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            if "/{}:{}/".format(address, port) in self.node_url:
+            api = self.apis[NODE_API_KEY]
+            if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
                     if "ver_" in prop:
                         return test.FAIL("Found 'ver_' TXT record while Node is registered.")
 
-                api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
@@ -381,8 +381,9 @@ class IS0401Test(GenericTest):
 
                 return test.PASS()
 
-        return test.WARNING("No matching mDNS announcement found for Node. This will not affect operation in registered"
-                            " mode but may indicate a lack of support for peer to peer operation.",
+        return test.WARNING("No matching mDNS announcement found for Node with IP/Port {}:{}. This will not affect "
+                            "operation in registered mode but may indicate a lack of support for peer to peer "
+                            "operation.".format(self.apis[NODE_API_KEY]["ip"], self.apis[NODE_API_KEY]["port"]),
                             "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self, test):
