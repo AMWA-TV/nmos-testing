@@ -447,7 +447,7 @@ def parse_arguments():
 
     subparsers = parser.add_subparsers()
     suite_parser = subparsers.add_parser("suite", help="select a test suite to run tests from in non-interactive mode")
-    suite_parser.add_argument("--key", help="select a test suite to run tests from in non-interactive mode", required=True)
+    suite_parser.add_argument("suite", help="select a test suite to run tests from in non-interactive mode")
     suite_parser.add_argument('--list-tests', action='store_true', help="list available tests for a given suite")
     suite_parser.add_argument('--describe-tests', action='store_true', help="describe the available tests for a given suite")
     suite_parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
@@ -470,30 +470,30 @@ def validate_args(args):
             print(test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"])
         sys.exit(ExitCodes.OK)
 
-    if "key" in vars(args):
-        if args.key not in TEST_DEFINITIONS:
-            print(" * ERROR: The requested test suite '{}' does not exist".format(args.key))
+    if "suite" in vars(args):
+        if args.suite not in TEST_DEFINITIONS:
+            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
             sys.exit(ExitCodes.ERROR)
         if args.list_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.key]["class"])
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
             for test_name in tests:
                 print(test_name)
             sys.exit(ExitCodes.OK)
         if args.describe_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.key]["class"], describe=True)
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
             for test_description in tests:
                 print(test_description)
             sys.exit(ExitCodes.OK)
-        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.key]["class"]):
+        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
             print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
-                  .format(args.selection, args.key))
+                  .format(args.selection, args.suite))
             sys.exit(ExitCodes.ERROR)
         if len(args.ip) != len(args.port) or len(args.ip) != len(args.version):
             print(" * ERROR: IPs, ports and versions must contain the same number of elements")
             sys.exit(ExitCodes.ERROR)
-        if len(args.ip) != len(TEST_DEFINITIONS[args.key]["specs"]):
+        if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
             print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
-                  .format(len(TEST_DEFINITIONS[args.key]["specs"])))
+                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
             sys.exit(ExitCodes.ERROR)
 
 
@@ -514,7 +514,7 @@ def run_noninteractive_tests(args):
     for i in range(len(args.ip)):
         endpoints.append({"ip": args.ip[i], "port": args.port[i], "version": args.version[i]})
     try:
-        results = run_tests(args.key, endpoints, [args.selection])
+        results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
             exit_code = write_test_results(results, args)
         else:
@@ -561,7 +561,7 @@ if __name__ == '__main__':
     start_web_servers()
 
     exit_code = 0
-    if "key" not in vars(args):
+    if "suite" not in vars(args):
         # Interactive testing mode. Await user input.
         try:
             while True:
