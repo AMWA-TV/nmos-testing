@@ -69,7 +69,7 @@ class IS0402Test(GenericTest):
         api = self.apis[REG_API_KEY]
 
         service_type = "_nmos-registration._tcp.local."
-        if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.3") >= 0:
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") >= 0:
             service_type = "_nmos-register._tcp.local."
 
         browser = ServiceBrowser(self.zc, service_type, self.zc_listener)
@@ -1163,6 +1163,8 @@ class IS0402Test(GenericTest):
     def test_23_1(self, test):
         """Query API WebSockets implement basic query parameters"""
 
+        api = self.apis[QUERY_API_KEY]
+
         # Perform a basic test for APIs <= v1.2 checking for support
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes?description={}".format(str(uuid.uuid4())))
@@ -1200,11 +1202,11 @@ class IS0402Test(GenericTest):
                 self.post_resource(test, "node", test_data, codes=[201])
 
             # Load schema
-            if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
+                schema = load_resolved_schema(api["spec_path"],
                                               "queryapi-v1.0-subscriptions-websocket.json")
             else:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                schema = load_resolved_schema(api["spec_path"],
                                               "queryapi-subscriptions-websocket.json")
 
             # Check that the single Node is reflected in the subscription
@@ -1329,6 +1331,8 @@ class IS0402Test(GenericTest):
     def test_24_1(self, test):
         """Query API WebSockets implement RQL"""
 
+        api = self.apis[QUERY_API_KEY]
+
         # Perform a basic test for APIs <= v1.2 checking for support
         try:
             valid, r = self.do_request("GET", self.query_url + "nodes?query.rql=eq(description,{})"
@@ -1368,11 +1372,11 @@ class IS0402Test(GenericTest):
                 self.post_resource(test, "node", test_data, codes=[201])
 
             # Load schema
-            if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.0") == 0:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
+                schema = load_resolved_schema(api["spec_path"],
                                               "queryapi-v1.0-subscriptions-websocket.json")
             else:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                schema = load_resolved_schema(api["spec_path"],
                                               "queryapi-subscriptions-websocket.json")
 
             # Check that the single Node is reflected in the subscription
@@ -1496,7 +1500,7 @@ class IS0402Test(GenericTest):
             resource_json = deepcopy(self.test_data[curr_resource])
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                 resource_json = self.downgrade_resource(curr_resource, resource_json,
-                                                        self.apis[REG_API_KEY]["version"])
+                                                        api["version"])
 
             resource_json["id"] = str(uuid.uuid4())
 
@@ -1699,10 +1703,10 @@ class IS0402Test(GenericTest):
 
             # Load schema
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.0") == 0:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                schema = load_resolved_schema(api["spec_path"],
                                               "queryapi-v1.0-subscriptions-websocket.json")
             else:
-                schema = load_resolved_schema(self.apis[QUERY_API_KEY]["spec_path"],
+                schema = load_resolved_schema(api["spec_path"],
                                               "queryapi-subscriptions-websocket.json")
 
             for resource, resource_data in test_data.items():
@@ -1872,24 +1876,26 @@ class IS0402Test(GenericTest):
 
     def load_resource_data(self):
         """Loads test data from files"""
+        api = self.apis[REG_API_KEY]
         result_data = dict()
         resources = ["node", "device", "source", "flow", "sender", "receiver"]
         for resource in resources:
             with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
                 resource_json = json.load(resource_data)
-                if self.is04_reg_utils.compare_api_version(self.apis[REG_API_KEY]["version"], "v1.2") < 0:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
                     resource_json = self.downgrade_resource(resource, resource_json,
-                                                            self.apis[REG_API_KEY]["version"])
+                                                            api["version"])
 
                 result_data[resource] = resource_json
         return result_data
 
     def load_subscription_request_data(self):
         """Loads subscription request data"""
+        api = self.apis[QUERY_API_KEY]
         with open("test_data/IS0402/subscriptions_request.json") as resource_data:
             resource_json = json.load(resource_data)
-            if self.is04_reg_utils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.2") < 0:
-                return self.downgrade_resource("subscription", resource_json, self.apis[QUERY_API_KEY]["version"])
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                return self.downgrade_resource("subscription", resource_json, api["version"])
             return resource_json
 
     def do_400_check(self, test, resource_type, data):
