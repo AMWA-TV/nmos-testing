@@ -62,7 +62,7 @@ function loadSettings() {
 
                 var maxOptions = document.getElementById('hidden_options').value;
                 for (var apiNum=0; apiNum<maxOptions; apiNum++) {
-                    document.getElementById("endpoints-" + apiNum.toString() + "-ip").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-ip");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-host").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-host");
                     document.getElementById("endpoints-" + apiNum.toString() + "-port").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-port");
                     document.getElementById("endpoints-" + apiNum.toString() + "-version").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-version");
                 }
@@ -92,7 +92,7 @@ function saveSettings() {
 
             var maxOptions = document.getElementById('hidden_options').value;
             for (var apiNum=0; apiNum<maxOptions; apiNum++) {
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-ip", document.getElementById("endpoints-" + apiNum.toString() + "-ip",).value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host",).value);
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
             }

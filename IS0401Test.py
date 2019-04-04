@@ -153,7 +153,7 @@ class IS0401Test(GenericTest):
         self.do_registry_basics_prereqs()
 
         registry = self.registries[0]
-        if len(registry.get_data()) > 0:
+        if len(registry.get_post_data()) > 0:
             return test.PASS()
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
@@ -168,7 +168,7 @@ class IS0401Test(GenericTest):
         self.do_registry_basics_prereqs()
 
         registry = self.registries[0]
-        if len(registry.get_data()) > 0:
+        if len(registry.get_post_data()) > 0:
             return test.PASS()
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
@@ -182,10 +182,10 @@ class IS0401Test(GenericTest):
         self.do_registry_basics_prereqs()
 
         registry = self.registries[0]
-        if len(registry.get_data()) == 0:
+        if len(registry.get_post_data()) == 0:
             return test.FAIL("No registrations found")
 
-        for resource in registry.get_data():
+        for resource in registry.get_post_data():
             if "Content-Type" not in resource[1]["headers"]:
                 return test.FAIL("Node failed to signal its Content-Type correctly when registering.")
             elif resource[1]["headers"]["Content-Type"] != "application/json":
@@ -198,7 +198,7 @@ class IS0401Test(GenericTest):
         if ENABLE_DNS_SD:
             # Look up data in local mock registry
             registry = self.registries[0]
-            for resource in registry.get_data():
+            for resource in registry.get_post_data():
                 if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
                     found_resource = resource[1]["payload"]["data"]
         else:
@@ -275,7 +275,7 @@ class IS0401Test(GenericTest):
         if len(registry.get_heartbeats()) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
-        initial_node = registry.get_data()[0]
+        initial_node = registry.get_post_data()[0]
 
         last_hb = None
         for heartbeat in registry.get_heartbeats():
@@ -361,13 +361,13 @@ class IS0401Test(GenericTest):
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            if "/{}:{}/".format(address, port) in self.node_url:
+            api = self.apis[NODE_API_KEY]
+            if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
                     if "ver_" in prop:
                         return test.FAIL("Found 'ver_' TXT record while Node is registered.")
 
-                api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
@@ -381,8 +381,9 @@ class IS0401Test(GenericTest):
 
                 return test.PASS()
 
-        return test.WARNING("No matching mDNS announcement found for Node. This will not affect operation in registered"
-                            " mode but may indicate a lack of support for peer to peer operation.",
+        return test.WARNING("No matching mDNS announcement found for Node with IP/Port {}:{}. This will not affect "
+                            "operation in registered mode but may indicate a lack of support for peer to peer "
+                            "operation.".format(self.apis[NODE_API_KEY]["ip"], self.apis[NODE_API_KEY]["port"]),
                             NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self, test):
@@ -515,7 +516,7 @@ class IS0401Test(GenericTest):
                 return test.FAIL("Node never made contact with registry advertised on port {}"
                                  .format(registry.get_port()))
 
-            if index > 0 and len(registry.get_data()) > 0:
+            if index > 0 and len(registry.get_post_data()) > 0:
                 return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
                                  "should only have issued a heartbeat")
 
@@ -686,6 +687,58 @@ class IS0401Test(GenericTest):
             return test.WARNING("One or more Node service 'href' values does not match the current protocol.")
         elif device_href_warn:
             return test.WARNING("One or more Device control 'href' values does not match the current protocol.")
+
+        return test.PASS()
+
+    def test_21(self, test):
+        """Node correctly interprets a 200 code from a registry upon initial registration"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        registry = self.registries[0]
+        registry_info = self._registry_mdns_info(registry.get_port(), 0)
+
+        # Reset the registry to clear previous heartbeats, and enable in 200 test mode
+        registry.reset()
+        registry.enable(first_reg=True)
+
+        if DNS_SD_MODE == "multicast":
+            # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            self.zc.register_service(registry_info)
+
+        # Wait for n seconds after advertising the service for the first POST from a Node
+        time.sleep(DNS_SD_ADVERT_TIMEOUT)
+
+        # By this point we should have had at least one Node POST and a corresponding DELETE
+        if DNS_SD_MODE == "multicast":
+            self.zc.unregister_service(registry_info)
+        registry.disable()
+
+        # Get the relevant Node ID
+        url = "{}self".format(self.node_url)
+        valid, r = self.do_request("GET", url)
+        if valid and r.status_code == 200:
+            try:
+                # Check that a POST and DELETE match the Node's ID
+                node_id = r.json()["id"]
+                found_post = False
+                for resource in registry.get_post_data():
+                    if resource[1]["payload"]["type"] == "node" and resource[1]["payload"]["data"]["id"] == node_id:
+                        found_post = True
+                if not found_post:
+                    return test.FAIL("Node did not attempt to make contact with the registry")
+                found_delete = False
+                for resource in registry.get_delete_data():
+                    if resource[1]["type"] == "node" and resource[1]["id"] == node_id:
+                        found_delete = True
+                if not found_delete:
+                    return test.FAIL("Node did not attempt to DELETE itself having encountered a 200 code on initial "
+                                     "registration")
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+        else:
+            return test.FAIL("Unexpected responses from Node API self resource")
 
         return test.PASS()
 

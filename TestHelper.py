@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import threading
 from copy import copy
 import requests
@@ -22,9 +21,8 @@ import websocket
 import os
 import jsonref
 from pathlib import Path
-import urllib3
 
-from Config import HTTP_TIMEOUT
+from Config import HTTP_TIMEOUT, CERT_TRUST_ROOT_CA
 
 
 def ordered(obj):
@@ -51,9 +49,8 @@ def do_request(method, url, data=None):
         else:
             req = requests.Request(method, url)
         prepped = s.prepare_request(req)
-        # TODO: Provide a mechanism to establish trust for certificates to avoid verify=False and disabling warnings
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        settings = s.merge_environment_settings(prepped.url, {}, None, False, None)
+        settings = s.merge_environment_settings(prepped.url, {"http": None, "https": None},
+                                                None, CERT_TRUST_ROOT_CA, None)
         r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         return True, r
     except requests.exceptions.Timeout:
@@ -66,7 +63,7 @@ def do_request(method, url, data=None):
         return False, str(e)
 
 
-def load_resolved_schema(spec_path, file_name=None, schema_obj=None):
+def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix=True):
     """
     Parses JSON as well as resolves any `$ref`s, including references to
     local files and remote (HTTP/S) files.
@@ -75,7 +72,9 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None):
     # Only one of file_name or schema_obj must be set
     assert bool(file_name) != bool(schema_obj)
 
-    base_path = os.path.abspath(os.path.join(spec_path, "APIs/schemas/"))
+    if path_prefix:
+        spec_path = os.path.join(spec_path, "APIs/schemas/")
+    base_path = os.path.abspath(spec_path)
     if not base_path.endswith("/"):
         base_path = base_path + "/"
     if os.name == "nt":
@@ -120,7 +119,7 @@ class WebsocketWorker(threading.Thread):
 
     def run(self):
         # TODO: Provide a mechanism to establish trust for certificates to avoid check_hostname=False
-        self.ws.run_forever(sslopt={"check_hostname": False})
+        self.ws.run_forever(sslopt={"ca_cert_path": CERT_TRUST_ROOT_CA})
 
     def on_open(self):
         pass
