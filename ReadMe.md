@@ -58,11 +58,24 @@ Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.
 The test suite supports non-interactive operation in order use it within continuous integration systems. An example of this usage can be seen below:
 
 ```shell
-# List the available tests for a given test definition
-python3 nmos-test.py --suite IS-04-02 --list
+# List the available test suites
+python3 nmos-test.py --list-suites
 
-# Run a test set, saving the output as a JUnit XML file
-python3 nmos-test.py --suite IS-04-02 --selection auto --host 128.66.12.5 128.66.12.6 --port 80 80 --version v1.2 v1.2 --ignore auto_5 auto_6 --output results.xml
+# List the available tests for a given test suite
+python3 nmos-test.py suite IS-04-02 --list-tests
+
+# Run just the 'auto' tests for the given suite, saving the output as a JUnit XML file
+python3 nmos-test.py suite IS-04-02 --selection auto --host 128.66.12.5 128.66.12.6 --port 80 80 --version v1.2 v1.2 --ignore auto_5 auto_6 --output results.xml
+```
+
+To display additional information about the available command-line options:
+
+```shell
+# Show the usage
+python3 nmos-test.py -h
+
+# Show the specific options for the 'suite' command
+python3 nmos-test.py suite -h
 ```
 
 ## External Dependencies

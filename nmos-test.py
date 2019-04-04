@@ -38,6 +38,7 @@ import platform
 import argparse
 import time
 import traceback
+import inspect
 import ipaddress
 import socket
 
@@ -174,13 +175,20 @@ TEST_DEFINITIONS = {
 }
 
 
-def enumerate_tests(class_def):
-    tests = ["all", "auto"]
+def enumerate_tests(class_def, describe=False):
+    if describe:
+        tests = ["all: Runs all tests in the suite",
+                 "auto: Basic API tests derived directly from the specification RAML"]
+    else:
+        tests = ["all", "auto"]
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
             method = getattr(class_def, method_name)
             if callable(method):
-                tests.append(method_name)
+                description = method_name
+                if describe:
+                    description += ": " + inspect.getdoc(method).replace('\n', ' ').replace('\r', '')
+                tests.append(description)
     return tests
 
 
@@ -442,26 +450,47 @@ def print_test_results(results, args):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='NMOS Test Suite')
-    parser.add_argument('--suite', default=None, help="select a test suite to run tests from in non-interactive mode")
-    parser.add_argument('--list', action='store_true', help="list available tests for a given suite")
-    parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
-    parser.add_argument('--host', default=list(), nargs="*", help="space separated hostnames or IPs of the APIs under test")
-    parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
-    parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
-    parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
-    parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
+    parser.add_argument('--list-suites', action='store_true', help="list available test suites")
+    parser.add_argument('--describe-suites', action='store_true', help="describe the available test suites")
+
+    subparsers = parser.add_subparsers()
+    suite_parser = subparsers.add_parser("suite", help="select a test suite to run tests from in non-interactive mode")
+    suite_parser.add_argument("suite", help="select a test suite to run tests from in non-interactive mode")
+    suite_parser.add_argument('--list-tests', action='store_true', help="list available tests for a given suite")
+    suite_parser.add_argument('--describe-tests', action='store_true', help="describe the available tests for a given suite")
+    suite_parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
+    suite_parser.add_argument('--host', default=list(), nargs="*", help="space separated hostnames or IPs of the APIs under test")
+    suite_parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
+    suite_parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
+    suite_parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
+    suite_parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
+
     return parser.parse_args()
 
 
 def validate_args(args):
-    if args.suite:
+    if args.list_suites:
+        for test_suite in sorted(TEST_DEFINITIONS):
+            print(test_suite)
+        sys.exit(ExitCodes.OK)
+    elif args.describe_suites:
+        for test_suite in sorted(TEST_DEFINITIONS):
+            print(test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"])
+        sys.exit(ExitCodes.OK)
+
+    if "suite" in vars(args):
         if args.suite not in TEST_DEFINITIONS:
             print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
             sys.exit(ExitCodes.ERROR)
-        if args.list:
+        if args.list_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
             for test_name in tests:
                 print(test_name)
+            sys.exit(ExitCodes.OK)
+        if args.describe_tests:
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
+            for test_description in tests:
+                print(test_description)
             sys.exit(ExitCodes.OK)
         if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
             print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
@@ -540,7 +569,7 @@ if __name__ == '__main__':
     start_web_servers()
 
     exit_code = 0
-    if not args.suite:
+    if "suite" not in vars(args):
         # Interactive testing mode. Await user input.
         try:
             while True:
