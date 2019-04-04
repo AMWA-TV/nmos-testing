@@ -174,9 +174,11 @@ TEST_DEFINITIONS = {
 
 
 def enumerate_tests(class_def, describe=False):
-    tests = []
-    if not describe:
-        tests.extend(["all", "auto"])
+    if describe:
+        tests = ["all: Runs all tests in the suite",
+                 "auto: Basic API tests derived directly from the specification RAML"]
+    else:
+        tests = ["all", "auto"]
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
             method = getattr(class_def, method_name)
@@ -463,6 +465,7 @@ def validate_args(args):
         for test_suite in sorted(TEST_DEFINITIONS):
             print(test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"])
         sys.exit(ExitCodes.OK)
+
     if args.suite:
         if args.suite not in TEST_DEFINITIONS:
             print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
@@ -487,6 +490,25 @@ def validate_args(args):
         if len(args.ip) != len(TEST_DEFINITIONS[args.suite]["specs"]):
             print(" * ERROR: This test definition expects {} IP(s), port(s) and version(s)"
                   .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
+            sys.exit(ExitCodes.ERROR)
+    else:
+        arg_error = False
+        for arg_name in vars(args):
+            arg_value = getattr(args, arg_name)
+            if isinstance(arg_value, bool):
+                if arg_value is True:
+                    arg_error = arg_name
+                    break
+            elif isinstance(arg_value, list):
+                if len(arg_value) > 0:
+                    arg_error = arg_name
+                    break
+            elif isinstance(arg_value, str):
+                if arg_value not in ["", "all"]:
+                    arg_error = arg_name
+                    break
+        if arg_error:
+            print(" * ERROR: A '--suite' must be specified when using the '--{}' argument".format(arg_error))
             sys.exit(ExitCodes.ERROR)
 
 
