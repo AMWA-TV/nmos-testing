@@ -1868,7 +1868,11 @@ class IS0402Test(GenericTest):
             return resource_json
 
     def do_400_check(self, test, resource_type):
-        data = {"nota" + resource_type: True}
+        # this is a more thorough check that the Registration API implements schema validation than previously
+        data = self.copy_resource(resource_type)
+        data["id"] = str(uuid.uuid4())
+        # to cause schema validation failure, remove the label property (required for all resources since v1.0)
+        del data["label"]
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
 
         if not valid:
