@@ -1233,6 +1233,8 @@ class IS0402Test(GenericTest):
             for curr_data in grain_data:
                 if "pre" in curr_data:
                     return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
+                if "post" not in curr_data:
+                    return test.FAIL("Expected 'post' key not found in WebSocket message")
                 post_data = curr_data["post"]
                 if post_data["description"] != node_ids[0]:
                     return test.FAIL("Node 'post' 'description' received via WebSocket did not match "
@@ -1268,6 +1270,8 @@ class IS0402Test(GenericTest):
                 grain_data.extend(json_msg["grain"]["data"])
 
             for curr_data in grain_data:
+                if "pre" not in curr_data:
+                    return test.FAIL("Expected 'pre' key not found in WebSocket message")
                 if "post" in curr_data:
                     return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
                 pre_data = curr_data["pre"]
@@ -1403,6 +1407,8 @@ class IS0402Test(GenericTest):
             for curr_data in grain_data:
                 if "pre" in curr_data:
                     return test.FAIL("Unexpected 'pre' key encountered in WebSocket message")
+                if "post" not in curr_data:
+                    return test.FAIL("Expected 'post' key not found in WebSocket message")
                 post_data = curr_data["post"]
                 if post_data["description"] != node_ids[0]:
                     return test.FAIL("Node 'post' 'description' received via WebSocket did not match the RQL filter")
@@ -1437,6 +1443,8 @@ class IS0402Test(GenericTest):
                 grain_data.extend(json_msg["grain"]["data"])
 
             for curr_data in grain_data:
+                if "pre" not in curr_data:
+                    return test.FAIL("Expected 'pre' key not found in WebSocket message")
                 if "post" in curr_data:
                     return test.FAIL("Unexpected 'post' key encountered in WebSocket message")
                 pre_data = curr_data["pre"]
@@ -1734,6 +1742,8 @@ class IS0402Test(GenericTest):
 
                 found_data_set = False
                 for curr_data in grain_data:
+                    if "pre" not in curr_data or "post" not in curr_data:
+                        continue
                     pre_data = json.dumps(curr_data["pre"], sort_keys=True)
                     post_data = json.dumps(curr_data["post"], sort_keys=True)
                     sorted_resource_data = json.dumps(resource_data, sort_keys=True)
@@ -1773,6 +1783,8 @@ class IS0402Test(GenericTest):
 
                 found_data_set = False
                 for curr_data in grain_data:
+                    if "pre" not in curr_data or "post" not in curr_data:
+                        continue
                     pre_data = json.dumps(curr_data["pre"], sort_keys=True)
                     post_data = json.dumps(curr_data["post"], sort_keys=True)
                     sorted_resource_data = json.dumps(resource_data, sort_keys=True)
@@ -1819,6 +1831,8 @@ class IS0402Test(GenericTest):
 
                 found_data_set = False
                 for curr_data in grain_data:
+                    if "pre" not in curr_data:
+                        continue
                     pre_data = json.dumps(curr_data["pre"], sort_keys=True)
                     sorted_resource_data = json.dumps(resource_data, sort_keys=True)
 
@@ -1856,6 +1870,8 @@ class IS0402Test(GenericTest):
 
                 found_data_set = False
                 for curr_data in grain_data:
+                    if "post" not in curr_data:
+                        continue
                     post_data = json.dumps(curr_data["post"], sort_keys=True)
                     sorted_resource_data = json.dumps(resource_data, sort_keys=True)
 
