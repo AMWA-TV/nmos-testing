@@ -39,7 +39,7 @@
                 {{ form.hidden_specs }}
                 {{ form.hidden_options }}
                 {% for endpoint in form.endpoints %}
-                    {{ endpoint.ip }}
+                    {{ endpoint.host }}
                     {{ endpoint.port }}
                     {{ endpoint.version }}
                 {% endfor %}
