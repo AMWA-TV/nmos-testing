@@ -24,10 +24,11 @@ import re
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
-from GenericTest import GenericTest, NMOSTestException, NMOSInitException, test_depends
+from GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from IS04Utils import IS04Utils
 from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
 from TestHelper import WebsocketWorker, load_resolved_schema
+from TestResult import Test
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -153,69 +154,57 @@ class IS0402Test(GenericTest):
         """Registration API accepts and stores a valid Node resource"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "node", codes=[201])
+        self.post_super_resources_and_resource(test, "node", "test_03")
         return test.PASS()
 
     def test_04(self, test):
         """Registration API rejects an invalid Node resource with a 400 HTTP code"""
 
-        bad_json = {"notanode": True}
-        return self.do_400_check(test, "node", bad_json)
+        return self.do_400_check(test, "node")
 
-    @test_depends
     def test_05(self, test):
         """Registration API accepts and stores a valid Device resource"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "device", codes=[201])
+        self.post_super_resources_and_resource(test, "device", "test_05")
         return test.PASS()
 
-    @test_depends
     def test_06(self, test):
         """Registration API rejects an invalid Device resource with a 400 HTTP code"""
 
-        bad_json = {"notadevice": True}
-        return self.do_400_check(test, "device", bad_json)
+        return self.do_400_check(test, "device")
 
-    @test_depends
     def test_07(self, test):
         """Registration API accepts and stores a valid Source resource"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "source", codes=[201])
+        self.post_super_resources_and_resource(test, "source", "test_07")
         return test.PASS()
 
-    @test_depends
     def test_08(self, test):
         """Registration API rejects an invalid Source resource with a 400 HTTP code"""
 
-        bad_json = {"notasource": True}
-        return self.do_400_check(test, "source", bad_json)
+        return self.do_400_check(test, "source")
 
-    @test_depends
     def test_09(self, test):
         """Registration API accepts and stores a valid Flow resource"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "flow", codes=[201])
+        self.post_super_resources_and_resource(test, "flow", "test_09")
         return test.PASS()
 
-    @test_depends
     def test_10(self, test):
         """Registration API rejects an invalid Flow resource with a 400 HTTP code"""
 
-        bad_json = {"notaflow": True}
-        return self.do_400_check(test, "flow", bad_json)
+        return self.do_400_check(test, "flow")
 
-    @test_depends
     def test_11(self, test):
         """Registration API accepts and stores a valid Sender resource"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "sender", codes=[201])
+        self.post_super_resources_and_resource(test, "sender", "test_11")
         return test.PASS()
 
-    @test_depends
     def test_11_1(self, test):
         """Registration API accepts and stores a valid Sender resource with null flow_id"""
 
@@ -228,91 +217,82 @@ class IS0402Test(GenericTest):
         if self.is04_reg_utils.compare_api_version(api["version"], "v1.1") < 0:
             return test.NA("This test does not apply to v1.0")
 
-        sender_json = deepcopy(self.test_data["sender"])
-        sender_json["id"] = str(uuid.uuid4())
-        sender_json["flow_id"] = None
+        device = self.post_super_resources_and_resource(test, "device", "test_11_1", fail=Test.UNCLEAR)
 
-        if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-            sender_json = self.downgrade_resource("sender", sender_json, api["version"])
+        data = self.copy_resource("sender")
+        data["id"] = str(uuid.uuid4())
+        data["description"] = "test_11_1"
+        data["device_id"] = device["id"]
 
-        self.post_resource(test, "sender", sender_json, codes=[201])
+        data["flow_id"] = None
+
+        self.post_resource(test, "sender", data, codes=[201])
 
         return test.PASS()
 
-    @test_depends
     def test_12(self, test):
         """Registration API rejects an invalid Sender resource with a 400 HTTP code"""
 
-        bad_json = {"notasender": True}
-        return self.do_400_check(test, "sender", bad_json)
+        return self.do_400_check(test, "sender")
 
-    @test_depends
     def test_13(self, test):
         """Registration API accepts and stores a valid Receiver resource"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "receiver", codes=[201])
+        self.post_super_resources_and_resource(test, "receiver", "test_13")
         return test.PASS()
 
-    @test_depends
     def test_14(self, test):
         """Registration API rejects an invalid Receiver resource with a 400 HTTP code"""
 
-        bad_json = {"notareceiver": True}
-        return self.do_400_check(test, "receiver", bad_json)
+        return self.do_400_check(test, "receiver")
 
-    @test_depends
     def test_15(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Node"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "node", codes=[200])
+        node_data = self.post_super_resources_and_resource(test, "node", "test_15")
+        self.post_resource(test, "node", node_data, codes=[200])
         return test.PASS()
 
-    @test_depends
     def test_16(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Device"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "device", codes=[200])
-
+        device_data = self.post_super_resources_and_resource(test, "device", "test_16")
+        self.post_resource(test, "device", device_data, codes=[200])
         return test.PASS()
 
-    @test_depends
     def test_17(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Source"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "source", codes=[200])
-
+        source_data = self.post_super_resources_and_resource(test, "source", "test_17")
+        self.post_resource(test, "source", source_data, codes=[200])
         return test.PASS()
 
-
-    @test_depends
     def test_18(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Flow"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "flow", codes=[200])
-
+        flow_data = self.post_super_resources_and_resource(test, "flow", "test_18")
+        self.post_resource(test, "flow", flow_data, codes=[200])
         return test.PASS()
 
-    @test_depends
     def test_19(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Sender"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "sender", codes=[200])
-
+        sender_data = self.post_super_resources_and_resource(test, "sender", "test_19")
+        self.post_resource(test, "sender", sender_data, codes=[200])
         return test.PASS()
 
-    @test_depends
     def test_20(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Receiver"""
 
         self.check_api_v1_x(test)
-        self.post_resource(test, "receiver", codes=[200])
-
+        receiver_data = self.post_super_resources_and_resource(test, "receiver", "test_20")
+        self.post_resource(test, "receiver", receiver_data, codes=[200])
         return test.PASS()
 
     def check_paged_trait(self, test):
@@ -324,10 +304,10 @@ class IS0402Test(GenericTest):
         if self.is04_query_utils.compare_api_version(api["version"], "v2.0") >= 0:
             raise NMOSTestException(test.FAIL("Version > 1 not supported yet."))
 
-    def post_sample_nodes(self, test, count, description, labeller = None):
+    def post_sample_nodes(self, test, count, description, labeller=None):
         """Perform a POST request on the Registration API to register a number of sample nodes"""
 
-        node_data = deepcopy(self.test_data["node"])
+        node_data = self.copy_resource("node")
         node_data["description"] = description
 
         update_timestamps = []
@@ -980,8 +960,7 @@ class IS0402Test(GenericTest):
         test_id = str(uuid.uuid4())
         for api_version in query_versions:
             # Note: We iterate over the Query API versions, not the Reg API as it's the Query API that's under test
-            test_data = deepcopy(self.test_data["node"])
-            test_data = self.downgrade_resource("node", test_data, api_version)
+            test_data = self.copy_resource("node", api_ver=api_version)
             test_data["id"] = str(uuid.uuid4())
             test_data["description"] = test_id
             node_ids[api_version] = test_data["id"]
@@ -1126,8 +1105,7 @@ class IS0402Test(GenericTest):
 
         node_descriptions = [str(uuid.uuid4()), str(uuid.uuid4())]
         for node_desc in node_descriptions:
-            test_data = deepcopy(self.test_data["node"])
-            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data = self.copy_resource("node")
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_23"
             test_data["description"] = node_desc
@@ -1194,8 +1172,7 @@ class IS0402Test(GenericTest):
 
             # Register a matching Node and one non-matching Node
             for node_id in node_ids:
-                test_data = deepcopy(self.test_data["node"])
-                test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+                test_data = self.copy_resource("node")
                 test_data["id"] = node_id
                 test_data["label"] = "test_23_1"
                 test_data["description"] = node_id
@@ -1241,8 +1218,7 @@ class IS0402Test(GenericTest):
                                      "the basic query filter")
 
             # Update the Node to no longer have that description
-            test_data = deepcopy(self.test_data["node"])
-            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data = self.copy_resource("node")
             test_data["id"] = node_ids[0]
             test_data["label"] = "test_23_1"
             test_data["description"] = str(uuid.uuid4)
@@ -1293,8 +1269,7 @@ class IS0402Test(GenericTest):
 
         node_descriptions = [str(uuid.uuid4()), str(uuid.uuid4())]
         for node_desc in node_descriptions:
-            test_data = deepcopy(self.test_data["node"])
-            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data = self.copy_resource("node")
             test_data["id"] = str(uuid.uuid4())
             test_data["label"] = "test_24"
             test_data["description"] = node_desc
@@ -1368,8 +1343,7 @@ class IS0402Test(GenericTest):
 
             # Register a matching Node and one non-matching Node
             for node_id in node_ids:
-                test_data = deepcopy(self.test_data["node"])
-                test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+                test_data = self.copy_resource("node")
                 test_data["id"] = node_id
                 test_data["label"] = "test_24_1"
                 test_data["description"] = node_id
@@ -1414,8 +1388,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Node 'post' 'description' received via WebSocket did not match the RQL filter")
 
             # Update the Node to no longer have that description
-            test_data = deepcopy(self.test_data["node"])
-            test_data = self.downgrade_resource("node", test_data, self.apis[REG_API_KEY]["version"])
+            test_data = self.copy_resource("node")
             test_data["id"] = node_ids[0]
             test_data["label"] = "test_24_1"
             test_data["description"] = str(uuid.uuid4)
@@ -1505,11 +1478,7 @@ class IS0402Test(GenericTest):
         resources = ["device", "source", "flow", "sender", "receiver"]
 
         for curr_resource in resources:
-            resource_json = deepcopy(self.test_data[curr_resource])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                resource_json = self.downgrade_resource(curr_resource, resource_json,
-                                                        api["version"])
-
+            resource_json = self.copy_resource(curr_resource)
             resource_json["id"] = str(uuid.uuid4())
 
             # Set random uuid for parent (depending on resource type and version)
@@ -1914,7 +1883,12 @@ class IS0402Test(GenericTest):
                 return self.downgrade_resource("subscription", resource_json, api["version"])
             return resource_json
 
-    def do_400_check(self, test, resource_type, data):
+    def do_400_check(self, test, resource_type):
+        # this is a more thorough check that the Registration API implements schema validation than previously
+        data = self.copy_resource(resource_type)
+        data["id"] = str(uuid.uuid4())
+        # to cause schema validation failure, remove the label property (required for all resources since v1.0)
+        del data["label"]
         valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
 
         if not valid:
@@ -2050,6 +2024,15 @@ class IS0402Test(GenericTest):
         # Invalid request
         return None
 
+    def copy_resource(self, type, api_ver=None):
+        """Make a clone of the test data for the requested type and API version"""
+        if api_ver is None:
+            api_ver = self.apis[REG_API_KEY]["version"]
+        data = deepcopy(self.test_data[type])
+        if self.is04_reg_utils.compare_api_version(api_ver, "v1.2") < 0:
+            data = self.downgrade_resource(type, data, api_ver)
+        return data
+
     def bump_resource_version(self, resource):
         """Bump version timestamp of the given resource"""
         resource["version"] = self.is04_reg_utils.get_TAI_time()
@@ -2089,14 +2072,11 @@ class IS0402Test(GenericTest):
         except json.decoder.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
-    def post_resource(self, test, type, data=None, reg_url=None, codes=None):
+    def post_resource(self, test, type, data=None, reg_url=None, codes=None, fail=Test.FAIL):
         """Perform a POST request on the Registration API to create or update a resource registration"""
 
         if not data:
-            api = self.apis[REG_API_KEY]
-            data = deepcopy(self.test_data[type])
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
-                data = self.downgrade_resource(type, data, api["version"])
+            data = self.copy_resource(type)
 
         if not reg_url:
             reg_url = self.reg_url
@@ -2111,22 +2091,61 @@ class IS0402Test(GenericTest):
         valid, r = self.do_request("POST", reg_url + "resource",
                                    data={"type": type, "data": data})
         if not valid:
-            raise NMOSTestException(test.FAIL("Registration API did not respond as expected"))
+            raise NMOSTestException(fail(test, "Registration API did not respond as expected"))
 
         wrong_codes = [_ for _ in [200, 201] if _ not in codes]
 
         if r.status_code in wrong_codes:
-            raise NMOSTestException(test.FAIL("Registration API returned wrong HTTP code"))
+            raise NMOSTestException(fail(test, "Registration API returned wrong HTTP code"))
         elif r.status_code not in codes:
-            raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: "
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: "
                                               "{} {}".format(r.status_code, r.text)))
         elif r.status_code in [200, 201]:
             if "Location" not in r.headers:
-                raise NMOSTestException(test.FAIL("Registration API failed to return a 'Location' response header"))
+                raise NMOSTestException(fail(test, "Registration API failed to return a 'Location' response header"))
             elif (not r.headers["Location"].startswith("/")
                   and not r.headers["Location"].startswith(self.protocol + "://")):
-                raise NMOSTestException(test.FAIL("Registration API response Location header is invalid for the "
-                                                  "current protocol: Location: {}".format(r.headers["Location"])))
+                raise NMOSTestException(fail(test, "Registration API response Location header is invalid for the "
+                                             "current protocol: Location: {}".format(r.headers["Location"])))
+
+    def post_super_resources_and_resource(self, test, type, description, fail=Test.FAIL):
+        """
+        Perform POST requests on the Registration API to create the super-resource registrations
+        for the requested type, before performing a POST request to create that resource registration
+        """
+
+        # use the test data as a template for creating new resources
+        data = self.copy_resource(type)
+        data["id"] = str(uuid.uuid4())
+        data["description"] = description
+
+        if type == "node":
+            pass
+        elif type == "device":
+            node = self.post_super_resources_and_resource(test, "node", description, fail=Test.UNCLEAR)
+            data["node_id"] = node["id"]
+            data["senders"] = []  # or add an id here, and use it when posting the sender?
+            data["receivers"] = []  # or add an id here, and use it when posting the receiver?
+        elif type == "source":
+            device = self.post_super_resources_and_resource(test, "device", description, fail=Test.UNCLEAR)
+            data["device_id"] = device["id"]
+        elif type == "flow":
+            source = self.post_super_resources_and_resource(test, "source", description, fail=Test.UNCLEAR)
+            data["device_id"] = source["device_id"]
+            data["source_id"] = source["id"]
+            # since device_id is v1.1, downgrade
+            data = self.downgrade_resource(type, data, self.apis[REG_API_KEY]["version"])
+        elif type == "sender":
+            device = self.post_super_resources_and_resource(test, "device", description, fail=Test.UNCLEAR)
+            data["device_id"] = device["id"]
+            data["flow_id"] = str(uuid.uuid4())  # or post a flow first and use its id here?
+        elif type == "receiver":
+            device = self.post_super_resources_and_resource(test, "device", description, fail=Test.UNCLEAR)
+            data["device_id"] = device["id"]
+
+        self.post_resource(test, type, data, codes=[201], fail=fail)
+
+        return data
 
     def check_api_v1_x(self, test):
         api = self.apis[REG_API_KEY]
