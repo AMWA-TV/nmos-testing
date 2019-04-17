@@ -267,7 +267,7 @@ def index_page():
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, url=results["base_url"],
-                                                      test=results["name"], result=results["result"],
+                                                      test=test_def["name"], result=results["result"],
                                                       cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
@@ -347,7 +347,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             raise ex
         finally:
             core_app.config['TEST_ACTIVE'] = False
-        return {"result": result, "name": test_def["name"], "base_url": base_url}
+        return {"result": result, "def": test_def, "base_url": base_url}
     else:
         raise NMOSInitException("This test definition does not exist")
 
@@ -405,8 +405,8 @@ def write_test_results(results, args):
     exit_code = ExitCodes.OK
     test_cases = []
     for test_result in results["result"]:
-        test_case = TestCase(test_result.name, elapsed_sec=test_result.elapsed_time,
-                             timestamp=test_result.timestamp)
+        test_case = TestCase(test_result.name, classname=results["def"]["class"].__name__,
+                             elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
         if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
                                                                     TestStates.UNCLEAR,
                                                                     TestStates.MANUAL,
@@ -423,16 +423,17 @@ def write_test_results(results, args):
             test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
         test_cases.append(test_case)
 
-    ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
+    ts = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
     with open(args.output, "w") as f:
-        TestSuite.to_file(f, [ts], prettyprint=False)
+        # pretty-print to help out Jenkins (and us humans), which struggles otherwise
+        TestSuite.to_file(f, [ts], prettyprint=True)
         print(" * Test results written to file: {}".format(args.output))
     return exit_code
 
 
 def print_test_results(results, args):
     exit_code = ExitCodes.OK
-    print("\r\nPrinting test results for suite '{}' using API '{}'".format(results["name"], results["base_url"]))
+    print("\r\nPrinting test results for suite '{}' using API '{}'".format(results["def"]["name"], results["base_url"]))
     print("----------------------------")
     total_time = 0
     for test_result in results["result"]:
