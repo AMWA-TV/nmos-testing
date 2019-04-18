@@ -808,6 +808,7 @@ class IS0501Test(GenericTest):
 
         api = self.apis[CONN_API_KEY]
         rtp_senders = []
+        dup_senders = []
         if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
             # Find all RTP senders for v1.1+
             for sender in self.senders:
@@ -816,6 +817,12 @@ class IS0501Test(GenericTest):
                 if valid:
                     if response == "urn:x-nmos:transport:rtp":
                         rtp_senders.append(sender)
+                        # Check whether this sender uses stream duplication
+                        url = "single/senders/{}/active".format(sender)
+                        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                        if valid:
+                            if len(response["transport_params"]) == 2:
+                                dup_senders.append(sender)
                 else:
                     return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
         else:
@@ -825,10 +832,14 @@ class IS0501Test(GenericTest):
         if len(rtp_senders) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
 
+        # First pass to check for errors
         for sender in rtp_senders:
+            dup_params = []
+            if sender in dup_senders:
+                dup_params = ["--duplicate", "true"]
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                subprocess.check_output(["sdpoker", "--nmos", "false", self.url + path],
+                subprocess.check_output(["sdpoker", "--nmos", "false"] + dup_params + [self.url + path],
                                         stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
@@ -836,6 +847,25 @@ class IS0501Test(GenericTest):
                     return test.FAIL("Error for Sender {}: {}".format(sender, output))
                 else:
                     return test.DISABLED("SDPoker may be unavailable on this system")
+
+        # Second pass to check for warnings
+        for sender in rtp_senders:
+            dup_params = []
+            if sender in dup_senders:
+                dup_params = ["--duplicate", "true"]
+            path = "single/senders/{}/transportfile".format(sender)
+            try:
+                subprocess.check_output(["sdpoker", "--nmos", "false"] + dup_params +
+                                        ["--whitespace", "true", "--should", "true", self.url + path],
+                                        stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                output = str(e.output, "utf-8")
+                if output.startswith("Found"):
+                    return test.WARNING("Warning for Sender {}: {}".format(sender, output))
+                else:
+                    return test.DISABLED("SDPoker may be unavailable on this system")
+
+        return test.PASS()
 
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""
