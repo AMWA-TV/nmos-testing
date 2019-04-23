@@ -856,8 +856,8 @@ class IS0501Test(GenericTest):
             path = "single/senders/{}/transportfile".format(sender)
             try:
                 subprocess.check_output(["sdpoker", "--nmos", "false"] + dup_params +
-                                        ["--whitespace", "true", "--should", "true", self.url + path],
-                                        stderr=subprocess.STDOUT)
+                                        ["--whitespace", "true", "--should", "true", "--checkEndings", "true",
+                                         self.url + path], stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
                 if output.startswith("Found"):
