@@ -82,6 +82,7 @@ class Registry(object):
         self.enabled = True
 
     def disable(self):
+        self.test_first_reg = False
         self.enabled = False
 
 
@@ -130,6 +131,9 @@ def delete_resource(version, resource_type, resource_id):
             pass
     else:
         registered = True
+        if resource_type == "node":
+            # Once we have seen a DELETE for a Node, ensure we respond with a 201 to future POSTs
+            registry.test_first_reg = False
     registry.delete(request.headers, request.data, resource_type, resource_id)
     if registered:
         return "", 204
