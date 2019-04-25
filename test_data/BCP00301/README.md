@@ -31,11 +31,13 @@ your TLS library or application for the configuration required in order to load 
 Device under test uses:
 *   intermediate/private/rsa.api.testsuite.nmos.tv.key.pem
 *   intermediate/private/ecdsa.api.testsuite.nmos.tv.key.pem
+*   intermediate/certs/rsa.api.testsuite.nmos.tv.cert.chain.pem
+*   intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.chain.pem
+
+Alternatively, if your web server requires the CA's intermediate to be separate, please use:
+*   intermediate/certs/intermediate.cert.pem
 *   intermediate/certs/rsa.api.testsuite.nmos.tv.cert.pem
 *   intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.pem
-
-The CA's certificate chain will also be required:
-*   ca/intermediate/certs/ca-chain.cert.pem
 
 ## Additional Certificates
 
@@ -49,6 +51,6 @@ CA/Intermediate CN: ca.testsuite.nmos.tv
 
 Any web servers activated by the test suite itself should use the following private keys and certificates:
 *   intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem
-*   intermediate/private/ecdsa.mocks.testsuite.nmos.tv.pem
-*   intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.key.pem
-*   intermediate/certs/ecdsa.mocks.testsuite.nmos.tv.cert.pem
+*   intermediate/private/ecdsa.mocks.testsuite.nmos.tv.key.pem
+*   intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem
+*   intermediate/certs/ecdsa.mocks.testsuite.nmos.tv.cert.chain.pem
