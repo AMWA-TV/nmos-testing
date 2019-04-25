@@ -1,0 +1,3 @@
+#!/bin/bash
+./generateCerts mocks.testsuite.nmos.tv nmos-mocks.local
+./generateCerts api.testsuite.nmos.tv nmos-api.local
