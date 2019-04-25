@@ -355,9 +355,32 @@ class IS0401Test(GenericTest):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
         in the presence of a Registration API"""
 
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        registry = self.registries[0]
+        registry_info = self._registry_mdns_info(registry.get_port(), 0)
+
+        # Reset the registry to clear previous data, although we won't be checking it
+        registry.reset()
+        registry.enable()
+
+        if DNS_SD_MODE == "multicast":
+            # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            self.zc.register_service(registry_info)
+
+        # Wait for n seconds after advertising the service for the first POST from a Node
+        time.sleep(DNS_SD_ADVERT_TIMEOUT)
+
         browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(1)
         node_list = self.zc_listener.get_service_list()
+
+        # Withdraw the registry advertisement now we've performed a browse for Node advertisements
+        if DNS_SD_MODE == "multicast":
+            self.zc.unregister_service(registry_info)
+        registry.disable()
+
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
