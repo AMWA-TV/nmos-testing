@@ -148,7 +148,7 @@ def heartbeat(version, node_id):
         abort(500)
     # store raw request payload, in order to check for empty request bodies later
     registry.heartbeat(request.headers, request.data, node_id)
-    if node_id in registry.get_resources()["node"] or registry.test_first_reg:
+    if node_id in registry.get_resources()["node"]:
         return jsonify({"health": int(time.time())})
     else:
         abort(404)
