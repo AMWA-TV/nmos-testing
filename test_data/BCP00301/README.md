@@ -42,7 +42,9 @@ Alternatively, if your web server requires the CA's intermediate to be separate,
 ## Additional Certificates
 
 Additional certificates can be generated using this CA if required, using the './generateCerts' script followed by a
-domain name.
+domain name and an optional additional domain name ending in '.local' for mDNS usage.
+
+Example: ./generateCerts myapi.testsuite.nmos.tv myapi.local
 
 ## Other Notes
 
