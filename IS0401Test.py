@@ -70,7 +70,7 @@ class IS0401Test(GenericTest):
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}.{}".format(port, service_type),
                            socket.inet_aton(default_ip), port, 0, 0,
-                           txt, "nmos-test.local.")
+                           txt, "nmos-mocks.local.")
         return info
 
     def do_registry_basics_prereqs(self):

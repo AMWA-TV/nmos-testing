@@ -21,7 +21,8 @@ The trusted certificate is held in the following file:
 ## Installing Certificates
 
 In order for requests made to the device under test to be trusted by the test suite, the following private keys and
-certificates must be loaded into the device. This will provide the device with the hostname 'api.testsuite.nmos.tv'
+certificates must be loaded into the device. This will provide the device with the hostname 'api.testsuite.nmos.tv',
+and the hostname 'nmos-api.local' for mDNS.
 
 **IMPORTANT:** Do not leave this private key and certificate installed on a device once testing is complete.
 
@@ -51,7 +52,8 @@ Example: ./generateCerts myapi.testsuite.nmos.tv myapi.local
 CA and intermediate are valid for 50 years
 CA/Intermediate CN: ca.testsuite.nmos.tv
 
-Any web servers activated by the test suite itself should use the following private keys and certificates:
+Any web servers activated by the test suite itself should use the following private keys and certificates. These use the
+hostname 'mocks.testsuite.nmos.tv', and the hostname 'nmos-mocks.local' for mDNS.
 *   intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem
 *   intermediate/private/ecdsa.mocks.testsuite.nmos.tv.key.pem
 *   intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem
