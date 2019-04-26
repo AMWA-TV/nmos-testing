@@ -35,8 +35,8 @@ Device under test uses:
 *   [intermediate/certs/rsa.api.testsuite.nmos.tv.cert.chain.pem](ca/intermediate/certs/rsa.api.testsuite.nmos.tv.cert.chain.pem)
 *   [intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.chain.pem](ca/intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.chain.pem)
 
-Alternatively, if your web server requires the CA's intermediate to be separate, please use:
-*   [intermediate/certs/intermediate.cert.pem](ca/intermediate/certs/intermediate.cert.pem)
+Alternatively, if your web server requires the CA's certificate and intermediate to be separate, please use:
+*   [intermediate/certs/ca-chain.cert.pem](ca/intermediate/certs/ca-chain.cert.pem)
 *   [intermediate/certs/rsa.api.testsuite.nmos.tv.cert.pem](ca/intermediate/certs/rsa.api.testsuite.nmos.tv.cert.pem)
 *   [intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.pem](ca/intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.pem)
 
