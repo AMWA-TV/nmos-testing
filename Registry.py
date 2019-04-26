@@ -82,6 +82,7 @@ class Registry(object):
         self.enabled = True
 
     def disable(self):
+        self.test_first_reg = False
         self.enabled = False
 
 
@@ -130,6 +131,9 @@ def delete_resource(version, resource_type, resource_id):
             pass
     else:
         registered = True
+        if resource_type == "node":
+            # Once we have seen a DELETE for a Node, ensure we respond with a 201 to future POSTs
+            registry.test_first_reg = False
     registry.delete(request.headers, request.data, resource_type, resource_id)
     if registered:
         return "", 204
@@ -144,7 +148,7 @@ def heartbeat(version, node_id):
         abort(500)
     # store raw request payload, in order to check for empty request bodies later
     registry.heartbeat(request.headers, request.data, node_id)
-    if node_id in registry.get_resources()["node"] or registry.test_first_reg:
+    if node_id in registry.get_resources()["node"]:
         return jsonify({"health": int(time.time())})
     else:
         abort(404)
