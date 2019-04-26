@@ -45,7 +45,20 @@ Alternatively, if your web server requires the CA's intermediate to be separate,
 Additional certificates can be generated using this CA if required, using the './generateCerts' script followed by a
 domain name and an optional additional domain name ending in '.local' for mDNS usage.
 
-Example: ./generateCerts myapi.testsuite.nmos.tv myapi.local
+Example: `./generateCerts myapi.testsuite.nmos.tv myapi.local`
+
+## Temporary Diffie-Hellman Parameters
+
+When an ephemeral Diffie-Hellman cipher is used, the server and the client negotiate a pre-master key using the
+Diffie-Hellman algorithm. This algorithm requires that the server sends the client a prime number and a generator.
+Neither are confidential, and are sent in clear text.
+
+The './generateDHParams' script may be used to generate appropriate parameters.
+
+Alternatively, since they do not need to be unique or private, the server under test may use the provided file:
+* intermediate/private/dhparam.pem
+
+This currently contains the 4096-bit DH parameters recommended by [RFC 7919](https://tools.ietf.org/html/rfc7919).
 
 ## Other Notes
 

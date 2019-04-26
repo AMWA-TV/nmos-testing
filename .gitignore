@@ -107,4 +107,3 @@ cache/
 testssl/
 !testssl/README.md
 tls-report.json
-test_data/BCP00301/ca/intermediate/private/dhparam.pem
