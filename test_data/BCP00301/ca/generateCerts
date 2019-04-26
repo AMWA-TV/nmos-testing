@@ -36,8 +36,8 @@ openssl req -config intermediate/openssl.cnf -key intermediate/private/rsa.$DOMA
 
 # Sign ECDSA CSR
 openssl ca -batch -config intermediate/openssl.cnf -extensions server_cert -days 18250 -notext -md sha256 -in intermediate/csr/ecdsa.$DOMAIN.csr.pem -out intermediate/certs/ecdsa.$DOMAIN.cert.pem
-cat intermediate/certs/ecdsa.$DOMAIN.cert.pem intermediate/certs/intermediate.cert.pem > intermediate/certs/ecdsa.$DOMAIN.cert.chain.pem
+cat intermediate/certs/ecdsa.$DOMAIN.cert.pem intermediate/certs/ca-chain.cert.pem > intermediate/certs/ecdsa.$DOMAIN.cert.chain.pem
 
 # Sign RSA CSR
 openssl ca -batch -config intermediate/openssl.cnf -extensions server_cert -days 18250 -notext -md sha256 -in intermediate/csr/rsa.$DOMAIN.csr.pem -out intermediate/certs/rsa.$DOMAIN.cert.pem
-cat intermediate/certs/rsa.$DOMAIN.cert.pem intermediate/certs/intermediate.cert.pem > intermediate/certs/rsa.$DOMAIN.cert.chain.pem
+cat intermediate/certs/rsa.$DOMAIN.cert.pem intermediate/certs/ca-chain.cert.pem > intermediate/certs/rsa.$DOMAIN.cert.chain.pem
