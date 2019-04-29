@@ -833,15 +833,18 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
         # First pass to check for errors
+        access_error = False
         for sender in rtp_senders:
             dup_params = []
             if sender in dup_senders:
                 dup_params = ["--duplicate", "true"]
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
-                                        [self.url + path],
-                                        stderr=subprocess.STDOUT, shell=True)
+                output = subprocess.check_output("sdpoker --nmos false --shaping true " + self.url + path,
+                                                 stderr=subprocess.STDOUT, shell=True)
+                if output.decode("utf-8").startswith("{ StatusCodeError:"):
+                    # This case exits with a zero error code so can't be handled in the exception
+                    access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
                 if output.startswith("Found"):
@@ -857,10 +860,13 @@ class IS0501Test(GenericTest):
                 dup_params = ["--duplicate", "true"]
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
-                                        ["--whitespace", "true", "--should", "true", "--checkEndings", "true",
-                                         self.url + path],
-                                        stderr=subprocess.STDOUT, shell=True)
+                output = subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
+                                                 ["--whitespace", "true", "--should", "true", "--checkEndings", "true",
+                                                 self.url + path],
+                                                 stderr=subprocess.STDOUT, shell=True)
+                if output.decode("utf-8").startswith("{ StatusCodeError:"):
+                    # This case exits with a zero error code so can't be handled in the exception
+                    access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
                 if output.startswith("Found"):
@@ -868,6 +874,10 @@ class IS0501Test(GenericTest):
                 else:
                     return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
                                          "installation instructions.")
+
+        if access_error:
+            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please ensure"
+                                "'master_enable' is set to true for all Senders and re-test.")
 
         return test.PASS()
 
