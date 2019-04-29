@@ -840,7 +840,8 @@ class IS0501Test(GenericTest):
             path = "single/senders/{}/transportfile".format(sender)
             try:
                 subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
-                                        [self.url + path], stderr=subprocess.STDOUT)
+                                        [self.url + path],
+                                        stderr=subprocess.STDOUT, shell=True)
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
                 if output.startswith("Found"):
@@ -857,7 +858,8 @@ class IS0501Test(GenericTest):
             try:
                 subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
                                         ["--whitespace", "true", "--should", "true", "--checkEndings", "true",
-                                         self.url + path], stderr=subprocess.STDOUT)
+                                         self.url + path],
+                                        stderr=subprocess.STDOUT, shell=True)
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
                 if output.startswith("Found"):
