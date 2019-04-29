@@ -16,7 +16,6 @@
 
 import time
 import socket
-import netifaces
 import json
 
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
@@ -24,6 +23,7 @@ from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
+from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
 
@@ -59,8 +59,6 @@ class IS0401Test(GenericTest):
 
     def _registry_mdns_info(self, port, priority=0):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
         # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': self.protocol, 'pri': str(priority)}
 
@@ -70,7 +68,7 @@ class IS0401Test(GenericTest):
 
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}.{}".format(port, service_type),
-                           socket.inet_aton(default_ip), port, 0, 0,
+                           socket.inet_aton(get_default_ip()), port, 0, 0,
                            txt, "nmos-mocks.local.")
         return info
 

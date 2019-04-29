@@ -16,14 +16,12 @@ from dnslib.server import DNSServer
 from dnslib.zoneresolver import ZoneResolver
 from jinja2 import Template
 
-import netifaces
+from TestHelper import get_default_ip
 
 
 class DNS(object):
     def __init__(self):
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
-        self.default_ip = default_ip
+        self.default_ip = get_default_ip()
         self.resolver = None
         self.server = None
         self.base_zone_data = None

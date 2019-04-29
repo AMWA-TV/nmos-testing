@@ -20,6 +20,7 @@ import requests
 import websocket
 import os
 import jsonref
+import netifaces
 from pathlib import Path
 
 from Config import HTTP_TIMEOUT, CERT_TRUST_ROOT_CA
@@ -37,6 +38,17 @@ def ordered(obj):
 def compare_json(json1, json2):
     """Compares two json objects for equality"""
     return ordered(json1) == ordered(json2)
+
+
+def get_default_ip():
+    """Get this machine's default IPv4 address"""
+    default_gw = netifaces.gateways()['default']
+    if netifaces.AF_INET in default_gw:
+        default_interface = default_gw[netifaces.AF_INET][1]
+    else:
+        interfaces = netifaces.interfaces()
+        default_interface = next((i for i in interfaces if i is not 'lo'), interfaces[0])
+    return netifaces.ifaddresses(default_interface)[netifaces.AF_INET][0]['addr']
 
 
 def do_request(method, url, data=None):
