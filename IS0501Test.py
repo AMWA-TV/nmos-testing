@@ -840,7 +840,8 @@ class IS0501Test(GenericTest):
                 dup_params = ["--duplicate", "true"]
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                output = subprocess.check_output("sdpoker --nmos false --shaping true " + self.url + path,
+                output = subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
+                                                 [self.url + path],
                                                  stderr=subprocess.STDOUT, shell=True)
                 if output.decode("utf-8").startswith("{ StatusCodeError:"):
                     # This case exits with a zero error code so can't be handled in the exception
