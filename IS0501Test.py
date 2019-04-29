@@ -835,14 +835,13 @@ class IS0501Test(GenericTest):
         # First pass to check for errors
         access_error = False
         for sender in rtp_senders:
-            dup_params = []
+            dup_params = ""
             if sender in dup_senders:
-                dup_params = ["--duplicate", "true"]
+                dup_params = " --duplicate true"
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                output = subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
-                                                 [self.url + path],
-                                                 stderr=subprocess.STDOUT, shell=True)
+                cmd_string = "sdpoker --nmos false --shaping true{} {}".format(dup_params, self.url + path)
+                output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
                 if output.decode("utf-8").startswith("{ StatusCodeError:"):
                     # This case exits with a zero error code so can't be handled in the exception
                     access_error = True
@@ -856,15 +855,14 @@ class IS0501Test(GenericTest):
 
         # Second pass to check for warnings
         for sender in rtp_senders:
-            dup_params = []
+            dup_params = ""
             if sender in dup_senders:
-                dup_params = ["--duplicate", "true"]
+                dup_params = " --duplicate true"
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                output = subprocess.check_output(["sdpoker", "--nmos", "false", "--shaping", "true"] + dup_params +
-                                                 ["--whitespace", "true", "--should", "true", "--checkEndings", "true",
-                                                 self.url + path],
-                                                 stderr=subprocess.STDOUT, shell=True)
+                cmd_string = "sdpoker --nmos false --shaping true --whitespace true --should true " \
+                             "--checkEndings true{} {}".format(dup_params, self.url + path)
+                output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
                 if output.decode("utf-8").startswith("{ StatusCodeError:"):
                     # This case exits with a zero error code so can't be handled in the exception
                     access_error = True
