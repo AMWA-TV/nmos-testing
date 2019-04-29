@@ -26,6 +26,14 @@ class RegistryCommon(object):
         self.resources = {"node": {}}
 
 
+class RegistryData(object):
+    def __init__(self, port):
+        self.port = port
+        self.posts = []
+        self.deletes = []
+        self.heartbeats = []
+
+
 class Registry(object):
     def __init__(self, data_store, port_increment):
         self.common = data_store
@@ -35,16 +43,14 @@ class Registry(object):
     def reset(self):
         self.last_time = time.time()
         self.last_hb_time = 0
-        self.post_data = []
-        self.delete_data = []
+        self.data = RegistryData(self.port)
         self.common.reset()
-        self.heartbeats = []
         self.enabled = False
         self.test_first_reg = False
 
     def add(self, headers, payload):
         self.last_time = time.time()
-        self.post_data.append((self.last_time, {"headers": headers, "payload": payload}))
+        self.data.posts.append((self.last_time, {"headers": headers, "payload": payload}))
         if "type" in payload and "data" in payload:
             if payload["type"] not in self.common.resources:
                 self.common.resources[payload["type"]] = {}
@@ -53,26 +59,17 @@ class Registry(object):
 
     def delete(self, headers, payload, resource_type, resource_id):
         self.last_time = time.time()
-        self.delete_data.append((self.last_time, {"headers": headers, "payload": payload, "type": resource_type,
-                                                  "id": resource_id}))
+        self.data.deletes.append((self.last_time, {"headers": headers, "payload": payload, "type": resource_type,
+                                                   "id": resource_id}))
         if resource_type in self.common.resources:
             self.common.resources[resource_type].pop(resource_id, None)
 
     def heartbeat(self, headers, payload, node_id):
         self.last_hb_time = time.time()
-        self.heartbeats.append((self.last_hb_time, {"headers": headers, "payload": payload, "node_id": node_id}))
+        self.data.heartbeats.append((self.last_hb_time, {"headers": headers, "payload": payload, "node_id": node_id}))
 
-    def get_post_data(self):
-        return self.post_data
-
-    def get_delete_data(self):
-        return self.delete_data
-
-    def get_heartbeats(self):
-        return self.heartbeats
-
-    def get_port(self):
-        return self.port
+    def get_data(self):
+        return self.data
 
     def get_resources(self):
         return self.common.resources
