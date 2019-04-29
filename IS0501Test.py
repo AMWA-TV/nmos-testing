@@ -847,7 +847,8 @@ class IS0501Test(GenericTest):
                 if output.startswith("Found"):
                     return test.FAIL("Error for Sender {}: {}".format(sender, output))
                 else:
-                    return test.DISABLED("SDPoker may be unavailable on this system")
+                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
+                                         "installation instructions.")
 
         # Second pass to check for warnings
         for sender in rtp_senders:
@@ -865,7 +866,8 @@ class IS0501Test(GenericTest):
                 if output.startswith("Found"):
                     return test.WARNING("Warning for Sender {}: {}".format(sender, output))
                 else:
-                    return test.DISABLED("SDPoker may be unavailable on this system")
+                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
+                                         "installation instructions.")
 
         return test.PASS()
 
