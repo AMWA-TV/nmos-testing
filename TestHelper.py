@@ -131,7 +131,7 @@ class WebsocketWorker(threading.Thread):
 
     def run(self):
         # TODO: Provide a mechanism to establish trust for certificates to avoid check_hostname=False
-        self.ws.run_forever(sslopt={"ca_cert_path": CERT_TRUST_ROOT_CA})
+        self.ws.run_forever(sslopt={"check_hostname": False, "ca_cert_path": CERT_TRUST_ROOT_CA})
 
     def on_open(self):
         pass

@@ -55,6 +55,16 @@ ENABLE_HTTPS = False
 CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
 CERT_TRUST_CHAIN = "test_data/BCP00301/ca/intermediate/certs/ca-chain.cert.pem"
 
+# Certificate chains and the corresponding private keys
+CERTS_MOCKS = [
+    "test_data/BCP00301/ca/intermediate/certs/ecdsa.mocks.testsuite.nmos.tv.cert.chain.pem",
+    "test_data/BCP00301/ca/intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem"
+]
+KEYS_MOCKS = [
+    "test_data/BCP00301/ca/intermediate/private/ecdsa.mocks.testsuite.nmos.tv.key.pem",
+    "test_data/BCP00301/ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem"
+]
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
