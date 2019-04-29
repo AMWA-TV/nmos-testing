@@ -1,38 +1,43 @@
 #!/bin/bash
 
 DOMAIN=$1
-if [$DOMAIN == ""]; then
+if [ -z $DOMAIN ]; then
     echo "Expected domain argument"
     exit 1
 fi
+LOCALDOMAIN=$2
+
+SANDATA="DNS.1:"$DOMAIN
+if [ ! -z $LOCALDOMAIN ]; then
+    SANDATA=$SANDATA", DNS.2:"$LOCALDOMAIN
+fi
+export SAN=$SANDATA
 
 rm -f intermediate/private/ecdsa.$DOMAIN.key.pem
-rm -f intermediate/private/$DOMAIN.key.pem
+rm -f intermediate/private/rsa.$DOMAIN.key.pem
 rm intermediate/csr/ecdsa.$DOMAIN.csr.pem
-rm intermediate/csr/$DOMAIN.csr.pem
+rm intermediate/csr/rsa.$DOMAIN.csr.pem
 rm intermediate/certs/ecdsa.$DOMAIN.cert.pem
-rm intermediate/certs/$DOMAIN.cert.pem
+rm intermediate/certs/rsa.$DOMAIN.cert.pem
 
 # Create ECDSA key
-openssl ecparam -name secp521r1 -genkey -noout -out intermediate/private/ecdsa.$DOMAIN.key.pem
+openssl ecparam -name secp256r1 -genkey -noout -out intermediate/private/ecdsa.$DOMAIN.key.pem
 chmod 400 intermediate/private/ecdsa.$DOMAIN.key.pem
 
 # Create RSA Key
 openssl genrsa -out intermediate/private/rsa.$DOMAIN.key.pem 2048
-chmod 400 intermediate/private/$DOMAIN.key.pem
+chmod 400 intermediate/private/rsa.$DOMAIN.key.pem
 
 # Create ECDSA CSR
-export SAN=$DOMAIN
 openssl req -config intermediate/openssl.cnf -key intermediate/private/ecdsa.$DOMAIN.key.pem -new -sha256 -out intermediate/csr/ecdsa.$DOMAIN.csr.pem -subj "/C=GB/ST=England/O=NMOS Testing Ltd/CN=$DOMAIN"
 
 # Create RSA CSR
-export SAN=$DOMAIN
 openssl req -config intermediate/openssl.cnf -key intermediate/private/rsa.$DOMAIN.key.pem -new -sha256 -out intermediate/csr/rsa.$DOMAIN.csr.pem -subj "/C=GB/ST=England/O=NMOS Testing Ltd/CN=$DOMAIN"
 
 # Sign ECDSA CSR
-export SAN=$DOMAIN
 openssl ca -batch -config intermediate/openssl.cnf -extensions server_cert -days 18250 -notext -md sha256 -in intermediate/csr/ecdsa.$DOMAIN.csr.pem -out intermediate/certs/ecdsa.$DOMAIN.cert.pem
+cat intermediate/certs/ecdsa.$DOMAIN.cert.pem intermediate/certs/ca-chain.cert.pem > intermediate/certs/ecdsa.$DOMAIN.cert.chain.pem
 
 # Sign RSA CSR
-export SAN=$DOMAIN
 openssl ca -batch -config intermediate/openssl.cnf -extensions server_cert -days 18250 -notext -md sha256 -in intermediate/csr/rsa.$DOMAIN.csr.pem -out intermediate/certs/rsa.$DOMAIN.cert.pem
+cat intermediate/certs/rsa.$DOMAIN.cert.pem intermediate/certs/ca-chain.cert.pem > intermediate/certs/rsa.$DOMAIN.cert.chain.pem

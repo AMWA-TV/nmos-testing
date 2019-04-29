@@ -120,7 +120,7 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
 keyUsage = critical, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
-subjectAltName=DNS.1:${ENV::SAN}
+subjectAltName=${ENV::SAN}
 crlDistributionPoints = URI:http://crl.testsuite.nmos.tv/intermediate.crl.pem
 authorityInfoAccess = OCSP;URI:http://ocsp.testsuite.nmos.tv
 
@@ -138,4 +138,4 @@ extendedKeyUsage = critical, OCSPSigning
 
 [ v3_req ]
 # Extensions to add to a certificate request
-subjectAltName=DNS.1:${ENV::SAN}
+subjectAltName=${ENV::SAN}
