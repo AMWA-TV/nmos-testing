@@ -16,6 +16,7 @@
 
 
 import uuid
+import subprocess
 from jsonschema import ValidationError, SchemaError
 
 from GenericTest import GenericTest
@@ -801,6 +802,83 @@ class IS0501Test(GenericTest):
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_41(self, test):
+        """SDP transport files pass SDPoker tests"""
+
+        api = self.apis[CONN_API_KEY]
+        rtp_senders = []
+        dup_senders = []
+        if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            # Find all RTP senders for v1.1+
+            for sender in self.senders:
+                url = "single/senders/{}/transporttype".format(sender)
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                if valid:
+                    if response == "urn:x-nmos:transport:rtp":
+                        rtp_senders.append(sender)
+                        # Check whether this sender uses stream duplication
+                        url = "single/senders/{}/active".format(sender)
+                        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                        if valid:
+                            if len(response["transport_params"]) == 2:
+                                dup_senders.append(sender)
+                else:
+                    return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
+        else:
+            # RTP is the only transport type for v1.0
+            rtp_senders = self.senders
+
+        if len(rtp_senders) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+        # First pass to check for errors
+        access_error = False
+        for sender in rtp_senders:
+            dup_params = ""
+            if sender in dup_senders:
+                dup_params = " --duplicate true"
+            path = "single/senders/{}/transportfile".format(sender)
+            try:
+                cmd_string = "sdpoker --nmos false --shaping true{} {}".format(dup_params, self.url + path)
+                output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
+                if output.decode("utf-8").startswith("{ StatusCodeError:"):
+                    # This case exits with a zero error code so can't be handled in the exception
+                    access_error = True
+            except subprocess.CalledProcessError as e:
+                output = str(e.output, "utf-8")
+                if output.startswith("Found"):
+                    return test.FAIL("Error for Sender {}: {}".format(sender, output))
+                else:
+                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
+                                         "installation instructions.")
+
+        # Second pass to check for warnings
+        for sender in rtp_senders:
+            dup_params = ""
+            if sender in dup_senders:
+                dup_params = " --duplicate true"
+            path = "single/senders/{}/transportfile".format(sender)
+            try:
+                cmd_string = "sdpoker --nmos false --shaping true --whitespace true --should true " \
+                             "--checkEndings true{} {}".format(dup_params, self.url + path)
+                output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
+                if output.decode("utf-8").startswith("{ StatusCodeError:"):
+                    # This case exits with a zero error code so can't be handled in the exception
+                    access_error = True
+            except subprocess.CalledProcessError as e:
+                output = str(e.output, "utf-8")
+                if output.startswith("Found"):
+                    return test.WARNING("Warning for Sender {}: {}".format(sender, output))
+                else:
+                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
+                                         "installation instructions.")
+
+        if access_error:
+            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
+                                "ensure 'master_enable' is set to true for all Senders and re-test.")
+
+        return test.PASS()
 
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""
