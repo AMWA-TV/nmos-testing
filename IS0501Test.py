@@ -875,8 +875,8 @@ class IS0501Test(GenericTest):
                                          "installation instructions.")
 
         if access_error:
-            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please ensure"
-                                "'master_enable' is set to true for all Senders and re-test.")
+            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
+                                "ensure 'master_enable' is set to true for all Senders and re-test.")
 
         return test.PASS()
 
