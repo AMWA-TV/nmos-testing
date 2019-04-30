@@ -87,6 +87,7 @@ python3 nmos-test.py suite -h
 *   Python 3
 *   Git
 *   [testssl.sh](https://testssl.sh) (required for BCP-003-01 testing)
+*   [SDPoker](https://github.com/Streampunk/sdpoker) (required for IS-05 SDP testing)
 *   See [requirements.txt](requirements.txt) for additional packages
 
 ## Known Issues
