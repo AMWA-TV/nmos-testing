@@ -54,8 +54,8 @@ On the host running the test suite, add an entry to the hosts file for 'api.test
 address of the host under test.
 
 On the host under test, add an entry to the hosts file for 'mocks.testsuite.nmos.tv' pointing at the IP address of the
-host running the test suite. At present this is only required for the IS-04 Node tests which communicate directly with
-entities which are 'mocked' by the test suite.
+host running the test suite. At present this is only required for the IS-04 Node tests which require that the unit under
+test communicate directly with entities which are 'mocked' by the test suite.
 
 ## Additional Certificates
 
