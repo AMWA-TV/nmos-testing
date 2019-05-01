@@ -46,7 +46,7 @@ HTTP_TIMEOUT = 1
 # 0 = unlimited for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
-# Test using HTTPS rather than HTTP as-per AMWA BCP003-01
+# Test using HTTPS rather than HTTP as per AMWA BCP-003-01
 ENABLE_HTTPS = False
 
 # Which certificate authority to trust when performing requests in HTTPS mode.
