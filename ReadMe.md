@@ -51,6 +51,8 @@ In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast
 
 Unicast DNS advertisements for registries only become available once tests are running. As a result the unit under test may need prompting to re-scan the DNS server for records at this point. The `DNS_SD_ADVERT_TIMEOUT` config parameter may be used to increase the period which the test suite waits for in this situation.
 
+If your network requires the use of the proxy server, you may find it necessary to disable this configuration on the host running the test suite and on the unit under test when using unicast DNS. This is because any requests to fully qualified hostnames are likely to be directed to your proxy server, which will be unable to resolve them.
+
 ### Testing BCP-003-01 TLS
 
 Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see [testssl/README.md](testssl/README.md) for installation instructions.
