@@ -61,8 +61,7 @@ def do_request(method, url, data=None):
         else:
             req = requests.Request(method, url)
         prepped = s.prepare_request(req)
-        settings = s.merge_environment_settings(prepped.url, {"http": None, "https": None},
-                                                None, CERT_TRUST_ROOT_CA, None)
+        settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
         r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         return True, r
     except requests.exceptions.Timeout:
