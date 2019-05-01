@@ -53,6 +53,8 @@ In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast
 
 Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see [testssl/README.md](testssl/README.md) for installation instructions.
 
+In order to ease testing of TLS with the various specifications, sample certificates are provided in this repository. Please see [test_data/BCP00301/README.md](test_data/BCP00301/README.md) for their details and installation guidance.
+
 ### Testing of SDP files
 
 IS-05 test_41 checks that SDP files conform to the expectations of ST.2110. In order to enable these tests, please ensure that [SDPoker](https://github.com/Streampunk/sdpoker) is available on your system.
