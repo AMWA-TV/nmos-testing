@@ -49,6 +49,8 @@ The result of each test case will be one of the following:
 
 In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast'`. Additionally, ensure that the unit under test has its search domain set to 'testsuite.nmos.tv' and the DNS server IP to the IP address of the server which is running the test suite instance.
 
+Unicast DNS advertisements for registries only become available once tests are running. As a result the unit under test may need prompting to re-scan the DNS server for records at this point. The `DNS_SD_ADVERT_TIMEOUT` config parameter may be used to increase the peeriod which the test suite waits for in this situation.
+
 ### Testing BCP-003-01 TLS
 
 Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see [testssl/README.md](testssl/README.md) for installation instructions.
