@@ -22,7 +22,7 @@ from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException
 from IS04Utils import IS04Utils
-from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
+from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL, ENABLE_HTTPS
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -124,7 +124,14 @@ class IS0401Test(GenericTest):
                 if (index + 1) >= len(self.registries):
                     break
 
-                heartbeat_countdown = HEARTBEAT_INTERVAL + 1
+                # in event of testing HTTPS support, the TLS handshake seems to take nearly 2 seconds, so
+                # when the first registry is disabled, an additional few seconds is needed to ensure the node
+                # has a chance to make a connection to it, receive the 5xx error, and make a connection to
+                # the next one
+                if ENABLE_HTTPS:
+                    heartbeat_countdown = HEARTBEAT_INTERVAL + 1 + 5
+                else:
+                    heartbeat_countdown = HEARTBEAT_INTERVAL + 1
                 while len(self.registries[index + 1].get_data().heartbeats) < 1 and heartbeat_countdown > 0:
                     # Wait until the heartbeat interval has elapsed or a heartbeat has been received
                     time.sleep(1)

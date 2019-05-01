@@ -61,8 +61,7 @@ def do_request(method, url, data=None):
         else:
             req = requests.Request(method, url)
         prepped = s.prepare_request(req)
-        settings = s.merge_environment_settings(prepped.url, {"http": None, "https": None},
-                                                None, CERT_TRUST_ROOT_CA, None)
+        settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
         r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         return True, r
     except requests.exceptions.Timeout:
@@ -130,8 +129,7 @@ class WebsocketWorker(threading.Thread):
         self.error_message = ""
 
     def run(self):
-        # TODO: Provide a mechanism to establish trust for certificates to avoid check_hostname=False
-        self.ws.run_forever(sslopt={"ca_cert_path": CERT_TRUST_ROOT_CA})
+        self.ws.run_forever(sslopt={"ca_certs": CERT_TRUST_ROOT_CA})
 
     def on_open(self):
         pass

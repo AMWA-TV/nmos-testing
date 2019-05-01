@@ -46,14 +46,22 @@ HTTP_TIMEOUT = 1
 # 0 = unlimited for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
-# Test using HTTPS rather than HTTP as-per AMWA BCP003-01
-# WARNING: This setting is currently not fully implemented and classed as experimental.
+# Test using HTTPS rather than HTTP as per AMWA BCP-003-01
 ENABLE_HTTPS = False
 
 # Which certificate authority to trust when performing requests in HTTPS mode.
 # Defaults to the CA contained within this test suite
 CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
-CERT_TRUST_CHAIN = "test_data/BCP00301/ca/intermediate/certs/ca-chain.cert.pem"
+
+# Certificate chains and the corresponding private keys
+CERTS_MOCKS = [
+    "test_data/BCP00301/ca/intermediate/certs/ecdsa.mocks.testsuite.nmos.tv.cert.chain.pem",
+    "test_data/BCP00301/ca/intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem"
+]
+KEYS_MOCKS = [
+    "test_data/BCP00301/ca/intermediate/private/ecdsa.mocks.testsuite.nmos.tv.key.pem",
+    "test_data/BCP00301/ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem"
+]
 
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
