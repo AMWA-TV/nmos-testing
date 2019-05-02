@@ -28,8 +28,8 @@ echo 1000 > intermediate/serial
 echo 1000 > intermediate/crlnumber
 openssl genrsa -out intermediate/private/intermediate.key.pem 4096
 chmod 400 intermediate/private/intermediate.key.pem
-export SAN="DNS.1:ca.testsuite.nmos.tv"
-openssl req -config intermediate/openssl.cnf -new -sha256 -key intermediate/private/intermediate.key.pem -out intermediate/csr/intermediate.csr.pem -subj "/C=GB/ST=England/O=NMOS Testing Ltd/CN=ca.testsuite.nmos.tv"
+export SAN="DNS.1:ica.testsuite.nmos.tv"
+openssl req -config intermediate/openssl.cnf -new -sha256 -key intermediate/private/intermediate.key.pem -out intermediate/csr/intermediate.csr.pem -subj "/C=GB/ST=England/O=NMOS Testing Ltd/CN=ica.testsuite.nmos.tv"
 openssl ca -batch -config openssl.cnf -extensions v3_intermediate_ca -days 18250 -notext -md sha256 -in intermediate/csr/intermediate.csr.pem -out intermediate/certs/intermediate.cert.pem
 chmod 444 intermediate/certs/intermediate.cert.pem
 
