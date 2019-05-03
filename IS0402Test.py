@@ -884,7 +884,6 @@ class IS0402Test(GenericTest):
         """Query API implements pagination (correct encoding of URLs in Link header)"""
 
         self.check_paged_trait(test)
-        description = "test_21_8"
 
         # check '&' is returned encoded
         response = self.do_paged_request(label="foo%26bar")
@@ -979,8 +978,8 @@ class IS0402Test(GenericTest):
         # Raise an error if resources below the requested version are returned, or those for the relevant API versions
         # are not returned. Otherwise pass.
         for api_version in query_versions:
-            valid, r = self.do_request("GET", self.query_url
-                                       + "nodes/{}?query.downgrade={}".format(node_ids[api_version], api_version))
+            valid, r = self.do_request("GET", self.query_url +
+                                       "nodes/{}?query.downgrade={}".format(node_ids[api_version], api_version))
             if not valid:
                 return test.FAIL("Query API failed to respond to request")
             elif self.is04_query_utils.compare_api_version(query_api["version"], "v1.3") >= 0 and r.status_code == 501:
@@ -1758,8 +1757,8 @@ class IS0402Test(GenericTest):
             reversed_resource_list = deepcopy(resources_to_post)
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
-                valid, r = self.do_request("DELETE", self.reg_url
-                                           + "resource/{}s/{}".format(resource, test_data[resource]["id"]))
+                valid, r = self.do_request("DELETE", self.reg_url +
+                                           "resource/{}s/{}".format(resource, test_data[resource]["id"]))
                 if not valid:
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
                                      .format(resource, r))
@@ -2086,12 +2085,12 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(fail(test, "Registration API returned wrong HTTP code"))
         elif r.status_code not in codes:
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: "
-                                              "{} {}".format(r.status_code, r.text)))
+                                               "{} {}".format(r.status_code, r.text)))
         elif r.status_code in [200, 201]:
             if "Location" not in r.headers:
                 raise NMOSTestException(fail(test, "Registration API failed to return a 'Location' response header"))
-            elif (not r.headers["Location"].startswith("/")
-                  and not r.headers["Location"].startswith(self.protocol + "://")):
+            elif (not r.headers["Location"].startswith("/") and
+                  not r.headers["Location"].startswith(self.protocol + "://")):
                 raise NMOSTestException(fail(test, "Registration API response Location header is invalid for the "
                                              "current protocol: Location: {}".format(r.headers["Location"])))
 

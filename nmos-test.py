@@ -21,7 +21,8 @@ from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT, CERTS_MOCKS, KEYS_MOCKS
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
+from Config import CERTS_MOCKS, KEYS_MOCKS
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
