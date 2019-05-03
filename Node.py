@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import uuid
-import netifaces
 
 from flask import Blueprint, make_response, abort
 from Config import ENABLE_HTTPS
+from TestHelper import get_default_ip
 
 
 class Node(object):
@@ -24,11 +24,11 @@ class Node(object):
         pass
 
     def get_sender(self, stream_type="video"):
-        default_gw_interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-        default_ip = netifaces.ifaddresses(default_gw_interface)[netifaces.AF_INET][0]['addr']
         protocol = "http"
+        host = get_default_ip()
         if ENABLE_HTTPS:
             protocol = "https"
+            host = "mocks.testsuite.nmos.tv"
         # TODO: Provide the means to downgrade this to a <v1.2 JSON representation
         sender = {
             "id": str(uuid.uuid4()),
@@ -37,7 +37,7 @@ class Node(object):
             "version": "50:50",
             "caps": {},
             "tags": {},
-            "manifest_href": "{}://{}:5000/{}.sdp".format(protocol, default_ip, stream_type),
+            "manifest_href": "{}://{}:5006/{}.sdp".format(protocol, host, stream_type),
             "flow_id": str(uuid.uuid4()),
             "transport": "urn:x-nmos:transport:rtp.mcast",
             "device_id": str(uuid.uuid4()),

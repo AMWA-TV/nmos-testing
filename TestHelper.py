@@ -20,6 +20,7 @@ import requests
 import websocket
 import os
 import jsonref
+import netifaces
 from pathlib import Path
 
 from Config import HTTP_TIMEOUT, CERT_TRUST_ROOT_CA
@@ -39,6 +40,17 @@ def compare_json(json1, json2):
     return ordered(json1) == ordered(json2)
 
 
+def get_default_ip():
+    """Get this machine's default IPv4 address"""
+    default_gw = netifaces.gateways()['default']
+    if netifaces.AF_INET in default_gw:
+        default_interface = default_gw[netifaces.AF_INET][1]
+    else:
+        interfaces = netifaces.interfaces()
+        default_interface = next((i for i in interfaces if i is not 'lo'), interfaces[0])
+    return netifaces.ifaddresses(default_interface)[netifaces.AF_INET][0]['addr']
+
+
 def do_request(method, url, data=None):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
@@ -49,8 +61,7 @@ def do_request(method, url, data=None):
         else:
             req = requests.Request(method, url)
         prepped = s.prepare_request(req)
-        settings = s.merge_environment_settings(prepped.url, {"http": None, "https": None},
-                                                None, CERT_TRUST_ROOT_CA, None)
+        settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
         r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         return True, r
     except requests.exceptions.Timeout:
@@ -118,8 +129,7 @@ class WebsocketWorker(threading.Thread):
         self.error_message = ""
 
     def run(self):
-        # TODO: Provide a mechanism to establish trust for certificates to avoid check_hostname=False
-        self.ws.run_forever(sslopt={"ca_cert_path": CERT_TRUST_ROOT_CA})
+        self.ws.run_forever(sslopt={"ca_certs": CERT_TRUST_ROOT_CA})
 
     def on_open(self):
         pass

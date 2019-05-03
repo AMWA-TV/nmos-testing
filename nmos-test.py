@@ -21,7 +21,7 @@ from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT, CERTS_MOCKS, KEYS_MOCKS
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
@@ -42,6 +42,7 @@ import traceback
 import inspect
 import ipaddress
 import socket
+import ssl
 
 import IS0401Test
 import IS0402Test
@@ -72,6 +73,11 @@ for instance in range(NUM_REGISTRIES):
     reg_app.config['REGISTRY_INSTANCE'] = instance
     reg_app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
     FLASK_APPS.append(reg_app)
+
+sender_app = Flask(__name__)
+sender_app.debug = False
+sender_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
+FLASK_APPS.append(sender_app)
 
 
 # Definitions of each set of tests made available from the dropdowns
@@ -268,7 +274,7 @@ def index_page():
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, url=results["base_url"],
-                                                      test=results["name"], result=results["result"],
+                                                      test=test_def["name"], result=results["result"],
                                                       cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
@@ -348,7 +354,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             raise ex
         finally:
             core_app.config['TEST_ACTIVE'] = False
-        return {"result": result, "name": test_def["name"], "base_url": base_url}
+        return {"result": result, "def": test_def, "base_url": base_url}
     else:
         raise NMOSInitException("This test definition does not exist")
 
@@ -406,8 +412,8 @@ def write_test_results(results, args):
     exit_code = ExitCodes.OK
     test_cases = []
     for test_result in results["result"]:
-        test_case = TestCase(test_result.name, elapsed_sec=test_result.elapsed_time,
-                             timestamp=test_result.timestamp)
+        test_case = TestCase(test_result.name, classname=results["def"]["class"].__name__,
+                             elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
         if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
                                                                     TestStates.UNCLEAR,
                                                                     TestStates.MANUAL,
@@ -424,16 +430,17 @@ def write_test_results(results, args):
             test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
         test_cases.append(test_case)
 
-    ts = TestSuite(results["name"] + ": " + results["base_url"], test_cases)
+    ts = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
     with open(args.output, "w") as f:
-        TestSuite.to_file(f, [ts], prettyprint=False)
+        # pretty-print to help out Jenkins (and us humans), which struggles otherwise
+        TestSuite.to_file(f, [ts], prettyprint=True)
         print(" * Test results written to file: {}".format(args.output))
     return exit_code
 
 
 def print_test_results(results, args):
     exit_code = ExitCodes.OK
-    print("\r\nPrinting test results for suite '{}' using API '{}'".format(results["name"], results["base_url"]))
+    print("\r\nPrinting test results for suite '{}' using API '{}'".format(results["def"]["name"], results["base_url"]))
     print("----------------------------")
     total_time = 0
     for test_result in results["result"]:
@@ -516,12 +523,26 @@ def validate_args(args):
 
 
 def start_web_servers():
+    ctx = None
+    if ENABLE_HTTPS:
+        # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
+        ctx = ssl.create_default_context()
+        for cert, key in zip(CERTS_MOCKS, KEYS_MOCKS):
+            ctx.load_cert_chain(cert, key)
+        # additionally disable TLS v1.0 and v1.1
+        ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        # BCP-003-01 however doesn't require client certificates, so disable those
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
     port = 5001
     for app in FLASK_APPS:
-        t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
+        t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True,
+                                                     'ssl_context': ctx})
         t.daemon = True
         t.start()
         port += 1
+
     t = threading.Thread(target=core_app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'threaded': True})
     t.daemon = True
     t.start()
@@ -561,8 +582,8 @@ if __name__ == '__main__':
         elif os.geteuid() == 0:
             is_admin = True
         if not is_admin:
-            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run with elevated "
-                  "permissions")
+            print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run "
+                  "with elevated permissions")
             sys.exit(ExitCodes.ERROR)
 
     # Parse and validate command line arguments
