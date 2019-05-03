@@ -101,7 +101,7 @@ def post_resource(version):
             # Type may not be in the list, so this could throw an exception
             if request.json["data"]["id"] in registry.get_resources()[request.json["type"]]:
                 registered = True
-        except:
+        except Exception:
             pass
     else:
         registered = True
@@ -124,7 +124,7 @@ def delete_resource(version, resource_type, resource_id):
             # Type may not be in the list, so this could throw an exception
             if resource_id in registry.get_resources()[resource_type]:
                 registered = True
-        except:
+        except Exception:
             pass
     else:
         registered = True

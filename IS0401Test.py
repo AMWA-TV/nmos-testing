@@ -20,9 +20,10 @@ import json
 
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
-from GenericTest import GenericTest, NMOSTestException
+from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
-from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL, ENABLE_HTTPS
+from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
+from Config import ENABLE_HTTPS
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -294,7 +295,7 @@ class IS0401Test(GenericTest):
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
-                if time_diff > HEARTBEAT_INTERVAL  + 0.5:
+                if time_diff > HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("Heartbeats are not frequent enough.")
                 elif time_diff < HEARTBEAT_INTERVAL - 0.5:
                     return test.FAIL("Heartbeats are too frequent.")
@@ -380,7 +381,7 @@ class IS0401Test(GenericTest):
         # Wait for n seconds after advertising the service for the first POST from a Node
         time.sleep(DNS_SD_ADVERT_TIMEOUT)
 
-        browser = ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
+        ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(1)
         node_list = self.zc_listener.get_service_list()
 
@@ -415,7 +416,7 @@ class IS0401Test(GenericTest):
         return test.WARNING("No matching mDNS announcement found for Node with IP/Port {}:{}. This will not affect "
                             "operation in registered mode but may indicate a lack of support for peer to peer "
                             "operation.".format(self.apis[NODE_API_KEY]["ip"], self.apis[NODE_API_KEY]["port"]),
-                            "https://github.com/amwa-tv/nmos/wiki/IS-04#nodes-peer-to-peer-mode")
+                            NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self, test):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
@@ -452,13 +453,13 @@ class IS0401Test(GenericTest):
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] != request_data["id"]:
-                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed " \
+                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed "
                                      "Sender ID".format(receiver["id"]))
 
                 api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if not receiver["subscription"]["active"]:
-                        return test.FAIL("Node API Receiver {} subscription does not indicate an active " \
+                        return test.FAIL("Node API Receiver {} subscription does not indicate an active "
                                          "subscription".format(receiver["id"]))
 
                 formats_tested.append(stream_type)
@@ -492,13 +493,13 @@ class IS0401Test(GenericTest):
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] is not None:
-                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed " \
+                    return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed "
                                      "Sender ID".format(receiver["id"]))
 
                 api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if receiver["subscription"]["active"]:
-                        return test.FAIL("Node API Receiver {} subscription does not indicate an inactive " \
+                        return test.FAIL("Node API Receiver {} subscription does not indicate an inactive "
                                          "subscription".format(receiver["id"]))
 
                 return test.PASS()
@@ -784,12 +785,12 @@ class IS0401Test(GenericTest):
             api = self.apis[NODE_API_KEY]
             if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                 raise NMOSTestException(test.OPTIONAL("Node indicated that basic connection management is not "
-                                                      "supported", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
-                                                      "basic-connection-management"))
+                                                      "supported",
+                                                      NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
             else:
                 raise NMOSTestException(test.WARNING("501 'Not Implemented' status code is not supported below API "
-                                                     "version v1.3", "https://github.com/AMWA-TV/nmos/wiki/IS-04#nodes-"
-                                                     "basic-connection-management"))
+                                                     "version v1.3",
+                                                     NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
         elif put_response.status_code != 202:
             raise NMOSTestException(test.FAIL("Receiver target PATCH did not produce a 202 response code: "
                                               "{}".format(put_response.status_code)))

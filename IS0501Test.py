@@ -56,8 +56,8 @@ class IS0501Test(GenericTest):
         dest = ""
         valid, result = self.is05_utils.checkCleanRequestJSON("GET", dest)
         if valid:
-            msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
-                .format(dest, result)
+            msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing " \
+                  "slashes".format(dest, result)
             if compare_json(expected, result):
                 return test.PASS()
             else:
@@ -72,8 +72,8 @@ class IS0501Test(GenericTest):
         dest = "single/"
         valid, result = self.is05_utils.checkCleanRequestJSON("GET", dest)
         if valid:
-            msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing slashes" \
-                .format(dest, result)
+            msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing " \
+                  "slashes".format(dest, result)
             if compare_json(expected, result):
                 return test.PASS()
             else:
@@ -798,7 +798,8 @@ class IS0501Test(GenericTest):
                             return test.FAIL("Receiver {} indicates an invalid transport type of {}".format(receiver,
                                                                                                             response))
                     else:
-                        return test.FAIL("Unexpected response from transporttype resource for Receiver {}".format(receiver))
+                        return test.FAIL("Unexpected response from transporttype resource for Receiver {}"
+                                         .format(receiver))
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No resources found.")
@@ -913,7 +914,7 @@ class IS0501Test(GenericTest):
             self.validate_schema(r.json(), schema)
         except ValidationError as e:
             return False, "Response to post at {} did not validate against schema: {}".format(url, str(e))
-        except:
+        except Exception:
             return False, "Invalid JSON received {}".format(r.text)
 
         # Check the parameters have actually changed

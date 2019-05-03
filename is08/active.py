@@ -89,7 +89,7 @@ class Active:
                                      input.id,
                                      output.id
                                  ))
-            raise NMOSTestException(msg)            
+            raise NMOSTestException(msg)
 
     def unrouteAll(self):
         outputList = getOutputList()

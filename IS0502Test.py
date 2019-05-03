@@ -128,8 +128,9 @@ class IS0502Test(GenericTest):
                         found_04_resource = True
                         current_ver = is04_resource["version"]
 
+                        method = self.is05_utils.check_perform_immediate_activation
                         valid, response = self.is05_utils.check_activation(resource_type.rstrip("s"), is05_resource,
-                                                                           self.is05_utils.check_perform_immediate_activation)
+                                                                           method)
                         if not valid:
                             return False, response
 
@@ -522,7 +523,7 @@ class IS0502Test(GenericTest):
 
                     bindings_length = len(resource["interface_bindings"])
                     valid, result = self.do_request("GET", self.connection_url + "single/" + resource_type + "/" +
-                                                           resource["id"] + "/active")
+                                                    resource["id"] + "/active")
                     if not valid:
                         return test.FAIL("Connection API returned unexpected result \
                                           for {} '{}'".format(resource_type.capitalize(), resource["id"]))
@@ -560,7 +561,7 @@ class IS0502Test(GenericTest):
                         is04_transport_file = result.text
 
                 valid, result = self.do_request("GET", self.connection_url + "single/senders/" +
-                                                       resource["id"] + "/transportfile")
+                                                resource["id"] + "/transportfile")
                 if valid:
                     is05_transport_file = result.text
 

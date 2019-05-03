@@ -47,7 +47,7 @@ def get_default_ip():
         default_interface = default_gw[netifaces.AF_INET][1]
     else:
         interfaces = netifaces.interfaces()
-        default_interface = next((i for i in interfaces if i is not 'lo'), interfaces[0])
+        default_interface = next((i for i in interfaces if i != 'lo'), interfaces[0])
     return netifaces.ifaddresses(default_interface)[netifaces.AF_INET][0]['addr']
 
 

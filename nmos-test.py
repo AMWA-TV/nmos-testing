@@ -15,12 +15,14 @@
 # limitations under the License.
 
 from flask import Flask, render_template, flash, request, make_response
-from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField, FormField, FieldList
+from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
+from wtforms import FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
-from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT, CERTS_MOCKS, KEYS_MOCKS
+from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
+from Config import CERTS_MOCKS, KEYS_MOCKS
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
@@ -462,15 +464,24 @@ def parse_arguments():
 
     subparsers = parser.add_subparsers()
     suite_parser = subparsers.add_parser("suite", help="select a test suite to run tests from in non-interactive mode")
-    suite_parser.add_argument("suite", help="select a test suite to run tests from in non-interactive mode")
-    suite_parser.add_argument('--list-tests', action='store_true', help="list available tests for a given suite")
-    suite_parser.add_argument('--describe-tests', action='store_true', help="describe the available tests for a given suite")
-    suite_parser.add_argument('--selection', default="all", help="select a specific test to run, otherwise 'all' will be tested")
-    suite_parser.add_argument('--host', default=list(), nargs="*", help="space separated hostnames or IPs of the APIs under test")
-    suite_parser.add_argument('--port', default=list(), nargs="*", type=int, help="space separated ports of the APIs under test")
-    suite_parser.add_argument('--version', default=list(), nargs="*", help="space separated versions of the APIs under test")
-    suite_parser.add_argument('--ignore', default=list(), nargs="*", help="space separated test names to ignore the results from")
-    suite_parser.add_argument('--output', default=None, help="filename to save JUnit XML format test results to, otherwise print to stdout")
+    suite_parser.add_argument("suite",
+                              help="select a test suite to run tests from in non-interactive mode")
+    suite_parser.add_argument('--list-tests', action='store_true',
+                              help="list available tests for a given suite")
+    suite_parser.add_argument('--describe-tests', action='store_true',
+                              help="describe the available tests for a given suite")
+    suite_parser.add_argument('--selection', default="all",
+                              help="select a specific test to run, otherwise 'all' will be tested")
+    suite_parser.add_argument('--host', default=list(), nargs="*",
+                              help="space separated hostnames or IPs of the APIs under test")
+    suite_parser.add_argument('--port', default=list(), nargs="*", type=int,
+                              help="space separated ports of the APIs under test")
+    suite_parser.add_argument('--version', default=list(), nargs="*",
+                              help="space separated versions of the APIs under test")
+    suite_parser.add_argument('--ignore', default=list(), nargs="*",
+                              help="space separated test names to ignore the results from")
+    suite_parser.add_argument('--output', default=None,
+                              help="filename to save JUnit XML format test results to, otherwise print to stdout")
 
     return parser.parse_args()
 
