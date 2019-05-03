@@ -914,7 +914,7 @@ class IS0501Test(GenericTest):
             self.validate_schema(r.json(), schema)
         except ValidationError as e:
             return False, "Response to post at {} did not validate against schema: {}".format(url, str(e))
-        except:
+        except Exception:
             return False, "Invalid JSON received {}".format(r.text)
 
         # Check the parameters have actually changed

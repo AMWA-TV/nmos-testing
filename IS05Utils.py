@@ -663,7 +663,7 @@ class IS05Utils(NMOSUtils):
         if valid:
             try:
                 return True, response.json()
-            except:
+            except Exception:
                 # Failed parsing JSON
                 return False, "Invalid JSON received"
         else:
