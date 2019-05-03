@@ -54,6 +54,7 @@ import IS0601Test
 import IS0701Test
 import IS0801Test
 import IS0802Test
+import IS0901Test
 import BCP00301Test
 import BCP00302Test
 
@@ -163,6 +164,14 @@ TEST_DEFINITIONS = {
             "api_key": "node"
         }],
         "class": IS0802Test.IS0802Test
+    },
+    "IS-09-01": {
+        "name": "IS-09 System API",
+        "specs": [{
+            "spec_key": 'is-09',
+            "api_key": "system"
+        }],
+        "class": IS0901Test.IS0901Test
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure API Communications",
