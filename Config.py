@@ -128,6 +128,17 @@ SPECIFICATIONS = {
             }
         }
     },
+    "is-09": {
+        "repo": "nmos-system",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "system": {
+                "name": "System API",
+                "raml": "SystemAPI.raml"
+            }
+        }
+    },
     "bcp-003-01": {
         "repo": None,
         "versions": ["v1.0"],

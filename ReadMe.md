@@ -12,6 +12,7 @@ The following test sets are currently supported:
 *   IS-07 Event & Tally API
 *   IS-08 Channel Mapping API
 *   IS-08 Interaction with IS-04
+*   IS-09 System API
 *   BCP-003-01 Secure API Communications
 *   BCP-003-02 Authorization API
 
