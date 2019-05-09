@@ -21,6 +21,7 @@ from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
+from CRL import CRL
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
 from Config import CERTS_MOCKS, KEYS_MOCKS
 from DNS import DNS
@@ -81,6 +82,9 @@ sender_app.debug = False
 sender_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(sender_app)
 
+crl_app = Flask(__name__)
+crl_app.debug = False
+crl_app.register_blueprint(CRL)  # CRL server
 
 # Definitions of each set of tests made available from the dropdowns
 TEST_DEFINITIONS = {
@@ -552,6 +556,10 @@ def start_web_servers():
         t.daemon = True
         t.start()
         port += 1
+
+    t = threading.Thread(target=crl_app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
+    t.daemon = True
+    t.start()
 
     t = threading.Thread(target=core_app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'threaded': True})
     t.daemon = True
