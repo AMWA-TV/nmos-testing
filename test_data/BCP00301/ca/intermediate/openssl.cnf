@@ -121,8 +121,8 @@ authorityKeyIdentifier = keyid,issuer:always
 keyUsage = critical, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName=${ENV::SAN}
-crlDistributionPoints = URI:http://crl.testsuite.nmos.tv/intermediate.crl.pem
-authorityInfoAccess = OCSP;URI:http://ocsp.testsuite.nmos.tv
+crlDistributionPoints = URI:http://crl.testsuite.nmos.tv:5007/intermediate.crl.pem
+authorityInfoAccess = OCSP;URI:http://ocsp.testsuite.nmos.tv:5008
 
 [ crl_ext ]
 # Extension for CRLs (`man x509v3_config`).
