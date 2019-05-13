@@ -285,8 +285,8 @@ class IS0401Test(GenericTest):
             elif resource[1]["payload"]["type"] == res_type and \
                     resource[1]["payload"]["data"][parent_type + "_id"] not in registered_parents:
                 return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
-                                 .format(res_type.upper(), resource[1]["payload"]["data"]["id"], parent_type + "_id",
-                                         resource[1]["payload"]["data"][res_type + "_id"]))
+                                 .format(res_type.title(), resource[1]["payload"]["data"]["id"], parent_type + "_id",
+                                         resource[1]["payload"]["data"][parent_type + "_id"]))
         return test.PASS()
 
     def test_04(self, test):
