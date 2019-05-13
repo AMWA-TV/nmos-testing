@@ -1,7 +1,3 @@
-; These lines give the fully qualified DNS names to the IP addresses of the hosts which we'd like to discover
-mocks.testsuite.nmos.tv.	IN	A	{{ ip_address }}
-timeout.testsuite.nmos.tv.	IN	A	192.0.2.1
-
 ; There should be one PTR record for each instance of the service you wish to advertise.
 _nmos-registration._tcp	PTR	reg-api-5101-ver._nmos-registration._tcp
 _nmos-register._tcp	PTR	reg-api-5101-ver._nmos-register._tcp

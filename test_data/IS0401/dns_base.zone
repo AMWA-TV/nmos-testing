@@ -1,5 +1,5 @@
 $ORIGIN testsuite.nmos.tv.
-$TTL 60s
+$TTL 5s
 
 testsuite.nmos.tv.  IN  SOA   ns.testsuite.nmos.tv. postmaster.testsuite.nmos.tv. ( 2007120710 1d 2h 4w 1h )
 testsuite           IN  A     {{ ip_address }}
@@ -12,3 +12,19 @@ lb._dns-sd._udp	IN	PTR	@
 _services._dns-sd._udp	PTR	_nmos-registration._tcp
 _services._dns-sd._udp	PTR	_nmos-register._tcp
 _services._dns-sd._udp	PTR	_nmos-query._tcp
+
+; These lines give the fully qualified DNS names to the IP addresses of the hosts which we'd like to discover
+mocks.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+timeout.testsuite.nmos.tv.	IN	A	192.0.2.1
+
+; The following IS-04 discovery records are included to ensure Nodes can always find something with a low TTL (above)
+; This should cause them to refresh their cache frequently for testing purposes.
+_nmos-registration._tcp	PTR	reg-api-invalid._nmos-registration._tcp
+_nmos-register._tcp	PTR	reg-api-invalid._nmos-register._tcp
+_nmos-query._tcp	PTR	qry-api-invalid._nmos-query._tcp
+reg-api-invalid._nmos-registration._tcp	SRV	0 0 8000 mocks.testsuite.nmos.tv.
+reg-api-invalid._nmos-registration._tcp	TXT	"api_ver=v1.0" "api_proto=http" "pri=255"
+reg-api-invalid._nmos-register._tcp	SRV	0 0 8000 mocks.testsuite.nmos.tv.
+reg-api-invalid._nmos-register._tcp	TXT	"api_ver=v1.0" "api_proto=http" "pri=255"
+qry-api-invalid._nmos-query._tcp	SRV	0 0 8000 mocks.testsuite.nmos.tv.
+qry-api-invalid._nmos-query._tcp	TXT	"api_ver=v1.0" "api_proto=http" "pri=255"
