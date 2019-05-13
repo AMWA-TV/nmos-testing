@@ -262,6 +262,33 @@ class IS0401Test(GenericTest):
         else:
             return test.FAIL("Could not reach Node!")
 
+    def parent_resource_type(self, res_type):
+        if res_type == "device":
+            return "node"
+        elif res_type == "flow" and \
+                self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") <= 0:
+            return "source"
+        elif res_type in ["sender", "receiver", "source", "flow"]:
+            return "device"
+        else:
+            return None
+
+    def check_matching_parents(self, test, res_type):
+        # Look up data in local mock registry
+        registry_data = self.registry_basics_data[0]
+        parent_type = self.parent_resource_type(res_type)
+        registered_parents = []
+        # Cycle over registrations in order
+        for resource in registry_data.posts:
+            if resource[1]["payload"]["type"] == parent_type:
+                registered_parents.append(resource[1]["payload"]["data"]["id"])
+            elif resource[1]["payload"]["type"] == res_type and \
+                    resource[1]["payload"]["data"][parent_type + "_id"] not in registered_parents:
+                return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
+                                 .format(res_type.upper(), resource[1]["payload"]["data"]["id"], parent_type + "_id",
+                                         resource[1]["payload"]["data"][res_type + "_id"]))
+        return test.PASS()
+
     def test_04(self, test):
         """Node can register a valid Node resource with the network registration service,
         matching its Node API self resource"""
@@ -328,6 +355,16 @@ class IS0401Test(GenericTest):
 
         return self.check_matching_resource(test, "device")
 
+    def test_07_01(self, test):
+        """Registered Device was POSTed after a matching referenced Node"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        self.do_registry_basics_prereqs()
+
+        return self.check_matching_parents(test, "device")
+
     def test_08(self, test):
         """Node can register a valid Source resource with the network
         registration service, matching its Node API Source resource"""
@@ -335,6 +372,16 @@ class IS0401Test(GenericTest):
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "source")
+
+    def test_08_01(self, test):
+        """Registered Source was POSTed after a matching referenced Device"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        self.do_registry_basics_prereqs()
+
+        return self.check_matching_parents(test, "source")
 
     def test_09(self, test):
         """Node can register a valid Flow resource with the network
@@ -344,6 +391,16 @@ class IS0401Test(GenericTest):
 
         return self.check_matching_resource(test, "flow")
 
+    def test_09_01(self, test):
+        """Registered Flow was POSTed after a matching referenced Device or Source"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        self.do_registry_basics_prereqs()
+
+        return self.check_matching_parents(test, "flow")
+
     def test_10(self, test):
         """Node can register a valid Sender resource with the network
         registration service, matching its Node API Sender resource"""
@@ -352,6 +409,16 @@ class IS0401Test(GenericTest):
 
         return self.check_matching_resource(test, "sender")
 
+    def test_10_01(self, test):
+        """Registered Sender was POSTed after a matching referenced Device"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        self.do_registry_basics_prereqs()
+
+        return self.check_matching_parents(test, "sender")
+
     def test_11(self, test):
         """Node can register a valid Receiver resource with the network
         registration service, matching its Node API Receiver resource"""
@@ -359,6 +426,16 @@ class IS0401Test(GenericTest):
         self.do_registry_basics_prereqs()
 
         return self.check_matching_resource(test, "receiver")
+
+    def test_11_01(self, test):
+        """Registered Receiver was POSTed after a matching referenced Device"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        self.do_registry_basics_prereqs()
+
+        return self.check_matching_parents(test, "receiver")
 
     def test_12(self, test):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
