@@ -222,14 +222,14 @@ class GenericTest(object):
                 return False
         return True
 
-    def auto_test_name(self):
+    def auto_test_name(self, api_name):
         """Get the name which should be used for an automatically defined test"""
         self.auto_test_count += 1
-        return "auto_" + str(self.auto_test_count)
+        return "auto_{}_{}".format(api_name, self.auto_test_count)
 
-    def check_base_path(self, base_url, path, expectation):
+    def check_base_path(self, api_name, base_url, path, expectation):
         """Check that a GET to a path returns a JSON array containing a defined string"""
-        test = Test("GET {}".format(path), self.auto_test_name())
+        test = Test("GET {}".format(path), self.auto_test_name(api_name))
         valid, req = self.do_request("GET", base_url + path)
         if not valid:
             return test.FAIL("Unable to connect to API: {}".format(req))
@@ -272,13 +272,16 @@ class GenericTest(object):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""
         results = []
 
-        for api in self.apis:
+        for api in sorted(self.apis.keys()):
             if "spec_path" not in self.apis[api]:
                 continue
 
+            # Set the auto test count to zero as each test name includes the API type
+            self.auto_test_count = 0
+
             # We don't check the very base of the URL (before x-nmos) as it may be used for other things
-            results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos", api + "/"))
-            results.append(self.check_base_path(self.apis[api]["base_url"], "/x-nmos/{}".format(api),
+            results.append(self.check_base_path(api, self.apis[api]["base_url"], "/x-nmos", api + "/"))
+            results.append(self.check_base_path(api, self.apis[api]["base_url"], "/x-nmos/{}".format(api),
                                                 self.apis[api]["version"] + "/"))
 
             for resource in self.apis[api]["spec"].get_reads():
@@ -301,7 +304,7 @@ class GenericTest(object):
         invalid_path = str(uuid.uuid4())
         url = "{}/{}".format(api["url"].rstrip("/"), invalid_path)
         test = Test("GET /x-nmos/{}/{}/{} ({})".format(api_name, api["version"], invalid_path, error_code),
-                    self.auto_test_name())
+                    self.auto_test_name(api_name))
 
         valid, response = self.do_request("GET", url)
         if not valid:
@@ -332,13 +335,13 @@ class GenericTest(object):
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
                                                         self.apis[api]["version"],
-                                                        url_param), self.auto_test_name())
+                                                        url_param), self.auto_test_name(api))
             else:
                 # There were no saved entities found, so we can't test this parameterised URL
                 test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                         api,
                                                         self.apis[api]["version"],
-                                                        resource[0].rstrip("/")), self.auto_test_name())
+                                                        resource[0].rstrip("/")), self.auto_test_name(api))
                 return test.UNCLEAR("No resources found to perform this test")
 
         # Test general URLs with no parameters
@@ -347,7 +350,7 @@ class GenericTest(object):
             test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                     api,
                                                     self.apis[api]["version"],
-                                                    resource[0].rstrip("/")), self.auto_test_name())
+                                                    resource[0].rstrip("/")), self.auto_test_name(api))
         else:
             return None
 
