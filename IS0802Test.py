@@ -1,4 +1,4 @@
-# Copyright 2018 British Broadcasting Corporation
+# Copyright 2019 Advanced Media Workflow Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
