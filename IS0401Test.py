@@ -35,12 +35,15 @@ class IS0401Test(GenericTest):
     """
     def __init__(self, apis, registries, node, dns_server):
         GenericTest.__init__(self, apis)
-        self.registries = registries
+        self.invalid_registry = registries[0]
+        self.primary_registry = registries[1]
+        self.registries = registries[1:]
         self.node = node
         self.dns_server = dns_server
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
+        self.registry_invalid_data = None
         self.is04_utils = IS04Utils(self.node_url)
         self.zc = None
         self.zc_listener = None
@@ -58,17 +61,22 @@ class IS0401Test(GenericTest):
         if self.dns_server:
             self.dns_server.reset()
 
-    def _registry_mdns_info(self, port, priority=0):
+    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
+        if api_ver is None:
+            api_ver = self.apis[NODE_API_KEY]["version"]
+        if api_proto is None:
+            api_proto = self.protocol
+
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': self.apis[NODE_API_KEY]["version"], 'api_proto': self.protocol, 'pri': str(priority)}
+        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority)}
 
         service_type = "_nmos-registration._tcp.local."
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
             service_type = "_nmos-register._tcp.local."
 
         info = ServiceInfo(service_type,
-                           "NMOSTestSuite{}.{}".format(port, service_type),
+                           "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
                            socket.inet_aton(get_default_ip()), port, 0, 0,
                            txt, "nmos-mocks.local.")
         return info
@@ -82,40 +90,52 @@ class IS0401Test(GenericTest):
         if DNS_SD_MODE == "multicast":
             registry_mdns = []
             priority = 0
+
+            # Add advertisement with invalid version
+            info = self._registry_mdns_info(self.invalid_registry.get_data().port, priority, "v9.0")
+            registry_mdns.append(info)
+            # Add advertisement with invalid protocol
+            info = self._registry_mdns_info(self.invalid_registry.get_data().port, priority, None, "invalid")
+            registry_mdns.append(info)
+
+            # Add advertisement for primary and failover registries
             for registry in self.registries:
                 info = self._registry_mdns_info(registry.get_data().port, priority)
                 registry_mdns.append(info)
                 priority += 10
 
         # Reset all registries to clear previous heartbeats, etc.
+        self.invalid_registry.reset()
         for registry in self.registries:
             registry.reset()
 
-        registry = self.registries[0]
-        self.registries[0].enable()
+        self.primary_registry.enable()
+        self.invalid_registry.enable()
 
         if DNS_SD_MODE == "multicast":
-            # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
             self.zc.register_service(registry_mdns[0])
+            self.zc.register_service(registry_mdns[1])
+            self.zc.register_service(registry_mdns[2])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         time.sleep(DNS_SD_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.registries[0].last_time) < HEARTBEAT_INTERVAL + 1:
+        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(1)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.registries[0].get_data().heartbeats) > 0:
+        if len(self.primary_registry.get_data().heartbeats) > 0:
             # It is heartbeating, but we don't have enough of them yet
-            while len(self.registries[0].get_data().heartbeats) < 2:
+            while len(self.primary_registry.get_data().heartbeats) < 2:
                 time.sleep(1)
 
             # Once registered, advertise all other registries at different (ascending) priorities
             for index, registry in enumerate(self.registries[1:]):
                 registry.enable()
                 if DNS_SD_MODE == "multicast":
-                    self.zc.register_service(registry_mdns[index + 1])
+                    self.zc.register_service(registry_mdns[index + 3])
 
             # Kill registries one by one to collect data around failover
             for index, registry in enumerate(self.registries):
@@ -143,14 +163,19 @@ class IS0401Test(GenericTest):
                     break
 
         # Clean up mDNS advertisements and disable registries
+        if DNS_SD_MODE == "multicast":
+            self.zc.unregister_service(registry_mdns[0])
+            self.zc.unregister_service(registry_mdns[1])
+        self.invalid_registry.disable()
         for index, registry in enumerate(self.registries):
             if DNS_SD_MODE == "multicast":
-                self.zc.unregister_service(registry_mdns[index])
+                self.zc.unregister_service(registry_mdns[index+2])
             registry.disable()
 
         self.registry_basics_done = True
         for registry in self.registries:
             self.registry_basics_data.append(registry.get_data())
+        self.registry_invalid_data = self.invalid_registry.get_data()
 
     def test_01(self, test):
         """Node can discover network registration service via multicast DNS"""
@@ -167,6 +192,21 @@ class IS0401Test(GenericTest):
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
 
+    def test_01_01(self, test):
+        """Node does not attempt to register with an unsuitable registry"""
+
+        if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'multicast'")
+
+        self.do_registry_basics_prereqs()
+
+        if len(self.registry_invalid_data.posts) > 0:
+            return test.FAIL("Node incorrectly registered with a registry advertising an invalid 'api_ver' or "
+                             "'api_proto'")
+
+        return test.PASS()
+
     def test_02(self, test):
         """Node can discover network registration service via unicast DNS"""
 
@@ -181,6 +221,21 @@ class IS0401Test(GenericTest):
             return test.PASS()
 
         return test.FAIL("Node did not attempt to register with the advertised registry.")
+
+    def test_02_01(self, test):
+        """Node does not attempt to register with an unsuitable registry"""
+
+        if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'unicast'")
+
+        self.do_registry_basics_prereqs()
+
+        if len(self.registry_invalid_data.posts) > 0:
+            return test.FAIL("Node incorrectly registered with a registry advertising an invalid 'api_ver' or "
+                             "'api_proto'")
+
+        return test.PASS()
 
     def test_03(self, test):
         """Registration API interactions use the correct Content-Type"""
@@ -450,12 +505,11 @@ class IS0401Test(GenericTest):
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
-        registry = self.registries[0]
-        registry_info = self._registry_mdns_info(registry.get_data().port, 0)
+        registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
 
         # Reset the registry to clear previous data, although we won't be checking it
-        registry.reset()
-        registry.enable()
+        self.primary_registry.reset()
+        self.primary_registry.enable()
 
         if DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
@@ -471,7 +525,7 @@ class IS0401Test(GenericTest):
         # Withdraw the registry advertisement now we've performed a browse for Node advertisements
         if DNS_SD_MODE == "multicast":
             self.zc.unregister_service(registry_info)
-        registry.disable()
+        self.primary_registry.disable()
 
         for node in node_list:
             address = socket.inet_ntoa(node.address)
@@ -811,12 +865,11 @@ class IS0401Test(GenericTest):
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
-        registry = self.registries[0]
-        registry_info = self._registry_mdns_info(registry.get_data().port, 0)
+        registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
 
         # Reset the registry to clear previous heartbeats, and enable in 200 test mode
-        registry.reset()
-        registry.enable(first_reg=True)
+        self.primary_registry.reset()
+        self.primary_registry.enable(first_reg=True)
 
         if DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
@@ -828,7 +881,7 @@ class IS0401Test(GenericTest):
         # By this point we should have had at least one Node POST and a corresponding DELETE
         if DNS_SD_MODE == "multicast":
             self.zc.unregister_service(registry_info)
-        registry.disable()
+        self.primary_registry.disable()
 
         # Get the relevant Node ID
         url = "{}self".format(self.node_url)
@@ -838,13 +891,13 @@ class IS0401Test(GenericTest):
                 # Check that a POST and DELETE match the Node's ID
                 node_id = r.json()["id"]
                 found_post = False
-                for resource in registry.get_data().posts:
+                for resource in self.primary_registry.get_data().posts:
                     if resource[1]["payload"]["type"] == "node" and resource[1]["payload"]["data"]["id"] == node_id:
                         found_post = True
                 if not found_post:
                     return test.FAIL("Node did not attempt to make contact with the registry")
                 found_delete = False
-                for resource in registry.get_data().deletes:
+                for resource in self.primary_registry.get_data().deletes:
                     if resource[1]["type"] == "node" and resource[1]["id"] == node_id:
                         found_delete = True
                 if not found_delete:

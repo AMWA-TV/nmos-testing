@@ -83,7 +83,10 @@ class Registry(object):
         self.enabled = False
 
 
-NUM_REGISTRIES = 5
+# 0 = Invalid request testing registry
+# 1 = Primary testing registry
+# 2+ = Failover testing registries
+NUM_REGISTRIES = 6
 REGISTRY_COMMON = RegistryCommon()
 REGISTRIES = [Registry(REGISTRY_COMMON, i+1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
