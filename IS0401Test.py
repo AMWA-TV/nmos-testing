@@ -278,6 +278,7 @@ class IS0401Test(GenericTest):
         registry_data = self.registry_basics_data[0]
         parent_type = self.parent_resource_type(res_type)
         registered_parents = []
+        found_resource = False
         # Cycle over registrations in order
         for resource in registry_data.posts:
             if resource[1]["payload"]["type"] == parent_type:
@@ -287,7 +288,12 @@ class IS0401Test(GenericTest):
                 return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
                                  .format(res_type.title(), resource[1]["payload"]["data"]["id"], parent_type + "_id",
                                          resource[1]["payload"]["data"][parent_type + "_id"]))
-        return test.PASS()
+            elif resource[1]["payload"]["type"] == res_type:
+                found_resource = True
+        if found_resource:
+            return test.PASS()
+        else:
+            return test.UNCLEAR("No {} resources were registered with the mock registry.".format(res_type.title()))
 
     def test_04(self, test):
         """Node can register a valid Node resource with the network registration service,
