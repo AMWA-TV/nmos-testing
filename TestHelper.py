@@ -23,7 +23,7 @@ import jsonref
 import netifaces
 from pathlib import Path
 
-from Config import HTTP_TIMEOUT, CERT_TRUST_ROOT_CA
+from Config import HTTP_TIMEOUT, CERT_TRUST_ROOT_CA, BIND_INTERFACE
 
 
 def ordered(obj):
@@ -41,14 +41,17 @@ def compare_json(json1, json2):
 
 
 def get_default_ip():
-    """Get this machine's default IPv4 address"""
-    default_gw = netifaces.gateways()['default']
-    if netifaces.AF_INET in default_gw:
-        default_interface = default_gw[netifaces.AF_INET][1]
+    """Get this machine's preferred IPv4 address"""
+    if BIND_INTERFACE is None:
+        default_gw = netifaces.gateways()['default']
+        if netifaces.AF_INET in default_gw:
+            preferred_interface = default_gw[netifaces.AF_INET][1]
+        else:
+            interfaces = netifaces.interfaces()
+            preferred_interface = next((i for i in interfaces if i != 'lo'), interfaces[0])
     else:
-        interfaces = netifaces.interfaces()
-        default_interface = next((i for i in interfaces if i != 'lo'), interfaces[0])
-    return netifaces.ifaddresses(default_interface)[netifaces.AF_INET][0]['addr']
+        preferred_interface = BIND_INTERFACE
+    return netifaces.ifaddresses(preferred_interface)[netifaces.AF_INET][0]['addr']
 
 
 def do_request(method, url, data=None):
