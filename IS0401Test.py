@@ -109,8 +109,8 @@ class IS0401Test(GenericTest):
         for registry in self.registries:
             registry.reset()
 
+        self.invalid_registry.enable(invalid_reg=True)
         self.primary_registry.enable()
-        self.invalid_registry.enable()
 
         if DNS_SD_MODE == "multicast":
             # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
