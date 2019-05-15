@@ -49,6 +49,10 @@ MAX_TEST_ITERATIONS = 0
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
 ENABLE_HTTPS = False
 
+# Prefer a specific network interface when making mDNS announcements and similar.
+# Example: DEFAULT_INTERFACE = 'ens1f0'
+DEFAULT_INTERFACE = None
+
 # Which certificate authority to trust when performing requests in HTTPS mode.
 # Defaults to the CA contained within this test suite
 CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
