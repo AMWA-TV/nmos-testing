@@ -50,8 +50,8 @@ MAX_TEST_ITERATIONS = 0
 ENABLE_HTTPS = False
 
 # Prefer a specific network interface when making mDNS announcements and similar.
-# Example: DEFAULT_INTERFACE = 'ens1f0'
-DEFAULT_INTERFACE = None
+# Example: BIND_INTERFACE = 'ens1f0'
+BIND_INTERFACE = None
 
 # Which certificate authority to trust when performing requests in HTTPS mode.
 # Defaults to the CA contained within this test suite
