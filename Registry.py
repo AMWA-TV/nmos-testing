@@ -48,25 +48,26 @@ class Registry(object):
         self.enabled = False
         self.test_first_reg = False
 
-    def add(self, headers, payload):
+    def add(self, headers, payload, version):
         self.last_time = time.time()
-        self.data.posts.append((self.last_time, {"headers": headers, "payload": payload}))
+        self.data.posts.append((self.last_time, {"headers": headers, "payload": payload, "version": version}))
         if "type" in payload and "data" in payload:
             if payload["type"] not in self.common.resources:
                 self.common.resources[payload["type"]] = {}
             if "id" in payload["data"]:
                 self.common.resources[payload["type"]][payload["data"]["id"]] = payload["data"]
 
-    def delete(self, headers, payload, resource_type, resource_id):
+    def delete(self, headers, payload, version, resource_type, resource_id):
         self.last_time = time.time()
-        self.data.deletes.append((self.last_time, {"headers": headers, "payload": payload, "type": resource_type,
-                                                   "id": resource_id}))
+        self.data.deletes.append((self.last_time, {"headers": headers, "payload": payload, "version": version,
+                                                   "type": resource_type, "id": resource_id}))
         if resource_type in self.common.resources:
             self.common.resources[resource_type].pop(resource_id, None)
 
-    def heartbeat(self, headers, payload, node_id):
+    def heartbeat(self, headers, payload, version, node_id):
         self.last_hb_time = time.time()
-        self.data.heartbeats.append((self.last_hb_time, {"headers": headers, "payload": payload, "node_id": node_id}))
+        self.data.heartbeats.append((self.last_hb_time, {"headers": headers, "payload": payload, "version": version,
+                                                         "node_id": node_id}))
 
     def get_data(self):
         return self.data
@@ -105,7 +106,7 @@ def post_resource(version):
             pass
     else:
         registered = True
-    registry.add(request.headers, request.json)
+    registry.add(request.headers, request.json, version)
     if registered:
         return jsonify(request.json["data"]), 200
     else:
@@ -131,7 +132,7 @@ def delete_resource(version, resource_type, resource_id):
         if resource_type == "node":
             # Once we have seen a DELETE for a Node, ensure we respond with a 201 to future POSTs
             registry.test_first_reg = False
-    registry.delete(request.headers, request.data, resource_type, resource_id)
+    registry.delete(request.headers, request.data, version, resource_type, resource_id)
     if registered:
         return "", 204
     else:
@@ -144,7 +145,7 @@ def heartbeat(version, node_id):
     if not registry.enabled:
         abort(500)
     # store raw request payload, in order to check for empty request bodies later
-    registry.heartbeat(request.headers, request.data, node_id)
+    registry.heartbeat(request.headers, request.data, version, node_id)
     if node_id in registry.get_resources()["node"]:
         return jsonify({"health": int(time.time())})
     else:
