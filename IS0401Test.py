@@ -114,8 +114,9 @@ class IS0401Test(GenericTest):
 
         if DNS_SD_MODE == "multicast":
             # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
-            self.zc.register_service(registry_mdns[0])
-            self.zc.register_service(registry_mdns[1])
+            if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
+                self.zc.register_service(registry_mdns[0])
+                self.zc.register_service(registry_mdns[1])
             self.zc.register_service(registry_mdns[2])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
@@ -163,7 +164,8 @@ class IS0401Test(GenericTest):
                     break
 
         # Clean up mDNS advertisements and disable registries
-        if DNS_SD_MODE == "multicast":
+        if DNS_SD_MODE == "multicast" and \
+                self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
             self.zc.unregister_service(registry_mdns[0])
             self.zc.unregister_service(registry_mdns[1])
         self.invalid_registry.disable()
@@ -195,6 +197,9 @@ class IS0401Test(GenericTest):
     def test_01_01(self, test):
         """Node does not attempt to register with an unsuitable registry"""
 
+        if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") == 0:
+            return test.NA("Nodes running v1.0 do not check DNS-SD api_ver and api_proto TXT records")
+
         if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'multicast'")
@@ -224,6 +229,9 @@ class IS0401Test(GenericTest):
 
     def test_02_01(self, test):
         """Node does not attempt to register with an unsuitable registry"""
+
+        if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") == 0:
+            return test.NA("Nodes running v1.0 do not check DNS-SD api_ver and api_proto TXT records")
 
         if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
