@@ -208,6 +208,8 @@ class IS0401Test(GenericTest):
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
+        api = self.apis[NODE_API_KEY]
+
         self.do_registry_basics_prereqs()
 
         registry_data = self.registry_basics_data[0]
@@ -215,19 +217,19 @@ class IS0401Test(GenericTest):
             return test.FAIL("No registrations found")
 
         for resource in registry_data.posts:
-            if resource[1]["version"] != self.apis[NODE_API_KEY]["version"]:
+            if resource[1]["version"] != api["version"]:
                 return test.FAIL("One or more Node POSTs used version '{}' instead of '{}'"
-                                 .format(resource[1]["version"], self.apis[NODE_API_KEY]["version"]))
+                                 .format(resource[1]["version"], api["version"]))
 
         for resource in registry_data.deletes:
-            if resource[1]["version"] != self.apis[NODE_API_KEY]["version"]:
+            if resource[1]["version"] != api["version"]:
                 return test.FAIL("One or more Node DELETEs used version '{}' instead of '{}'"
-                                 .format(resource[1]["version"], self.apis[NODE_API_KEY]["version"]))
+                                 .format(resource[1]["version"], api["version"]))
 
         for resource in registry_data.heartbeats:
-            if resource[1]["version"] != self.apis[NODE_API_KEY]["version"]:
+            if resource[1]["version"] != api["version"]:
                 return test.FAIL("One or more Node heartbeats used version '{}' instead of '{}'"
-                                 .format(resource[1]["version"], self.apis[NODE_API_KEY]["version"]))
+                                 .format(resource[1]["version"], api["version"]))
 
         return test.PASS()
 
