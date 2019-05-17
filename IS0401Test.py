@@ -310,21 +310,24 @@ class IS0401Test(GenericTest):
         parent_type = self.parent_resource_type(res_type)
         registered_parents = []
         found_resource = False
-        # Cycle over registrations in order
-        for resource in registry_data.posts:
-            if resource[1]["payload"]["type"] == parent_type:
-                registered_parents.append(resource[1]["payload"]["data"]["id"])
-            elif resource[1]["payload"]["type"] == res_type and \
-                    resource[1]["payload"]["data"][parent_type + "_id"] not in registered_parents:
-                return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
-                                 .format(res_type.title(), resource[1]["payload"]["data"]["id"], parent_type + "_id",
-                                         resource[1]["payload"]["data"][parent_type + "_id"]))
-            elif resource[1]["payload"]["type"] == res_type:
-                found_resource = True
-        if found_resource:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("No {} resources were registered with the mock registry.".format(res_type.title()))
+        try:
+            # Cycle over registrations in order
+            for resource in registry_data.posts:
+                if resource[1]["payload"]["type"] == parent_type:
+                    registered_parents.append(resource[1]["payload"]["data"]["id"])
+                elif resource[1]["payload"]["type"] == res_type and \
+                        resource[1]["payload"]["data"][parent_type + "_id"] not in registered_parents:
+                    return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
+                                     .format(res_type.title(), resource[1]["payload"]["data"]["id"],
+                                             parent_type + "_id", resource[1]["payload"]["data"][parent_type + "_id"]))
+                elif resource[1]["payload"]["type"] == res_type:
+                    found_resource = True
+            if found_resource:
+                return test.PASS()
+            else:
+                return test.UNCLEAR("No {} resources were registered with the mock registry.".format(res_type.title()))
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key in the registered {}: {}".format(res_type.title(), e))
 
     def test_04(self, test):
         """Node can register a valid Node resource with the network registration service,
