@@ -202,6 +202,37 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
+    def test_03_01(self, test):
+        """Registration API interactions use the correct versioned path"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        api = self.apis[NODE_API_KEY]
+
+        self.do_registry_basics_prereqs()
+
+        registry_data = self.registry_basics_data[0]
+        if len(registry_data.posts) == 0:
+            return test.FAIL("No registrations found")
+
+        for resource in registry_data.posts:
+            if resource[1]["version"] != api["version"]:
+                return test.FAIL("One or more Node POSTs used version '{}' instead of '{}'"
+                                 .format(resource[1]["version"], api["version"]))
+
+        for resource in registry_data.deletes:
+            if resource[1]["version"] != api["version"]:
+                return test.FAIL("One or more Node DELETEs used version '{}' instead of '{}'"
+                                 .format(resource[1]["version"], api["version"]))
+
+        for resource in registry_data.heartbeats:
+            if resource[1]["version"] != api["version"]:
+                return test.FAIL("One or more Node heartbeats used version '{}' instead of '{}'"
+                                 .format(resource[1]["version"], api["version"]))
+
+        return test.PASS()
+
     def get_registry_resource(self, res_type, res_id):
         found_resource = None
         if ENABLE_DNS_SD:
@@ -279,21 +310,24 @@ class IS0401Test(GenericTest):
         parent_type = self.parent_resource_type(res_type)
         registered_parents = []
         found_resource = False
-        # Cycle over registrations in order
-        for resource in registry_data.posts:
-            if resource[1]["payload"]["type"] == parent_type:
-                registered_parents.append(resource[1]["payload"]["data"]["id"])
-            elif resource[1]["payload"]["type"] == res_type and \
-                    resource[1]["payload"]["data"][parent_type + "_id"] not in registered_parents:
-                return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
-                                 .format(res_type.title(), resource[1]["payload"]["data"]["id"], parent_type + "_id",
-                                         resource[1]["payload"]["data"][parent_type + "_id"]))
-            elif resource[1]["payload"]["type"] == res_type:
-                found_resource = True
-        if found_resource:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("No {} resources were registered with the mock registry.".format(res_type.title()))
+        try:
+            # Cycle over registrations in order
+            for resource in registry_data.posts:
+                if resource[1]["payload"]["type"] == parent_type:
+                    registered_parents.append(resource[1]["payload"]["data"]["id"])
+                elif resource[1]["payload"]["type"] == res_type and \
+                        resource[1]["payload"]["data"][parent_type + "_id"] not in registered_parents:
+                    return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
+                                     .format(res_type.title(), resource[1]["payload"]["data"]["id"],
+                                             parent_type + "_id", resource[1]["payload"]["data"][parent_type + "_id"]))
+                elif resource[1]["payload"]["type"] == res_type:
+                    found_resource = True
+            if found_resource:
+                return test.PASS()
+            else:
+                return test.UNCLEAR("No {} resources were registered with the mock registry.".format(res_type.title()))
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key in the registered {}: {}".format(res_type.title(), e))
 
     def test_04(self, test):
         """Node can register a valid Node resource with the network registration service,
