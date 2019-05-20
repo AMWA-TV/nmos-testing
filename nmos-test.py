@@ -476,10 +476,16 @@ def identify_exit_code(results):
 
 
 def write_test_results(results, args):
-    ts = format_test_results(results, "junit")
+    if args.output.endswith(".xml"):
+        formatted = format_test_results(results, "junit")
+    else:
+        formatted = format_test_results(results, "json")
     with open(args.output, "w") as f:
-        # pretty-print to help out Jenkins (and us humans), which struggles otherwise
-        TestSuite.to_file(f, [ts], prettyprint=True)
+        if args.output.endswith(".xml"):
+            # pretty-print to help out Jenkins (and us humans), which struggles otherwise
+            TestSuite.to_file(f, [formatted], prettyprint=True)
+        else:
+            f.write(formatted)
         print(" * Test results written to file: {}".format(args.output))
     return identify_exit_code(results)
 
@@ -513,7 +519,7 @@ def parse_arguments():
     suite_parser.add_argument('--ignore', default=list(), nargs="*",
                               help="space separated test names to ignore the results from")
     suite_parser.add_argument('--output', default=None,
-                              help="filename to save JUnit XML format test results to, otherwise print to stdout")
+                              help="filename to save test results to (ending .xml or .json), otherwise print to stdout")
 
     return parser.parse_args()
 
@@ -552,6 +558,9 @@ def validate_args(args):
         if len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
             print(" * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)"
                   .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
+            sys.exit(ExitCodes.ERROR)
+        if not args.output.endswith("xml") and not args.output.endswith("json"):
+            print(" * ERROR: Output file must end with '.xml' or '.json'")
             sys.exit(ExitCodes.ERROR)
 
 
