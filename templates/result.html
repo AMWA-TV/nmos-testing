@@ -26,7 +26,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <a href="../" class="backlink">More Options</a>
+    <div style="display: none" id="json-results">{{ json }}</div>
+    <span class="backlink">
+      <a href="#" id="download" target="_blank">Download JSON</a> - <a href="../">More Options</a>
+    </span>
     <h1>NMOS Test</h1>
     <div class="text text_result">
         <h5>Result for test suite <b>{{ test }}</b> on <b><a href={{ url }}>{{ url }}</a></b></h5>

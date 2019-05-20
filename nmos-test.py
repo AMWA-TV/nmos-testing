@@ -285,11 +285,12 @@ def index_page():
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
+                    json_output = format_test_results(results, "json")
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, url=results["base_url"],
                                                       test=test_def["name"], result=results["result"],
-                                                      cachebuster=CACHEBUSTER))
+                                                      json=json_output, cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
@@ -422,52 +423,70 @@ def init_spec_cache():
     print(" * Initialisation complete")
 
 
-def write_test_results(results, args):
+def format_test_results(results, format):
+    formatted = None
+    if format == "json":
+        formatted = {"suite": results["def"]["name"],
+                     "url": results["base_url"],
+                     "timestamp": time.time(),
+                     "results": []}
+        for test_result in results["result"]:
+            formatted["results"].append({"name": test_result.name,
+                                         "state": str(test_result.state),
+                                         "detail": test_result.detail})
+        formatted = json.dumps(formatted, sort_keys=True, indent=4)
+    elif format == "junit":
+        test_cases = []
+        for test_result in results["result"]:
+            test_case = TestCase(test_result.name, classname=results["def"]["class"].__name__,
+                                 elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
+            if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
+                                                                        TestStates.UNCLEAR,
+                                                                        TestStates.MANUAL,
+                                                                        TestStates.NA,
+                                                                        TestStates.OPTIONAL]:
+                test_case.add_skipped_info(test_result.detail)
+            elif test_result.state in [TestStates.WARNING, TestStates.FAIL]:
+                test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
+            elif test_result.state != TestStates.PASS:
+                test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
+            test_cases.append(test_case)
+        formatted = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
+    elif format == "console":
+        formatted = "\r\nPrinting test results for suite '{}' using API '{}'\r\n" \
+                        .format(results["def"]["name"], results["base_url"])
+        formatted += "----------------------------\r\n"
+        total_time = 0
+        for test_result in results["result"]:
+            formatted += "{} ... {}\r\n".format(test_result.name, str(test_result.state))
+            total_time += test_result.elapsed_time
+        formatted += "----------------------------\r\n"
+        formatted += "Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n"
+    return formatted
+
+
+def identify_exit_code(results):
     exit_code = ExitCodes.OK
-    test_cases = []
-    for test_result in results["result"]:
-        test_case = TestCase(test_result.name, classname=results["def"]["class"].__name__,
-                             elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
-        if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
-                                                                    TestStates.UNCLEAR,
-                                                                    TestStates.MANUAL,
-                                                                    TestStates.NA,
-                                                                    TestStates.OPTIONAL]:
-            test_case.add_skipped_info(test_result.detail)
-        elif test_result.state in [TestStates.WARNING, TestStates.FAIL]:
-            test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
-            if test_result.state == TestStates.FAIL:
-                exit_code = max(exit_code, ExitCodes.FAIL)
-            elif test_result.state == TestStates.WARNING:
-                exit_code = max(exit_code, ExitCodes.WARNING)
-        elif test_result.state != TestStates.PASS:
-            test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
-        test_cases.append(test_case)
-
-    ts = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
-    with open(args.output, "w") as f:
-        # pretty-print to help out Jenkins (and us humans), which struggles otherwise
-        TestSuite.to_file(f, [ts], prettyprint=True)
-        print(" * Test results written to file: {}".format(args.output))
-    return exit_code
-
-
-def print_test_results(results, args):
-    exit_code = ExitCodes.OK
-    print("\r\nPrinting test results for suite '{}' using API '{}'".format(results["def"]["name"], results["base_url"]))
-    print("----------------------------")
-    total_time = 0
     for test_result in results["result"]:
         if test_result.state == TestStates.FAIL:
             exit_code = max(exit_code, ExitCodes.FAIL)
         elif test_result.state == TestStates.WARNING:
             exit_code = max(exit_code, ExitCodes.WARNING)
-        result_str = "{} ... {}".format(test_result.name, str(test_result.state))
-        print(result_str)
-        total_time += test_result.elapsed_time
-    print("----------------------------")
-    print("Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n")
     return exit_code
+
+
+def write_test_results(results, args):
+    ts = format_test_results(results, "junit")
+    with open(args.output, "w") as f:
+        # pretty-print to help out Jenkins (and us humans), which struggles otherwise
+        TestSuite.to_file(f, [ts], prettyprint=True)
+        print(" * Test results written to file: {}".format(args.output))
+    return identify_exit_code(results)
+
+
+def print_test_results(results, args):
+    print(format_test_results(results, "console"))
+    return identify_exit_code(results)
 
 
 def parse_arguments():
