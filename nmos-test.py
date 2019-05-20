@@ -369,7 +369,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             raise ex
         finally:
             core_app.config['TEST_ACTIVE'] = False
-        return {"result": result, "def": test_def, "base_url": base_url}
+        return {"result": result, "def": test_def, "base_url": base_url, "suite": test}
     else:
         raise NMOSInitException("This test definition does not exist")
 
@@ -426,7 +426,7 @@ def init_spec_cache():
 def format_test_results(results, format):
     formatted = None
     if format == "json":
-        formatted = {"suite": results["def"]["name"],
+        formatted = {"suite": results["suite"],
                      "url": results["base_url"],
                      "timestamp": time.time(),
                      "results": []}
@@ -438,7 +438,7 @@ def format_test_results(results, format):
     elif format == "junit":
         test_cases = []
         for test_result in results["result"]:
-            test_case = TestCase(test_result.name, classname=results["def"]["class"].__name__,
+            test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
             if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
                                                                         TestStates.UNCLEAR,
@@ -454,7 +454,7 @@ def format_test_results(results, format):
         formatted = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
     elif format == "console":
         formatted = "\r\nPrinting test results for suite '{}' using API '{}'\r\n" \
-                        .format(results["def"]["name"], results["base_url"])
+                        .format(results["suite"], results["base_url"])
         formatted += "----------------------------\r\n"
         total_time = 0
         for test_result in results["result"]:
