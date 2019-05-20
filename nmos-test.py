@@ -559,7 +559,7 @@ def validate_args(args):
             print(" * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)"
                   .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
             sys.exit(ExitCodes.ERROR)
-        if not args.output.endswith("xml") and not args.output.endswith("json"):
+        if args.output and not args.output.endswith("xml") and not args.output.endswith("json"):
             print(" * ERROR: Output file must end with '.xml' or '.json'")
             sys.exit(ExitCodes.ERROR)
 
