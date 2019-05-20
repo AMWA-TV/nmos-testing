@@ -764,8 +764,8 @@ class IS0401Test(GenericTest):
                     # match references from Senders and Receivers to that Device
 
         if found_empty_refs:
-            return test.OPTIONAL("One or more Devices do not have references to any of their Senders or Receivers. "
-                                 "(The 'senders' and 'receivers' attributes are deprecated since IS-04 v1.2.)")
+            return test.WARNING("One or more Devices do not have references to any of their Senders or Receivers. "
+                                "(The 'senders' and 'receivers' attributes are deprecated since IS-04 v1.2.)")
 
         return test.PASS()
 
