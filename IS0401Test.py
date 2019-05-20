@@ -18,6 +18,7 @@ import time
 import socket
 import json
 
+from copy import deepcopy
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
@@ -695,6 +696,76 @@ class IS0401Test(GenericTest):
                     uuids.add(resource["id"])
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
+
+    def test_17_01(self, test):
+        """All Devices refer to their attached Senders and Receivers"""
+
+        # store references from Devices to Senders and Receivers
+        from_devices = {}
+        # store references to Devices from Senders and Receivers
+        to_devices = {}
+
+        # get all the Node's Devices
+        valid, response = self.do_request("GET", self.node_url + "devices")
+        if not valid:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            for resource in response.json():
+                from_devices[resource["id"]] = {
+                    "senders": set(resource["senders"]),
+                    "receivers": set(resource["receivers"])
+                }
+        except json.decoder.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        if len(from_devices) == 0:
+            return test.UNCLEAR("Node API does not expose any Devices")
+
+        # get all the Node's Senders and Receivers
+        empty_refs = {"senders": set(), "receivers": set()}
+        for resource_type in ["senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + resource_type)
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            try:
+                for resource in response.json():
+                    id = resource["device_id"]
+                    if id not in to_devices:
+                        to_devices[id] = deepcopy(empty_refs)
+                    to_devices[id][resource_type].add(resource["id"])
+            except json.decoder.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        found_empty_refs = False
+
+        for id, from_device in from_devices.items():
+            if id not in to_devices:
+                if from_device == empty_refs:
+                    # no Senders or Receivers are attached to this Device
+                    continue
+                else:
+                    return test.FAIL("Device '{}' references one or more unknown Senders or Receivers."
+                                     .format(id))
+            to_device = to_devices[id]
+            if from_device == empty_refs:
+                # Device appears not to be populating the deprecated attributes
+                found_empty_refs = True
+            else:
+                for refs in ["senders", "receivers"]:
+                    if len(from_device[refs] - to_device[refs]) > 0:
+                        return test.FAIL("Device '{}' references one or more unknown {}."
+                                         .format(id, refs.title()))
+                    elif len(to_device[refs] - from_device[refs]) > 0:
+                        return test.FAIL("Device '{}' does not have a reference to one or more of its {}."
+                                         .format(id, refs.title()))
+                    # else: references from Device to its Senders and Receivers
+                    # match references from Senders and Receivers to that Device
+
+        if found_empty_refs:
+            return test.WARNING("One or more Devices do not have references to any of their Senders or Receivers. "
+                                "(The 'senders' and 'receivers' attributes are deprecated since IS-04 v1.2.)")
 
         return test.PASS()
 
