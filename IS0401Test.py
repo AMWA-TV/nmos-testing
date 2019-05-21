@@ -62,12 +62,14 @@ class IS0401Test(GenericTest):
         if self.dns_server:
             self.dns_server.reset()
 
-    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None):
+    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         if api_ver is None:
             api_ver = self.apis[NODE_API_KEY]["version"]
         if api_proto is None:
             api_proto = self.protocol
+        if ip is None:
+            ip = get_default_ip()
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority)}
@@ -78,7 +80,7 @@ class IS0401Test(GenericTest):
 
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
-                           socket.inet_aton(get_default_ip()), port, 0, 0,
+                           socket.inet_aton(ip), port, 0, 0,
                            txt, "nmos-mocks.local.")
         return info
 
@@ -100,10 +102,19 @@ class IS0401Test(GenericTest):
             registry_mdns.append(info)
 
             # Add advertisement for primary and failover registries
-            for registry in self.registries:
+            for registry in self.registries[0:-1]:
                 info = self._registry_mdns_info(registry.get_data().port, priority)
                 registry_mdns.append(info)
                 priority += 10
+
+            # Add a fake advertisement for a timeout simulating registry
+            info = self._registry_mdns_info(81, priority, ip="192.0.2.1")
+            registry_mdns.append(info)
+            priority += 10
+
+            # Add the final real registry advertisement
+            info = self._registry_mdns_info(self.registries[-1].get_data().port, priority)
+            registry_mdns.append(info)
 
         # Reset all registries to clear previous heartbeats, etc.
         self.invalid_registry.reset()
@@ -136,8 +147,10 @@ class IS0401Test(GenericTest):
             # Once registered, advertise all other registries at different (ascending) priorities
             for index, registry in enumerate(self.registries[1:]):
                 registry.enable()
-                if DNS_SD_MODE == "multicast":
-                    self.zc.register_service(registry_mdns[index + 3])
+
+            if DNS_SD_MODE == "multicast":
+                for info in registry_mdns[3:]:
+                    self.zc.register_service(info)
 
             # Kill registries one by one to collect data around failover
             for index, registry in enumerate(self.registries):
@@ -155,6 +168,12 @@ class IS0401Test(GenericTest):
                     heartbeat_countdown = HEARTBEAT_INTERVAL + 1 + 5
                 else:
                     heartbeat_countdown = HEARTBEAT_INTERVAL + 1
+
+                # Wait an extra heartbeat interval when dealing with the timout test
+                # This allows a Node's connection to time out and then register with the next mock registry
+                if (index + 2) == len(self.registries):
+                    heartbeat_countdown += HEARTBEAT_INTERVAL
+
                 while len(self.registries[index + 1].get_data().heartbeats) < 1 and heartbeat_countdown > 0:
                     # Wait until the heartbeat interval has elapsed or a heartbeat has been received
                     time.sleep(1)
@@ -165,14 +184,11 @@ class IS0401Test(GenericTest):
                     break
 
         # Clean up mDNS advertisements and disable registries
-        if DNS_SD_MODE == "multicast" and \
-                self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
-            self.zc.unregister_service(registry_mdns[0])
-            self.zc.unregister_service(registry_mdns[1])
+        if DNS_SD_MODE == "multicast":
+            for info in registry_mdns:
+                self.zc.unregister_service(info)
         self.invalid_registry.disable()
         for index, registry in enumerate(self.registries):
-            if DNS_SD_MODE == "multicast":
-                self.zc.unregister_service(registry_mdns[index+2])
             registry.disable()
 
         self.registry_basics_done = True
@@ -723,7 +739,8 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        for index, registry_data in enumerate(self.registry_basics_data):
+        # All but the last registry can be used for failover tests. The last one is reserved for timeout tests
+        for index, registry_data in enumerate(self.registry_basics_data[0:-1]):
             if len(registry_data.heartbeats) < 1:
                 return test.FAIL("Node never made contact with registry advertised on port {}"
                                  .format(registry_data.port))
@@ -731,6 +748,27 @@ class IS0401Test(GenericTest):
             if index > 0 and len(registry_data.posts) > 0:
                 return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
                                  "should only have issued a heartbeat")
+
+        return test.PASS()
+
+    def test_16_01(self, test):
+        """Node correctly handles Registration APIs whose connections time out"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        self.do_registry_basics_prereqs()
+
+        # The second to last registry will intentionally cause a timeout. Check here that the Node successfully times
+        # out its attempted connection within a heartbeat period and then registers with the next available one.
+        registry_data = self.registry_basics_data[-1]
+        if len(registry_data.heartbeats) < 1:
+            return test.FAIL("Node never made contact with registry advertised on port {}"
+                             .format(registry_data.port))
+
+        if len(registry_data.posts) > 0:
+            return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
+                             "should only have issued a heartbeat")
 
         return test.PASS()
 

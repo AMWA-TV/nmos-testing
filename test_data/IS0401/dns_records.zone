@@ -1,5 +1,6 @@
 ; These lines give the fully qualified DNS names to the IP addresses of the hosts which we'd like to discover
 mocks.testsuite.nmos.tv.	IN	A	{{ ip_address }}
+timeout.testsuite.nmos.tv.	IN	A	192.0.2.1
 
 ; There should be one PTR record for each instance of the service you wish to advertise.
 _nmos-registration._tcp	PTR	reg-api-5001-ver._nmos-registration._tcp
@@ -21,6 +22,9 @@ _nmos-query._tcp	PTR	qry-api-5004._nmos-query._tcp
 _nmos-registration._tcp	PTR	reg-api-5005._nmos-registration._tcp
 _nmos-register._tcp	PTR	reg-api-5005._nmos-register._tcp
 _nmos-query._tcp	PTR	qry-api-5005._nmos-query._tcp
+_nmos-registration._tcp	PTR	reg-api-timeout._nmos-registration._tcp
+_nmos-register._tcp	PTR	reg-api-timeout._nmos-register._tcp
+_nmos-query._tcp	PTR	qry-api-timeout._nmos-query._tcp
 _nmos-registration._tcp	PTR	reg-api-5006._nmos-registration._tcp
 _nmos-register._tcp	PTR	reg-api-5006._nmos-register._tcp
 _nmos-query._tcp	PTR	qry-api-5006._nmos-query._tcp
@@ -53,10 +57,14 @@ reg-api-5005._nmos-registration._tcp	SRV	0 0 5005 mocks.testsuite.nmos.tv.
 reg-api-5005._nmos-register._tcp	SRV	0 0 5005 mocks.testsuite.nmos.tv.
 reg-api-5005._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
 reg-api-5005._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
+reg-api-timeout._nmos-registration._tcp	SRV	0 0 81 timeout.testsuite.nmos.tv.
+reg-api-timeout._nmos-register._tcp	SRV	0 0 81 timeout.testsuite.nmos.tv.
+reg-api-timeout._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
+reg-api-timeout._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
 reg-api-5006._nmos-registration._tcp	SRV	0 0 5006 mocks.testsuite.nmos.tv.
 reg-api-5006._nmos-register._tcp	SRV	0 0 5006 mocks.testsuite.nmos.tv.
-reg-api-5006._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
-reg-api-5006._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
+reg-api-5006._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=50"
+reg-api-5006._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=50"
 
 ; Finally, the SRV and TXT for the Query API
 qry-api-5001-ver._nmos-query._tcp	SRV	0 0 5001 mocks.testsuite.nmos.tv.
@@ -72,5 +80,7 @@ qry-api-5004._nmos-query._tcp	SRV	0 0 5004 mocks.testsuite.nmos.tv.
 qry-api-5004._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=20"
 qry-api-5005._nmos-query._tcp	SRV	0 0 5005 mocks.testsuite.nmos.tv.
 qry-api-5005._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
+qry-api-timeout._nmos-query._tcp	SRV	0 0 81 timeout.testsuite.nmos.tv.
+qry-api-timeout._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
 qry-api-5006._nmos-query._tcp	SRV	0 0 5005 mocks.testsuite.nmos.tv.
-qry-api-5006._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
+qry-api-5006._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=50"
