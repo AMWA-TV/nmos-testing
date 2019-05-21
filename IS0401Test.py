@@ -108,7 +108,7 @@ class IS0401Test(GenericTest):
                 priority += 10
 
             # Add a fake advertisement for a timeout simulating registry
-            info = self._registry_mdns_info(81, priority, ip="192.0.2.1")
+            info = self._registry_mdns_info(444, priority, ip="192.0.2.1")
             registry_mdns.append(info)
             priority += 10
 
