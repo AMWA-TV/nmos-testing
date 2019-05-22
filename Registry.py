@@ -47,6 +47,7 @@ class Registry(object):
         self.common.reset()
         self.enabled = False
         self.test_first_reg = False
+        self.test_invalid_reg = False
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
@@ -75,16 +76,21 @@ class Registry(object):
     def get_resources(self):
         return self.common.resources
 
-    def enable(self, first_reg=False):
+    def enable(self, first_reg=False, invalid_reg=False):
         self.test_first_reg = first_reg
+        self.test_invalid_reg = invalid_reg
         self.enabled = True
 
     def disable(self):
         self.test_first_reg = False
+        self.test_invalid_reg = False
         self.enabled = False
 
 
-NUM_REGISTRIES = 5
+# 0 = Invalid request testing registry
+# 1 = Primary testing registry
+# 2+ = Failover testing registries
+NUM_REGISTRIES = 6
 REGISTRY_COMMON = RegistryCommon()
 REGISTRIES = [Registry(REGISTRY_COMMON, i+1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
@@ -96,6 +102,8 @@ def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
+    if registry.test_invalid_reg:
+        registry.disable()
     if not registry.test_first_reg:
         registered = False
         try:
