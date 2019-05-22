@@ -28,21 +28,26 @@ In order for requests made to the device under test to be trusted by the test su
 certificates must be loaded into the device. This will provide the device with the hostname 'api.testsuite.nmos.tv',
 and the hostname 'nmos-api.local' for mDNS.
 
-**IMPORTANT:** Do not leave this private key and certificate installed on a device once testing is complete.
+**IMPORTANT:** Do not leave these private keys and certificates installed on a device once testing is complete.
 
 Note that both an RSA and ECDSA certificate are provided in order to meet the requirements of BCP-003-01. Please consult
 your TLS library or application for the configuration required in order to load two certificates at once.
 
-Device under test uses:
+The device under test should use the private keys:
 *   [intermediate/private/rsa.api.testsuite.nmos.tv.key.pem](ca/intermediate/private/rsa.api.testsuite.nmos.tv.key.pem)
 *   [intermediate/private/ecdsa.api.testsuite.nmos.tv.key.pem](ca/intermediate/private/ecdsa.api.testsuite.nmos.tv.key.pem)
+
+If your device under test can use certificate chain files, please use:
 *   [intermediate/certs/rsa.api.testsuite.nmos.tv.cert.chain.pem](ca/intermediate/certs/rsa.api.testsuite.nmos.tv.cert.chain.pem)
 *   [intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.chain.pem](ca/intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.chain.pem)
 
-Alternatively, if your web server requires the CA's certificate and intermediate to be separate, please use:
-*   [intermediate/certs/ca-chain.cert.pem](ca/intermediate/certs/ca-chain.cert.pem)
+In each case, these certificate chain files contain the server certificate and the complete chain to the CA.
+
+Alternatively, if your web server requires the server certificate and the chain to the CA to be separate, please use each of the server certificates:
 *   [intermediate/certs/rsa.api.testsuite.nmos.tv.cert.pem](ca/intermediate/certs/rsa.api.testsuite.nmos.tv.cert.pem)
 *   [intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.pem](ca/intermediate/certs/ecdsa.api.testsuite.nmos.tv.cert.pem)
+with the chain file:
+*   [intermediate/certs/ca-chain.cert.pem](ca/intermediate/certs/ca-chain.cert.pem)
 
 ## Hosts Files
 
