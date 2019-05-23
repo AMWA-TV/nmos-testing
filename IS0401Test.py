@@ -68,8 +68,12 @@ class IS0401Test(GenericTest):
             api_ver = self.apis[NODE_API_KEY]["version"]
         if api_proto is None:
             api_proto = self.protocol
+
         if ip is None:
             ip = get_default_ip()
+            hostname = "nmos-mocks.local."
+        else:
+            hostname = ip.replace(".", "-") + ".local."
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority)}
@@ -81,7 +85,7 @@ class IS0401Test(GenericTest):
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
                            socket.inet_aton(ip), port, 0, 0,
-                           txt, "nmos-mocks.local.")
+                           txt, hostname)
         return info
 
     def do_registry_basics_prereqs(self):
@@ -714,7 +718,7 @@ class IS0401Test(GenericTest):
 
         last_hb = None
         last_registry = None
-        for registry_data in self.registry_basics_data:
+        for registry_data in self.registry_basics_data[0:-1]:
             if len(registry_data.heartbeats) < 1:
                 return test.FAIL("Node never made contact with registry advertised on port {}"
                                  .format(registry_data.port))
@@ -763,12 +767,12 @@ class IS0401Test(GenericTest):
         # out its attempted connection within a heartbeat period and then registers with the next available one.
         registry_data = self.registry_basics_data[-1]
         if len(registry_data.heartbeats) < 1:
-            return test.FAIL("Node never made contact with registry advertised on port {}"
-                             .format(registry_data.port))
+            return test.WARNING("Node never made contact with registry advertised on port {}"
+                                .format(registry_data.port))
 
         if len(registry_data.posts) > 0:
-            return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
-                             "should only have issued a heartbeat")
+            return test.WARNING("Node re-registered its resources when it failed over to a new registry, when it "
+                                "should only have issued a heartbeat")
 
         return test.PASS()
 
