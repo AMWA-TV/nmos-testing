@@ -65,9 +65,9 @@ require that the unit under test communicate directly with entities which are 'm
 ## Additional Certificates
 
 Additional certificates can be generated using this CA if required, using the './generateCerts' script followed by a
-domain name and an optional additional domain name ending in '.local' for mDNS usage.
+hostname, domain name and an optional additional fully-qualified domain name ending in '.local' for mDNS usage.
 
-Example: `./generateCerts myapi.testsuite.nmos.tv myapi.local`
+Example: `./generateCerts myapi testsuite.nmos.tv myapi.local`
 
 ## Temporary Diffie-Hellman Parameters
 
