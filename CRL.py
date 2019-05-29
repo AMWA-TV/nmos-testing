@@ -15,10 +15,16 @@
 from flask import Blueprint, make_response
 
 
-CRL = Blueprint('crl', __name__)
+class CRLDistributionPoint(object):
+    def __init__(self):
+        self.port = 5007  # cf. test_data/BCP00301/ca/intermediate/openssl.cnf
 
 
-@CRL.route('/intermediate.crl.pem', methods=["GET"])
+CRL = CRLDistributionPoint()
+CRL_API = Blueprint('crl', __name__)
+
+
+@CRL_API.route('/intermediate.crl.pem', methods=["GET"])
 def crl_pem():
     response = None
     with open("test_data/BCP00301/ca/intermediate/crl/intermediate.crl.pem") as f:
