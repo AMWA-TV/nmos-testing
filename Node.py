@@ -20,8 +20,8 @@ from TestHelper import get_default_ip
 
 
 class Node(object):
-    def __init__(self):
-        pass
+    def __init__(self, port_increment):
+        self.port = 5200 + port_increment
 
     def get_sender(self, stream_type="video"):
         protocol = "http"
@@ -37,7 +37,7 @@ class Node(object):
             "version": "50:50",
             "caps": {},
             "tags": {},
-            "manifest_href": "{}://{}:5006/{}.sdp".format(protocol, host, stream_type),
+            "manifest_href": "{}://{}:{}/{}.sdp".format(protocol, host, self.port, stream_type),
             "flow_id": str(uuid.uuid4()),
             "transport": "urn:x-nmos:transport:rtp.mcast",
             "device_id": str(uuid.uuid4()),
@@ -50,7 +50,7 @@ class Node(object):
         return sender
 
 
-NODE = Node()
+NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
 
 

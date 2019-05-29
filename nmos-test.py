@@ -21,7 +21,7 @@ from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
-from CRL import CRL
+from CRL import CRL, CRL_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
 from Config import CERTS_MOCKS, KEYS_MOCKS
 from DNS import DNS
@@ -68,23 +68,33 @@ core_app = Flask(__name__)
 core_app.debug = False
 core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 core_app.config['TEST_ACTIVE'] = False
+core_app.config['PORT'] = 5000
+core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
+FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
     reg_app = Flask(__name__)
     reg_app.debug = False
     reg_app.config['REGISTRY_INSTANCE'] = instance
+    reg_app.config['PORT'] = REGISTRIES[instance].port
+    reg_app.config['SECURE'] = ENABLE_HTTPS
     reg_app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
     FLASK_APPS.append(reg_app)
 
 sender_app = Flask(__name__)
 sender_app.debug = False
+sender_app.config['PORT'] = NODE.port
+sender_app.config['SECURE'] = ENABLE_HTTPS
 sender_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(sender_app)
 
 crl_app = Flask(__name__)
 crl_app.debug = False
-crl_app.register_blueprint(CRL)  # CRL server
+crl_app.config['PORT'] = CRL.port
+crl_app.config['SECURE'] = False
+crl_app.register_blueprint(CRL_API)  # CRL server
+FLASK_APPS.append(crl_app)
 
 # Definitions of each set of tests made available from the dropdowns
 TEST_DEFINITIONS = {
@@ -577,21 +587,13 @@ def start_web_servers():
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
-    port = 5001
     for app in FLASK_APPS:
+        port = app.config['PORT']
+        secure = app.config['SECURE']
         t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True,
-                                                     'ssl_context': ctx})
+                                                     'ssl_context': ctx if secure else None})
         t.daemon = True
         t.start()
-        port += 1
-
-    t = threading.Thread(target=crl_app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True})
-    t.daemon = True
-    t.start()
-
-    t = threading.Thread(target=core_app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'threaded': True})
-    t.daemon = True
-    t.start()
 
 
 def run_noninteractive_tests(args):
