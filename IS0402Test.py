@@ -1154,7 +1154,7 @@ class IS0402Test(GenericTest):
         websocket = WebsocketWorker(resp_json["ws_href"])
         try:
             websocket.start()
-            sleep(0.5)
+            sleep(WS_MESSAGE_TIMEOUT)
             if websocket.did_error_occur():
                 return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
@@ -1672,9 +1672,11 @@ class IS0402Test(GenericTest):
                 schema = load_resolved_schema(api["spec_path"],
                                               "queryapi-subscriptions-websocket.json")
 
-            for resource, resource_data in test_data.items():
+            for resource in resources_to_post:
                 websockets[resource].start()
-                sleep(WS_MESSAGE_TIMEOUT)
+            sleep(WS_MESSAGE_TIMEOUT)
+
+            for resource, resource_data in test_data.items():
                 if websockets[resource].did_error_occur():
                     return test.FAIL("Error opening websocket: {}"
                                      .format(websockets[resource].get_error_message()))
