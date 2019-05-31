@@ -30,7 +30,7 @@ HEARTBEAT_INTERVAL = 5
 GARBAGE_COLLECTION_TIMEOUT = 12
 
 # Number of seconds to wait for messages to appear via a WebSocket subscription
-WS_MESSAGE_TIMEOUT = 1
+WS_MESSAGE_TIMEOUT = 2
 
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
