@@ -92,9 +92,9 @@ function saveSettings() {
 
             var maxOptions = document.getElementById('hidden_options').value;
             for (var apiNum=0; apiNum<maxOptions; apiNum++) {
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host",).value);
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host").value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port").value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version").value);
             }
         }
     }
