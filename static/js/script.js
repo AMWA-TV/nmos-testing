@@ -55,9 +55,7 @@ function loadSettings() {
                 }
                 var testOptions = document.getElementById("test_selection").options;
                 for (var i = 0, n = testOptions.length; i < n; i++) {
-                    if (selectedOptions.includes(testOptions[i].value)) {
-                        testOptions[i].selected = true;
-                    }
+                    testOptions[i].selected = selectedOptions.includes(testOptions[i].value);
                 }
 
                 var maxOptions = document.getElementById('hidden_options').value;
@@ -74,6 +72,7 @@ function loadSettings() {
         console.log("Error using sessionStorage.");
     }
     updateDropdown();
+    document.getElementById("test_selection").selectedIndex = 0;
 }
 
 function saveSettings() {
@@ -92,9 +91,9 @@ function saveSettings() {
 
             var maxOptions = document.getElementById('hidden_options').value;
             for (var apiNum=0; apiNum<maxOptions; apiNum++) {
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host",).value);
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port",).value);
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version",).value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host").value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port").value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version").value);
             }
         }
     }
