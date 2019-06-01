@@ -62,10 +62,10 @@ docker run -d -p="5000:5000" nmos-testing
 
 The web service will be available on `http://<DOCKER_HOST_IP>:5000`.
 
-If you need to change the `Config.py` settings. You can define your own copy with the required settings and add the following volume mount. _Note_: requires an absolute path when not working from current directory.
+If you need to change the `Config.py` settings. You can define your own copy with the required settings and add the following volume mount. _Note_: requires an absolute path, the example below is for working from current directory.
 
 ```shell
-docker run -d -p="5000:5000" -v="$(pwd)/Config.py:/config/Config.py" princechrismc/nmos-testing
+docker run -d -p="5000:5000" -v="$(pwd)/Config.py:/config/Config.py" nmos-testing
 ```
 
 If you need to deploy multiple instances of the test suite for multiple users to have concurrent access, this is a possible method to met those requirements.

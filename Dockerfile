@@ -9,7 +9,11 @@ RUN apk update \
  && pip3 install -r requirements.txt \
  && mkdir -p /config \
  && mv Config.py /config/Config.py \
- && ln -s /config/Config.py Config.py
+ && ln -s /config/Config.py Config.py \
+ && cd testssl \
+ && wget https://github.com/drwetter/testssl.sh/archive/3.0rc5.tar.gz \
+ && tar -xvzf 3.0rc5.tar.gz --strip-components=1 \
+ && rm 3.0rc5.tar.gz
 
 VOLUME /config
 
