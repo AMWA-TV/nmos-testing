@@ -22,6 +22,7 @@ from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
 from CRL import CRL, CRL_API
+from OCSP import OCSP, OCSP_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
 from Config import CERTS_MOCKS, KEYS_MOCKS
 from DNS import DNS
@@ -95,6 +96,13 @@ crl_app.config['PORT'] = CRL.port
 crl_app.config['SECURE'] = False
 crl_app.register_blueprint(CRL_API)  # CRL server
 FLASK_APPS.append(crl_app)
+
+ocsp_app = Flask(__name__)
+ocsp_app.debug = False
+ocsp_app.config['PORT'] = OCSP.port
+ocsp_app.config['SECURE'] = False
+ocsp_app.register_blueprint(OCSP_API)  # OCSP server
+FLASK_APPS.append(ocsp_app)
 
 # Definitions of each set of tests made available from the dropdowns
 TEST_DEFINITIONS = {
