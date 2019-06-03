@@ -34,46 +34,54 @@ class BCP00301Test(GenericTest):
         GenericTest.__init__(self, apis)
         if not ENABLE_HTTPS:
             raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in Config.py")
+        self.report_json = {}
 
     def perform_test_ssl(self, test, args=None):
         if os.path.exists(TMPFILE):
             os.remove(TMPFILE)
         if args is None:
             args = []
-        try:
-            ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off", "--add-ca",
-                                  CERT_TRUST_ROOT_CA] + args +
-                                 ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"], self.apis[BCP_API_KEY]["port"])])
-        except Exception as e:
-            raise NMOSTestException(test.DISABLED("Unable to execute testssl.sh. Please see the README for "
-                                                  "installation instructions: {}".format(e)))
-        return ret.returncode
+        arg_key = " ".join(args)
+        if arg_key in self.report_json:
+            return self.report_json[arg_key]
+        else:
+            try:
+                ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off", "--add-ca",
+                                      CERT_TRUST_ROOT_CA] + args +
+                                     ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"],
+                                                     self.apis[BCP_API_KEY]["port"])])
+                if ret.returncode == 0:
+                    with open(TMPFILE) as tls_data:
+                        self.report_json[arg_key] = json.load(tls_data)
+                    return self.report_json[arg_key]
+            except Exception as e:
+                raise NMOSTestException(test.DISABLED("Unable to execute testssl.sh. Please see the README for "
+                                                      "installation instructions: {}".format(e)))
+        return None
 
     def test_01_tls_protocols(self, test):
         """TLS Protocols"""
 
-        ret = self.perform_test_ssl(test, ["-p"])
-        if ret != 0:
+        tls_data = self.perform_test_ssl(test, ["-p"])
+        if tls_data is None:
             return test.DISABLED("Unable to test. See the console for further information.")
         else:
-            with open(TMPFILE) as tls_data:
-                tls_data = json.load(tls_data)
-                for report in tls_data:
-                    if report["id"] in ["SSLv2", "SSLv3", "TLS1", "TLS1_1"] and "not offered" not in report["finding"]:
-                        return test.FAIL("Protocol {} must not be offered".format(report["id"].replace("_", ".")))
-                    elif report["id"] in ["TLS1_2"] and not report["finding"].startswith("offered"):
-                        return test.FAIL("Protocol {} must be offered".format(report["id"].replace("_", ".")))
-                    elif report["id"] in ["TLS1_3"] and not report["finding"].startswith("offered"):
-                        return test.OPTIONAL("Protocol {} should be offered".format(report["id"].replace("_", ".")),
-                                             "https://amwa-tv.github.io/nmos-api-security"
-                                             "/best-practice-secure-comms.html#tls-versions")
+            for report in tls_data:
+                if report["id"] in ["SSLv2", "SSLv3", "TLS1", "TLS1_1"] and "not offered" not in report["finding"]:
+                    return test.FAIL("Protocol {} must not be offered".format(report["id"].replace("_", ".")))
+                elif report["id"] in ["TLS1_2"] and not report["finding"].startswith("offered"):
+                    return test.FAIL("Protocol {} must be offered".format(report["id"].replace("_", ".")))
+                elif report["id"] in ["TLS1_3"] and not report["finding"].startswith("offered"):
+                    return test.OPTIONAL("Protocol {} should be offered".format(report["id"].replace("_", ".")),
+                                         "https://amwa-tv.github.io/nmos-api-security"
+                                         "/best-practice-secure-comms.html#tls-versions")
             return test.PASS()
 
     def test_02_tls_ciphers(self, test):
         """TLS Ciphers"""
 
-        ret = self.perform_test_ssl(test, ["-E"])
-        if ret != 0:
+        tls_data = self.perform_test_ssl(test, ["-E"])
+        if tls_data is None:
             return test.DISABLED("Unable to test. See the console for further information.")
         else:
             tls1_3_supported = False
@@ -93,22 +101,20 @@ class BCP00301Test(GenericTest):
             tls1_3_shall = ["TLS_AES_128_GCM_SHA256"]
             tls1_3_should = ["TLS_AES_256_GCM_SHA384",
                              "TLS_CHACHA20_POLY1305_SHA256"]
-            with open(TMPFILE) as tls_data:
-                tls_data = json.load(tls_data)
-                for report in tls_data:
-                    if report["finding"].startswith("TLS 1.2"):
-                        cipher = report["finding"].split()[-1]
-                        if cipher in tls1_2_shall:
-                            tls1_2_shall.remove(cipher)
-                        elif cipher in tls1_2_should:
-                            tls1_2_should.remove(cipher)
-                    elif report["finding"].startswith("TLS 1.3"):
-                        tls1_3_supported = True
-                        cipher = report["finding"].split()[-1]
-                        if cipher in tls1_3_shall:
-                            tls1_3_shall.remove(cipher)
-                        elif cipher in tls1_3_should:
-                            tls1_3_should.remove(cipher)
+            for report in tls_data:
+                if report["finding"].startswith("TLS 1.2"):
+                    cipher = report["finding"].split()[-1]
+                    if cipher in tls1_2_shall:
+                        tls1_2_shall.remove(cipher)
+                    elif cipher in tls1_2_should:
+                        tls1_2_should.remove(cipher)
+                elif report["finding"].startswith("TLS 1.3"):
+                    tls1_3_supported = True
+                    cipher = report["finding"].split()[-1]
+                    if cipher in tls1_3_shall:
+                        tls1_3_shall.remove(cipher)
+                    elif cipher in tls1_3_should:
+                        tls1_3_should.remove(cipher)
             if len(tls1_2_shall) > 0:
                 return test.FAIL("Implementation of the following TLS 1.2 ciphers is required: {}"
                                  .format(",".join(tls1_2_shall)))
@@ -129,48 +135,44 @@ class BCP00301Test(GenericTest):
     def test_03_cn_san(self, test):
         """Certificate does not use IP addresses in CN/SANs"""
 
-        ret = self.perform_test_ssl(test, ["-S"])
-        # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
-        # This is fixed in testssl master, but not yet in a release
-        if ret != 0:
+        tls_data = self.perform_test_ssl(test, ["-S"])
+        if tls_data is None:
             return test.DISABLED("Unable to test. See the console for further information.")
         else:
             common_name = None
-            with open(TMPFILE) as tls_data:
-                tls_data = json.load(tls_data)
-                for report in tls_data:
-                    if report["id"].split()[0] == "cert_commonName":
-                        common_name = report["finding"]
-                        try:
-                            ipaddress.ip_address(report["finding"])
-                            return test.WARNING("CN is an IP address: {}".format(report["finding"]),
-                                                "https://amwa-tv.github.io/nmos-api-security"
-                                                "/best-practice-secure-comms.html"
-                                                "#x509-certificates-and-certificate-authority")
-                        except ValueError:
-                            pass
-                    elif report["id"].split()[0] == "cert_subjectAltName":
-                        if report["finding"].startswith("No SAN"):
-                            return test.OPTIONAL("No SAN was found in the certificate",
+            for report in tls_data:
+                if report["id"].split()[0] == "cert_commonName":
+                    common_name = report["finding"]
+                    try:
+                        ipaddress.ip_address(report["finding"])
+                        return test.WARNING("CN is an IP address: {}".format(report["finding"]),
+                                            "https://amwa-tv.github.io/nmos-api-security"
+                                            "/best-practice-secure-comms.html"
+                                            "#x509-certificates-and-certificate-authority")
+                    except ValueError:
+                        pass
+                elif report["id"].split()[0] == "cert_subjectAltName":
+                    if report["finding"].startswith("No SAN"):
+                        return test.OPTIONAL("No SAN was found in the certificate",
+                                             "https://amwa-tv.github.io/nmos-api-security"
+                                             "/best-practice-secure-comms.html"
+                                             "#x509-certificates-and-certificate-authority")
+                    else:
+                        alt_names = report["finding"].split()
+                        if common_name not in alt_names:
+                            return test.OPTIONAL("CN {} was not found in the SANs".format(common_name),
                                                  "https://amwa-tv.github.io/nmos-api-security"
                                                  "/best-practice-secure-comms.html"
                                                  "#x509-certificates-and-certificate-authority")
-                        else:
-                            alt_names = report["finding"].split()
-                            if common_name not in alt_names:
-                                return test.OPTIONAL("CN {} was not found in the SANs".format(common_name),
-                                                     "https://amwa-tv.github.io/nmos-api-security"
-                                                     "/best-practice-secure-comms.html"
-                                                     "#x509-certificates-and-certificate-authority")
-                            for name in alt_names:
-                                try:
-                                    ipaddress.ip_address(name)
-                                    return test.WARNING("SAN is an IP address: {}".format(name),
-                                                        "https://amwa-tv.github.io/nmos-api-security"
-                                                        "/best-practice-secure-comms.html"
-                                                        "#x509-certificates-and-certificate-authority")
-                                except ValueError:
-                                    pass
+                        for name in alt_names:
+                            try:
+                                ipaddress.ip_address(name)
+                                return test.WARNING("SAN is an IP address: {}".format(name),
+                                                    "https://amwa-tv.github.io/nmos-api-security"
+                                                    "/best-practice-secure-comms.html"
+                                                    "#x509-certificates-and-certificate-authority")
+                            except ValueError:
+                                pass
 
             if common_name is None:
                 return test.UNCLEAR("Unable to find CN in the testssl report")
@@ -180,19 +182,17 @@ class BCP00301Test(GenericTest):
     def test_04_hsts(self, test):
         """HSTS Header"""
 
-        ret = self.perform_test_ssl(test, ["-h"])
-        if ret != 0:
+        tls_data = self.perform_test_ssl(test, ["-h"])
+        if tls_data is None:
             return test.DISABLED("Unable to test. See the console for further information.")
         else:
             hsts_supported = False
-            with open(TMPFILE) as tls_data:
-                tls_data = json.load(tls_data)
-                for report in tls_data:
-                    if report["id"] == "HSTS_time":
-                        if report["severity"] == "OK":
-                            hsts_supported = True
-                        else:
-                            hsts_supported = report["finding"]
+            for report in tls_data:
+                if report["id"] == "HSTS_time":
+                    if report["severity"] == "OK":
+                        hsts_supported = True
+                    else:
+                        hsts_supported = report["finding"]
             if hsts_supported is True:
                 return test.PASS()
             elif hsts_supported is False:
@@ -205,43 +205,35 @@ class BCP00301Test(GenericTest):
     def test_05_revocation(self, test):
         """Certificate revocation method is available"""
 
-        ret = self.perform_test_ssl(test, ["-S"])
-        # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
-        # This is fixed in testssl master, but not yet in a release
-        if ret != 0:
+        tls_data = self.perform_test_ssl(test, ["-S"])
+        if tls_data is None:
             return test.DISABLED("Unable to test. See the console for further information.")
         else:
-            with open(TMPFILE) as tls_data:
-                tls_data = json.load(tls_data)
-                for report in tls_data:
-                    if report["id"].split()[0] == "cert_revocation":
-                        if report["severity"] == "HIGH":
-                            return test.FAIL("No certificate revocation method was provided by the server")
+            for report in tls_data:
+                if report["id"].split()[0] == "cert_revocation":
+                    if report["severity"] == "HIGH":
+                        return test.FAIL("No certificate revocation method was provided by the server")
 
             return test.PASS()
 
     def test_06_ocsp_stapling(self, test):
         """OCSP Stapling"""
 
-        ret = self.perform_test_ssl(test, ["-S"])
-        # Known issue: If the OCSP URL is unreachable testssl generates invalid JSON and exits with a non-zero code
-        # This is fixed in testssl master, but not yet in a release
-        if ret != 0:
+        tls_data = self.perform_test_ssl(test, ["-S"])
+        if tls_data is None:
             return test.DISABLED("Unable to test. See the console for further information.")
         else:
             ocsp_found = False
-            with open(TMPFILE) as tls_data:
-                tls_data = json.load(tls_data)
-                for report in tls_data:
-                    if report["id"].split()[0] == "OCSP_stapling":
-                        if report["finding"] == "not offered":
-                            return test.OPTIONAL("OCSP stapling is not offered by this server",
-                                                 "https://amwa-tv.github.io/nmos-api-security"
-                                                 "/best-practice-secure-comms.html"
-                                                 "#x509-certificates-and-certificate-authority")
-                    elif report["id"].split()[0] == "crtl_ocspURL":
-                        if report["finding"].startswith("http"):
-                            ocsp_found = True
+            for report in tls_data:
+                if report["id"].split()[0] == "OCSP_stapling":
+                    if report["finding"] == "not offered":
+                        return test.OPTIONAL("OCSP stapling is not offered by this server",
+                                             "https://amwa-tv.github.io/nmos-api-security"
+                                             "/best-practice-secure-comms.html"
+                                             "#x509-certificates-and-certificate-authority")
+                elif report["id"].split()[0] == "crtl_ocspURL":
+                    if report["finding"].startswith("http"):
+                        ocsp_found = True
 
             if not ocsp_found:
                 return test.UNCLEAR("Unable to find OCSP stapling results in the testssl report")
