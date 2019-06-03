@@ -231,7 +231,7 @@ class BCP00301Test(GenericTest):
                                              "https://amwa-tv.github.io/nmos-api-security"
                                              "/best-practice-secure-comms.html"
                                              "#x509-certificates-and-certificate-authority")
-                elif report["id"].split()[0] == "crtl_ocspURL":
+                elif report["id"].split()[0] == "cert_ocspURL":
                     if report["finding"].startswith("http"):
                         ocsp_found = True
 
