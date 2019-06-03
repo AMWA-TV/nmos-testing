@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import subprocess
-import time
 
 from flask import Blueprint, make_response, request, abort
 
