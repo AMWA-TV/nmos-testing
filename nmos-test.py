@@ -369,6 +369,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "spec": None  # Used inside GenericTest
             }
             if SPECIFICATIONS[spec_key]["repo"] is not None and api_key in SPECIFICATIONS[spec_key]["apis"]:
+                apis[api_key]["name"] = SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
                 apis[api_key]["spec_path"] = CACHE_PATH + '/' + spec_key
                 apis[api_key]["raml"] = SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
 
