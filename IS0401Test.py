@@ -17,6 +17,7 @@
 import time
 import socket
 import json
+from urllib.parse import urlparse
 
 from copy import deepcopy
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
@@ -568,6 +569,8 @@ class IS0401Test(GenericTest):
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
+        api = self.apis[NODE_API_KEY]
+
         registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
 
         # Reset the registry to clear previous data, although we won't be checking it
@@ -593,7 +596,6 @@ class IS0401Test(GenericTest):
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            api = self.apis[NODE_API_KEY]
             if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
@@ -615,7 +617,7 @@ class IS0401Test(GenericTest):
 
         return test.WARNING("No matching mDNS announcement found for Node with IP/Port {}:{}. This will not affect "
                             "operation in registered mode but may indicate a lack of support for peer to peer "
-                            "operation.".format(self.apis[NODE_API_KEY]["ip"], self.apis[NODE_API_KEY]["port"]),
+                            "operation.".format(api["ip"], api["port"]),
                             NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
 
     def test_13(self, test):
@@ -956,10 +958,19 @@ class IS0401Test(GenericTest):
         return test.PASS()
 
     def test_20(self, test):
-        """Node's resources correctly signal the current protocol"""
+        """Node's resources correctly signal the current protocol and IP/hostname"""
 
-        service_href_warn = False
-        device_href_warn = False
+        found_api_endpoint = False
+        found_href = False
+
+        href_hostname_warn = False
+        api_endpoint_host_warn = False
+        service_href_scheme_warn = False
+        service_href_hostname_warn = False
+        control_href_scheme_warn = False
+        control_href_hostname_warn = False
+        manifest_href_scheme_warn = False
+        manifest_href_hostname_warn = False
 
         api = self.apis[NODE_API_KEY]
         valid, response = self.do_request("GET", self.node_url + "self")
@@ -969,17 +980,35 @@ class IS0401Test(GenericTest):
             node_self = response.json()
             if not node_self["href"].startswith(self.protocol + "://"):
                 return test.FAIL("Node 'href' does not match the current protocol")
+            if node_self["href"].startswith("https://") and urlparse(node_self["href"]).hostname[-1].isdigit():
+                href_hostname_warn = True
             if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
                 for endpoint in node_self["api"]["endpoints"]:
                     if endpoint["protocol"] != self.protocol:
-                        return test.FAIL("One or more Node 'endpoints' do not match the current protocol")
+                        return test.FAIL("One or more Node 'api.endpoints' do not match the current protocol")
+                    if endpoint["host"] == api["hostname"] and endpoint["port"] == api["port"]:
+                        found_api_endpoint = True
+                    if self.is04_utils.compare_urls(node_self["href"], "{}://{}:{}"
+                                                    .format(endpoint["protocol"], endpoint["host"], endpoint["port"])):
+                        found_href = True
+                    if endpoint["protocol"] == "https" and endpoint["host"][-1].isdigit():
+                        api_endpoint_host_warn = True
             for service in node_self["services"]:
-                if service["href"].startswith("http") and not service["href"].startswith(self.protocol):
+                href = service["href"]
+                if href.startswith("http") and not href.startswith(self.protocol + "://"):
                     # Only warn about these at the end so that more major failures are flagged first
                     # Protocols other than HTTP may be used, so don't incorrectly flag those too
-                    service_href_warn = True
+                    service_href_scheme_warn = True
+                if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
+                    service_href_hostname_warn = True
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+
+        if not found_api_endpoint:
+            return test.FAIL("None of the Node 'api.endpoints' match the current protocol, IP/hostname and port")
+
+        if not found_href:
+            return test.FAIL("None of the Node 'api.endpoints' match the Node 'href'")
 
         if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
             valid, response = self.do_request("GET", self.node_url + "devices")
@@ -989,10 +1018,13 @@ class IS0401Test(GenericTest):
                 node_devices = response.json()
                 for device in node_devices:
                     for control in device["controls"]:
-                        if control["href"].startswith("http") and not control["href"].startswith(self.protocol):
+                        href = control["href"]
+                        if href.startswith("http") and not href.startswith(self.protocol + "://"):
                             # Only warn about these at the end so that more major failures are flagged first
                             # Protocols other than HTTP may be used, so don't incorrectly flag those too
-                            device_href_warn = True
+                            control_href_scheme_warn = True
+                        if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
+                            control_href_hostname_warn = True
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
@@ -1002,15 +1034,30 @@ class IS0401Test(GenericTest):
         try:
             node_senders = response.json()
             for sender in node_senders:
-                if sender["manifest_href"] != "" and not sender["manifest_href"].startswith(self.protocol):
-                    return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
+                href = sender["manifest_href"]
+                if href.startswith("http") and not href.startswith(self.protocol + "://"):
+                    manifest_href_scheme_warn = True
+                if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
+                    manifest_href_hostname_warn = True
         except json.decoder.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        if service_href_warn:
-            return test.WARNING("One or more Node service 'href' values does not match the current protocol.")
-        elif device_href_warn:
-            return test.WARNING("One or more Device control 'href' values does not match the current protocol.")
+        if href_hostname_warn:
+            return test.WARNING("Node 'href' value has an IP address not a hostname")
+        elif api_endpoint_host_warn:
+            return test.WARNING("One or more Node 'api.endpoints.host' values are an IP address not a hostname")
+        elif service_href_hostname_warn:
+            return test.WARNING("One or more Node service 'href' values have an IP address not a hostname")
+        elif control_href_hostname_warn:
+            return test.WARNING("One or more Device control 'href' values have an IP address not a hostname")
+        elif manifest_href_hostname_warn:
+            return test.WARNING("One or more Sender 'manifest_href' values have an IP address not a hostname")
+        elif service_href_scheme_warn:
+            return test.WARNING("One or more Node service 'href' values do not match the current protocol")
+        elif control_href_scheme_warn:
+            return test.WARNING("One or more Device control 'href' values do not match the current protocol")
+        elif manifest_href_scheme_warn:
+            return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
 
         return test.PASS()
 
