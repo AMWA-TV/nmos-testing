@@ -258,7 +258,7 @@ class BCP00301Test(GenericTest):
             return test.FAIL(str(e))
 
     def test_08_rsa_ecdsa(self, test):
-        """Certificate exposes both an RSA and ECDSA certificate"""
+        """Server exposes both an RSA and ECDSA certificate"""
 
         tls_data = self.perform_test_ssl(test, ["-S"])
         if tls_data is None:
