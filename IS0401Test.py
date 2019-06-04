@@ -1024,7 +1024,7 @@ class IS0401Test(GenericTest):
                             # Protocols other than HTTP may be used, so don't incorrectly flag those too
                             control_href_scheme_warn = True
                         if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
-                             control_href_hostname_warn = True
+                            control_href_hostname_warn = True
             except json.decoder.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
