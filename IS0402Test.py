@@ -26,7 +26,7 @@ from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
-from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
+from Config import DNS_SD_MODE, GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
 from TestHelper import WebsocketWorker, load_resolved_schema
 from TestResult import Test
 
@@ -66,6 +66,9 @@ class IS0402Test(GenericTest):
 
     def test_01(self, test):
         """Registration API advertises correctly via mDNS"""
+
+        if DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         api = self.apis[REG_API_KEY]
 
@@ -111,6 +114,9 @@ class IS0402Test(GenericTest):
 
     def test_02(self, test):
         """Query API advertises correctly via mDNS"""
+
+        if DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         api = self.apis[QUERY_API_KEY]
 
