@@ -256,3 +256,26 @@ class BCP00301Test(GenericTest):
             return test.FAIL("Certificate verification error: {}".format(e))
         except Exception as e:
             return test.FAIL(str(e))
+
+    def test_08_rsa_ecdsa(self, test):
+        """Certificate exposes both an RSA and ECDSA certificate"""
+
+        tls_data = self.perform_test_ssl(test, ["-S"])
+        if tls_data is None:
+            return test.DISABLED("Unable to test. See the console for further information.")
+        else:
+            rsa_found = False
+            ecdsa_found = False
+            for report in tls_data:
+                if report["id"].split()[0] == "cert_keySize":
+                    if report["finding"].startswith("RSA"):
+                        rsa_found = True
+                    elif report["finding"].startswith("EC"):
+                        ecdsa_found = True
+
+            if not rsa_found:
+                return test.FAIL("Server is not providing an RSA certificate")
+            if not ecdsa_found:
+                return test.FAIL("Server is not providing an ECDSA certificate")
+
+            return test.PASS()
