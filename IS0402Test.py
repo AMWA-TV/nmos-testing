@@ -26,7 +26,7 @@ from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
-from Config import GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
+from Config import DNS_SD_MODE, GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
 from TestHelper import WebsocketWorker, load_resolved_schema
 from TestResult import Test
 
@@ -64,14 +64,11 @@ class IS0402Test(GenericTest):
             self.zc.close()
             self.zc = None
 
-    def test_01(self, test):
+    def do_dns_sd_advertisement_check(self, test, api, service_type):
         """Registration API advertises correctly via mDNS"""
 
-        api = self.apis[REG_API_KEY]
-
-        service_type = "_nmos-registration._tcp.local."
-        if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") >= 0:
-            service_type = "_nmos-register._tcp.local."
+        if DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         ServiceBrowser(self.zc, service_type, self.zc_listener)
         sleep(2)
@@ -82,7 +79,7 @@ class IS0402Test(GenericTest):
             if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
-                    return test.FAIL("No 'pri' TXT record found in Registration API advertisement.")
+                    return test.FAIL("No 'pri' TXT record found in {} advertisement.".format(api["name"]))
                 try:
                     priority = int(properties["pri"])
                     if priority < 0:
@@ -96,59 +93,36 @@ class IS0402Test(GenericTest):
                 # Other TXT records only came in for IS-04 v1.1+
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
-                        return test.FAIL("No 'api_ver' TXT record found in Registration API advertisement.")
+                        return test.FAIL("No 'api_ver' TXT record found in {} advertisement.".format(api["name"]))
                     elif api["version"] not in properties["api_ver"].split(","):
                         return test.FAIL("Registry does not claim to support version under test.")
 
                     if "api_proto" not in properties:
-                        return test.FAIL("No 'api_proto' TXT record found in Registration API advertisement.")
+                        return test.FAIL("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
                     elif properties["api_proto"] != self.protocol:
                         return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
                 return test.PASS()
-        return test.FAIL("No matching mDNS announcement found for Registration API with IP/Port {}:{}."
-                         .format(api["ip"], api["port"]))
+        return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
+                         .format(api["name"], api["ip"], api["port"]))
+
+    def test_01(self, test):
+        """Registration API advertises correctly via mDNS"""
+
+        api = self.apis[REG_API_KEY]
+
+        service_type = "_nmos-registration._tcp.local."
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") >= 0:
+            service_type = "_nmos-register._tcp.local."
+
+        return self.do_dns_sd_advertisement_check(test, api, service_type)
 
     def test_02(self, test):
         """Query API advertises correctly via mDNS"""
 
         api = self.apis[QUERY_API_KEY]
 
-        ServiceBrowser(self.zc, "_nmos-query._tcp.local.", self.zc_listener)
-        sleep(2)
-        serv_list = self.zc_listener.get_service_list()
-        for service in serv_list:
-            address = socket.inet_ntoa(service.address)
-            port = service.port
-            if address == api["ip"] and port == api["port"]:
-                properties = self.convert_bytes(service.properties)
-                if "pri" not in properties:
-                    return test.FAIL("No 'pri' TXT record found in Query API advertisement.")
-                try:
-                    priority = int(properties["pri"])
-                    if priority < 0:
-                        return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
-                    elif priority >= 100:
-                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production "
-                                            "instance.")
-                except Exception:
-                    return test.FAIL("Priority ('pri') TXT record is not an integer.")
-
-                # Other TXT records only came in for IS-04 v1.1+
-                if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                    if "api_ver" not in properties:
-                        return test.FAIL("No 'api_ver' TXT record found in Query API advertisement.")
-                    elif api["version"] not in properties["api_ver"].split(","):
-                        return test.FAIL("Registry does not claim to support version under test.")
-
-                    if "api_proto" not in properties:
-                        return test.FAIL("No 'api_proto' TXT record found in Query API advertisement.")
-                    elif properties["api_proto"] != self.protocol:
-                        return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
-
-                return test.PASS()
-        return test.FAIL("No matching mDNS announcement found for Query API with IP/Port {}:{}."
-                         .format(api["ip"], api["port"]))
+        return self.do_dns_sd_advertisement_check(test, api, "_nmos-query._tcp.local.")
 
     def test_03(self, test):
         """Registration API accepts and stores a valid Node resource"""
