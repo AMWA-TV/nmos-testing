@@ -1046,18 +1046,18 @@ class IS0401Test(GenericTest):
             return test.WARNING("Node 'href' value has an IP address not a hostname")
         elif api_endpoint_host_warn:
             return test.WARNING("One or more Node 'api.endpoints.host' values are an IP address not a hostname")
-        elif service_href_scheme_warn:
-            return test.WARNING("One or more Node service 'href' values do not match the current protocol")
         elif service_href_hostname_warn:
             return test.WARNING("One or more Node service 'href' values have an IP address not a hostname")
-        elif control_href_scheme_warn:
-            return test.WARNING("One or more Device control 'href' values do not match the current protocol")
         elif control_href_hostname_warn:
             return test.WARNING("One or more Device control 'href' values have an IP address not a hostname")
-        elif manifest_href_scheme_warn:
-            return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
         elif manifest_href_hostname_warn:
             return test.WARNING("One or more Sender 'manifest_href' values have an IP address not a hostname")
+        elif service_href_scheme_warn:
+            return test.WARNING("One or more Node service 'href' values do not match the current protocol")
+        elif control_href_scheme_warn:
+            return test.WARNING("One or more Device control 'href' values do not match the current protocol")
+        elif manifest_href_scheme_warn:
+            return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
 
         return test.PASS()
 
