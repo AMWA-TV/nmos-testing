@@ -35,6 +35,9 @@ GARBAGE_COLLECTION_TIMEOUT = 12
 # Number of seconds to wait for messages to appear via a WebSocket subscription
 WS_MESSAGE_TIMEOUT = 2
 
+# Number of seconds to wait after performing an API action for the results to be fully visible via IS-04
+API_PROCESSING_TIMEOUT = 1
+
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80

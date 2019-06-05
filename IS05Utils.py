@@ -20,6 +20,7 @@ import TestHelper
 
 from random import randint
 from NMOSUtils import NMOSUtils, IMMEDIATE_ACTIVATION, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
+from Config import API_PROCESSING_TIMEOUT
 
 
 class IS05Utils(NMOSUtils):
@@ -265,7 +266,7 @@ class IS05Utils(NMOSUtils):
                             finished = True
                         else:
                             retries = retries + 1
-                            time.sleep(1)
+                            time.sleep(API_PROCESSING_TIMEOUT)
 
                     if finished:
                         try:
@@ -358,7 +359,7 @@ class IS05Utils(NMOSUtils):
                             finished = True
                         else:
                             retries = retries + 1
-                            time.sleep(1)
+                            time.sleep(API_PROCESSING_TIMEOUT)
 
                     if finished:
                         try:

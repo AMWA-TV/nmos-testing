@@ -25,7 +25,7 @@ from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
-from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT
+from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -646,8 +646,7 @@ class IS0401Test(GenericTest):
                 request_data = self.node.get_sender(stream_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
-                # TODO: Define the sleep time globally for all connection tests
-                time.sleep(1)
+                time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
                 if not valid:
@@ -686,8 +685,7 @@ class IS0401Test(GenericTest):
                 receiver = receivers.json()[0]
                 self.do_receiver_put(test, receiver["id"], {})
 
-                # TODO: Define the sleep time globally for all connection tests
-                time.sleep(1)
+                time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
                 if not valid:
