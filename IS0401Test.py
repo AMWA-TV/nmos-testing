@@ -25,7 +25,7 @@ from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
-from Config import ENABLE_HTTPS
+from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -585,7 +585,7 @@ class IS0401Test(GenericTest):
         time.sleep(DNS_SD_ADVERT_TIMEOUT)
 
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
-        time.sleep(1)
+        time.sleep(DNS_SD_BROWSE_TIMEOUT)
         node_list = self.zc_listener.get_service_list()
 
         # Withdraw the registry advertisement now we've performed a browse for Node advertisements
