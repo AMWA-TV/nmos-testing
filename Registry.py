@@ -86,6 +86,14 @@ class Registry(object):
         self.test_invalid_reg = False
         self.enabled = False
 
+    def wait_for_registration(self, timeout):
+        last_change = self.last_time
+        while timeout > 0:
+            if last_change != self.last_time:
+                break
+            time.sleep(0.2)
+            timeout -= 0.2
+
 
 # 0 = Invalid request testing registry
 # 1 = Primary testing registry
