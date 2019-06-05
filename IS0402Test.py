@@ -21,6 +21,7 @@ import json
 from copy import deepcopy
 from jsonschema import ValidationError
 import re
+from urllib.parse import urlparse
 
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -129,6 +130,24 @@ class IS0402Test(GenericTest):
 
         self.check_api_v1_x(test)
         self.post_super_resources_and_resource(test, "node", "test_03")
+        return test.PASS()
+
+    def test_03_1(self, test):
+        """Registration API responds with correct Location header"""
+
+        self.check_api_v1_x(test)
+
+        data = self.copy_resource("node")
+        data["id"] = str(uuid.uuid4())
+        data["description"] = "test_03_1"
+
+        # most tests on the Location header are actually done in every call to post_resource
+        location_header = self.post_resource(test, "node", data, codes=[201])
+
+        # also check an 'https' URL in the Location header has a hostname not an IP address
+        if location_header.startswith("https://") and urlparse(location_header).hostname[-1].isdigit():
+            return test.WARNING("Registration API Location header has an IP address not a hostname")
+
         return test.PASS()
 
     def test_04(self, test):
@@ -342,6 +361,14 @@ class IS0402Test(GenericTest):
 
         return valid, response, query_parameters
 
+    def parse_link_header(self, link_header):
+        LINK_PATTERN = re.compile('<(?P<url>.+)>; rel="(?P<rel>.+)"')
+
+        return {rel: url for (rel, url) in
+                [(_.group("rel"), _.group("url")) for _ in
+                    [LINK_PATTERN.search(_) for _ in
+                        link_header.split(",")]]}
+
     def check_paged_response(self, test, paged_response,
                              expected_ids,
                              expected_since, expected_until, expected_limit=None):
@@ -420,12 +447,7 @@ class IS0402Test(GenericTest):
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Limit "
                                                   "header, for query: {}".format(query_string)))
 
-            LINK_PATTERN = re.compile('<(?P<url>.+)>; rel="(?P<rel>.+)"')
-
-            link_header = {rel: url for (rel, url) in
-                           [(_.group("rel"), _.group("url")) for _ in
-                               [LINK_PATTERN.search(_) for _ in
-                                   response.headers["Link"].split(",")]]}
+            link_header = self.parse_link_header(response.headers["Link"])
 
             prev = link_header["prev"]
             next = link_header["next"]
@@ -864,6 +886,29 @@ class IS0402Test(GenericTest):
         self.check_paged_response(test, response,
                                   expected_ids=None,
                                   expected_since=None, expected_until=None)
+
+        return test.PASS()
+
+    def test_21_9(self, test):
+        """Query API implements pagination (correct protocol and IP/hostname in Link header)"""
+
+        self.check_paged_trait(test)
+
+        response = self.do_paged_request()
+        # most tests on the Link header are actually done in every call to check_paged_response
+        self.check_paged_response(test, response,
+                                  expected_ids=None,
+                                  expected_since=None, expected_until=None)
+
+        # also check 'https' URLs in the Link header have a hostname not an IP address
+        link_header = self.parse_link_header(response[1].headers["Link"])
+
+        for rel in ["first", "prev", "next", "last"]:
+            if rel not in link_header:
+                continue
+
+            if link_header[rel].startswith("https://") and urlparse(link_header[rel]).hostname[-1].isdigit():
+                return test.WARNING("Query API Link header has an IP address not a hostname")
 
         return test.PASS()
 
@@ -1539,9 +1584,14 @@ class IS0402Test(GenericTest):
         # Check protocol
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
             if resp_json["secure"] is not ENABLE_HTTPS:
-                return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+                return test.FAIL("Subscription 'secure' value is incorrect for the current protocol")
         if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
-            return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+            return test.FAIL("Subscription 'ws_href' value does not match the current WebSocket protocol")
+
+        # Check IP/hostname
+        ws_href_hostname_warn = False
+        if resp_json["ws_href"].startswith("wss://") and urlparse(resp_json["ws_href"]).hostname[-1].isdigit():
+            ws_href_hostname_warn = True
 
         # Test if subscription is available
         sub_id = resp_json["id"]
@@ -1549,6 +1599,8 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Query API did not respond as expected")
         elif r.status_code == 200:
+            if ws_href_hostname_warn:
+                return test.WARNING("Subscription 'ws_href' value has an IP address not a hostname")
             return test.PASS()
         else:
             return test.FAIL("Query API did not provide the requested subscription: {}".format(r.status_code))
@@ -1566,9 +1618,9 @@ class IS0402Test(GenericTest):
         # Check protocol
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
             if resp_json["secure"] is not ENABLE_HTTPS:
-                return test.FAIL("WebSocket 'secure' parameter is incorrect for the current protocol")
+                return test.FAIL("Subscription 'secure' value is incorrect for the current protocol")
         if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
-            return test.FAIL("WebSocket URLs must begin {}://".format(self.ws_protocol))
+            return test.FAIL("Subscription 'ws_href' value does not match the current WebSocket protocol")
 
         return test.PASS()
 
@@ -2065,10 +2117,17 @@ class IS0402Test(GenericTest):
         elif r.status_code in [200, 201]:
             if "Location" not in r.headers:
                 raise NMOSTestException(fail(test, "Registration API failed to return a 'Location' response header"))
-            elif (not r.headers["Location"].startswith("/") and
-                  not r.headers["Location"].startswith(self.protocol + "://")):
-                raise NMOSTestException(fail(test, "Registration API response Location header is invalid for the "
-                                             "current protocol: Location: {}".format(r.headers["Location"])))
+            path = "{}resource/{}s/{}".format(urlparse(reg_url).path, type, data["id"])
+            location = r.headers["Location"]
+            if path not in location:
+                raise NMOSTestException(fail(test, "Registration API 'Location' response header is incorrect: "
+                                             "Location: {}".format(location)))
+            if not location.startswith("/") and not location.startswith(self.protocol + "://"):
+                raise NMOSTestException(fail(test, "Registration API 'Location' response header is invalid for the "
+                                             "current protocol: Location: {}".format(location)))
+            return r.headers["Location"]
+
+        return None
 
     def post_super_resources_and_resource(self, test, type, description, fail=Test.FAIL):
         """
