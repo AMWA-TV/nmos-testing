@@ -142,10 +142,10 @@ class IS0402Test(GenericTest):
         data["description"] = "test_03_1"
 
         # most tests on the Location header are actually done in every call to post_resource
-        location_header = self.post_resource(test, "node", data, codes=[201])
+        location = self.post_resource(test, "node", data, codes=[201])
 
         # also check an 'https' URL in the Location header has a hostname not an IP address
-        if location_header.startswith("https://") and urlparse(location_header).hostname[-1].isdigit():
+        if location is not None and location.startswith("https://") and urlparse(location).hostname[-1].isdigit():
             return test.WARNING("Registration API Location header has an IP address not a hostname")
 
         return test.PASS()
