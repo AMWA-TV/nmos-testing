@@ -17,6 +17,7 @@ from dnslib.zoneresolver import ZoneResolver
 from jinja2 import Template
 
 from TestHelper import get_default_ip
+from Config import DNS_DOMAIN
 
 
 class DNS(object):
@@ -30,7 +31,8 @@ class DNS(object):
     def load_zone(self, api_version, api_protocol):
         zone_file = open("test_data/IS0401/dns_records.zone").read()
         template = Template(zone_file)
-        zone_data = template.render(ip_address=self.default_ip, api_ver=api_version, api_proto=api_protocol)
+        zone_data = template.render(ip_address=self.default_ip, api_ver=api_version, api_proto=api_protocol,
+                                    domain=DNS_DOMAIN)
         self.resolver = ZoneResolver(self.base_zone_data + zone_data)
         self.stop()
         print(" * Loading DNS zone file with api_ver={}".format(api_version))
@@ -39,7 +41,7 @@ class DNS(object):
     def reset(self):
         zone_file = open("test_data/IS0401/dns_base.zone").read()
         template = Template(zone_file)
-        self.base_zone_data = template.render(ip_address=self.default_ip)
+        self.base_zone_data = template.render(ip_address=self.default_ip, domain=DNS_DOMAIN)
         self.resolver = ZoneResolver(self.base_zone_data)
         self.stop()
         print(" * Loading DNS zone base file")
