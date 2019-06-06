@@ -25,7 +25,7 @@ from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
-from Config import ENABLE_HTTPS
+from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -137,17 +137,17 @@ class IS0401Test(GenericTest):
             self.zc.register_service(registry_mdns[2])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
-        time.sleep(DNS_SD_ADVERT_TIMEOUT)
+        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
         while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
-            time.sleep(1)
+            time.sleep(0.2)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
         if len(self.primary_registry.get_data().heartbeats) > 0:
             # It is heartbeating, but we don't have enough of them yet
             while len(self.primary_registry.get_data().heartbeats) < 2:
-                time.sleep(1)
+                time.sleep(0.2)
 
             # Once registered, advertise all other registries at different (ascending) priorities
             for index, registry in enumerate(self.registries[1:]):
@@ -181,8 +181,8 @@ class IS0401Test(GenericTest):
 
                 while len(self.registries[index + 1].get_data().heartbeats) < 1 and heartbeat_countdown > 0:
                     # Wait until the heartbeat interval has elapsed or a heartbeat has been received
-                    time.sleep(1)
-                    heartbeat_countdown -= 1
+                    time.sleep(0.2)
+                    heartbeat_countdown -= 0.2
 
                 if len(self.registries[index + 1].get_data().heartbeats) < 1:
                     # Testing has failed at this point, so we might as well abort
@@ -582,10 +582,10 @@ class IS0401Test(GenericTest):
             self.zc.register_service(registry_info)
 
         # Wait for n seconds after advertising the service for the first POST from a Node
-        time.sleep(DNS_SD_ADVERT_TIMEOUT)
+        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
 
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
-        time.sleep(1)
+        time.sleep(DNS_SD_BROWSE_TIMEOUT)
         node_list = self.zc_listener.get_service_list()
 
         # Withdraw the registry advertisement now we've performed a browse for Node advertisements
@@ -646,8 +646,7 @@ class IS0401Test(GenericTest):
                 request_data = self.node.get_sender(stream_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
-                # TODO: Define the sleep time globally for all connection tests
-                time.sleep(1)
+                time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
                 if not valid:
@@ -686,8 +685,7 @@ class IS0401Test(GenericTest):
                 receiver = receivers.json()[0]
                 self.do_receiver_put(test, receiver["id"], {})
 
-                # TODO: Define the sleep time globally for all connection tests
-                time.sleep(1)
+                time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
                 if not valid:
@@ -1078,7 +1076,7 @@ class IS0401Test(GenericTest):
             self.zc.register_service(registry_info)
 
         # Wait for n seconds after advertising the service for the first POST from a Node
-        time.sleep(DNS_SD_ADVERT_TIMEOUT)
+        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
 
         # By this point we should have had at least one Node POST and a corresponding DELETE
         if DNS_SD_MODE == "multicast":

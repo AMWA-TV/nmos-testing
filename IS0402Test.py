@@ -27,7 +27,7 @@ from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
-from Config import DNS_SD_MODE, GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS
+from Config import DNS_SD_MODE, GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT
 from TestHelper import WebsocketWorker, load_resolved_schema
 from TestResult import Test
 
@@ -72,7 +72,7 @@ class IS0402Test(GenericTest):
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         ServiceBrowser(self.zc, service_type, self.zc_listener)
-        sleep(2)
+        sleep(DNS_SD_BROWSE_TIMEOUT)
         serv_list = self.zc_listener.get_service_list()
         for service in serv_list:
             address = socket.inet_ntoa(service.address)

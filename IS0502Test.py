@@ -18,6 +18,7 @@ import uuid
 
 from GenericTest import GenericTest
 from IS05Utils import IS05Utils
+from Config import API_PROCESSING_TIMEOUT
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -134,7 +135,7 @@ class IS0502Test(GenericTest):
                         if not valid:
                             return False, response
 
-                        time.sleep(1)
+                        time.sleep(API_PROCESSING_TIMEOUT)
 
                         valid, response = self.do_request("GET", self.node_url + resource_type + "/" + is05_resource)
                         if not valid:
@@ -162,7 +163,7 @@ class IS0502Test(GenericTest):
             if not valid:
                 return False, response
 
-        time.sleep(1)
+        time.sleep(API_PROCESSING_TIMEOUT)
 
         valid, result = self.refresh_is04_resources(resource_type)
         if not valid:
@@ -211,7 +212,7 @@ class IS0502Test(GenericTest):
             if not valid:
                 return False, response
 
-        time.sleep(1)
+        time.sleep(API_PROCESSING_TIMEOUT)
 
         valid, result = self.refresh_is04_resources(resource_type)
         if not valid:

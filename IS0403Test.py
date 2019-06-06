@@ -19,6 +19,7 @@ from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
+from Config import DNS_SD_BROWSE_TIMEOUT
 
 NODE_API_KEY = "node"
 
@@ -46,7 +47,7 @@ class IS0403Test(GenericTest):
         in the absence of a Registration API"""
 
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
-        time.sleep(1)
+        time.sleep(DNS_SD_BROWSE_TIMEOUT)
         node_list = self.zc_listener.get_service_list()
         for node in node_list:
             address = socket.inet_ntoa(node.address)

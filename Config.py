@@ -23,6 +23,9 @@ DNS_SD_MODE = 'multicast'
 # Number of seconds to wait after a DNS-SD advert is created for a client to notice and perform an action
 DNS_SD_ADVERT_TIMEOUT = 5
 
+# Number of seconds to wait after browsing for a DNS-SD advert before checking the results
+DNS_SD_BROWSE_TIMEOUT = 2
+
 # Number of seconds expected between heartbeats
 HEARTBEAT_INTERVAL = 5
 
@@ -31,6 +34,9 @@ GARBAGE_COLLECTION_TIMEOUT = 12
 
 # Number of seconds to wait for messages to appear via a WebSocket subscription
 WS_MESSAGE_TIMEOUT = 2
+
+# Number of seconds to wait after performing an API action for the results to be fully visible via IS-04
+API_PROCESSING_TIMEOUT = 1
 
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
