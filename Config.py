@@ -153,16 +153,8 @@ SPECIFICATIONS = {
             }
         }
     },
-    "bcp-003-01": {
-        "repo": None,
-        "versions": ["v1.0"],
-        "default_version": "v1.0",
-        "apis": {
-            "secure": {}
-        }
-    },
-    "bcp-003-02": {
-        "repo": "nmos-api-security",
+    "is-10": {
+        "repo": "nmos-authorization",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
@@ -170,6 +162,14 @@ SPECIFICATIONS = {
                 "name": "Authorization API",
                 "raml": "AuthorizationAPI.raml"
             }
+        }
+    },
+    "bcp-003-01": {
+        "repo": None,
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "secure": {}
         }
     }
 }

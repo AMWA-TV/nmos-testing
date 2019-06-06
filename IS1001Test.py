@@ -15,9 +15,9 @@
 from GenericTest import GenericTest
 
 
-class BCP00302Test(GenericTest):
+class IS1001Test(GenericTest):
     """
-    Runs BCP-003-02-Test
+    Runs IS-10-01-Test
     """
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
