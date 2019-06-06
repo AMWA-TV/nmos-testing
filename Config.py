@@ -73,6 +73,10 @@ KEYS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem"
 ]
 
+# Domain name to use for the local DNS server and mock Node
+# This must match the domain name used for certificates in HTTPS mode
+DNS_DOMAIN = "testsuite.nmos.tv"
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
