@@ -596,6 +596,7 @@ def start_web_servers():
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
+    web_threads = []
     for app in FLASK_APPS:
         port = app.config['PORT']
         secure = app.config['SECURE']
@@ -603,6 +604,14 @@ def start_web_servers():
                                                      'ssl_context': ctx if secure else None})
         t.daemon = True
         t.start()
+        web_threads.append(t)
+
+    # Wait for all threads to get going
+    time.sleep(1)
+    for thread in web_threads:
+        if not thread.is_alive():
+            print(" * ERROR: One or more web servers could not start. The port may already be in use")
+            sys.exit(ExitCodes.ERROR)
 
 
 def run_noninteractive_tests(args):
