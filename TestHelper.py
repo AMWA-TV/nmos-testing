@@ -66,6 +66,13 @@ def do_request(method, url, data=None):
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
         r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
+        if prepped.url.startswith("https://"):
+            if not r.url.startswith("https://"):
+                return False, "Redirect changed protocol"
+            if r.history is not None:
+                for res in r.history:
+                    if not res.url.startswith("https://"):
+                        return False, "Redirect changed protocol"
         return True, r
     except requests.exceptions.Timeout:
         return False, "Connection timeout"
