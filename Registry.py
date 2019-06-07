@@ -16,6 +16,7 @@ import time
 import flask
 
 from flask import request, jsonify, abort, Blueprint
+from threading import Event
 
 
 class RegistryCommon(object):
@@ -38,6 +39,7 @@ class Registry(object):
     def __init__(self, data_store, port_increment):
         self.common = data_store
         self.port = 5100 + port_increment  # cf. test_data/IS0401/dns_records.zone
+        self.event = Event()
         self.reset()
 
     def reset(self):
@@ -48,9 +50,11 @@ class Registry(object):
         self.enabled = False
         self.test_first_reg = False
         self.test_invalid_reg = False
+        self.event.clear()
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
+        self.event.set()
         self.data.posts.append((self.last_time, {"headers": headers, "payload": payload, "version": version}))
         if "type" in payload and "data" in payload:
             if payload["type"] not in self.common.resources:
@@ -60,6 +64,7 @@ class Registry(object):
 
     def delete(self, headers, payload, version, resource_type, resource_id):
         self.last_time = time.time()
+        self.event.set()
         self.data.deletes.append((self.last_time, {"headers": headers, "payload": payload, "version": version,
                                                    "type": resource_type, "id": resource_id}))
         if resource_type in self.common.resources:
@@ -87,12 +92,10 @@ class Registry(object):
         self.enabled = False
 
     def wait_for_registration(self, timeout):
-        last_change = self.last_time
-        while timeout > 0:
-            if last_change != self.last_time:
-                break
-            time.sleep(0.2)
-            timeout -= 0.2
+        self.event.wait(timeout)
+
+    def has_registrations(self):
+        return self.event.is_set()
 
 
 # 0 = Invalid request testing registry
@@ -111,6 +114,7 @@ def post_resource(version):
     if not registry.enabled:
         abort(500)
     if registry.test_invalid_reg:
+        print(" * DEBUG: Node attempted registration with a registry using invalid DNS-SD TXT records")
         registry.disable()
     if not registry.test_first_reg:
         registered = False

@@ -137,7 +137,14 @@ class IS0401Test(GenericTest):
             self.zc.register_service(registry_mdns[2])
 
         # Wait for n seconds after advertising the service for the first POST from a Node
-        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
+        start_time = time.time()
+        time_now = start_time
+        while time_now < start_time + DNS_SD_ADVERT_TIMEOUT:
+            if self.primary_registry.has_registrations():
+                break
+            if self.invalid_registry.has_registrations():
+                break
+            time.sleep(0.2)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
         while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
