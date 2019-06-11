@@ -138,8 +138,7 @@ class IS0401Test(GenericTest):
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         start_time = time.time()
-        time_now = start_time
-        while time_now < start_time + DNS_SD_ADVERT_TIMEOUT:
+        while time.time() < start_time + DNS_SD_ADVERT_TIMEOUT:
             if self.primary_registry.has_registrations():
                 break
             if self.invalid_registry.has_registrations():
