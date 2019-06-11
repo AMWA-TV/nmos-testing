@@ -17,7 +17,7 @@
 from time import sleep
 import socket
 import uuid
-import json
+from requests.compat import json
 from copy import deepcopy
 from jsonschema import ValidationError
 import re
@@ -419,7 +419,7 @@ class IS0402Test(GenericTest):
                         raise NMOSTestException(test.FAIL("Query API response did not include the correct resources, "
                                                           "for query: {}".format(query_string)))
 
-            except json.decoder.JSONDecodeError:
+            except json.JSONDecodeError:
                 raise NMOSTestException(test.FAIL("Non-JSON response returned"))
             except KeyError:
                 raise NMOSTestException(test.FAIL("Query API did not respond as expected, "
@@ -928,7 +928,7 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Registration API failed to respond to request")
             else:
                 reg_versions = [version.rstrip("/") for version in r.json()]
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         # Sort the list and remove API versions higher than the one under test
@@ -944,7 +944,7 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Query API failed to respond to request")
             else:
                 query_versions = [version.rstrip("/") for version in r.json()]
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         # Sort the list and remove API versions higher than the one under test
@@ -1034,7 +1034,7 @@ class IS0402Test(GenericTest):
                     if len(expected_nodes) > 0:
                         return test.FAIL("Query API failed to expose an expected Node when downgrading to {}"
                                          .format(api_version))
-            except json.decoder.JSONDecodeError:
+            except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned")
 
         return test.PASS()
@@ -1053,7 +1053,7 @@ class IS0402Test(GenericTest):
                 return test.FAIL("Query API failed to respond to request")
             else:
                 query_versions = [version.rstrip("/") for version in r.json()]
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         # Sort the list and remove API versions higher than the one under test
@@ -1093,7 +1093,7 @@ class IS0402Test(GenericTest):
                 try:
                     for subscription in r.json():
                         subscription_ids.add(subscription["id"])
-                except json.decoder.JSONDecodeError:
+                except json.JSONDecodeError:
                     return test.FAIL("Non-JSON response returned")
 
         if valid_sub_id not in subscription_ids:
@@ -1143,7 +1143,7 @@ class IS0402Test(GenericTest):
             elif len(r.json()) != 1:
                 return test.FAIL("Query API returned {} records for query {} when 1 was expected"
                                  .format(len(r.json()), query_string))
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         return test.PASS()
@@ -1162,7 +1162,7 @@ class IS0402Test(GenericTest):
                 return test.OPTIONAL("Query API signalled that it does not support basic queries. This may be "
                                      "important for scalability.",
                                      NMOS_WIKI_URL + "/IS-04#registries-basic-queries")
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         # Create subscription to a specific Node description
@@ -1310,7 +1310,7 @@ class IS0402Test(GenericTest):
             elif len(r.json()) != 1:
                 return test.FAIL("Query API returned {} records for query {} when 1 was expected"
                                  .format(len(r.json()), query_string))
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         return test.PASS()
@@ -1330,7 +1330,7 @@ class IS0402Test(GenericTest):
                 return test.OPTIONAL("Query API signalled that it does not support RQL queries. This may be "
                                      "important for scalability.",
                                      NMOS_WIKI_URL + "/IS-04#registries-resource-query-language-rql")
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         # Create subscription to a specific Node description
@@ -1467,7 +1467,7 @@ class IS0402Test(GenericTest):
                                                   "{} {}".format(r.status_code, r.text)))
             elif len(r.json()) > 0:
                 return test.FAIL("Query API returned more records than expected for query: {}".format(query_string))
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned")
 
         return test.PASS()
@@ -2083,7 +2083,7 @@ class IS0402Test(GenericTest):
             else:
                 raise NMOSTestException(test.FAIL("Cannot request websocket subscription. Cannot execute test: {}"
                                                   .format(r.status_code)))
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
     def post_resource(self, test, type, data=None, reg_url=None, codes=None, fail=Test.FAIL):

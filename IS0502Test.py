@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
+from requests.compat import json
 import time
 import uuid
 
@@ -56,7 +56,7 @@ class IS0502Test(GenericTest):
             for resource in resources.json():
                 self.is04_resources[resource_type].append(resource)
             self.is04_resources["_requested"].append(resource_type)
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
 
         return True, ""
@@ -85,7 +85,7 @@ class IS0502Test(GenericTest):
             for resource in resources.json():
                 self.is05_resources[resource_type].append(resource.rstrip("/"))
             self.is05_resources["_requested"].append(resource_type)
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
 
         return True, ""
@@ -150,7 +150,7 @@ class IS0502Test(GenericTest):
                 if not found_04_resource:
                     return False, "Unable to find an IS-04 resource with ID {}".format(is05_resource)
 
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
         except KeyError:
             return False, "Version attribute was not found in IS-04 resource"
@@ -280,7 +280,7 @@ class IS0502Test(GenericTest):
                         is05_devices.append(control["href"])
                         if self.is05_utils.compare_urls(self.connection_url, control["href"]):
                             found_api_match = True
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
         except KeyError:
             return test.FAIL("One or more Devices were missing the 'controls' attribute")
@@ -533,7 +533,7 @@ class IS0502Test(GenericTest):
                     if trans_params_length != bindings_length:
                         return test.FAIL("Array length mismatch for Sender/Receiver ID '{}'".format(resource["id"]))
 
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Connection API")
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 Sender/Receiver \
