@@ -14,7 +14,7 @@
 
 import os
 import subprocess
-import json
+from requests.compat import json
 import ssl
 import socket
 import ipaddress

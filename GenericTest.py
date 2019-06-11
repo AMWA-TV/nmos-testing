@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-import json
+from requests.compat import json
 import git
 import jsonschema
 import TestHelper
@@ -244,7 +244,7 @@ class GenericTest(object):
                     return test.FAIL("Response is not an array containing '{}'".format(expectation))
                 else:
                     return test.PASS()
-            except json.decoder.JSONDecodeError:
+            except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned")
 
     def check_response(self, schema, method, response):
@@ -256,7 +256,7 @@ class GenericTest(object):
             self.validate_schema(response.json(), schema)
         except jsonschema.ValidationError:
             return False, "Response schema validation error"
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return False, "Invalid JSON received"
 
         return True, ""
@@ -404,7 +404,7 @@ class GenericTest(object):
                     # Cover the audio channel mapping spec case with dictionary keys
                     if isinstance(key, str) and isinstance(value, dict):
                         subresources.append(key)
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             pass
 
         if len(subresources) > 0:

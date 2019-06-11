@@ -16,7 +16,7 @@
 
 import time
 import socket
-import json
+from requests.compat import json
 from urllib.parse import urlparse
 
 from copy import deepcopy
@@ -674,7 +674,7 @@ class IS0401Test(GenericTest):
 
             if len(formats_tested) > 0:
                 return test.PASS()
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         return test.UNCLEAR("Node API does not expose any Receivers")
@@ -710,7 +710,7 @@ class IS0401Test(GenericTest):
                                          "subscription".format(receiver["id"]))
 
                 return test.PASS()
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         return test.UNCLEAR("Node API does not expose any Receivers")
@@ -792,7 +792,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             uuids.add(response.json()["id"])
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         for resource_type in ["devices", "sources", "flows", "senders", "receivers"]:
@@ -805,7 +805,7 @@ class IS0401Test(GenericTest):
                         return test.FAIL("Duplicate ID '{}' found in Node API '{}' resource".format(resource["id"],
                                                                                                     resource_type))
                     uuids.add(resource["id"])
-            except json.decoder.JSONDecodeError:
+            except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
         return test.PASS()
@@ -828,7 +828,7 @@ class IS0401Test(GenericTest):
                     "senders": set(resource["senders"]),
                     "receivers": set(resource["receivers"])
                 }
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         if len(from_devices) == 0:
@@ -846,7 +846,7 @@ class IS0401Test(GenericTest):
                     if id not in to_devices:
                         to_devices[id] = deepcopy(empty_refs)
                     to_devices[id][resource_type].add(resource["id"])
-            except json.decoder.JSONDecodeError:
+            except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
         found_empty_refs = False
@@ -897,7 +897,7 @@ class IS0401Test(GenericTest):
                 if clock_name in clocks:
                     return test.FAIL("Duplicate clock name '{}' found in Node API self resource".format(clock_name))
                 clocks.add(clock_name)
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "sources")
@@ -908,7 +908,7 @@ class IS0401Test(GenericTest):
                 clock_name = source["clock_name"]
                 if clock_name not in clocks and clock_name is not None:
                     return test.FAIL("Source '{}' uses a non-existent clock name '{}'".format(source["id"], clock_name))
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         return test.PASS()
@@ -931,7 +931,7 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Duplicate interface name '{}' found in Node API self resource"
                                      .format(interface_name))
                 interfaces.add(interface_name)
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "senders")
@@ -944,7 +944,7 @@ class IS0401Test(GenericTest):
                     if interface_name not in interfaces:
                         return test.FAIL("Sender '{}' uses a non-existent interface name '{}'"
                                          .format(sender["id"], interface_name))
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "receivers")
@@ -957,7 +957,7 @@ class IS0401Test(GenericTest):
                     if interface_name not in interfaces:
                         return test.FAIL("Receiver '{}' uses a non-existent interface name '{}'"
                                          .format(receiver["id"], interface_name))
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         return test.PASS()
@@ -1006,7 +1006,7 @@ class IS0401Test(GenericTest):
                     service_href_scheme_warn = True
                 if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
                     service_href_hostname_warn = True
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         if not found_api_endpoint:
@@ -1030,7 +1030,7 @@ class IS0401Test(GenericTest):
                             control_href_scheme_warn = True
                         if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
                             control_href_hostname_warn = True
-            except json.decoder.JSONDecodeError:
+            except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "senders")
@@ -1044,7 +1044,7 @@ class IS0401Test(GenericTest):
                     manifest_href_scheme_warn = True
                 if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
                     manifest_href_hostname_warn = True
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
         if href_hostname_warn:
@@ -1110,7 +1110,7 @@ class IS0401Test(GenericTest):
                 if not found_delete:
                     return test.FAIL("Node did not attempt to DELETE itself having encountered a 200 code on initial "
                                      "registration")
-            except json.decoder.JSONDecodeError:
+            except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
         else:
             return test.FAIL("Unexpected responses from Node API self resource")

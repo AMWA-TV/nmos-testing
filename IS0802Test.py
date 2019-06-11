@@ -19,7 +19,7 @@ from is08.activation import Activation
 from is08.outputs import getOutputList
 from is08.inputs import getInputList
 from NMOSUtils import NMOSUtils
-import json
+from requests.compat import json
 
 MAPPING_API_KEY = "channelmapping"
 NODE_API_KEY = "node"
@@ -143,7 +143,7 @@ class IS0802Test(GenericTest):
             for resource in resources.json():
                 self.is04_resources[resource_type].append(resource)
             self.is04_resources["_requested"].append(resource_type)
-        except json.decoder.JSONDecodeError:
+        except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
 
         return True, ""

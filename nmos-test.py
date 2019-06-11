@@ -32,7 +32,7 @@ from enum import IntEnum
 
 import git
 import os
-import json
+from requests.compat import json
 import copy
 import pickle
 import random
