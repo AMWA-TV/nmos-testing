@@ -84,10 +84,12 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("runbtn").disabled = true;
 
     var json_file = new Blob([document.getElementById("json-results").textContent], {type: 'application/json'});
+    var json_body = JSON.parse(document.getElementById("json-results").textContent);
+    var file_name = json_body["suite"] + "_" + Math.round(json_body["timestamp"]).toString() + ".json";
     var file_url = URL.createObjectURL(json_file);
     var download_link = document.getElementById("download");
     download_link.href = file_url;
-    download_link.download = 'results.json';
+    download_link.download = file_name;
 
     makeTableHeadersSticky();
     document.addEventListener("onresize", makeTableHeadersSticky);
