@@ -54,15 +54,17 @@ def get_default_ip():
     return netifaces.ifaddresses(preferred_interface)[netifaces.AF_INET][0]['addr']
 
 
-def do_request(method, url, data=None):
+def do_request(method, url, json=None, data=None, headers=None, auth=None):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
         s = requests.Session()
         req = None
-        if data is not None:
-            req = requests.Request(method, url, json=data)
+        if data is not None:  # Used to pass in URL-encoded Form Data
+            req = requests.Request(method, url, data=data, headers=headers, auth=auth)
+        elif json is not None:  # Used to pass in JSON data
+            req = requests.Request(method, url, json=json, headers=headers, auth=auth)
         else:
-            req = requests.Request(method, url)
+            req = requests.Request(method, url, headers=headers, auth=auth)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
         r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)

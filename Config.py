@@ -80,6 +80,11 @@ KEYS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem"
 ]
 
+# DEFAULT USER CREDENTIALS FOR INTERACTING WITH AUTHORIZATION SERVER
+AUTH_USERNAME = "TEST_USER"
+
+AUTH_PASSWORD = "TEST_PASSWORD"
+
 # Domain name to use for the local DNS server and mock Node
 # This must match the domain name used for certificates in HTTPS mode
 DNS_DOMAIN = "testsuite.nmos.tv"
