@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
 from GenericTest import GenericTest
 from Config import AUTH_USERNAME, AUTH_PASSWORD
+
+AUTH_API_KEY = "auth"
 
 
 class IS1001Test(GenericTest):
@@ -207,48 +211,111 @@ class IS1001Test(GenericTest):
 
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
-        print("""
-            Ensure a User is already set-up on the Authorization Server that corresponds
-            to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options
-        """)
+
+        self.url = self.apis[AUTH_API_KEY]["url"]
+        self.bearer_token = None
+        self.client_data = None
+
+    def set_up_tests(self):
+        try:
+            signup_data = {
+                'username': AUTH_USERNAME,
+                'password': AUTH_PASSWORD,
+                'is04': 'read',
+                'is05': 'write'
+            }
+            status, response = self.do_request(
+                method="POST", url=self.url + 'signup', data=signup_data
+            )
+
+            if status is not True:
+                raise Exception
+
+        except Exception:
+            print("""
+                Ensure a User is already set-up on the Authorization Server that corresponds
+                to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options
+            """)
+
+    def tear_down_tests(self):
+        try:
+            self._make_auth_request(method="GET", url_path='delete_client/' + self.client_data.client_id)
+        except Exception:
+            pass
 
     def _make_auth_request(self, method, url_path, data=None, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
         """Utility option for making requests with Basic Authorization"""
         return self.do_request(
-            method=method, url=self.apis['auth']['url'] + url_path, data=data, auth=auth
+            method=method, url=self.url + url_path, data=data, auth=auth
         )
 
     def test_01_register_user(self, test):
         """Test registering a client to the `register_client` endpoint"""
 
-        request_data = {
-            'client_name': 'Example Client',
-            'client_uri': 'http://www.example.com',
-            'scope': 'is04+is05',
-            'redirect_uri': self.apis['auth']['url'],
-            'grant_type': 'password\nauthorization_code',
-            'response_type': 'code',
-            'token_endpoint_auth_method': 'client_secret_basic'
-        }
+        RECOMMENDED_RESPONSE_FIELDS = ["client_secret", "redirect_uris"]
+        ARRAY_RESPONSE_FIELDS = ["redirect_uris", "grant_types", "response_types"]
+        LIST_DELIMITER = '\n'
 
-        bool_status, response = self._make_auth_request(
+        with open("test_data/IS1001/register_client_request_data.json") as resource_data:
+            request_data = json.load(resource_data)
+
+        status, response = self._make_auth_request(
             method="POST", url_path='register_client', data=request_data
         )
 
-        print(response.text)
+        print(response.json())  # For Testing
 
-        if bool_status is False:
+        if status is False:
             return test.FAIL(
-                "Failed to register client with Authorization Server using credentials:\n{}".format(request_data)
+                "Failed to register client with Authorization Server using credentials: {}".format(request_data)
             )
-
-        if len(response.json()["grant_types"]) == 1:
-            return test.WARNING("Auth Server doesn't read newline character as delimiter for Grant Types")
 
         if response.status_code != 201:
             return test.FAIL("Return Code was {} instead of 201 (in-line with RFC 7591)".format(response.status_code))
 
+        for key in request_data:
+            # Test that all request data keys are found in response. Added 's' compensates for grant_type/s, etc.
+            if not any(i in [key, key + 's'] for i in response.json().keys()):
+                return test.FAIL(
+                    """'{}' value not in response keys.
+                    'The authorization server MUST return all registered metadata about the client'""".format(key)
+                )
+            # Check that same keys in req and resp have same values
+            if key in response.json().keys() and request_data[key] != response.json()[key]:
+                print('{} != {}'.format(request_data[key], response.json()[key]))
+                return test.WARNING("The response for {} did not match. Request: {} != Response: {}".format(
+                    key, request_data[key], response.json()[key])
+                )
+
+        # Test that all array fields in response contain a value from the corresponding value in the request
+        for field in ARRAY_RESPONSE_FIELDS:
+            if field in request_data:
+                index = field
+            elif field[0:-1] in request_data:
+                index = field[0:-1]
+            else:
+                continue
+            # This is in case url-encoded form data is used instead of JSON
+            if isinstance(request_data[index], str):
+                request_data[index] = request_data[index].split(LIST_DELIMITER)
+            if not all(i in request_data[index] for i in response.json()[field]):
+                return test.FAIL("'{}' value is not included in the response from the Auth Server. {} not in {}"
+                                 .format(field, request_data[index], response.json()[field]))
+
+        if response.json()["token_endpoint_auth_method"] in ["none", None, "None", "null"]:
+            return test.WARNING("Token Endpoint Authorization method SHOULD NOT be None")
+
+        if not isinstance(response.json()["scope"], str):
+            return test.FAIL("Scope values must be a space-delimited string")
+
+        if not set(RECOMMENDED_RESPONSE_FIELDS).issubset(response.json().keys()):
+            return test.WARNING("Client registration response SHOULD include: {}".format(RECOMMENDED_RESPONSE_FIELDS))
+
+        register_client_schema = self.get_schema(AUTH_API_KEY, "POST", '/register_client', 201)
+        self.validate_schema(response.json(), register_client_schema)
+
         if response.status_code == 201:
+            self.client_data = response.json()
             return test.PASS()
 
     def test_02_token_password_grant(self, test):
@@ -261,7 +328,4 @@ class IS1001Test(GenericTest):
         return test.OPTIONAL("Test Not Implemented")
 
     def test_05_token_refresh_grant(self, test):
-        return test.OPTIONAL("Test Not Implemented")
-
-    def test_06_cert_endpoint(self, test):
         return test.OPTIONAL("Test Not Implemented")
