@@ -265,8 +265,10 @@ class GenericTest(object):
         checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
         return jsonschema.validate(payload, schema, format_checker=checker)
 
-    def do_request(self, method, url, data=None, headers=None, auth=None):
-        return TestHelper.do_request(method=method, url=url, data=data, headers=headers, auth=auth)
+    def do_request(self, method, url, json=None, data=None, headers=None, auth=None, params=None):
+        return TestHelper.do_request(
+            method=method, url=url, json=json, data=data, headers=headers, auth=auth, params=params
+        )
 
     def basics(self):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""
