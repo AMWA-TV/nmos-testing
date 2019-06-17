@@ -54,28 +54,28 @@ def get_default_ip():
     return netifaces.ifaddresses(preferred_interface)[netifaces.AF_INET][0]['addr']
 
 
-def do_request(method, url, json=None, data=None, headers=None, auth=None):
+def do_request(method, url, json=None, data=None, headers=None, auth=None, params=None):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
         s = requests.Session()
         req = None
         if data is not None:  # Used to pass in URL-encoded Form Data
-            req = requests.Request(method, url, data=data, headers=headers, auth=auth)
+            req = requests.Request(method, url, data=data, headers=headers, auth=auth, params=params)
         elif json is not None:  # Used to pass in JSON data
-            req = requests.Request(method, url, json=json, headers=headers, auth=auth)
+            req = requests.Request(method, url, json=json, headers=headers, auth=auth, params=params)
         else:
-            req = requests.Request(method, url, headers=headers, auth=auth)
+            req = requests.Request(method, url, headers=headers, auth=auth, params=params)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
-        r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
+        res = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         if prepped.url.startswith("https://"):
-            if not r.url.startswith("https://"):
+            if not res.url.startswith("https://"):
                 return False, "Redirect changed protocol"
-            if r.history is not None:
-                for res in r.history:
+            if res.history is not None:
+                for res in res.history:
                     if not res.url.startswith("https://"):
                         return False, "Redirect changed protocol"
-        return True, r
+        return True, res
     except requests.exceptions.Timeout:
         return False, "Connection timeout"
     except requests.exceptions.TooManyRedirects:

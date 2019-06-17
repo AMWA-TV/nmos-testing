@@ -73,7 +73,7 @@ KEYS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem"
 ]
 
-# DEFAULT USER CREDENTIALS FOR INTERACTING WITH AUTHORIZATION SERVER
+# Default User Credentials for interacting with Authorization Server
 AUTH_USERNAME = "TEST_USER"
 
 AUTH_PASSWORD = "TEST_PASSWORD"

@@ -13,9 +13,11 @@
 # limitations under the License.
 
 import json
+from requests import post
+from urllib.parse import parse_qs
 
-from GenericTest import GenericTest
-from Config import AUTH_USERNAME, AUTH_PASSWORD
+from GenericTest import GenericTest, NMOSInitException
+from Config import AUTH_USERNAME, AUTH_PASSWORD, CERT_TRUST_ROOT_CA
 
 AUTH_API_KEY = 'auth'
 GRANT_SCOPES = ['is04', 'is05']
@@ -25,7 +27,7 @@ class IS1001Test(GenericTest):
     """
     Runs IS-10-01-Test.
 
-    Example "Specififcaiton" Object:
+    Example "Specification" Object:
     {
     'global_schemas': {},
     'data': {
@@ -216,9 +218,12 @@ class IS1001Test(GenericTest):
         self.url = self.apis[AUTH_API_KEY]["url"]
         self.bearer_token = None
         self.client_data = None
+        self.auth_code = None
 
     def set_up_tests(self):
+        """Add User to Authorization Server"""
         try:
+            # NOTE - This is implementation-specific
             signup_data = {
                 'username': AUTH_USERNAME,
                 'password': AUTH_PASSWORD,
@@ -230,24 +235,32 @@ class IS1001Test(GenericTest):
             )
 
             if status is not True:
-                raise Exception
+                raise NMOSInitException("""
+                    Ensure a User is already set-up on the Authorization Server that corresponds
+                    to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options
+                """)
 
-        except Exception:
-            print("""
-                Ensure a User is already set-up on the Authorization Server that corresponds
-                to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options
-            """)
+        except Exception as e:
+            print(e)
 
     def tear_down_tests(self):
+        """Delete Registered Client from Authorization Server"""
         try:
-            self._make_auth_request(method="GET", url_path='delete_client/' + self.client_data.client_id)
-        except Exception:
-            pass
+            # NOTE - This is implementation-specific
+            status, response = self._make_auth_request(
+                method="GET", url_path='delete_client/' + self.client_data["client_id"]
+            )
+            if status is not True:
+                raise NMOSInitException("""
+                    Unable to delete registered client from Authorization Server. This may have to be done manually.
+                """)
+        except Exception as e:
+            print(e)
 
-    def _make_auth_request(self, method, url_path, data=None, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
-        """Utility option for making requests with Basic Authorization"""
+    def _make_auth_request(self, method, url_path, data=None, auth=(AUTH_USERNAME, AUTH_PASSWORD), params=None):
+        """Utility function for making requests with Basic Authorization"""
         return self.do_request(
-            method=method, url=self.url + url_path, data=data, auth=auth
+            method=method, url=self.url + url_path, data=data, auth=auth, params=params
         )
 
     def test_01_register_user(self, test):
@@ -320,7 +333,7 @@ class IS1001Test(GenericTest):
         except Exception as e:
             return test.FAIL("Status code was {} and Schema validation failed. {}".format(response.status_code, e))
 
-        test.UNCLEAR("Implementation did not pass the necessary criteria.")
+        return test.FAIL("Implementation did not pass the necessary criteria.")
 
     def test_02_token_password_grant(self, test):
         """Test requesting a Bearer Token using Password Grant from '/token' endpoint"""
@@ -355,13 +368,86 @@ class IS1001Test(GenericTest):
             except Exception as e:
                 return test.FAIL("Status code was {} and Schema validation failed. {}".format(response.status_code, e))
 
-            test.UNCLEAR("Implementation did not pass the necessary criteria.")
+            return test.FAIL("Implementation did not pass the necessary criteria.")
 
     def test_03_authorize_endpoint(self, test):
-        return test.OPTIONAL("Test Not Implemented")
+        """Test the '/authorize' endpoint and ability to redirect to registered URI with authorization code"""
+
+        for scope in GRANT_SCOPES:
+
+            state = "xyz"
+            parameters = {
+                "response_type": "code",
+                "client_id": self.client_data["client_id"],
+                "redirect_uri": self.client_data["redirect_uris"][0],
+                "scope": scope,
+                "state": state
+            }
+
+            # NOTE - This is implementation-specific - this signifies the user's consent for the Auth Code Grant
+            data = {
+                "confirm": "true"
+            }
+
+            response = post(
+                url=self.url + 'authorize',
+                data=data,
+                params=parameters,
+                allow_redirects=False,
+                auth=(AUTH_USERNAME, AUTH_PASSWORD),
+                verify=CERT_TRUST_ROOT_CA
+            )
+
+            try:
+                response.raise_for_status()
+            except Exception as e:
+                test.FAIL("Request failed at `authorize` endpoint: {}".format(e))
+
+            if not response.is_redirect or response.status_code != 302:
+                test.FAIL(
+                    "Request to server did not result in a redirect. Received {} instead of 302."
+                    .format(response.status_code)
+                )
+
+            if "location" not in response.headers:
+                return test.FAIL(
+                    "'Location' not found in Response headers. Headers = {}".format(response.headers.keys())
+                )
+            if "code=" not in response.headers["location"]:
+                return test.FAIL(
+                    "'code' not found in Location Header. Location Header = {}".format(response.headers["location"])
+                )
+            if "state=" not in response.headers["location"]:
+                return test.FAIL(
+                    "'state' not found in Location Header. Location Header = {}".format(response.headers["location"])
+                )
+
+            redirect_uri, query_string = response.headers["location"].split('?')
+            auth_code = parse_qs(query_string)["code"][0]
+            state = parse_qs(query_string)["state"][0]
+
+            if not redirect_uri == parameters["redirect_uri"]:
+                return test.FAIL(
+                    "Expected {} but got {}".format(parameters["redirect_uri"], redirect_uri)
+                )
+            if not state == parameters["state"]:
+                return test.FAIL(
+                    "Expected {} but got {}".format(parameters["state"], state)
+                )
+
+            self.auth_code = auth_code
+            return test.PASS()
+
+            return test.FAIL("Implementation did not pass the necessary criteria.")
 
     def test_04_token_authorize_grant(self, test):
-        return test.OPTIONAL("Test Not Implemented")
+        return test.MANUAL("Test Not Implemented")
 
     def test_05_token_refresh_grant(self, test):
-        return test.OPTIONAL("Test Not Implemented")
+        return test.MANUAL("Test Not Implemented")
+
+    def test_06_authorize_error(self, test):
+        return test.MANUAL("Test Not Implemented")
+
+    def test_07_token_error(self, test):
+        return test.MANUAL("Test Not Implemented")
