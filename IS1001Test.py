@@ -216,9 +216,10 @@ class IS1001Test(GenericTest):
         GenericTest.__init__(self, apis)
 
         self.url = self.apis[AUTH_API_KEY]["url"]
-        self.bearer_token = None
-        self.client_data = None
-        self.auth_code = None
+        self.bearer_token = []
+        self.client_data = {}
+        self.auth_codes = []
+        self.clients = []  # List of all registered clients for deleting during clean-up
 
     def set_up_tests(self):
         """Add User to Authorization Server"""
@@ -239,7 +240,7 @@ class IS1001Test(GenericTest):
                     Ensure a User is already set-up on the Authorization Server that corresponds
                     to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options
                 """)
-
+        # Catch Exception to allow tests to run
         except Exception as e:
             print(e)
 
@@ -254,6 +255,7 @@ class IS1001Test(GenericTest):
                 raise NMOSInitException("""
                     Unable to delete registered client from Authorization Server. This may have to be done manually.
                 """)
+        # Catch Exception to allow tests to run
         except Exception as e:
             print(e)
 
@@ -277,13 +279,17 @@ class IS1001Test(GenericTest):
             method="POST", url_path='register_client', data=request_data
         )
 
-        if status is False:
+        if status is False and isinstance(response, str):
             return test.FAIL(
-                "Failed to register client with Authorization Server using credentials: {}".format(request_data)
+                "Failed to register client with Authorization Server using credentials: {}. Failed with: {}"
+                .format(request_data, response)
             )
 
         if response.status_code != 201:
-            return test.FAIL("Return Code was {} instead of 201 (in-line with RFC 7591)".format(response.status_code))
+            return test.FAIL(
+                "Return Code was {} instead of 201 (in-line with RFC 7591). {}"
+                .format(response.status_code, response.json())
+            )
 
         for key in request_data:
             # Test that all request data keys are found in response. Added 's' compensates for grant_type/s, etc.
@@ -294,7 +300,6 @@ class IS1001Test(GenericTest):
                 )
             # Check that same keys in req and resp have same values
             if key in response.json().keys() and request_data[key] != response.json()[key]:
-                print('{} != {}'.format(request_data[key], response.json()[key]))
                 return test.WARNING("The response for {} did not match. Request: {} != Response: {}".format(
                     key, request_data[key], response.json()[key])
                 )
@@ -337,44 +342,50 @@ class IS1001Test(GenericTest):
 
     def test_02_token_password_grant(self, test):
         """Test requesting a Bearer Token using Password Grant from '/token' endpoint"""
-        client_id = self.client_data["client_id"]
-        client_secret = self.client_data["client_secret"]
+        if self.client_data:
+            client_id = self.client_data["client_id"]
+            client_secret = self.client_data["client_secret"]
 
-        for scope in GRANT_SCOPES:
-            request_data = {
-                'username': AUTH_USERNAME,
-                'password': AUTH_PASSWORD,
-                'grant_type': 'password',
-                'scope': scope
-            }
-            status, response = self._make_auth_request(
-                "POST", 'token', data=request_data, auth=(client_id, client_secret)
-            )
-
-            if status is False:
-                test.FAIL("Request for Token using Password Grant and scope: {} failed".format(scope))
-
-            if status and response.status_code != 200:
-                test.FAIL(
-                    "Incorrect status code. Return code {} should be '200'".format(response.status_code)
+            for scope in GRANT_SCOPES:
+                request_data = {
+                    'username': AUTH_USERNAME,
+                    'password': AUTH_PASSWORD,
+                    'grant_type': 'password',
+                    'scope': scope
+                }
+                status, response = self._make_auth_request(
+                    "POST", 'token', data=request_data, auth=(client_id, client_secret)
                 )
 
-            token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
-            try:
-                self.validate_schema(response.json(), token_schema)
-                if response.status_code == 200:
-                    self.bearer_token = response.json()
-                    return test.PASS()
-            except Exception as e:
-                return test.FAIL("Status code was {} and Schema validation failed. {}".format(response.status_code, e))
+                if status is False and isinstance(response, str):
+                    return test.FAIL(
+                        "Request for Token using Password Grant and scope {} failed. {}"
+                        .format(scope, response)
+                    )
 
-            return test.FAIL("Implementation did not pass the necessary criteria.")
+                if status and response.status_code != 200:
+                    return test.FAIL(
+                        "Incorrect status code. Return code {} should be '200'. {}"
+                        .format(response.status_code, response.json())
+                    )
+
+                token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
+                try:
+                    self.validate_schema(response.json(), token_schema)
+                    if response.status_code == 200:
+                        self.bearer_token.append(response.json())
+                        return test.PASS()
+                except Exception as e:
+                    return test.FAIL(
+                        "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
+                    )
+
+                return test.FAIL("Implementation did not pass the necessary criteria.")
 
     def test_03_authorize_endpoint(self, test):
         """Test the '/authorize' endpoint and ability to redirect to registered URI with authorization code"""
 
         for scope in GRANT_SCOPES:
-
             state = "xyz"
             parameters = {
                 "response_type": "code",
@@ -383,8 +394,7 @@ class IS1001Test(GenericTest):
                 "scope": scope,
                 "state": state
             }
-
-            # NOTE - This is implementation-specific - this signifies the user's consent for the Auth Code Grant
+            # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
             data = {
                 "confirm": "true"
             }
@@ -401,10 +411,10 @@ class IS1001Test(GenericTest):
             try:
                 response.raise_for_status()
             except Exception as e:
-                test.FAIL("Request failed at `authorize` endpoint: {}".format(e))
+                return test.FAIL("Request failed at `authorize` endpoint: {}".format(e))
 
             if not response.is_redirect or response.status_code != 302:
-                test.FAIL(
+                return test.FAIL(
                     "Request to server did not result in a redirect. Received {} instead of 302."
                     .format(response.status_code)
                 )
@@ -435,13 +445,50 @@ class IS1001Test(GenericTest):
                     "Expected {} but got {}".format(parameters["state"], state)
                 )
 
-            self.auth_code = auth_code
+            self.auth_codes.append(auth_code)
             return test.PASS()
 
             return test.FAIL("Implementation did not pass the necessary criteria.")
 
     def test_04_token_authorize_grant(self, test):
-        return test.MANUAL("Test Not Implemented")
+        """Test requesting a Bearer Token using Auth Code Grant from '/token' endpoint"""
+
+        client_id = self.client_data["client_id"]
+        client_secret = self.client_data["client_secret"]
+
+        for auth_code in self.auth_codes:
+
+            request_data = {
+                "grant_type": "authorization_code",
+                "code": auth_code,
+                "redirect_uri": self.client_data["redirect_uris"][0],
+                "client_id": client_id
+            }
+
+            status, response = self._make_auth_request(
+                method="POST", url_path="token", data=request_data, auth=(client_id, client_secret)
+            )
+
+            if status is False and isinstance(response, str):
+                return test.FAIL("Request for Token using Auth Grant failed. {}".format(response))
+
+            if status and response.status_code != 200:
+                return test.FAIL(
+                    "Incorrect status code. Return code '{}' should be '200'.\n{}"
+                    .format(response.status_code, response.json())
+                )
+
+            token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
+            try:
+                self.validate_schema(response.json(), token_schema)
+                if response.status_code == 200:
+                    self.bearer_token.append(response.json())
+                    return test.PASS()
+            except Exception as e:
+                return test.FAIL("Status code was {} and Schema validation failed. {}".format(response.status_code, e))
+
+            return test.FAIL("Implementation did not pass the necessary criteria.")
+        return test.DISABLED("No Auth Codes were present")
 
     def test_05_token_refresh_grant(self, test):
         return test.MANUAL("Test Not Implemented")
