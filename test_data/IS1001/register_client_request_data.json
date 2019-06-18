@@ -3,7 +3,7 @@
   "client_uri": "http://www.example.com",
   "scope": "is04 is05",
   "redirect_uri": "http://localhost:5000",
-  "grant_type": "password\nauthorization_code",
+  "grant_type": "password\nauthorization_code\nrefresh_token",
   "response_type": "code",
   "token_endpoint_auth_method": "client_secret_basic"
 }

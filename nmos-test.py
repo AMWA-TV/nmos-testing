@@ -181,7 +181,7 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": 'is-08',
             "api_key": "channelmapping"
-        },  {
+        }, {
             "spec_key": "is-04",
             "api_key": "node"
         }],
@@ -473,7 +473,7 @@ def format_test_results(results, format):
         formatted = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
     elif format == "console":
         formatted = "\r\nPrinting test results for suite '{}' using API '{}'\r\n" \
-                        .format(results["suite"], results["base_url"])
+                    .format(results["suite"], results["base_url"])
         formatted += "----------------------------\r\n"
         total_time = 0
         for test_result in results["result"]:
