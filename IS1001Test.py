@@ -216,7 +216,7 @@ class IS1001Test(GenericTest):
         GenericTest.__init__(self, apis)
 
         self.url = self.apis[AUTH_API_KEY]["url"]
-        self.bearer_token = []
+        self.bearer_tokens = []
         self.client_data = {}
         self.auth_codes = []
         self.clients = []  # List of all registered clients for deleting during clean-up
@@ -249,7 +249,7 @@ class IS1001Test(GenericTest):
         try:
             # NOTE - This is implementation-specific
             status, response = self._make_auth_request(
-                method="GET", url_path='delete_client/' + self.client_data["client_id"]
+                method="GET", url_path='delete_client/' + self.client_data["client_id"], auth="user"
             )
             if status is not True:
                 raise NMOSInitException("""
@@ -259,10 +259,18 @@ class IS1001Test(GenericTest):
         except Exception as e:
             print(e)
 
-    def _make_auth_request(self, method, url_path, data=None, auth=(AUTH_USERNAME, AUTH_PASSWORD), params=None):
+    def _make_auth_request(self, method, url_path, data=None, auth=None, params=None):
         """Utility function for making requests with Basic Authorization"""
+        if auth == "user":
+            username = AUTH_USERNAME
+            password = AUTH_PASSWORD
+        elif auth == "client" and self.client_data:
+            username = self.client_data["client_id"]
+            password = self.client_data["client_secret"]
+        else:
+            username, password = None
         return self.do_request(
-            method=method, url=self.url + url_path, data=data, auth=auth, params=params
+            method=method, url=self.url + url_path, data=data, auth=(username, password), params=params
         )
 
     def test_01_register_user(self, test):
@@ -272,11 +280,12 @@ class IS1001Test(GenericTest):
         ARRAY_RESPONSE_FIELDS = ["redirect_uris", "grant_types", "response_types"]
         LIST_DELIMITER = '\n'
 
+        # Body of client registration request is found in the test_data directory
         with open("test_data/IS1001/register_client_request_data.json") as resource_data:
             request_data = json.load(resource_data)
 
         status, response = self._make_auth_request(
-            method="POST", url_path='register_client', data=request_data
+            method="POST", url_path='register_client', data=request_data, auth="user"
         )
 
         if status is False and isinstance(response, str):
@@ -323,7 +332,7 @@ class IS1001Test(GenericTest):
             return test.WARNING("Token Endpoint Authorization method SHOULD NOT be None")
 
         if not isinstance(response.json()["scope"], str):
-            return test.FAIL("Scope values must be a space-delimited string")
+            return test.FAIL("Scope values MUST be a space-delimited string")
 
         if not set(RECOMMENDED_RESPONSE_FIELDS).issubset(response.json().keys()):
             return test.WARNING("Client registration response SHOULD include: {}".format(RECOMMENDED_RESPONSE_FIELDS))
@@ -343,9 +352,6 @@ class IS1001Test(GenericTest):
     def test_02_token_password_grant(self, test):
         """Test requesting a Bearer Token using Password Grant from '/token' endpoint"""
         if self.client_data:
-            client_id = self.client_data["client_id"]
-            client_secret = self.client_data["client_secret"]
-
             for scope in GRANT_SCOPES:
                 request_data = {
                     'username': AUTH_USERNAME,
@@ -354,7 +360,7 @@ class IS1001Test(GenericTest):
                     'scope': scope
                 }
                 status, response = self._make_auth_request(
-                    "POST", 'token', data=request_data, auth=(client_id, client_secret)
+                    "POST", 'token', data=request_data, auth="client"
                 )
 
                 if status is False and isinstance(response, str):
@@ -373,7 +379,7 @@ class IS1001Test(GenericTest):
                 try:
                     self.validate_schema(response.json(), token_schema)
                     if response.status_code == 200:
-                        self.bearer_token.append(response.json())
+                        self.bearer_tokens.append(response.json())
                         return test.PASS()
                 except Exception as e:
                     return test.FAIL(
@@ -381,120 +387,228 @@ class IS1001Test(GenericTest):
                     )
 
                 return test.FAIL("Implementation did not pass the necessary criteria.")
+        else:
+            return test.DISABLED("No client data available")
 
     def test_03_authorize_endpoint(self, test):
         """Test the '/authorize' endpoint and ability to redirect to registered URI with authorization code"""
+        if self.client_data:
+            for scope in GRANT_SCOPES:
+                state = "xyz"
+                parameters = {
+                    "response_type": "code",
+                    "client_id": self.client_data["client_id"],
+                    "redirect_uri": self.client_data["redirect_uris"][0],
+                    "scope": scope,
+                    "state": state
+                }
+                # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
+                data = {
+                    "confirm": "true"
+                }
 
-        for scope in GRANT_SCOPES:
-            state = "xyz"
-            parameters = {
-                "response_type": "code",
-                "client_id": self.client_data["client_id"],
-                "redirect_uri": self.client_data["redirect_uris"][0],
-                "scope": scope,
-                "state": state
-            }
-            # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
-            data = {
-                "confirm": "true"
-            }
-
-            response = post(
-                url=self.url + 'authorize',
-                data=data,
-                params=parameters,
-                allow_redirects=False,
-                auth=(AUTH_USERNAME, AUTH_PASSWORD),
-                verify=CERT_TRUST_ROOT_CA
-            )
-
-            try:
-                response.raise_for_status()
-            except Exception as e:
-                return test.FAIL("Request failed at `authorize` endpoint: {}".format(e))
-
-            if not response.is_redirect or response.status_code != 302:
-                return test.FAIL(
-                    "Request to server did not result in a redirect. Received {} instead of 302."
-                    .format(response.status_code)
+                response = post(
+                    url=self.url + 'authorize',
+                    data=data,
+                    params=parameters,
+                    allow_redirects=False,
+                    auth=(AUTH_USERNAME, AUTH_PASSWORD),
+                    verify=CERT_TRUST_ROOT_CA
                 )
 
-            if "location" not in response.headers:
-                return test.FAIL(
-                    "'Location' not found in Response headers. Headers = {}".format(response.headers.keys())
-                )
-            if "code=" not in response.headers["location"]:
-                return test.FAIL(
-                    "'code' not found in Location Header. Location Header = {}".format(response.headers["location"])
-                )
-            if "state=" not in response.headers["location"]:
-                return test.FAIL(
-                    "'state' not found in Location Header. Location Header = {}".format(response.headers["location"])
-                )
+                try:
+                    response.raise_for_status()
+                except Exception as e:
+                    return test.FAIL("Request failed at `authorize` endpoint: {}".format(e))
 
-            redirect_uri, query_string = response.headers["location"].split('?')
-            auth_code = parse_qs(query_string)["code"][0]
-            state = parse_qs(query_string)["state"][0]
+                if not response.is_redirect or response.status_code != 302:
+                    return test.FAIL(
+                        "Request to server did not result in a redirect. Received {} instead of 302."
+                        .format(response.status_code)
+                    )
 
-            if not redirect_uri == parameters["redirect_uri"]:
-                return test.FAIL(
-                    "Expected {} but got {}".format(parameters["redirect_uri"], redirect_uri)
-                )
-            if not state == parameters["state"]:
-                return test.FAIL(
-                    "Expected {} but got {}".format(parameters["state"], state)
-                )
+                if "location" not in response.headers:
+                    return test.FAIL(
+                        "'Location' not found in Response headers. Headers = {}".format(response.headers.keys())
+                    )
+                if "code=" not in response.headers["location"]:
+                    return test.FAIL(
+                        "'code' not found in Location Header. Location Header = {}".format(response.headers["location"])
+                    )
+                if "state=" not in response.headers["location"]:
+                    return test.FAIL(
+                        "'state' not found in Location Header. Location Header = {}"
+                        .format(response.headers["location"])
+                    )
 
-            self.auth_codes.append(auth_code)
-            return test.PASS()
+                redirect_uri, query_string = response.headers["location"].split('?')
+                auth_code = parse_qs(query_string)["code"][0]
+                state = parse_qs(query_string)["state"][0]
 
-            return test.FAIL("Implementation did not pass the necessary criteria.")
+                if not redirect_uri == parameters["redirect_uri"]:
+                    return test.FAIL(
+                        "Expected {} but got {}".format(parameters["redirect_uri"], redirect_uri)
+                    )
+                if not state == parameters["state"]:
+                    return test.FAIL(
+                        "Expected {} but got {}".format(parameters["state"], state)
+                    )
+
+                self.auth_codes.append(auth_code)
+                return test.PASS()
+
+        else:
+            return test.DISABLED("No Client Data available for requesitng token")
 
     def test_04_token_authorize_grant(self, test):
         """Test requesting a Bearer Token using Auth Code Grant from '/token' endpoint"""
 
-        client_id = self.client_data["client_id"]
-        client_secret = self.client_data["client_secret"]
+        if self.client_data and self.auth_codes:
+            for auth_code in self.auth_codes:
 
-        for auth_code in self.auth_codes:
+                request_data = {
+                    "grant_type": "authorization_code",
+                    "code": auth_code,
+                    "redirect_uri": self.client_data["redirect_uris"][0],
+                    "client_id": self.client_data["client_id"]
+                }
 
-            request_data = {
-                "grant_type": "authorization_code",
-                "code": auth_code,
-                "redirect_uri": self.client_data["redirect_uris"][0],
-                "client_id": client_id
-            }
-
-            status, response = self._make_auth_request(
-                method="POST", url_path="token", data=request_data, auth=(client_id, client_secret)
-            )
-
-            if status is False and isinstance(response, str):
-                return test.FAIL("Request for Token using Auth Grant failed. {}".format(response))
-
-            if status and response.status_code != 200:
-                return test.FAIL(
-                    "Incorrect status code. Return code '{}' should be '200'.\n{}"
-                    .format(response.status_code, response.json())
+                status, response = self._make_auth_request(
+                    method="POST", url_path="token", data=request_data, auth="client"
                 )
 
-            token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
-            try:
-                self.validate_schema(response.json(), token_schema)
-                if response.status_code == 200:
-                    self.bearer_token.append(response.json())
-                    return test.PASS()
-            except Exception as e:
-                return test.FAIL("Status code was {} and Schema validation failed. {}".format(response.status_code, e))
+                if status is False and isinstance(response, str):
+                    return test.FAIL("Request for Token using Auth Grant failed. {}".format(response))
 
-            return test.FAIL("Implementation did not pass the necessary criteria.")
-        return test.DISABLED("No Auth Codes were present")
+                if status and response.status_code != 200:
+                    return test.FAIL(
+                        "Incorrect status code. Return code '{}' should be '200'.\n{}"
+                        .format(response.status_code, response.json())
+                    )
+
+                token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
+                try:
+                    self.validate_schema(response.json(), token_schema)
+                    if response.status_code == 200:
+                        self.bearer_tokens.append(response.json())
+                        return test.PASS()
+                except Exception as e:
+                    return test.FAIL(
+                        "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
+                    )
+
+                return test.FAIL("Implementation did not pass the necessary criteria.")
+        else:
+            return test.DISABLED("No Auth Codes were present")
 
     def test_05_token_refresh_grant(self, test):
-        return test.MANUAL("Test Not Implemented")
+        """Test requesting a Bearer Token using the Refresh Token Grant from '/token' endpoint"""
+        if self.bearer_tokens:
+            for bearer_token in self.bearer_tokens:
+                refresh_token = bearer_token["refresh_token"]
+
+                request_data = {
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token
+                }
+
+                status, response = self._make_auth_request(
+                    "POST", url_path="token", data=request_data, auth="client"
+                )
+
+                if status is False and isinstance(response, str):
+                    return test.FAIL("Request for Token using Auth Grant failed. {}".format(response))
+
+                if status and response.status_code != 200:
+                    return test.FAIL(
+                        "Incorrect status code. Return code '{}' should be '200'.\n{}"
+                        .format(response.status_code, response.json())
+                    )
+
+                token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
+                try:
+                    self.validate_schema(response.json(), token_schema)
+                    if response.status_code == 200:
+                        self.bearer_tokens.append(response.json())
+                        return test.PASS()
+                except Exception as e:
+                    return test.FAIL(
+                        "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
+                    )
+
+                return test.FAIL("Implementation did not pass the necessary criteria.")
+        else:
+            return test.DISABLED("No Bearer Tokens were present")
+
+    def bad_post_to_authorize_endpoint(self, data, params, key, value):
+        params_copy = params.copy()
+        params_copy[key] = value
+        return self.post_to_authorize_endpoint(data, params_copy)
+
+    def post_to_authorize_endpoint(self, data, parameters):
+        return post(
+            url=self.url + 'authorize',
+            data=data,
+            params=parameters,
+            allow_redirects=False,
+            auth=(AUTH_USERNAME, AUTH_PASSWORD),
+            verify=CERT_TRUST_ROOT_CA
+        )
 
     def test_06_authorize_error(self, test):
-        return test.MANUAL("Test Not Implemented")
+        """Test Error Response of Authorization Endpoint in line with RFC6749"""
+        parameters = {
+            "response_type": "code",
+            "client_id": self.client_data["client_id"],
+            "redirect_uri": self.client_data["redirect_uris"][0],
+            "scope": "is04",
+            "state": "xyz"
+        }
+        # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
+        request_data = {
+            "confirm": "true"
+        }
+
+        response = self.post_to_authorize_endpoint(request_data, parameters)
+        if response.status_code != 302:
+            return test.FAIL(
+                "Correct Request Data didn't return 200 status code. Got {}"
+                .format(response.status_code))
+
+        response = self.bad_post_to_authorize_endpoint(
+            data=request_data, params=parameters, key="redirect_uri", value="http://www.bogus.com"
+        )
+        if response.status_code != 400:
+            return test.FAIL(
+                "Incorrect Redirect URI didn't return 400 status code. Got {}. Response: {}"
+                .format(response.status_code, response.json()))
+        if not response.headers["Content-Type"] == "application/json":
+            return test.FAIL(
+                "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
+            )
+        if "invalid_request" not in response.json()["error"]:
+            return test.FAIL(
+                "'invalid_request' not in response for malformed/incorrect redirect_uri. Response: {}"
+                .format(response.json())
+            )
+
+        response = self.bad_post_to_authorize_endpoint(
+            data=request_data, params=parameters, key="response_type", value="password"
+        )
+        if response.status_code != 400:
+            return test.FAIL(
+                "Incorrect Response Type didn't return 400 status code. Got {}. Response: {}"
+                .format(response.status_code, response.json()))
+        if not response.headers["Content-Type"] == "application/json":
+            return test.FAIL(
+                "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
+            )
+        if "invalid_grant" not in response.json()["error"]:
+            return test.FAIL(
+                "'invalid_grant' not in response for malformed/incorrect redirect_uri. Response: {}"
+                .format(response.json())
+            )
+        return test.PASS()
 
     def test_07_token_error(self, test):
         return test.MANUAL("Test Not Implemented")
