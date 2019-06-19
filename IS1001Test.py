@@ -16,11 +16,11 @@ import json
 from requests import post
 from urllib.parse import parse_qs
 
-from GenericTest import GenericTest, NMOSInitException
+from GenericTest import GenericTest, NMOSInitException, NMOSTestException
 from Config import AUTH_USERNAME, AUTH_PASSWORD, CERT_TRUST_ROOT_CA
 
 AUTH_API_KEY = 'auth'
-GRANT_SCOPES = ['is04', 'is05']
+GRANT_SCOPES = ['is-04', 'is-05']
 
 
 class IS1001Test(GenericTest):
@@ -213,8 +213,7 @@ class IS1001Test(GenericTest):
   """
 
     def __init__(self, apis):
-        GenericTest.__init__(self, apis)
-
+        super(IS1001Test, self).__init__(apis)
         self.url = self.apis[AUTH_API_KEY]["url"]
         self.bearer_tokens = []
         self.client_data = {}
@@ -458,7 +457,7 @@ class IS1001Test(GenericTest):
                 return test.PASS()
 
         else:
-            return test.DISABLED("No Client Data available for requesitng token")
+            return test.DISABLED("No Client Data available")
 
     def test_04_token_authorize_grant(self, test):
         """Test requesting a Bearer Token using Auth Code Grant from '/token' endpoint"""
@@ -540,75 +539,146 @@ class IS1001Test(GenericTest):
         else:
             return test.DISABLED("No Bearer Tokens were present")
 
-    def bad_post_to_authorize_endpoint(self, data, params, key, value):
+    def bad_post_to_authorize_endpoint(self, data, params, key, value, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
         params_copy = params.copy()
         params_copy[key] = value
-        return self.post_to_authorize_endpoint(data, params_copy)
+        return self.post_to_authorize_endpoint(data, params_copy, auth)
 
-    def post_to_authorize_endpoint(self, data, parameters):
+    def post_to_authorize_endpoint(self, data, parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
         return post(
             url=self.url + 'authorize',
             data=data,
             params=parameters,
             allow_redirects=False,
-            auth=(AUTH_USERNAME, AUTH_PASSWORD),
+            auth=auth,
             verify=CERT_TRUST_ROOT_CA
         )
 
+    def verify_location_header(self, test, response, input_params, query_key, expected_query_value=None):
+
+        if not response.is_redirect or response.status_code != 302:
+            raise NMOSTestException(test.FAIL(
+                "Request to server did not result in a redirect. Received {} instead of 302."
+                .format(response.status_code)
+            ))
+        if "location" not in response.headers:
+            raise NMOSTestException(test.FAIL(
+                "'Location' not found in Response headers. Headers = {}".format(response.headers.keys())
+            ))
+        if query_key not in response.headers["location"]:
+            raise NMOSTestException(test.FAIL(
+                "'{}' not found in Location Header. Location Header = {}"
+                .format(query_key, response.headers["location"])
+            ))
+        if "state" not in response.headers["location"]:
+            raise NMOSTestException(test.FAIL(
+                "'state' not found in Location Header. Location Header = {}"
+                .format(response.headers["location"])
+            ))
+
+        redirect_uri, query_string = response.headers["location"].split('?')
+        parsed_query = parse_qs(query_string)
+        actual_query_value = parsed_query[query_key][0]
+        if "state" in parsed_query.keys():
+            state = parse_qs(query_string)["state"][0]
+        else:
+            state = None
+
+        if not redirect_uri == input_params["redirect_uri"]:
+            raise NMOSTestException(test.FAIL(
+                "Expected {} but got {}".format(input_params["redirect_uri"], redirect_uri)
+            ))
+
+        if expected_query_value is None:
+            if not actual_query_value == input_params[query_key]:
+                raise NMOSTestException(test.FAIL(
+                    "Expected {} but got {}".format(input_params[query_key], actual_query_value)
+                ))
+        else:
+            if not actual_query_value == expected_query_value:
+                raise NMOSTestException(test.FAIL(
+                    "Expected {} but got {}".format(expected_query_value, actual_query_value)
+                ))
+
+        if not state == input_params["state"]:
+            raise NMOSTestException(test.FAIL(
+                "Expected {} but got {}".format(input_params["state"], state)
+            ))
+
     def test_06_authorize_error(self, test):
         """Test Error Response of Authorization Endpoint in line with RFC6749"""
-        parameters = {
-            "response_type": "code",
-            "client_id": self.client_data["client_id"],
-            "redirect_uri": self.client_data["redirect_uris"][0],
-            "scope": "is04",
-            "state": "xyz"
-        }
-        # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
-        request_data = {
-            "confirm": "true"
-        }
 
-        response = self.post_to_authorize_endpoint(request_data, parameters)
-        if response.status_code != 302:
-            return test.FAIL(
-                "Correct Request Data didn't return 200 status code. Got {}"
-                .format(response.status_code))
+        if self.client_data:
+            parameters = {
+                "response_type": "code",
+                "client_id": self.client_data["client_id"],
+                "redirect_uri": self.client_data["redirect_uris"][0],
+                "scope": "is-04",
+                "state": "xyz"
+            }
+            # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
+            request_data = {
+                "confirm": "true"
+            }
 
-        response = self.bad_post_to_authorize_endpoint(
-            data=request_data, params=parameters, key="redirect_uri", value="http://www.bogus.com"
-        )
-        if response.status_code != 400:
-            return test.FAIL(
-                "Incorrect Redirect URI didn't return 400 status code. Got {}. Response: {}"
-                .format(response.status_code, response.json()))
-        if not response.headers["Content-Type"] == "application/json":
-            return test.FAIL(
-                "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
-            )
-        if "invalid_request" not in response.json()["error"]:
-            return test.FAIL(
-                "'invalid_request' not in response for malformed/incorrect redirect_uri. Response: {}"
-                .format(response.json())
-            )
+            response = self.post_to_authorize_endpoint(request_data, parameters)
+            if response.status_code != 302:
+                return test.FAIL(
+                    "Correct Request Data didn't return 302 status code. Got {}"
+                    .format(response.status_code))
 
-        response = self.bad_post_to_authorize_endpoint(
-            data=request_data, params=parameters, key="response_type", value="password"
-        )
-        if response.status_code != 400:
-            return test.FAIL(
-                "Incorrect Response Type didn't return 400 status code. Got {}. Response: {}"
-                .format(response.status_code, response.json()))
-        if not response.headers["Content-Type"] == "application/json":
-            return test.FAIL(
-                "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
+            response = self.bad_post_to_authorize_endpoint(
+                data=request_data, params=parameters, key="redirect_uri", value="http://www.bogus.com"
             )
-        if "invalid_grant" not in response.json()["error"]:
-            return test.FAIL(
-                "'invalid_grant' not in response for malformed/incorrect redirect_uri. Response: {}"
-                .format(response.json())
+            if response.status_code != 400:
+                return test.FAIL(
+                    "Incorrect Redirect URI didn't return 400 status code. Got {}. Response: {}"
+                    .format(response.status_code, response.json()))
+            if not response.headers["Content-Type"] == "application/json":
+                return test.FAIL(
+                    "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
+                )
+            if "invalid_request" not in response.json()["error"]:
+                return test.FAIL(
+                    "'invalid_request' not in response for malformed/incorrect redirect_uri. Response: {}"
+                    .format(response.json())
+                )
+
+            response = self.bad_post_to_authorize_endpoint(
+                data=request_data, params=parameters, key="response_type", value="password"
             )
-        return test.PASS()
+            if response.status_code != 400:
+                return test.FAIL(
+                    "Incorrect Response Type didn't return 400 status code. Got {}. Response: {}"
+                    .format(response.status_code, response.json()))
+            if not response.headers["Content-Type"] == "application/json":
+                return test.FAIL(
+                    "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
+                )
+            if "invalid_grant" not in response.json()["error"]:
+                return test.FAIL(
+                    "'invalid_grant' not in response for malformed/incorrect redirect_uri. Response: {}"
+                    .format(response.json())
+                )
+
+            response = self.bad_post_to_authorize_endpoint(
+                data=request_data, params=parameters, key="scope", value="bad_scope"
+            )
+            self.verify_location_header(test, response, parameters, "error", "invalid_scope")
+
+            response = self.bad_post_to_authorize_endpoint(
+                data=request_data, params=parameters, key="client_id", value="bad_client"
+            )
+            self.verify_location_header(test, response, parameters, "error", "invalid_client")
+
+            response = self.bad_post_to_authorize_endpoint(
+                data=request_data, params=parameters, key="scope", value="is-04", auth=None
+            )
+            self.verify_location_header(test, response, parameters, "error", "access_denied")
+
+            return test.PASS()
+        else:
+            return test.DISABLED("No Client Data available")
 
     def test_07_token_error(self, test):
         return test.MANUAL("Test Not Implemented")

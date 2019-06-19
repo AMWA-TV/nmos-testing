@@ -1,7 +1,7 @@
 {
   "client_name": "Example Client",
   "client_uri": "http://www.example.com",
-  "scope": "is04 is05",
+  "scope": "is-04 is-05",
   "redirect_uri": "http://localhost:5000",
   "grant_type": "password\nauthorization_code\nrefresh_token",
   "response_type": "code",
