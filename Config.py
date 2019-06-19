@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# NMOS Testing Configuration File
+# -------------------------------
+# Please consult ReadMe.md for instructions on how to adjust these values for common testing setups including
+# unicast DNS-SD and HTTPS testing.
+
+
 # Enable or disable DNS-SD advertisements. Browsing is always permitted.
 # The IS-04 Node tests create a mock registry on the network unless the `ENABLE_DNS_SD` parameter is set to `False`.
 # If set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT`.
