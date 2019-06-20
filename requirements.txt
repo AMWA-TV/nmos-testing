@@ -12,3 +12,4 @@ dnslib
 jinja2
 junit-xml
 rfc3987
+pyopenssl
