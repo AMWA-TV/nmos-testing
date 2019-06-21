@@ -13,8 +13,7 @@
 # limitations under the License.
 
 import json
-import subprocess
-from requests import post
+import requests
 from urllib.parse import parse_qs
 from OpenSSL import crypto
 
@@ -269,13 +268,107 @@ class IS1001Test(GenericTest):
             username = self.client_data["client_id"]
             password = self.client_data["client_secret"]
         else:
-            username, password = None
+            username = password = None
         return self.do_request(
             method=method, url=self.url + url_path, data=data, auth=(username, password), params=params
         )
 
+    def _post_to_authorize_endpoint(self, data, parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
+        """Post to /authorize endpoint, not allowing redirects to be automatically followed"""
+        return requests.post(
+            url=self.url + 'authorize',
+            data=data,
+            params=parameters,
+            allow_redirects=False,
+            auth=auth,
+            verify=CERT_TRUST_ROOT_CA
+        )
+
+    def _raise_nmos_exception(self, test, response, string=''):
+        """Raise NMOS Exception with HTTP Response Information"""
+        raise NMOSTestException(test.FAIL(
+            """Request to Auth Server failed. {}.
+            URL: {},
+            Request Body: {},
+            Status_code: {},
+            Response: {}"""
+            .format(string, response.url, response.request.body, response.status_code, response.text)
+        ))
+
+    def _verify_response(self, test, expected_status, response):
+        """Verify if HTTP response status code is valid"""
+        if isinstance(response, requests.models.Response):
+            try:
+                response.raise_for_status()
+            except Exception:
+                self._raise_nmos_exception(test, response)
+
+        elif isinstance(response, str):
+            raise NMOSTestException(test.FAIL(
+                "Request to Auth Server failed due to: {}".format(response)
+            ))
+
+        if response.status_code != expected_status:
+            self._raise_nmos_exception(test, response, "Expected status_code: {}".format(expected_status))
+
+    def _verify_redirect(self, test, response, input_params, query_key, expected_query_value=None):
+        """Verify if HTTP response is a valid redirect with given parameters"""
+
+        if not response.is_redirect or response.status_code != 302:
+            raise NMOSTestException(test.FAIL(
+                "Request to server did not result in a redirect. Received {} instead of 302 when requesting '{}'. {}"
+                .format(response.status_code, query_key, response.json())
+            ))
+        if "location" not in response.headers:
+            raise NMOSTestException(test.FAIL(
+                "'Location' not found in Response headers when requesting '{}'. Headers = {}"
+                .format(query_key, response.headers.keys())
+            ))
+        if query_key not in response.headers["location"]:
+            raise NMOSTestException(test.FAIL(
+                "'{}' not found in Location Header. Location Header = {}"
+                .format(query_key, response.headers["location"])
+            ))
+        if "state" not in response.headers["location"]:
+            raise NMOSTestException(test.FAIL(
+                "'state' not found in Location Header. Location Header = {}"
+                .format(response.headers["location"])
+            ))
+
+        redirect_uri, query_string = response.headers["location"].split('?')
+        parsed_query = parse_qs(query_string)
+        actual_query_value = parsed_query[query_key][0]
+        if "state" in parsed_query.keys():
+            state = parse_qs(query_string)["state"][0]
+        else:
+            state = None
+
+        if not redirect_uri == input_params["redirect_uri"]:
+            raise NMOSTestException(test.FAIL(
+                "Expected {} but got {}".format(input_params["redirect_uri"], redirect_uri)
+            ))
+
+        if not state == input_params["state"]:
+            raise NMOSTestException(test.FAIL(
+                "Expected {} but got {}".format(input_params["state"], state)
+            ))
+
+        if query_key != "code":
+            if expected_query_value is None:
+                if not actual_query_value == input_params[query_key]:
+                    raise NMOSTestException(test.FAIL(
+                        "Expected {} but got {}".format(input_params[query_key], actual_query_value)
+                    ))
+            else:
+                if not actual_query_value == expected_query_value:
+                    raise NMOSTestException(test.FAIL(
+                        "Expected {} but got {}".format(expected_query_value, actual_query_value)
+                    ))
+        else:
+            return actual_query_value
+
     def test_01_register_user(self, test):
-        """Test registering a client to the `register_client` endpoint"""
+        """Test registering a client to the '/register_client' endpoint"""
 
         RECOMMENDED_RESPONSE_FIELDS = ["client_secret", "redirect_uris"]
         ARRAY_RESPONSE_FIELDS = ["redirect_uris", "grant_types", "response_types"]
@@ -289,17 +382,7 @@ class IS1001Test(GenericTest):
             method="POST", url_path='register_client', data=request_data, auth="user"
         )
 
-        if status is False and isinstance(response, str):
-            return test.FAIL(
-                "Failed to register client with Authorization Server using credentials: {}. Failed with: {}"
-                .format(request_data, response)
-            )
-
-        if response.status_code != 201:
-            return test.FAIL(
-                "Return Code was {} instead of 201 (in-line with RFC 7591). {}"
-                .format(response.status_code, response.json())
-            )
+        self._verify_response(test=test, expected_status=201, response=response)
 
         for key in request_data:
             # Test that all request data keys are found in response. Added 's' compensates for grant_type/s, etc.
@@ -364,17 +447,7 @@ class IS1001Test(GenericTest):
                     "POST", 'token', data=request_data, auth="client"
                 )
 
-                if status is False and isinstance(response, str):
-                    return test.FAIL(
-                        "Request for Token using Password Grant and scope {} failed. {}"
-                        .format(scope, response)
-                    )
-
-                if status and response.status_code != 200:
-                    return test.FAIL(
-                        "Incorrect status code. Return code {} should be '200'. {}"
-                        .format(response.status_code, response.json())
-                    )
+                self._verify_response(test=test, expected_status=200, response=response)
 
                 token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
                 try:
@@ -389,12 +462,14 @@ class IS1001Test(GenericTest):
 
                 return test.FAIL("Implementation did not pass the necessary criteria.")
         else:
-            return test.DISABLED("No client data available")
+            return test.DISABLED("No Client Data available")
 
     def test_03_authorize_endpoint(self, test):
         """Test the '/authorize' endpoint and ability to redirect to registered URI with authorization code"""
+
         if self.client_data:
             for scope in GRANT_SCOPES:
+
                 state = "xyz"
                 parameters = {
                     "response_type": "code",
@@ -408,21 +483,12 @@ class IS1001Test(GenericTest):
                     "confirm": "true"
                 }
 
-                response = post(
-                    url=self.url + 'authorize',
-                    data=data,
-                    params=parameters,
-                    allow_redirects=False,
-                    auth=(AUTH_USERNAME, AUTH_PASSWORD),
-                    verify=CERT_TRUST_ROOT_CA
+                response = self._post_to_authorize_endpoint(
+                    data=data, parameters=parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)
                 )
 
-                try:
-                    response.raise_for_status()
-                except Exception as e:
-                    return test.FAIL("Request failed at `authorize` endpoint: {}".format(e))
-
-                auth_code = self.verify_location_header(test, response, parameters, "code")
+                self._verify_response(test=test, expected_status=302, response=response)
+                auth_code = self._verify_redirect(test, response, parameters, "code")
 
                 self.auth_codes.append(auth_code)
                 return test.PASS()
@@ -447,14 +513,7 @@ class IS1001Test(GenericTest):
                     method="POST", url_path="token", data=request_data, auth="client"
                 )
 
-                if status is False and isinstance(response, str):
-                    return test.FAIL("Request for Token using Auth Grant failed. {}".format(response))
-
-                if status and response.status_code != 200:
-                    return test.FAIL(
-                        "Incorrect status code. Return code '{}' should be '200'.\n{}"
-                        .format(response.status_code, response.json())
-                    )
+                self._verify_response(test=test, expected_status=200, response=response)
 
                 token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
                 try:
@@ -463,13 +522,11 @@ class IS1001Test(GenericTest):
                         self.bearer_tokens.append(response.json())
                         return test.PASS()
                 except Exception as e:
-                    return test.FAIL(
-                        "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
-                    )
+                    self._raise_nmos_exception(self, test, response, string=str(e))
 
                 return test.FAIL("Implementation did not pass the necessary criteria.")
         else:
-            return test.DISABLED("No Auth Codes were present")
+            return test.DISABLED("No Client Data or Auth Codes available")
 
     def test_05_token_refresh_grant(self, test):
         """Test requesting a Bearer Token using the Refresh Token Grant from '/token' endpoint"""
@@ -486,14 +543,7 @@ class IS1001Test(GenericTest):
                     "POST", url_path="token", data=request_data, auth="client"
                 )
 
-                if status is False and isinstance(response, str):
-                    return test.FAIL("Request for Token using Auth Grant failed. {}".format(response))
-
-                if status and response.status_code != 200:
-                    return test.FAIL(
-                        "Incorrect status code. Return code '{}' should be '200'.\n{}"
-                        .format(response.status_code, response.json())
-                    )
+                self._verify_response(test=test, expected_status=200, response=response)
 
                 token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
                 try:
@@ -502,90 +552,67 @@ class IS1001Test(GenericTest):
                         self.bearer_tokens.append(response.json())
                         return test.PASS()
                 except Exception as e:
-                    return test.FAIL(
-                        "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
-                    )
+                    self._raise_nmos_exception(self, test, response, string=str(e))
 
                 return test.FAIL("Implementation did not pass the necessary criteria.")
         else:
-            return test.DISABLED("No Bearer Tokens were present")
+            return test.DISABLED("No Bearer Tokens available")
 
-    def bad_post_to_authorize_endpoint(self, data, params, key, value, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
-        params_copy = params.copy()
-        params_copy[key] = value
-        return self.post_to_authorize_endpoint(data, params_copy, auth)
-
-    def post_to_authorize_endpoint(self, data, parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
-        return post(
-            url=self.url + 'authorize',
-            data=data,
-            params=parameters,
-            allow_redirects=False,
-            auth=auth,
-            verify=CERT_TRUST_ROOT_CA
+    def test_06_check_cert(self, test):
+        """Test '/certs' endpoint for valid certificate"""
+        status, response = self.do_request(
+            method="GET", url=self.url + 'certs'
         )
 
-    def verify_location_header(self, test, response, input_params, query_key, expected_query_value=None):
+        self._verify_response(test=test, expected_status=200, response=response)
 
-        if not response.is_redirect or response.status_code != 302:
-            raise NMOSTestException(test.FAIL(
-                "Request to server did not result in a redirect. Received {} instead of 302 when requesting '{}'. {}"
-                .format(response.status_code, query_key, response.json())
-            ))
-        if "location" not in response.headers:
-            raise NMOSTestException(test.FAIL(
-                "'Location' not found in Response headers when requesting '{}'. Headers = {}"
-                .format(query_key, response.headers.keys())
-            ))
-        if query_key not in response.headers["location"]:
-            raise NMOSTestException(test.FAIL(
-                "'{}' not found in Location Header. Location Header = {}"
-                .format(query_key, response.headers["location"])
-            ))
-        if "state" not in response.headers["location"]:
-            raise NMOSTestException(test.FAIL(
-                "'state' not found in Location Header. Location Header = {}"
-                .format(response.headers["location"])
-            ))
+        token_schema = self.get_schema(AUTH_API_KEY, "GET", '/certs', 200)
+        try:
+            self.validate_schema(response.json(), token_schema)
+        except Exception as e:
+            self._raise_nmos_exception(self, test, response, string=str(e))
 
-        redirect_uri, query_string = response.headers["location"].split('?')
-        parsed_query = parse_qs(query_string)
-        actual_query_value = parsed_query[query_key][0]
-        if "state" in parsed_query.keys():
-            state = parse_qs(query_string)["state"][0]
-        else:
-            state = None
+        # Check that the certificate can be loaded and is therefore a valid PEM certificate
+        try:
+            crypto.load_certificate(crypto.FILETYPE_PEM, response.json()[0])
+            return test.PASS()
+        except Exception as e:
+            self._raise_nmos_exception(self, test, response, string=str(e))
 
-        if not redirect_uri == input_params["redirect_uri"]:
-            raise NMOSTestException(test.FAIL(
-                "Expected {} but got {}".format(input_params["redirect_uri"], redirect_uri)
-            ))
+    def test_07_revocation_endpoint(self, test):
+        """Test revocation of access tokens at '/revoke' endpoint"""
 
-        if not state == input_params["state"]:
-            raise NMOSTestException(test.FAIL(
-                "Expected {} but got {}".format(input_params["state"], state)
-            ))
+        for bearer_token in self.bearer_tokens:
+            request_data = {
+                "token": bearer_token["access_token"],
+                "token_type_hint": "access_token"
+            }
 
-        if query_key != "code":
-            if expected_query_value is None:
-                if not actual_query_value == input_params[query_key]:
-                    raise NMOSTestException(test.FAIL(
-                        "Expected {} but got {}".format(input_params[query_key], actual_query_value)
-                    ))
-            else:
-                if not actual_query_value == expected_query_value:
-                    raise NMOSTestException(test.FAIL(
-                        "Expected {} but got {}".format(expected_query_value, actual_query_value)
-                    ))
-        else:
-            return actual_query_value
+            status, response = self._make_auth_request(
+                method="POST", url_path='revoke', data=request_data, auth="client"
+            )
 
-    def verify_error_response(self, test, response, status_code, error_value):
+            self._verify_response(test=test, expected_status=200, response=response)
+
+            return test.PASS()
+
+    def _bad_post_to_authorize_endpoint(self, data, params, key, value, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
+        """Post to /authorize endpoint with incorrect URL parameters"""
+        params_copy = params.copy()
+        params_copy[key] = value
+        return self._post_to_authorize_endpoint(data, params_copy, auth)
+
+    def _bad_post_to_token_endpoint(self, data, key, value, auth='client'):
+        """Post to /token endpoint with incorrect body parameters"""
+        data_copy = data.copy()
+        data_copy[key] = value
+        return self._make_auth_request(method='POST', url_path='token', data=data_copy, auth=auth)
+
+    def _verify_error_response(self, test, response, status_code, error_value):
+
         if response.status_code != status_code:
-            raise NMOSTestException(test.FAIL(
-                "Error Response didn't return {} status code. Got {}. Response: {}"
-                .format(status_code, response.status_code, response.json())
-            ))
+            self._raise_nmos_exception(test, response, string="Incorrect Status Code Returned")
+
         if not response.headers["Content-Type"] == "application/json":
             raise NMOSTestException(test.FAIL(
                 "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
@@ -600,17 +627,12 @@ class IS1001Test(GenericTest):
         try:
             self.validate_schema(response.json(), token_schema)
         except Exception as e:
-            raise NMOSTestException(test.FAIL(
-                "Schema validation failed. {}".format(e)
-            ))
+            self._raise_nmos_exception(self, test, response, string=str(e))
 
         if error_value not in response.json()["error"]:
-            raise NMOSTestException(test.FAIL(
-                "'{}' not in response for malformed/incorrect redirect_uri. Response: {}"
-                .format(error_value, response.json())
-            ))
+            self._raise_nmos_exception(self, test, response, "'{}' not in response. Response: {}".format(error_value))
 
-    def test_06_authorize_error(self, test):
+    def test_08_authorize_error(self, test):
         """Test Error Response of Authorization Endpoint in line with RFC6749"""
 
         if self.client_data:
@@ -626,114 +648,85 @@ class IS1001Test(GenericTest):
                 "confirm": "true"
             }
 
-            response = self.post_to_authorize_endpoint(request_data, parameters)
+            response = self._post_to_authorize_endpoint(request_data, parameters)
             if response.status_code != 302:
                 return test.FAIL(
                     "Correct Request Data didn't return 302 status code. Got {}"
                     .format(response.status_code))
 
-            response = self.bad_post_to_authorize_endpoint(
+            response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="redirect_uri", value="http://www.bogus.com"
             )
-            self.verify_error_response(test, response, 400, "invalid_request")
+            self._verify_error_response(test, response, 400, "invalid_request")
 
-            response = self.bad_post_to_authorize_endpoint(
+            response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="response_type", value="password"
             )
-            self.verify_error_response(test, response, 400, "invalid_grant")
+            self._verify_error_response(test, response, 400, "invalid_grant")
 
-            response = self.bad_post_to_authorize_endpoint(
+            response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="scope", value="is-04", auth=None
             )
-            self.verify_error_response(test, response, 400, "invalid_request")
+            self._verify_error_response(test, response, 400, "invalid_request")
 
-            response = self.bad_post_to_authorize_endpoint(
+            response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="scope", value="bad_scope"
             )
-            self.verify_location_header(test, response, parameters, "error", "invalid_scope")
+            self._verify_redirect(test, response, parameters, "error", "invalid_scope")
 
-            response = self.bad_post_to_authorize_endpoint(
+            response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="client_id", value="bad_client"
             )
-            self.verify_location_header(test, response, parameters, "error", "invalid_client")
+            self._verify_redirect(test, response, parameters, "error", "invalid_client")
 
-            response = self.bad_post_to_authorize_endpoint(
+            response = self._bad_post_to_authorize_endpoint(
                 data=None, params=parameters, key="scope", value="is-04"
             )
-            self.verify_location_header(test, response, parameters, "error", "access_denied")
+            self._verify_redirect(test, response, parameters, "error", "access_denied")
 
             return test.PASS()
         else:
             return test.DISABLED("No Client Data available")
 
-    def _bad_post_to_token_endpoint(self, data, key, value, auth='client'):
-        data_copy = data.copy()
-        data_copy[key] = value
-        return self._make_auth_request(method='POST', url_path='token', data=data_copy, auth=auth)
-
-    def test_07_token_error(self, test):
+    def test_09_token_error(self, test):
         """Test Error Response of Token Endpoint in line with RFC6749"""
 
-        # Use Authorization Grant flow with an already used Auth Code
-        request_data = {
-            "grant_type": "authorization_code",
-            "code": self.auth_codes[0],
-            "redirect_uri": self.client_data["redirect_uris"][0],
-            "client_id": self.client_data["client_id"]
-        }
-        status, response = self._make_auth_request(
-            method="POST", url_path="token", data=request_data, auth="client"
-        )
-        self.verify_error_response(test, response, 400, "invalid_request")
-
-        # Use Pasword Grant flow wih incorrect credentials
-        request_data = {
-            'username': AUTH_USERNAME,
-            'password': AUTH_PASSWORD,
-            'grant_type': 'password',
-            'scope': "is-04"
-        }
-
-        status, response = self._bad_post_to_token_endpoint(
-            data=request_data, key="username", value="bad_username"
-        )
-        self.verify_error_response(test, response, 400, "invalid_request")
-
-        status, response = self._bad_post_to_token_endpoint(
-            data=request_data, key="grant_type", value="bad_grant"
-        )
-        self.verify_error_response(test, response, 400, "invalid_grant")
-
-        status, response = self._bad_post_to_token_endpoint(
-            data=request_data, key="scope", value="bad_scope"
-        )
-        self.verify_error_response(test, response, 400, "invalid_scope")
-
-        return test.PASS()
-
-    def test_08_check_cert(self, test):
-        """Check '/certs' endpoint for valid certificate"""
-        status, response = self.do_request(
-            method="GET", url=self.url + 'certs'
-        )
-
-        if status is False and isinstance(response, str):
-            return test.FAIL("Request for Cert failed. {}".format(response))
-
-        if status and response.status_code != 200:
-            return test.FAIL(
-                "Incorrect status code. Return code '{}' should be '200'.\n{}"
-                .format(response.status_code, response.json())
+        if self.auth_codes and self.client_data:
+            # Use Authorization Grant flow with an already used Auth Code
+            request_data = {
+                "grant_type": "authorization_code",
+                "code": self.auth_codes[0],
+                "redirect_uri": self.client_data["redirect_uris"][0],
+                "client_id": self.client_data["client_id"]
+            }
+            status, response = self._make_auth_request(
+                method="POST", url_path="token", data=request_data, auth="client"
             )
+            self._verify_error_response(test, response, 400, "invalid_request")
 
-        token_schema = self.get_schema(AUTH_API_KEY, "GET", '/certs', 200)
-        try:
-            self.validate_schema(response.json(), token_schema)
-        except Exception as e:
-            return test.FAIL(
-                "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
+            # Use Pasword Grant flow wih incorrect credentials
+            request_data = {
+                'username': AUTH_USERNAME,
+                'password': AUTH_PASSWORD,
+                'grant_type': 'password',
+                'scope': "is-04"
+            }
+
+            status, response = self._bad_post_to_token_endpoint(
+                data=request_data, key="username", value="bad_username"
             )
+            self._verify_error_response(test, response, 400, "invalid_request")
 
-        # Check that the certificate can be loaded and is therefore a valid PEM certificate
-        crypto.load_certificate(crypto.FILETYPE_PEM, response.json()[0])
-        return test.PASS()
+            status, response = self._bad_post_to_token_endpoint(
+                data=request_data, key="grant_type", value="bad_grant"
+            )
+            self._verify_error_response(test, response, 400, "invalid_grant")
+
+            status, response = self._bad_post_to_token_endpoint(
+                data=request_data, key="scope", value="bad_scope"
+            )
+            self._verify_error_response(test, response, 400, "invalid_scope")
+
+            return test.PASS()
+        else:
+            return test.DISABLED("No Client Data or Auth Codes available")
