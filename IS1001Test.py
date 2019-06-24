@@ -28,189 +28,20 @@ class IS1001Test(GenericTest):
     """
     Runs IS-10-01-Test.
 
-    Example "Specification" Object:
-    {
-    'global_schemas': {},
-    'data': {
-      '/certs': [{
-        'method': 'get',
-        'body': None,
-        'params': None,
-        'responses': {
-          200: {
-            'title': 'Certificate Response',
-            '$schema': 'http://json-schema.org/draft-07/schema#',
-            'type': 'array',
-            'items': {
-              'type': 'string'
-            },
-            'minItems': 1,
-            'description': 'Array of certificates to validate Access Token',
-          }
-        },
-      }],
-      '/register_client': [{
-        'method': 'get',
-        'body': None,
-        'params': None,
-        'responses': {
-          200: None
-        },
-      }, {
-        'method': 'post',
-        'body': None,
-        'params': None,
-        'responses': {
-          201: {
-            'title': 'Register Client Response',
-            '$schema': 'http://json-schema.org/draft-07/schema#',
-            'properties': {
-              'client_secret_expires_at': {
-                'type': 'number',
-                'description': 'Time at which the client secret will expire or 0 if it will not expire'
-              },
-              'client_id': {
-                'type': 'string',
-                'description': 'OAuth 2.0 client identifier string'
-              },
-              'client_secret': {
-                'type': 'string',
-                'description': 'OAuth 2.0 client secret string'
-              },
-              'client_id_issued_at': {
-                'type': 'number',
-                'description': 'UTC time at which the client identifier was issued'
-              },
-            },
-            'required': ['client_id', 'client_secret_expires_at'],
-            'type': 'object',
-            'description': 'Object defining successful client registration',
-          }
-        },
-      }],
-      '/authorize': [{
-        'method': 'get',
-        'body': None,
-        'params': None,
-        'responses': {
-          200: None
-        },
-      }, {
-        'method': 'post',
-        'body': None,
-        'params': None,
-        'responses': {
-          302: None
-        },
-      }],
-      '/': [{
-        'method': 'get',
-        'body': None,
-        'params': None,
-        'responses': {
-          200: {
-            'type': 'array',
-            'title': 'Authorization API base resource',
-            'items': {
-              'type': 'string',
-              'maxItems': 5,
-              'uniqueItems': True,
-              'enum': ['certs/', 'register_client/', 'token/',
-                'authorize/', 'revoke/'
-              ],
-              'minItems': 5,
-            },
-            '$schema': 'http://json-schema.org/draft-04/schema#',
-            'description': 'Displays the Authorization API base resources',
-          }
-        },
-      }],
-      '/revoke': [{
-        'method': 'post',
-        'body': None,
-        'params': None,
-        'responses': {
-          200: None
-        },
-      }],
-      '/token': [{
-        'method': 'post',
-        'body': None,
-        'params': None,
-        'responses': {
-          200: {
-            'title': 'Token Response',
-            '$schema': 'http://json-schema.org/draft-07/schema#',
-            'properties': {
-              'scope': {
-                'type': 'string',
-                'description': 'The scope of the Access Token'
-              },
-              'expires_in': {
-                'type': 'integer',
-                'description': 'The lifetime in seconds of the access token'
-              },
-              'access_token': {
-                'type': 'string',
-                'description': 'Access Token to be used in accessing protected endpoints'
-              },
-              'token_type': {
-                'type': 'string',
-                'enum': ['Bearer'],
-                'description': 'The type of the Token issued'
-              },
-              'refresh_token': {
-                'type': 'string',
-                'description': 'Refresh Token to be used to obtain further Access Tokens'
-              },
-            },
-            'required': ['access_token', 'expires_in', 'token_type'],
-            'type': 'object',
-            'description': 'OAuth2 Response for the request of a Bearer Token',
-          },
-          400: {
-            'title': 'Token Error Response',
-            '$schema': 'http://json-schema.org/draft-07/schema#',
-            'properties': {
-              'error': {
-                'type': 'string',
-                'description': 'Error Type'
-              },
-              'error_uri': {
-                'type': 'string',
-                'description': 'A URI identifying a human-readable web page with information about the error'
-              },
-              'error_description': {
-                'type': 'string',
-                'description': 'Human-readable ASCII text providing additional information'
-              }
-            },
-            'required': ['error'],
-            'type': 'object',
-            'minItems': 1,
-            'description': 'Object defining error type and description',
-          }
-        },
-      }],
-    }
-  }
-
-  Example "apis" Object:
-  {
-      'auth': {
-          'raml': 'AuthorizationAPI.raml',
-          'version': 'v1.0',
-          'hostname': 'example.co.uk',
-          'port': 80,
-          'spec_branch': 'v1.0-dev',
-          'spec_path': 'cache/is-10',
-          'base_url': 'http://example.co.uk:80',
-          'name': 'Authorization API',
-          'ip': '127.0.1.1',
-          'url': 'http://example.co.uk:80/x-nmos/auth/v1.0/',
-          'spec': <Specification.Specification object at 0x7f5b3b0719b0>
-      }
-  }
+    Example "apis" Object:
+    {'auth': {
+      'raml': 'AuthorizationAPI.raml',
+      'version': 'v1.0',
+      'hostname': 'example.co.uk',
+      'port': 80,
+      'spec_branch': 'v1.0-dev',
+      'spec_path': 'cache/is-10',
+      'base_url': 'http://example.co.uk:80',
+      'name': 'Authorization API',
+      'ip': '127.0.1.1',
+      'url': 'http://example.co.uk:80/x-nmos/auth/v1.0/',
+      'spec': <Specification.Specification object at 0x7f5b3b0719b0>
+    }}
   """
 
     def __init__(self, apis):
@@ -611,7 +442,9 @@ class IS1001Test(GenericTest):
     def _verify_error_response(self, test, response, status_code, error_value):
 
         if response.status_code != status_code:
-            self._raise_nmos_exception(test, response, string="Incorrect Status Code Returned")
+            self._raise_nmos_exception(
+                test, response, string="Incorrect Status Code Returned. Expected {}".format(status_code)
+            )
 
         if not response.headers["Content-Type"] == "application/json":
             raise NMOSTestException(test.FAIL(
@@ -654,31 +487,37 @@ class IS1001Test(GenericTest):
                     "Correct Request Data didn't return 302 status code. Got {}"
                     .format(response.status_code))
 
+            # Incorrect Redirect URI should result in error response
             response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="redirect_uri", value="http://www.bogus.com"
             )
             self._verify_error_response(test, response, 400, "invalid_request")
 
+            # Incorrect Response Type should result in error response
             response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="response_type", value="password"
             )
             self._verify_error_response(test, response, 400, "invalid_grant")
 
+            # No Authorization Header should result in Access Denied error in redirect
             response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="scope", value="is-04", auth=None
             )
-            self._verify_error_response(test, response, 400, "invalid_request")
+            self._verify_redirect(test, response, parameters, "error", "access_denied")
 
+            # Invalid scope should result in Bad Scope error in redirect
             response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="scope", value="bad_scope"
             )
             self._verify_redirect(test, response, parameters, "error", "invalid_scope")
 
+            # Invalid client should result in Bad Client error in redirect
             response = self._bad_post_to_authorize_endpoint(
                 data=request_data, params=parameters, key="client_id", value="bad_client"
             )
             self._verify_redirect(test, response, parameters, "error", "invalid_client")
 
+            # Lack of Resource Owner consent should result in Access Denied error in redirect
             response = self._bad_post_to_authorize_endpoint(
                 data=None, params=parameters, key="scope", value="is-04"
             )
@@ -726,6 +565,11 @@ class IS1001Test(GenericTest):
                 data=request_data, key="scope", value="bad_scope"
             )
             self._verify_error_response(test, response, 400, "invalid_scope")
+
+            status, response = self._bad_post_to_token_endpoint(
+                data=request_data, key="scope", value="is-04", auth=None
+            )
+            self._verify_error_response(test, response, 401, "invalid_client")
 
             return test.PASS()
         else:
