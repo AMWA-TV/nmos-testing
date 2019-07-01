@@ -450,9 +450,18 @@ def format_test_results(results, format):
                      "timestamp": time.time(),
                      "results": []}
         for test_result in results["result"]:
-            formatted["results"].append({"name": test_result.name,
-                                         "state": str(test_result.state),
-                                         "detail": test_result.detail})
+            if test_result is None:
+                print(
+                    "The following results currently are being returned: {}"
+                    .format([result.name for result in results["result"] if result != test_result])
+                )
+                raise AttributeError("None object returned as result from one of the tests")
+            else:
+                formatted["results"].append({
+                    "name": test_result.name,
+                    "state": str(test_result.state),
+                    "detail": test_result.detail
+                })
         formatted = json.dumps(formatted, sort_keys=True, indent=4)
     elif format == "junit":
         test_cases = []
