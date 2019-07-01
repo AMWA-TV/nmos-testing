@@ -1903,7 +1903,7 @@ class IS0402Test(GenericTest):
         data["id"] = str(uuid.uuid4())
         # to cause schema validation failure, remove the label property (required for all resources since v1.0)
         del data["label"]
-        valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
+        valid, r = self.do_request("POST", self.reg_url + "resource", json={"type": resource_type, "data": data})
 
         if not valid:
             return test.FAIL(r)
@@ -2069,7 +2069,7 @@ class IS0402Test(GenericTest):
         """Perform a POST request to a Query API to create a subscription"""
         if query_url is None:
             query_url = self.query_url
-        valid, r = self.do_request("POST", "{}subscriptions".format(query_url), data=sub_json)
+        valid, r = self.do_request("POST", "{}subscriptions".format(query_url), json=sub_json)
 
         if not valid:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: {}".format(r)))
@@ -2103,7 +2103,7 @@ class IS0402Test(GenericTest):
             self.bump_resource_version(data)
 
         valid, r = self.do_request("POST", reg_url + "resource",
-                                   data={"type": type, "data": data})
+                                   json={"type": type, "data": data})
         if not valid:
             raise NMOSTestException(fail(test, "Registration API did not respond as expected"))
 

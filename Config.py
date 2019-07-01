@@ -78,6 +78,8 @@ AUTH_USERNAME = "TEST_USER"
 
 AUTH_PASSWORD = "TEST_PASSWORD"
 
+AUTH_MODE = False
+
 # Domain name to use for the local DNS server and mock Node
 # This must match the domain name used for certificates in HTTPS mode
 DNS_DOMAIN = "testsuite.nmos.tv"

@@ -17,6 +17,8 @@ import flask
 
 from flask import request, jsonify, abort, Blueprint
 from threading import Event
+from nmoscommon.auth.nmos_auth import RequiresAuth
+from Config import AUTH_MODE
 
 
 class RegistryCommon(object):
@@ -103,12 +105,13 @@ class Registry(object):
 # 2+ = Failover testing registries
 NUM_REGISTRIES = 6
 REGISTRY_COMMON = RegistryCommon()
-REGISTRIES = [Registry(REGISTRY_COMMON, i+1) for i in range(NUM_REGISTRIES)]
+REGISTRIES = [Registry(REGISTRY_COMMON, i + 1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
 
 # IS-04 resources
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
+@RequiresAuth(condition=AUTH_MODE)
 def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
@@ -134,6 +137,7 @@ def post_resource(version):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource/<resource_type>/<resource_id>', methods=["DELETE"])
+@RequiresAuth(condition=AUTH_MODE)
 def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
@@ -160,6 +164,7 @@ def delete_resource(version, resource_type, resource_id):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/health/nodes/<node_id>', methods=["POST"])
+@RequiresAuth(condition=AUTH_MODE)
 def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
