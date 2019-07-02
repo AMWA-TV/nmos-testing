@@ -14,8 +14,9 @@
 
 import time
 import flask
+import json
 
-from flask import request, jsonify, abort, Blueprint
+from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
 
 
@@ -108,6 +109,13 @@ REGISTRY_API = Blueprint('registry_api', __name__)
 
 
 # IS-04 resources
+@REGISTRY_API.route('/x-nmos/registration/<version>', methods=["GET"])
+def base_resource(version):
+    base_data = ["resource/", "health/"]
+    # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
+    return Response(json.dumps(base_data), mimetype='application/json')
+
+
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
 def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
