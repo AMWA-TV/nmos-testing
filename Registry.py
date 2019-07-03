@@ -113,7 +113,7 @@ REGISTRY_API = Blueprint('registry_api', __name__)
 def base_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
-        abort(404)
+        abort(503)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
     return Response(json.dumps(base_data), mimetype='application/json')
