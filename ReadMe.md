@@ -38,7 +38,7 @@ The result of each test case will be one of the following:
 
 | Pass | Reason |
 | - | - |
-| ![Pass](https://place-hold.it/128x32/28a745.png?text=Pass&fontsize=12&bold)| Successful test case. |
+| ![Pass](https://place-hold.it/128x32/28a745.png?text=Pass&fontsize=12&bold) | Successful test case. |
 | ![Fail](https://place-hold.it/128x32/dc3545.png?text=Fail&fontsize=12&bold) | Required feature of the specification has been found to be implemented incorrectly. |
 | ![Warning](https://place-hold.it/128x32/ffc107.png?text=Warning&fontsize=12&bold) | Not a failure, but the API being tested is responding or configured in a way which is not recommended in most cases. |
 | ![Test Disabled](https://place-hold.it/128x32/ffc107.png?text=Test%20Disabled&fontsize=12&bold) | Test is disabled due to test suite configuration; change the config or test manually. |
@@ -49,7 +49,11 @@ The result of each test case will be one of the following:
 
 ### Testing Unicast discovery
 
-In order to test unicast discovery, ensure the `DNS_SD_MODE` is set to `'unicast'`. Additionally, ensure that the unit under test has its search domain set to 'testsuite.nmos.tv' and the DNS server IP to the IP address of the server which is running the test suite instance.
+In order to test unicast discovery, the test suite launches its own mock DNS server which your Node will need to be pointing at in order to correctly discover the mock registries. The following steps should be completed to operate in this mode:
+
+*   Ensure the `DNS_SD_MODE` in the test tool's `Config.py` file is set to `'unicast'` before running the testing tool.
+*   Configure the DNS search domain for your Node to be `testsuite.nmos.tv` (either manually or by providing this to your Node via DHCP).
+*   Configure the DNS server IP address for your Node to be the IP address of the host which is running the testing tool (either manually or by providing this to your Node via DHCP).
 
 Unicast DNS advertisements for registries only become available once tests are running. As a result the unit under test may need prompting to re-scan the DNS server for records at this point. The `DNS_SD_ADVERT_TIMEOUT` config parameter may be used to increase the period which the test suite waits for in this situation.
 
@@ -119,10 +123,10 @@ All test classes inherit from `GenericTest` which implements some basic schema c
 Each manually defined test case is expected to be defined as a method starting with `test_`, taking an object of class `Test`. This will allow it to be automatically discovered and run by the test suite.
 The return type for each test case must be the result of calling one of the methods on the `Test` object shown below.
 
-* The first argument, `details`, is used to specify the reason for the test result.
+*   The first argument, `details`, is used to specify the reason for the test result.
   It is required for `FAIL`, `OPTIONAL` (Not Implemented), or `NA` (Not Applicable), and is recommended for all cases other than a straightforward `PASS`.
 
-* The second argument, `link`, is optional. It may be used to specify a link to more information, such as to a sub-heading on one of the NMOS Wiki [Specifications](https://github.com/AMWA-TV/nmos/wiki/Specifications) pages.
+*   The second argument, `link`, is optional. It may be used to specify a link to more information, such as to a sub-heading on one of the NMOS Wiki [Specifications](https://github.com/AMWA-TV/nmos/wiki/Specifications) pages.
   It is recommended especially to provide further explanation of the effect of an `OPTIONAL` feature being unimplemented.
 
 Examples of each result are included below:
