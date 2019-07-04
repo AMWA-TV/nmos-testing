@@ -103,6 +103,10 @@ python3 nmos-test.py suite -h
 *   [SDPoker](https://github.com/Streampunk/sdpoker) (required for IS-05 SDP testing)
 *   See [requirements.txt](requirements.txt) for additional packages
 
+## Additional Documentation
+
+Some of the tests contained within this tool perform a number of steps which may not be obvious without viewing the source code. Descriptions of complex tests' behaviour is documented in [docs/](docs/README.md) in order to aid with debugging.
+
 ## Known Issues
 
 ### Ramlfications Parsing
