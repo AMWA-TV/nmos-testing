@@ -610,8 +610,7 @@ class IS0401Test(GenericTest):
                             NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
 
     def test_12_01(self, test):
-        """Node does not advertise a Node type mDNS announcement in the presence 
-        of a Registration API (v1.3+)"""
+        """Node does not advertise a Node type mDNS announcement in the presence of a Registration API (v1.3+)"""
 
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
@@ -628,7 +627,7 @@ class IS0401Test(GenericTest):
             port = node.port
             if address == api["ip"] and port == api["port"]:
                 return test.WARNING("Found mDNS announcement for the Node in the presence of a Registration API.")
-        
+
         return test.PASS()
 
     def test_13(self, test):
