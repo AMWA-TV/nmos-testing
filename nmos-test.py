@@ -455,7 +455,9 @@ def format_test_results(results, format):
                     "The following results currently are being returned: {}"
                     .format([result.name for result in results["result"] if result != test_result])
                 )
-                raise AttributeError("None object returned as result from one of the tests. Please see the terminal output.")
+                raise AttributeError("""
+                    None object returned as result from one of the tests. Please see the terminal output.
+                """)
             else:
                 formatted["results"].append({
                     "name": test_result.name,
@@ -471,7 +473,9 @@ def format_test_results(results, format):
                     "The following results currently are being returned: {}"
                     .format([result.name for result in results["result"] if result != test_result])
                 )
-                raise AttributeError("None object returned as result from one of the tests. Please see the terminal output.")
+                raise AttributeError("""
+                    None object returned as result from one of the tests. Please see the terminal output.
+                """)
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
             if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
@@ -497,7 +501,7 @@ def format_test_results(results, format):
                     "The following results currently are being returned: {}"
                     .format([result.name for result in results["result"] if result != test_result])
                 )
-                raise AttributeError("None object returned as result from one of the tests.") 
+                raise AttributeError("None object returned as result from one of the tests.")
             formatted += "{} ... {}\r\n".format(test_result.name, str(test_result.state))
             total_time += test_result.elapsed_time
         formatted += "----------------------------\r\n"

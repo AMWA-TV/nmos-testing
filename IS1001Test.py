@@ -19,7 +19,7 @@ from time import sleep
 from urllib.parse import parse_qs
 from OpenSSL import crypto
 
-from GenericTest import GenericTest, NMOSInitException, NMOSTestException
+from GenericTest import GenericTest, NMOSTestException
 from Config import AUTH_USERNAME, AUTH_PASSWORD, CERT_TRUST_ROOT_CA, DNS_SD_BROWSE_TIMEOUT, DNS_SD_MODE
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
@@ -61,17 +61,17 @@ class IS1001Test(GenericTest):
 
     def set_up_tests(self):
         """Print reminder to Add User to Authorization Server"""
-        
+
         print("""
             Ensure a User is already set-up on the Authorization Server that corresponds
-            to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options. They are currently:\n
-            AUTH_USERNAME: '{}'\n
-            AUTH_PASSWORD: '{}'""".format(AUTH_USERNAME, AUTH_PASSWORD)
-        )
+            to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options. They are currently:
+            AUTH_USERNAME: '{}'
+            AUTH_PASSWORD: '{}'
+        """.format(AUTH_USERNAME, AUTH_PASSWORD))
 
     def tear_down_tests(self):
         """Print reminder to Delete Registered Client from Authorization Server"""
-    
+
         print("Remember to delete the registered client with username: {}".format(AUTH_USERNAME))
 
     def _make_auth_request(self, method, url_path, data=None, auth=None, params=None):
@@ -216,7 +216,9 @@ class IS1001Test(GenericTest):
                 if "api_proto" not in properties:
                     return test.WARNING("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
                 elif properties["api_proto"] != "https":
-                    return test.FAIL("API protocol ('api_proto') TXT record is {} and not 'https'.".format(properties["api_proto"]))
+                    return test.FAIL("""
+                        API protocol ('api_proto') TXT record is {} and not 'https'.".format(properties["api_proto"])
+                    """)
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
@@ -335,7 +337,7 @@ class IS1001Test(GenericTest):
                     "scope": scope,
                     "state": state
                 }
-                
+
                 # Body of client registration request is found in the test_data directory
                 with open("test_data/IS1001/authorization_request_data.json") as resource_data:
                     request_data = json.load(resource_data)
@@ -498,7 +500,7 @@ class IS1001Test(GenericTest):
                 "scope": "is-04",
                 "state": "xyz"
             }
-           
+
             # Body of client registration request is found in the test_data directory
             with open("test_data/IS1001/authorization_request_data.json") as resource_data:
                 request_data = json.load(resource_data)
