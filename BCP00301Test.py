@@ -279,3 +279,17 @@ class BCP00301Test(GenericTest):
                 return test.WARNING("Server is not providing an RSA certificate")
 
             return test.PASS()
+
+    def test_09_trust_chain(self, test):
+        """Server exposes a valid chain of trust including a certificate and intermediate"""
+
+        tls_data = self.perform_test_ssl(test, ["-S"])
+        if tls_data is None:
+            return test.DISABLED("Unable to test. See the console for further information.")
+        else:
+            for report in tls_data:
+                if report["id"].split()[0] == "cert_chain_of_trust":
+                    if report["severity"] != "OK":
+                        return test.FAIL("One or more certificates have an incomplete chain of trust")
+
+            return test.PASS()
