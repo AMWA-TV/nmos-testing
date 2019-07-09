@@ -7,7 +7,8 @@
     "controls": [
         {
             "href": "http://172.29.80.65/x-nmos/connection/v1.0/",
-            "type": "urn:x-nmos:control:sr-ctrl/v1.0"
+            "type": "urn:x-nmos:control:sr-ctrl/v1.0",
+            "authorization": true
         }
     ],
     "label": "pipeline default device",

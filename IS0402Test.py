@@ -1879,9 +1879,9 @@ class IS0402Test(GenericTest):
         result_data = dict()
         resources = ["node", "device", "source", "flow", "sender", "receiver"]
         for resource in resources:
-            with open("test_data/IS0402/v1.2_{}.json".format(resource)) as resource_data:
+            with open("test_data/IS0402/v1.3_{}.json".format(resource)) as resource_data:
                 resource_json = json.load(resource_data)
-                if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
                     resource_json = self.downgrade_resource(resource, resource_json,
                                                             api["version"])
 
@@ -1893,7 +1893,7 @@ class IS0402Test(GenericTest):
         api = self.apis[QUERY_API_KEY]
         with open("test_data/IS0402/subscriptions_request.json") as resource_data:
             resource_json = json.load(resource_data)
-            if self.is04_reg_utils.compare_api_version(api["version"], "v1.2") < 0:
+            if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
                 return self.downgrade_resource("subscription", resource_json, api["version"])
             return resource_json
 
@@ -1925,6 +1925,20 @@ class IS0402Test(GenericTest):
 
         if version_major == 1:
             if resource_type == "node":
+                if version_minor <= 2:
+                    if "interfaces" in data:
+                        key = "attached_network_device"
+                        for interface in data["interfaces"]:
+                            if key in interface:
+                                del interface[key]
+                    key = "authorization"
+                    for service in data["services"]:
+                        if key in service:
+                            del service[key]
+                    if "api" in data and "endpoints" in data["api"]:
+                        for endpoint in data["api"]["endpoints"]:
+                            if key in endpoint:
+                                del endpoint[key]
                 if version_minor <= 1:
                     keys_to_remove = [
                         "interfaces"
@@ -1945,6 +1959,12 @@ class IS0402Test(GenericTest):
                 return data
 
             elif resource_type == "device":
+                if version_minor <= 2:
+                    key = "authorization"
+                    if "controls" in data:
+                        for control in data["controls"]:
+                            if key in control:
+                                del control[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
@@ -1959,6 +1979,8 @@ class IS0402Test(GenericTest):
                 return data
 
             elif resource_type == "sender":
+                if version_minor <= 2:
+                    pass
                 if version_minor <= 1:
                     keys_to_remove = [
                         "caps",
@@ -1973,6 +1995,8 @@ class IS0402Test(GenericTest):
                 return data
 
             elif resource_type == "receiver":
+                if version_minor <= 2:
+                    pass
                 if version_minor <= 1:
                     keys_to_remove = [
                         "interface_bindings"
@@ -2001,6 +2025,13 @@ class IS0402Test(GenericTest):
                 return data
 
             elif resource_type == "flow":
+                if version_minor <= 2:
+                    keys_to_remove = [
+                        "event_type"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
@@ -2024,6 +2055,13 @@ class IS0402Test(GenericTest):
                 return data
 
             elif resource_type == "subscription":
+                if version_minor <= 2:
+                    keys_to_remove = [
+                        "authorization"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
@@ -2043,7 +2081,7 @@ class IS0402Test(GenericTest):
         if api_ver is None:
             api_ver = self.apis[REG_API_KEY]["version"]
         data = deepcopy(self.test_data[type])
-        if self.is04_reg_utils.compare_api_version(api_ver, "v1.2") < 0:
+        if self.is04_reg_utils.compare_api_version(api_ver, "v1.3") < 0:
             data = self.downgrade_resource(type, data, api_ver)
         return data
 
@@ -2061,7 +2099,7 @@ class IS0402Test(GenericTest):
         sub_json["resource_path"] = resource_path
         sub_json["params"] = params
         sub_json["secure"] = ENABLE_HTTPS
-        if self.is04_query_utils.compare_api_version(api_ver, "v1.2") < 0:
+        if self.is04_query_utils.compare_api_version(api_ver, "v1.3") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, api_ver)
         return sub_json
 

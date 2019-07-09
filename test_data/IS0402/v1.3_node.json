@@ -6,7 +6,8 @@
             {
                 "host": "172.29.80.65",
                 "protocol": "http",
-                "port": 80
+                "port": 80,
+                "authorization": false
             }
         ],
         "versions": [
@@ -24,7 +25,11 @@
         {
             "port_id": "a0-36-9f-2c-0b-d0",
             "name": "ens1f0",
-            "chassis_id": "a0-36-9f-2c-0b-d0"
+            "chassis_id": "a0-36-9f-2c-0b-d0",
+            "attached_network_device": {
+                "chassis_id": "ab-cd-ef-00-01-02",
+                "port_id": "ab-cd-ef-03-04-05"
+            }
         }
     ],
     "hostname": "amwa-test-node",
@@ -48,7 +53,8 @@
     "services": [
         {
             "href": "http://172.29.80.65/my-api/",
-            "type": "urn:x-manufacturer:my-api/v1.0"
+            "type": "urn:x-manufacturer:my-api/v1.0",
+            "authorization": false
         }
     ],
     "caps": {},
