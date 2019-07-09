@@ -498,10 +498,10 @@ class IS1001Test(GenericTest):
                 "scope": "is-04",
                 "state": "xyz"
             }
-            # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
-            request_data = {
-                "confirm": "true"
-            }
+           
+            # Body of client registration request is found in the test_data directory
+            with open("test_data/IS1001/authorization_request_data.json") as resource_data:
+                request_data = json.load(resource_data)
 
             response = self._post_to_authorize_endpoint(request_data, parameters)
             if response.status_code != 302:
