@@ -442,6 +442,17 @@ def init_spec_cache():
     print(" * Initialisation complete")
 
 
+def _check_test_result(test_result, results):
+    if test_result is None:
+        print(
+            "The following results currently are being returned: {}"
+            .format([result.name for result in results["result"] if result != test_result])
+                )
+        raise AttributeError("""
+            None object returned as result from one of the tests. Please see the terminal output.
+        """)
+
+
 def format_test_results(results, format):
     formatted = None
     if format == "json":
@@ -450,32 +461,17 @@ def format_test_results(results, format):
                      "timestamp": time.time(),
                      "results": []}
         for test_result in results["result"]:
-            if test_result is None:
-                print(
-                    "The following results currently are being returned: {}"
-                    .format([result.name for result in results["result"] if result != test_result])
-                )
-                raise AttributeError("""
-                    None object returned as result from one of the tests. Please see the terminal output.
-                """)
-            else:
-                formatted["results"].append({
-                    "name": test_result.name,
-                    "state": str(test_result.state),
-                    "detail": test_result.detail
-                })
+            _check_test_result(test_result, results)
+            formatted["results"].append({
+                "name": test_result.name,
+                "state": str(test_result.state),
+                "detail": test_result.detail
+            })
         formatted = json.dumps(formatted, sort_keys=True, indent=4)
     elif format == "junit":
         test_cases = []
         for test_result in results["result"]:
-            if test_result is None:
-                print(
-                    "The following results currently are being returned: {}"
-                    .format([result.name for result in results["result"] if result != test_result])
-                )
-                raise AttributeError("""
-                    None object returned as result from one of the tests. Please see the terminal output.
-                """)
+            _check_test_result(test_result, results)
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
             if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
@@ -496,12 +492,7 @@ def format_test_results(results, format):
         formatted += "----------------------------\r\n"
         total_time = 0
         for test_result in results["result"]:
-            if test_result is None:
-                print(
-                    "The following results currently are being returned: {}"
-                    .format([result.name for result in results["result"] if result != test_result])
-                )
-                raise AttributeError("None object returned as result from one of the tests.")
+            _check_test_result(test_result, results)
             formatted += "{} ... {}\r\n".format(test_result.name, str(test_result.state))
             total_time += test_result.elapsed_time
         formatted += "----------------------------\r\n"
