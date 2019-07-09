@@ -1039,9 +1039,9 @@ class IS0401Test(GenericTest):
             node_senders = response.json()
             for sender in node_senders:
                 href = sender["manifest_href"]
-                if href.startswith("http") and not href.startswith(self.protocol + "://"):
+                if href is not None and href.startswith("http") and not href.startswith(self.protocol + "://"):
                     manifest_href_scheme_warn = True
-                if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
+                if href is not None and href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
                     manifest_href_hostname_warn = True
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
