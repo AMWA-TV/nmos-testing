@@ -60,42 +60,19 @@ class IS1001Test(GenericTest):
         self.zc_listener = MdnsListener(self.zc)
 
     def set_up_tests(self):
-        """Add User to Authorization Server"""
-        try:
-            # NOTE - This is implementation-specific
-            signup_data = {
-                'username': AUTH_USERNAME,
-                'password': AUTH_PASSWORD,
-                'is04': 'read',
-                'is05': 'write'
-            }
-            status, response = self.do_request(
-                method="POST", url=self.url + 'signup', data=signup_data
-            )
-
-            if status is not True:
-                raise NMOSInitException("""
-                    Ensure a User is already set-up on the Authorization Server that corresponds
-                    to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options
-                """)
-        # Catch Exception to allow tests to run
-        except Exception as e:
-            print(e)
+        """Print reminder to Add User to Authorization Server"""
+        
+        print("""
+            Ensure a User is already set-up on the Authorization Server that corresponds
+            to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options. They are currently:\n
+            AUTH_USERNAME: '{}'\n
+            AUTH_PASSWORD: '{}'""".format(AUTH_USERNAME, AUTH_PASSWORD)
+        )
 
     def tear_down_tests(self):
-        """Delete Registered Client from Authorization Server"""
-        try:
-            # NOTE - This is implementation-specific
-            status, response = self._make_auth_request(
-                method="GET", url_path='delete_client/' + self.client_data["client_id"], auth="user"
-            )
-            if status is not True:
-                raise NMOSInitException("""
-                    Unable to delete registered client from Authorization Server. This may have to be done manually.
-                """)
-        # Catch Exception to allow tests to run
-        except Exception as e:
-            print(e)
+        """Print reminder to Delete Registered Client from Authorization Server"""
+    
+        print("Remember to delete the registered client with username: {}".format(AUTH_USERNAME))
 
     def _make_auth_request(self, method, url_path, data=None, auth=None, params=None):
         """Utility function for making requests with Basic Authorization"""
@@ -181,24 +158,24 @@ class IS1001Test(GenericTest):
         else:
             state = None
 
-        if not redirect_uri == input_params["redirect_uri"]:
+        if redirect_uri != input_params["redirect_uri"]:
             raise NMOSTestException(test.FAIL(
                 "Expected {} but got {}".format(input_params["redirect_uri"], redirect_uri)
             ))
 
-        if not state == input_params["state"]:
+        if state != input_params["state"]:
             raise NMOSTestException(test.FAIL(
                 "Expected {} but got {}".format(input_params["state"], state)
             ))
 
         if query_key != "code":
             if expected_query_value is None:
-                if not actual_query_value == input_params[query_key]:
+                if actual_query_value != input_params[query_key]:
                     raise NMOSTestException(test.FAIL(
                         "Expected {} but got {}".format(input_params[query_key], actual_query_value)
                     ))
             else:
-                if not actual_query_value == expected_query_value:
+                if actual_query_value != expected_query_value:
                     raise NMOSTestException(test.FAIL(
                         "Expected {} but got {}".format(expected_query_value, actual_query_value)
                     ))
@@ -210,7 +187,6 @@ class IS1001Test(GenericTest):
 
         if DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
-        print(api)
 
         ServiceBrowser(self.zc, service_type, self.zc_listener)
         sleep(DNS_SD_BROWSE_TIMEOUT)
@@ -221,11 +197,11 @@ class IS1001Test(GenericTest):
             if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
-                    return test.FAIL("No 'pri' TXT record found in {} advertisement.".format(api["name"]))
+                    return test.WARNING("No 'pri' TXT record found in {} advertisement.".format(api["name"]))
                 try:
                     priority = int(properties["pri"])
                     if priority < 0:
-                        return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
+                        return test.WARNING("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
                         return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production "
                                             "instance.")
@@ -233,14 +209,14 @@ class IS1001Test(GenericTest):
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 if "api_ver" not in properties:
-                    return test.FAIL("No 'api_ver' TXT record found in {} advertisement.".format(api["name"]))
+                    return test.WARNING("No 'api_ver' TXT record found in {} advertisement.".format(api["name"]))
                 elif api["version"] not in properties["api_ver"].split(","):
-                    return test.FAIL("Auth Server does not claim to support version under test.")
+                    return test.WARNING("Auth Server does not claim to support version under test.")
 
                 if "api_proto" not in properties:
-                    return test.FAIL("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
-                elif properties["api_proto"] != self.protocol:
-                    return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
+                    return test.WARNING("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
+                elif properties["api_proto"] != "https":
+                    return test.FAIL("API protocol ('api_proto') TXT record is {} and not 'https'.".format(properties["api_proto"]))
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
@@ -312,13 +288,10 @@ class IS1001Test(GenericTest):
 
         try:
             self.validate_schema(response.json(), register_client_schema)
-            if response.status_code == 201:
-                self.client_data = response.json()
-                return test.PASS()
+            self.client_data = response.json()
+            return test.PASS()
         except Exception as e:
             return test.FAIL("Status code was {} and Schema validation failed. {}".format(response.status_code, e))
-
-        return test.FAIL("Implementation did not pass the necessary criteria.")
 
     def test_03_token_password_grant(self, test):
         """Test requesting a Bearer Token using Password Grant from '/token' endpoint"""
@@ -339,15 +312,12 @@ class IS1001Test(GenericTest):
                 token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
                 try:
                     self.validate_schema(response.json(), token_schema)
-                    if response.status_code == 200:
-                        self.bearer_tokens.append(response.json())
-                        return test.PASS()
+                    self.bearer_tokens.append(response.json())
+                    return test.PASS()
                 except Exception as e:
                     return test.FAIL(
                         "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
                     )
-
-                return test.FAIL("Implementation did not pass the necessary criteria.")
         else:
             return test.DISABLED("No Client Data available")
 
@@ -365,13 +335,13 @@ class IS1001Test(GenericTest):
                     "scope": scope,
                     "state": state
                 }
-                # NOTE - This is implementation-specific - this signifies the user's consent to the Auth Server
-                data = {
-                    "confirm": "true"
-                }
+                
+                # Body of client registration request is found in the test_data directory
+                with open("test_data/IS1001/authorization_request_data.json") as resource_data:
+                    request_data = json.load(resource_data)
 
                 response = self._post_to_authorize_endpoint(
-                    data=data, parameters=parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)
+                    data=request_data, parameters=parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)
                 )
 
                 self._verify_response(test=test, expected_status=302, response=response)
@@ -405,13 +375,10 @@ class IS1001Test(GenericTest):
                 token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
                 try:
                     self.validate_schema(response.json(), token_schema)
-                    if response.status_code == 200:
-                        self.bearer_tokens.append(response.json())
-                        return test.PASS()
+                    self.bearer_tokens.append(response.json())
+                    return test.PASS()
                 except Exception as e:
                     self._raise_nmos_exception(self, test, response, string=str(e))
-
-                return test.FAIL("Implementation did not pass the necessary criteria.")
         else:
             return test.DISABLED("No Client Data or Auth Codes available")
 
@@ -435,13 +402,10 @@ class IS1001Test(GenericTest):
                 token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 200)
                 try:
                     self.validate_schema(response.json(), token_schema)
-                    if response.status_code == 200:
-                        self.bearer_tokens.append(response.json())
-                        return test.PASS()
+                    self.bearer_tokens.append(response.json())
+                    return test.PASS()
                 except Exception as e:
                     self._raise_nmos_exception(self, test, response, string=str(e))
-
-                return test.FAIL("Implementation did not pass the necessary criteria.")
         else:
             return test.DISABLED("No Bearer Tokens available")
 
@@ -504,7 +468,7 @@ class IS1001Test(GenericTest):
                 test, response, string="Incorrect Status Code Returned. Expected {}".format(status_code)
             )
 
-        if not response.headers["Content-Type"] == "application/json":
+        if response.headers["Content-Type"] != "application/json":
             raise NMOSTestException(test.FAIL(
                 "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
             ))

@@ -18,8 +18,6 @@ import json
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
-from nmoscommon.auth.nmos_auth import RequiresAuth
-from Config import AUTH_MODE
 
 
 class RegistryCommon(object):
@@ -122,7 +120,6 @@ def base_resource(version):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
-@RequiresAuth(condition=AUTH_MODE)
 def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
@@ -148,7 +145,6 @@ def post_resource(version):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource/<resource_type>/<resource_id>', methods=["DELETE"])
-@RequiresAuth(condition=AUTH_MODE)
 def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
@@ -175,7 +171,6 @@ def delete_resource(version, resource_type, resource_id):
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/health/nodes/<node_id>', methods=["POST"])
-@RequiresAuth(condition=AUTH_MODE)
 def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
