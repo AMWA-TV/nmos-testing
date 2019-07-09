@@ -28,10 +28,8 @@ When testing any of the above APIs it is important that they contain representat
 Ensure pip3 is installed and up to date. Then install the dependencies:
 
 ```shell
-# Install pip3
-sudo apt-get install python3-pip
 # Upgrade pip3 to newest version to allow correct installation of requirements
-sudo pip3 install --upgrade pip
+pip3 install --upgrade pip
 # Install the dependencies
 pip3 install -r requirements.txt
 ```

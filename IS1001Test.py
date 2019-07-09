@@ -19,8 +19,8 @@ from time import sleep
 from urllib.parse import parse_qs
 from OpenSSL import crypto
 
-from GenericTest import GenericTest, NMOSTestException
-from Config import AUTH_USERNAME, AUTH_PASSWORD, CERT_TRUST_ROOT_CA, DNS_SD_BROWSE_TIMEOUT, DNS_SD_MODE
+from GenericTest import GenericTest, NMOSTestException, NMOSInitException
+from Config import AUTH_USERNAME, AUTH_PASSWORD, CERT_TRUST_ROOT_CA, DNS_SD_BROWSE_TIMEOUT, DNS_SD_MODE, ENABLE_HTTPS
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from MdnsListener import MdnsListener
 
@@ -50,6 +50,8 @@ class IS1001Test(GenericTest):
 
     def __init__(self, apis):
         super(IS1001Test, self).__init__(apis)
+        if not ENABLE_HTTPS:
+            raise NMOSInitException("IS-10 can only be tested when ENABLE_HTTPS is set to True in Config.py")
         self.url = self.apis[AUTH_API_KEY]["url"]
         self.bearer_tokens = []
         self.client_data = {}
@@ -197,28 +199,29 @@ class IS1001Test(GenericTest):
             if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
-                    return test.WARNING("No 'pri' TXT record found in {} advertisement.".format(api["name"]))
+                    return test.FAIL("No 'pri' TXT record found in {} advertisement.".format(api["name"]))
                 try:
                     priority = int(properties["pri"])
                     if priority < 0:
-                        return test.WARNING("Priority ('pri') TXT record must be greater than zero.")
+                        return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.WARNING("Priority ('pri') TXT record must be less than 100 for a production "
-                                            "instance.")
+                        return test.WARNING("""
+                            Priority ('pri') TXT record must be less than 100 for a production instance.
+                        """)
                 except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
                 if "api_ver" not in properties:
-                    return test.WARNING("No 'api_ver' TXT record found in {} advertisement.".format(api["name"]))
+                    return test.FAIL("No 'api_ver' TXT record found in {} advertisement.".format(api["name"]))
                 elif api["version"] not in properties["api_ver"].split(","):
-                    return test.WARNING("Auth Server does not claim to support version under test.")
+                    return test.FAIL("Auth Server does not claim to support version under test.")
 
                 if "api_proto" not in properties:
-                    return test.WARNING("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
+                    return test.FAIL("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
                 elif properties["api_proto"] != "https":
                     return test.FAIL("""
-                        API protocol ('api_proto') TXT record is {} and not 'https'.".format(properties["api_proto"])
-                    """)
+                        API protocol ('api_proto') TXT record is {} and not 'https'
+                    """.format(properties["api_proto"]))
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
@@ -247,7 +250,12 @@ class IS1001Test(GenericTest):
             method="POST", url_path='register_client', data=request_data, auth="user"
         )
 
-        self._verify_response(test=test, expected_status=201, response=response)
+        try:
+            self._verify_response(test=test, expected_status=201, response=response)
+        except NMOSTestException as e:
+            raise NMOSTestException(test.FAIL("""
+                {}. Ensure a user is registered with the credentials, user: {} password: {}
+            """.format(e.args[0].detail, AUTH_USERNAME, AUTH_PASSWORD)))
 
         for key in request_data:
             # Test that all request data keys are found in response. Added 's' compensates for grant_type/s, etc.
