@@ -586,6 +586,17 @@ class IS05Utils(NMOSUtils):
                 pass
         return toReturn
 
+    def get_transporttype(self, port, portType):
+        """Get the transport type for a given Sender or Receiver"""
+        toReturn = None
+        valid, r = TestHelper.do_request("GET", self.url + "single/" + portType + "s/" + port + "/transporttype")
+        if valid:
+            try:
+                toReturn = r.json()
+            except ValueError:
+                pass
+        return toReturn
+
     def get_num_paths(self, port, portType):
         """Returns the number or redundant paths on a port"""
         url = self.url + "single/" + portType + "s/" + port + "/constraints/"
