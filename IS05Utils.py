@@ -602,7 +602,7 @@ class IS05Utils(NMOSUtils):
     def park_resource(self, resource_type, resource_id):
         url = "single/" + resource_type + "/" + resource_id + "/staged"
         data = {"master_enable": False}
-        valid, response = self.checkCleanRequestJSON("PATCH", url, json=data)
+        valid, response = self.checkCleanRequestJSON("PATCH", url, data)
         if valid:
             try:
                 response.get('transport_params')
