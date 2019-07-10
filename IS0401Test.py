@@ -577,8 +577,8 @@ class IS0401Test(GenericTest):
 
         api = self.apis[NODE_API_KEY]
 
-        if self.is04_utils.compare_api_version(api["version"], "v1.2") == 1:
-            return test.DISABLED("This test is disabled for Nodes < v1.3")
+        if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+            return test.DISABLED("This test is disabled for Nodes >= v1.3")
 
         node_list = self.collect_mdns_announcements()
 
@@ -618,7 +618,7 @@ class IS0401Test(GenericTest):
         api = self.apis[NODE_API_KEY]
 
         if self.is04_utils.compare_api_version(api["version"], "v1.3") < 0:
-            return test.DISABLED("This test is disabled for Nodes >= v1.3")
+            return test.DISABLED("This test is disabled for Nodes < v1.3")
 
         node_list = self.collect_mdns_announcements()
 
@@ -626,7 +626,18 @@ class IS0401Test(GenericTest):
             address = socket.inet_ntoa(node.address)
             port = node.port
             if address == api["ip"] and port == api["port"]:
-                return test.WARNING("Found mDNS announcement for the Node in the presence of a Registration API.")
+                properties = self.convert_bytes(node.properties)
+                if "api_ver" not in properties:
+                    return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
+
+                min_version_lt_v1_3 = False
+                for api_version in properties["api_ver"].split(","):
+                    if self.is04_utils.compare_api_version(api_version, "v1.3") < 0:
+                        min_version_lt_v1_3 = True
+
+                if not min_version_lt_v1_3:
+                    return test.WARNING("Nodes which support v1.3+ only should not advertise via mDNS when in "
+                                        "registered mode.")
 
         return test.PASS()
 
@@ -1142,7 +1153,7 @@ class IS0401Test(GenericTest):
                                               "{}".format(put_response.status_code)))
 
     def collect_mdns_announcements(self):
-        """Helperfunction to collect mdns announcements in the presence of a Registration API"""
+        """Helperfunction to collect Node mdns announcements in the presence of a Registration API"""
 
         registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
 
