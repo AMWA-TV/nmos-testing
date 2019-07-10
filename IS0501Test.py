@@ -259,15 +259,18 @@ class IS0501Test(GenericTest):
     def test_11(self, test):
         """Senders are using valid combination of parameters"""
 
-        generalParams = ['source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled']
+        rtpGeneralParams = ['source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode', 'fec_type',
                      'fec_block_width', 'fec_block_height', 'fec1D_destination_port',
                      'fec1D_source_port', 'fec2D_destination_port', 'fec2D_source_port']
-        fecParams = fecParams + generalParams
+        fecParams = fecParams + rtpGeneralParams
         rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port',
                       'rtcp_source_port']
-        combinedParams = rtcpParams + fecParams
-        rtcpParams = rtcpParams + generalParams
+        rtpCombinedParams = rtcpParams + fecParams
+        rtcpParams = rtcpParams + rtpGeneralParams
+        websocketParams = ['connection_uri', 'connection_authorization']
+        mqttParams = ['destination_host', 'destination_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
+                      'connection_status_broker_topic']
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -276,14 +279,19 @@ class IS0501Test(GenericTest):
                     valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
-                            params = response[0].keys()
-                            if sorted(params) == sorted(generalParams):
+                            all_params = response[0].keys()
+                            params = [param for param in all_params if not param.startswith("ext_")]
+                            if sorted(params) == sorted(rtpGeneralParams):
                                 pass
                             elif sorted(params) == sorted(fecParams):
                                 pass
                             elif sorted(params) == sorted(rtcpParams):
                                 pass
-                            elif sorted(params) == sorted(combinedParams):
+                            elif sorted(params) == sorted(rtpCombinedParams):
+                                pass
+                            elif sorted(params) == sorted(websocketParams):
+                                pass
+                            elif sorted(params) == sorted(mqttParams):
                                 pass
                             else:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
@@ -302,13 +310,16 @@ class IS0501Test(GenericTest):
     def test_12(self, test):
         """Receiver are using valid combination of parameters"""
 
-        generalParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
+        rtpGeneralParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode',
                      'fec1D_destination_port', 'fec2D_destination_port']
-        fecParams = fecParams + generalParams
+        fecParams = fecParams + rtpGeneralParams
         rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port']
-        combinedParams = rtcpParams + fecParams
-        rtcpParams = rtcpParams + generalParams
+        rtpCombinedParams = rtcpParams + fecParams
+        rtcpParams = rtcpParams + rtpGeneralParams
+        websocketParams = ['connection_uri', 'connection_authorization']
+        mqttParams = ['source_host', 'source_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
+                      'connection_status_broker_topic']
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -317,14 +328,19 @@ class IS0501Test(GenericTest):
                     valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
-                            params = response[0].keys()
-                            if sorted(params) == sorted(generalParams):
+                            all_params = response[0].keys()
+                            params = [param for param in all_params if not param.startswith("ext_")]
+                            if sorted(params) == sorted(rtpGeneralParams):
                                 pass
                             elif sorted(params) == sorted(fecParams):
                                 pass
                             elif sorted(params) == sorted(rtcpParams):
                                 pass
-                            elif sorted(params) == sorted(combinedParams):
+                            elif sorted(params) == sorted(rtpCombinedParams):
+                                pass
+                            elif sorted(params) == sorted(websocketParams):
+                                pass
+                            elif sorted(params) == sorted(mqttParams):
                                 pass
                             else:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
