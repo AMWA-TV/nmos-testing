@@ -275,7 +275,7 @@ class BCP00301Test(GenericTest):
                         ecdsa_found = True
 
             if not ecdsa_found:
-                return test.FAIL("Server is not providing an ECDSA certificate")
+                return test.WARNING("Server is not providing an ECDSA certificate")
             if not rsa_found:
                 return test.WARNING("Server is not providing an RSA certificate")
 
