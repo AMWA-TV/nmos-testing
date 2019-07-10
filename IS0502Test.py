@@ -395,6 +395,31 @@ class IS0502Test(GenericTest):
         else:
             return test.PASS()
 
+    def test_07_01_rx_nmos_updates_unsub(self, test):
+        """Parking a receiver which was subscribed to an NMOS sender updates the IS-04 subscription"""
+
+        resource_type = "receivers"
+
+        valid, result = self.get_is04_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+        valid, result = self.get_is05_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is05_resources[resource_type]) == 0:
+            return test.UNCLEAR("Could not find any IS-05 Receivers to test")
+
+        valid, response = self.activate_check_subscribed(resource_type, nmos=True)
+        if not valid:
+            return test.FAIL(response)
+
+        valid, response = self.activate_check_parked(resource_type)
+        if not valid:
+            return test.FAIL(response)
+        else:
+            return test.PASS()
+
     def test_08_rx_ext_updates_sub(self, test):
         """Activation of a receiver from a non-NMOS sender updates the IS-04 subscription"""
 
@@ -473,6 +498,35 @@ class IS0502Test(GenericTest):
             return test.FAIL(response)
 
         valid, response = self.activate_check_subscribed(resource_type, nmos=True)
+        if not valid:
+            return test.FAIL(response)
+        else:
+            return test.PASS()
+
+    def test_10_01_tx_ucast_nmos_updates_unsub(self, test):
+        """Parking a sender which was subscribed to a unicast NMOS receiver updates the IS-04 subscription"""
+
+        api = self.apis[NODE_API_KEY]
+        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
+            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+
+        resource_type = "senders"
+
+        valid, result = self.get_is04_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+        valid, result = self.get_is05_resources(resource_type)
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is05_resources[resource_type]) == 0:
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+
+        valid, response = self.activate_check_subscribed(resource_type, nmos=True)
+        if not valid:
+            return test.FAIL(response)
+
+        valid, response = self.activate_check_parked(resource_type)
         if not valid:
             return test.FAIL(response)
         else:
