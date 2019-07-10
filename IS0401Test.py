@@ -1153,7 +1153,7 @@ class IS0401Test(GenericTest):
                                               "{}".format(put_response.status_code)))
 
     def collect_mdns_announcements(self):
-        """Helperfunction to collect Node mdns announcements in the presence of a Registration API"""
+        """Helper function to collect Node mDNS announcements in the presence of a Registration API"""
 
         registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
 
