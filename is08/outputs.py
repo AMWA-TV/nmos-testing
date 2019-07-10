@@ -46,10 +46,7 @@ class ACMOutput:
         }
         for apiId, ioId in resourceList.items():
             url = "{}{}".format(self.url, apiId)
-            if apiId == 'sourceid':
-                call = Call(url, True)
-            else:
-                call = Call(url)
+            call = Call(url)
             toReturn[ioId] = call.get()
         if toReturn['source_id'] == "null":
             toReturn['source_id'] = None

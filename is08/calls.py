@@ -20,8 +20,7 @@ from is08.testConfig import globalConfig
 
 class Call:
 
-    def __init__(self, url, string=False):
-        self.string = string
+    def __init__(self, url):
         self.url = url
         self.expectedCode = 200
         self.test = globalConfig.test
@@ -76,11 +75,8 @@ class Call:
             )
 
     def _getJSON(self):
-        if self.string:
-            return self._responseObject.text
-        else:
-            try:
-                response = self._responseObject.json()
-            except ValueError:
-                raise NMOSTestException(self.test.FAIL("Invalid JSON received from {}".format(self.url)))
-            return response
+        try:
+            response = self._responseObject.json()
+        except ValueError:
+            raise NMOSTestException(self.test.FAIL("Invalid JSON received from {}".format(self.url)))
+        return response
