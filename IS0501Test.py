@@ -487,7 +487,9 @@ class IS0501Test(GenericTest):
                         if valid2:
                             try:
                                 receiverId = response['receiver_id']
-                                msg = "Failed to change receiver_id at {}, expected {}, got {}".format(url, id, receiverId)
+                                msg = "Failed to change receiver_id at {}, expected {}, got {}".format(url,
+                                                                                                       id,
+                                                                                                       receiverId)
                                 if receiverId == id:
                                     pass
                                 else:
