@@ -46,8 +46,21 @@ class IS0501Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.url = self.apis[CONN_API_KEY]["url"]
         self.is05_utils = IS05Utils(self.url)
+
+    def set_up_tests(self):
         self.senders = self.is05_utils.get_senders()
         self.receivers = self.is05_utils.get_receivers()
+        self.transport_types = {}
+        for sender in self.senders():
+            if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
+                self.transport_types[sender] = self.is05_utils.get_transporttype(sender)
+            else:
+                self.transport_types[sender] = "urn:x-nmos:transport:rtp"
+        for receiver in self.receivers():
+            if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
+                self.transport_types[receiver] = self.is05_utils.get_transporttype(receiver)
+            else:
+                self.transport_types[receiver] = "urn:x-nmos:transport:rtp"
 
     def test_01(self, test):
         """API root matches the spec"""
@@ -523,6 +536,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.senders:
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, values = self.is05_utils.generate_destination_ports("sender", sender)
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("sender", self.senders,
@@ -542,6 +557,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, values = self.is05_utils.generate_destination_ports("receiver", receiver)
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("receiver", self.receivers,
@@ -562,6 +579,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_immediate_activation)
                 if valid:
@@ -577,6 +596,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_immediate_activation)
                 if valid:
@@ -593,6 +614,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_relative_activation)
                 if valid:
@@ -608,6 +631,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_relative_activation)
                 if valid:
@@ -623,6 +648,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_absolute_activation)
                 if valid:
@@ -638,6 +665,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_absolute_activation)
                 if valid:
@@ -903,6 +932,8 @@ class IS0501Test(GenericTest):
         data = []
         ports = {}
         for portInst in portList:
+            if self.transport_types[portInst] == "urn:x-nmos:transport:websocket":
+                continue
             valid, response = self.is05_utils.generate_destination_ports(port, portInst)
             if valid:
                 ports[portInst] = response
@@ -935,6 +966,8 @@ class IS0501Test(GenericTest):
 
         # Check the parameters have actually changed
         for portInst in portList:
+            if self.transport_types[portInst] == "urn:x-nmos:transport:websocket":
+                continue
             activeUrl = "single/" + port + "s/" + portInst + "/staged/"
 
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", activeUrl)
