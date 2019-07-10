@@ -86,7 +86,8 @@ class IS0502Test(GenericTest):
                 resource_id = resource.rstrip("/")
                 self.is05_resources[resource_type].append(resource_id)
                 if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
-                    self.is05_resources["transport_types"][resource_id] = self.is05_utils.get_transporttype(resource_id)
+                    transport_type = self.is05_utils.get_transporttype(resource_id, resource_type)
+                    self.is05_resources["transport_types"][resource_id] = transport_type
                 else:
                     self.is05_resources["transport_types"][resource_id] = "urn:x-nmos:transport:rtp"
             self.is05_resources["_requested"].append(resource_type)

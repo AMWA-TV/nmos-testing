@@ -51,14 +51,14 @@ class IS0501Test(GenericTest):
         self.senders = self.is05_utils.get_senders()
         self.receivers = self.is05_utils.get_receivers()
         self.transport_types = {}
-        for sender in self.senders():
+        for sender in self.senders:
             if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
-                self.transport_types[sender] = self.is05_utils.get_transporttype(sender)
+                self.transport_types[sender] = self.is05_utils.get_transporttype(sender, "sender")
             else:
                 self.transport_types[sender] = "urn:x-nmos:transport:rtp"
-        for receiver in self.receivers():
+        for receiver in self.receivers:
             if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
-                self.transport_types[receiver] = self.is05_utils.get_transporttype(receiver)
+                self.transport_types[receiver] = self.is05_utils.get_transporttype(receiver, "receiver")
             else:
                 self.transport_types[receiver] = "urn:x-nmos:transport:rtp"
 
