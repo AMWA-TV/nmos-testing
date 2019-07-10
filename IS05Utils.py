@@ -602,7 +602,7 @@ class IS05Utils(NMOSUtils):
     def park_resource(self, resource_type, resource_id):
         url = "single/" + resource_type + "/" + resource_id + "/staged"
         data = {"master_enable": False}
-        valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
+        valid, response = self.checkCleanRequestJSON("PATCH", url, json=data)
         if valid:
             try:
                 response.get('transport_params')
@@ -649,7 +649,7 @@ class IS05Utils(NMOSUtils):
 
     def checkCleanRequest(self, method, dest, data=None, code=200):
         """Checks a request can be made and the resulting json can be parsed"""
-        status, response = TestHelper.do_request(method, self.url + dest, data)
+        status, response = TestHelper.do_request(method, self.url + dest, json=data)
         if not status:
             return status, response
 

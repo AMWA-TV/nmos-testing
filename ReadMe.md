@@ -180,7 +180,9 @@ The following methods may be of use within a given test definition.
 
 **Requesting from an API**
 ```python
-self.do_request(method, url, data)
+# All keyword parameters are optional
+# Where 'json' is the body of the request in json and 'data' is the body as url encoded form data
+self.do_request(method, url, json=json, data=data, headers=headers, auth=auth)
 ```
 Returns a tuple of the request status (True/False) and a Requests library Response object.
 

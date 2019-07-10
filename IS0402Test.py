@@ -1651,16 +1651,25 @@ class IS0402Test(GenericTest):
         # Check for clean state // delete resources if needed
         resource_types = ["node", "device", "source", "flow", "sender", "receiver"]
         for curr_resource in resource_types:
-            valid, r = self.do_request("GET", "{}{}s/{}".format(self.query_url,
-                                                                curr_resource,
-                                                                self.test_data[curr_resource]["id"]))
+            valid, r = self.do_request(
+                "GET",
+                "{}{}s/{}".format(
+                    self.query_url,
+                    curr_resource,
+                    self.test_data[curr_resource]["id"]
+                )
+            )
             if not valid:
                 return test.FAIL("Query API returned an unexpected response: {}".format(r))
             elif r.status_code == 200:
-                valid_delete, r_delete = self.do_request("DELETE", "{}resource/{}s/{}"
-                                                         .format(self.reg_url,
-                                                                 curr_resource,
-                                                                 self.test_data[curr_resource]["id"]))
+                valid_delete, r_delete = self.do_request(
+                    "DELETE",
+                    "{}resource/{}s/{}".format(
+                        self.reg_url,
+                        curr_resource,
+                        self.test_data[curr_resource]["id"]
+                    )
+                )
                 if not valid_delete:
                     return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
                 elif r_delete.status_code not in [204, 404]:
@@ -1785,8 +1794,10 @@ class IS0402Test(GenericTest):
             reversed_resource_list = deepcopy(resources_to_post)
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
-                valid, r = self.do_request("DELETE", self.reg_url +
-                                           "resource/{}s/{}".format(resource, test_data[resource]["id"]))
+                valid, r = self.do_request(
+                    "DELETE",
+                    self.reg_url + "resource/{}s/{}".format(resource, test_data[resource]["id"])
+                )
                 if not valid:
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
                                      .format(resource, r))

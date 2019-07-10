@@ -30,7 +30,7 @@ class Call:
         self.responseSchema = None
 
     def _makeRequest(self):
-        self._responseObject = do_request(self.method, self.url, self.data)
+        self._responseObject = do_request(self.method, self.url, json=self.data)
         self._checkForErrors()
         self._checkStatusCode()
         self._getJSON()
@@ -45,7 +45,7 @@ class Call:
         return self._genericRequestProcess("delete")
 
     def _genericRequestProcess(self, method, data=None):
-        (self._callSucceeded, self._responseObject) = do_request(method, self.url, data)
+        (self._callSucceeded, self._responseObject) = do_request(method, self.url, json=data)
         return self._processResponseObject()
 
     def _processResponseObject(self):
