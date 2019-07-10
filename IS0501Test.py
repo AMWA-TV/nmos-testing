@@ -450,25 +450,25 @@ class IS0501Test(GenericTest):
         if len(self.receivers) > 0:
             for receiver in self.receivers:
                 url = "single/receivers/" + receiver + "/staged"
-                id = str(uuid.uuid4())
-                data = {"sender_id": id}
-                valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
-                if valid:
-                    valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
-                    if valid2:
-                        try:
-                            senderId = response['sender_id']
-                            msg = "Failed to change sender_id at {}, expected {}, got {}".format(url, id, senderId)
-                            if senderId == id:
-                                pass
-                            else:
-                                return test.FAIL(msg)
-                        except KeyError:
-                            return test.FAIL("Did not find sender_id in response from {}".format(url))
+                for id in [str(uuid.uuid4()), None]:
+                    data = {"sender_id": id}
+                    valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
+                    if valid:
+                        valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
+                        if valid2:
+                            try:
+                                senderId = response['sender_id']
+                                msg = "Failed to change sender_id at {}, expected {}, got {}".format(url, id, senderId)
+                                if senderId == id:
+                                    pass
+                                else:
+                                    return test.FAIL(msg)
+                            except KeyError:
+                                return test.FAIL("Did not find sender_id in response from {}".format(url))
+                        else:
+                            return test.FAIL(response2)
                     else:
-                        return test.FAIL(response2)
-                else:
-                    return test.FAIL(response)
+                        return test.FAIL(response)
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
@@ -479,25 +479,25 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 url = "single/senders/" + sender + "/staged"
-                id = str(uuid.uuid4())
-                data = {"receiver_id": id}
-                valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
-                if valid:
-                    valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
-                    if valid2:
-                        try:
-                            receiverId = response['receiver_id']
-                            msg = "Failed to change receiver_id at {}, expected {}, got {}".format(url, id, receiverId)
-                            if receiverId == id:
-                                pass
-                            else:
-                                return test.FAIL(msg)
-                        except KeyError:
-                            return test.FAIL("Did not find receiver_id in response from {}".format(url))
+                for id in [str(uuid.uuid4()), None]:
+                    data = {"receiver_id": id}
+                    valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
+                    if valid:
+                        valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", url + "/")
+                        if valid2:
+                            try:
+                                receiverId = response['receiver_id']
+                                msg = "Failed to change receiver_id at {}, expected {}, got {}".format(url, id, receiverId)
+                                if receiverId == id:
+                                    pass
+                                else:
+                                    return test.FAIL(msg)
+                            except KeyError:
+                                return test.FAIL("Did not find receiver_id in response from {}".format(url))
+                        else:
+                            return test.FAIL(response2)
                     else:
-                        return test.FAIL(response2)
-                else:
-                    return test.FAIL(response)
+                        return test.FAIL(response)
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
