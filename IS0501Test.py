@@ -294,19 +294,20 @@ class IS0501Test(GenericTest):
                         if len(response) > 0 and isinstance(response[0], dict):
                             all_params = response[0].keys()
                             params = [param for param in all_params if not param.startswith("ext_")]
-                            if sorted(params) == sorted(rtpGeneralParams):
-                                pass
-                            elif sorted(params) == sorted(fecParams):
-                                pass
-                            elif sorted(params) == sorted(rtcpParams):
-                                pass
-                            elif sorted(params) == sorted(rtpCombinedParams):
-                                pass
-                            elif sorted(params) == sorted(websocketParams):
-                                pass
-                            elif sorted(params) == sorted(mqttParams):
-                                pass
-                            else:
+                            valid_params = False
+                            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                                if sorted(params) == sorted(rtpGeneralParams) or \
+                                   sorted(params) == sorted(fecParams) or \
+                                   sorted(params) == sorted(rtcpParams) or \
+                                   sorted(params) == sorted(rtpCombinedParams):
+                                    valid_params = True
+                            elif self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                                if sorted(params) == sorted(websocketParams):
+                                    valid_params = True
+                            elif self.transport_types[sender] == "urn:x-nmos:transport:mqtt":
+                                if sorted(params) == sorted(mqttParams):
+                                    valid_params = True
+                            if not valid_params:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
                         else:
                             return test.FAIL("Invalid response: {}".format(response))
@@ -343,19 +344,20 @@ class IS0501Test(GenericTest):
                         if len(response) > 0 and isinstance(response[0], dict):
                             all_params = response[0].keys()
                             params = [param for param in all_params if not param.startswith("ext_")]
-                            if sorted(params) == sorted(rtpGeneralParams):
-                                pass
-                            elif sorted(params) == sorted(fecParams):
-                                pass
-                            elif sorted(params) == sorted(rtcpParams):
-                                pass
-                            elif sorted(params) == sorted(rtpCombinedParams):
-                                pass
-                            elif sorted(params) == sorted(websocketParams):
-                                pass
-                            elif sorted(params) == sorted(mqttParams):
-                                pass
-                            else:
+                            valid_params = False
+                            if self.transport_types[receiver] == "urn:x-nmos:transport:rtp":
+                                if sorted(params) == sorted(rtpGeneralParams) or \
+                                   sorted(params) == sorted(fecParams) or \
+                                   sorted(params) == sorted(rtcpParams) or \
+                                   sorted(params) == sorted(rtpCombinedParams):
+                                    valid_params = True
+                            elif self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                                if sorted(params) == sorted(websocketParams):
+                                    valid_params = True
+                            elif self.transport_types[receiver] == "urn:x-nmos:transport:mqtt":
+                                if sorted(params) == sorted(mqttParams):
+                                    valid_params = True
+                            if not valid_params:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
                         else:
                             return test.FAIL("Invalid response: {}".format(response))
