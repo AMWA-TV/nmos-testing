@@ -80,6 +80,12 @@ class IS0403Test(GenericTest):
                     elif properties["api_proto"] != self.protocol:
                         return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
+                if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                    if "api_auth" not in properties:
+                        return test.FAIL("No 'api_auth' TXT record found in Node API advertisement.")
+                    elif properties["api_auth"] not in ["true", "false"]:
+                        return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
+
                 return test.PASS()
 
         return test.FAIL("No matching mDNS announcement found for Node. Peer to peer mode will not function correctly.",

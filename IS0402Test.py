@@ -103,6 +103,12 @@ class IS0402Test(GenericTest):
                     elif properties["api_proto"] != self.protocol:
                         return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
 
+                if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                    if "api_auth" not in properties:
+                        return test.FAIL("No 'api_auth' TXT record found in {} advertisement.".format(api["name"]))
+                    elif properties["api_auth"] not in ["true", "false"]:
+                        return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
+
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
                          .format(api["name"], api["ip"], api["port"]))

@@ -77,7 +77,7 @@ class IS0401Test(GenericTest):
             hostname = ip.replace(".", "-") + ".local."
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority)}
+        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': 'false'}
 
         service_type = "_nmos-registration._tcp.local."
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
@@ -618,6 +618,12 @@ class IS0401Test(GenericTest):
                         return test.FAIL("No 'api_proto' TXT record found in Node API advertisement.")
                     elif properties["api_proto"] != self.protocol:
                         return test.FAIL("API protocol ('api_proto') TXT record is not '{}'.".format(self.protocol))
+
+                if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                    if "api_auth" not in properties:
+                        return test.FAIL("No 'api_auth' TXT record found in Node API advertisement.")
+                    elif properties["api_auth"] not in ["true", "false"]:
+                        return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
 
                 return test.PASS()
 
