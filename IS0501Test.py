@@ -965,8 +965,13 @@ class IS0501Test(GenericTest):
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
             if valid:
                 try:
-                    schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
-                                                  port + "_transport_params_rtp.json")
+                    schema_items = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
+                                                        port + "_transport_params_rtp.json")
+                    schema = {
+                      "$schema": "http://json-schema.org/draft-04/schema#",
+                      "type": "array",
+                      "items": schema_items
+                    }
                 except FileNotFoundError:
                     schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
                                                   "v1.0_" + port + "_transport_params_rtp.json")
