@@ -570,12 +570,12 @@ class IS0502Test(GenericTest):
                 is05_transport_file = None
                 if resource["manifest_href"] is not None and resource["manifest_href"] != "":
                     valid, result = self.do_request("GET", resource["manifest_href"])
-                    if valid:
+                    if valid and result.status_code != 404:
                         is04_transport_file = result.text
 
                 valid, result = self.do_request("GET", self.connection_url + "single/senders/" +
                                                 resource["id"] + "/transportfile")
-                if valid:
+                if valid and result.status_code != 404:
                     is05_transport_file = result.text
 
                 if is04_transport_file != is05_transport_file:
