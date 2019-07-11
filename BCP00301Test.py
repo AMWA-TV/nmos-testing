@@ -46,7 +46,8 @@ class BCP00301Test(GenericTest):
             return self.report_json[arg_key]
         else:
             try:
-                ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off", "--add-ca",
+                ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off",
+                                      "--openssl-timeout", str(HTTP_TIMEOUT), "--add-ca",
                                       CERT_TRUST_ROOT_CA] + args +
                                      ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"],
                                                      self.apis[BCP_API_KEY]["port"])])
@@ -274,7 +275,7 @@ class BCP00301Test(GenericTest):
                         ecdsa_found = True
 
             if not ecdsa_found:
-                return test.FAIL("Server is not providing an ECDSA certificate")
+                return test.WARNING("Server is not providing an ECDSA certificate")
             if not rsa_found:
                 return test.WARNING("Server is not providing an RSA certificate")
 

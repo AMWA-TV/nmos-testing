@@ -1023,8 +1023,13 @@ class IS0501Test(GenericTest):
                 file_suffix = "_transport_params_websocket.json"
             if valid:
                 try:
-                    schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
-                                                  port + file_suffix)
+                    schema_items = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
+                                                        port + file_suffix)
+                    schema = {
+                      "$schema": "http://json-schema.org/draft-04/schema#",
+                      "type": "array",
+                      "items": schema_items
+                    }
                 except FileNotFoundError:
                     schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
                                                   "v1.0_" + port + file_suffix)
