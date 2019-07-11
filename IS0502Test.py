@@ -86,7 +86,7 @@ class IS0502Test(GenericTest):
                 resource_id = resource.rstrip("/")
                 self.is05_resources[resource_type].append(resource_id)
                 if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
-                    transport_type = self.is05_utils.get_transporttype(resource_id, resource_type)
+                    transport_type = self.is05_utils.get_transporttype(resource_id, resource_type.rstrip("s"))
                     self.is05_resources["transport_types"][resource_id] = transport_type
                 else:
                     self.is05_resources["transport_types"][resource_id] = "urn:x-nmos:transport:rtp"
@@ -129,6 +129,8 @@ class IS0502Test(GenericTest):
     def activate_check_version(self, resource_type):
         try:
             for is05_resource in self.is05_resources[resource_type]:
+                if self.is05_resources["transport_types"][is05_resource] == "urn:x-nmos:transport:websocket":
+                    continue
                 found_04_resource = False
                 for is04_resource in self.is04_resources[resource_type]:
                     if is04_resource["id"] == is05_resource:
