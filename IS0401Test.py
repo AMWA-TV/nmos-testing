@@ -570,34 +570,17 @@ class IS0401Test(GenericTest):
 
     def test_12(self, test):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
-        in the presence of a Registration API"""
+        in the presence of a Registration API (v1.0, v1.1 and v1.2)"""
 
         if not ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         api = self.apis[NODE_API_KEY]
 
-        registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
+        if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+            return test.DISABLED("This test is disabled for Nodes >= v1.3")
 
-        # Reset the registry to clear previous data, although we won't be checking it
-        self.primary_registry.reset()
-        self.primary_registry.enable()
-
-        if DNS_SD_MODE == "multicast":
-            # Advertise a registry at pri 0 and allow the Node to do a basic registration
-            self.zc.register_service(registry_info)
-
-        # Wait for n seconds after advertising the service for the first POST from a Node
-        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
-
-        ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
-        time.sleep(DNS_SD_BROWSE_TIMEOUT)
-        node_list = self.zc_listener.get_service_list()
-
-        # Withdraw the registry advertisement now we've performed a browse for Node advertisements
-        if DNS_SD_MODE == "multicast":
-            self.zc.unregister_service(registry_info)
-        self.primary_registry.disable()
+        node_list = self.collect_mdns_announcements()
 
         for node in node_list:
             address = socket.inet_ntoa(node.address)
@@ -625,6 +608,38 @@ class IS0401Test(GenericTest):
                             "operation in registered mode but may indicate a lack of support for peer to peer "
                             "operation.".format(api["ip"], api["port"]),
                             NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
+
+    def test_12_01(self, test):
+        """Node does not advertise a Node type mDNS announcement in the presence of a Registration API (v1.3+)"""
+
+        if not ENABLE_DNS_SD:
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
+
+        api = self.apis[NODE_API_KEY]
+
+        if self.is04_utils.compare_api_version(api["version"], "v1.3") < 0:
+            return test.DISABLED("This test is disabled for Nodes < v1.3")
+
+        node_list = self.collect_mdns_announcements()
+
+        for node in node_list:
+            address = socket.inet_ntoa(node.address)
+            port = node.port
+            if address == api["ip"] and port == api["port"]:
+                properties = self.convert_bytes(node.properties)
+                if "api_ver" not in properties:
+                    return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
+
+                min_version_lt_v1_3 = False
+                for api_version in properties["api_ver"].split(","):
+                    if self.is04_utils.compare_api_version(api_version, "v1.3") < 0:
+                        min_version_lt_v1_3 = True
+
+                if not min_version_lt_v1_3:
+                    return test.WARNING("Nodes which support v1.3+ only should not advertise via mDNS when in "
+                                        "registered mode.")
+
+        return test.PASS()
 
     def test_13(self, test):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
@@ -1136,3 +1151,30 @@ class IS0401Test(GenericTest):
         elif put_response.status_code != 202:
             raise NMOSTestException(test.FAIL("Receiver target PATCH did not produce a 202 response code: "
                                               "{}".format(put_response.status_code)))
+
+    def collect_mdns_announcements(self):
+        """Helper function to collect Node mDNS announcements in the presence of a Registration API"""
+
+        registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
+
+        # Reset the registry to clear previous data, although we won't be checking it
+        self.primary_registry.reset()
+        self.primary_registry.enable()
+
+        if DNS_SD_MODE == "multicast":
+            # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            self.zc.register_service(registry_info)
+
+        # Wait for n seconds after advertising the service for the first POST from a Node
+        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
+
+        ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
+        time.sleep(DNS_SD_BROWSE_TIMEOUT)
+        node_list = self.zc_listener.get_service_list()
+
+        # Withdraw the registry advertisement now we've performed a browse for Node advertisements
+        if DNS_SD_MODE == "multicast":
+            self.zc.unregister_service(registry_info)
+        self.primary_registry.disable()
+
+        return node_list
