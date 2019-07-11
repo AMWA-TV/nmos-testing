@@ -1014,13 +1014,20 @@ class IS0501Test(GenericTest):
         for myPort in portList:
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
+            file_suffix = None
+            if self.transport_types[myPort] == "urn:x-nmos:transport:rtp":
+                file_suffix = "_transport_params_rtp.json"
+            elif self.transport_types[myPort] == "urn:x-nmos:transport:mqtt":
+                file_suffix = "_transport_params_mqtt.json"
+            elif self.transport_types[myPort] == "urn:x-nmos:transport:websocket":
+                file_suffix = "_transport_params_websocket.json"
             if valid:
                 try:
                     schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
-                                                  port + "_transport_params_rtp.json")
+                                                  port + file_suffix)
                 except FileNotFoundError:
                     schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
-                                                  "v1.0_" + port + "_transport_params_rtp.json")
+                                                  "v1.0_" + port + file_suffix)
                 constraints_valid, constraints_response = self.is05_utils.checkCleanRequestJSON("GET", "single/" +
                                                                                                 port + "s/" + myPort +
                                                                                                 "/constraints/")
