@@ -390,6 +390,8 @@ class IS05Utils(NMOSUtils):
             data = {"transport_params": []}
             for i in range(0, self.get_num_paths(portId, port)):
                 data['transport_params'].append({"destination_port": destinationPort[i]})
+            if len(data["transport_params"]) == 0:
+                del data["transport_params"]
             valid2, r = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
             if valid2:
                 try:
@@ -437,12 +439,13 @@ class IS05Utils(NMOSUtils):
     def check_change_transport_param(self, port, portList, paramName, paramValues, myPort):
         """Check that we can update a transport parameter"""
         url = "single/" + port + "s/" + myPort + "/staged"
-        data = {}
-        data['transport_params'] = []
+        data = {'transport_params': []}
         paths = self.get_num_paths(myPort, port)
         for i in range(0, paths):
             data['transport_params'].append({})
             data['transport_params'][i][paramName] = paramValues[i]
+        if len(data["transport_params"]) == 0:
+            del data["transport_params"]
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
             valid2, response2 = self.checkCleanRequestJSON("GET", url + "/")
@@ -635,6 +638,9 @@ class IS05Utils(NMOSUtils):
                 data['transport_params'].append({param: "239.10.53.5"})
             else:
                 data['transport_params'].append({param: "127.0.0.1"})
+
+        if len(data["transport_params"]) == 0:
+            del data["transport_params"]
 
         valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
