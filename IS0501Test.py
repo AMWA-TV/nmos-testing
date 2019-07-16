@@ -896,6 +896,8 @@ class IS0501Test(GenericTest):
                 toAdd['params']['transport_params'] = []
                 for portNum in ports[portInst]:
                     toAdd['params']['transport_params'].append({"destination_port": portNum})
+                if len(toAdd["params"]["transport_params"]) == 0:
+                    del toAdd["params"]["transport_params"]
                 data.append(toAdd)
             else:
                 return False, response
