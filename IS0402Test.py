@@ -2017,6 +2017,13 @@ class IS0402Test(GenericTest):
                 return data
 
             elif resource_type == "source":
+                if version_minor <= 2:
+                    keys_to_remove = [
+                        "event_type"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
