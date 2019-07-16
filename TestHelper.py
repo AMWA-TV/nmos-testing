@@ -54,26 +54,22 @@ def get_default_ip():
     return netifaces.ifaddresses(preferred_interface)[netifaces.AF_INET][0]['addr']
 
 
-def do_request(method, url, data=None):
+def do_request(method, url, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
         s = requests.Session()
-        req = None
-        if data is not None:
-            req = requests.Request(method, url, json=data)
-        else:
-            req = requests.Request(method, url)
+        req = requests.Request(method, url, **kwargs)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
-        r = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
+        response = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
         if prepped.url.startswith("https://"):
-            if not r.url.startswith("https://"):
+            if not response.url.startswith("https://"):
                 return False, "Redirect changed protocol"
-            if r.history is not None:
-                for res in r.history:
+            if response.history is not None:
+                for res in response.history:
                     if not res.url.startswith("https://"):
                         return False, "Redirect changed protocol"
-        return True, r
+        return True, response
     except requests.exceptions.Timeout:
         return False, "Connection timeout"
     except requests.exceptions.TooManyRedirects:

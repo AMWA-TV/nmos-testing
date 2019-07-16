@@ -1134,7 +1134,7 @@ class IS0401Test(GenericTest):
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
-        valid, put_response = self.do_request("PUT", self.node_url + "receivers/" + receiver_id + "/target", data)
+        valid, put_response = self.do_request("PUT", self.node_url + "receivers/" + receiver_id + "/target", json=data)
         if not valid:
             raise NMOSTestException(test.FAIL("Unexpected response from the Node API: {}".format(put_response)))
 

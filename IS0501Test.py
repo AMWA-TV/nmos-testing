@@ -899,7 +899,7 @@ class IS0501Test(GenericTest):
                 data.append(toAdd)
             else:
                 return False, response
-        valid, r = self.do_request("POST", url, data)
+        valid, r = self.do_request("POST", url, json=data)
         if valid:
             msg = "Expected a 200 response from {}, got {}".format(url, r.status_code)
             if r.status_code == 200:

@@ -25,9 +25,19 @@ When testing any of the above APIs it is important that they contain representat
 
 ## Usage
 
-Install the dependencies with `pip3 install -r requirements.txt` and start the service as follows:
+Ensure pip3 is installed and up to date. Then install the dependencies:
 
 ```shell
+# Upgrade pip3 to newest version to allow correct installation of requirements
+pip3 install --upgrade pip
+# Install the dependencies
+pip3 install -r requirements.txt
+```
+
+Start the service as follows:
+
+```shell
+# Start the Test Suite
 python3 nmos-test.py
 ```
 
@@ -64,6 +74,12 @@ If your network requires the use of the proxy server, you may find it necessary 
 Testing of certain aspects of BCP-003-01 makes use of an external tool 'testssl.sh'. Please see [testssl/README.md](testssl/README.md) for installation instructions.
 
 In order to ease testing of TLS with the various specifications, sample certificates are provided in this repository. Please see [test_data/BCP00301/README.md](test_data/BCP00301/README.md) for their details and installation guidance.
+
+### Testing IS-10 Authorization
+
+When testing IS-10 / BCP-003-02 implementations, ensure that a user is registered with the Authorization Server with a username and password that corresponds with the `AUTH_USERNAME` and `AUTH_PASSWORD` config options in the `Config.py` file. These values should be changed to sensible values before running the IS-10 tests.
+
+When testing the authorization code grant, the means by which consent is given by the resource owner will be implementation-specific. The contents of the file `/test_data/IS1001/authorization_request_data.json` will be used as the body of the request to the authorization endpoint. Please edit this to comply with the implementation under test.
 
 ### Testing of SDP files
 
@@ -164,7 +180,9 @@ The following methods may be of use within a given test definition.
 
 **Requesting from an API**
 ```python
-self.do_request(method, url, data)
+# All keyword parameters are optional
+# Where 'json' is the body of the request in json and 'data' is the body as url encoded form data
+self.do_request(method, url, json=json, data=data, headers=headers, auth=auth)
 ```
 Returns a tuple of the request status (True/False) and a Requests library Response object.
 

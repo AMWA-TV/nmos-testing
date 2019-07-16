@@ -1651,16 +1651,25 @@ class IS0402Test(GenericTest):
         # Check for clean state // delete resources if needed
         resource_types = ["node", "device", "source", "flow", "sender", "receiver"]
         for curr_resource in resource_types:
-            valid, r = self.do_request("GET", "{}{}s/{}".format(self.query_url,
-                                                                curr_resource,
-                                                                self.test_data[curr_resource]["id"]))
+            valid, r = self.do_request(
+                "GET",
+                "{}{}s/{}".format(
+                    self.query_url,
+                    curr_resource,
+                    self.test_data[curr_resource]["id"]
+                )
+            )
             if not valid:
                 return test.FAIL("Query API returned an unexpected response: {}".format(r))
             elif r.status_code == 200:
-                valid_delete, r_delete = self.do_request("DELETE", "{}resource/{}s/{}"
-                                                         .format(self.reg_url,
-                                                                 curr_resource,
-                                                                 self.test_data[curr_resource]["id"]))
+                valid_delete, r_delete = self.do_request(
+                    "DELETE",
+                    "{}resource/{}s/{}".format(
+                        self.reg_url,
+                        curr_resource,
+                        self.test_data[curr_resource]["id"]
+                    )
+                )
                 if not valid_delete:
                     return test.FAIL("Registration API returned an unexpected response: {}".format(r_delete))
                 elif r_delete.status_code not in [204, 404]:
@@ -1785,8 +1794,10 @@ class IS0402Test(GenericTest):
             reversed_resource_list = deepcopy(resources_to_post)
             reversed_resource_list.reverse()
             for resource in reversed_resource_list:
-                valid, r = self.do_request("DELETE", self.reg_url +
-                                           "resource/{}s/{}".format(resource, test_data[resource]["id"]))
+                valid, r = self.do_request(
+                    "DELETE",
+                    self.reg_url + "resource/{}s/{}".format(resource, test_data[resource]["id"])
+                )
                 if not valid:
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {}"
                                      .format(resource, r))
@@ -1903,7 +1914,7 @@ class IS0402Test(GenericTest):
         data["id"] = str(uuid.uuid4())
         # to cause schema validation failure, remove the label property (required for all resources since v1.0)
         del data["label"]
-        valid, r = self.do_request("POST", self.reg_url + "resource", data={"type": resource_type, "data": data})
+        valid, r = self.do_request("POST", self.reg_url + "resource", json={"type": resource_type, "data": data})
 
         if not valid:
             return test.FAIL(r)
@@ -2069,7 +2080,7 @@ class IS0402Test(GenericTest):
         """Perform a POST request to a Query API to create a subscription"""
         if query_url is None:
             query_url = self.query_url
-        valid, r = self.do_request("POST", "{}subscriptions".format(query_url), data=sub_json)
+        valid, r = self.do_request("POST", "{}subscriptions".format(query_url), json=sub_json)
 
         if not valid:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: {}".format(r)))
@@ -2103,7 +2114,7 @@ class IS0402Test(GenericTest):
             self.bump_resource_version(data)
 
         valid, r = self.do_request("POST", reg_url + "resource",
-                                   data={"type": type, "data": data})
+                                   json={"type": type, "data": data})
         if not valid:
             raise NMOSTestException(fail(test, "Registration API did not respond as expected"))
 
