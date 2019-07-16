@@ -36,7 +36,7 @@ class IS0502Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
-        self.is05_resources = {"senders": [], "receivers": [], "_requested": []}
+        self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {}}
         self.is04_resources = {"senders": [], "receivers": [], "_requested": []}
         self.is05_utils = IS05Utils(self.connection_url)
 
@@ -83,7 +83,13 @@ class IS0502Test(GenericTest):
 
         try:
             for resource in resources.json():
-                self.is05_resources[resource_type].append(resource.rstrip("/"))
+                resource_id = resource.rstrip("/")
+                self.is05_resources[resource_type].append(resource_id)
+                if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
+                    transport_type = self.is05_utils.get_transporttype(resource_id, resource_type.rstrip("s"))
+                    self.is05_resources["transport_types"][resource_id] = transport_type
+                else:
+                    self.is05_resources["transport_types"][resource_id] = "urn:x-nmos:transport:rtp"
             self.is05_resources["_requested"].append(resource_type)
         except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
@@ -123,6 +129,8 @@ class IS0502Test(GenericTest):
     def activate_check_version(self, resource_type):
         try:
             for is05_resource in self.is05_resources[resource_type]:
+                if self.is05_resources["transport_types"][is05_resource] == "urn:x-nmos:transport:websocket":
+                    continue
                 found_04_resource = False
                 for is04_resource in self.is04_resources[resource_type]:
                     if is04_resource["id"] == is05_resource:
@@ -202,6 +210,9 @@ class IS0502Test(GenericTest):
     def activate_check_subscribed(self, resource_type, nmos=True, multicast=True):
         sub_ids = {}
         for is05_resource in self.is05_resources[resource_type]:
+            if self.is05_resources["transport_types"][is05_resource] != "urn:x-nmos:transport:rtp":
+                continue
+
             if (resource_type == "receivers" and nmos) or \
                (resource_type == "senders" and nmos and not multicast):
                 sub_id = str(uuid.uuid4())
@@ -221,6 +232,9 @@ class IS0502Test(GenericTest):
         try:
             api = self.apis[NODE_API_KEY]
             for is05_resource in self.is05_resources[resource_type]:
+                if self.is05_resources["transport_types"][is05_resource] != "urn:x-nmos:transport:rtp":
+                    continue
+
                 found_04_resource = False
                 for is04_resource in self.is04_resources[resource_type]:
                     if is04_resource["id"] == is05_resource:
@@ -556,14 +570,14 @@ class IS0502Test(GenericTest):
 
                 is04_transport_file = None
                 is05_transport_file = None
-                if resource["manifest_href"] != "":
+                if resource["manifest_href"] is not None and resource["manifest_href"] != "":
                     valid, result = self.do_request("GET", resource["manifest_href"])
-                    if valid:
+                    if valid and result.status_code != 404:
                         is04_transport_file = result.text
 
                 valid, result = self.do_request("GET", self.connection_url + "single/senders/" +
                                                 resource["id"] + "/transportfile")
-                if valid:
+                if valid and result.status_code != 404:
                     is05_transport_file = result.text
 
                 if is04_transport_file != is05_transport_file:

@@ -46,8 +46,21 @@ class IS0501Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.url = self.apis[CONN_API_KEY]["url"]
         self.is05_utils = IS05Utils(self.url)
+
+    def set_up_tests(self):
         self.senders = self.is05_utils.get_senders()
         self.receivers = self.is05_utils.get_receivers()
+        self.transport_types = {}
+        for sender in self.senders:
+            if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
+                self.transport_types[sender] = self.is05_utils.get_transporttype(sender, "sender")
+            else:
+                self.transport_types[sender] = "urn:x-nmos:transport:rtp"
+        for receiver in self.receivers:
+            if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
+                self.transport_types[receiver] = self.is05_utils.get_transporttype(receiver, "receiver")
+            else:
+                self.transport_types[receiver] = "urn:x-nmos:transport:rtp"
 
     def test_01(self, test):
         """API root matches the spec"""
@@ -259,15 +272,18 @@ class IS0501Test(GenericTest):
     def test_11(self, test):
         """Senders are using valid combination of parameters"""
 
-        generalParams = ['source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled']
+        rtpGeneralParams = ['source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode', 'fec_type',
                      'fec_block_width', 'fec_block_height', 'fec1D_destination_port',
                      'fec1D_source_port', 'fec2D_destination_port', 'fec2D_source_port']
-        fecParams = fecParams + generalParams
+        fecParams = fecParams + rtpGeneralParams
         rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port',
                       'rtcp_source_port']
-        combinedParams = rtcpParams + fecParams
-        rtcpParams = rtcpParams + generalParams
+        rtpCombinedParams = rtcpParams + fecParams
+        rtcpParams = rtcpParams + rtpGeneralParams
+        websocketParams = ['connection_uri', 'connection_authorization']
+        mqttParams = ['destination_host', 'destination_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
+                      'connection_status_broker_topic']
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -276,16 +292,22 @@ class IS0501Test(GenericTest):
                     valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
-                            params = response[0].keys()
-                            if sorted(params) == sorted(generalParams):
-                                pass
-                            elif sorted(params) == sorted(fecParams):
-                                pass
-                            elif sorted(params) == sorted(rtcpParams):
-                                pass
-                            elif sorted(params) == sorted(combinedParams):
-                                pass
-                            else:
+                            all_params = response[0].keys()
+                            params = [param for param in all_params if not param.startswith("ext_")]
+                            valid_params = False
+                            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                                if sorted(params) == sorted(rtpGeneralParams) or \
+                                   sorted(params) == sorted(fecParams) or \
+                                   sorted(params) == sorted(rtcpParams) or \
+                                   sorted(params) == sorted(rtpCombinedParams):
+                                    valid_params = True
+                            elif self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                                if sorted(params) == sorted(websocketParams):
+                                    valid_params = True
+                            elif self.transport_types[sender] == "urn:x-nmos:transport:mqtt":
+                                if sorted(params) == sorted(mqttParams):
+                                    valid_params = True
+                            if not valid_params:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
                         else:
                             return test.FAIL("Invalid response: {}".format(response))
@@ -302,13 +324,16 @@ class IS0501Test(GenericTest):
     def test_12(self, test):
         """Receiver are using valid combination of parameters"""
 
-        generalParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
+        rtpGeneralParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
         fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode',
                      'fec1D_destination_port', 'fec2D_destination_port']
-        fecParams = fecParams + generalParams
+        fecParams = fecParams + rtpGeneralParams
         rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port']
-        combinedParams = rtcpParams + fecParams
-        rtcpParams = rtcpParams + generalParams
+        rtpCombinedParams = rtcpParams + fecParams
+        rtcpParams = rtcpParams + rtpGeneralParams
+        websocketParams = ['connection_uri', 'connection_authorization']
+        mqttParams = ['source_host', 'source_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
+                      'connection_status_broker_topic']
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -317,16 +342,22 @@ class IS0501Test(GenericTest):
                     valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
-                            params = response[0].keys()
-                            if sorted(params) == sorted(generalParams):
-                                pass
-                            elif sorted(params) == sorted(fecParams):
-                                pass
-                            elif sorted(params) == sorted(rtcpParams):
-                                pass
-                            elif sorted(params) == sorted(combinedParams):
-                                pass
-                            else:
+                            all_params = response[0].keys()
+                            params = [param for param in all_params if not param.startswith("ext_")]
+                            valid_params = False
+                            if self.transport_types[receiver] == "urn:x-nmos:transport:rtp":
+                                if sorted(params) == sorted(rtpGeneralParams) or \
+                                   sorted(params) == sorted(fecParams) or \
+                                   sorted(params) == sorted(rtcpParams) or \
+                                   sorted(params) == sorted(rtpCombinedParams):
+                                    valid_params = True
+                            elif self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                                if sorted(params) == sorted(websocketParams):
+                                    valid_params = True
+                            elif self.transport_types[receiver] == "urn:x-nmos:transport:mqtt":
+                                if sorted(params) == sorted(mqttParams):
+                                    valid_params = True
+                            if not valid_params:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
                         else:
                             return test.FAIL("Invalid response: {}".format(response))
@@ -509,6 +540,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.senders:
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, values = self.is05_utils.generate_destination_ports("sender", sender)
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("sender", self.senders,
@@ -528,6 +561,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, values = self.is05_utils.generate_destination_ports("receiver", receiver)
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("receiver", self.receivers,
@@ -548,6 +583,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_immediate_activation)
                 if valid:
@@ -563,6 +600,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_immediate_activation)
                 if valid:
@@ -579,6 +618,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_relative_activation)
                 if valid:
@@ -594,6 +635,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_relative_activation)
                 if valid:
@@ -609,6 +652,8 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
+                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_absolute_activation)
                 if valid:
@@ -624,6 +669,8 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
+                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
+                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_absolute_activation)
                 if valid:
@@ -889,6 +936,8 @@ class IS0501Test(GenericTest):
         data = []
         ports = {}
         for portInst in portList:
+            if self.transport_types[portInst] == "urn:x-nmos:transport:websocket":
+                continue
             valid, response = self.is05_utils.generate_destination_ports(port, portInst)
             if valid:
                 ports[portInst] = response
@@ -923,6 +972,8 @@ class IS0501Test(GenericTest):
 
         # Check the parameters have actually changed
         for portInst in portList:
+            if self.transport_types[portInst] == "urn:x-nmos:transport:websocket":
+                continue
             activeUrl = "single/" + port + "s/" + portInst + "/staged/"
 
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", activeUrl)
@@ -967,10 +1018,17 @@ class IS0501Test(GenericTest):
         for myPort in portList:
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
+            file_suffix = None
+            if self.transport_types[myPort] == "urn:x-nmos:transport:rtp":
+                file_suffix = "_transport_params_rtp.json"
+            elif self.transport_types[myPort] == "urn:x-nmos:transport:mqtt":
+                file_suffix = "_transport_params_mqtt.json"
+            elif self.transport_types[myPort] == "urn:x-nmos:transport:websocket":
+                file_suffix = "_transport_params_websocket.json"
             if valid:
                 try:
                     schema_items = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
-                                                        port + "_transport_params_rtp.json")
+                                                        port + file_suffix)
                     schema = {
                       "$schema": "http://json-schema.org/draft-04/schema#",
                       "type": "array",
@@ -978,7 +1036,7 @@ class IS0501Test(GenericTest):
                     }
                 except FileNotFoundError:
                     schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
-                                                  "v1.0_" + port + "_transport_params_rtp.json")
+                                                  "v1.0_" + port + file_suffix)
                 constraints_valid, constraints_response = self.is05_utils.checkCleanRequestJSON("GET", "single/" +
                                                                                                 port + "s/" + myPort +
                                                                                                 "/constraints/")
