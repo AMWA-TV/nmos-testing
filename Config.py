@@ -59,6 +59,10 @@ HTTP_TIMEOUT = 1
 # 0 = unlimited for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
+# Number of seconds to wait after selecting a test to run before carrying it out
+# Useful for unicast DNS testing where the device under test needs to restart in order to observe the new DNS records
+TEST_START_DELAY = 0
+
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
 ENABLE_HTTPS = False
 
@@ -82,7 +86,6 @@ KEYS_MOCKS = [
 
 # Default User Credentials for interacting with Authorization Server
 AUTH_USERNAME = "TEST_USER"
-
 AUTH_PASSWORD = "TEST_PASSWORD"
 
 # Domain name to use for the local DNS server and mock Node
