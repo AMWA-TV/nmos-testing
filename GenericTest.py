@@ -20,10 +20,11 @@ import TestHelper
 import traceback
 import inspect
 import uuid
+import time
 
 from Specification import Specification
 from TestResult import Test
-from Config import ENABLE_HTTPS
+from Config import ENABLE_HTTPS, TEST_START_DELAY
 
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
@@ -177,6 +178,10 @@ class GenericTest(object):
         test = Test("Test setup")
         self.set_up_tests()
         self.result.append(test.NA(""))
+
+        if TEST_START_DELAY > 0:
+            print(" * Waiting for {} seconds before executing tests".format(TEST_START_DELAY))
+        time.sleep(TEST_START_DELAY)
 
         # Run tests
         self.execute_tests(test_name)
