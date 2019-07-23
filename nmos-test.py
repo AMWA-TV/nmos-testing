@@ -24,7 +24,7 @@ from Node import NODE, NODE_API
 from CRL import CRL, CRL_API
 from OCSP import OCSP, OCSP_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
-from Config import CERTS_MOCKS, KEYS_MOCKS
+from Config import CERTS_MOCKS, KEYS_MOCKS, PORT_BASE
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
@@ -69,7 +69,7 @@ core_app = Flask(__name__)
 core_app.debug = False
 core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 core_app.config['TEST_ACTIVE'] = False
-core_app.config['PORT'] = 5000
+core_app.config['PORT'] = PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(core_app)

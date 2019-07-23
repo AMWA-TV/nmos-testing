@@ -18,6 +18,7 @@ import json
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
+from Config import PORT_BASE
 
 
 class RegistryCommon(object):
@@ -39,7 +40,7 @@ class RegistryData(object):
 class Registry(object):
     def __init__(self, data_store, port_increment):
         self.common = data_store
-        self.port = 5100 + port_increment  # cf. test_data/IS0401/dns_records.zone
+        self.port = PORT_BASE + 100 + port_increment  # cf. test_data/IS0401/dns_records.zone
         self.event = Event()
         self.reset()
 
