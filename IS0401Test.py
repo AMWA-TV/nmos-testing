@@ -147,7 +147,8 @@ class IS0401Test(GenericTest):
             time.sleep(0.2)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
+        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1 and \
+              (time.time() - self.invalid_registry.last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(0.2)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
