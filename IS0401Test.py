@@ -45,6 +45,7 @@ class IS0401Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
+        self.registry_primary_data = None
         self.registry_invalid_data = None
         self.is04_utils = IS04Utils(self.node_url)
         self.zc = None
@@ -207,6 +208,13 @@ class IS0401Test(GenericTest):
             self.registry_basics_data.append(registry.get_data())
         self.registry_invalid_data = self.invalid_registry.get_data()
 
+        # If the Node preferred the invalid registry, don't penalise it for other tests which check the general
+        # interactions are correct
+        if len(self.registry_invalid_data.posts) > 0:
+            self.registry_primary_data = self.registry_invalid_data
+        else:
+            self.registry_primary_data = self.registry_basics_data[0]
+
     def test_01(self, test):
         """Node can discover network registration service via multicast DNS"""
 
@@ -216,7 +224,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) > 0:
             return test.PASS()
 
@@ -249,7 +257,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) > 0:
             return test.PASS()
 
@@ -281,7 +289,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
             return test.FAIL("No registrations found")
 
@@ -303,7 +311,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
             return test.FAIL("No registrations found")
 
@@ -328,7 +336,7 @@ class IS0401Test(GenericTest):
         found_resource = None
         if ENABLE_DNS_SD:
             # Look up data in local mock registry
-            registry_data = self.registry_basics_data[0]
+            registry_data = self.registry_primary_data
             for resource in registry_data.posts:
                 if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
                     found_resource = resource[1]["payload"]["data"]
@@ -397,7 +405,7 @@ class IS0401Test(GenericTest):
 
     def check_matching_parents(self, test, res_type):
         # Look up data in local mock registry
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         parent_type = self.parent_resource_type(res_type)
         registered_parents = []
         found_resource = False
@@ -438,7 +446,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.heartbeats) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
