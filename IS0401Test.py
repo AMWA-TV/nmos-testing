@@ -127,7 +127,7 @@ class IS0401Test(GenericTest):
         for registry in self.registries:
             registry.reset()
 
-        self.invalid_registry.enable(invalid_reg=True)
+        self.invalid_registry.enable()
         self.primary_registry.enable()
 
         if DNS_SD_MODE == "multicast":
@@ -147,7 +147,7 @@ class IS0401Test(GenericTest):
             time.sleep(0.2)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1 and \
+        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1 or \
               (time.time() - self.invalid_registry.last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(0.2)
 
@@ -167,6 +167,7 @@ class IS0401Test(GenericTest):
                     self.zc.register_service(info)
 
             # Kill registries one by one to collect data around failover
+            self.invalid_registry.disable()
             for index, registry in enumerate(self.registries):
                 registry.disable()
 
@@ -755,7 +756,8 @@ class IS0401Test(GenericTest):
 
         last_hb = None
         last_registry = None
-        for registry_data in self.registry_basics_data[0:-1]:
+        # All but the first and last registry can be used for priority tests. The last one is reserved for timeout tests
+        for registry_data in self.registry_basics_data[1:-1]:
             if len(registry_data.heartbeats) < 1:
                 return test.FAIL("Node never made contact with registry advertised on port {}"
                                  .format(registry_data.port))
@@ -780,8 +782,8 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        # All but the last registry can be used for failover tests. The last one is reserved for timeout tests
-        for index, registry_data in enumerate(self.registry_basics_data[0:-1]):
+        # All but the first and last registry can be used for failover tests. The last one is reserved for timeout tests
+        for index, registry_data in enumerate(self.registry_basics_data[1:-1]):
             if len(registry_data.heartbeats) < 1:
                 return test.FAIL("Node never made contact with registry advertised on port {}"
                                  .format(registry_data.port))

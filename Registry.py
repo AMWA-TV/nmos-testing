@@ -50,7 +50,6 @@ class Registry(object):
         self.common.reset()
         self.enabled = False
         self.test_first_reg = False
-        self.test_invalid_reg = False
         self.event.clear()
 
     def add(self, headers, payload, version):
@@ -82,14 +81,12 @@ class Registry(object):
     def get_resources(self):
         return self.common.resources
 
-    def enable(self, first_reg=False, invalid_reg=False):
+    def enable(self, first_reg=False):
         self.test_first_reg = first_reg
-        self.test_invalid_reg = invalid_reg
         self.enabled = True
 
     def disable(self):
         self.test_first_reg = False
-        self.test_invalid_reg = False
         self.enabled = False
 
     def wait_for_registration(self, timeout):
@@ -124,9 +121,6 @@ def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    if registry.test_invalid_reg:
-        print(" * DEBUG: Node attempted registration with a registry using invalid DNS-SD TXT records")
-        registry.disable()
     if not registry.test_first_reg:
         registered = False
         try:
