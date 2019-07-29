@@ -152,9 +152,10 @@ class IS0401Test(GenericTest):
             time.sleep(0.2)
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.primary_registry.get_data().heartbeats) > 0:
+        if len(self.primary_registry.get_data().heartbeats) > 0 or len(self.invalid_registry.get_data().heartbeats) > 0:
             # It is heartbeating, but we don't have enough of them yet
-            while len(self.primary_registry.get_data().heartbeats) < 2:
+            while len(self.primary_registry.get_data().heartbeats) < 2 and \
+                  len(self.invalid_registry.get_data().heartbeats) < 2:
                 time.sleep(0.2)
 
             # Once registered, advertise all other registries at different (ascending) priorities
