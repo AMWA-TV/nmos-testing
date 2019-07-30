@@ -398,15 +398,8 @@ class IS0401Test(GenericTest):
                 if not reg_resource:
                     return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
                 elif reg_resource != node_resources[res_id]:
-                    if deepcopy(reg_resource).pop("version", None) != \
-                       deepcopy(node_resources[res_id]).pop("version", None):
-                        return test.FAIL("Node API JSON does not match data in registry for "
-                                         "{} {}.".format(res_type.title(), res_id))
-                    else:
-                        # Issue a warning here as in some cases it may be a race condition between us fetching from the
-                        # Node API and a registration happening.
-                        return test.WARNING("Node API JSON 'version' key does not match data held in registry for "
-                                            "{} {}.".format(res_type.title(), res_id))
+                    return test.FAIL("Node API JSON does not match data in registry for "
+                                     "{} {}.".format(res_type.title(), res_id))
 
             return test.PASS()
         except ValueError:
