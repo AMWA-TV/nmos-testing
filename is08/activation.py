@@ -107,3 +107,11 @@ class Activation:
         postObject = self._buildPOSTObject()
         self._callInstance.expectedCode = 423
         self._callInstance.post(postObject)
+
+    def checkReject(self):
+        postObject = self._buildPOSTObject()
+        self._callInstance.expectedCode = 400
+        self._callInstance.responseSchema = globalConfig.testSuite.get_schema(
+            globalConfig.apiKey, "POST", "/map/activations", 400
+        )
+        self._callInstance.post(postObject)
