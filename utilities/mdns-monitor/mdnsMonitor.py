@@ -64,13 +64,13 @@ class Listener:
         for srv_type in self.services:
             print("Unexpected services of type '{}'".format(srv_type))
             for name in sorted(self.services[srv_type]):
-                 info = self.services[srv_type][name]
-                 if info:
-                     address = inet_ntoa(info.address)
-                     if address not in IP_WHITELIST:
-                         self._print_entry(name, info)
-                 else:
-                     self._print_entry(name)
+                info = self.services[srv_type][name]
+                if info:
+                    address = inet_ntoa(info.address)
+                    if address not in IP_WHITELIST:
+                        self._print_entry(name, info)
+                else:
+                    self._print_entry(name)
             print("")
 
     def _print_entry(self, name, info=None):
