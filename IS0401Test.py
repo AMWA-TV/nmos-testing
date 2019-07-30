@@ -372,6 +372,8 @@ class IS0401Test(GenericTest):
         """Get resources matching a specific type from the Node API"""
         if res_type == "node":
             res_type = "self"
+        else:
+            res_type = res_type + "s"
         resp_json = self.node_basics_data[res_type]
         resources = {}
         if resp_json is None:
