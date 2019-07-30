@@ -658,6 +658,9 @@ class IS0401Test(GenericTest):
         try:
             formats_tested = []
             for receiver in receivers.json():
+                if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+
                 try:
                     stream_type = receiver["format"].split(":")[-1]
                 except TypeError:
@@ -697,7 +700,7 @@ class IS0401Test(GenericTest):
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.UNCLEAR("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any RTP Receivers")
 
     def test_14(self, test):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
@@ -708,15 +711,21 @@ class IS0401Test(GenericTest):
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
-            if len(receivers.json()) > 0:
-                receiver = receivers.json()[0]
-                self.do_receiver_put(test, receiver["id"], {})
+            test_receiver = None
+            for receiver in receivers.json():
+                if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+                test_receiver = receiver
+                break
+
+            if test_receiver is not None:
+                self.do_receiver_put(test, test_receiver["id"], {})
 
                 time.sleep(API_PROCESSING_TIMEOUT)
 
-                valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
+                valid, response = self.do_request("GET", self.node_url + "receivers/" + test_receiver["id"])
                 if not valid:
-                    return test.FAIL("Unexpected response from the Node API: {}".format(receiver))
+                    return test.FAIL("Unexpected response from the Node API: {}".format(test_receiver))
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] is not None:
@@ -733,7 +742,7 @@ class IS0401Test(GenericTest):
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.UNCLEAR("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any RTP Receivers")
 
     def test_15(self, test):
         """Node correctly selects a Registration API based on advertised priorities"""
