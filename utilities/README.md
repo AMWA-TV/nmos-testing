@@ -1,0 +1,8 @@
+# NMOS Testing Utilities
+
+A collection of utilities which may aid testing, but are not directly part of the testing tool.
+
+* [Google Sheets Test Result Importer](gsheets-import): Imports JSON format test results from the AMWA NMOS Testing Tool into a Google spreadsheet.
+* [IS-05 Control](is-05-control): Performs simple interactions with the IS-05 API in order to configure a single Sender or Receiver.
+* [mDNS Monitor](mdns-monitor): Maintains a list of specific mDNS service types advertised by unexpected IP addresses.
+* [UUID Checker](uuid-checker): Records an NMOS Node's resource UUIDs and compares them to those advertised after a reboot.
