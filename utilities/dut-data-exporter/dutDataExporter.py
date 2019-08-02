@@ -56,6 +56,7 @@ if __name__ == "__main__":
             address['port_id'] = address['port_id'].replace("-", ":")
         if type(address['chassis_id']) == str:
             address['chassis_id'] = address['chassis_id'].replace("-", ":")
+    print("Host: {}".format(response.json()['description']))
 
     # Devices
     url = base_url + "devices/"
@@ -100,6 +101,3 @@ if __name__ == "__main__":
     pprint.pprint(receivers)
     print("MAC Addresses:")
     pprint.pprint(mac_addresses)
-
-# format MAC with colons
-# Add hostname to uuid checker
