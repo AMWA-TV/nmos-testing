@@ -1111,8 +1111,9 @@ class IS0401Test(GenericTest):
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
             self.zc.register_service(registry_info)
 
-        # Wait for n seconds after advertising the service for the first POST from a Node
+        # Wait for n seconds after advertising the service for the first POST and then DELETE from a Node
         self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
+        self.primary_registry.wait_for_delete(HEARTBEAT_INTERVAL + 1)
 
         # By this point we should have had at least one Node POST and a corresponding DELETE
         if DNS_SD_MODE == "multicast":
