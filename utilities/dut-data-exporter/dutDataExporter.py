@@ -41,6 +41,7 @@ if __name__ == "__main__":
     is04Port = args.port
     is05Port = None
     is08Port = None
+    node_id = None
     senders = []
     receivers = []
     mac_addresses = []
@@ -56,6 +57,7 @@ if __name__ == "__main__":
             address['port_id'] = address['port_id'].replace("-", ":")
         if type(address['chassis_id']) == str:
             address['chassis_id'] = address['chassis_id'].replace("-", ":")
+    node_id = response.json()['id']
     print("Host: {}".format(response.json()['description']))
 
     # Devices
@@ -95,6 +97,7 @@ if __name__ == "__main__":
     print("IS-05 Port: {}".format(is05Port))
     print("IS-08 Port: {}".format(is08Port))
 
+    print("Node ID: {}".format(node_id))
     print("Sender IDs:")
     pprint.pprint(senders)
     print("Receiver IDs:")
