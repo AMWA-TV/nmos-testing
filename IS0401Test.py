@@ -289,16 +289,17 @@ class IS0401Test(GenericTest):
             if "Content-Type" not in resource[1]["headers"]:
                 return test.FAIL("Node failed to signal its Content-Type when registering.")
             else:
-                ctype_params = resource[1]["headers"]["Content-Type"].split(";")
+                ctype = resource[1]["headers"]["Content-Type"]
+                ctype_params = ctype.split(";")
                 if ctype_params[0] != "application/json":
                     return test.FAIL("Node signalled a Content-Type of {} rather than application/json."
-                                     .format(resource[1]["headers"]["Content-Type"]))
+                                     .format(ctype))
                 elif len(ctype_params) == 2 and ctype_params[1].strip() == "charset=utf-8":
                     return test.WARNING("Node signalled an unnecessary 'charset' in its Content-Type: {}"
-                                        .format(resource[1]["headers"]["Content-Type"]))
+                                        .format(ctype))
                 elif len(ctype_params) >= 2:
                     return test.FAIL("Node signalled unexpected additional parameters in its Content-Type: {}"
-                                     .format(resource[1]["headers"]["Content-Type"]))
+                                     .format(ctype))
 
         return test.PASS()
 
