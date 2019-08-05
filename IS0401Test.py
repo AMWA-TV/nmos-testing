@@ -754,10 +754,10 @@ class IS0401Test(GenericTest):
 
         last_hb = None
         last_registry = None
-        for registry_data in self.registry_basics_data[0:-1]:
+        for index, registry_data in enumerate(self.registry_basics_data[0:-1]):
             if len(registry_data.heartbeats) < 1:
-                return test.FAIL("Node never made contact with registry advertised on port {}"
-                                 .format(registry_data.port))
+                return test.FAIL("Node never made contact with registry {} advertised on port {}"
+                                 .format(index + 1, registry_data.port))
 
             first_hb_to_registry = registry_data.heartbeats[0]
             if last_hb:
@@ -782,8 +782,8 @@ class IS0401Test(GenericTest):
         # All but the last registry can be used for failover tests. The last one is reserved for timeout tests
         for index, registry_data in enumerate(self.registry_basics_data[0:-1]):
             if len(registry_data.heartbeats) < 1:
-                return test.FAIL("Node never made contact with registry advertised on port {}"
-                                 .format(registry_data.port))
+                return test.FAIL("Node never made contact with registry {} advertised on port {}"
+                                 .format(index + 1, registry_data.port))
 
             if index > 0 and len(registry_data.posts) > 0:
                 return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
@@ -803,8 +803,8 @@ class IS0401Test(GenericTest):
         # out its attempted connection within a heartbeat period and then registers with the next available one.
         registry_data = self.registry_basics_data[-1]
         if len(registry_data.heartbeats) < 1:
-            return test.WARNING("Node never made contact with registry advertised on port {}"
-                                .format(registry_data.port))
+            return test.WARNING("Node never made contact with registry {} advertised on port {}"
+                                .format(len(self.registry_basics_data), registry_data.port))
 
         if len(registry_data.posts) > 0:
             return test.WARNING("Node re-registered its resources when it failed over to a new registry, when it "
