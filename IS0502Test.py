@@ -492,7 +492,7 @@ class IS0502Test(GenericTest):
         if not valid:
             return test.FAIL(response)
 
-        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=True)
+        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=True, multicast=False)
         if not valid:
             return test.FAIL(response)
         else:
@@ -522,7 +522,7 @@ class IS0502Test(GenericTest):
         if not valid:
             return test.FAIL(response)
 
-        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=False)
+        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=False, multicast=False)
         if not valid:
             return test.FAIL(response)
         else:
