@@ -46,6 +46,8 @@ class IS0401Test(GenericTest):
         self.registry_basics_done = False
         self.registry_basics_data = []
         self.registry_invalid_data = None
+        self.node_basics_data = {"self": None, "devices": None, "sources": None,
+                                 "flows": None, "senders": None, "receivers": None}
         self.is04_utils = IS04Utils(self.node_url)
         self.zc = None
         self.zc_listener = None
@@ -89,10 +91,25 @@ class IS0401Test(GenericTest):
                            txt, hostname)
         return info
 
+    def do_node_basics_prereqs(self):
+        """Collect a copy of each of the Node's resources"""
+        for resource in self.node_basics_data:
+            url = "{}{}".format(self.node_url, resource)
+            valid, r = self.do_request("GET", url)
+            if valid and r.status_code == 200:
+                try:
+                    self.node_basics_data[resource] = r.json()
+                except Exception:
+                    pass
+
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
 
-        if self.registry_basics_done or not ENABLE_DNS_SD:
+        if self.registry_basics_done:
+            return
+
+        if not ENABLE_DNS_SD:
+            self.do_node_basics_prereqs()
             return
 
         if DNS_SD_MODE == "multicast":
@@ -148,6 +165,9 @@ class IS0401Test(GenericTest):
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
         while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(0.2)
+
+        # Collect matching resources from the Node
+        self.do_node_basics_prereqs()
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
         if len(self.primary_registry.get_data().heartbeats) > 0:
@@ -335,6 +355,7 @@ class IS0401Test(GenericTest):
         return test.PASS()
 
     def get_registry_resource(self, res_type, res_id):
+        """Get a specific resource ID from the mock registry, or a real registry if DNS-SD is disabled"""
         found_resource = None
         if ENABLE_DNS_SD:
             # Look up data in local mock registry
@@ -357,9 +378,17 @@ class IS0401Test(GenericTest):
                                                                                                        QUERY_API_PORT))
         return found_resource
 
-    def get_node_resources(self, resp_json):
+    def get_node_resources(self, res_type):
+        """Get resources matching a specific type from the Node API"""
+        if res_type == "node":
+            res_type = "self"
+        else:
+            res_type = res_type + "s"
+        resp_json = self.node_basics_data[res_type]
         resources = {}
-        if isinstance(resp_json, dict):
+        if resp_json is None:
+            raise ValueError
+        elif isinstance(resp_json, dict):
             resources[resp_json["id"]] = resp_json
         else:
             for resource in resp_json:
@@ -367,34 +396,27 @@ class IS0401Test(GenericTest):
         return resources
 
     def check_matching_resource(self, test, res_type):
-        if res_type == "node":
-            url = "{}self".format(self.node_url)
-        else:
-            url = "{}{}s".format(self.node_url, res_type)
-        # Get data from node itself
-        valid, r = self.do_request("GET", url)
-        if valid and r.status_code == 200:
-            try:
-                node_resources = self.get_node_resources(r.json())
+        """Check that a resource held in the registry matches the resource held by the Node API"""
+        try:
+            node_resources = self.get_node_resources(res_type)
 
-                if len(node_resources) == 0:
-                    return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
+            if len(node_resources) == 0:
+                return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
 
-                for res_id in node_resources:
-                    reg_resource = self.get_registry_resource(res_type, res_id)
-                    if not reg_resource:
-                        return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
-                    elif reg_resource != node_resources[res_id]:
-                        return test.FAIL("Node API JSON does not match data in registry for "
-                                         "{} {}.".format(res_type.title(), res_id))
+            for res_id in node_resources:
+                reg_resource = self.get_registry_resource(res_type, res_id)
+                if not reg_resource:
+                    return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
+                elif reg_resource != node_resources[res_id]:
+                    return test.FAIL("Node API JSON does not match data in registry for "
+                                     "{} {}.".format(res_type.title(), res_id))
 
-                return test.PASS()
-            except ValueError:
-                return test.FAIL("Invalid JSON received!")
-        else:
-            return test.FAIL("Could not reach Node!")
+            return test.PASS()
+        except ValueError:
+            return test.FAIL("Failed to reach Node API or invalid JSON received!")
 
     def parent_resource_type(self, res_type):
+        """Find the parent resource type for a given resource"""
         if res_type == "device":
             return "node"
         elif res_type == "flow" and \
@@ -406,6 +428,7 @@ class IS0401Test(GenericTest):
             return None
 
     def check_matching_parents(self, test, res_type):
+        """Check that the parents for a specific resource type is held in the mock registry"""
         # Look up data in local mock registry
         registry_data = self.registry_basics_data[0]
         parent_type = self.parent_resource_type(res_type)
