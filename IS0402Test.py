@@ -336,8 +336,8 @@ class IS0402Test(GenericTest):
 
             response = self.do_paged_request(limit=1)
             self.do_test_paged_response(test, response,
-                                      expected_ids=[node_data["id"]],
-                                      expected_since=None, expected_until=None)
+                                        expected_ids=[node_data["id"]],
+                                        expected_since=None, expected_until=None)
             valid, r, query_parameters = response
             update_timestamps.append(r.headers["X-Paging-Until"])
 
@@ -521,8 +521,8 @@ class IS0402Test(GenericTest):
 
         # Check whether the response contains the X-Paging- headers but don't check values
         self.do_test_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None, expected_limit=None)
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None, expected_limit=None)
 
         return test.PASS()
 
@@ -536,8 +536,8 @@ class IS0402Test(GenericTest):
 
         # Check whether the response contains the X-Paging- headers but don't check values
         self.do_test_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None, expected_limit=None)
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None, expected_limit=None)
 
         return test.PASS()
 
@@ -567,36 +567,36 @@ class IS0402Test(GenericTest):
         # Ideally, we shouldn't specify the limit, and adapt the checks for whatever the default limit turns out to be
         response = self.do_paged_request(description=description, limit=10)
         self.do_test_paged_response(test, response,
-                                  expected_ids=ids[11:20 + 1],
-                                  expected_since=ts[10], expected_until=ts[20], expected_limit=10)
+                                    expected_ids=ids[11:20 + 1],
+                                    expected_since=ts[10], expected_until=ts[20], expected_limit=10)
 
         # Example 2: Request With Custom Limit
 
         response = self.do_paged_request(description=description, limit=5)
         self.do_test_paged_response(test, response,
-                                  expected_ids=ids[16:20 + 1],
-                                  expected_since=ts[15], expected_until=ts[20], expected_limit=5)
+                                    expected_ids=ids[16:20 + 1],
+                                    expected_since=ts[15], expected_until=ts[20], expected_limit=5)
 
         # Example 3: Request With Since Parameter
 
         response = self.do_paged_request(description=description, since=ts[4], limit=10)
         self.do_test_paged_response(test, response,
-                                  expected_ids=ids[5:14 + 1],
-                                  expected_since=ts[4], expected_until=ts[14], expected_limit=10)
+                                    expected_ids=ids[5:14 + 1],
+                                    expected_since=ts[4], expected_until=ts[14], expected_limit=10)
 
         # Example 4: Request With Until Parameter
 
         response = self.do_paged_request(description=description, until=ts[16], limit=10)
         self.do_test_paged_response(test, response,
-                                  expected_ids=ids[7:16 + 1],
-                                  expected_since=ts[6], expected_until=ts[16], expected_limit=10)
+                                    expected_ids=ids[7:16 + 1],
+                                    expected_since=ts[6], expected_until=ts[16], expected_limit=10)
 
         # Example 5: Request With Since & Until Parameters
 
         response = self.do_paged_request(description=description, since=ts[4], until=ts[16], limit=10)
         self.do_test_paged_response(test, response,
-                                  expected_ids=ids[5:14 + 1],
-                                  expected_since=ts[4], expected_until=ts[14], expected_limit=10)
+                                    expected_ids=ids[5:14 + 1],
+                                    expected_since=ts[4], expected_until=ts[14], expected_limit=10)
 
         return test.PASS()
 
@@ -617,28 +617,28 @@ class IS0402Test(GenericTest):
         # Check the header values when a client specifies a paging.since value after the newest resource's timestamp
 
         self.do_test_paged_response(test, self.do_paged_request(description=description, since=after),
-                                  expected_ids=[],
-                                  expected_since=after, expected_until=after)
+                                    expected_ids=[],
+                                    expected_since=after, expected_until=after)
 
         # Check the header values when a client specifies a paging.until value before the oldest resource's timestamp
 
         self.do_test_paged_response(test, self.do_paged_request(description=description, until=before),
-                                  expected_ids=[],
-                                  expected_since="0:0", expected_until=before)
+                                    expected_ids=[],
+                                    expected_since="0:0", expected_until=before)
 
         # Check the header values for a query that results in only one resource, without any paging parameters
 
         # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
         self.do_test_paged_response(test, self.do_paged_request(id=ids[12]),
-                                  expected_ids=[ids[12]],
-                                  expected_since="0:0", expected_until=timestamps[-1])
+                                    expected_ids=[ids[12]],
+                                    expected_since="0:0", expected_until=timestamps[-1])
 
         # Check the header values for a query that results in no resources, without any paging parameters
 
         # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
         self.do_test_paged_response(test, self.do_paged_request(id=str(uuid.uuid4())),
-                                  expected_ids=[],
-                                  expected_since="0:0", expected_until=timestamps[-1])
+                                    expected_ids=[],
+                                    expected_since="0:0", expected_until=timestamps[-1])
 
         return test.PASS()
 
@@ -656,22 +656,22 @@ class IS0402Test(GenericTest):
 
         response = self.do_paged_request(description=description, since=ts, until=ts, limit=10)
         self.do_test_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts, expected_until=ts, expected_limit=10)
+                                    expected_ids=[],
+                                    expected_since=ts, expected_until=ts, expected_limit=10)
 
         # Check paging.limit == 0, paging.since specified
 
         response = self.do_paged_request(description=description, since=ts, limit=0)
         self.do_test_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts, expected_until=ts, expected_limit=0)
+                                    expected_ids=[],
+                                    expected_since=ts, expected_until=ts, expected_limit=0)
 
         # Check paging.limit == 0, paging.since not specified
 
         response = self.do_paged_request(description=description, until=ts, limit=0)
         self.do_test_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts, expected_until=ts, expected_limit=0)
+                                    expected_ids=[],
+                                    expected_since=ts, expected_until=ts, expected_limit=0)
 
         return test.PASS()
 
@@ -700,8 +700,8 @@ class IS0402Test(GenericTest):
         # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
         # expected_since check could be more forgiving, i.e. >= ts[1] and < ts[4]
         self.do_test_paged_response(test, self.do_paged_request(label="foo", limit=10),
-                                  expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][-10:],
-                                  expected_since=ts[1], expected_until=ts[19], expected_limit=10)
+                                    expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][-10:],
+                                    expected_since=ts[1], expected_until=ts[19], expected_limit=10)
 
         # Query 2: 'prev' of Query 1
         #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
@@ -709,8 +709,8 @@ class IS0402Test(GenericTest):
         #          response     ( ^  ^ ]
 
         self.do_test_paged_response(test, self.do_paged_request(label="foo", until=ts[1], limit=10),
-                                  expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][0:-10],
-                                  expected_since="0:0", expected_until=ts[1], expected_limit=10)
+                                    expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][0:-10],
+                                    expected_since="0:0", expected_until=ts[1], expected_limit=10)
 
         # Query 3: 'next' of Query 1
         #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
@@ -718,8 +718,8 @@ class IS0402Test(GenericTest):
         #          response                                                                           (]
 
         self.do_test_paged_response(test, self.do_paged_request(label="foo", since=ts[19], limit=10),
-                                  expected_ids=[],
-                                  expected_since=ts[19], expected_until=ts[19], expected_limit=10)
+                                    expected_ids=[],
+                                    expected_since=ts[19], expected_until=ts[19], expected_limit=10)
 
         # Query 4: "bar", default paging parameters
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -728,8 +728,8 @@ class IS0402Test(GenericTest):
 
         # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
         self.do_test_paged_response(test, self.do_paged_request(label="bar", limit=10),
-                                  expected_ids=[ids[i] for i in range(len(ids)) if bar(i)],
-                                  expected_since="0:0", expected_until=ts[19], expected_limit=10)
+                                    expected_ids=[ids[i] for i in range(len(ids)) if bar(i)],
+                                    expected_since="0:0", expected_until=ts[19], expected_limit=10)
 
         # Query 5: "bar", limited to 3
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -739,8 +739,8 @@ class IS0402Test(GenericTest):
         # expected_until check could be more forgiving, i.e. >= ts[18] and <= 'now'
         # expected_since check could be more forgiving, i.e. >= ts[12] and < ts[13]
         self.do_test_paged_response(test, self.do_paged_request(label="bar", limit=3),
-                                  expected_ids=[ids[13], ids[17], ids[18]],
-                                  expected_since=ts[12], expected_until=ts[19], expected_limit=3)
+                                    expected_ids=[ids[13], ids[17], ids[18]],
+                                    expected_since=ts[12], expected_until=ts[19], expected_limit=3)
 
         # Query 6: 'prev' of Query 5
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -749,8 +749,8 @@ class IS0402Test(GenericTest):
 
         # expected_since check could be more forgiving, i.e. >= ts[3] and < ts[7]
         self.do_test_paged_response(test, self.do_paged_request(label="bar", until=ts[12], limit=3),
-                                  expected_ids=[ids[7], ids[8], ids[12]],
-                                  expected_since=ts[3], expected_until=ts[12], expected_limit=3)
+                                    expected_ids=[ids[7], ids[8], ids[12]],
+                                    expected_since=ts[3], expected_until=ts[12], expected_limit=3)
 
         # Query 7: like Query 5, with paging.since specified, but still enough matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -758,8 +758,8 @@ class IS0402Test(GenericTest):
         #          response                    (       ^  ^              ^ ]
 
         self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[4], until=ts[12], limit=3),
-                                  expected_ids=[ids[7], ids[8], ids[12]],
-                                  expected_since=ts[4], expected_until=ts[12], expected_limit=3)
+                                    expected_ids=[ids[7], ids[8], ids[12]],
+                                    expected_since=ts[4], expected_until=ts[12], expected_limit=3)
 
         # Query 8: like Query 5, with paging.since specified, and not enough matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -767,8 +767,8 @@ class IS0402Test(GenericTest):
         #          response                                   (          ^ ]
 
         self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[12], limit=3),
-                                  expected_ids=[ids[12]],
-                                  expected_since=ts[9], expected_until=ts[12], expected_limit=3)
+                                    expected_ids=[ids[12]],
+                                    expected_since=ts[9], expected_until=ts[12], expected_limit=3)
 
         # Query 9: like Query 5, but no matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -776,8 +776,8 @@ class IS0402Test(GenericTest):
         #          response                                   (        ]
 
         self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[11], limit=3),
-                                  expected_ids=[],
-                                  expected_since=ts[9], expected_until=ts[11], expected_limit=3)
+                                    expected_ids=[],
+                                    expected_since=ts[9], expected_until=ts[11], expected_limit=3)
 
         return test.PASS()
 
@@ -834,8 +834,8 @@ class IS0402Test(GenericTest):
 
         response = self.do_paged_request(description=description, limit=count)
         self.do_test_paged_response(test, response,
-                                  expected_ids=ids,
-                                  expected_since="0:0", expected_until=ts[-1], expected_limit=count)
+                                    expected_ids=ids,
+                                    expected_since="0:0", expected_until=ts[-1], expected_limit=count)
 
         resources = response[1].json()  # valid json guaranteed by do_test_paged_response
         resources.reverse()
@@ -844,15 +844,15 @@ class IS0402Test(GenericTest):
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.do_test_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts[-1], expected_until=None, expected_limit=count)
+                                    expected_ids=[],
+                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
 
         # 'current' page should be same as initial response
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.do_test_paged_response(test, response,
-                                  expected_ids=ids,
-                                  expected_since=None, expected_until=ts[-1], expected_limit=count)
+                                    expected_ids=ids,
+                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
 
         # after an update, the 'next' page should now contain only the updated resource
 
@@ -860,15 +860,15 @@ class IS0402Test(GenericTest):
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.do_test_paged_response(test, response,
-                                  expected_ids=[ids[1]],
-                                  expected_since=ts[-1], expected_until=None, expected_limit=count)
+                                    expected_ids=[ids[1]],
+                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
 
         # and what was the 'current' page should now contain only the unchanged resources
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.do_test_paged_response(test, response,
-                                  expected_ids=[ids[0], ids[2]],
-                                  expected_since=None, expected_until=ts[-1], expected_limit=count)
+                                    expected_ids=[ids[0], ids[2]],
+                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
 
         # after the other resources are also updated, what was the 'current' page should now be empty
 
@@ -877,15 +877,15 @@ class IS0402Test(GenericTest):
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.do_test_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=None, expected_until=ts[-1], expected_limit=count)
+                                    expected_ids=[],
+                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
 
         # and what was the 'next' page should now contain all the resources in the update order
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.do_test_paged_response(test, response,
-                                  expected_ids=[ids[1], ids[2], ids[0]],
-                                  expected_since=ts[-1], expected_until=None, expected_limit=count)
+                                    expected_ids=[ids[1], ids[2], ids[0]],
+                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
 
         return test.PASS()
 
@@ -897,8 +897,8 @@ class IS0402Test(GenericTest):
         # check '&' is returned encoded
         response = self.do_paged_request(label="foo%26bar")
         self.do_test_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None)
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None)
 
         return test.PASS()
 
@@ -910,8 +910,8 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request()
         # most tests on the Link header are actually done in every call to do_test_paged_response
         self.do_test_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None)
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None)
 
         # also check 'https' URLs in the Link header have a hostname not an IP address
         link_header = self.parse_link_header(response[1].headers["Link"])
