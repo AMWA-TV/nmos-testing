@@ -1071,13 +1071,13 @@ class IS0401Test(GenericTest):
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        if not found_api_endpoint:
-            return test.FAIL("None of the Node 'api.endpoints' match the current protocol, IP/hostname and port")
-
-        if not found_href:
-            return test.FAIL("None of the Node 'api.endpoints' match the Node 'href'")
-
         if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            if not found_api_endpoint:
+                return test.FAIL("None of the Node 'api.endpoints' match the current protocol, IP/hostname and port")
+
+            if not found_href:
+                return test.FAIL("None of the Node 'api.endpoints' match the Node 'href'")
+
             valid, response = self.do_request("GET", self.node_url + "devices")
             if not valid:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
