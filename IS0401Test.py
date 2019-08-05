@@ -287,9 +287,19 @@ class IS0401Test(GenericTest):
 
         for resource in registry_data.posts:
             if "Content-Type" not in resource[1]["headers"]:
-                return test.FAIL("Node failed to signal its Content-Type correctly when registering.")
-            elif resource[1]["headers"]["Content-Type"] != "application/json":
-                return test.FAIL("Node signalled a Content-Type other than application/json.")
+                return test.FAIL("Node failed to signal its Content-Type when registering.")
+            else:
+                ctype = resource[1]["headers"]["Content-Type"]
+                ctype_params = ctype.split(";")
+                if ctype_params[0] != "application/json":
+                    return test.FAIL("Node signalled a Content-Type of {} rather than application/json."
+                                     .format(ctype))
+                elif len(ctype_params) == 2 and ctype_params[1].strip() == "charset=utf-8":
+                    return test.WARNING("Node signalled an unnecessary 'charset' in its Content-Type: {}"
+                                        .format(ctype))
+                elif len(ctype_params) >= 2:
+                    return test.FAIL("Node signalled unexpected additional parameters in its Content-Type: {}"
+                                     .format(ctype))
 
         return test.PASS()
 
