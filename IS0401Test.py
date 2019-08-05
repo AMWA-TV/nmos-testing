@@ -47,6 +47,8 @@ class IS0401Test(GenericTest):
         self.registry_basics_data = []
         self.registry_primary_data = None
         self.registry_invalid_data = None
+        self.node_basics_data = {"self": None, "devices": None, "sources": None,
+                                 "flows": None, "senders": None, "receivers": None}
         self.is04_utils = IS04Utils(self.node_url)
         self.zc = None
         self.zc_listener = None
@@ -90,10 +92,25 @@ class IS0401Test(GenericTest):
                            txt, hostname)
         return info
 
+    def do_node_basics_prereqs(self):
+        """Collect a copy of each of the Node's resources"""
+        for resource in self.node_basics_data:
+            url = "{}{}".format(self.node_url, resource)
+            valid, r = self.do_request("GET", url)
+            if valid and r.status_code == 200:
+                try:
+                    self.node_basics_data[resource] = r.json()
+                except Exception:
+                    pass
+
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
 
-        if self.registry_basics_done or not ENABLE_DNS_SD:
+        if self.registry_basics_done:
+            return
+
+        if not ENABLE_DNS_SD:
+            self.do_node_basics_prereqs()
             return
 
         if DNS_SD_MODE == "multicast":
@@ -150,6 +167,9 @@ class IS0401Test(GenericTest):
         while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1 or \
               (time.time() - self.invalid_registry.last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(0.2)
+
+        # Collect matching resources from the Node
+        self.do_node_basics_prereqs()
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
         if len(self.primary_registry.get_data().heartbeats) > 0 or len(self.invalid_registry.get_data().heartbeats) > 0:
@@ -298,9 +318,19 @@ class IS0401Test(GenericTest):
 
         for resource in registry_data.posts:
             if "Content-Type" not in resource[1]["headers"]:
-                return test.FAIL("Node failed to signal its Content-Type correctly when registering.")
-            elif resource[1]["headers"]["Content-Type"] != "application/json":
-                return test.FAIL("Node signalled a Content-Type other than application/json.")
+                return test.FAIL("Node failed to signal its Content-Type when registering.")
+            else:
+                ctype = resource[1]["headers"]["Content-Type"]
+                ctype_params = ctype.split(";")
+                if ctype_params[0] != "application/json":
+                    return test.FAIL("Node signalled a Content-Type of {} rather than application/json."
+                                     .format(ctype))
+                elif len(ctype_params) == 2 and ctype_params[1].strip() == "charset=utf-8":
+                    return test.WARNING("Node signalled an unnecessary 'charset' in its Content-Type: {}"
+                                        .format(ctype))
+                elif len(ctype_params) >= 2:
+                    return test.FAIL("Node signalled unexpected additional parameters in its Content-Type: {}"
+                                     .format(ctype))
 
         return test.PASS()
 
@@ -336,6 +366,7 @@ class IS0401Test(GenericTest):
         return test.PASS()
 
     def get_registry_resource(self, res_type, res_id):
+        """Get a specific resource ID from the mock registry, or a real registry if DNS-SD is disabled"""
         found_resource = None
         if ENABLE_DNS_SD:
             # Look up data in local mock registry
@@ -358,9 +389,17 @@ class IS0401Test(GenericTest):
                                                                                                        QUERY_API_PORT))
         return found_resource
 
-    def get_node_resources(self, resp_json):
+    def get_node_resources(self, res_type):
+        """Get resources matching a specific type from the Node API"""
+        if res_type == "node":
+            res_type = "self"
+        else:
+            res_type = res_type + "s"
+        resp_json = self.node_basics_data[res_type]
         resources = {}
-        if isinstance(resp_json, dict):
+        if resp_json is None:
+            raise ValueError
+        elif isinstance(resp_json, dict):
             resources[resp_json["id"]] = resp_json
         else:
             for resource in resp_json:
@@ -368,34 +407,27 @@ class IS0401Test(GenericTest):
         return resources
 
     def check_matching_resource(self, test, res_type):
-        if res_type == "node":
-            url = "{}self".format(self.node_url)
-        else:
-            url = "{}{}s".format(self.node_url, res_type)
-        # Get data from node itself
-        valid, r = self.do_request("GET", url)
-        if valid and r.status_code == 200:
-            try:
-                node_resources = self.get_node_resources(r.json())
+        """Check that a resource held in the registry matches the resource held by the Node API"""
+        try:
+            node_resources = self.get_node_resources(res_type)
 
-                if len(node_resources) == 0:
-                    return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
+            if len(node_resources) == 0:
+                return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
 
-                for res_id in node_resources:
-                    reg_resource = self.get_registry_resource(res_type, res_id)
-                    if not reg_resource:
-                        return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
-                    elif reg_resource != node_resources[res_id]:
-                        return test.FAIL("Node API JSON does not match data in registry for "
-                                         "{} {}.".format(res_type.title(), res_id))
+            for res_id in node_resources:
+                reg_resource = self.get_registry_resource(res_type, res_id)
+                if not reg_resource:
+                    return test.FAIL("{} {} was not found in the registry.".format(res_type.title(), res_id))
+                elif reg_resource != node_resources[res_id]:
+                    return test.FAIL("Node API JSON does not match data in registry for "
+                                     "{} {}.".format(res_type.title(), res_id))
 
-                return test.PASS()
-            except ValueError:
-                return test.FAIL("Invalid JSON received!")
-        else:
-            return test.FAIL("Could not reach Node!")
+            return test.PASS()
+        except ValueError:
+            return test.FAIL("Failed to reach Node API or invalid JSON received!")
 
     def parent_resource_type(self, res_type):
+        """Find the parent resource type for a given resource"""
         if res_type == "device":
             return "node"
         elif res_type == "flow" and \
@@ -407,6 +439,7 @@ class IS0401Test(GenericTest):
             return None
 
     def check_matching_parents(self, test, res_type):
+        """Check that the parents for a specific resource type is held in the mock registry"""
         # Look up data in local mock registry
         registry_data = self.registry_primary_data
         parent_type = self.parent_resource_type(res_type)
@@ -616,7 +649,8 @@ class IS0401Test(GenericTest):
                 if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                     if "api_auth" not in properties:
                         return test.FAIL("No 'api_auth' TXT record found in Node API advertisement.")
-                    elif properties["api_auth"] not in ["true", "false"]:
+                    elif not isinstance(properties["api_auth"], bool):
+                        # zeroconf translates 'true' to True and 'false' to False automatically
                         return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
 
                 return test.PASS()
@@ -669,6 +703,9 @@ class IS0401Test(GenericTest):
         try:
             formats_tested = []
             for receiver in receivers.json():
+                if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+
                 try:
                     stream_type = receiver["format"].split(":")[-1]
                 except TypeError:
@@ -708,7 +745,7 @@ class IS0401Test(GenericTest):
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.UNCLEAR("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any RTP Receivers")
 
     def test_14(self, test):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
@@ -719,15 +756,21 @@ class IS0401Test(GenericTest):
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
-            if len(receivers.json()) > 0:
-                receiver = receivers.json()[0]
-                self.do_receiver_put(test, receiver["id"], {})
+            test_receiver = None
+            for receiver in receivers.json():
+                if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+                test_receiver = receiver
+                break
+
+            if test_receiver is not None:
+                self.do_receiver_put(test, test_receiver["id"], {})
 
                 time.sleep(API_PROCESSING_TIMEOUT)
 
-                valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
+                valid, response = self.do_request("GET", self.node_url + "receivers/" + test_receiver["id"])
                 if not valid:
-                    return test.FAIL("Unexpected response from the Node API: {}".format(receiver))
+                    return test.FAIL("Unexpected response from the Node API: {}".format(test_receiver))
 
                 receiver = response.json()
                 if receiver["subscription"]["sender_id"] is not None:
@@ -744,7 +787,7 @@ class IS0401Test(GenericTest):
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        return test.UNCLEAR("Node API does not expose any Receivers")
+        return test.UNCLEAR("Node API does not expose any RTP Receivers")
 
     def test_15(self, test):
         """Node correctly selects a Registration API based on advertised priorities"""
@@ -757,10 +800,10 @@ class IS0401Test(GenericTest):
         last_hb = None
         last_registry = None
         # All but the first and last registry can be used for priority tests. The last one is reserved for timeout tests
-        for registry_data in self.registry_basics_data[1:-1]:
+        for index, registry_data in enumerate(self.registry_basics_data[1:-1]):
             if len(registry_data.heartbeats) < 1:
-                return test.FAIL("Node never made contact with registry advertised on port {}"
-                                 .format(registry_data.port))
+                return test.FAIL("Node never made contact with registry {} advertised on port {}"
+                                 .format(index + 1, registry_data.port))
 
             first_hb_to_registry = registry_data.heartbeats[0]
             if last_hb:
@@ -785,8 +828,8 @@ class IS0401Test(GenericTest):
         # All but the first and last registry can be used for failover tests. The last one is reserved for timeout tests
         for index, registry_data in enumerate(self.registry_basics_data[1:-1]):
             if len(registry_data.heartbeats) < 1:
-                return test.FAIL("Node never made contact with registry advertised on port {}"
-                                 .format(registry_data.port))
+                return test.FAIL("Node never made contact with registry {} advertised on port {}"
+                                 .format(index + 1, registry_data.port))
 
             if index > 0 and len(registry_data.posts) > 0:
                 return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
@@ -806,8 +849,8 @@ class IS0401Test(GenericTest):
         # out its attempted connection within a heartbeat period and then registers with the next available one.
         registry_data = self.registry_basics_data[-1]
         if len(registry_data.heartbeats) < 1:
-            return test.WARNING("Node never made contact with registry advertised on port {}"
-                                .format(registry_data.port))
+            return test.WARNING("Node never made contact with registry {} advertised on port {}"
+                                .format(len(self.registry_basics_data), registry_data.port))
 
         if len(registry_data.posts) > 0:
             return test.WARNING("Node re-registered its resources when it failed over to a new registry, when it "
@@ -1041,13 +1084,13 @@ class IS0401Test(GenericTest):
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        if not found_api_endpoint:
-            return test.FAIL("None of the Node 'api.endpoints' match the current protocol, IP/hostname and port")
-
-        if not found_href:
-            return test.FAIL("None of the Node 'api.endpoints' match the Node 'href'")
-
         if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            if not found_api_endpoint:
+                return test.FAIL("None of the Node 'api.endpoints' match the current protocol, IP/hostname and port")
+
+            if not found_href:
+                return test.FAIL("None of the Node 'api.endpoints' match the Node 'href'")
+
             valid, response = self.do_request("GET", self.node_url + "devices")
             if not valid:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
@@ -1114,8 +1157,9 @@ class IS0401Test(GenericTest):
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
             self.zc.register_service(registry_info)
 
-        # Wait for n seconds after advertising the service for the first POST from a Node
+        # Wait for n seconds after advertising the service for the first POST and then DELETE from a Node
         self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
+        self.primary_registry.wait_for_delete(HEARTBEAT_INTERVAL + 1)
 
         # By this point we should have had at least one Node POST and a corresponding DELETE
         if DNS_SD_MODE == "multicast":
@@ -1167,7 +1211,7 @@ class IS0401Test(GenericTest):
                                                      "version v1.3",
                                                      NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
         elif put_response.status_code != 202:
-            raise NMOSTestException(test.FAIL("Receiver target PATCH did not produce a 202 response code: "
+            raise NMOSTestException(test.FAIL("Receiver target PUT did not produce a 202 response code: "
                                               "{}".format(put_response.status_code)))
 
     def collect_mdns_announcements(self):
