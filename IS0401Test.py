@@ -316,23 +316,18 @@ class IS0401Test(GenericTest):
         if len(registry_data.posts) == 0:
             return test.FAIL("No registrations found")
 
+        ctype_warn = ""
         for resource in registry_data.posts:
-            if "Content-Type" not in resource[1]["headers"]:
-                return test.FAIL("Node failed to signal its Content-Type when registering.")
-            else:
-                ctype = resource[1]["headers"]["Content-Type"]
-                ctype_params = ctype.split(";")
-                if ctype_params[0] != "application/json":
-                    return test.FAIL("Node signalled a Content-Type of {} rather than application/json."
-                                     .format(ctype))
-                elif len(ctype_params) == 2 and ctype_params[1].strip() == "charset=utf-8":
-                    return test.WARNING("Node signalled an unnecessary 'charset' in its Content-Type: {}"
-                                        .format(ctype))
-                elif len(ctype_params) >= 2:
-                    return test.FAIL("Node signalled unexpected additional parameters in its Content-Type: {}"
-                                     .format(ctype))
+            ctype_valid, ctype_message = self.check_content_type(resource[1]["headers"])
+            if not ctype_valid:
+                return test.FAIL(ctype_message)
+            elif ctype_message and not ctype_warn:
+                ctype_warn = ctype_message
 
-        return test.PASS()
+        if ctype_warn:
+            return test.WARNING(ctype_warn)
+        else:
+            return test.PASS()
 
     def test_03_01(self, test):
         """Registration API interactions use the correct versioned path"""

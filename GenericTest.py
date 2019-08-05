@@ -227,6 +227,24 @@ class GenericTest(object):
                 return False
         return True
 
+    def check_content_type(self, headers):
+        """Check the Content-Type header of an API request or response"""
+        if "Content-Type" not in headers:
+            return False, "API failed to signal a Content-Type."
+        else:
+            ctype = headers["Content-Type"]
+            ctype_params = ctype.split(";")
+            if ctype_params[0] != "application/json":
+                return False, "API signalled a Content-Type of {} rather than application/json." \
+                              .format(ctype)
+            elif len(ctype_params) == 2 and ctype_params[1].strip() == "charset=utf-8":
+                return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
+                             .format(ctype)
+            elif len(ctype_params) >= 2:
+                return False, "API signalled unexpected additional parameters in its Content-Type: {}" \
+                              .format(ctype)
+        return True, ""
+
     def auto_test_name(self, api_name):
         """Get the name which should be used for an automatically defined test"""
         self.auto_test_count += 1
@@ -254,6 +272,10 @@ class GenericTest(object):
 
     def check_response(self, schema, method, response):
         """Confirm that a given Requests response conforms to the expected schema and has any expected headers"""
+        ctype_valid, ctype_message = self.check_content_type(response.headers)
+        if not ctype_valid:
+            return False, ctype_message
+
         if not self.validate_CORS(method, response):
             return False, "Incorrect CORS headers: {}".format(response.headers)
 
@@ -264,7 +286,7 @@ class GenericTest(object):
         except json.JSONDecodeError:
             return False, "Invalid JSON received"
 
-        return True, ""
+        return True, ctype_message
 
     def validate_schema(self, payload, schema):
         checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
@@ -325,7 +347,10 @@ class GenericTest(object):
         if valid:
             if response.json()["code"] != error_code:
                 return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
-            return test.PASS()
+            if message:
+                return test.WARNING(message)
+            else:
+                return test.PASS()
         else:
             return test.FAIL(message)
 
@@ -389,7 +414,10 @@ class GenericTest(object):
         valid, message = self.check_response(schema, resource[1]["method"], response)
 
         if valid:
-            return test.PASS()
+            if message:
+                return test.WARNING(message)
+            else:
+                return test.PASS()
         else:
             return test.FAIL(message)
 

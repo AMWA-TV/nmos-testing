@@ -211,15 +211,20 @@ class IS0501Test(GenericTest):
         """Return of /single/senders/{senderId}/constraints/ meets the schema"""
 
         if len(self.senders) > 0:
+            warn = ""
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/constraints/"
                 schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/constraints", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
-                    pass
+                    if msg and not warn:
+                        warn = msg
                 else:
                     return test.FAIL(msg)
-            return test.PASS()
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -227,15 +232,20 @@ class IS0501Test(GenericTest):
         """Return of /single/receivers/{receiverId}/constraints/ meets the schema"""
 
         if len(self.receivers) > 0:
+            warn = ""
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/constraints/"
                 schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/constraints", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
-                    pass
+                    if msg and not warn:
+                        warn = msg
                 else:
                     return test.FAIL(msg)
-            return test.PASS()
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -375,15 +385,20 @@ class IS0501Test(GenericTest):
         """Return of /single/senders/{senderId}/staged/ meets the schema"""
 
         if len(self.senders) > 0:
+            warn = ""
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/staged/"
                 schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/staged", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
-                    pass
+                    if msg and not warn:
+                        warn = msg
                 else:
                     return test.FAIL(msg)
-            return test.PASS()
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -391,15 +406,20 @@ class IS0501Test(GenericTest):
         """Return of /single/receivers/{receiverId}/staged/ meets the schema"""
 
         if len(self.receivers) > 0:
+            warn = ""
             for receiver in self.receivers:
                 dest = "single/receivers/" + receiver + "/staged/"
                 schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/staged", 200)
                 valid, msg = self.compare_to_schema(schema, dest)
                 if valid:
-                    pass
+                    if msg and not warn:
+                        warn = msg
                 else:
                     return test.FAIL(msg)
-            return test.PASS()
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -685,15 +705,20 @@ class IS0501Test(GenericTest):
         """Sender active response schema is valid"""
 
         if len(self.senders):
+            warn = ""
             for sender in self.senders:
                 activeUrl = "single/senders/" + sender + "/active"
                 schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/active", 200)
-                valid, response = self.compare_to_schema(schema, activeUrl)
+                valid, msg = self.compare_to_schema(schema, activeUrl)
                 if valid:
-                    pass
+                    if msg and not warn:
+                        warn = msg
                 else:
-                    return test.FAIL(response)
-            return test.PASS()
+                    return test.FAIL(msg)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -701,15 +726,20 @@ class IS0501Test(GenericTest):
         """Receiver active response schema is valid"""
 
         if len(self.receivers):
+            warn = ""
             for receiver in self.receivers:
                 activeUrl = "single/receivers/" + receiver + "/active"
                 schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/active", 200)
-                valid, response = self.compare_to_schema(schema, activeUrl)
+                valid, msg = self.compare_to_schema(schema, activeUrl)
                 if valid:
-                    pass
+                    if msg and not warn:
+                        warn = msg
                 else:
-                    return test.FAIL(response)
-            return test.PASS()
+                    return test.FAIL(msg)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 

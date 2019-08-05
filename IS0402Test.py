@@ -1933,7 +1933,10 @@ class IS0402Test(GenericTest):
         valid, message = self.check_response(schema, "POST", r)
 
         if valid:
-            return test.PASS()
+            if message:
+                return test.WARNING(message)
+            else:
+                return test.PASS()
         else:
             return test.FAIL(message)
 
