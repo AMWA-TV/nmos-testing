@@ -126,9 +126,9 @@ class IS0502Test(GenericTest):
 
         return result
 
-    def activate_check_version(self, resource_type):
+    def activate_check_version(self, resource_type, resource_list):
         try:
-            for is05_resource in self.is05_resources[resource_type]:
+            for is05_resource in resource_list:
                 if self.is05_resources["transport_types"][is05_resource] == "urn:x-nmos:transport:websocket":
                     continue
                 found_04_resource = False
@@ -165,8 +165,8 @@ class IS0502Test(GenericTest):
 
         return True, ""
 
-    def activate_check_parked(self, resource_type):
-        for is05_resource in self.is05_resources[resource_type]:
+    def activate_check_parked(self, resource_type, resource_list):
+        for is05_resource in resource_list:
             valid, response = self.is05_utils.park_resource(resource_type, is05_resource)
             if not valid:
                 return False, response
@@ -207,9 +207,9 @@ class IS0502Test(GenericTest):
 
         return True, ""
 
-    def activate_check_subscribed(self, resource_type, nmos=True, multicast=True):
+    def activate_check_subscribed(self, resource_type, resource_list, nmos=True, multicast=True):
         sub_ids = {}
-        for is05_resource in self.is05_resources[resource_type]:
+        for is05_resource in resource_list:
             if self.is05_resources["transport_types"][is05_resource] != "urn:x-nmos:transport:rtp":
                 continue
 
@@ -357,7 +357,8 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Receivers to test")
 
-        valid, response = self.activate_check_version(resource_type)
+        resource_subset = self.is05_utils.sampled_list(self.is05_resources[resource_type])
+        valid, response = self.activate_check_version(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
         else:
@@ -378,7 +379,8 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
-        valid, response = self.activate_check_version(resource_type)
+        resource_subset = self.is05_utils.sampled_list(self.is05_resources[resource_type])
+        valid, response = self.activate_check_version(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
         else:
@@ -399,11 +401,12 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Receivers to test")
 
-        valid, response = self.activate_check_parked(resource_type)
+        resource_subset = self.is05_utils.sampled_list(self.is05_resources[resource_type])
+        valid, response = self.activate_check_parked(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
 
-        valid, response = self.activate_check_subscribed(resource_type, nmos=True)
+        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=True)
         if not valid:
             return test.FAIL(response)
         else:
@@ -424,11 +427,12 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Receivers to test")
 
-        valid, response = self.activate_check_parked(resource_type)
+        resource_subset = self.is05_utils.sampled_list(self.is05_resources[resource_type])
+        valid, response = self.activate_check_parked(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
 
-        valid, response = self.activate_check_subscribed(resource_type, nmos=False)
+        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=False)
         if not valid:
             return test.FAIL(response)
         else:
@@ -453,11 +457,12 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
-        valid, response = self.activate_check_parked(resource_type)
+        resource_subset = self.is05_utils.sampled_list(self.is05_resources[resource_type])
+        valid, response = self.activate_check_parked(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
 
-        valid, response = self.activate_check_subscribed(resource_type, nmos=True)
+        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=True)
         if not valid:
             return test.FAIL(response)
         else:
@@ -482,11 +487,12 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
-        valid, response = self.activate_check_parked(resource_type)
+        resource_subset = self.is05_utils.sampled_list(self.is05_resources[resource_type])
+        valid, response = self.activate_check_parked(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
 
-        valid, response = self.activate_check_subscribed(resource_type, nmos=True)
+        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=True)
         if not valid:
             return test.FAIL(response)
         else:
@@ -511,11 +517,12 @@ class IS0502Test(GenericTest):
         if len(self.is05_resources[resource_type]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
-        valid, response = self.activate_check_parked(resource_type)
+        resource_subset = self.is05_utils.sampled_list(self.is05_resources[resource_type])
+        valid, response = self.activate_check_parked(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
 
-        valid, response = self.activate_check_subscribed(resource_type, nmos=False)
+        valid, response = self.activate_check_subscribed(resource_type, resource_subset, nmos=False)
         if not valid:
             return test.FAIL(response)
         else:
