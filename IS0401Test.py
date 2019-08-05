@@ -45,6 +45,7 @@ class IS0401Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
+        self.registry_primary_data = None
         self.registry_invalid_data = None
         self.node_basics_data = {"self": None, "devices": None, "sources": None,
                                  "flows": None, "senders": None, "receivers": None}
@@ -143,7 +144,7 @@ class IS0401Test(GenericTest):
         for registry in self.registries:
             registry.reset()
 
-        self.invalid_registry.enable(invalid_reg=True)
+        self.invalid_registry.enable()
         self.primary_registry.enable()
 
         if DNS_SD_MODE == "multicast":
@@ -163,16 +164,18 @@ class IS0401Test(GenericTest):
             time.sleep(0.2)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
+        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1 or \
+              (time.time() - self.invalid_registry.last_time) < HEARTBEAT_INTERVAL + 1:
             time.sleep(0.2)
 
         # Collect matching resources from the Node
         self.do_node_basics_prereqs()
 
         # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.primary_registry.get_data().heartbeats) > 0:
+        if len(self.primary_registry.get_data().heartbeats) > 0 or len(self.invalid_registry.get_data().heartbeats) > 0:
             # It is heartbeating, but we don't have enough of them yet
-            while len(self.primary_registry.get_data().heartbeats) < 2:
+            while len(self.primary_registry.get_data().heartbeats) < 2 and \
+                  len(self.invalid_registry.get_data().heartbeats) < 2:
                 time.sleep(0.2)
 
             # Once registered, advertise all other registries at different (ascending) priorities
@@ -184,6 +187,7 @@ class IS0401Test(GenericTest):
                     self.zc.register_service(info)
 
             # Kill registries one by one to collect data around failover
+            self.invalid_registry.disable()
             for index, registry in enumerate(self.registries):
                 registry.disable()
 
@@ -227,6 +231,13 @@ class IS0401Test(GenericTest):
             self.registry_basics_data.append(registry.get_data())
         self.registry_invalid_data = self.invalid_registry.get_data()
 
+        # If the Node preferred the invalid registry, don't penalise it for other tests which check the general
+        # interactions are correct
+        if len(self.registry_invalid_data.posts) > 0:
+            self.registry_primary_data = self.registry_invalid_data
+        else:
+            self.registry_primary_data = self.registry_basics_data[0]
+
     def test_01(self, test):
         """Node can discover network registration service via multicast DNS"""
 
@@ -236,7 +247,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) > 0:
             return test.PASS()
 
@@ -269,7 +280,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) > 0:
             return test.PASS()
 
@@ -301,7 +312,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
             return test.FAIL("No registrations found")
 
@@ -333,7 +344,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
             return test.FAIL("No registrations found")
 
@@ -359,7 +370,7 @@ class IS0401Test(GenericTest):
         found_resource = None
         if ENABLE_DNS_SD:
             # Look up data in local mock registry
-            registry_data = self.registry_basics_data[0]
+            registry_data = self.registry_primary_data
             for resource in registry_data.posts:
                 if resource[1]["payload"]["type"] == res_type and resource[1]["payload"]["data"]["id"] == res_id:
                     found_resource = resource[1]["payload"]["data"]
@@ -430,7 +441,7 @@ class IS0401Test(GenericTest):
     def check_matching_parents(self, test, res_type):
         """Check that the parents for a specific resource type is held in the mock registry"""
         # Look up data in local mock registry
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         parent_type = self.parent_resource_type(res_type)
         registered_parents = []
         found_resource = False
@@ -471,7 +482,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        registry_data = self.registry_basics_data[0]
+        registry_data = self.registry_primary_data
         if len(registry_data.heartbeats) < 2:
             return test.FAIL("Not enough heartbeats were made in the time period.")
 
@@ -788,7 +799,8 @@ class IS0401Test(GenericTest):
 
         last_hb = None
         last_registry = None
-        for index, registry_data in enumerate(self.registry_basics_data[0:-1]):
+        # All but the first and last registry can be used for priority tests. The last one is reserved for timeout tests
+        for index, registry_data in enumerate(self.registry_basics_data[1:-1]):
             if len(registry_data.heartbeats) < 1:
                 return test.FAIL("Node never made contact with registry {} advertised on port {}"
                                  .format(index + 1, registry_data.port))
@@ -813,8 +825,8 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        # All but the last registry can be used for failover tests. The last one is reserved for timeout tests
-        for index, registry_data in enumerate(self.registry_basics_data[0:-1]):
+        # All but the first and last registry can be used for failover tests. The last one is reserved for timeout tests
+        for index, registry_data in enumerate(self.registry_basics_data[1:-1]):
             if len(registry_data.heartbeats) < 1:
                 return test.FAIL("Node never made contact with registry {} advertised on port {}"
                                  .format(index + 1, registry_data.port))
