@@ -214,18 +214,19 @@ class GenericTest(object):
         headers['Access-Control-Request-Headers'] = "Content-Type"  # Needed for POST/PATCH etc only
         return headers
 
-    def validate_CORS(self, method, response):
+    # 'check' functions return a Boolean pass/fail indicator and a message
+    def check_CORS(self, method, headers):
         """Check the CORS headers returned by an API call"""
-        if 'Access-Control-Allow-Origin' not in response.headers:
-            return False
+        if 'Access-Control-Allow-Origin' not in headers:
+            return False, "Incorrect CORS headers: {}".format(headers)
         if method == "OPTIONS":
-            if 'Access-Control-Allow-Headers' not in response.headers:
-                return False
-            if 'Access-Control-Allow-Methods' not in response.headers:
-                return False
-            if method not in response.headers['Access-Control-Allow-Methods']:
-                return False
-        return True
+            if 'Access-Control-Allow-Headers' not in headers:
+                return False, "Incorrect CORS headers: {}".format(headers)
+            if 'Access-Control-Allow-Methods' not in headers:
+                return False, "Incorrect CORS headers: {}".format(headers)
+            if method not in headers['Access-Control-Allow-Methods']:
+                return False, "Incorrect CORS headers: {}".format(headers)
+        return True, ""
 
     def check_content_type(self, headers):
         """Check the Content-Type header of an API request or response"""
@@ -250,20 +251,22 @@ class GenericTest(object):
         self.auto_test_count += 1
         return "auto_{}_{}".format(api_name, self.auto_test_count)
 
-    def check_base_path(self, api_name, base_url, path, expectation):
+    # 'do_test' functions either return a TestResult, or raise an NMOSTestException when there's an error
+    def do_test_base_path(self, api_name, base_url, path, expectation):
         """Check that a GET to a path returns a JSON array containing a defined string"""
         test = Test("GET {}".format(path), self.auto_test_name(api_name))
-        valid, req = self.do_request("GET", base_url + path)
+        valid, response = self.do_request("GET", base_url + path)
         if not valid:
-            return test.FAIL("Unable to connect to API: {}".format(req))
+            return test.FAIL("Unable to connect to API: {}".format(response))
 
-        if req.status_code != 200:
-            return test.FAIL("Incorrect response code: {}".format(req.status_code))
-        elif not self.validate_CORS('GET', req):
-            return test.FAIL("Incorrect CORS headers: {}".format(req.headers))
+        if response.status_code != 200:
+            return test.FAIL("Incorrect response code: {}".format(response.status_code))
         else:
+            cors_valid, cors_message = self.check_CORS('GET', response.headers)
+            if not cors_valid:
+                return test.FAIL(cors_message)
             try:
-                if not isinstance(req.json(), list) or expectation not in req.json():
+                if not isinstance(response.json(), list) or expectation not in response.json():
                     return test.FAIL("Response is not an array containing '{}'".format(expectation))
                 else:
                     return test.PASS()
@@ -276,8 +279,9 @@ class GenericTest(object):
         if not ctype_valid:
             return False, ctype_message
 
-        if not self.validate_CORS(method, response):
-            return False, "Incorrect CORS headers: {}".format(response.headers)
+        cors_valid, cors_message = self.check_CORS(method, response.headers)
+        if not cors_valid:
+            return False, cors_message
 
         try:
             self.validate_schema(response.json(), schema)
@@ -289,8 +293,12 @@ class GenericTest(object):
         return True, ctype_message
 
     def validate_schema(self, payload, schema):
+        """
+        Validate the payload under the given schema.
+        Raises an exception if the payload (or schema itself) is invalid
+        """
         checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
-        return jsonschema.validate(payload, schema, format_checker=checker)
+        jsonschema.validate(payload, schema, format_checker=checker)
 
     def do_request(self, method, url, **kwargs):
         return TestHelper.do_request(
@@ -309,25 +317,25 @@ class GenericTest(object):
             self.auto_test_count = 0
 
             # We don't check the very base of the URL (before x-nmos) as it may be used for other things
-            results.append(self.check_base_path(api, self.apis[api]["base_url"], "/x-nmos", api + "/"))
-            results.append(self.check_base_path(api, self.apis[api]["base_url"], "/x-nmos/{}".format(api),
-                                                self.apis[api]["version"] + "/"))
+            results.append(self.do_test_base_path(api, self.apis[api]["base_url"], "/x-nmos", api + "/"))
+            results.append(self.do_test_base_path(api, self.apis[api]["base_url"], "/x-nmos/{}".format(api),
+                                                  self.apis[api]["version"] + "/"))
 
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
                     if response_code == 200 and resource[0] not in self.omit_paths:
                         # TODO: Test for each of these if the trailing slash version also works and if redirects are
                         # used on either.
-                        result = self.check_api_resource(resource, response_code, api)
+                        result = self.do_test_api_resource(resource, response_code, api)
                         if result is not None:
                             results.append(result)
 
             # Perform an automatic check for an error condition
-            results.append(self.check_404_path(api))
+            results.append(self.do_test_404_path(api))
 
         return results
 
-    def check_404_path(self, api_name):
+    def do_test_404_path(self, api_name):
         api = self.apis[api_name]
         error_code = 404
         invalid_path = str(uuid.uuid4())
@@ -354,7 +362,7 @@ class GenericTest(object):
         else:
             return test.FAIL(message)
 
-    def check_api_resource(self, resource, response_code, api):
+    def do_test_api_resource(self, resource, response_code, api):
         # Test URLs which include a {resourceId} or similar parameter
         if resource[1]['params'] and len(resource[1]['params']) == 1:
             path = resource[0].split("{")[0].rstrip("/")
@@ -398,12 +406,13 @@ class GenericTest(object):
 
         # For methods which don't return a payload, just check the CORS headers
         if resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
-            if self.validate_CORS(resource[1]['method'], response):
+            cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers)
+            if cors_valid:
                 # Pass for a plain CORS check
                 return test.PASS()
             else:
                 # Fail for a plain CORS check
-                return test.FAIL("Incorrect CORS headers: {}".format(response.headers))
+                return test.FAIL(cors_message)
 
         # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)

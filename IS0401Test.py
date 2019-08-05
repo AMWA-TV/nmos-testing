@@ -401,7 +401,7 @@ class IS0401Test(GenericTest):
                 resources[resource["id"]] = resource
         return resources
 
-    def check_matching_resource(self, test, res_type):
+    def do_test_matching_resource(self, test, res_type):
         """Check that a resource held in the registry matches the resource held by the Node API"""
         try:
             node_resources = self.get_node_resources(res_type)
@@ -433,7 +433,7 @@ class IS0401Test(GenericTest):
         else:
             return None
 
-    def check_matching_parents(self, test, res_type):
+    def do_test_matching_parents(self, test, res_type):
         """Check that the parents for a specific resource type is held in the mock registry"""
         # Look up data in local mock registry
         registry_data = self.registry_primary_data
@@ -465,7 +465,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "node")
+        return self.do_test_matching_resource(test, "node")
 
     def test_05(self, test):
         """Node maintains itself in the registry via periodic calls to the health resource"""
@@ -523,7 +523,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "device")
+        return self.do_test_matching_resource(test, "device")
 
     def test_07_01(self, test):
         """Registered Device was POSTed after a matching referenced Node"""
@@ -533,7 +533,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "device")
+        return self.do_test_matching_parents(test, "device")
 
     def test_08(self, test):
         """Node can register a valid Source resource with the network
@@ -541,7 +541,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "source")
+        return self.do_test_matching_resource(test, "source")
 
     def test_08_01(self, test):
         """Registered Source was POSTed after a matching referenced Device"""
@@ -551,7 +551,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "source")
+        return self.do_test_matching_parents(test, "source")
 
     def test_09(self, test):
         """Node can register a valid Flow resource with the network
@@ -559,7 +559,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "flow")
+        return self.do_test_matching_resource(test, "flow")
 
     def test_09_01(self, test):
         """Registered Flow was POSTed after a matching referenced Device or Source"""
@@ -569,7 +569,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "flow")
+        return self.do_test_matching_parents(test, "flow")
 
     def test_10(self, test):
         """Node can register a valid Sender resource with the network
@@ -577,7 +577,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "sender")
+        return self.do_test_matching_resource(test, "sender")
 
     def test_10_01(self, test):
         """Registered Sender was POSTed after a matching referenced Device"""
@@ -587,7 +587,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "sender")
+        return self.do_test_matching_parents(test, "sender")
 
     def test_11(self, test):
         """Node can register a valid Receiver resource with the network
@@ -595,7 +595,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "receiver")
+        return self.do_test_matching_resource(test, "receiver")
 
     def test_11_01(self, test):
         """Registered Receiver was POSTed after a matching referenced Device"""
@@ -605,7 +605,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "receiver")
+        return self.do_test_matching_parents(test, "receiver")
 
     def test_12(self, test):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
