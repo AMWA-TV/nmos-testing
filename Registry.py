@@ -41,7 +41,8 @@ class Registry(object):
     def __init__(self, data_store, port_increment):
         self.common = data_store
         self.port = PORT_BASE + 100 + port_increment  # cf. test_data/IS0401/dns_records.zone
-        self.event = Event()
+        self.add_event = Event()
+        self.delete_event = Event()
         self.reset()
 
     def reset(self):
@@ -51,12 +52,12 @@ class Registry(object):
         self.common.reset()
         self.enabled = False
         self.test_first_reg = False
-        self.test_invalid_reg = False
-        self.event.clear()
+        self.add_event.clear()
+        self.delete_event.clear()
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
-        self.event.set()
+        self.add_event.set()
         self.data.posts.append((self.last_time, {"headers": headers, "payload": payload, "version": version}))
         if "type" in payload and "data" in payload:
             if payload["type"] not in self.common.resources:
@@ -66,7 +67,7 @@ class Registry(object):
 
     def delete(self, headers, payload, version, resource_type, resource_id):
         self.last_time = time.time()
-        self.event.set()
+        self.delete_event.set()
         self.data.deletes.append((self.last_time, {"headers": headers, "payload": payload, "version": version,
                                                    "type": resource_type, "id": resource_id}))
         if resource_type in self.common.resources:
@@ -83,21 +84,22 @@ class Registry(object):
     def get_resources(self):
         return self.common.resources
 
-    def enable(self, first_reg=False, invalid_reg=False):
+    def enable(self, first_reg=False):
         self.test_first_reg = first_reg
-        self.test_invalid_reg = invalid_reg
         self.enabled = True
 
     def disable(self):
         self.test_first_reg = False
-        self.test_invalid_reg = False
         self.enabled = False
 
     def wait_for_registration(self, timeout):
-        self.event.wait(timeout)
+        self.add_event.wait(timeout)
+
+    def wait_for_delete(self, timeout):
+        self.delete_event.wait(timeout)
 
     def has_registrations(self):
-        return self.event.is_set()
+        return self.add_event.is_set()
 
 
 # 0 = Invalid request testing registry
@@ -125,9 +127,6 @@ def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    if registry.test_invalid_reg:
-        print(" * DEBUG: Node attempted registration with a registry using invalid DNS-SD TXT records")
-        registry.disable()
     if not registry.test_first_reg:
         registered = False
         try:

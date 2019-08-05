@@ -5,8 +5,8 @@ $TTL 60s
 {{ domain }}.  IN  A     {{ ip_address }}
 
 ; These lines indicate to clients that this server supports DNS Service Discovery
-b._dns-sd._udp	IN	PTR	@
-lb._dns-sd._udp	IN	PTR	@
+b._dns-sd._udp	IN	PTR	{{ domain }}.
+lb._dns-sd._udp	IN	PTR	{{ domain }}.
 
 ; These lines indicate to clients which service types this server may advertise
 _services._dns-sd._udp	PTR	_nmos-registration._tcp

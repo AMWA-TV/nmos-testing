@@ -86,12 +86,11 @@ class BCP00301Test(GenericTest):
             return test.DISABLED("Unable to test. See the console for further information.")
         else:
             tls1_3_supported = False
-            tls1_2_shall = ["TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8"]
+            tls1_2_shall = ["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]
             tls1_2_should = ["TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
                              "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
                              "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
                              "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",
-                             "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
                              "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
                              "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
                              "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
