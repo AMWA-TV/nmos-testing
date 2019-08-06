@@ -264,6 +264,7 @@ class IS0801Test(GenericTest):
 
                 try:
                     activation.checkReject()
+                    return test.PASS()
                 except NMOSTestException:
                     msg = ("Was able to create a forbidden route between input {}"
                            " and output {} despite routing constraint."
