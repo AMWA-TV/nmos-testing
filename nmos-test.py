@@ -602,10 +602,10 @@ def validate_args(args):
 
 class PortLoggingHandler(WSGIRequestHandler):
     def log(self, type, message, *args):
-        # Conform to Combined Log Format, replacing Referer with the local server address
+        # Conform to Combined Log Format, replacing Referer with the Host header or the local server address
         url_scheme = "http" if self.server.ssl_context is None else "https"
-        referer = "{}://{}:{}{}".format(url_scheme, self.server.server_address[0],
-                                        self.server.server_address[1], self.path)
+        host = self.headers.get("Host", "{}:{}".format(self.server.server_address[0], self.server.server_address[1]))
+        referer = "{}://{}".format(url_scheme, host)
         message += ' "{}" "{}"'.format(referer, self.headers.get("User-Agent", ""))
         super().log(type, message, *args)
 
