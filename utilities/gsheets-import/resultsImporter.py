@@ -23,64 +23,69 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 GOOGLE_SHEET_URL = ""
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--json", required=True)
-args = parser.parse_args()
+SCOPES = ['https://spreadsheets.google.com/feeds',
+          'https://www.googleapis.com/auth/drive']
 
-scope = ['https://spreadsheets.google.com/feeds',
-         'https://www.googleapis.com/auth/drive']
 
-credentials = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-gcloud = gspread.authorize(credentials)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json", required=True)
+    args = parser.parse_args()
 
-spreadsheet = gcloud.open_by_url(GOOGLE_SHEET_URL)
+    credentials = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPES)
+    gcloud = gspread.authorize(credentials)
 
-with open(args.json) as json_file:
-    test_results = json.load(json_file)
+    spreadsheet = gcloud.open_by_url(GOOGLE_SHEET_URL)
 
-try:
-    worksheet = spreadsheet.worksheet(test_results["suite"])
-except gspread.exceptions.WorksheetNotFound:
-    print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
-    sys.exit(1)
+    with open(args.json) as json_file:
+        test_results = json.load(json_file)
 
-populated_rows = len(worksheet.get_all_values())
-current_row = populated_rows + 1
+    try:
+        worksheet = spreadsheet.worksheet(test_results["suite"])
+    except gspread.exceptions.WorksheetNotFound:
+        print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
+        sys.exit(1)
 
-# Test Names
-start_cell_addr = gspread.utils.rowcol_to_a1(1, 5)
-end_cell_addr = gspread.utils.rowcol_to_a1(1, 9+len(test_results["results"]))
-cell_list_names = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
+    populated_rows = len(worksheet.get_all_values())
+    current_row = populated_rows + 1
 
-# Results
-start_cell_addr = gspread.utils.rowcol_to_a1(current_row, 5)
-end_cell_addr = gspread.utils.rowcol_to_a1(current_row, 9+len(test_results["results"]))
-cell_list_results = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
+    # Test Names
+    start_cell_addr = gspread.utils.rowcol_to_a1(1, 5)
+    end_cell_addr = gspread.utils.rowcol_to_a1(1, 9+len(test_results["results"]))
+    cell_list_names = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
 
-# Col 1-4 reserved for device details
+    # Results
+    start_cell_addr = gspread.utils.rowcol_to_a1(current_row, 5)
+    end_cell_addr = gspread.utils.rowcol_to_a1(current_row, 9+len(test_results["results"]))
+    cell_list_results = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
 
-current_index = 0
-cell_list_names[current_index].value = "Filename"
-cell_list_results[current_index].value = args.json
-current_index += 1
-cell_list_names[current_index].value = "URL Tested"
-cell_list_results[current_index].value = test_results["url"]
-current_index += 1
-cell_list_names[current_index].value = "Timestamp"
-cell_list_results[current_index].value = test_results["timestamp"]
-current_index += 1
-cell_list_names[current_index].value = "Test Suite"
-cell_list_results[current_index].value = test_results["suite"]
+    # Col 1-4 reserved for device details
+    current_index = 0
+    cell_list_names[current_index].value = "Filename"
+    cell_list_results[current_index].value = args.json
+    current_index += 1
+    cell_list_names[current_index].value = "URL Tested"
+    cell_list_results[current_index].value = test_results["url"]
+    current_index += 1
+    cell_list_names[current_index].value = "Timestamp"
+    cell_list_results[current_index].value = test_results["timestamp"]
+    current_index += 1
+    cell_list_names[current_index].value = "Test Suite"
+    cell_list_results[current_index].value = test_results["suite"]
 
-current_index += 1
-
-for result in test_results["results"]:
-    cell_contents = result["state"]
-    if result["detail"] != "":
-        cell_contents += " (" + result["detail"] + ")"
-    cell_list_names[current_index].value = result["name"]
-    cell_list_results[current_index].value = cell_contents
     current_index += 1
 
-worksheet.update_cells(cell_list_names)
-worksheet.update_cells(cell_list_results)
+    for result in test_results["results"]:
+        cell_contents = result["state"]
+        if result["detail"] != "":
+            cell_contents += " (" + result["detail"] + ")"
+        cell_list_names[current_index].value = result["name"]
+        cell_list_results[current_index].value = cell_contents
+        current_index += 1
+
+    worksheet.update_cells(cell_list_names)
+    worksheet.update_cells(cell_list_results)
+
+
+if __name__ == '__main__':
+    main()
