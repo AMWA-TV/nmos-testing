@@ -29,6 +29,7 @@ from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
 from enum import IntEnum
+from werkzeug.serving import WSGIRequestHandler
 
 import git
 import os
@@ -599,6 +600,16 @@ def validate_args(args):
             sys.exit(ExitCodes.ERROR)
 
 
+class PortLoggingHandler(WSGIRequestHandler):
+    def log(self, type, message, *args):
+        # Conform to Combined Log Format, replacing Referer with the Host header or the local server address
+        url_scheme = "http" if self.server.ssl_context is None else "https"
+        host = self.headers.get("Host", "{}:{}".format(self.server.server_address[0], self.server.server_address[1]))
+        referer = "{}://{}".format(url_scheme, host)
+        message += ' "{}" "{}"'.format(referer, self.headers.get("User-Agent", ""))
+        super().log(type, message, *args)
+
+
 def start_web_servers():
     ctx = None
     if ENABLE_HTTPS:
@@ -617,7 +628,8 @@ def start_web_servers():
         port = app.config['PORT']
         secure = app.config['SECURE']
         t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True,
-                                                     'ssl_context': ctx if secure else None})
+                                                     'ssl_context': ctx if secure else None,
+                                                     'request_handler': PortLoggingHandler})
         t.daemon = True
         t.start()
         web_threads.append(t)
