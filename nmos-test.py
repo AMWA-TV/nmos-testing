@@ -47,6 +47,13 @@ import ipaddress
 import socket
 import ssl
 
+# Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
+try:
+    import colorama
+    colorama.init()
+except ImportError:
+    pass
+
 import IS0401Test
 import IS0402Test
 import IS0403Test
