@@ -67,6 +67,7 @@ import IS0802Test
 import IS0901Test
 import IS1001Test
 import BCP00301Test
+import Config
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -461,13 +462,22 @@ def _check_test_result(test_result, results):
         """)
 
 
+def _export_config():
+     current_config = {}
+     for param in dir(Config):
+         if not param.startswith("__") and param != "SPECIFICATIONS":
+             current_config[param] = getattr(Config, param)
+     return current_config
+
+
 def format_test_results(results, format):
     formatted = None
     if format == "json":
         formatted = {"suite": results["suite"],
                      "url": results["base_url"],
                      "timestamp": time.time(),
-                     "results": []}
+                     "results": [],
+                     "config": _export_config()}
         for test_result in results["result"]:
             _check_test_result(test_result, results)
             formatted["results"].append({
