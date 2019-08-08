@@ -463,11 +463,11 @@ def _check_test_result(test_result, results):
 
 
 def _export_config():
-     current_config = {}
-     for param in dir(Config):
-         if not param.startswith("__") and param != "SPECIFICATIONS":
-             current_config[param] = getattr(Config, param)
-     return current_config
+    current_config = {}
+    for param in dir(Config):
+        if not param.startswith("__") and param != "SPECIFICATIONS":
+            current_config[param] = getattr(Config, param)
+    return current_config
 
 
 def format_test_results(results, format):
