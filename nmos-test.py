@@ -312,7 +312,7 @@ def index_page():
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
-                    json_output = format_test_results(results, "json")
+                    json_output = format_test_results(results, endpoints, "json")
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, url=results["base_url"],
@@ -471,14 +471,15 @@ def _export_config():
     return current_config
 
 
-def format_test_results(results, format):
+def format_test_results(results, endpoints, format):
     formatted = None
     if format == "json":
         formatted = {"suite": results["suite"],
                      "url": results["base_url"],
                      "timestamp": time.time(),
                      "results": [],
-                     "config": _export_config()}
+                     "config": _export_config(),
+                     "endpoints": endpoints}
         for test_result in results["result"]:
             _check_test_result(test_result, results)
             formatted["results"].append({
@@ -529,11 +530,11 @@ def identify_exit_code(results):
     return exit_code
 
 
-def write_test_results(results, args):
+def write_test_results(results, endpoints, args):
     if args.output.endswith(".xml"):
-        formatted = format_test_results(results, "junit")
+        formatted = format_test_results(results, endpoints, "junit")
     else:
-        formatted = format_test_results(results, "json")
+        formatted = format_test_results(results, endpoints, "json")
     with open(args.output, "w") as f:
         if args.output.endswith(".xml"):
             # pretty-print to help out Jenkins (and us humans), which struggles otherwise
@@ -544,8 +545,8 @@ def write_test_results(results, args):
     return identify_exit_code(results)
 
 
-def print_test_results(results, args):
-    print(format_test_results(results, "console"))
+def print_test_results(results, endpoints):
+    print(format_test_results(results, endpoints, "console"))
     return identify_exit_code(results)
 
 
@@ -667,9 +668,9 @@ def run_noninteractive_tests(args):
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
-            exit_code = write_test_results(results, args)
+            exit_code = write_test_results(results, endpoints, args)
         else:
-            exit_code = print_test_results(results, args)
+            exit_code = print_test_results(results, endpoints)
     except Exception as e:
         print(" * ERROR: {}".format(str(e)))
         exit_code = ExitCodes.ERROR
