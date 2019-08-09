@@ -511,10 +511,14 @@ def format_test_results(results, endpoints, format):
                     .format(results["suite"], results["base_url"])
         formatted += "----------------------------\r\n"
         total_time = 0
+        max_name_len = 0
         for test_result in results["result"]:
             _check_test_result(test_result, results)
-            formatted += "{} ... {}\r\n".format(test_result.name, str(test_result.state))
+            max_name_len = max(max_name_len, len(test_result.name))
             total_time += test_result.elapsed_time
+        for test_result in results["result"]:
+            num_extra_dots = max_name_len - len(test_result.name)
+            formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), str(test_result.state))
         formatted += "----------------------------\r\n"
         formatted += "Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n"
     return formatted
