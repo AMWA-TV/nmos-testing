@@ -473,25 +473,31 @@ def _export_config():
 
 def format_test_results(results, endpoints, format):
     formatted = None
+    total_time = 0
+    max_name_len = 0
+    for test_result in results["result"]:
+        _check_test_result(test_result, results)
+        total_time += test_result.elapsed_time
+        max_name_len = max(max_name_len, len(test_result.name))
     if format == "json":
         formatted = {"suite": results["suite"],
                      "url": results["base_url"],
                      "timestamp": time.time(),
+                     "duration": total_time,
                      "results": [],
                      "config": _export_config(),
                      "endpoints": endpoints}
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
             formatted["results"].append({
                 "name": test_result.name,
                 "state": str(test_result.state),
-                "detail": test_result.detail
+                "detail": test_result.detail,
+                "duration": test_result.elapsed_time
             })
         formatted = json.dumps(formatted, sort_keys=True, indent=4)
     elif format == "junit":
         test_cases = []
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
             if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
@@ -510,12 +516,6 @@ def format_test_results(results, endpoints, format):
         formatted = "\r\nPrinting test results for suite '{}' using API '{}'\r\n" \
                     .format(results["suite"], results["base_url"])
         formatted += "----------------------------\r\n"
-        total_time = 0
-        max_name_len = 0
-        for test_result in results["result"]:
-            _check_test_result(test_result, results)
-            max_name_len = max(max_name_len, len(test_result.name))
-            total_time += test_result.elapsed_time
         for test_result in results["result"]:
             num_extra_dots = max_name_len - len(test_result.name)
             formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), str(test_result.state))
