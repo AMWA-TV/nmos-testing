@@ -317,7 +317,8 @@ def index_page():
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, url=results["base_url"],
                                                       test=test_def["name"], result=results["result"],
-                                                      json=json_output, cachebuster=CACHEBUSTER))
+                                                      json=json_output, config=_export_config(),
+                                                      cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
