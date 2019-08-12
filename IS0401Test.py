@@ -1161,6 +1161,10 @@ class IS0401Test(GenericTest):
         self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
         self.primary_registry.wait_for_delete(HEARTBEAT_INTERVAL + 1)
 
+        # Wait for the Node to finish its interactions
+        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
+            time.sleep(0.2)
+
         # By this point we should have had at least one Node POST and a corresponding DELETE
         if DNS_SD_MODE == "multicast":
             self.zc.unregister_service(registry_info)
@@ -1180,12 +1184,18 @@ class IS0401Test(GenericTest):
                 if not found_post:
                     return test.FAIL("Node did not attempt to make contact with the registry")
                 found_delete = False
+                found_extra_deletes = False
                 for resource in self.primary_registry.get_data().deletes:
                     if resource[1]["type"] == "node" and resource[1]["id"] == node_id:
                         found_delete = True
+                    elif resource[1]["type"] != "node":
+                        found_extra_deletes = True
                 if not found_delete:
                     return test.FAIL("Node did not attempt to DELETE itself having encountered a 200 code on initial "
                                      "registration")
+                elif found_extra_deletes:
+                    return test.WARNING("Node DELETEd more than just its 'node' resource. This is unnecessary when "
+                                        "encountering a 200 code on initial registration")
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
         else:
