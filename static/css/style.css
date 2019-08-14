@@ -95,3 +95,10 @@ h1, h2, h3, h4, h5 {
       background-color: #ffc107 !important
     }
 }
+
+.footnote {
+    text-align: center;
+    color: #6c757d;
+    font-size: 12px;
+    margin: 25px;
+}

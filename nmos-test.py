@@ -67,6 +67,7 @@ import IS0802Test
 import IS0901Test
 import IS1001Test
 import BCP00301Test
+import Config
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -311,12 +312,13 @@ def index_page():
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
-                    json_output = format_test_results(results, "json")
+                    json_output = format_test_results(results, endpoints, "json")
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
-                    r = make_response(render_template("result.html", form=form, url=results["base_url"],
+                    r = make_response(render_template("result.html", form=form, urls=results["urls"],
                                                       test=test_def["name"], result=results["result"],
-                                                      json=json_output, cachebuster=CACHEBUSTER))
+                                                      json=json_output, config=_export_config(),
+                                                      cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
@@ -360,6 +362,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         if ENABLE_HTTPS:
             protocol = "https"
         apis = {}
+        tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
             base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
@@ -378,6 +381,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
             }
+            tested_urls.append(apis[api_key]["url"])
             if SPECIFICATIONS[spec_key]["repo"] is not None and api_key in SPECIFICATIONS[spec_key]["apis"]:
                 apis[api_key]["name"] = SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
                 apis[api_key]["spec_path"] = CACHE_PATH + '/' + spec_key
@@ -398,7 +402,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             raise ex
         finally:
             core_app.config['TEST_ACTIVE'] = False
-        return {"result": result, "def": test_def, "base_url": base_url, "suite": test}
+        return {"result": result, "def": test_def, "urls": tested_urls, "suite": test}
     else:
         raise NMOSInitException("This test definition does not exist")
 
@@ -463,25 +467,40 @@ def _check_test_result(test_result, results):
         """)
 
 
-def format_test_results(results, format):
+def _export_config():
+    current_config = {}
+    for param in dir(Config):
+        if not param.startswith("__") and param != "SPECIFICATIONS":
+            current_config[param] = getattr(Config, param)
+    return current_config
+
+
+def format_test_results(results, endpoints, format):
     formatted = None
+    total_time = 0
+    max_name_len = 0
+    for test_result in results["result"]:
+        _check_test_result(test_result, results)
+        total_time += test_result.elapsed_time
+        max_name_len = max(max_name_len, len(test_result.name))
     if format == "json":
         formatted = {"suite": results["suite"],
-                     "url": results["base_url"],
                      "timestamp": time.time(),
-                     "results": []}
+                     "duration": total_time,
+                     "results": [],
+                     "config": _export_config(),
+                     "endpoints": endpoints}
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
             formatted["results"].append({
                 "name": test_result.name,
                 "state": str(test_result.state),
-                "detail": test_result.detail
+                "detail": test_result.detail,
+                "duration": test_result.elapsed_time
             })
         formatted = json.dumps(formatted, sort_keys=True, indent=4)
     elif format == "junit":
         test_cases = []
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
             if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
@@ -495,16 +514,14 @@ def format_test_results(results, format):
             elif test_result.state != TestStates.PASS:
                 test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
             test_cases.append(test_case)
-        formatted = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
+        formatted = TestSuite(results["def"]["name"] + ": " + ", ".join(results["urls"]), test_cases)
     elif format == "console":
-        formatted = "\r\nPrinting test results for suite '{}' using API '{}'\r\n" \
-                    .format(results["suite"], results["base_url"])
+        formatted = "\r\nPrinting test results for suite '{}' using API(s) '{}'\r\n" \
+                    .format(results["suite"], ", ".join(results["urls"]))
         formatted += "----------------------------\r\n"
-        total_time = 0
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
-            formatted += "{} ... {}\r\n".format(test_result.name, str(test_result.state))
-            total_time += test_result.elapsed_time
+            num_extra_dots = max_name_len - len(test_result.name)
+            formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), str(test_result.state))
         formatted += "----------------------------\r\n"
         formatted += "Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n"
     return formatted
@@ -520,11 +537,11 @@ def identify_exit_code(results):
     return exit_code
 
 
-def write_test_results(results, args):
+def write_test_results(results, endpoints, args):
     if args.output.endswith(".xml"):
-        formatted = format_test_results(results, "junit")
+        formatted = format_test_results(results, endpoints, "junit")
     else:
-        formatted = format_test_results(results, "json")
+        formatted = format_test_results(results, endpoints, "json")
     with open(args.output, "w") as f:
         if args.output.endswith(".xml"):
             # pretty-print to help out Jenkins (and us humans), which struggles otherwise
@@ -535,8 +552,8 @@ def write_test_results(results, args):
     return identify_exit_code(results)
 
 
-def print_test_results(results, args):
-    print(format_test_results(results, "console"))
+def print_test_results(results, endpoints):
+    print(format_test_results(results, endpoints, "console"))
     return identify_exit_code(results)
 
 
@@ -658,9 +675,9 @@ def run_noninteractive_tests(args):
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
-            exit_code = write_test_results(results, args)
+            exit_code = write_test_results(results, endpoints, args)
         else:
-            exit_code = print_test_results(results, args)
+            exit_code = print_test_results(results, endpoints)
     except Exception as e:
         print(" * ERROR: {}".format(str(e)))
         exit_code = ExitCodes.ERROR
