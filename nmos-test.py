@@ -315,7 +315,7 @@ def index_page():
                     json_output = format_test_results(results, endpoints, "json")
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
-                    r = make_response(render_template("result.html", form=form, url=results["base_url"],
+                    r = make_response(render_template("result.html", form=form, urls=results["urls"],
                                                       test=test_def["name"], result=results["result"],
                                                       json=json_output, config=_export_config(),
                                                       cachebuster=CACHEBUSTER))
@@ -360,6 +360,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         if ENABLE_HTTPS:
             protocol = "https"
         apis = {}
+        tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
             base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
@@ -378,6 +379,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
             }
+            tested_urls.append(apis[api_key]["url"])
             if SPECIFICATIONS[spec_key]["repo"] is not None and api_key in SPECIFICATIONS[spec_key]["apis"]:
                 apis[api_key]["name"] = SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
                 apis[api_key]["spec_path"] = CACHE_PATH + '/' + spec_key
@@ -398,7 +400,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             raise ex
         finally:
             core_app.config['TEST_ACTIVE'] = False
-        return {"result": result, "def": test_def, "base_url": base_url, "suite": test}
+        return {"result": result, "def": test_def, "urls": tested_urls, "suite": test}
     else:
         raise NMOSInitException("This test definition does not exist")
 
@@ -481,7 +483,6 @@ def format_test_results(results, endpoints, format):
         max_name_len = max(max_name_len, len(test_result.name))
     if format == "json":
         formatted = {"suite": results["suite"],
-                     "url": results["base_url"],
                      "timestamp": time.time(),
                      "duration": total_time,
                      "results": [],
@@ -511,10 +512,10 @@ def format_test_results(results, endpoints, format):
             elif test_result.state != TestStates.PASS:
                 test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
             test_cases.append(test_case)
-        formatted = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
+        formatted = TestSuite(results["def"]["name"] + ": " + ", ".join(results["urls"]), test_cases)
     elif format == "console":
-        formatted = "\r\nPrinting test results for suite '{}' using API '{}'\r\n" \
-                    .format(results["suite"], results["base_url"])
+        formatted = "\r\nPrinting test results for suite '{}' using API(s) '{}'\r\n" \
+                    .format(results["suite"], ", ".join(results["urls"]))
         formatted += "----------------------------\r\n"
         for test_result in results["result"]:
             num_extra_dots = max_name_len - len(test_result.name)
