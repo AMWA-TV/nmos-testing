@@ -327,6 +327,8 @@ def index_page():
         else:
             flash("Error: {}".format(form.errors))
     elif request.method == "POST":
+        print(" * Unable to start new test run. Time since current test run began: {}"
+              .format(timedelta(seconds=time.time() - core_app.config['TEST_ACTIVE'])))
         flash("Error: A test is currently in progress. Please wait until it has completed or restart the testing tool.")
 
     # Prepare configuration strings to display via the UI
@@ -388,7 +390,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         else:
             test_obj = test_def["class"](apis)
 
-        core_app.config['TEST_ACTIVE'] = True
+        core_app.config['TEST_ACTIVE'] = time.time()
         try:
             result = test_obj.run_tests(test_selection)
         except Exception as ex:
