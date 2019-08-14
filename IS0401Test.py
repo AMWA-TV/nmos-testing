@@ -697,7 +697,7 @@ class IS0401Test(GenericTest):
         and connects the Receiver to a stream"""
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
-        if not valid:
+        if not valid or receivers.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
@@ -724,7 +724,7 @@ class IS0401Test(GenericTest):
                 time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
-                if not valid:
+                if not valid or response.status_code != 200:
                     return test.FAIL("Unexpected response from the Node API: {}".format(receiver))
 
                 receiver = response.json()
@@ -752,7 +752,7 @@ class IS0401Test(GenericTest):
         disconnects the Receiver from a stream"""
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
-        if not valid:
+        if not valid or receivers.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
@@ -769,7 +769,7 @@ class IS0401Test(GenericTest):
                 time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + test_receiver["id"])
-                if not valid:
+                if not valid or response.status_code != 200:
                     return test.FAIL("Unexpected response from the Node API: {}".format(test_receiver))
 
                 receiver = response.json()
@@ -863,7 +863,7 @@ class IS0401Test(GenericTest):
 
         uuids = set()
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             uuids.add(response.json()["id"])
@@ -872,7 +872,7 @@ class IS0401Test(GenericTest):
 
         for resource_type in ["devices", "sources", "flows", "senders", "receivers"]:
             valid, response = self.do_request("GET", self.node_url + resource_type)
-            if not valid:
+            if not valid or response.status_code != 200:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 for resource in response.json():
@@ -895,7 +895,7 @@ class IS0401Test(GenericTest):
 
         # get all the Node's Devices
         valid, response = self.do_request("GET", self.node_url + "devices")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for resource in response.json():
@@ -913,7 +913,7 @@ class IS0401Test(GenericTest):
         empty_refs = {"senders": set(), "receivers": set()}
         for resource_type in ["senders", "receivers"]:
             valid, response = self.do_request("GET", self.node_url + resource_type)
-            if not valid:
+            if not valid or response.status_code != 200:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 for resource in response.json():
@@ -964,7 +964,7 @@ class IS0401Test(GenericTest):
 
         clocks = set()
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for clock in response.json()["clocks"]:
@@ -976,7 +976,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "sources")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for source in response.json():
@@ -997,7 +997,7 @@ class IS0401Test(GenericTest):
 
         interfaces = set()
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for interface in response.json()["interfaces"]:
@@ -1010,7 +1010,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "senders")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for sender in response.json():
@@ -1023,7 +1023,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "receivers")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for receiver in response.json():
@@ -1054,7 +1054,7 @@ class IS0401Test(GenericTest):
 
         api = self.apis[NODE_API_KEY]
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             node_self = response.json()
@@ -1092,7 +1092,7 @@ class IS0401Test(GenericTest):
                 return test.FAIL("None of the Node 'api.endpoints' match the Node 'href'")
 
             valid, response = self.do_request("GET", self.node_url + "devices")
-            if not valid:
+            if not valid or response.status_code != 200:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 node_devices = response.json()
@@ -1109,7 +1109,7 @@ class IS0401Test(GenericTest):
                 return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "senders")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             node_senders = response.json()
