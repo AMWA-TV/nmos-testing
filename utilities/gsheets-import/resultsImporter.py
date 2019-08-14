@@ -64,8 +64,11 @@ def main():
     cell_list_names[current_index].value = "Filename"
     cell_list_results[current_index].value = args.json
     current_index += 1
-    cell_list_names[current_index].value = "URL Tested"
-    cell_list_results[current_index].value = test_results["url"]
+    cell_list_names[current_index].value = "URLs Tested"
+    urls_tested = []
+    for endpoint in test_results["endpoints"]:
+        urls_tested.append("{}:{} ({})".format(endpoint["host"], endpoint["port"], endpoint["version"]))
+    cell_list_results[current_index].value = ", ".join(urls_tested)
     current_index += 1
     cell_list_names[current_index].value = "Timestamp"
     cell_list_results[current_index].value = test_results["timestamp"]
