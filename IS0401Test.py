@@ -831,9 +831,11 @@ class IS0401Test(GenericTest):
                 return test.FAIL("Node never made contact with registry {} advertised on port {}"
                                  .format(index + 1, registry_data.port))
 
-            if index > 0 and len(registry_data.posts) > 0:
-                return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
-                                 "should only have issued a heartbeat")
+            if index > 0:
+                for resource in registry_data.posts:
+                    if resource[1]["payload"]["type"] == "node":
+                        return test.FAIL("Node re-registered its resources when it failed over to a new registry, when "
+                                         "it should only have issued a heartbeat")
 
         return test.PASS()
 
@@ -852,9 +854,10 @@ class IS0401Test(GenericTest):
             return test.WARNING("Node never made contact with registry {} advertised on port {}"
                                 .format(len(self.registry_basics_data), registry_data.port))
 
-        if len(registry_data.posts) > 0:
-            return test.WARNING("Node re-registered its resources when it failed over to a new registry, when it "
-                                "should only have issued a heartbeat")
+        for resource in registry_data.posts:
+            if resource[1]["payload"]["type"] == "node":
+                return test.WARNING("Node re-registered its resources when it failed over to a new registry, when it "
+                                    "should only have issued a heartbeat")
 
         return test.PASS()
 
