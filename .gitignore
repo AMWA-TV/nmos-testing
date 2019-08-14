@@ -102,6 +102,11 @@ ENV/
 
 \.idea/
 
+# GitHub pages
+Gemfile.lock
+_site/
+
+
 # Other
 cache/
 testssl/

@@ -106,7 +106,8 @@ class IS0402Test(GenericTest):
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") >= 0:
                     if "api_auth" not in properties:
                         return test.FAIL("No 'api_auth' TXT record found in {} advertisement.".format(api["name"]))
-                    elif properties["api_auth"] not in ["true", "false"]:
+                    elif not isinstance(properties["api_auth"], bool):
+                        # zeroconf translates 'true' to True and 'false' to False automatically
                         return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
 
                 return test.PASS()
