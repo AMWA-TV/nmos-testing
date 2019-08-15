@@ -15,11 +15,12 @@
 import subprocess
 
 from flask import Blueprint, make_response, request, abort
+from Config import PORT_BASE
 
 
 class OCSPDistributionPoint(object):
     def __init__(self):
-        self.port = 5008  # cf. test_data/BCP00301/ca/intermediate/openssl.cnf
+        self.port = PORT_BASE + 8  # cf. test_data/BCP00301/ca/intermediate/openssl.cnf
 
 
 OCSP = OCSPDistributionPoint()

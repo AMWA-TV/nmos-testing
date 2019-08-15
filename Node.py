@@ -15,13 +15,13 @@
 import uuid
 
 from flask import Blueprint, make_response, abort
-from Config import ENABLE_HTTPS, DNS_DOMAIN
+from Config import ENABLE_HTTPS, DNS_DOMAIN, PORT_BASE
 from TestHelper import get_default_ip
 
 
 class Node(object):
     def __init__(self, port_increment):
-        self.port = 5200 + port_increment
+        self.port = PORT_BASE + 200 + port_increment
 
     def get_sender(self, stream_type="video"):
         protocol = "http"
