@@ -175,9 +175,9 @@ def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    # store raw request payload, in order to check for empty request bodies later
-    registry.heartbeat(request.headers, request.data, version, node_id)
     if node_id in registry.get_resources()["node"]:
+        # store raw request payload, in order to check for empty request bodies later
+        registry.heartbeat(request.headers, request.data, version, node_id)
         return jsonify({"health": int(time.time())})
     else:
         abort(404)
