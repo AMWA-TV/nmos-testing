@@ -266,6 +266,17 @@ class GenericTest(object):
 
         return True, ""
 
+    def check_error_response(self, method, response, code):
+        """Confirm that a given Requests response conforms to the 4xx/5xx error schema and has any expected headers"""
+        schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
+        valid, message = self.check_response(schema, "GET", response)
+        if valid:
+            if response.json()["code"] != code:
+                return False, "Error JSON 'code' was not set to {}".format(code)
+            return True, ""
+        else:
+            return False, message
+
     def validate_schema(self, payload, schema):
         checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
         return jsonschema.validate(payload, schema, format_checker=checker)
@@ -320,11 +331,8 @@ class GenericTest(object):
         if response.status_code != error_code:
             return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
 
-        schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
-        valid, message = self.check_response(schema, "GET", response)
+        valid, message = self.check_error_response("GET", response, error_code)
         if valid:
-            if response.json()["code"] != error_code:
-                return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
             return test.PASS()
         else:
             return test.FAIL(message)

@@ -735,11 +735,8 @@ class IS0501Test(GenericTest):
         error_code = 405
         valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            schema = load_resolved_schema("test_data/core", "error.json", path_prefix=False)
-            valid, message = self.check_response(schema, "GET", response)
+            valid, message = self.check_error_response("GET", response, error_code)
             if valid:
-                if response.json()["code"] != error_code:
-                    return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
                 return test.PASS()
             else:
                 return test.FAIL(message)
@@ -753,11 +750,8 @@ class IS0501Test(GenericTest):
         error_code = 405
         valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            schema = load_resolved_schema("test_data/core", "error.json", path_prefix=False)
-            valid, message = self.check_response(schema, "GET", response)
+            valid, message = self.check_error_response("GET", response, error_code)
             if valid:
-                if response.json()["code"] != error_code:
-                    return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
                 return test.PASS()
             else:
                 return test.FAIL(message)
