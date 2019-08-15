@@ -732,9 +732,17 @@ class IS0501Test(GenericTest):
         """GET on /bulk/senders returns 405"""
 
         url = "bulk/senders"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
+        error_code = 405
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            return test.PASS()
+            schema = load_resolved_schema("test_data/core", "error.json", path_prefix=False)
+            valid, message = self.check_response(schema, "GET", response)
+            if valid:
+                if response.json()["code"] != error_code:
+                    return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
+                return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return test.FAIL(response)
 
@@ -742,9 +750,17 @@ class IS0501Test(GenericTest):
         """GET on /bulk/receivers returns 405"""
 
         url = "bulk/receivers"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
+        error_code = 405
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            return test.PASS()
+            schema = load_resolved_schema("test_data/core", "error.json", path_prefix=False)
+            valid, message = self.check_response(schema, "GET", response)
+            if valid:
+                if response.json()["code"] != error_code:
+                    return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
+                return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return test.FAIL(response)
 
