@@ -82,6 +82,8 @@ def main():
         cell_contents = result["state"]
         if result["detail"] != "":
             cell_contents += " (" + result["detail"] + ")"
+        while cell_list_names[current_index].value not in ["", result["name"]]:
+            current_index += 1
         cell_list_names[current_index].value = result["name"]
         cell_list_results[current_index].value = cell_contents
         current_index += 1
