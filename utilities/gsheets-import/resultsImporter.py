@@ -16,6 +16,7 @@
 
 import argparse
 import gspread
+from gspread import Cell
 import json
 import sys
 
@@ -25,6 +26,8 @@ GOOGLE_SHEET_URL = ""
 
 SCOPES = ['https://spreadsheets.google.com/feeds',
           'https://www.googleapis.com/auth/drive']
+
+READ_ONLY_OFFSET = 5
 
 
 def main():
@@ -46,17 +49,19 @@ def main():
         print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
         sys.exit(1)
 
-    populated_rows = len(worksheet.get_all_values())
+    current_worksheet_data = worksheet.get_all_values()
+    populated_rows = len(current_worksheet_data)
     current_row = populated_rows + 1
+    current_number_columns = len(current_worksheet_data[0])
 
     # Test Names
-    start_cell_addr = gspread.utils.rowcol_to_a1(1, 5)
-    end_cell_addr = gspread.utils.rowcol_to_a1(1, 9+len(test_results["results"]))
+    start_cell_addr = gspread.utils.rowcol_to_a1(1, READ_ONLY_OFFSET)
+    end_cell_addr = gspread.utils.rowcol_to_a1(1, current_number_columns)
     cell_list_names = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
 
     # Results
-    start_cell_addr = gspread.utils.rowcol_to_a1(current_row, 5)
-    end_cell_addr = gspread.utils.rowcol_to_a1(current_row, 9+len(test_results["results"]))
+    start_cell_addr = gspread.utils.rowcol_to_a1(current_row, READ_ONLY_OFFSET)
+    end_cell_addr = gspread.utils.rowcol_to_a1(current_row, current_number_columns)
     cell_list_results = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
 
     # Col 1-4 reserved for device details
@@ -66,9 +71,13 @@ def main():
     current_index += 1
     cell_list_names[current_index].value = "URLs Tested"
     urls_tested = []
-    for endpoint in test_results["endpoints"]:
-        urls_tested.append("{}:{} ({})".format(endpoint["host"], endpoint["port"], endpoint["version"]))
-    cell_list_results[current_index].value = ", ".join(urls_tested)
+    try:
+        for endpoint in test_results["endpoints"]:
+            urls_tested.append("{}:{} ({})".format(endpoint["host"], endpoint["port"], endpoint["version"]))
+        cell_list_results[current_index].value = ", ".join(urls_tested)
+    except Exception:
+        print("JSON file does not support endpoints key")
+        cell_list_results[current_index].value = test_results["url"]
     current_index += 1
     cell_list_names[current_index].value = "Timestamp"
     cell_list_results[current_index].value = test_results["timestamp"]
@@ -82,10 +91,16 @@ def main():
         cell_contents = result["state"]
         if result["detail"] != "":
             cell_contents += " (" + result["detail"] + ")"
-        while cell_list_names[current_index].value not in ["", result["name"]]:
-            current_index += 1
-        cell_list_names[current_index].value = result["name"]
-        cell_list_results[current_index].value = cell_contents
+        try:
+            while current_worksheet_data[0][current_index+READ_ONLY_OFFSET-1] not in ["", result["name"]]:
+                current_index += 1
+
+            cell_list_names[current_index].value = result["name"]
+            cell_list_results[current_index].value = cell_contents
+        except IndexError:
+            cell_list_names.append(Cell(1, current_index+READ_ONLY_OFFSET, result["name"]))
+            cell_list_results.append(Cell(current_row, current_index+READ_ONLY_OFFSET, cell_contents))
+
         current_index += 1
 
     worksheet.update_cells(cell_list_names)
