@@ -18,4 +18,4 @@ _services._dns-sd._udp	PTR	_nmos-system._tcp
 _nmos-system._tcp	PTR	system-api._nmos-system._tcp
 system-api._nmos-system._tcp	SRV	0 0 8080 system.{{ domain }}.
 system-api._nmos-system._tcp	TXT	"api_ver=v1.0" "api_proto={{ api_proto }}" "pri=0"
-system.{{ domain }}.	IN	A	192.168.60.1
+system.{{ domain }}.	IN	A	192.168.3.34
