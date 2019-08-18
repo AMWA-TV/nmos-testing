@@ -27,7 +27,8 @@ GOOGLE_SHEET_URL = ""
 SCOPES = ['https://spreadsheets.google.com/feeds',
           'https://www.googleapis.com/auth/drive']
 
-READ_ONLY_OFFSET = 5
+READ_ONLY_COL_OFFSET = 4
+TEST_DATA_COL_OFFSET = READ_ONLY_COL_OFFSET + 4
 
 
 def main():
@@ -52,20 +53,28 @@ def main():
     current_worksheet_data = worksheet.get_all_values()
     populated_rows = len(current_worksheet_data)
     current_row = populated_rows + 1
-    current_number_columns = len(current_worksheet_data[0])
+
+    if populated_rows < 2:
+        # Blank spreadsheet
+        current_number_columns = TEST_DATA_COL_OFFSET
+        current_row = 3
+    else:
+        current_number_columns = len(current_worksheet_data[0])
+        if current_number_columns < TEST_DATA_COL_OFFSET:
+            current_number_columns = TEST_DATA_COL_OFFSET
 
     # Test Names
-    start_cell_addr = gspread.utils.rowcol_to_a1(1, READ_ONLY_OFFSET)
+    start_cell_addr = gspread.utils.rowcol_to_a1(1, 1)
     end_cell_addr = gspread.utils.rowcol_to_a1(1, current_number_columns)
     cell_list_names = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
 
     # Results
-    start_cell_addr = gspread.utils.rowcol_to_a1(current_row, READ_ONLY_OFFSET)
+    start_cell_addr = gspread.utils.rowcol_to_a1(current_row, 1)
     end_cell_addr = gspread.utils.rowcol_to_a1(current_row, current_number_columns)
     cell_list_results = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
 
     # Col 1-4 reserved for device details
-    current_index = 0
+    current_index = READ_ONLY_COL_OFFSET
     cell_list_names[current_index].value = "Filename"
     cell_list_results[current_index].value = args.json
     current_index += 1
@@ -85,23 +94,18 @@ def main():
     cell_list_names[current_index].value = "Test Suite"
     cell_list_results[current_index].value = test_results["suite"]
 
-    current_index += 1
-
     for result in test_results["results"]:
         cell_contents = result["state"]
         if result["detail"] != "":
             cell_contents += " (" + result["detail"] + ")"
         try:
-            while current_worksheet_data[0][current_index+READ_ONLY_OFFSET-1] not in ["", result["name"]]:
-                current_index += 1
-
-            cell_list_names[current_index].value = result["name"]
-            cell_list_results[current_index].value = cell_contents
-        except IndexError:
-            cell_list_names.append(Cell(1, current_index+READ_ONLY_OFFSET, result["name"]))
-            cell_list_results.append(Cell(current_row, current_index+READ_ONLY_OFFSET, cell_contents))
-
-        current_index += 1
+            index = current_worksheet_data[0].index(result["name"])
+            cell_list_results[index].value = cell_contents
+        except (ValueError, IndexError):
+            # Test name not found, add column
+            current_number_columns += 1
+            cell_list_names.append(Cell(1, current_number_columns, result["name"]))
+            cell_list_results.append(Cell(current_row, current_number_columns, cell_contents))
 
     worksheet.update_cells(cell_list_names)
     worksheet.update_cells(cell_list_results)
