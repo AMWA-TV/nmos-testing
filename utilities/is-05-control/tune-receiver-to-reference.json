@@ -1,0 +1,8 @@
+{
+    "sender_id": null,
+    "master_enable": true,
+    "activation": {
+      "mode": "activate_immediate",
+      "requested_time": null
+    }
+}
