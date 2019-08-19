@@ -8,12 +8,12 @@
   "transport_params": [
     {
       "destination_ip": "239.100.2.1",
-      "destination_port": 500040,
+      "destination_port": 50040,
       "rtp_enabled": true
     },
     {
       "destination_ip": "239.200.2.1",
-      "destination_port": 500140,
+      "destination_port": 50140,
       "rtp_enabled": true
     }
   ]
