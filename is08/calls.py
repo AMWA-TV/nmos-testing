@@ -32,7 +32,8 @@ class Call:
         self._responseObject = do_request(self.method, self.url, json=self.data)
         self._checkForErrors()
         self._checkStatusCode()
-        self._getJSON()
+        if self.expectedCode != 204:
+            self._getJSON()
 
     def get(self):
         return self._genericRequestProcess("get")
