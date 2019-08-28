@@ -94,7 +94,6 @@ class Activation:
         url = self.urlBase + "map/activations/{}".format(self.activationID)
         deleteCall = Call(url)
         deleteCall.expectedCode = 204
-        deleteCall.string = True
         deleteCall.delete()
         deleteCall.expectedCode = 404
         try:
