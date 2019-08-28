@@ -325,7 +325,7 @@ class IS0401Test(GenericTest):
                 if ctype_params[0] != "application/json":
                     return test.FAIL("Node signalled a Content-Type of {} rather than application/json."
                                      .format(ctype))
-                elif len(ctype_params) == 2 and ctype_params[1].strip() == "charset=utf-8":
+                elif len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
                     return test.WARNING("Node signalled an unnecessary 'charset' in its Content-Type: {}"
                                         .format(ctype))
                 elif len(ctype_params) >= 2:
