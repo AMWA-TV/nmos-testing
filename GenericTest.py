@@ -238,7 +238,7 @@ class GenericTest(object):
             if ctype_params[0] != "application/json":
                 return False, "API signalled a Content-Type of {} rather than application/json." \
                               .format(ctype)
-            elif len(ctype_params) == 2 and ctype_params[1].strip() == "charset=utf-8":
+            elif len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
                 return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
                              .format(ctype)
             elif len(ctype_params) >= 2:
