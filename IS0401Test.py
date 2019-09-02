@@ -1206,6 +1206,12 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
+    def test_22(self, test):
+        """Node resource IDs persist over a reboot"""
+
+        return test.MANUAL("This check must be performed manually, or via use of the following tool",
+                           "https://github.com/AMWA-TV/nmos-testing/blob/master/utilities/uuid-checker/README.md")
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
