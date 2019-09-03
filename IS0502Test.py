@@ -129,17 +129,16 @@ class IS0502Test(GenericTest):
     def activate_check_version(self, resource_type, resource_list):
         try:
             for is05_resource in resource_list:
-                if self.is05_resources["transport_types"][is05_resource] == "urn:x-nmos:transport:websocket":
-                    continue
                 found_04_resource = False
                 for is04_resource in self.is04_resources[resource_type]:
                     if is04_resource["id"] == is05_resource:
                         found_04_resource = True
                         current_ver = is04_resource["version"]
+                        transport_type = self.is05_resources["transport_types"][is05_resource]
 
                         method = self.is05_utils.check_perform_immediate_activation
                         valid, response = self.is05_utils.check_activation(resource_type.rstrip("s"), is05_resource,
-                                                                           method)
+                                                                           method, transport_type)
                         if not valid:
                             return False, response
 
