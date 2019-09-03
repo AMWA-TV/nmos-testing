@@ -14,8 +14,9 @@ The following test sets are currently supported:
 *   IS-08 Interaction with IS-04
 *   IS-09 System API
 *   IS-10 Authorization API
+*   BCP-002-01 Natural Grouping (see IS-04 Node API)
 *   BCP-003-01 Secure API Communications
-*   BCP-003-02 Authorization API (see IS-10)
+*   BCP-003-02 Authorization (see IS-10 Authorization API)
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
