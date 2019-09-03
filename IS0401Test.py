@@ -1212,6 +1212,70 @@ class IS0401Test(GenericTest):
         return test.MANUAL("This check must be performed manually, or via use of the following tool",
                            "https://github.com/AMWA-TV/nmos-testing/blob/master/utilities/uuid-checker/README.md")
 
+    def test_23(self, test):
+        """Senders and Receivers correctly use BCP-002-01 grouping syntax"""
+
+        found_groups = False
+        groups = {"node": {}, "device": {}}
+        for resource_name in ["senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + resource_name)
+            if valid and response.status_code == 200:
+                try:
+                    for resource in response.json():
+                        if resource["device_id"] not in groups["device"]:
+                            groups["device"][resource["device_id"]] = {}
+                        for tag_name, tag_value in resource["tags"].items():
+                            if tag_name != "urn:x-nmos:tag:grouphint/v1.0":
+                                continue
+                            if not isinstance(tag_value, list) or len(tag_value) == 0:
+                                return test.FAIL("Group tag for {} {} is not an array or has too few items"
+                                                 .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                            found_groups = True
+                            for group_def in tag_value:
+                                group_params = group_def.split(":")
+                                group_scope = "device"
+
+                                # Perform basic validation on the group syntax
+                                if len(group_params) < 2:
+                                    return test.FAIL("Group syntax for {} {} has too few parameters"
+                                                     .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                                elif len(group_params) > 3:
+                                    return test.FAIL("Group syntax for {} {} has too many parameters"
+                                                     .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                                elif len(group_params) == 3:
+                                    if group_params[2] not in ["device", "node"]:
+                                        return test.FAIL("Group syntax for {} {} uses an invalid group scope: {}"
+                                                         .format(resource_name.capitalize().rstrip("s"), resource["id"],
+                                                                 group_params[2]))
+                                    group_scope = group_params[2]
+
+                                # Ensure we have a reference to the group name stored
+                                if group_scope == "node":
+                                    if group_params[0] not in groups["node"]:
+                                        groups["node"][group_params[0]] = {}
+                                    group_ref = groups["node"][group_params[0]]
+                                elif group_scope == "device":
+                                    if group_params[0] not in groups["device"][resource["device_id"]]:
+                                        groups["device"][resource["device_id"]][group_params[0]] = {}
+                                    group_ref = groups["device"][resource["device_id"]][group_params[0]]
+
+                                # Check for duplicate roles within groups
+                                if group_params[1] in group_ref:
+                                    return test.FAIL("Duplicate role found in group {} for resources {} and {}"
+                                                     .format(group_params[0], resource["id"],
+                                                             group_ref[group_params[1]]))
+                                else:
+                                    group_ref[group_params[1]] = resource["id"]
+
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+
+        if found_groups:
+            return test.PASS()
+        else:
+            return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
+                                 "https://amwa-tv.github.io/nmos-grouping/best-practice-natural-grouping.html")
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
