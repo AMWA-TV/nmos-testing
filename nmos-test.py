@@ -372,11 +372,15 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 ip_address = endpoints[index]["host"]
             except ValueError:
                 ip_address = socket.gethostbyname(endpoints[index]["host"])
+            try:
+                port = int(endpoints[index]["port"])
+            except ValueError:
+                raise NMOSInitException("Port is missing or is not an integer: {}".format(endpoints[index]["port"]))
             apis[api_key] = {
                 "base_url": base_url,
                 "hostname": endpoints[index]["host"],
                 "ip": ip_address,
-                "port": int(endpoints[index]["port"]),
+                "port": port,
                 "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
