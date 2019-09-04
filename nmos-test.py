@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
 from enum import IntEnum
 from werkzeug.serving import WSGIRequestHandler
+from TestHelper import get_default_ip
 
 import git
 import os
@@ -71,6 +72,7 @@ import Config
 
 FLASK_APPS = []
 DNS_SERVER = None
+TOOL_VERSION = None
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -468,7 +470,7 @@ def _check_test_result(test_result, results):
 
 
 def _export_config():
-    current_config = {}
+    current_config = {"VERSION": TOOL_VERSION}
     for param in dir(Config):
         if not param.startswith("__") and param != "SPECIFICATIONS":
             current_config[param] = getattr(Config, param)
@@ -713,12 +715,22 @@ if __name__ == '__main__':
     # Download up to date versions of each API specification
     init_spec_cache()
 
+    # Identify current testing tool version
+    try:
+        repo = git.Repo(".")
+        TOOL_VERSION = repo.git.rev_parse(repo.head.object.hexsha, short=7)
+    except git.exc.InvalidGitRepositoryError:
+        TOOL_VERSION = "Unknown"
+
     # Start the DNS server
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
     # Start the HTTP servers
     start_web_servers()
+
+    print(" * Testing tool running on 'http://{}:{}'. Version '{}'"
+          .format(get_default_ip(), core_app.config['PORT'], TOOL_VERSION))
 
     exit_code = 0
     if "suite" not in vars(args):
