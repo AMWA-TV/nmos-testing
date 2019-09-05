@@ -184,7 +184,59 @@ class IS1001Test(GenericTest):
         else:
             return actual_query_value
 
-    def test_01_register_user(self, test):
+    def do_dns_sd_advertisement_check(self, test, api, service_type):
+        """Auth API advertises correctly via mDNS"""
+
+        if DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
+
+        ServiceBrowser(self.zc, service_type, self.zc_listener)
+        sleep(DNS_SD_BROWSE_TIMEOUT)
+        serv_list = self.zc_listener.get_service_list()
+        for service in serv_list:
+            address = socket.inet_ntoa(service.address)
+            port = service.port
+            if address == api["ip"] and port == api["port"]:
+                properties = self.convert_bytes(service.properties)
+                if "pri" not in properties:
+                    return test.FAIL("No 'pri' TXT record found in {} advertisement.".format(api["name"]))
+                try:
+                    priority = int(properties["pri"])
+                    if priority < 0:
+                        return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
+                    elif priority >= 100:
+                        return test.WARNING("""
+                            Priority ('pri') TXT record must be less than 100 for a production instance.
+                        """)
+                except Exception:
+                    return test.FAIL("Priority ('pri') TXT record is not an integer.")
+
+                if "api_ver" not in properties:
+                    return test.FAIL("No 'api_ver' TXT record found in {} advertisement.".format(api["name"]))
+                elif api["version"] not in properties["api_ver"].split(","):
+                    return test.FAIL("Auth Server does not claim to support version under test.")
+
+                if "api_proto" not in properties:
+                    return test.FAIL("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
+                elif properties["api_proto"] != "https":
+                    return test.FAIL("""
+                        API protocol ('api_proto') TXT record is {} and not 'https'
+                    """.format(properties["api_proto"]))
+
+                return test.WARNING("Authorization Server SHOULD NOT be advertised by mDNS based DNS-SD")
+        return test.OPTIONAL("""
+                No matching mDNS announcement found for {} with IP/Port {}:{}. This is recommended by IS-10.
+            """.format(api["name"], api["ip"], api["port"]))
+
+    def test_01(self, test):
+        """Registration API advertises correctly via mDNS"""
+
+        api = self.apis[AUTH_API_KEY]
+        service_type = "_nmos-auth._tcp.local."
+
+        return self.do_dns_sd_advertisement_check(test, api, service_type)
+
+    def test_02_register_user(self, test):
         """Test registering a client to the '/register_client' endpoint"""
 
         RECOMMENDED_RESPONSE_FIELDS = ["client_secret", "redirect_uris"]
@@ -252,7 +304,7 @@ class IS1001Test(GenericTest):
         except Exception as e:
             return test.FAIL("Status code was {} and Schema validation failed. {}".format(response.status_code, e))
 
-    def test_02_token_password_grant(self, test):
+    def test_03_token_password_grant(self, test):
         """Test requesting a Bearer Token using Password Grant from '/token' endpoint"""
         if self.client_data:
             for scope in GRANT_SCOPES:
@@ -280,7 +332,7 @@ class IS1001Test(GenericTest):
         else:
             return test.DISABLED("No Client Data available")
 
-    def test_03_authorize_endpoint(self, test):
+    def test_04_authorize_endpoint(self, test):
         """Test the '/authorize' endpoint and ability to redirect to registered URI with authorization code"""
 
         if self.client_data:
@@ -312,7 +364,7 @@ class IS1001Test(GenericTest):
         else:
             return test.DISABLED("No Client Data available")
 
-    def test_04_token_authorize_grant(self, test):
+    def test_05_token_authorize_grant(self, test):
         """Test requesting a Bearer Token using Auth Code Grant from '/token' endpoint"""
 
         if self.client_data and self.auth_codes:
@@ -341,7 +393,7 @@ class IS1001Test(GenericTest):
         else:
             return test.DISABLED("No Client Data or Auth Codes available")
 
-    def test_05_token_refresh_grant(self, test):
+    def test_06_token_refresh_grant(self, test):
         """Test requesting a Bearer Token using the Refresh Token Grant from '/token' endpoint"""
         if self.bearer_tokens:
             for bearer_token in self.bearer_tokens:
@@ -368,7 +420,7 @@ class IS1001Test(GenericTest):
         else:
             return test.DISABLED("No Bearer Tokens available")
 
-    def test_06_check_cert(self, test):
+    def test_07_check_cert(self, test):
         """Test '/certs' endpoint for valid certificate"""
         status, response = self.do_request(
             method="GET", url=self.url + 'certs'
@@ -389,7 +441,7 @@ class IS1001Test(GenericTest):
         except Exception as e:
             self._raise_nmos_exception(self, test, response, string=str(e))
 
-    def test_07_revocation_endpoint(self, test):
+    def test_08_revocation_endpoint(self, test):
         """Test revocation of access tokens at '/revoke' endpoint"""
         if self.bearer_tokens:
             for bearer_token in self.bearer_tokens:
@@ -446,7 +498,7 @@ class IS1001Test(GenericTest):
         if error_value not in response.json()["error"]:
             self._raise_nmos_exception(self, test, response, "'{}' not in response. Response: {}".format(error_value))
 
-    def test_08_authorize_error(self, test):
+    def test_09_authorize_error(self, test):
         """Test Error Response of Authorization Endpoint in line with RFC6749"""
 
         if self.client_data:
@@ -508,7 +560,7 @@ class IS1001Test(GenericTest):
         else:
             return test.DISABLED("No Client Data available")
 
-    def test_9_token_error(self, test):
+    def test_10_token_error(self, test):
         """Test Error Response of Token Endpoint in line with RFC6749"""
 
         if self.auth_codes and self.client_data:
