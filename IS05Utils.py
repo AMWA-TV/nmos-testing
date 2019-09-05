@@ -40,7 +40,6 @@ class IS05Utils(NMOSUtils):
 
     def check_num_legs(self, url, type, uuid):
         """Checks the number of legs present on a given sender/receiver"""
-        max = 2
         min = 1
         constraintsUrl = url + "constraints/"
         stagedUrl = url + "staged/"
@@ -69,10 +68,7 @@ class IS05Utils(NMOSUtils):
                     except KeyError:
                         return False, "Could not find transport params in object from {}, got {}".format(activeUrl,
                                                                                                          active)
-                    if len(constraints) <= max:
-                        pass
-                    else:
-                        return False, "{} {} has too many legs".format(type, uuid)
+
                     if len(constraints) >= min:
                         pass
                     else:
