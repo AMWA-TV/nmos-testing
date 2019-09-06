@@ -479,7 +479,7 @@ class IS1001Test(GenericTest):
                 test, response, string="Incorrect Status Code Returned. Expected {}".format(status_code)
             )
 
-        if response.headers["Content-Type"] != "application/json":
+        if "application/json" not in response.headers["Content-Type"]:
             raise NMOSTestException(test.FAIL(
                 "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
             ))
