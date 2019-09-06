@@ -25,7 +25,7 @@ from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
-from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT
+from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT, PORT_BASE
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -57,7 +57,8 @@ class IS0401Test(GenericTest):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol)
+            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol,
+                                      "test_data/IS0401/dns_records.zone", PORT_BASE+100)
 
     def tear_down_tests(self):
         if self.zc:

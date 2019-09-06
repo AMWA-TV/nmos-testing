@@ -12,3 +12,4 @@ lb._dns-sd._udp	IN	PTR	{{ domain }}.
 _services._dns-sd._udp	PTR	_nmos-registration._tcp
 _services._dns-sd._udp	PTR	_nmos-register._tcp
 _services._dns-sd._udp	PTR	_nmos-query._tcp
+_services._dns-sd._udp	PTR	_nmos-system._tcp

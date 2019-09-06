@@ -5,14 +5,14 @@ timeout.{{ domain }}.	IN	A	192.0.2.1
 {% for api, srv in [('reg', 'registration'), ('reg', 'register'), ('qry', 'query')] %}
 
 {% set registries = [
-	('1-ver',	reg_port_base + 1,	'mocks',	'v9.0',		api_proto,	10),
-	('1-proto',	reg_port_base + 1,	'mocks',	api_ver,	'invalid',	10),
-	('2',		reg_port_base + 2,	'mocks',	api_ver,	api_proto,	20),
- 	('3',		reg_port_base + 3,	'mocks',	api_ver,	api_proto,	30),
-	('4',		reg_port_base + 4,	'mocks',	api_ver,	api_proto,	40),
-	('5',		reg_port_base + 5,	'mocks',	api_ver,	api_proto,	50),
+	('1-ver',	port_base + 1,	'mocks',	'v9.0',		api_proto,	10),
+	('1-proto',	port_base + 1,	'mocks',	api_ver,	'invalid',	10),
+	('2',		port_base + 2,	'mocks',	api_ver,	api_proto,	20),
+ 	('3',		port_base + 3,	'mocks',	api_ver,	api_proto,	30),
+	('4',		port_base + 4,	'mocks',	api_ver,	api_proto,	40),
+	('5',		port_base + 5,	'mocks',	api_ver,	api_proto,	50),
 	('timeout',	444,			'timeout',	api_ver,	api_proto,	55),
-	('6',		reg_port_base + 6,	'mocks',	api_ver,	api_proto,	60)
+	('6',		port_base + 6,	'mocks',	api_ver,	api_proto,	60)
 ] %}
 
 {% for inst, port, host, ver, proto, pri in registries %}
