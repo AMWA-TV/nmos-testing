@@ -18,6 +18,7 @@ from flask import Flask, render_template, flash, request, make_response
 from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
 from wtforms import FormField, FieldList
 from Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
+from System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
 from GenericTest import NMOSInitException
 from TestResult import TestStates
 from Node import NODE, NODE_API
@@ -65,6 +66,7 @@ import IS0701Test
 import IS0801Test
 import IS0802Test
 import IS0901Test
+import IS0902Test
 import IS1001Test
 import BCP00301Test
 import Config
@@ -91,6 +93,15 @@ for instance in range(NUM_REGISTRIES):
     reg_app.config['SECURE'] = ENABLE_HTTPS
     reg_app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
     FLASK_APPS.append(reg_app)
+
+for instance in range(NUM_SYSTEMS):
+    sys_app = Flask(__name__)
+    sys_app.debug = False
+    sys_app.config['SYSTEM_INSTANCE'] = instance
+    sys_app.config['PORT'] = SYSTEMS[instance].port
+    sys_app.config['SECURE'] = ENABLE_HTTPS
+    sys_app.register_blueprint(SYSTEM_API)  # Dependency for IS0902Test
+    FLASK_APPS.append(sys_app)
 
 sender_app = Flask(__name__)
 sender_app.debug = False
@@ -203,6 +214,14 @@ TEST_DEFINITIONS = {
             "api_key": "system"
         }],
         "class": IS0901Test.IS0901Test
+    },
+    "IS-09-02": {
+        "name": "IS-09 System API Discovery",
+        "specs": [{
+            "spec_key": 'is-09',
+            "api_key": "system"
+        }],
+        "class": IS0902Test.IS0902Test
     },
     "IS-10-01": {
         "name": "IS-10 Authorization API",
@@ -391,6 +410,9 @@ def run_tests(test, endpoints, test_selection=["all"]):
         if test == "IS-04-01":
             # This test has an unusual constructor as it requires a registry instance
             test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
+        elif test == "IS-09-02":
+            # This test has an unusual constructor as it requires a system api instance
+            test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)
 
