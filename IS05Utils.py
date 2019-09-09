@@ -586,15 +586,15 @@ class IS05Utils(NMOSUtils):
                     return False, "SDP groups do not match the length of the 'transport_params' array"
                 for index, sdp_data in enumerate(tp_compare):
                     transport_params = a_response["transport_params"][index]
-                    media_line = re.search("m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
+                    media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
                     if media_line.group(2) != str(transport_params["destination_port"]):
                         return False, "SDP destination port {} does not match transport_params: {}" \
                                       .format(media_line.group(2), transport_params["destination_port"])
-                    connection_line = re.search("c=IN IP[4,6] (\S[^/]*)(/[0-9]+)?", sdp_data)
+                    connection_line = re.search(r"c=IN IP[4,6] (\S[^/]*)(/[0-9]+)?", sdp_data)
                     if connection_line.group(1) != transport_params["destination_ip"]:
                         return False, "SDP destination IP {} does not match transport_params: {}" \
                                       .format(connection_line.group(1), transport_params["destination_ip"])
-                    filter_line = re.search("a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
+                    filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
                     if filter_line and filter_line.group(2) != transport_params["source_ip"]:
                         return False, "SDP source-filter IP {} does not match transport_params: {}" \
                                       .format(filter_line.group(2), transport_params["source_ip"])
