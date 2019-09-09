@@ -59,7 +59,7 @@ class GenericTest(object):
     Generic testing class.
     Can be inherited from in order to perform detailed testing.
     """
-    def __init__(self, apis, omit_paths=None):
+    def __init__(self, apis, omit_paths=None, disable_auto=False):
         self.apis = apis
         self.saved_entities = {}
         self.auto_test_count = 0
@@ -74,6 +74,7 @@ class GenericTest(object):
         self.omit_paths = []
         if isinstance(omit_paths, list):
             self.omit_paths = omit_paths
+        self.disable_auto = disable_auto
 
         test = Test("Test initialisation")
 
@@ -124,7 +125,7 @@ class GenericTest(object):
         self.test_individual = (test_name != "all")
 
         # Run automatically defined tests
-        if test_name in ["auto", "all"]:
+        if test_name in ["auto", "all"] and not self.disable_auto:
             print(" * Running basic API tests")
             self.result += self.basics()
 

@@ -29,7 +29,7 @@ class IS0902Test(GenericTest):
     Runs IS-09-02-Test
     """
     def __init__(self, apis, systems, dns_server):
-        GenericTest.__init__(self, apis)
+        GenericTest.__init__(self, apis, disable_auto=True)
         self.invalid_system = systems[0]
         self.primary_system = systems[1]
         self.systems = systems[1:]

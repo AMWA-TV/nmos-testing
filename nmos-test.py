@@ -216,7 +216,7 @@ TEST_DEFINITIONS = {
         "class": IS0901Test.IS0901Test
     },
     "IS-09-02": {
-        "name": "IS-09 System API Discovery",
+        "name": "IS-09 System API Node Behaviour",
         "specs": [{
             "spec_key": 'is-09',
             "api_key": "system"
