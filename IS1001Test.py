@@ -484,14 +484,17 @@ class IS1001Test(GenericTest):
             ctype = response.headers["Content-Type"]
             ctype_params = ctype.split(";")
             if ctype_params[0] != "application/json":
-                raise NMOSTestException(test.FAIL("Auth Server signalled a Content-Type of {} rather than application/json."
-                                    .format(ctype)))
+                raise NMOSTestException(test.FAIL(
+                    "Auth Server signalled a Content-Type of {} rather than application/json."
+                    .format(ctype)))
             elif len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
-                raise NMOSTestException(test.WARNING("Auth Server signalled an unnecessary 'charset' in its Content-Type: {}"
-                                    .format(ctype)))
+                raise NMOSTestException(test.WARNING(
+                    "Auth Server signalled an unnecessary 'charset' in its Content-Type: {}"
+                    .format(ctype)))
             elif len(ctype_params) >= 2:
-                raise NMOSTestException(test.FAIL("Auth Server signalled unexpected additional parameters in its Content-Type: {}"
-                                    .format(ctype)))
+                raise NMOSTestException(test.FAIL(
+                    "Auth Server signalled unexpected additional parameters in its Content-Type: {}"
+                    .format(ctype)))
         if "error" not in response.json().keys():
             raise NMOSTestException(test.FAIL(
                 "'error' not found in keys of JSON error response, as required by RFC 6749. Found: {}"
