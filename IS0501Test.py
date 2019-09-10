@@ -264,7 +264,7 @@ class IS0501Test(GenericTest):
                     if not valid:
                         return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
                                          .format(sender, response))
-                return test.PASS()
+            return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
