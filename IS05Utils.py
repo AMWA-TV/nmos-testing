@@ -572,18 +572,18 @@ class IS05Utils(NMOSUtils):
                 sdp_sections = sdp_response.text.split("m=")
                 sdp_global = sdp_sections[0]
                 sdp_media_sections = sdp_sections[1:]
-                sdp_groups_line = re.search(r"a=group:DUP", sdp_global)
+                sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
                 tp_compare = []
                 if sdp_groups_line:
-                    sdp_group_names = sdp_groups_line.split()[1:]
+                    sdp_group_names = sdp_groups_line.group(1).split()
                     for sdp_media in sdp_media_sections:
-                        group_name = re.search(r"a=mid:", sdp_media)
-                        if group_name.split()[1] in sdp_group_names:
+                        group_name = re.search(r"a=mid:(\S+)", sdp_media)
+                        if group_name.group(1) in sdp_group_names:
                             tp_compare.append("m=" + sdp_media)
                 else:
                     tp_compare.append("m=" + sdp_media_sections[0])
                 if len(tp_compare) != len(a_response["transport_params"]):
-                    return False, "SDP groups do not match the length of the 'transport_params' array"
+                    return False, "Number of SDP groups do not match the length of the 'transport_params' array"
                 for index, sdp_data in enumerate(tp_compare):
                     transport_params = a_response["transport_params"][index]
                     media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
