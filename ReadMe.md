@@ -85,7 +85,7 @@ When testing the authorization code grant, the means by which consent is given b
 
 IS-05 test_41 checks that SDP files conform to the expectations of ST.2110. In order to enable these tests, please ensure that [SDPoker](https://github.com/Streampunk/sdpoker) is available on your system.
 
-### Non-Interative Mode
+### Non-Interactive Mode
 
 The test suite supports non-interactive operation in order use it within continuous integration systems. An example of this usage can be seen below:
 
