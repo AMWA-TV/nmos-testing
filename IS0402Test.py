@@ -369,7 +369,7 @@ class IS0402Test(GenericTest):
         return valid, response, query_parameters
 
     def parse_link_header(self, link_header):
-        LINK_PATTERN = re.compile('<(?P<url>.+)>; rel="(?P<rel>.+)"')
+        LINK_PATTERN = re.compile('<(?P<url>.+)>; ?rel="(?P<rel>.+)"')
 
         return {rel: url for (rel, url) in
                 [(match.group("rel"), match.group("url")) for match in
