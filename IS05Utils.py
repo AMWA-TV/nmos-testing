@@ -451,7 +451,7 @@ class IS05Utils(NMOSUtils):
         else:
             return False, constraints
 
-    def generate_ws_connection_uris(self, port, portId):
+    def generate_connection_uris(self, port, portId):
         """Generates a fake connection URI, or re-uses one from the advertised constraints"""
         url = "single/" + port + "s/" + portId + "/constraints/"
         valid, constraints = self.checkCleanRequestJSON("GET", url)
