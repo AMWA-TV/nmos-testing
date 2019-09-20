@@ -369,12 +369,12 @@ class IS0402Test(GenericTest):
         return valid, response, query_parameters
 
     def parse_link_header(self, link_header):
-        LINK_PATTERN = re.compile('<(?P<url>.+)>; rel="(?P<rel>.+)"')
+        LINK_PATTERN = re.compile('<(?P<url>.+)>;[ \t]*rel="(?P<rel>.+)"')
 
         return {rel: url for (rel, url) in
-                [(_.group("rel"), _.group("url")) for _ in
+                [(match.group("rel"), match.group("url")) for match in
                     [LINK_PATTERN.search(_) for _ in
-                        link_header.split(",")]]}
+                        link_header.split(",")] if match]}
 
     def check_paged_response(self, test, paged_response,
                              expected_ids,
