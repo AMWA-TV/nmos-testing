@@ -1739,6 +1739,8 @@ class IS0402Test(GenericTest):
         resp_json = self.post_subscription(test, sub_json)
         # Check protocol
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
+            if "secure" not in resp_json:
+                return test.FAIL("Subscription 'secure' value is missing.")
             if resp_json["secure"] is not ENABLE_HTTPS:
                 return test.FAIL("Subscription 'secure' value is incorrect for the current protocol")
         if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
