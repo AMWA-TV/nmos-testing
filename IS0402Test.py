@@ -1171,7 +1171,7 @@ class IS0402Test(GenericTest):
             if api_version != query_api["version"]:
                 sub_json = self.prepare_subscription("/nodes", params={"query.downgrade": api_version})
             else:
-                sub_json = self.prepare_subscription("/nodes" )  # No downgrade for version under test
+                sub_json = self.prepare_subscription("/nodes")  # No downgrade for version under test
             resp_json = self.post_subscription(test, sub_json)
             websockets[api_version] = WebsocketWorker(resp_json["ws_href"])
             websockets[api_version].start()
