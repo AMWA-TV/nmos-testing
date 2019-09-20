@@ -416,7 +416,7 @@ class IS05Utils(NMOSUtils):
             return self.generate_destination_ports(port, portId)
 
     def changeable_param_name(self, transportType):
-        """Identify the paramater name which will be used to change IS-05 configuration"""
+        """Identify the parameter name which will be used to change IS-05 configuration"""
         if transportType == "urn:x-nmos:transport:websocket":
             return "connection_uri"
         else:
