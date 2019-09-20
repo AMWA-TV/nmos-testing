@@ -1199,10 +1199,11 @@ class IS0402Test(GenericTest):
 
         sleep(WS_MESSAGE_TIMEOUT)
 
-        # Read data from websockets
+        # Read data & close websockets
         sub_data = dict()
         for api_version in query_versions:
             received_messages = websockets[api_version].get_messages()
+            websockets[api_version].close()
             grain_data = list()
 
             for curr_msg in received_messages:
