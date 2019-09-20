@@ -1115,7 +1115,122 @@ class IS0402Test(GenericTest):
     def test_22_2(self, test):
         """Query API WebSockets implement downgrade queries"""
 
-        return test.MANUAL()
+        reg_api = self.apis[REG_API_KEY]
+        query_api = self.apis[QUERY_API_KEY]
+
+        if query_api["version"] == "v1.0":
+            return test.NA("This test does not apply to v1.0")
+
+        # Find the API versions supported by the Reg API
+        try:
+            valid, r = self.do_request("GET", self.reg_url.rstrip(reg_api["version"] + "/"))
+            if not valid:
+                return test.FAIL("Registration API failed to respond to request")
+            else:
+                reg_versions = [version.rstrip("/") for version in r.json()]
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # Sort the list and remove API versions higher than the one under test
+        reg_versions = self.is04_reg_utils.sort_versions(reg_versions)
+        for api_version in list(reg_versions):
+            if self.is04_reg_utils.compare_api_version(api_version, reg_api["version"]) > 0:
+                reg_versions.remove(api_version)
+
+        # Find the API versions supported by the Query API
+        try:
+            valid, r = self.do_request("GET", self.query_url.rstrip(query_api["version"] + "/"))
+            if not valid:
+                return test.FAIL("Query API failed to respond to request")
+            else:
+                query_versions = [version.rstrip("/") for version in r.json()]
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # Sort the list and remove API versions higher than the one under test
+        query_versions = self.is04_query_utils.sort_versions(query_versions)
+        for api_version in list(query_versions):
+            if self.is04_query_utils.compare_api_version(api_version, query_api["version"]) > 0:
+                query_versions.remove(api_version)
+
+        # If we're testing the lowest API version, exit with an N/A or warning indicating we can't test at this level
+        if query_versions[0] == query_api["version"]:
+            return test.NA("Downgrade queries are unnecessary when requesting from the lowest supported version of "
+                           "a Query API")
+
+        # Exit if the Registration API doesn't support the required versions
+        for api_version in query_versions:
+            if api_version not in reg_versions:
+                return test.MANUAL("This test cannot run automatically as the Registration API does not support all "
+                                   "of the API versions that the Query API does",
+                                   NMOS_WIKI_URL + "/IS-04#registries-downgrade-queries")
+
+        # Request & start websocket subscriptions for each version
+        websockets = dict()
+        for api_version in query_versions:
+            if api_version != query_api["version"]:
+                sub_json = self.prepare_subscription("/nodes", params={"query.downgrade": api_version})
+            else:
+                sub_json = self.prepare_subscription("/nodes")  # No downgrade for version under test
+            resp_json = self.post_subscription(test, sub_json)
+            websockets[api_version] = WebsocketWorker(resp_json["ws_href"])
+            websockets[api_version].start()
+
+        sleep(WS_MESSAGE_TIMEOUT)  # Wait for SYNC messages
+
+        # Verify no error occurred on starting websocket subscription & clear SYNC messages
+        for api_version in query_versions:
+            if websockets[api_version].did_error_occur():
+                return test.FAIL("Error opening websocket: {}".format(websockets[api_version].get_error_message()))
+            websockets[api_version].clear_messages()
+
+        # Register a Node at each API version available (up to the version under test)
+        node_ids = {}
+        test_id = str(uuid.uuid4())
+        for api_version in query_versions:
+            # Note: We iterate over the Query API versions, not the Reg API as it's the Query API that's under test
+            test_data = self.copy_resource("node", api_ver=api_version)
+            test_data["id"] = str(uuid.uuid4())
+            test_data["description"] = test_id
+            node_ids[api_version] = test_data["id"]
+
+            reg_url = "{}/{}/".format(self.reg_url.rstrip(reg_api["version"] + "/"), api_version)
+            self.post_resource(test, "node", test_data, codes=[201], reg_url=reg_url)
+
+        sleep(WS_MESSAGE_TIMEOUT)
+
+        # Read data & close websockets
+        sub_data = dict()
+        for api_version in query_versions:
+            received_messages = websockets[api_version].get_messages()
+            websockets[api_version].close()
+            grain_data = list()
+
+            for curr_msg in received_messages:
+                json_msg = json.loads(curr_msg)
+                grain_data.extend(json_msg["grain"]["data"])
+
+            sub_data[api_version] = grain_data
+
+        # Verify that all POSTed Nodes are announced via the corresponding websocket sub as expected (incl downgrade)
+        for api_version in query_versions:
+            expected_nodes = []
+            for node_api_version, node_id in node_ids.items():
+                if self.is04_query_utils.compare_api_version(node_api_version, api_version) >= 0:
+                    expected_nodes.append(node_id)
+            for expected_node_id in expected_nodes:
+                found_data_set = False
+                for curr_data in sub_data[api_version]:
+                    if "pre" not in curr_data and "post" in curr_data:  # Only check the 'Added Event'
+                        if "id" in curr_data["post"]:
+                            if expected_node_id == curr_data["post"]["id"]:
+                                found_data_set = True
+                                break
+
+                if not found_data_set:
+                    return test.FAIL("Query API failed to announce POSTed Node via websocket subscription.")
+
+        return test.PASS()
 
     def test_23(self, test):
         """Query API implements basic query parameters"""
