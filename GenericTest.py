@@ -269,7 +269,7 @@ class GenericTest(object):
     def check_error_response(self, method, response, code):
         """Confirm that a given Requests response conforms to the 4xx/5xx error schema and has any expected headers"""
         schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
-        valid, message = self.check_response(schema, "GET", response)
+        valid, message = self.check_response(schema, method, response)
         if valid:
             if response.json()["code"] != code:
                 return False, "Error JSON 'code' was not set to {}".format(code)
