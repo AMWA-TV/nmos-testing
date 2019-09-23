@@ -364,6 +364,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
+            if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
+                raise NMOSInitException("All IP/Hostname and Port fields must be completed.")
             base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
@@ -372,15 +374,11 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 ip_address = endpoints[index]["host"]
             except ValueError:
                 ip_address = socket.gethostbyname(endpoints[index]["host"])
-            try:
-                port = int(endpoints[index]["port"])
-            except ValueError:
-                raise NMOSInitException("Port is missing or is not an integer: {}".format(endpoints[index]["port"]))
             apis[api_key] = {
                 "base_url": base_url,
                 "hostname": endpoints[index]["host"],
                 "ip": ip_address,
-                "port": port,
+                "port": int(endpoints[index]["port"]),
                 "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
