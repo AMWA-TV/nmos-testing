@@ -1216,12 +1216,14 @@ class IS0401Test(GenericTest):
         """Senders and Receivers correctly use BCP-002-01 grouping syntax"""
 
         found_groups = False
+        found_senders_receivers = False
         groups = {"node": {}, "device": {}}
         for resource_name in ["senders", "receivers"]:
             valid, response = self.do_request("GET", self.node_url + resource_name)
             if valid and response.status_code == 200:
                 try:
                     for resource in response.json():
+                        found_senders_receivers = True
                         if resource["device_id"] not in groups["device"]:
                             groups["device"][resource["device_id"]] = {}
                         for tag_name, tag_value in resource["tags"].items():
@@ -1270,7 +1272,9 @@ class IS0401Test(GenericTest):
                 except json.JSONDecodeError:
                     return test.FAIL("Non-JSON response returned from Node API")
 
-        if found_groups:
+        if not found_senders_receivers:
+            return test.UNCLEAR("No Sender or Receiver resources were found on the Node")
+        elif found_groups:
             return test.PASS()
         else:
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
