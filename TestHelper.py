@@ -125,11 +125,16 @@ class WebsocketWorker(threading.Thread):
         """
         threading.Thread.__init__(self, daemon=True)
         self.ws_href = ws_href
-        self.ws = websocket.WebSocketApp(ws_href,
-                                         on_message=self.on_message,
-                                         on_close=self.on_close,
-                                         on_open=self.on_open,
-                                         on_error=self.on_error)
+        try:
+            self.ws = websocket.WebSocketApp(ws_href,
+                                             on_message=self.on_message,
+                                             on_close=self.on_close,
+                                             on_open=self.on_open,
+                                             on_error=self.on_error)
+        except AttributeError:
+            print(" * ERROR: You have the wrong Python websocket module installed. "
+                  "Please uninstall 'websocket' and install 'websocket-client'")
+            raise
         self.messages = list()
         self.error_occured = False
         self.error_message = ""
