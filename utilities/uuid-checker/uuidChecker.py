@@ -22,6 +22,7 @@ import json
 parser = argparse.ArgumentParser()
 parser.add_argument("--ip", required=True)
 parser.add_argument("--port", type=int, required=True)
+parser.add_argument("--version", default="v1.2")
 args = parser.parse_args()
 
 if os.path.exists("uuids.json"):
@@ -35,7 +36,7 @@ fetched_uuids = {"self": None, "devices": [], "sources": [], "flows": [],
                  "senders": [], "receivers": []}
 for path in fetched_uuids.keys():
     try:
-        url = "http://{}:{}/x-nmos/node/v1.2/{}".format(args.ip, args.port, path)
+        url = "http://{}:{}/x-nmos/node/{}/{}".format(args.ip, args.port, args.version, path)
         response = requests.get(url, timeout=1)
         if path == "self":
             print("Host: {}".format(response.json()["description"]))

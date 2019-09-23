@@ -12,5 +12,5 @@ pip3 install -r requirements.txt
 ## Usage
 
 ```
-python3 dutDataExporter.py --ip <is-04-ip-address> --port <is-04-api-port>
+python3 dutDataExporter.py --ip <is-04-ip-address> --port <is-04-api-port> --version <is-04-version>
 ```

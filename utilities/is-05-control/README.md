@@ -1,5 +1,5 @@
 # NMOS IS-05 Control
-Command line tool to control an NMOS IS-05 Sender or Receiver. 
+Command line tool to control an NMOS IS-05 Sender or Receiver.
 
 ## Installation
 To install the dependencies, run the following on a system with Python 3 and Pip installed:
@@ -38,6 +38,3 @@ Example call to enable sender
 ```
 python3 is05Control.py --sender --ip <hostname or IP> --port 80 --uuid <Sender ID> --request example_sender_patch.json
 ```
-
-NOTE: R&D proxy cannot handle PATCH request, so make sure no_proxy value is set correctly
-
