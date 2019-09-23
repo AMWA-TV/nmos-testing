@@ -32,7 +32,11 @@
     </span>
     <h1>NMOS Test</h1>
     <div class="text text_result">
-        <h5>Result for test suite <b>{{ test }}</b> on <b><a href={{ url }}>{{ url }}</a></b></h5>
+        <h5>Result for test suite <b>{{ test }}</b> on:
+            {% for url in urls %}
+                <b><a href={{ url }}>{{ url }}</a></b>{% if loop.index != loop.length %},{% endif %}
+            {% endfor %}
+        </h5>
     </div>
     <div class="text text_result">
         <form action="" method="POST" onsubmit="disableRunbtn(); return true;">
@@ -105,6 +109,9 @@
                     {% endfor %}
                 </tbody>
             </table>
+            <div class="footnote">
+              {{ config }}
+            </div>
         </form>
     </div>
 </body>

@@ -59,10 +59,6 @@ HTTP_TIMEOUT = 1
 # 0 = unlimited for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
-# Number of seconds to wait after selecting a test to run before carrying it out
-# Useful for unicast DNS testing where the device under test needs to restart in order to observe the new DNS records
-TEST_START_DELAY = 0
-
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
 ENABLE_HTTPS = False
 
@@ -91,6 +87,12 @@ AUTH_PASSWORD = "TEST_PASSWORD"
 # Domain name to use for the local DNS server and mock Node
 # This must match the domain name used for certificates in HTTPS mode
 DNS_DOMAIN = "testsuite.nmos.tv"
+
+# The testing tool uses multiple ports to run mock services. This sets the lowest of these, which also runs the GUI
+# Note that changing this from the default of 5000 also requires changes to supporting files such as
+# test_data/BCP00301/ca/intermediate/openssl.cnf and any generated certificates.
+# The mock DNS server port cannot be modified from the default of 53.
+PORT_BASE = 5000
 
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {

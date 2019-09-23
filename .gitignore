@@ -102,6 +102,11 @@ ENV/
 
 \.idea/
 
+# GitHub pages
+Gemfile.lock
+_site/
+
+
 # Other
 cache/
 testssl/
@@ -109,3 +114,5 @@ testssl/
 tls-report.json
 test_data/BCP00301/ca/ocspreq.der
 test_data/BCP00301/ca/ocspresp.der
+utilities/uuid-checker/uuids.json
+utilities/gsheets-import/credentials.json

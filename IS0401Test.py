@@ -18,6 +18,7 @@ import time
 import socket
 from requests.compat import json
 from urllib.parse import urlparse
+from dnslib import QTYPE
 
 from copy import deepcopy
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
@@ -25,7 +26,7 @@ from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
-from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT
+from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT, DNS_DOMAIN
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -58,6 +59,12 @@ class IS0401Test(GenericTest):
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
             self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol)
+            print(" * Waiting for up to {} seconds for a DNS query before executing tests"
+                  .format(DNS_SD_ADVERT_TIMEOUT))
+            self.dns_server.wait_for_query(QTYPE.PTR,
+                                           ["_nmos-register._tcp.{}.".format(DNS_DOMAIN),
+                                            "_nmos-registration._tcp.{}.".format(DNS_DOMAIN)],
+                                           DNS_SD_ADVERT_TIMEOUT)
 
     def tear_down_tests(self):
         if self.zc:
@@ -692,7 +699,7 @@ class IS0401Test(GenericTest):
         and connects the Receiver to a stream"""
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
-        if not valid:
+        if not valid or receivers.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
@@ -719,7 +726,7 @@ class IS0401Test(GenericTest):
                 time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
-                if not valid:
+                if not valid or response.status_code != 200:
                     return test.FAIL("Unexpected response from the Node API: {}".format(receiver))
 
                 receiver = response.json()
@@ -747,7 +754,7 @@ class IS0401Test(GenericTest):
         disconnects the Receiver from a stream"""
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
-        if not valid:
+        if not valid or receivers.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
@@ -764,7 +771,7 @@ class IS0401Test(GenericTest):
                 time.sleep(API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + test_receiver["id"])
-                if not valid:
+                if not valid or response.status_code != 200:
                     return test.FAIL("Unexpected response from the Node API: {}".format(test_receiver))
 
                 receiver = response.json()
@@ -826,9 +833,11 @@ class IS0401Test(GenericTest):
                 return test.FAIL("Node never made contact with registry {} advertised on port {}"
                                  .format(index + 1, registry_data.port))
 
-            if index > 0 and len(registry_data.posts) > 0:
-                return test.FAIL("Node re-registered its resources when it failed over to a new registry, when it "
-                                 "should only have issued a heartbeat")
+            if index > 0:
+                for resource in registry_data.posts:
+                    if resource[1]["payload"]["type"] == "node":
+                        return test.FAIL("Node re-registered its resources when it failed over to a new registry, when "
+                                         "it should only have issued a heartbeat")
 
         return test.PASS()
 
@@ -847,9 +856,10 @@ class IS0401Test(GenericTest):
             return test.WARNING("Node never made contact with registry {} advertised on port {}"
                                 .format(len(self.registry_basics_data), registry_data.port))
 
-        if len(registry_data.posts) > 0:
-            return test.WARNING("Node re-registered its resources when it failed over to a new registry, when it "
-                                "should only have issued a heartbeat")
+        for resource in registry_data.posts:
+            if resource[1]["payload"]["type"] == "node":
+                return test.WARNING("Node re-registered its resources when it failed over to a new registry, when it "
+                                    "should only have issued a heartbeat")
 
         return test.PASS()
 
@@ -858,7 +868,7 @@ class IS0401Test(GenericTest):
 
         uuids = set()
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             uuids.add(response.json()["id"])
@@ -867,7 +877,7 @@ class IS0401Test(GenericTest):
 
         for resource_type in ["devices", "sources", "flows", "senders", "receivers"]:
             valid, response = self.do_request("GET", self.node_url + resource_type)
-            if not valid:
+            if not valid or response.status_code != 200:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 for resource in response.json():
@@ -890,7 +900,7 @@ class IS0401Test(GenericTest):
 
         # get all the Node's Devices
         valid, response = self.do_request("GET", self.node_url + "devices")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for resource in response.json():
@@ -908,7 +918,7 @@ class IS0401Test(GenericTest):
         empty_refs = {"senders": set(), "receivers": set()}
         for resource_type in ["senders", "receivers"]:
             valid, response = self.do_request("GET", self.node_url + resource_type)
-            if not valid:
+            if not valid or response.status_code != 200:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 for resource in response.json():
@@ -959,7 +969,7 @@ class IS0401Test(GenericTest):
 
         clocks = set()
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for clock in response.json()["clocks"]:
@@ -971,7 +981,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "sources")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for source in response.json():
@@ -992,7 +1002,7 @@ class IS0401Test(GenericTest):
 
         interfaces = set()
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for interface in response.json()["interfaces"]:
@@ -1005,7 +1015,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "senders")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for sender in response.json():
@@ -1018,7 +1028,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "receivers")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             for receiver in response.json():
@@ -1049,7 +1059,7 @@ class IS0401Test(GenericTest):
 
         api = self.apis[NODE_API_KEY]
         valid, response = self.do_request("GET", self.node_url + "self")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             node_self = response.json()
@@ -1087,7 +1097,7 @@ class IS0401Test(GenericTest):
                 return test.FAIL("None of the Node 'api.endpoints' match the Node 'href'")
 
             valid, response = self.do_request("GET", self.node_url + "devices")
-            if not valid:
+            if not valid or response.status_code != 200:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             try:
                 node_devices = response.json()
@@ -1104,7 +1114,7 @@ class IS0401Test(GenericTest):
                 return test.FAIL("Non-JSON response returned from Node API")
 
         valid, response = self.do_request("GET", self.node_url + "senders")
-        if not valid:
+        if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
             node_senders = response.json()
@@ -1156,6 +1166,10 @@ class IS0401Test(GenericTest):
         self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
         self.primary_registry.wait_for_delete(HEARTBEAT_INTERVAL + 1)
 
+        # Wait for the Node to finish its interactions
+        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
+            time.sleep(0.2)
+
         # By this point we should have had at least one Node POST and a corresponding DELETE
         if DNS_SD_MODE == "multicast":
             self.zc.unregister_service(registry_info)
@@ -1175,18 +1189,98 @@ class IS0401Test(GenericTest):
                 if not found_post:
                     return test.FAIL("Node did not attempt to make contact with the registry")
                 found_delete = False
+                found_extra_deletes = False
                 for resource in self.primary_registry.get_data().deletes:
                     if resource[1]["type"] == "node" and resource[1]["id"] == node_id:
                         found_delete = True
+                    elif resource[1]["type"] != "node":
+                        found_extra_deletes = True
                 if not found_delete:
                     return test.FAIL("Node did not attempt to DELETE itself having encountered a 200 code on initial "
                                      "registration")
+                elif found_extra_deletes:
+                    return test.WARNING("Node DELETEd more than just its 'node' resource. This is unnecessary when "
+                                        "encountering a 200 code on initial registration")
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
         else:
             return test.FAIL("Unexpected responses from Node API self resource")
 
         return test.PASS()
+
+    def test_22(self, test):
+        """Node resource IDs persist over a reboot"""
+
+        return test.MANUAL("This check must be performed manually, or via use of the following tool",
+                           "https://github.com/AMWA-TV/nmos-testing/blob/master/utilities/uuid-checker/README.md")
+
+    def test_23(self, test):
+        """Senders and Receivers correctly use BCP-002-01 grouping syntax"""
+
+        found_groups = False
+        found_senders_receivers = False
+        groups = {"node": {}, "device": {}}
+        for resource_name in ["senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + resource_name)
+            if valid and response.status_code == 200:
+                try:
+                    for resource in response.json():
+                        found_senders_receivers = True
+                        if resource["device_id"] not in groups["device"]:
+                            groups["device"][resource["device_id"]] = {}
+                        for tag_name, tag_value in resource["tags"].items():
+                            if tag_name != "urn:x-nmos:tag:grouphint/v1.0":
+                                continue
+                            if not isinstance(tag_value, list) or len(tag_value) == 0:
+                                return test.FAIL("Group tag for {} {} is not an array or has too few items"
+                                                 .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                            found_groups = True
+                            for group_def in tag_value:
+                                group_params = group_def.split(":")
+                                group_scope = "device"
+
+                                # Perform basic validation on the group syntax
+                                if len(group_params) < 2:
+                                    return test.FAIL("Group syntax for {} {} has too few parameters"
+                                                     .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                                elif len(group_params) > 3:
+                                    return test.FAIL("Group syntax for {} {} has too many parameters"
+                                                     .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                                elif len(group_params) == 3:
+                                    if group_params[2] not in ["device", "node"]:
+                                        return test.FAIL("Group syntax for {} {} uses an invalid group scope: {}"
+                                                         .format(resource_name.capitalize().rstrip("s"), resource["id"],
+                                                                 group_params[2]))
+                                    group_scope = group_params[2]
+
+                                # Ensure we have a reference to the group name stored
+                                if group_scope == "node":
+                                    if group_params[0] not in groups["node"]:
+                                        groups["node"][group_params[0]] = {}
+                                    group_ref = groups["node"][group_params[0]]
+                                elif group_scope == "device":
+                                    if group_params[0] not in groups["device"][resource["device_id"]]:
+                                        groups["device"][resource["device_id"]][group_params[0]] = {}
+                                    group_ref = groups["device"][resource["device_id"]][group_params[0]]
+
+                                # Check for duplicate roles within groups
+                                if group_params[1] in group_ref:
+                                    return test.FAIL("Duplicate role found in group {} for resources {} and {}"
+                                                     .format(group_params[0], resource["id"],
+                                                             group_ref[group_params[1]]))
+                                else:
+                                    group_ref[group_params[1]] = resource["id"]
+
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+
+        if not found_senders_receivers:
+            return test.UNCLEAR("No Sender or Receiver resources were found on the Node")
+        elif found_groups:
+            return test.PASS()
+        else:
+            return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
+                                 "https://amwa-tv.github.io/nmos-grouping/best-practice-natural-grouping.html")
 
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""

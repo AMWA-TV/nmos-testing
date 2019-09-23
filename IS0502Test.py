@@ -129,17 +129,16 @@ class IS0502Test(GenericTest):
     def activate_check_version(self, resource_type, resource_list):
         try:
             for is05_resource in resource_list:
-                if self.is05_resources["transport_types"][is05_resource] == "urn:x-nmos:transport:websocket":
-                    continue
                 found_04_resource = False
                 for is04_resource in self.is04_resources[resource_type]:
                     if is04_resource["id"] == is05_resource:
                         found_04_resource = True
                         current_ver = is04_resource["version"]
+                        transport_type = self.is05_resources["transport_types"][is05_resource]
 
                         method = self.is05_utils.check_perform_immediate_activation
                         valid, response = self.is05_utils.check_activation(resource_type.rstrip("s"), is05_resource,
-                                                                           method)
+                                                                           method, transport_type)
                         if not valid:
                             return False, response
 
@@ -547,8 +546,8 @@ class IS0502Test(GenericTest):
                     valid, result = self.do_request("GET", self.connection_url + "single/" + resource_type + "/" +
                                                     resource["id"] + "/active")
                     if not valid:
-                        return test.FAIL("Connection API returned unexpected result \
-                                          for {} '{}'".format(resource_type.capitalize(), resource["id"]))
+                        return test.FAIL("Connection API returned unexpected result "
+                                         "for {} '{}'".format(resource_type.capitalize(), resource["id"]))
 
                     trans_params_length = len(result.json()["transport_params"])
                     if trans_params_length != bindings_length:
@@ -557,8 +556,8 @@ class IS0502Test(GenericTest):
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Connection API")
         except KeyError as ex:
-            return test.FAIL("Expected attribute not found in IS-04 Sender/Receiver \
-                              or IS-05 active resource: {}".format(ex))
+            return test.FAIL("Expected attribute not found in IS-04 Sender/Receiver "
+                             "or IS-05 active resource: {}".format(ex))
 
         return test.PASS()
 
@@ -588,8 +587,8 @@ class IS0502Test(GenericTest):
                     is05_transport_file = result.text
 
                 if is04_transport_file != is05_transport_file:
-                    return test.FAIL("Transport file contents for Sender '{}' do not match \
-                                     between IS-04 and IS-05".format(resource["id"]))
+                    return test.FAIL("Transport file contents for Sender '{}' do not match "
+                                     "between IS-04 and IS-05".format(resource["id"]))
 
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 Sender: {}".format(ex))

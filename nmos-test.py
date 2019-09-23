@@ -24,11 +24,13 @@ from Node import NODE, NODE_API
 from CRL import CRL, CRL_API
 from OCSP import OCSP, OCSP_API
 from Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
-from Config import CERTS_MOCKS, KEYS_MOCKS
+from Config import CERTS_MOCKS, KEYS_MOCKS, PORT_BASE
 from DNS import DNS
 from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
 from enum import IntEnum
+from werkzeug.serving import WSGIRequestHandler
+from TestHelper import get_default_ip
 
 import git
 import os
@@ -46,6 +48,15 @@ import inspect
 import ipaddress
 import socket
 import ssl
+import subprocess
+import pkgutil
+
+# Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
+try:
+    import colorama
+    colorama.init()
+except ImportError:
+    pass
 
 import IS0401Test
 import IS0402Test
@@ -59,9 +70,11 @@ import IS0802Test
 import IS0901Test
 import IS1001Test
 import BCP00301Test
+import Config
 
 FLASK_APPS = []
 DNS_SERVER = None
+TOOL_VERSION = None
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -69,7 +82,7 @@ core_app = Flask(__name__)
 core_app.debug = False
 core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 core_app.config['TEST_ACTIVE'] = False
-core_app.config['PORT'] = 5000
+core_app.config['PORT'] = PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(core_app)
@@ -303,12 +316,13 @@ def index_page():
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
-                    json_output = format_test_results(results, "json")
+                    json_output = format_test_results(results, endpoints, "json")
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
-                    r = make_response(render_template("result.html", form=form, url=results["base_url"],
+                    r = make_response(render_template("result.html", form=form, urls=results["urls"],
                                                       test=test_def["name"], result=results["result"],
-                                                      json=json_output, cachebuster=CACHEBUSTER))
+                                                      json=json_output, config=_export_config(),
+                                                      cachebuster=CACHEBUSTER))
                     r.headers['Cache-Control'] = 'no-cache, no-store'
                     return r
                 else:
@@ -319,6 +333,8 @@ def index_page():
         else:
             flash("Error: {}".format(form.errors))
     elif request.method == "POST":
+        print(" * Unable to start new test run. Time since current test run began: {}"
+              .format(timedelta(seconds=time.time() - core_app.config['TEST_ACTIVE'])))
         flash("Error: A test is currently in progress. Please wait until it has completed or restart the testing tool.")
 
     # Prepare configuration strings to display via the UI
@@ -350,6 +366,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         if ENABLE_HTTPS:
             protocol = "https"
         apis = {}
+        tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
             base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
@@ -368,6 +385,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
             }
+            tested_urls.append(apis[api_key]["url"])
             if SPECIFICATIONS[spec_key]["repo"] is not None and api_key in SPECIFICATIONS[spec_key]["apis"]:
                 apis[api_key]["name"] = SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
                 apis[api_key]["spec_path"] = CACHE_PATH + '/' + spec_key
@@ -380,7 +398,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         else:
             test_obj = test_def["class"](apis)
 
-        core_app.config['TEST_ACTIVE'] = True
+        core_app.config['TEST_ACTIVE'] = time.time()
         try:
             result = test_obj.run_tests(test_selection)
         except Exception as ex:
@@ -388,7 +406,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             raise ex
         finally:
             core_app.config['TEST_ACTIVE'] = False
-        return {"result": result, "def": test_def, "base_url": base_url, "suite": test}
+        return {"result": result, "def": test_def, "urls": tested_urls, "suite": test}
     else:
         raise NMOSInitException("This test definition does not exist")
 
@@ -453,25 +471,40 @@ def _check_test_result(test_result, results):
         """)
 
 
-def format_test_results(results, format):
+def _export_config():
+    current_config = {"VERSION": TOOL_VERSION}
+    for param in dir(Config):
+        if not param.startswith("__") and param != "SPECIFICATIONS":
+            current_config[param] = getattr(Config, param)
+    return current_config
+
+
+def format_test_results(results, endpoints, format):
     formatted = None
+    total_time = 0
+    max_name_len = 0
+    for test_result in results["result"]:
+        _check_test_result(test_result, results)
+        total_time += test_result.elapsed_time
+        max_name_len = max(max_name_len, len(test_result.name))
     if format == "json":
         formatted = {"suite": results["suite"],
-                     "url": results["base_url"],
                      "timestamp": time.time(),
-                     "results": []}
+                     "duration": total_time,
+                     "results": [],
+                     "config": _export_config(),
+                     "endpoints": endpoints}
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
             formatted["results"].append({
                 "name": test_result.name,
                 "state": str(test_result.state),
-                "detail": test_result.detail
+                "detail": test_result.detail,
+                "duration": test_result.elapsed_time
             })
         formatted = json.dumps(formatted, sort_keys=True, indent=4)
     elif format == "junit":
         test_cases = []
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
             if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
@@ -485,16 +518,14 @@ def format_test_results(results, format):
             elif test_result.state != TestStates.PASS:
                 test_case.add_error_info(test_result.detail, error_type=str(test_result.state))
             test_cases.append(test_case)
-        formatted = TestSuite(results["def"]["name"] + ": " + results["base_url"], test_cases)
+        formatted = TestSuite(results["def"]["name"] + ": " + ", ".join(results["urls"]), test_cases)
     elif format == "console":
-        formatted = "\r\nPrinting test results for suite '{}' using API '{}'\r\n" \
-                    .format(results["suite"], results["base_url"])
+        formatted = "\r\nPrinting test results for suite '{}' using API(s) '{}'\r\n" \
+                    .format(results["suite"], ", ".join(results["urls"]))
         formatted += "----------------------------\r\n"
-        total_time = 0
         for test_result in results["result"]:
-            _check_test_result(test_result, results)
-            formatted += "{} ... {}\r\n".format(test_result.name, str(test_result.state))
-            total_time += test_result.elapsed_time
+            num_extra_dots = max_name_len - len(test_result.name)
+            formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), str(test_result.state))
         formatted += "----------------------------\r\n"
         formatted += "Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n"
     return formatted
@@ -510,11 +541,11 @@ def identify_exit_code(results):
     return exit_code
 
 
-def write_test_results(results, args):
+def write_test_results(results, endpoints, args):
     if args.output.endswith(".xml"):
-        formatted = format_test_results(results, "junit")
+        formatted = format_test_results(results, endpoints, "junit")
     else:
-        formatted = format_test_results(results, "json")
+        formatted = format_test_results(results, endpoints, "json")
     with open(args.output, "w") as f:
         if args.output.endswith(".xml"):
             # pretty-print to help out Jenkins (and us humans), which struggles otherwise
@@ -525,8 +556,8 @@ def write_test_results(results, args):
     return identify_exit_code(results)
 
 
-def print_test_results(results, args):
-    print(format_test_results(results, "console"))
+def print_test_results(results, endpoints):
+    print(format_test_results(results, endpoints, "console"))
     return identify_exit_code(results)
 
 
@@ -599,6 +630,16 @@ def validate_args(args):
             sys.exit(ExitCodes.ERROR)
 
 
+class PortLoggingHandler(WSGIRequestHandler):
+    def log(self, type, message, *args):
+        # Conform to Combined Log Format, replacing Referer with the Host header or the local server address
+        url_scheme = "http" if self.server.ssl_context is None else "https"
+        host = self.headers.get("Host", "{}:{}".format(self.server.server_address[0], self.server.server_address[1]))
+        referer = "{}://{}".format(url_scheme, host)
+        message += ' "{}" "{}"'.format(referer, self.headers.get("User-Agent", ""))
+        super().log(type, message, *args)
+
+
 def start_web_servers():
     ctx = None
     if ENABLE_HTTPS:
@@ -617,7 +658,8 @@ def start_web_servers():
         port = app.config['PORT']
         secure = app.config['SECURE']
         t = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': port, 'threaded': True,
-                                                     'ssl_context': ctx if secure else None})
+                                                     'ssl_context': ctx if secure else None,
+                                                     'request_handler': PortLoggingHandler})
         t.daemon = True
         t.start()
         web_threads.append(t)
@@ -637,13 +679,39 @@ def run_noninteractive_tests(args):
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
-            exit_code = write_test_results(results, args)
+            exit_code = write_test_results(results, endpoints, args)
         else:
-            exit_code = print_test_results(results, args)
+            exit_code = print_test_results(results, endpoints)
     except Exception as e:
         print(" * ERROR: {}".format(str(e)))
         exit_code = ExitCodes.ERROR
     return exit_code
+
+
+def check_internal_requirements():
+    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket"}
+    installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
+    with open("requirements.txt") as requirements_file:
+        for requirement in requirements_file.readlines():
+            requirement_name = requirement.strip()
+            if requirement_name in corrections:
+                corrected_req = corrections[requirement_name]
+            else:
+                corrected_req = requirement_name.replace("-", "_")
+            if corrected_req not in installed_pkgs:
+                print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
+                sys.exit(ExitCodes.ERROR)
+
+
+def check_external_requirements():
+    deps = {"sdpoker": ("sdpoker --version", "0.1.0"), "testssl": ("testssl/testssl.sh -v", "3.0rc5")}
+    for dep_name, dep_ver in deps.items():
+        try:
+            output = subprocess.check_output(dep_ver[0], stderr=subprocess.STDOUT, shell=True)
+            if dep_ver[1] not in str(output):
+                print(" * WARNING: Version of '{}' does not match the expected '{}'".format(dep_name, dep_ver[1]))
+        except subprocess.CalledProcessError:
+            print(" * WARNING: Could not find an installation of '{}'. Some tests will be disabled.".format(dep_name))
 
 
 class ExitCodes(IntEnum):
@@ -668,6 +736,10 @@ if __name__ == '__main__':
                   "with elevated permissions")
             sys.exit(ExitCodes.ERROR)
 
+    # Check that all dependencies are installed
+    check_internal_requirements()
+    check_external_requirements()
+
     # Parse and validate command line arguments
     args = parse_arguments()
     validate_args(args)
@@ -675,12 +747,22 @@ if __name__ == '__main__':
     # Download up to date versions of each API specification
     init_spec_cache()
 
+    # Identify current testing tool version
+    try:
+        repo = git.Repo(".")
+        TOOL_VERSION = repo.git.rev_parse(repo.head.object.hexsha, short=7)
+    except git.exc.InvalidGitRepositoryError:
+        TOOL_VERSION = "Unknown"
+
     # Start the DNS server
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
     # Start the HTTP servers
     start_web_servers()
+
+    print(" * Testing tool running on 'http://{}:{}'. Version '{}'"
+          .format(get_default_ip(), core_app.config['PORT'], TOOL_VERSION))
 
     exit_code = 0
     if "suite" not in vars(args):
