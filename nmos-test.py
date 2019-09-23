@@ -48,6 +48,8 @@ import inspect
 import ipaddress
 import socket
 import ssl
+import subprocess
+import pkgutil
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -686,6 +688,32 @@ def run_noninteractive_tests(args):
     return exit_code
 
 
+def check_internal_requirements():
+    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket"}
+    installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
+    with open("requirements.txt") as requirements_file:
+        for requirement in requirements_file.readlines():
+            requirement_name = requirement.strip()
+            if requirement_name in corrections:
+                corrected_req = corrections[requirement_name]
+            else:
+                corrected_req = requirement_name.replace("-", "_")
+            if corrected_req not in installed_pkgs:
+                print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
+                sys.exit(ExitCodes.ERROR)
+
+
+def check_external_requirements():
+    deps = {"sdpoker": ("sdpoker --version", "0.1.0"), "testssl": ("testssl/testssl.sh -v", "3.0rc5")}
+    for dep_name, dep_ver in deps.items():
+        try:
+            output = subprocess.check_output(dep_ver[0], stderr=subprocess.STDOUT, shell=True)
+            if dep_ver[1] not in str(output):
+                print(" * WARNING: Version of '{}' does not match the expected '{}'".format(dep_name, dep_ver[1]))
+        except subprocess.CalledProcessError:
+            print(" * WARNING: Could not find an installation of '{}'. Some tests will be disabled.".format(dep_name))
+
+
 class ExitCodes(IntEnum):
     ERROR = -1  # General test suite error
     OK = 0  # Normal exit condition, or all tests passed in non-interactive mode
@@ -707,6 +735,10 @@ if __name__ == '__main__':
             print(" * ERROR: In order to test DNS-SD in unicast mode, the test suite must be run "
                   "with elevated permissions")
             sys.exit(ExitCodes.ERROR)
+
+    # Check that all dependencies are installed
+    check_internal_requirements()
+    check_external_requirements()
 
     # Parse and validate command line arguments
     args = parse_arguments()
