@@ -8,17 +8,18 @@ Command line tool to import NMOS testing results into a Google spreadsheet.
 pip3 install -r requirements.txt
 ```
 
-2. Insert the spreadsheet URL into the `GOOGLE_SHEET_URL` variable
-3. Provide access credentails
-    * Place `credentials.json` file in the directory with the script, this grants permission to the script to make changes to the google sheet.  
+2. Get an access credentials file
     * Instructions on how to create this file can be found [here](https://gspread.readthedocs.io/en/latest/oauth2.html).  
-4. **Make sure to grant the `client_email` in `credentials.json` access to the sheet.**
+    **Make sure to grant the `client_email` in this file access to the sheet.**
+
+3. Ensure that the spreadsheet has a worksheet with the name of the suite (e.g. 'IS-04-01').
 
 ## Usage
-First, ensure that the spreadsheet has a worksheet with the name of the 'suite', and add the URL of the spreadsheet to `GOOGLE_SHEET_URL` in the script.
 
 To import a test results JSON file, run:
 
 ```
-python3 resultsImporter.py --json <json-results-file-name>
+python3 resultsImporter.py --json <json-results-file-name> --sheet <spreadsheet-url> --credentials <credentials-file-name>
 ```
+
+To reserve some columns for manually entered details, specify the first column, e.g. `--start_col 4`.
