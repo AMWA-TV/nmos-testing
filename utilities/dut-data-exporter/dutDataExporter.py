@@ -28,7 +28,7 @@ def url_port_number(url):
         else:
             return 80
     except ValueError:
-        print("IPv6 address could not be parsed: {}".format(url))
+        print("URL could not be parsed: {}".format(url))
         return None
 
 
