@@ -16,30 +16,33 @@
 
 import argparse
 import gspread
-from gspread import Cell
 import json
 import sys
 
 from oauth2client.service_account import ServiceAccountCredentials
 
-GOOGLE_SHEET_URL = ""
-
 SCOPES = ['https://spreadsheets.google.com/feeds',
           'https://www.googleapis.com/auth/drive']
 
-READ_ONLY_COL_OFFSET = 4
-TEST_DATA_COL_OFFSET = READ_ONLY_COL_OFFSET + 4
+# TEST_STATES = ["Pass", "Warning", "Fail", "Manual", "Not Applicable", "Not Implemented", "Test Disabled",
+#                "Could Not Test"]
+# Reorder the values to group by severity
+TEST_STATES = ["Pass", "Fail", "Warning", "Not Implemented", "Test Disabled", "Could Not Test", "Manual",
+               "Not Applicable"]
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", required=True)
+    parser.add_argument("--sheet", required=True)
+    parser.add_argument("--credentials", default="credentials.json")
+    parser.add_argument("--start_col", default="1", type=int)
     args = parser.parse_args()
 
-    credentials = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPES)
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(args.credentials, SCOPES)
     gcloud = gspread.authorize(credentials)
 
-    spreadsheet = gcloud.open_by_url(GOOGLE_SHEET_URL)
+    spreadsheet = gcloud.open_by_url(args.sheet)
 
     with open(args.json) as json_file:
         test_results = json.load(json_file)
@@ -48,67 +51,105 @@ def main():
         worksheet = spreadsheet.worksheet(test_results["suite"])
     except gspread.exceptions.WorksheetNotFound:
         print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
+        # could add_worksheet?
         sys.exit(1)
 
-    current_worksheet_data = worksheet.get_all_values()
-    populated_rows = len(current_worksheet_data)
-    current_row = populated_rows + 1
-
-    if populated_rows < 2:
-        # Blank spreadsheet
-        current_number_columns = TEST_DATA_COL_OFFSET
-        current_row = 3
+    worksheet_data = worksheet.get_all_values()
+    populated_rows = len(worksheet_data)
+    if populated_rows == 0:
+        # Blank spreadsheet, row 1 will be for column titles
+        current_row = 2
     else:
-        current_number_columns = len(current_worksheet_data[0])
-        if current_number_columns < TEST_DATA_COL_OFFSET:
-            current_number_columns = TEST_DATA_COL_OFFSET
+        current_row = populated_rows+1
+
+    # Columns before start_col reserved for manually entered details
+    start_col = max(1, args.start_col)
+
+    # Columns for Filename, URLs Tested, Timestamp, Test Suite
+    metadata_cols = 4
+    # Columns for counts of Tests, and each Test Status
+    state_cols = 1+len(TEST_STATES)
+
+    # First results column
+    results_col = start_col+metadata_cols+state_cols
+
+    # Column after last results
+    if populated_rows == 0:
+        # Blank spreadsheet
+        next_col = results_col
+    else:
+        next_col = max(results_col, len(worksheet_data[0])+1)
 
     # Test Names
     start_cell_addr = gspread.utils.rowcol_to_a1(1, 1)
-    end_cell_addr = gspread.utils.rowcol_to_a1(1, current_number_columns)
-    cell_list_names = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
+    end_cell_addr = gspread.utils.rowcol_to_a1(1, next_col)
+    cell_list_names = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))[:-1]
 
     # Results
     start_cell_addr = gspread.utils.rowcol_to_a1(current_row, 1)
-    end_cell_addr = gspread.utils.rowcol_to_a1(current_row, current_number_columns)
-    cell_list_results = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))
+    end_cell_addr = gspread.utils.rowcol_to_a1(current_row, next_col)
+    cell_list_results = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))[:-1]
 
-    # Col 1-4 reserved for device details
-    current_index = READ_ONLY_COL_OFFSET
+    # Columns for Filename, URLs Tested, Timestamp, Test Suite
+    current_index = start_col-1  # list is 0-indexed whereas rows/cols are 1-indexed
     cell_list_names[current_index].value = "Filename"
     cell_list_results[current_index].value = args.json
     current_index += 1
     cell_list_names[current_index].value = "URLs Tested"
-    urls_tested = []
     try:
+        urls_tested = []
         for endpoint in test_results["endpoints"]:
             urls_tested.append("{}:{} ({})".format(endpoint["host"], endpoint["port"], endpoint["version"]))
         cell_list_results[current_index].value = ", ".join(urls_tested)
     except Exception:
-        print("JSON file does not support endpoints key")
+        print(" * WARNING: JSON file does not include endpoints")
         cell_list_results[current_index].value = test_results["url"]
     current_index += 1
     cell_list_names[current_index].value = "Timestamp"
     cell_list_results[current_index].value = test_results["timestamp"]
     current_index += 1
     cell_list_names[current_index].value = "Test Suite"
-    cell_list_results[current_index].value = test_results["suite"]
+    try:
+        cell_list_results[current_index].value = "{} ({})".format(test_results["suite"],
+                                                                  test_results["config"]["VERSION"])
+    except Exception:
+        print(" * WARNING: JSON file does not include test suite version")
+        cell_list_results[current_index].value = test_results["suite"]
 
+    # Columns for counts of Tests and each Test Status
+    results_addr = "{}:{}".format(gspread.utils.rowcol_to_a1(current_row, results_col),
+                                  gspread.utils.rowcol_to_a1(current_row, 1)[1:])
+
+    current_index += 1
+    cell_list_names[current_index].value = "Tests"
+    # count non-empty cells on rest of this row
+    cell_list_results[current_index].value = "=COUNTIF({}, \"?*\")".format(results_addr)
+    for state in TEST_STATES:
+        current_index += 1
+        cell_list_names[current_index].value = state
+        # count cells on the rest of this row that match this column's status
+        current_col_addr = gspread.utils.rowcol_to_a1(1, cell_list_names[current_index].col)
+        cell_list_results[current_index].value = "=COUNTIF({}, CONCAT({},\"*\"))" \
+                                                 .format(results_addr, current_col_addr)
+
+    # Columns for the Results
     for result in test_results["results"]:
         cell_contents = result["state"]
         if result["detail"] != "":
             cell_contents += " (" + result["detail"] + ")"
-        try:
-            index = current_worksheet_data[0].index(result["name"])
+        col = next((cell.col for cell in cell_list_names if cell.value == result["name"]), None)
+        if col:
+            index = col-1  # list is 0-indexed whereas rows/cols are 1-indexed
             cell_list_results[index].value = cell_contents
-        except (ValueError, IndexError):
-            # Test name not found, add column
-            current_number_columns += 1
-            cell_list_names.append(Cell(1, current_number_columns, result["name"]))
-            cell_list_results.append(Cell(current_row, current_number_columns, cell_contents))
+        else:
+            # Test name not found, append column (since gspread doesn't make it easy to insert one)
+            col = cell_list_names[-1].col+1  # = cell_list_results[-1].col+1
+            cell_list_names.append(gspread.Cell(1, col, result["name"]))
+            cell_list_results.append(gspread.Cell(current_row, col, cell_contents))
 
     worksheet.update_cells(cell_list_names)
-    worksheet.update_cells(cell_list_results)
+    # 'USER_ENTERED' allows formulae to be used
+    worksheet.update_cells(cell_list_results, value_input_option='USER_ENTERED')
 
 
 if __name__ == '__main__':

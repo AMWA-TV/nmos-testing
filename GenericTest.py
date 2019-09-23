@@ -175,7 +175,7 @@ class GenericTest(object):
         """Perform tests and return the results as a list"""
 
         # Set up
-        test = Test("Test setup")
+        test = Test("Test setup", "set_up_tests")
         self.set_up_tests()
         self.result.append(test.NA(""))
 
@@ -187,7 +187,7 @@ class GenericTest(object):
         self.execute_tests(test_name)
 
         # Tear down
-        test = Test("Test teardown")
+        test = Test("Test teardown", "tear_down_tests")
         self.tear_down_tests()
         self.result.append(test.NA(""))
 
