@@ -260,10 +260,10 @@ class IS0501Test(GenericTest):
         if len(self.senders) > 0:
             for sender in self.senders:
                 if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                    valid, response = self.is05_utils.check_sdp_matches_params(sender)
+                    valid, result = self.is05_utils.check_sdp_matches_params(sender)
                     if not valid:
                         return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
-                                         .format(sender, response))
+                                         .format(sender, result))
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")

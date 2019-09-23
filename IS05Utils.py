@@ -568,7 +568,7 @@ class IS05Utils(NMOSUtils):
         a_valid, a_response = self.checkCleanRequestJSON("GET", aDest)
         sdp_valid, sdp_response = self.checkCleanRequest("GET", sdpDest)
         if a_valid:
-            if sdp_valid and sdp_response.status_code == 200:
+            if sdp_valid:
                 sdp_sections = sdp_response.text.split("m=")
                 sdp_global = sdp_sections[0]
                 sdp_media_sections = sdp_sections[1:]
@@ -598,10 +598,8 @@ class IS05Utils(NMOSUtils):
                     if filter_line and filter_line.group(2) != transport_params["source_ip"]:
                         return False, "SDP source-filter IP {} does not match transport_params: {}" \
                                       .format(filter_line.group(2), transport_params["source_ip"])
-            elif sdp_valid and sdp_response.status_code == 404:
-                return False, "SDP file could not be tested due to 404 response"
             else:
-                return False, sdp_response.text
+                return False, sdp_response
         else:
             return False, a_response
         return True, ""
