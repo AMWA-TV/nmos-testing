@@ -254,6 +254,20 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_09_01(self, test):
+        """All params listed in /single/senders/{senderId}/active/ match their corresponding SDP files"""
+
+        if len(self.senders) > 0:
+            for sender in self.senders:
+                if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                    valid, result = self.is05_utils.check_sdp_matches_params(sender)
+                    if not valid:
+                        return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                         .format(sender, result))
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
     def test_10(self, test):
         """All params listed in /single/receivers/{receiverId}/constraints/ matches /staged/ and /active/"""
 
@@ -586,7 +600,11 @@ class IS0501Test(GenericTest):
                                                                    self.is05_utils.check_perform_immediate_activation,
                                                                    self.transport_types[sender])
                 if valid:
-                    pass
+                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                        if not valid2:
+                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                             .format(sender, response2))
                 else:
                     return test.FAIL(response)
             return test.PASS()
@@ -619,7 +637,11 @@ class IS0501Test(GenericTest):
                                                                    self.is05_utils.check_perform_relative_activation,
                                                                    self.transport_types[sender])
                 if valid:
-                    pass
+                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                        if not valid2:
+                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                             .format(sender, response2))
                 else:
                     return test.FAIL(response)
             return test.PASS(response)
@@ -651,7 +673,11 @@ class IS0501Test(GenericTest):
                                                                    self.is05_utils.check_perform_absolute_activation,
                                                                    self.transport_types[sender])
                 if valid:
-                    pass
+                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                        if not valid2:
+                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                             .format(sender, response2))
                 else:
                     return test.FAIL(response)
             return test.PASS(response)

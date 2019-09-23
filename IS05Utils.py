@@ -599,6 +599,49 @@ class IS05Utils(NMOSUtils):
                 return False, r_response
         return True, ""
 
+    def check_sdp_matches_params(self, portId):
+        """Checks that the SDP file for an RTP Sender matches the transport_params"""
+        aDest = "single/senders/" + portId + "/active/"
+        sdpDest = "single/senders/" + portId + "/transportfile/"
+        a_valid, a_response = self.checkCleanRequestJSON("GET", aDest)
+        sdp_valid, sdp_response = self.checkCleanRequest("GET", sdpDest)
+        if a_valid:
+            if sdp_valid:
+                sdp_sections = sdp_response.text.split("m=")
+                sdp_global = sdp_sections[0]
+                sdp_media_sections = sdp_sections[1:]
+                sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
+                tp_compare = []
+                if sdp_groups_line:
+                    sdp_group_names = sdp_groups_line.group(1).split()
+                    for sdp_media in sdp_media_sections:
+                        group_name = re.search(r"a=mid:(\S+)", sdp_media)
+                        if group_name.group(1) in sdp_group_names:
+                            tp_compare.append("m=" + sdp_media)
+                else:
+                    tp_compare.append("m=" + sdp_media_sections[0])
+                if len(tp_compare) != len(a_response["transport_params"]):
+                    return False, "Number of SDP groups do not match the length of the 'transport_params' array"
+                for index, sdp_data in enumerate(tp_compare):
+                    transport_params = a_response["transport_params"][index]
+                    media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
+                    if media_line.group(2) != str(transport_params["destination_port"]):
+                        return False, "SDP destination port {} does not match transport_params: {}" \
+                                      .format(media_line.group(2), transport_params["destination_port"])
+                    connection_line = re.search(r"c=IN IP[4,6] (\S[^/]*)(/[0-9]+)?", sdp_data)
+                    if connection_line.group(1) != transport_params["destination_ip"]:
+                        return False, "SDP destination IP {} does not match transport_params: {}" \
+                                      .format(connection_line.group(1), transport_params["destination_ip"])
+                    filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
+                    if filter_line and filter_line.group(2) != transport_params["source_ip"]:
+                        return False, "SDP source-filter IP {} does not match transport_params: {}" \
+                                      .format(filter_line.group(2), transport_params["source_ip"])
+            else:
+                return False, sdp_response
+        else:
+            return False, a_response
+        return True, ""
+
     def get_senders(self):
         """Gets a list of the available senders on the API"""
         toReturn = []
