@@ -1,0 +1,19 @@
+v=0
+o=- 1563957069 1563957069 IN IP4 172.29.225.164
+s=IP Studio Stream
+t=0 0
+m=video 5000 RTP/AVP 97
+c=IN IP4 232.138.224.27/32
+a=source-filter: incl IN IP4 232.138.224.27 172.29.225.164
+a=ts-refclk:ptp=IEEE1588-2008:ec-46-70-ff-fe-00-ce-de
+a=rtpmap:97 H264/90000
+a=fmtp:97 profile-level-id=7a1029;packetization-mode=1
+a=control:trackID=1
+a=mediaclk:direct=0 rate=90000
+a=extmap:1 urn:x-nmos:rtp-hdrext:origin-timestamp
+a=extmap:2 urn:ietf:params:rtp-hdrext:smpte-tc 3600@90000/25.00
+a=extmap:3 urn:x-nmos:rtp-hdrext:flow-id
+a=extmap:4 urn:x-nmos:rtp-hdrext:source-id
+a=extmap:5 urn:x-nmos:rtp-hdrext:grain-flags
+a=extmap:7 urn:x-nmos:rtp-hdrext:sync-timestamp
+a=extmap:9 urn:x-nmos:rtp-hdrext:grain-duration
