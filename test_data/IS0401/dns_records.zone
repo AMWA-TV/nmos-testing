@@ -2,85 +2,31 @@
 mocks.{{ domain }}.	IN	A	{{ ip_address }}
 timeout.{{ domain }}.	IN	A	192.0.2.1
 
+{% for api, srv in [('reg', 'registration'), ('reg', 'register'), ('qry', 'query')] %}
+
+{% set registries = [
+	('1-ver',	reg_port_base + 1,	'mocks',	'v9.0',		api_proto,	10),
+	('1-proto',	reg_port_base + 1,	'mocks',	api_ver,	'invalid',	10),
+	('2',		reg_port_base + 2,	'mocks',	api_ver,	api_proto,	20),
+ 	('3',		reg_port_base + 3,	'mocks',	api_ver,	api_proto,	30),
+	('4',		reg_port_base + 4,	'mocks',	api_ver,	api_proto,	40),
+	('5',		reg_port_base + 5,	'mocks',	api_ver,	api_proto,	50),
+	('timeout',	444,			'timeout',	api_ver,	api_proto,	55),
+	('6',		reg_port_base + 6,	'mocks',	api_ver,	api_proto,	60)
+] %}
+
+{% for inst, port, host, ver, proto, pri in registries %}
+
 ; There should be one PTR record for each instance of the service you wish to advertise.
-_nmos-registration._tcp	PTR	reg-api-1-ver._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-1-ver._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-1-ver._nmos-query._tcp
-_nmos-registration._tcp	PTR	reg-api-1-proto._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-1-proto._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-1-proto._nmos-query._tcp
+_nmos-{{ srv }}._tcp	PTR	{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp
 
-_nmos-registration._tcp	PTR	reg-api-2._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-2._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-2._nmos-query._tcp
-_nmos-registration._tcp	PTR	reg-api-3._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-3._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-3._nmos-query._tcp
-_nmos-registration._tcp	PTR	reg-api-4._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-4._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-4._nmos-query._tcp
-_nmos-registration._tcp	PTR	reg-api-5._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-5._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-5._nmos-query._tcp
-_nmos-registration._tcp	PTR	reg-api-timeout._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-timeout._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-timeout._nmos-query._tcp
-_nmos-registration._tcp	PTR	reg-api-6._nmos-registration._tcp
-_nmos-register._tcp	PTR	reg-api-6._nmos-register._tcp
-_nmos-query._tcp	PTR	qry-api-6._nmos-query._tcp
-
-; Next we have a SRV and a TXT record corresponding to each PTR above, first the Registration API
-; The SRV links the PTR name to a resolvable DNS name (see the A records above) and identify the port which the API runs on
+; Next we have a SRV and a TXT record corresponding to the PTR above
+; The SRV links the PTR name to a resolvable DNS name (see the A records above) and identifies the port which the API runs on
 ; The TXT records indicate additional metadata relevant to the IS-04 spec
-reg-api-1-ver._nmos-registration._tcp	SRV	0 0 {{ reg_port_base + 1 }} mocks.{{ domain }}.
-reg-api-1-ver._nmos-register._tcp	SRV	0 0 {{ reg_port_base + 1 }} mocks.{{ domain }}.
-reg-api-1-ver._nmos-registration._tcp	TXT	"api_ver=v9.0" "api_proto={{ api_proto }}" "pri=0"
-reg-api-1-ver._nmos-register._tcp	TXT	"api_ver=v9.0" "api_proto={{ api_proto }}" "pri=0"
-reg-api-1-proto._nmos-registration._tcp	SRV	0 0 {{ reg_port_base + 1 }} mocks.{{ domain }}.
-reg-api-1-proto._nmos-register._tcp	SRV	0 0 {{ reg_port_base + 1 }} mocks.{{ domain }}.
-reg-api-1-proto._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto=invalid" "pri=0"
-reg-api-1-proto._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto=invalid" "pri=0"
 
-reg-api-2._nmos-registration._tcp	SRV	0 0 {{ reg_port_base + 2 }} mocks.{{ domain }}.
-reg-api-2._nmos-register._tcp	SRV	0 0 {{ reg_port_base + 2 }} mocks.{{ domain }}.
-reg-api-2._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=0"
-reg-api-2._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=0"
-reg-api-3._nmos-registration._tcp	SRV	0 0 {{ reg_port_base + 3 }} mocks.{{ domain }}.
-reg-api-3._nmos-register._tcp	SRV	0 0 {{ reg_port_base + 3 }} mocks.{{ domain }}.
-reg-api-3._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=10"
-reg-api-3._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=10"
-reg-api-4._nmos-registration._tcp	SRV	0 0 {{ reg_port_base + 4 }} mocks.{{ domain }}.
-reg-api-4._nmos-register._tcp	SRV	0 0 {{ reg_port_base + 4 }} mocks.{{ domain }}.
-reg-api-4._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=20"
-reg-api-4._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=20"
-reg-api-5._nmos-registration._tcp	SRV	0 0 {{ reg_port_base + 5 }} mocks.{{ domain }}.
-reg-api-5._nmos-register._tcp	SRV	0 0 {{ reg_port_base + 5 }} mocks.{{ domain }}.
-reg-api-5._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
-reg-api-5._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
-reg-api-timeout._nmos-registration._tcp	SRV	0 0 444 timeout.{{ domain }}.
-reg-api-timeout._nmos-register._tcp	SRV	0 0 444 timeout.{{ domain }}.
-reg-api-timeout._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
-reg-api-timeout._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
-reg-api-6._nmos-registration._tcp	SRV	0 0 {{ reg_port_base + 6 }} mocks.{{ domain }}.
-reg-api-6._nmos-register._tcp	SRV	0 0 {{ reg_port_base + 6 }} mocks.{{ domain }}.
-reg-api-6._nmos-registration._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=50"
-reg-api-6._nmos-register._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=50"
+{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	SRV	0 0 {{ port }} {{ host }}.{{ domain }}.
+{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	TXT	"api_ver={{ ver }}" "api_proto={{ proto }}" "pri={{ pri }}"
 
-; Finally, the SRV and TXT for the Query API
-qry-api-1-ver._nmos-query._tcp	SRV	0 0 {{ reg_port_base + 1 }} mocks.{{ domain }}.
-qry-api-1-ver._nmos-query._tcp	TXT	"api_ver=v9.0" "api_proto={{ api_proto }}" "pri=0"
-qry-api-1-proto._nmos-query._tcp	SRV	0 0 {{ reg_port_base + 1 }} mocks.{{ domain }}.
-qry-api-1-proto._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto=invalid" "pri=0"
+{% endfor %}
 
-qry-api-2._nmos-query._tcp	SRV	0 0 {{ reg_port_base + 2 }} mocks.{{ domain }}.
-qry-api-2._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=0"
-qry-api-3._nmos-query._tcp	SRV	0 0 {{ reg_port_base + 3 }} mocks.{{ domain }}.
-qry-api-3._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=10"
-qry-api-4._nmos-query._tcp	SRV	0 0 {{ reg_port_base + 4 }} mocks.{{ domain }}.
-qry-api-4._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=20"
-qry-api-5._nmos-query._tcp	SRV	0 0 {{ reg_port_base + 5 }} mocks.{{ domain }}.
-qry-api-5._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=30"
-qry-api-timeout._nmos-query._tcp	SRV	0 0 444 timeout.{{ domain }}.
-qry-api-timeout._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=40"
-qry-api-6._nmos-query._tcp	SRV	0 0 {{ reg_port_base + 6 }} mocks.{{ domain }}.
-qry-api-6._nmos-query._tcp	TXT	"api_ver={{ api_ver }}" "api_proto={{ api_proto }}" "pri=50"
+{% endfor %}
