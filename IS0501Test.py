@@ -732,9 +732,14 @@ class IS0501Test(GenericTest):
         """GET on /bulk/senders returns 405"""
 
         url = "bulk/senders"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
+        error_code = 405
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            return test.PASS()
+            valid, message = self.check_error_response("GET", response, error_code)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return test.FAIL(response)
 
@@ -742,9 +747,14 @@ class IS0501Test(GenericTest):
         """GET on /bulk/receivers returns 405"""
 
         url = "bulk/receivers"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
+        error_code = 405
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            return test.PASS()
+            valid, message = self.check_error_response("GET", response, error_code)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return test.FAIL(response)
 
