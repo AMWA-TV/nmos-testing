@@ -34,8 +34,8 @@ function updateDropdown() {
     // Update the test selection dropdown
     var testDropdown = document.getElementById("test_selection");
     testDropdown.options.length = 0;
-    for (var i=0; i<testData["tests"].length; i++) {
-      testDropdown.options[i] = new Option(testData["tests"][i], testData["tests"][i]);
+    for (var i=0; i<testData["test_methods"].length; i++) {
+      testDropdown.options[i] = new Option(testData["test_descriptions"][i], testData["test_methods"][i]);
     }
 }
 
