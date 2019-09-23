@@ -369,7 +369,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
             if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
-                raise NMOSInitException("All IP/Hostname and Port fields must be completed.")
+                raise NMOSInitException("All IP/Hostname and Port fields must be completed")
             base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
