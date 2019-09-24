@@ -80,7 +80,7 @@ In order to ease testing of TLS with the various specifications, sample certific
 
 When testing IS-10 / BCP-003-02 implementations, ensure that a user is registered with the Authorization Server with a username and password that corresponds with the `AUTH_USERNAME` and `AUTH_PASSWORD` config options in the `Config.py` file. These values should be changed to sensible values before running the IS-10 tests.
 
-When testing the authorization code grant, the means by which consent is given by the resource owner will be implementation-specific. The contents of the file `/test_data/IS1001/authorization_request_data.json` will be used as the body of the request to the authorization endpoint. Please edit this to comply with the implementation under test.
+When testing the authorization code grant, the means by which consent is given by the resource owner will be implementation-specific. The contents of the file `test_data/IS1001/authorization_request_data.json` will be used as the body of the request to the authorization endpoint. Please edit this to comply with the implementation under test.
 
 ### Testing of SDP files
 

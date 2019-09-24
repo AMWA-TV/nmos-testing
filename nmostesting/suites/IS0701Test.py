@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Advanced Media Workflow Association
+# Copyright (C) 2018 British Broadcasting Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-from nmostesting import NMOSTesting
+from ..GenericTest import GenericTest
 
-if __name__ == '__main__':
-    NMOSTesting.main(sys.argv)
+
+class IS0701Test(GenericTest):
+    """
+    Runs IS-07-01-Test
+    """
+    def __init__(self, apis):
+        GenericTest.__init__(self, apis)
