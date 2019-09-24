@@ -110,7 +110,8 @@ class IS1001Test(GenericTest):
             Request Body: {},
             Status_code: {},
             Response: {}"""
-            .format(string, response.request.method, response.url, response.request.body, response.status_code, response.text)
+            .format(string, response.request.method, response.url, response.request.body, response.status_code,
+                    response.text)
         ))
 
     def _verify_response(self, test, expected_status, response):
