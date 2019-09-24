@@ -290,7 +290,8 @@ class DataForm(Form):
     for test_id in TEST_DEFINITIONS:
         test_data[test_id] = copy.deepcopy(TEST_DEFINITIONS[test_id])
         test_data[test_id].pop("class")
-        test_data[test_id]["tests"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
+        test_data[test_id]["test_methods"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
+        test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True)
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
