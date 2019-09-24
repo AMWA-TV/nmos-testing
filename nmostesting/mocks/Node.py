@@ -58,16 +58,16 @@ NODE_API = Blueprint('node_api', __name__)
 def node_video_sdp(stream_type):
     response = None
     if stream_type == "video":
-        with open("../../test_data/IS0401/video.sdp") as f:
+        with open("test_data/IS0401/video.sdp") as f:
             response = make_response(f.read())
     elif stream_type == "audio":
-        with open("../../test_data/IS0401/audio.sdp") as f:
+        with open("test_data/IS0401/audio.sdp") as f:
             response = make_response(f.read())
     elif stream_type == "data":
-        with open("../../test_data/IS0401/data.sdp") as f:
+        with open("test_data/IS0401/data.sdp") as f:
             response = make_response(f.read())
     elif stream_type == "mux":
-        with open("../../test_data/IS0401/mux.sdp") as f:
+        with open("test_data/IS0401/mux.sdp") as f:
             response = make_response(f.read())
     else:
         abort(404)

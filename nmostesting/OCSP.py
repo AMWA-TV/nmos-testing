@@ -32,7 +32,7 @@ def ocsp_response():
     if request.headers["Content-Type"] != "application/ocsp-request":
         abort(400)
 
-    with open("../test_data/BCP00301/ca/ocspreq.der", "wb") as f:
+    with open("test_data/BCP00301/ca/ocspreq.der", "wb") as f:
         f.write(request.data)
 
     try:
@@ -47,7 +47,7 @@ def ocsp_response():
         abort(500)
 
     response = None
-    with open("../test_data/BCP00301/ca/ocspresp.der", "rb") as f2:
+    with open("test_data/BCP00301/ca/ocspresp.der", "rb") as f2:
         response = make_response(f2.read())
 
     response.headers["Content-Type"] = "application/ocsp-response"

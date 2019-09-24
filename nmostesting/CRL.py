@@ -28,7 +28,7 @@ CRL_API = Blueprint('crl', __name__)
 @CRL_API.route('/intermediate.crl.pem', methods=["GET"])
 def crl_pem():
     response = None
-    with open("../test_data/BCP00301/ca/intermediate/crl/intermediate.crl.pem") as f:
+    with open("test_data/BCP00301/ca/intermediate/crl/intermediate.crl.pem") as f:
         response = make_response(f.read())
 
     response.headers["Content-Type"] = "text/plain"
