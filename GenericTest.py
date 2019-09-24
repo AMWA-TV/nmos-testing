@@ -20,11 +20,10 @@ import TestHelper
 import traceback
 import inspect
 import uuid
-import time
 
 from Specification import Specification
 from TestResult import Test
-from Config import ENABLE_HTTPS, TEST_START_DELAY
+from Config import ENABLE_HTTPS
 
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
@@ -176,19 +175,21 @@ class GenericTest(object):
         """Perform tests and return the results as a list"""
 
         # Set up
-        test = Test("Test setup")
+        test = Test("Test setup", "set_up_tests")
+        for api in self.apis:
+            if "spec_path" not in self.apis[api]:
+                continue
+            valid, response = self.do_request("GET", self.apis[api]["url"])
+            if not valid or response.status_code != 200:
+                raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
         self.set_up_tests()
         self.result.append(test.NA(""))
-
-        if TEST_START_DELAY > 0:
-            print(" * Waiting for {} seconds before executing tests".format(TEST_START_DELAY))
-        time.sleep(TEST_START_DELAY)
 
         # Run tests
         self.execute_tests(test_name)
 
         # Tear down
-        test = Test("Test teardown")
+        test = Test("Test teardown", "tear_down_tests")
         self.tear_down_tests()
         self.result.append(test.NA(""))
 
@@ -267,6 +268,17 @@ class GenericTest(object):
 
         return True, ""
 
+    def check_error_response(self, method, response, code):
+        """Confirm that a given Requests response conforms to the 4xx/5xx error schema and has any expected headers"""
+        schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
+        valid, message = self.check_response(schema, method, response)
+        if valid:
+            if response.json()["code"] != code:
+                return False, "Error JSON 'code' was not set to {}".format(code)
+            return True, ""
+        else:
+            return False, message
+
     def validate_schema(self, payload, schema):
         checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
         return jsonschema.validate(payload, schema, format_checker=checker)
@@ -321,11 +333,8 @@ class GenericTest(object):
         if response.status_code != error_code:
             return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
 
-        schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
-        valid, message = self.check_response(schema, "GET", response)
+        valid, message = self.check_error_response("GET", response, error_code)
         if valid:
-            if response.json()["code"] != error_code:
-                return test.FAIL("Error JSON 'code' was not set to {}".format(error_code))
             return test.PASS()
         else:
             return test.FAIL(message)

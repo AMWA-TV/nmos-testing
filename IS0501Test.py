@@ -254,6 +254,20 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_09_01(self, test):
+        """All params listed in /single/senders/{senderId}/active/ match their corresponding SDP files"""
+
+        if len(self.senders) > 0:
+            for sender in self.senders:
+                if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                    valid, result = self.is05_utils.check_sdp_matches_params(sender)
+                    if not valid:
+                        return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                         .format(sender, result))
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
     def test_10(self, test):
         """All params listed in /single/receivers/{receiverId}/constraints/ matches /staged/ and /active/"""
 
@@ -540,12 +554,12 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.senders:
-                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
-                    continue
-                valid, values = self.is05_utils.generate_destination_ports("sender", sender)
+                valid, values = self.is05_utils.generate_changeable_param("sender", sender,
+                                                                          self.transport_types[sender])
+                paramName = self.is05_utils.changeable_param_name(self.transport_types[sender])
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("sender", self.senders,
-                                                                                     "destination_port", values, sender)
+                                                                                     paramName, values, sender)
                     if valid2:
                         pass
                     else:
@@ -561,13 +575,12 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
-                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
-                    continue
-                valid, values = self.is05_utils.generate_destination_ports("receiver", receiver)
+                valid, values = self.is05_utils.generate_changeable_param("receiver", receiver,
+                                                                          self.transport_types[receiver])
+                paramName = self.is05_utils.changeable_param_name(self.transport_types[receiver])
                 if valid:
                     valid2, response2 = self.is05_utils.check_change_transport_param("receiver", self.receivers,
-                                                                                     "destination_port", values,
-                                                                                     receiver)
+                                                                                     paramName, values, receiver)
                     if valid2:
                         pass
                     else:
@@ -583,12 +596,15 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
-                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
-                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
-                                                                   self.is05_utils.check_perform_immediate_activation)
+                                                                   self.is05_utils.check_perform_immediate_activation,
+                                                                   self.transport_types[sender])
                 if valid:
-                    pass
+                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                        if not valid2:
+                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                             .format(sender, response2))
                 else:
                     return test.FAIL(response)
             return test.PASS()
@@ -600,10 +616,9 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
-                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
-                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
-                                                                   self.is05_utils.check_perform_immediate_activation)
+                                                                   self.is05_utils.check_perform_immediate_activation,
+                                                                   self.transport_types[receiver])
                 if valid:
                     pass
                 else:
@@ -618,12 +633,15 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
-                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
-                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
-                                                                   self.is05_utils.check_perform_relative_activation)
+                                                                   self.is05_utils.check_perform_relative_activation,
+                                                                   self.transport_types[sender])
                 if valid:
-                    pass
+                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                        if not valid2:
+                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                             .format(sender, response2))
                 else:
                     return test.FAIL(response)
             return test.PASS(response)
@@ -635,10 +653,9 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
-                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
-                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
-                                                                   self.is05_utils.check_perform_relative_activation)
+                                                                   self.is05_utils.check_perform_relative_activation,
+                                                                   self.transport_types[receiver])
                 if valid:
                     pass
                 else:
@@ -652,12 +669,15 @@ class IS0501Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.is05_utils.sampled_list(self.senders):
-                if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
-                    continue
                 valid, response = self.is05_utils.check_activation("sender", sender,
-                                                                   self.is05_utils.check_perform_absolute_activation)
+                                                                   self.is05_utils.check_perform_absolute_activation,
+                                                                   self.transport_types[sender])
                 if valid:
-                    pass
+                    if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                        valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
+                        if not valid2:
+                            return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
+                                             .format(sender, response2))
                 else:
                     return test.FAIL(response)
             return test.PASS(response)
@@ -669,10 +689,9 @@ class IS0501Test(GenericTest):
 
         if len(self.receivers) > 0:
             for receiver in self.is05_utils.sampled_list(self.receivers):
-                if self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
-                    continue
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
-                                                                   self.is05_utils.check_perform_absolute_activation)
+                                                                   self.is05_utils.check_perform_absolute_activation,
+                                                                   self.transport_types[receiver])
                 if valid:
                     pass
                 else:
@@ -732,9 +751,14 @@ class IS0501Test(GenericTest):
         """GET on /bulk/senders returns 405"""
 
         url = "bulk/senders"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
+        error_code = 405
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            return test.PASS()
+            valid, message = self.check_error_response("GET", response, error_code)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return test.FAIL(response)
 
@@ -742,9 +766,14 @@ class IS0501Test(GenericTest):
         """GET on /bulk/receivers returns 405"""
 
         url = "bulk/receivers"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url, code=405)
+        error_code = 405
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
         if valid:
-            return test.PASS()
+            valid, message = self.check_error_response("GET", response, error_code)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return test.FAIL(response)
 
@@ -936,9 +965,8 @@ class IS0501Test(GenericTest):
         data = []
         ports = {}
         for portInst in portList:
-            if self.transport_types[portInst] == "urn:x-nmos:transport:websocket":
-                continue
-            valid, response = self.is05_utils.generate_destination_ports(port, portInst)
+            valid, response = self.is05_utils.generate_changeable_param(port, portInst, self.transport_types[portInst])
+            paramName = self.is05_utils.changeable_param_name(self.transport_types[portInst])
             if valid:
                 ports[portInst] = response
                 toAdd = {}
@@ -946,7 +974,7 @@ class IS0501Test(GenericTest):
                 toAdd['params'] = {}
                 toAdd['params']['transport_params'] = []
                 for portNum in ports[portInst]:
-                    toAdd['params']['transport_params'].append({"destination_port": portNum})
+                    toAdd['params']['transport_params'].append({paramName: portNum})
                 if len(toAdd["params"]["transport_params"]) == 0:
                     del toAdd["params"]["transport_params"]
                 data.append(toAdd)
@@ -972,22 +1000,20 @@ class IS0501Test(GenericTest):
 
         # Check the parameters have actually changed
         for portInst in portList:
-            if self.transport_types[portInst] == "urn:x-nmos:transport:websocket":
-                continue
+            paramName = self.is05_utils.changeable_param_name(self.transport_types[portInst])
             activeUrl = "single/" + port + "s/" + portInst + "/staged/"
 
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", activeUrl)
             if valid:
                 for i in range(0, self.is05_utils.get_num_paths(portInst, port)):
                     try:
-                        value = response['transport_params'][i]['destination_port']
+                        value = response['transport_params'][i][paramName]
                     except KeyError:
-                        return False, "Could not find `destination_port` parameter at {} on leg {}, got{}".format(
-                            activeUrl, i,
-                            response)
+                        return False, "Could not find `{}` parameter at {} on leg {}, got{}".format(
+                            paramName, activeUrl, i, response)
                     portNum = ports[portInst][i]
-                    msg = "Problem updating destination_port value in bulk update, expected {} got {}".format(portNum,
-                                                                                                              value)
+                    msg = "Problem updating {} value in bulk update, expected {} got {}".format(paramName, portNum,
+                                                                                                value)
                     if value == portNum:
                         pass
                     else:

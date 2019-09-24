@@ -15,9 +15,35 @@
 from dnslib.server import DNSServer
 from dnslib.zoneresolver import ZoneResolver
 from jinja2 import Template
+from threading import Event
 
 from TestHelper import get_default_ip
 from Config import DNS_DOMAIN
+
+
+class WatchingResolver(ZoneResolver):
+    def __init__(self, zone, glob=False):
+        ZoneResolver.__init__(self, zone, glob)
+        self.watching = {}
+
+    def wait_for_query(self, record_type, record_names, timeout):
+        wait_event = Event()
+        if record_type not in self.watching:
+            self.watching[record_type] = {}
+        for record_name in record_names:
+            self.watching[record_type][record_name] = wait_event
+        wait_event.wait(timeout)
+        for record_name in record_names:
+            self.watching[record_type][record_name] = None
+
+    def resolve(self, request, handler):
+        qtype = request.q.qtype
+        qname = str(request.q.qname)
+        try:
+            self.watching[qtype][qname].set()
+        except (KeyError, AttributeError):
+            pass
+        return ZoneResolver.resolve(self, request, handler)
 
 
 class DNS(object):
@@ -28,12 +54,15 @@ class DNS(object):
         self.base_zone_data = None
         self.reset()
 
+    def wait_for_query(self, record_type, record_name, timeout):
+        self.resolver.wait_for_query(record_type, record_name, timeout)
+
     def load_zone(self, api_version, api_protocol, zone_name, port_base):
         zone_file = open(zone_name).read()
         template = Template(zone_file)
         zone_data = template.render(ip_address=self.default_ip, api_ver=api_version, api_proto=api_protocol,
                                     domain=DNS_DOMAIN, port_base=port_base)
-        self.resolver = ZoneResolver(self.base_zone_data + zone_data)
+        self.resolver = WatchingResolver(self.base_zone_data + zone_data)
         self.stop()
         print(" * Loading DNS zone file '{}' with api_ver={}".format(zone_name, api_version))
         self.start()
@@ -42,7 +71,7 @@ class DNS(object):
         zone_file = open("test_data/core/dns_base.zone").read()
         template = Template(zone_file)
         self.base_zone_data = template.render(ip_address=self.default_ip, domain=DNS_DOMAIN)
-        self.resolver = ZoneResolver(self.base_zone_data)
+        self.resolver = WatchingResolver(self.base_zone_data)
         self.stop()
         print(" * Loading DNS zone base file")
         self.start()

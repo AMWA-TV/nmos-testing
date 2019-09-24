@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 from junit_xml import TestSuite, TestCase
 from enum import IntEnum
 from werkzeug.serving import WSGIRequestHandler
+from TestHelper import get_default_ip
 
 import git
 import os
@@ -48,6 +49,8 @@ import inspect
 import ipaddress
 import socket
 import ssl
+import subprocess
+import pkgutil
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -73,6 +76,7 @@ import Config
 
 FLASK_APPS = []
 DNS_SERVER = None
+TOOL_VERSION = None
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -383,6 +387,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
+            if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
+                raise NMOSInitException("All IP/Hostname and Port fields must be completed")
             base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
@@ -490,7 +496,7 @@ def _check_test_result(test_result, results):
 
 
 def _export_config():
-    current_config = {}
+    current_config = {"VERSION": TOOL_VERSION}
     for param in dir(Config):
         if not param.startswith("__") and param != "SPECIFICATIONS":
             current_config[param] = getattr(Config, param)
@@ -706,6 +712,32 @@ def run_noninteractive_tests(args):
     return exit_code
 
 
+def check_internal_requirements():
+    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket"}
+    installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
+    with open("requirements.txt") as requirements_file:
+        for requirement in requirements_file.readlines():
+            requirement_name = requirement.strip()
+            if requirement_name in corrections:
+                corrected_req = corrections[requirement_name]
+            else:
+                corrected_req = requirement_name.replace("-", "_")
+            if corrected_req not in installed_pkgs:
+                print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
+                sys.exit(ExitCodes.ERROR)
+
+
+def check_external_requirements():
+    deps = {"sdpoker": ("sdpoker --version", "0.1.0"), "testssl": ("testssl/testssl.sh -v", "3.0rc5")}
+    for dep_name, dep_ver in deps.items():
+        try:
+            output = subprocess.check_output(dep_ver[0], stderr=subprocess.STDOUT, shell=True)
+            if dep_ver[1] not in str(output):
+                print(" * WARNING: Version of '{}' does not match the expected '{}'".format(dep_name, dep_ver[1]))
+        except subprocess.CalledProcessError:
+            print(" * WARNING: Could not find an installation of '{}'. Some tests will be disabled.".format(dep_name))
+
+
 class ExitCodes(IntEnum):
     ERROR = -1  # General test suite error
     OK = 0  # Normal exit condition, or all tests passed in non-interactive mode
@@ -728,6 +760,10 @@ if __name__ == '__main__':
                   "with elevated permissions")
             sys.exit(ExitCodes.ERROR)
 
+    # Check that all dependencies are installed
+    check_internal_requirements()
+    check_external_requirements()
+
     # Parse and validate command line arguments
     args = parse_arguments()
     validate_args(args)
@@ -735,12 +771,22 @@ if __name__ == '__main__':
     # Download up to date versions of each API specification
     init_spec_cache()
 
+    # Identify current testing tool version
+    try:
+        repo = git.Repo(".")
+        TOOL_VERSION = repo.git.rev_parse(repo.head.object.hexsha, short=7)
+    except git.exc.InvalidGitRepositoryError:
+        TOOL_VERSION = "Unknown"
+
     # Start the DNS server
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
     # Start the HTTP servers
     start_web_servers()
+
+    print(" * Testing tool running on 'http://{}:{}'. Version '{}'"
+          .format(get_default_ip(), core_app.config['PORT'], TOOL_VERSION))
 
     exit_code = 0
     if "suite" not in vars(args):
