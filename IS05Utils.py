@@ -628,7 +628,7 @@ class IS05Utils(NMOSUtils):
                     if media_line.group(2) != str(transport_params["destination_port"]):
                         return False, "SDP destination port {} does not match transport_params: {}" \
                                       .format(media_line.group(2), transport_params["destination_port"])
-                    connection_line = re.search(r"c=IN IP[4,6] (\S[^/]*)(/[0-9]+)?", sdp_data)
+                    connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
                     if connection_line.group(1) != transport_params["destination_ip"]:
                         return False, "SDP destination IP {} does not match transport_params: {}" \
                                       .format(connection_line.group(1), transport_params["destination_ip"])
