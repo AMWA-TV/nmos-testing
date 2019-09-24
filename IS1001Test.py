@@ -105,11 +105,13 @@ class IS1001Test(GenericTest):
         """Raise NMOS Exception with HTTP Response Information"""
         raise NMOSTestException(test.FAIL(
             """Request to Auth Server failed. {}.
+            Method: {},
             URL: {},
             Request Body: {},
-            Status_code: {},
+            Status Code: {},
             Response: {}"""
-            .format(string, response.url, response.request.body, response.status_code, response.text)
+            .format(string, response.request.method, response.url, response.request.body, response.status_code,
+                    response.text)
         ))
 
     def _verify_response(self, test, expected_status, response):
@@ -478,15 +480,11 @@ class IS1001Test(GenericTest):
                 test, response, string="Incorrect Status Code Returned. Expected {}".format(status_code)
             )
 
-        if response.headers["Content-Type"] != "application/json":
-            raise NMOSTestException(test.FAIL(
-                "Body of Error was not JSON. Content-Type is '{}'".format(response.headers["Content-Type"])
-            ))
-        if "error" not in response.json().keys():
-            raise NMOSTestException(test.FAIL(
-                "'error' not found in keys of JSON error response, as required by RFC 6749. Found: {}"
-                .format(response.json().keys())
-            ))
+        ctype_valid, ctype_message = self.check_content_type(response.headers)
+        if not ctype_valid:
+            self._raise_nmos_exception(test, response, ctype_message)
+        # else if ctype_message:
+        #     return WARNING somehow...
 
         token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 400)
         try:
