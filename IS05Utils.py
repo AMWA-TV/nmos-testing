@@ -20,7 +20,7 @@ import TestHelper
 
 from random import randint
 from NMOSUtils import NMOSUtils, IMMEDIATE_ACTIVATION, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
-from Config import API_PROCESSING_TIMEOUT
+from Config import API_PROCESSING_TIMEOUT, PORT_BASE, ENABLE_HTTPS
 
 
 class IS05Utils(NMOSUtils):
@@ -40,7 +40,6 @@ class IS05Utils(NMOSUtils):
 
     def check_num_legs(self, url, type, uuid):
         """Checks the number of legs present on a given sender/receiver"""
-        max = 2
         min = 1
         constraintsUrl = url + "constraints/"
         stagedUrl = url + "staged/"
@@ -69,10 +68,7 @@ class IS05Utils(NMOSUtils):
                     except KeyError:
                         return False, "Could not find transport params in object from {}, got {}".format(activeUrl,
                                                                                                          active)
-                    if len(constraints) <= max:
-                        pass
-                    else:
-                        return False, "{} {} has too many legs".format(type, uuid)
+
                     if len(constraints) >= min:
                         pass
                     else:
@@ -130,7 +126,7 @@ class IS05Utils(NMOSUtils):
             code = 202
         return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
 
-    def check_perform_immediate_activation(self, port, portId, stagedParams):
+    def check_perform_immediate_activation(self, port, portId, stagedParams, changedParam):
         # Request an immediate activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
@@ -171,18 +167,18 @@ class IS05Utils(NMOSUtils):
                 if valid3:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = response3['transport_params'][i]['destination_port']
+                            activePort = response3['transport_params'][i][changedParam]
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, activeUrl, response3)
+                            return False, "Could not find active {} entry on leg {} from {}, " \
+                                          "got {}".format(changedParam, i, activeUrl, response3)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 activeUrl, i, type(response3), response3)
                         try:
-                            stagedPort = stagedParams[i]['destination_port']
+                            stagedPort = stagedParams[i][changedParam]
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, stagedUrl, stagedParams)
+                            return False, "Could not find staged {} entry on leg {} from {}, " \
+                                          "got {}".format(changedParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 stagedUrl, i, type(response3), stagedParams)
@@ -206,7 +202,7 @@ class IS05Utils(NMOSUtils):
             return False, response
         return True, ""
 
-    def check_perform_relative_activation(self, port, portId, stagedParams):
+    def check_perform_relative_activation(self, port, portId, stagedParams, changedParam):
         # Request an relative activation 2 nanoseconds in the future
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
@@ -247,18 +243,18 @@ class IS05Utils(NMOSUtils):
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = activeParams['transport_params'][i]['destination_port']
+                            activePort = activeParams['transport_params'][i][changedParam]
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, activeUrl, activeParams)
+                            return False, "Could not find active {} entry on leg {} from {}, " \
+                                          "got {}".format(changedParam, i, activeUrl, activeParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
-                            stagedPort = stagedParams[i]['destination_port']
+                            stagedPort = stagedParams[i][changedParam]
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, stagedUrl, stagedParams)
+                            return False, "Could not find staged {} entry on leg {} from {}, " \
+                                          "got {}".format(changedParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(stagedUrl, i, type(activeParams), stagedParams)
@@ -288,7 +284,7 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
-    def check_perform_absolute_activation(self, port, portId, stagedParams):
+    def check_perform_absolute_activation(self, port, portId, stagedParams, changedParam):
         # request an absolute activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
@@ -340,18 +336,18 @@ class IS05Utils(NMOSUtils):
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = activeParams['transport_params'][i]['destination_port']
+                            activePort = activeParams['transport_params'][i][changedParam]
                         except KeyError:
-                            return False, "Could not find active destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, activeUrl, activeParams)
+                            return False, "Could not find active {} entry on leg {} from {}, " \
+                                          "got {}".format(changedParam, i, activeUrl, activeParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
                                           "{}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
-                            stagedPort = stagedParams[i]['destination_port']
+                            stagedPort = stagedParams[i][changedParam]
                         except KeyError:
-                            return False, "Could not find staged destination_port entry on leg {} from {}, " \
-                                          "got {}".format(i, stagedUrl, stagedParams)
+                            return False, "Could not find staged {} entry on leg {} from {}, " \
+                                          "got {}".format(changedParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
                                           "{}".format(stagedUrl, i, type(activeParams), stagedParams)
@@ -380,16 +376,17 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
-    def check_activation(self, port, portId, activationMethod):
+    def check_activation(self, port, portId, activationMethod, transportType):
         """Checks that when an immediate activation is called staged parameters are moved
         to active and the activation is correctly displayed in the /active endpoint"""
         # Set a new destination port in staged
-        valid, destinationPort = self.generate_destination_ports(port, portId)
+        valid, paramValues = self.generate_changeable_param(port, portId, transportType)
+        paramName = self.changeable_param_name(transportType)
         if valid:
             stagedUrl = "single/" + port + "s/" + portId + "/staged"
             data = {"transport_params": []}
             for i in range(0, self.get_num_paths(portId, port)):
-                data['transport_params'].append({"destination_port": destinationPort[i]})
+                data['transport_params'].append({paramName: paramValues[i]})
             if len(data["transport_params"]) == 0:
                 del data["transport_params"]
             valid2, r = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
@@ -401,11 +398,25 @@ class IS05Utils(NMOSUtils):
                 except TypeError:
                     return False, "Expected a dict to be returned from {}, got a {}".format(stagedUrl,
                                                                                             type(stagedParams))
-                return activationMethod(port, portId, stagedParams)
+                return activationMethod(port, portId, stagedParams, paramName)
             else:
                 return False, r
         else:
-            return False, destinationPort
+            return False, paramValues
+
+    def generate_changeable_param(self, port, portId, transportType):
+        """Use a port's constraints to generate a changeable parameter"""
+        if transportType == "urn:x-nmos:transport:websocket":
+            return self.generate_connection_uris(port, portId)
+        else:
+            return self.generate_destination_ports(port, portId)
+
+    def changeable_param_name(self, transportType):
+        """Identify the parameter name which will be used to change IS-05 configuration"""
+        if transportType == "urn:x-nmos:transport:websocket":
+            return "connection_uri"
+        else:
+            return "destination_port"
 
     def generate_destination_ports(self, port, portId):
         """Uses a port's constraints to generate an allowable destination
@@ -429,6 +440,29 @@ class IS05Utils(NMOSUtils):
                         else:
                             max = 49151
                         toReturn.append(randint(min, max))
+                return True, toReturn
+            except TypeError:
+                return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
+                                                                                            constraints)
+        else:
+            return False, constraints
+
+    def generate_connection_uris(self, port, portId):
+        """Generates a fake connection URI, or re-uses one from the advertised constraints"""
+        url = "single/" + port + "s/" + portId + "/constraints/"
+        valid, constraints = self.checkCleanRequestJSON("GET", url)
+        if valid:
+            toReturn = []
+            try:
+                for entry in constraints:
+                    if "enum" in entry['connection_uri']:
+                        values = entry['connection_uri']['enum']
+                        toReturn.append(values[randint(0, len(values) - 1)])
+                    else:
+                        scheme = "ws"
+                        if ENABLE_HTTPS:
+                            scheme = "wss"
+                        toReturn.append("{}://{}:{}".format(scheme, TestHelper.get_default_ip(), PORT_BASE))
                 return True, toReturn
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
@@ -563,6 +597,49 @@ class IS05Utils(NMOSUtils):
                     return False, s_response
             else:
                 return False, r_response
+        return True, ""
+
+    def check_sdp_matches_params(self, portId):
+        """Checks that the SDP file for an RTP Sender matches the transport_params"""
+        aDest = "single/senders/" + portId + "/active/"
+        sdpDest = "single/senders/" + portId + "/transportfile/"
+        a_valid, a_response = self.checkCleanRequestJSON("GET", aDest)
+        sdp_valid, sdp_response = self.checkCleanRequest("GET", sdpDest)
+        if a_valid:
+            if sdp_valid:
+                sdp_sections = sdp_response.text.split("m=")
+                sdp_global = sdp_sections[0]
+                sdp_media_sections = sdp_sections[1:]
+                sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
+                tp_compare = []
+                if sdp_groups_line:
+                    sdp_group_names = sdp_groups_line.group(1).split()
+                    for sdp_media in sdp_media_sections:
+                        group_name = re.search(r"a=mid:(\S+)", sdp_media)
+                        if group_name.group(1) in sdp_group_names:
+                            tp_compare.append("m=" + sdp_media)
+                else:
+                    tp_compare.append("m=" + sdp_media_sections[0])
+                if len(tp_compare) != len(a_response["transport_params"]):
+                    return False, "Number of SDP groups do not match the length of the 'transport_params' array"
+                for index, sdp_data in enumerate(tp_compare):
+                    transport_params = a_response["transport_params"][index]
+                    media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
+                    if media_line.group(2) != str(transport_params["destination_port"]):
+                        return False, "SDP destination port {} does not match transport_params: {}" \
+                                      .format(media_line.group(2), transport_params["destination_port"])
+                    connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
+                    if connection_line.group(1) != transport_params["destination_ip"]:
+                        return False, "SDP destination IP {} does not match transport_params: {}" \
+                                      .format(connection_line.group(1), transport_params["destination_ip"])
+                    filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
+                    if filter_line and filter_line.group(2) != transport_params["source_ip"]:
+                        return False, "SDP source-filter IP {} does not match transport_params: {}" \
+                                      .format(filter_line.group(2), transport_params["source_ip"])
+            else:
+                return False, sdp_response
+        else:
+            return False, a_response
         return True, ""
 
     def get_senders(self):

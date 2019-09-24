@@ -18,6 +18,7 @@ import time
 import socket
 from requests.compat import json
 from urllib.parse import urlparse
+from dnslib import QTYPE
 
 from copy import deepcopy
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
@@ -25,7 +26,7 @@ from MdnsListener import MdnsListener
 from GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from IS04Utils import IS04Utils
 from Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, HEARTBEAT_INTERVAL
-from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT
+from Config import ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT, DNS_DOMAIN
 from TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -58,6 +59,12 @@ class IS0401Test(GenericTest):
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
             self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol)
+            print(" * Waiting for up to {} seconds for a DNS query before executing tests"
+                  .format(DNS_SD_ADVERT_TIMEOUT))
+            self.dns_server.wait_for_query(QTYPE.PTR,
+                                           ["_nmos-register._tcp.{}.".format(DNS_DOMAIN),
+                                            "_nmos-registration._tcp.{}.".format(DNS_DOMAIN)],
+                                           DNS_SD_ADVERT_TIMEOUT)
 
     def tear_down_tests(self):
         if self.zc:
@@ -316,23 +323,18 @@ class IS0401Test(GenericTest):
         if len(registry_data.posts) == 0:
             return test.FAIL("No registrations found")
 
+        ctype_warn = ""
         for resource in registry_data.posts:
-            if "Content-Type" not in resource[1]["headers"]:
-                return test.FAIL("Node failed to signal its Content-Type when registering.")
-            else:
-                ctype = resource[1]["headers"]["Content-Type"]
-                ctype_params = ctype.split(";")
-                if ctype_params[0] != "application/json":
-                    return test.FAIL("Node signalled a Content-Type of {} rather than application/json."
-                                     .format(ctype))
-                elif len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
-                    return test.WARNING("Node signalled an unnecessary 'charset' in its Content-Type: {}"
-                                        .format(ctype))
-                elif len(ctype_params) >= 2:
-                    return test.FAIL("Node signalled unexpected additional parameters in its Content-Type: {}"
-                                     .format(ctype))
+            ctype_valid, ctype_message = self.check_content_type(resource[1]["headers"])
+            if not ctype_valid:
+                return test.FAIL(ctype_message)
+            elif ctype_message and not ctype_warn:
+                ctype_warn = ctype_message
 
-        return test.PASS()
+        if ctype_warn:
+            return test.WARNING(ctype_warn)
+        else:
+            return test.PASS()
 
     def test_03_01(self, test):
         """Registration API interactions use the correct versioned path"""
@@ -406,7 +408,7 @@ class IS0401Test(GenericTest):
                 resources[resource["id"]] = resource
         return resources
 
-    def check_matching_resource(self, test, res_type):
+    def do_test_matching_resource(self, test, res_type):
         """Check that a resource held in the registry matches the resource held by the Node API"""
         try:
             node_resources = self.get_node_resources(res_type)
@@ -438,7 +440,7 @@ class IS0401Test(GenericTest):
         else:
             return None
 
-    def check_matching_parents(self, test, res_type):
+    def do_test_matching_parents(self, test, res_type):
         """Check that the parents for a specific resource type is held in the mock registry"""
         # Look up data in local mock registry
         registry_data = self.registry_primary_data
@@ -470,7 +472,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "node")
+        return self.do_test_matching_resource(test, "node")
 
     def test_05(self, test):
         """Node maintains itself in the registry via periodic calls to the health resource"""
@@ -528,7 +530,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "device")
+        return self.do_test_matching_resource(test, "device")
 
     def test_07_01(self, test):
         """Registered Device was POSTed after a matching referenced Node"""
@@ -538,7 +540,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "device")
+        return self.do_test_matching_parents(test, "device")
 
     def test_08(self, test):
         """Node can register a valid Source resource with the network
@@ -546,7 +548,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "source")
+        return self.do_test_matching_resource(test, "source")
 
     def test_08_01(self, test):
         """Registered Source was POSTed after a matching referenced Device"""
@@ -556,7 +558,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "source")
+        return self.do_test_matching_parents(test, "source")
 
     def test_09(self, test):
         """Node can register a valid Flow resource with the network
@@ -564,7 +566,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "flow")
+        return self.do_test_matching_resource(test, "flow")
 
     def test_09_01(self, test):
         """Registered Flow was POSTed after a matching referenced Device or Source"""
@@ -574,7 +576,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "flow")
+        return self.do_test_matching_parents(test, "flow")
 
     def test_10(self, test):
         """Node can register a valid Sender resource with the network
@@ -582,7 +584,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "sender")
+        return self.do_test_matching_resource(test, "sender")
 
     def test_10_01(self, test):
         """Registered Sender was POSTed after a matching referenced Device"""
@@ -592,7 +594,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "sender")
+        return self.do_test_matching_parents(test, "sender")
 
     def test_11(self, test):
         """Node can register a valid Receiver resource with the network
@@ -600,7 +602,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_resource(test, "receiver")
+        return self.do_test_matching_resource(test, "receiver")
 
     def test_11_01(self, test):
         """Registered Receiver was POSTed after a matching referenced Device"""
@@ -610,7 +612,7 @@ class IS0401Test(GenericTest):
 
         self.do_registry_basics_prereqs()
 
-        return self.check_matching_parents(test, "receiver")
+        return self.do_test_matching_parents(test, "receiver")
 
     def test_12(self, test):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
@@ -1205,6 +1207,80 @@ class IS0401Test(GenericTest):
             return test.FAIL("Unexpected responses from Node API self resource")
 
         return test.PASS()
+
+    def test_22(self, test):
+        """Node resource IDs persist over a reboot"""
+
+        return test.MANUAL("This check must be performed manually, or via use of the following tool",
+                           "https://github.com/AMWA-TV/nmos-testing/blob/master/utilities/uuid-checker/README.md")
+
+    def test_23(self, test):
+        """Senders and Receivers correctly use BCP-002-01 grouping syntax"""
+
+        found_groups = False
+        found_senders_receivers = False
+        groups = {"node": {}, "device": {}}
+        for resource_name in ["senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + resource_name)
+            if valid and response.status_code == 200:
+                try:
+                    for resource in response.json():
+                        found_senders_receivers = True
+                        if resource["device_id"] not in groups["device"]:
+                            groups["device"][resource["device_id"]] = {}
+                        for tag_name, tag_value in resource["tags"].items():
+                            if tag_name != "urn:x-nmos:tag:grouphint/v1.0":
+                                continue
+                            if not isinstance(tag_value, list) or len(tag_value) == 0:
+                                return test.FAIL("Group tag for {} {} is not an array or has too few items"
+                                                 .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                            found_groups = True
+                            for group_def in tag_value:
+                                group_params = group_def.split(":")
+                                group_scope = "device"
+
+                                # Perform basic validation on the group syntax
+                                if len(group_params) < 2:
+                                    return test.FAIL("Group syntax for {} {} has too few parameters"
+                                                     .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                                elif len(group_params) > 3:
+                                    return test.FAIL("Group syntax for {} {} has too many parameters"
+                                                     .format(resource_name.capitalize().rstrip("s"), resource["id"]))
+                                elif len(group_params) == 3:
+                                    if group_params[2] not in ["device", "node"]:
+                                        return test.FAIL("Group syntax for {} {} uses an invalid group scope: {}"
+                                                         .format(resource_name.capitalize().rstrip("s"), resource["id"],
+                                                                 group_params[2]))
+                                    group_scope = group_params[2]
+
+                                # Ensure we have a reference to the group name stored
+                                if group_scope == "node":
+                                    if group_params[0] not in groups["node"]:
+                                        groups["node"][group_params[0]] = {}
+                                    group_ref = groups["node"][group_params[0]]
+                                elif group_scope == "device":
+                                    if group_params[0] not in groups["device"][resource["device_id"]]:
+                                        groups["device"][resource["device_id"]][group_params[0]] = {}
+                                    group_ref = groups["device"][resource["device_id"]][group_params[0]]
+
+                                # Check for duplicate roles within groups
+                                if group_params[1] in group_ref:
+                                    return test.FAIL("Duplicate role found in group {} for resources {} and {}"
+                                                     .format(group_params[0], resource["id"],
+                                                             group_ref[group_params[1]]))
+                                else:
+                                    group_ref[group_params[1]] = resource["id"]
+
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+
+        if not found_senders_receivers:
+            return test.UNCLEAR("No Sender or Receiver resources were found on the Node")
+        elif found_groups:
+            return test.PASS()
+        else:
+            return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
+                                 "https://amwa-tv.github.io/nmos-grouping/best-practice-natural-grouping.html")
 
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
