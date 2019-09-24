@@ -135,14 +135,14 @@ class IS0402Test(GenericTest):
     def test_03(self, test):
         """Registration API accepts and stores a valid Node resource"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         self.post_super_resources_and_resource(test, "node", "test_03")
         return test.PASS()
 
     def test_03_1(self, test):
         """Registration API responds with correct Location header"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
 
         data = self.copy_resource("node")
         data["id"] = str(uuid.uuid4())
@@ -165,7 +165,7 @@ class IS0402Test(GenericTest):
     def test_05(self, test):
         """Registration API accepts and stores a valid Device resource"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         self.post_super_resources_and_resource(test, "device", "test_05")
         return test.PASS()
 
@@ -177,7 +177,7 @@ class IS0402Test(GenericTest):
     def test_07(self, test):
         """Registration API accepts and stores a valid Source resource"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         self.post_super_resources_and_resource(test, "source", "test_07")
         return test.PASS()
 
@@ -189,7 +189,7 @@ class IS0402Test(GenericTest):
     def test_09(self, test):
         """Registration API accepts and stores a valid Flow resource"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         self.post_super_resources_and_resource(test, "flow", "test_09")
         return test.PASS()
 
@@ -201,14 +201,14 @@ class IS0402Test(GenericTest):
     def test_11(self, test):
         """Registration API accepts and stores a valid Sender resource"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         self.post_super_resources_and_resource(test, "sender", "test_11")
         return test.PASS()
 
     def test_11_1(self, test):
         """Registration API accepts and stores a valid Sender resource with null flow_id"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         api = self.apis[REG_API_KEY]
 
         # v1.1 introduced null for flow_id to "permit Senders without attached Flows
@@ -238,7 +238,7 @@ class IS0402Test(GenericTest):
     def test_13(self, test):
         """Registration API accepts and stores a valid Receiver resource"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         self.post_super_resources_and_resource(test, "receiver", "test_13")
         return test.PASS()
 
@@ -250,7 +250,7 @@ class IS0402Test(GenericTest):
     def test_15(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Node"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         node_data = self.post_super_resources_and_resource(test, "node", "test_15")
         self.post_resource(test, "node", node_data, codes=[200])
         return test.PASS()
@@ -258,7 +258,7 @@ class IS0402Test(GenericTest):
     def test_16(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Device"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         device_data = self.post_super_resources_and_resource(test, "device", "test_16")
         self.post_resource(test, "device", device_data, codes=[200])
         return test.PASS()
@@ -266,7 +266,7 @@ class IS0402Test(GenericTest):
     def test_17(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Source"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         source_data = self.post_super_resources_and_resource(test, "source", "test_17")
         self.post_resource(test, "source", source_data, codes=[200])
         return test.PASS()
@@ -274,7 +274,7 @@ class IS0402Test(GenericTest):
     def test_18(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Flow"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         flow_data = self.post_super_resources_and_resource(test, "flow", "test_18")
         self.post_resource(test, "flow", flow_data, codes=[200])
         return test.PASS()
@@ -282,7 +282,7 @@ class IS0402Test(GenericTest):
     def test_19(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Sender"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         sender_data = self.post_super_resources_and_resource(test, "sender", "test_19")
         self.post_resource(test, "sender", sender_data, codes=[200])
         return test.PASS()
@@ -290,13 +290,16 @@ class IS0402Test(GenericTest):
     def test_20(self, test):
         """Registration API responds with 200 HTTP code on updating a registered Receiver"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         receiver_data = self.post_super_resources_and_resource(test, "receiver", "test_20")
         self.post_resource(test, "receiver", receiver_data, codes=[200])
         return test.PASS()
 
-    def check_paged_trait(self, test):
-        """Precondition check that the 'paged' trait applies to the API version under test"""
+    def do_test_paged_trait(self, test):
+        """
+        Precondition check that the 'paged' trait applies to the API version under test.
+        Raises an NMOSTestException when there's an error
+        """
 
         api = self.apis[QUERY_API_KEY]
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") < 0:
@@ -332,9 +335,9 @@ class IS0402Test(GenericTest):
             # Another alternative would be to use local timestamps, provided clocks were synchronised?
 
             response = self.do_paged_request(limit=1)
-            self.check_paged_response(test, response,
-                                      expected_ids=[node_data["id"]],
-                                      expected_since=None, expected_until=None)
+            self.do_test_paged_response(test, response,
+                                        expected_ids=[node_data["id"]],
+                                        expected_since=None, expected_until=None)
             valid, r, query_parameters = response
             update_timestamps.append(r.headers["X-Paging-Until"])
 
@@ -376,10 +379,13 @@ class IS0402Test(GenericTest):
                     [LINK_PATTERN.search(_) for _ in
                         link_header.split(",")] if match]}
 
-    def check_paged_response(self, test, paged_response,
-                             expected_ids,
-                             expected_since, expected_until, expected_limit=None):
-        """Check the result of a paged request, and when there's an error, raise an NMOSTestException"""
+    def do_test_paged_response(self, test, paged_response,
+                               expected_ids,
+                               expected_since, expected_until, expected_limit=None):
+        """
+        Check the result of a paged request.
+        Raises an NMOSTestException when there's an error
+        """
 
         valid, response, query_parameters = paged_response
 
@@ -434,7 +440,7 @@ class IS0402Test(GenericTest):
 
         # check *values* of paging headers after body
 
-        def check_timestamp(expected, actual):
+        def compare_timestamp(expected, actual):
             return expected is None or self.is04_query_utils.compare_resource_version(expected, actual) == 0
 
         try:
@@ -442,11 +448,11 @@ class IS0402Test(GenericTest):
             until = response.headers["X-Paging-Until"]
             limit = response.headers["X-Paging-Limit"]
 
-            if not check_timestamp(expected_since, since):
+            if not compare_timestamp(expected_since, since):
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Since "
                                                   "header, for query: {}".format(query_string)))
 
-            if not check_timestamp(expected_until, until):
+            if not compare_timestamp(expected_until, until):
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Until "
                                                   "header, for query: {}".format(query_string)))
 
@@ -508,37 +514,37 @@ class IS0402Test(GenericTest):
     def test_21_1(self, test):
         """Query API implements pagination (no query or paging parameters)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
 
-        # Perform a query with no query or paging parameters (see note in check_paged_response regarding 501)
+        # Perform a query with no query or paging parameters (see note in do_test_paged_response regarding 501)
         response = self.do_paged_request()
 
         # Check whether the response contains the X-Paging- headers but don't check values
-        self.check_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None, expected_limit=None)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None, expected_limit=None)
 
         return test.PASS()
 
     def test_21_1_1(self, test):
         """Query API implements pagination (when explicitly requested)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
 
         # Same as above, but query with paging.limit to clearly 'opt in'
         response = self.do_paged_request(limit=10)
 
         # Check whether the response contains the X-Paging- headers but don't check values
-        self.check_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None, expected_limit=None)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None, expected_limit=None)
 
         return test.PASS()
 
     def test_21_2(self, test):
         """Query API implements pagination (documentation examples)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
         description = "test_21_2"
 
         # Initial test cases based on the examples in NMOS documentation
@@ -560,44 +566,44 @@ class IS0402Test(GenericTest):
 
         # Ideally, we shouldn't specify the limit, and adapt the checks for whatever the default limit turns out to be
         response = self.do_paged_request(description=description, limit=10)
-        self.check_paged_response(test, response,
-                                  expected_ids=ids[11:20 + 1],
-                                  expected_since=ts[10], expected_until=ts[20], expected_limit=10)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=ids[11:20 + 1],
+                                    expected_since=ts[10], expected_until=ts[20], expected_limit=10)
 
         # Example 2: Request With Custom Limit
 
         response = self.do_paged_request(description=description, limit=5)
-        self.check_paged_response(test, response,
-                                  expected_ids=ids[16:20 + 1],
-                                  expected_since=ts[15], expected_until=ts[20], expected_limit=5)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=ids[16:20 + 1],
+                                    expected_since=ts[15], expected_until=ts[20], expected_limit=5)
 
         # Example 3: Request With Since Parameter
 
         response = self.do_paged_request(description=description, since=ts[4], limit=10)
-        self.check_paged_response(test, response,
-                                  expected_ids=ids[5:14 + 1],
-                                  expected_since=ts[4], expected_until=ts[14], expected_limit=10)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=ids[5:14 + 1],
+                                    expected_since=ts[4], expected_until=ts[14], expected_limit=10)
 
         # Example 4: Request With Until Parameter
 
         response = self.do_paged_request(description=description, until=ts[16], limit=10)
-        self.check_paged_response(test, response,
-                                  expected_ids=ids[7:16 + 1],
-                                  expected_since=ts[6], expected_until=ts[16], expected_limit=10)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=ids[7:16 + 1],
+                                    expected_since=ts[6], expected_until=ts[16], expected_limit=10)
 
         # Example 5: Request With Since & Until Parameters
 
         response = self.do_paged_request(description=description, since=ts[4], until=ts[16], limit=10)
-        self.check_paged_response(test, response,
-                                  expected_ids=ids[5:14 + 1],
-                                  expected_since=ts[4], expected_until=ts[14], expected_limit=10)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=ids[5:14 + 1],
+                                    expected_since=ts[4], expected_until=ts[14], expected_limit=10)
 
         return test.PASS()
 
     def test_21_3(self, test):
         """Query API implements pagination (edge cases)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
         description = "test_21_3"
 
         # Some additional test cases based on Basecamp discussion
@@ -610,36 +616,36 @@ class IS0402Test(GenericTest):
 
         # Check the header values when a client specifies a paging.since value after the newest resource's timestamp
 
-        self.check_paged_response(test, self.do_paged_request(description=description, since=after),
-                                  expected_ids=[],
-                                  expected_since=after, expected_until=after)
+        self.do_test_paged_response(test, self.do_paged_request(description=description, since=after),
+                                    expected_ids=[],
+                                    expected_since=after, expected_until=after)
 
         # Check the header values when a client specifies a paging.until value before the oldest resource's timestamp
 
-        self.check_paged_response(test, self.do_paged_request(description=description, until=before),
-                                  expected_ids=[],
-                                  expected_since="0:0", expected_until=before)
+        self.do_test_paged_response(test, self.do_paged_request(description=description, until=before),
+                                    expected_ids=[],
+                                    expected_since="0:0", expected_until=before)
 
         # Check the header values for a query that results in only one resource, without any paging parameters
 
         # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
-        self.check_paged_response(test, self.do_paged_request(id=ids[12]),
-                                  expected_ids=[ids[12]],
-                                  expected_since="0:0", expected_until=timestamps[-1])
+        self.do_test_paged_response(test, self.do_paged_request(id=ids[12]),
+                                    expected_ids=[ids[12]],
+                                    expected_since="0:0", expected_until=timestamps[-1])
 
         # Check the header values for a query that results in no resources, without any paging parameters
 
         # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
-        self.check_paged_response(test, self.do_paged_request(id=str(uuid.uuid4())),
-                                  expected_ids=[],
-                                  expected_since="0:0", expected_until=timestamps[-1])
+        self.do_test_paged_response(test, self.do_paged_request(id=str(uuid.uuid4())),
+                                    expected_ids=[],
+                                    expected_since="0:0", expected_until=timestamps[-1])
 
         return test.PASS()
 
     def test_21_4(self, test):
         """Query API implements pagination (requests that require empty responses)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
         description = "test_21_4"
 
         timestamps, ids = self.post_sample_nodes(test, 20, description)
@@ -649,30 +655,30 @@ class IS0402Test(GenericTest):
         # Check paging.since == paging.until
 
         response = self.do_paged_request(description=description, since=ts, until=ts, limit=10)
-        self.check_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts, expected_until=ts, expected_limit=10)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[],
+                                    expected_since=ts, expected_until=ts, expected_limit=10)
 
         # Check paging.limit == 0, paging.since specified
 
         response = self.do_paged_request(description=description, since=ts, limit=0)
-        self.check_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts, expected_until=ts, expected_limit=0)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[],
+                                    expected_since=ts, expected_until=ts, expected_limit=0)
 
         # Check paging.limit == 0, paging.since not specified
 
         response = self.do_paged_request(description=description, until=ts, limit=0)
-        self.check_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts, expected_until=ts, expected_limit=0)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[],
+                                    expected_since=ts, expected_until=ts, expected_limit=0)
 
         return test.PASS()
 
     def test_21_5(self, test):
         """Query API implements pagination (filters that select discontiguous resources)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
         description = "test_21_5"
 
         def foo(index):
@@ -693,27 +699,27 @@ class IS0402Test(GenericTest):
 
         # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
         # expected_since check could be more forgiving, i.e. >= ts[1] and < ts[4]
-        self.check_paged_response(test, self.do_paged_request(label="foo", limit=10),
-                                  expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][-10:],
-                                  expected_since=ts[1], expected_until=ts[19], expected_limit=10)
+        self.do_test_paged_response(test, self.do_paged_request(label="foo", limit=10),
+                                    expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][-10:],
+                                    expected_since=ts[1], expected_until=ts[19], expected_limit=10)
 
         # Query 2: 'prev' of Query 1
         #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
         #          request      (      ]
         #          response     ( ^  ^ ]
 
-        self.check_paged_response(test, self.do_paged_request(label="foo", until=ts[1], limit=10),
-                                  expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][0:-10],
-                                  expected_since="0:0", expected_until=ts[1], expected_limit=10)
+        self.do_test_paged_response(test, self.do_paged_request(label="foo", until=ts[1], limit=10),
+                                    expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][0:-10],
+                                    expected_since="0:0", expected_until=ts[1], expected_limit=10)
 
         # Query 3: 'next' of Query 1
         #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
         #          request                                                                            (]
         #          response                                                                           (]
 
-        self.check_paged_response(test, self.do_paged_request(label="foo", since=ts[19], limit=10),
-                                  expected_ids=[],
-                                  expected_since=ts[19], expected_until=ts[19], expected_limit=10)
+        self.do_test_paged_response(test, self.do_paged_request(label="foo", since=ts[19], limit=10),
+                                    expected_ids=[],
+                                    expected_since=ts[19], expected_until=ts[19], expected_limit=10)
 
         # Query 4: "bar", default paging parameters
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -721,9 +727,9 @@ class IS0402Test(GenericTest):
         #          response     (       ^  ^           ^  ^              ^   ^               ^   ^     ]
 
         # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
-        self.check_paged_response(test, self.do_paged_request(label="bar", limit=10),
-                                  expected_ids=[ids[i] for i in range(len(ids)) if bar(i)],
-                                  expected_since="0:0", expected_until=ts[19], expected_limit=10)
+        self.do_test_paged_response(test, self.do_paged_request(label="bar", limit=10),
+                                    expected_ids=[ids[i] for i in range(len(ids)) if bar(i)],
+                                    expected_since="0:0", expected_until=ts[19], expected_limit=10)
 
         # Query 5: "bar", limited to 3
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -732,9 +738,9 @@ class IS0402Test(GenericTest):
 
         # expected_until check could be more forgiving, i.e. >= ts[18] and <= 'now'
         # expected_since check could be more forgiving, i.e. >= ts[12] and < ts[13]
-        self.check_paged_response(test, self.do_paged_request(label="bar", limit=3),
-                                  expected_ids=[ids[13], ids[17], ids[18]],
-                                  expected_since=ts[12], expected_until=ts[19], expected_limit=3)
+        self.do_test_paged_response(test, self.do_paged_request(label="bar", limit=3),
+                                    expected_ids=[ids[13], ids[17], ids[18]],
+                                    expected_since=ts[12], expected_until=ts[19], expected_limit=3)
 
         # Query 6: 'prev' of Query 5
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -742,43 +748,43 @@ class IS0402Test(GenericTest):
         #          response                 (          ^  ^              ^ ]
 
         # expected_since check could be more forgiving, i.e. >= ts[3] and < ts[7]
-        self.check_paged_response(test, self.do_paged_request(label="bar", until=ts[12], limit=3),
-                                  expected_ids=[ids[7], ids[8], ids[12]],
-                                  expected_since=ts[3], expected_until=ts[12], expected_limit=3)
+        self.do_test_paged_response(test, self.do_paged_request(label="bar", until=ts[12], limit=3),
+                                    expected_ids=[ids[7], ids[8], ids[12]],
+                                    expected_since=ts[3], expected_until=ts[12], expected_limit=3)
 
         # Query 7: like Query 5, with paging.since specified, but still enough matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
         #          request                     (                           ]
         #          response                    (       ^  ^              ^ ]
 
-        self.check_paged_response(test, self.do_paged_request(label="bar", since=ts[4], until=ts[12], limit=3),
-                                  expected_ids=[ids[7], ids[8], ids[12]],
-                                  expected_since=ts[4], expected_until=ts[12], expected_limit=3)
+        self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[4], until=ts[12], limit=3),
+                                    expected_ids=[ids[7], ids[8], ids[12]],
+                                    expected_since=ts[4], expected_until=ts[12], expected_limit=3)
 
         # Query 8: like Query 5, with paging.since specified, and not enough matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
         #          request                                    (            ]
         #          response                                   (          ^ ]
 
-        self.check_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[12], limit=3),
-                                  expected_ids=[ids[12]],
-                                  expected_since=ts[9], expected_until=ts[12], expected_limit=3)
+        self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[12], limit=3),
+                                    expected_ids=[ids[12]],
+                                    expected_since=ts[9], expected_until=ts[12], expected_limit=3)
 
         # Query 9: like Query 5, but no matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
         #          request                                    (        ]
         #          response                                   (        ]
 
-        self.check_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[11], limit=3),
-                                  expected_ids=[],
-                                  expected_since=ts[9], expected_until=ts[11], expected_limit=3)
+        self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[11], limit=3),
+                                    expected_ids=[],
+                                    expected_since=ts[9], expected_until=ts[11], expected_limit=3)
 
         return test.PASS()
 
     def test_21_6(self, test):
         """Query API implements pagination (bad requests)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
 
         before = self.is04_query_utils.get_TAI_time()
         after = self.is04_query_utils.get_TAI_time(1)
@@ -818,7 +824,7 @@ class IS0402Test(GenericTest):
     def test_21_7(self, test):
         """Query API implements pagination (updates between paged requests)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
         description = "test_21_7"
 
         count = 3
@@ -827,42 +833,42 @@ class IS0402Test(GenericTest):
         # initial paged request
 
         response = self.do_paged_request(description=description, limit=count)
-        self.check_paged_response(test, response,
-                                  expected_ids=ids,
-                                  expected_since="0:0", expected_until=ts[-1], expected_limit=count)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=ids,
+                                    expected_since="0:0", expected_until=ts[-1], expected_limit=count)
 
-        resources = response[1].json()  # valid json guaranteed by check_paged_response
+        resources = response[1].json()  # valid json guaranteed by do_test_paged_response
         resources.reverse()
 
         # 'next' page should be empty
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
-        self.check_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=ts[-1], expected_until=None, expected_limit=count)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[],
+                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
 
         # 'current' page should be same as initial response
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
-        self.check_paged_response(test, response,
-                                  expected_ids=ids,
-                                  expected_since=None, expected_until=ts[-1], expected_limit=count)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=ids,
+                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
 
         # after an update, the 'next' page should now contain only the updated resource
 
         self.post_resource(test, "node", resources[1], codes=[200])
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
-        self.check_paged_response(test, response,
-                                  expected_ids=[ids[1]],
-                                  expected_since=ts[-1], expected_until=None, expected_limit=count)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[ids[1]],
+                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
 
         # and what was the 'current' page should now contain only the unchanged resources
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
-        self.check_paged_response(test, response,
-                                  expected_ids=[ids[0], ids[2]],
-                                  expected_since=None, expected_until=ts[-1], expected_limit=count)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[ids[0], ids[2]],
+                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
 
         # after the other resources are also updated, what was the 'current' page should now be empty
 
@@ -870,42 +876,42 @@ class IS0402Test(GenericTest):
         self.post_resource(test, "node", resources[0], codes=[200])
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
-        self.check_paged_response(test, response,
-                                  expected_ids=[],
-                                  expected_since=None, expected_until=ts[-1], expected_limit=count)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[],
+                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
 
         # and what was the 'next' page should now contain all the resources in the update order
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
-        self.check_paged_response(test, response,
-                                  expected_ids=[ids[1], ids[2], ids[0]],
-                                  expected_since=ts[-1], expected_until=None, expected_limit=count)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=[ids[1], ids[2], ids[0]],
+                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
 
         return test.PASS()
 
     def test_21_8(self, test):
         """Query API implements pagination (correct encoding of URLs in Link header)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
 
         # check '&' is returned encoded
         response = self.do_paged_request(label="foo%26bar")
-        self.check_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None)
+        self.do_test_paged_response(test, response,
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None)
 
         return test.PASS()
 
     def test_21_9(self, test):
         """Query API implements pagination (correct protocol and IP/hostname in Link header)"""
 
-        self.check_paged_trait(test)
+        self.do_test_paged_trait(test)
 
         response = self.do_paged_request()
-        # most tests on the Link header are actually done in every call to check_paged_response
-        self.check_paged_response(test, response,
-                                  expected_ids=None,
-                                  expected_since=None, expected_until=None)
+        # most tests on the Link header are actually done in every call to do_test_paged_response
+        self.do_test_paged_response(test, response,
+                                    expected_ids=None,
+                                    expected_since=None, expected_until=None)
 
         # also check 'https' URLs in the Link header have a hostname not an IP address
         link_header = self.parse_link_header(response[1].headers["Link"])
@@ -1602,7 +1608,7 @@ class IS0402Test(GenericTest):
     def test_26(self, test):
         """Registration API responds with 400 HTTP code on posting a resource without parent"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         api = self.apis[REG_API_KEY]
 
         resources = ["device", "source", "flow", "sender", "receiver"]
@@ -1629,7 +1635,7 @@ class IS0402Test(GenericTest):
         """Registration API cleans up Nodes and their sub-resources when a heartbeat doesn't occur for
         the duration of a fixed timeout period"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
 
         resources = ["node", "device", "source", "flow", "sender", "receiver"]
 
@@ -1665,7 +1671,7 @@ class IS0402Test(GenericTest):
     def test_28(self, test):
         """Registry removes stale child-resources of an incorrectly unregistered Node"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
 
         resources = ["node", "device", "source", "flow", "sender", "receiver"]
 
@@ -1698,7 +1704,7 @@ class IS0402Test(GenericTest):
     def test_29(self, test):
         """Query API supports websocket subscription request"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         api = self.apis[QUERY_API_KEY]
 
         sub_json = self.prepare_subscription("/nodes")
@@ -1730,7 +1736,7 @@ class IS0402Test(GenericTest):
     def test_29_1(self, test):
         """Query API websocket subscription requests default to the current protocol"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         api = self.apis[QUERY_API_KEY]
 
         sub_json = self.prepare_subscription("/nodes")
@@ -1749,7 +1755,7 @@ class IS0402Test(GenericTest):
     def test_30(self, test):
         """Registration API accepts heartbeat requests for a Node held in the registry"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
 
         # Post Node
         self.post_resource(test, "node")
@@ -1767,7 +1773,7 @@ class IS0402Test(GenericTest):
     def test_31(self, test):
         """Query API sends correct websocket event messages for UNCHANGED (SYNC), ADDED, MODIFIED and REMOVED"""
 
-        self.check_api_v1_x(test)
+        self.do_test_api_v1_x(test)
         api = self.apis[QUERY_API_KEY]
 
         # Check for clean state // delete resources if needed
@@ -2048,7 +2054,10 @@ class IS0402Test(GenericTest):
         valid, message = self.check_response(schema, "POST", r)
 
         if valid:
-            return test.PASS()
+            if message:
+                return test.WARNING(message)
+            else:
+                return test.PASS()
         else:
             return test.FAIL(message)
 
@@ -2346,7 +2355,11 @@ class IS0402Test(GenericTest):
 
         return data
 
-    def check_api_v1_x(self, test):
+    def do_test_api_v1_x(self, test):
+        """
+        Precondition check of the API version.
+        Raises an NMOSTestException when there's an error
+        """
         api = self.apis[REG_API_KEY]
         if not self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             raise NMOSTestException(test.FAIL("Version > 1 not supported yet."))
