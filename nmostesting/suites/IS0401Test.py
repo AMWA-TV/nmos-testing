@@ -1303,6 +1303,15 @@ class IS0401Test(GenericTest):
             raise NMOSTestException(test.FAIL("Receiver target PUT did not produce a 202 response code: "
                                               "{}".format(put_response.status_code)))
 
+        schema = self.get_schema(NODE_API_KEY, "PUT", "/receivers/{receiverId}/target", put_response.status_code)
+        valid, message = self.check_response(schema, "PUT", put_response)
+        if valid:
+            # if message:
+            #     return WARNING somehow...
+            pass
+        else:
+            raise NMOSTestException(test.FAIL(message))
+
     def collect_mdns_announcements(self):
         """Helper function to collect Node mDNS announcements in the presence of a Registration API"""
 

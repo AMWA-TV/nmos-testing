@@ -1765,7 +1765,15 @@ class IS0402Test(GenericTest):
         if not valid:
             return test.FAIL("Registration API did not respond as expected")
         elif r.status_code == 200:
-            return test.PASS()
+            schema = self.get_schema(REG_API_KEY, "POST", "/health/nodes/{nodeId}", r.status_code)
+            valid, message = self.check_response(schema, "POST", r)
+            if valid:
+                if message:
+                    return test.WARNING(message)
+                else:
+                    return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return test.FAIL("Registration API returned an unexpected response: {} {}"
                              .format(r.status_code, r.text))
@@ -2050,9 +2058,8 @@ class IS0402Test(GenericTest):
         if r.status_code != 400:
             return test.FAIL("Registration API returned a {} code for an invalid registration".format(r.status_code))
 
-        schema = self.get_schema(REG_API_KEY, "POST", "/resource", 400)
+        schema = self.get_schema(REG_API_KEY, "POST", "/resource", r.status_code)
         valid, message = self.check_response(schema, "POST", r)
-
         if valid:
             if message:
                 return test.WARNING(message)
@@ -2263,7 +2270,14 @@ class IS0402Test(GenericTest):
 
         try:
             if r.status_code in [200, 201]:
-                return r.json()
+                schema = self.get_schema(QUERY_API_KEY, "POST", "/subscriptions", r.status_code)
+                valid, message = self.check_response(schema, "POST", r)
+                if valid:
+                    # if message:
+                    #     return WARNING somehow...
+                    return r.json()
+                else:
+                    raise NMOSTestException(test.FAIL(message))
             elif r.status_code in [400, 501]:
                 raise NMOSTestException(test.FAIL("Query API signalled that it does not support the requested "
                                                   "subscription parameters: {} {}".format(r.status_code, sub_json)))
@@ -2274,7 +2288,11 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
     def post_resource(self, test, type, data=None, reg_url=None, codes=None, fail=Test.FAIL):
-        """Perform a POST request on the Registration API to create or update a resource registration"""
+        """
+        Perform a POST request on the Registration API to create or update a resource registration.
+        Raises an NMOSTestException when the response is not as expected.
+        Otherwise, returns value of Location header for successful requests
+        """
 
         if not data:
             data = self.copy_resource(type)
@@ -2294,6 +2312,8 @@ class IS0402Test(GenericTest):
         if not valid:
             raise NMOSTestException(fail(test, "Registration API did not respond as expected"))
 
+        location = None
+
         wrong_codes = [_ for _ in [200, 201] if _ not in codes]
 
         if r.status_code in wrong_codes:
@@ -2312,9 +2332,19 @@ class IS0402Test(GenericTest):
             if not location.startswith("/") and not location.startswith(self.protocol + "://"):
                 raise NMOSTestException(fail(test, "Registration API 'Location' response header is invalid for the "
                                              "current protocol: Location: {}".format(location)))
-            return r.headers["Location"]
 
-        return None
+        # Currently can only validate schema for the API version under test
+        if reg_url == self.reg_url:
+            schema = self.get_schema(REG_API_KEY, "POST", "/resource", r.status_code)
+            valid, message = self.check_response(schema, "POST", r)
+            if valid:
+                # if message:
+                #     return WARNING somehow...
+                pass
+            else:
+                raise NMOSTestException(test.FAIL(message))
+
+        return location
 
     def post_super_resources_and_resource(self, test, type, description, fail=Test.FAIL):
         """
