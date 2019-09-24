@@ -324,7 +324,7 @@ def index_page():
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
-                    json_output = format_test_results(results, endpoints, "json")
+                    json_output = format_test_results(results, endpoints, "json", args)
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, urls=results["urls"],
@@ -489,7 +489,7 @@ def _export_config():
     return current_config
 
 
-def format_test_results(results, endpoints, format):
+def format_test_results(results, endpoints, format, args):
     formatted = None
     total_time = 0
     max_name_len = 0
@@ -507,7 +507,7 @@ def format_test_results(results, endpoints, format):
         for test_result in results["result"]:
             formatted["results"].append({
                 "name": test_result.name,
-                "state": str(test_result.state),
+                "state": str(TestStates.DISABLED if test_result.name in args.ignore else test_result.state),
                 "detail": test_result.detail,
                 "duration": test_result.elapsed_time
             })
@@ -541,10 +541,12 @@ def format_test_results(results, endpoints, format):
     return formatted
 
 
-def identify_exit_code(results):
+def identify_exit_code(results, args):
     exit_code = ExitCodes.OK
     for test_result in results["result"]:
-        if test_result.state == TestStates.FAIL:
+        if test_result.name in args.ignore:
+            pass
+        elif test_result.state == TestStates.FAIL:
             exit_code = max(exit_code, ExitCodes.FAIL)
         elif test_result.state == TestStates.WARNING:
             exit_code = max(exit_code, ExitCodes.WARNING)
@@ -553,9 +555,9 @@ def identify_exit_code(results):
 
 def write_test_results(results, endpoints, args):
     if args.output.endswith(".xml"):
-        formatted = format_test_results(results, endpoints, "junit")
+        formatted = format_test_results(results, endpoints, "junit", args)
     else:
-        formatted = format_test_results(results, endpoints, "json")
+        formatted = format_test_results(results, endpoints, "json", args)
     with open(args.output, "w") as f:
         if args.output.endswith(".xml"):
             # pretty-print to help out Jenkins (and us humans), which struggles otherwise
@@ -563,12 +565,12 @@ def write_test_results(results, endpoints, args):
         else:
             f.write(formatted)
         print(" * Test results written to file: {}".format(args.output))
-    return identify_exit_code(results)
+    return identify_exit_code(results, args)
 
 
-def print_test_results(results, endpoints):
-    print(format_test_results(results, endpoints, "console"))
-    return identify_exit_code(results)
+def print_test_results(results, endpoints, args):
+    print(format_test_results(results, endpoints, "console", args))
+    return identify_exit_code(results, args)
 
 
 def parse_arguments():
