@@ -75,6 +75,7 @@ from . import Config
 FLASK_APPS = []
 DNS_SERVER = None
 TOOL_VERSION = None
+CMD_ARGS = None
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -308,6 +309,7 @@ class DataForm(Form):
 # Index page
 @core_app.route('/', methods=["GET", "POST"])
 def index_page():
+    global CMD_ARGS
     form = DataForm(request.form)
     if request.method == "POST" and not core_app.config['TEST_ACTIVE']:
         if form.validate():
@@ -324,7 +326,7 @@ def index_page():
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
-                    json_output = format_test_results(results, endpoints, "json", args)
+                    json_output = format_test_results(results, endpoints, "json", CMD_ARGS)
                     for index, result in enumerate(results["result"]):
                         results["result"][index] = result.output()
                     r = make_response(render_template("result.html", form=form, urls=results["urls"],
@@ -493,6 +495,9 @@ def format_test_results(results, endpoints, format, args):
     formatted = None
     total_time = 0
     max_name_len = 0
+    ignored_tests = []
+    if "suite" in vars(args):
+        ignored_tests = args.ignore
     for test_result in results["result"]:
         _check_test_result(test_result, results)
         total_time += test_result.elapsed_time
@@ -507,7 +512,7 @@ def format_test_results(results, endpoints, format, args):
         for test_result in results["result"]:
             formatted["results"].append({
                 "name": test_result.name,
-                "state": str(TestStates.DISABLED if test_result.name in args.ignore else test_result.state),
+                "state": str(TestStates.DISABLED if test_result.name in ignored_tests else test_result.state),
                 "detail": test_result.detail,
                 "duration": test_result.elapsed_time
             })
@@ -517,11 +522,11 @@ def format_test_results(results, endpoints, format, args):
         for test_result in results["result"]:
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
-            if test_result.name in args.ignore or test_result.state in [TestStates.DISABLED,
-                                                                        TestStates.UNCLEAR,
-                                                                        TestStates.MANUAL,
-                                                                        TestStates.NA,
-                                                                        TestStates.OPTIONAL]:
+            if test_result.name in ignored_tests or test_result.state in [TestStates.DISABLED,
+                                                                          TestStates.UNCLEAR,
+                                                                          TestStates.MANUAL,
+                                                                          TestStates.NA,
+                                                                          TestStates.OPTIONAL]:
                 test_case.add_skipped_info(test_result.detail)
             elif test_result.state in [TestStates.WARNING, TestStates.FAIL]:
                 test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
@@ -535,7 +540,7 @@ def format_test_results(results, endpoints, format, args):
         formatted += "----------------------------\r\n"
         for test_result in results["result"]:
             num_extra_dots = max_name_len - len(test_result.name)
-            test_state = str(TestStates.DISABLED if test_result.name in args.ignore else test_result.state)
+            test_state = str(TestStates.DISABLED if test_result.name in ignored_tests else test_result.state)
             formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), test_state)
         formatted += "----------------------------\r\n"
         formatted += "Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n"
@@ -735,6 +740,7 @@ class ExitCodes(IntEnum):
 
 
 def main(args):
+    global CMD_ARGS, DNS_SERVER, TOOL_VERSION
     # Check if we're testing unicast DNS discovery, and if so ensure we have elevated privileges
     if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
         is_admin = False
@@ -754,8 +760,8 @@ def main(args):
     check_external_requirements()
 
     # Parse and validate command line arguments
-    args = parse_arguments()
-    validate_args(args)
+    CMD_ARGS = parse_arguments()
+    validate_args(CMD_ARGS)
 
     # Download up to date versions of each API specification
     init_spec_cache()
@@ -778,7 +784,7 @@ def main(args):
           .format(get_default_ip(), core_app.config['PORT'], TOOL_VERSION))
 
     exit_code = 0
-    if "suite" not in vars(args):
+    if "suite" not in vars(CMD_ARGS):
         # Interactive testing mode. Await user input.
         try:
             while True:
@@ -787,7 +793,7 @@ def main(args):
             pass
     else:
         # Non-interactive testing mode. Tests carried out automatically.
-        exit_code = run_noninteractive_tests(args)
+        exit_code = run_noninteractive_tests(CMD_ARGS)
 
     # Testing complete
     print(" * Exiting")
