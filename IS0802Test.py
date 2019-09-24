@@ -44,7 +44,7 @@ class IS0802Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.nmos_utils = NMOSUtils(globalConfig.apiUrl)
 
-    def test_01_version_increment(self, test):
+    def test_01(self, test):
         """ Activations result in a Device version number increment"""
         globalConfig.test = test
 
@@ -75,7 +75,7 @@ class IS0802Test(GenericTest):
         else:
             return test.FAIL("No devices in the Node API incremented version number on activation.")
 
-    def test_02_control_advertisement(self, test):
+    def test_02(self, test):
         """ API is correctly advertised as a control endpoint"""
         globalConfig.test = test
 
@@ -83,7 +83,7 @@ class IS0802Test(GenericTest):
             return test.PASS()
         return test.FAIL("Could not find a Device advertisement for the API")
 
-    def test_03_source_ids_in_is04(self, test):
+    def test_03(self, test):
         """ All Output Source IDs match up to the IS-04 Node API"""
         globalConfig.test = test
 
@@ -104,7 +104,7 @@ class IS0802Test(GenericTest):
         else:
             return test.FAIL("Not all Output sources IDs were advertised in the Node API")
 
-    def test_04_input_output_in_is04(self, test):
+    def test_04(self, test):
         """All Input Source/Receiver IDs match up to the IS-04 Node API"""
         globalConfig.test = test
 

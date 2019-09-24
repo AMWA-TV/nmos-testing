@@ -43,7 +43,7 @@ class IS0801Test(GenericTest):
         globalConfig.testSuite = self
         globalConfig.apiKey = MAPPING_API_KEY
 
-    def test_01_io_content_match(self, test):
+    def test_01(self, test):
         """Content of the /io view matches resources elsewhere in the API"""
         globalConfig.test = test
 
@@ -65,7 +65,7 @@ class IS0801Test(GenericTest):
         else:
             return test.FAIL("IO Resource does not correctly reflect the API resources")
 
-    def test_02_immediate_activation(self, test):
+    def test_02(self, test):
         """Immediate activation can be called on the API"""
         globalConfig.test = test
 
@@ -79,7 +79,7 @@ class IS0801Test(GenericTest):
         activeResource.assertActionCompleted(testRouteAction)
         return test.PASS()
 
-    def test_03_relative_activation(self, test):
+    def test_03(self, test):
         """Relative offset activations can be called on the API"""
         globalConfig.test = test
 
@@ -88,7 +88,7 @@ class IS0801Test(GenericTest):
 
         return test.PASS()
 
-    def test_04_absolute_activation(self, test):
+    def test_04(self, test):
         """Absolute offset activations can be called on the API"""
         globalConfig.test = test
 
@@ -97,7 +97,7 @@ class IS0801Test(GenericTest):
 
         return test.PASS()
 
-    def test_05_delete_activations(self, test):
+    def test_05(self, test):
         """Activations can be deleted once created"""
         globalConfig.test = test
 
@@ -120,7 +120,7 @@ class IS0801Test(GenericTest):
 
         return test.PASS()
 
-    def test_06_locking_response(self, test):
+    def test_06(self, test):
         """Attempting to change a locked route results in a 423 response"""
         globalConfig.test = test
 
@@ -135,7 +135,7 @@ class IS0801Test(GenericTest):
 
         return test.PASS()
 
-    def test_07_unrouted_channels_null(self, test):
+    def test_07(self, test):
         """Channels in the active resource where no input channel is routed have `null`
         set as the `input` and `channel_index`"""
         globalConfig.test = test
@@ -162,7 +162,7 @@ class IS0801Test(GenericTest):
 
         return test.PASS()
 
-    def test_08_no_reentrant_loops(self, test):
+    def test_08(self, test):
         """If the device allows re-entrant  matrices, the constraints are set such that it
         is not possible to create a loop"""
         globalConfig.test = test
@@ -193,15 +193,15 @@ class IS0801Test(GenericTest):
                 return test.FAIL(msg)
         return test.PASS()
 
-    def test_09_props_name(self, test):
+    def test_09(self, test):
         """Human readable name provided in the props resource"""
         return test.MANUAL()
 
-    def test_10_props_description(self, test):
+    def test_10(self, test):
         """Human readable description provided in the props resource"""
         return test.MANUAL()
 
-    def test_11_inputs_have_channels(self, test):
+    def test_11(self, test):
         """Inputs have at least one channel represented in their channels resource"""
         globalConfig.test = test
         inputList = getInputList()
@@ -211,7 +211,7 @@ class IS0801Test(GenericTest):
                 return test.FAIL("Inputs must have at least one channel")
         return test.PASS()
 
-    def test_12_outputs_have_channels(self, test):
+    def test_12(self, test):
         """Outputs have at least one channel represented in their channels resource"""
         globalConfig.test = test
 
@@ -222,7 +222,7 @@ class IS0801Test(GenericTest):
                 return test.FAIL("Outputs must have at least one channel")
         return test.PASS()
 
-    def test_13_violate_routing_constraints_rejected(self, test):
+    def test_13(self, test):
         """Attempting to violate routing constraints results in an HTTP 400 response"""
         globalConfig.test = test
 
@@ -272,7 +272,7 @@ class IS0801Test(GenericTest):
                     return test.FAIL(msg)
         return test.NA("Could not test - no route is forbidden.")
 
-    def test_14_reordering_constraint(self, test):
+    def test_14(self, test):
         """It is not possible to re-order channels when re-ordering is
         set to `false`"""
         globalConfig.test = test
@@ -345,7 +345,7 @@ class IS0801Test(GenericTest):
 
         return test.FAIL("Channels could be re-ordered despite re-ordering constraint.")
 
-    def test_15_block_constraint(self, test):
+    def test_15(self, test):
         """It is not possible to make an out-of-block route when block_size
         is anything other than 1"""
         globalConfig.test = test
