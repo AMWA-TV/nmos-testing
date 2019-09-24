@@ -483,8 +483,8 @@ class IS1001Test(GenericTest):
         ctype_valid, ctype_message = self.check_content_type(response.headers)
         if not ctype_valid:
             self._raise_nmos_exception(test, response, ctype_message)
-        #else if ctype_message:
-        #    return WARNING somehow...
+        # else if ctype_message:
+        #     return WARNING somehow...
 
         token_schema = self.get_schema(AUTH_API_KEY, "POST", '/token', 400)
         try:
