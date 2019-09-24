@@ -240,13 +240,13 @@ def enumerate_tests(class_def, describe=False):
                 description = method_name
                 if describe:
                     try:
-                        docstring = inspect.getdoc(method)
-                        description += ": " + docstring.replace('\n', ' ').replace('\r', '')
+                        docstring = inspect.getdoc(method).replace('\n', ' ').replace('\r', '')
+                        description += ": " + docstring
                         if len(docstring) > 160:
-                            print(" * WARNING: {} {} description is too long (> 160 characters)".format(class_def,
-                                                                                                        method_name))
+                            print(" * WARNING: {}.{} description is too long (> 160 characters)"
+                                  .format(class_def.__name__, method_name))
                     except AttributeError:
-                        print(" * ERROR: {} {} is missing a description".format(class_def, method_name))
+                        print(" * ERROR: {}.{} is missing a description".format(class_def.__name__, method_name))
                 tests.append(description)
     return tests
 
