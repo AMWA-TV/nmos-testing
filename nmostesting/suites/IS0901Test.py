@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-from nmostesting import NMOSTesting
+from ..GenericTest import GenericTest
 
-if __name__ == '__main__':
-    NMOSTesting.main(sys.argv)
+
+class IS0901Test(GenericTest):
+    """
+    Runs IS-09-01-Test
+    """
+    def __init__(self, apis):
+        GenericTest.__init__(self, apis)
