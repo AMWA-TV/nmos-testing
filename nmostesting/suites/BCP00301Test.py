@@ -46,7 +46,7 @@ class BCP00301Test(GenericTest):
             return self.report_json[arg_key]
         else:
             try:
-                ret = subprocess.run(["../../testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off",
+                ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off",
                                       "--openssl-timeout", str(HTTP_TIMEOUT), "--add-ca",
                                       CERT_TRUST_ROOT_CA] + args +
                                      ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"],
