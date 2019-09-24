@@ -535,7 +535,8 @@ def format_test_results(results, endpoints, format, args):
         formatted += "----------------------------\r\n"
         for test_result in results["result"]:
             num_extra_dots = max_name_len - len(test_result.name)
-            formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), str(test_result.state))
+            test_state = str(TestStates.DISABLED if test_result.name in args.ignore else test_result.state)
+            formatted += "{} ...{} {}\r\n".format(test_result.name, ("." * num_extra_dots), test_state)
         formatted += "----------------------------\r\n"
         formatted += "Ran {} tests in ".format(len(results["result"])) + "{0:.3f}s".format(total_time) + "\r\n"
     return formatted
@@ -693,7 +694,7 @@ def run_noninteractive_tests(args):
         if args.output:
             exit_code = write_test_results(results, endpoints, args)
         else:
-            exit_code = print_test_results(results, endpoints)
+            exit_code = print_test_results(results, endpoints, args)
     except Exception as e:
         print(" * ERROR: {}".format(str(e)))
         exit_code = ExitCodes.ERROR
