@@ -154,7 +154,7 @@ The return type for each test case must be the result of calling one of the meth
 Examples of each result are included below:
 
 ```python
-from TestResult import Test
+from .TestResult import Test
 
 def test_my_stuff(self, test):
     """My test description"""
@@ -215,7 +215,7 @@ Raises an exception upon validation failure.
 When adding tests for a completely new API, the first set of basic tests have already been written for you. Provided a specification is available in the standard NMOS layout (using RAML 1.0), the test suite can automatically download and interpret it. Simply create a new test file which looks like the following:
 
 ```python
-from GenericTest import GenericTest
+from .GenericTest import GenericTest
 
 
 class MyNewSpecTest(GenericTest):
