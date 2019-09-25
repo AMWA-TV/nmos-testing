@@ -1220,21 +1220,30 @@ class IS0402Test(GenericTest):
 
         # Verify that all POSTed Nodes are announced via the corresponding websocket sub as expected (incl downgrade)
         for api_version in query_versions:
-            expected_nodes = []
+            expected_nodes = list()
+            unexpected_nodes = list()
             for node_api_version, node_id in node_ids.items():
                 if self.is04_query_utils.compare_api_version(node_api_version, api_version) >= 0:
                     expected_nodes.append(node_id)
-            for expected_node_id in expected_nodes:
-                found_data_set = False
-                for curr_data in sub_data[api_version]:
-                    if "pre" not in curr_data and "post" in curr_data:  # Only check the 'Added Event'
-                        if "id" in curr_data["post"]:
-                            if expected_node_id == curr_data["post"]["id"]:
-                                found_data_set = True
-                                break
+                else:
+                    unexpected_nodes.append(node_id)
 
-                if not found_data_set:
+            # Collect ids of added nodes
+            posted_node_ids = list()
+            for curr_data in sub_data[api_version]:
+                if "pre" not in curr_data and "post" in curr_data:  # Only check the 'Added Event'
+                    if "id" in curr_data["post"]:
+                        posted_node_ids.append(curr_data["post"]["id"])
+
+            # Check for expected nodes
+            for expected_node_id in expected_nodes:
+                if expected_node_id not in posted_node_ids:
                     return test.FAIL("Query API failed to announce POSTed Node via websocket subscription.")
+
+            # Check for unexpected nodes
+            for unexpected_node_id in unexpected_nodes:
+                if unexpected_node_id in posted_node_ids:
+                    return test.FAIL("Query API returned an unexpected Node via websocket subscription.")
 
         return test.PASS()
 
