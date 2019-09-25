@@ -309,8 +309,11 @@ class GenericTest(object):
         Validate the payload under the given schema.
         Raises an exception if the payload (or schema itself) is invalid
         """
-        checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
-        jsonschema.validate(payload, schema, format_checker=checker)
+        try:
+            checker = jsonschema.FormatChecker(["ipv4", "ipv6", "uri"])
+            jsonschema.validate(payload, schema, format_checker=checker)
+        except jsonschema.exceptions.SchemaError as e:
+            print(" * ERROR: Schema is faulty so cannot be validated: {}".format(e))
 
     def do_request(self, method, url, **kwargs):
         return TestHelper.do_request(
