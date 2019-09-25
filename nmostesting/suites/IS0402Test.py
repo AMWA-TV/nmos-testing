@@ -1241,8 +1241,8 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Query API failed to announce POSTed Node via websocket subscription.")
 
             # Check for unexpected nodes
-            for curr_id in posted_node_ids:
-                if curr_id in unexpected_nodes:
+            for unexpected_node_id in unexpected_nodes:
+                if unexpected_node_id in posted_node_ids:
                     return test.FAIL("Query API returned an unexpected Node via websocket subscription.")
 
         return test.PASS()
