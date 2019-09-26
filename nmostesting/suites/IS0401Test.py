@@ -321,7 +321,7 @@ class IS0401Test(GenericTest):
 
         registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
-            return test.FAIL("No registrations found")
+            return test.UNCLEAR("No registrations found")
 
         ctype_warn = ""
         for resource in registry_data.posts:
@@ -330,6 +330,12 @@ class IS0401Test(GenericTest):
                 return test.FAIL(ctype_message)
             elif ctype_message and not ctype_warn:
                 ctype_warn = ctype_message
+            if "Transfer-Encoding" not in resource[1]["headers"]:
+                if "Content-Length" not in resource[1]["headers"]:
+                    return test.FAIL("One or more Node POSTs did not include Content-Length")
+            else:
+                if "Content-Length" in resource[1]["headers"]:
+                    return test.FAIL("API signalled both Transfer-Encoding and Content-Length")
 
         if ctype_warn:
             return test.WARNING(ctype_warn)
@@ -348,7 +354,7 @@ class IS0401Test(GenericTest):
 
         registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
-            return test.FAIL("No registrations found")
+            return test.UNCLEAR("No registrations found")
 
         for resource in registry_data.posts:
             if resource[1]["version"] != api["version"]:
@@ -553,6 +559,18 @@ class IS0401Test(GenericTest):
                                     "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
+            if "Transfer-Encoding" not in heartbeat[1]["headers"]:
+                if "Content-Length" not in heartbeat[1]["headers"] or \
+                        int(heartbeat[1]["headers"]["Content-Length"]) != 0:
+                    # The NMOS spec currently says Content-Length: 0 is OPTIONAL, but it is RECOMMENDED in RFC 7230
+                    # and omitting it causes problems for commonly deployed HTTP servers
+                    return test.WARNING("Heartbeat POST did not contain a valid Content-Length header.",
+                                        "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                        "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
+                                        .format(api["spec_branch"]))
+            else:
+                if "Content-Length" in heartbeat[1]["headers"]:
+                    return test.FAIL("API signalled both Transfer-Encoding and Content-Length")
 
             last_hb = heartbeat
 
