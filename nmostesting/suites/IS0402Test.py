@@ -2272,27 +2272,46 @@ class IS0402Test(GenericTest):
         """Perform a POST request to a Query API to create a subscription"""
         if query_url is None:
             query_url = self.query_url
+
+        api_ver = query_url.rstrip("/").rsplit("/", 1)[-1]
+
         valid, r = self.do_request("POST", "{}subscriptions".format(query_url), json=sub_json)
 
         if not valid:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: {}".format(r)))
 
-        try:
-            if r.status_code in [200, 201]:
-                schema = self.get_schema(QUERY_API_KEY, "POST", "/subscriptions", r.status_code)
-                valid, message = self.check_response(schema, "POST", r)
-                if valid:
-                    # if message:
-                    #     return WARNING somehow...
-                    return r.json()
-                else:
-                    raise NMOSTestException(test.FAIL(message))
-            elif r.status_code in [400, 501]:
-                raise NMOSTestException(test.FAIL("Query API signalled that it does not support the requested "
-                                                  "subscription parameters: {} {}".format(r.status_code, sub_json)))
+        if r.status_code in [200, 201]:
+            if self.is04_query_utils.compare_api_version(api_ver, "v1.3") >= 0:
+                if "Location" not in r.headers:
+                    raise NMOSTestException(test.FAIL("Query API failed to return a 'Location' response header"))
+                path = "{}subscriptions/".format(urlparse(query_url).path)
+                location = r.headers["Location"]
+                if path not in location:
+                    raise NMOSTestException(test.FAIL("Query API 'Location' response header is incorrect: "
+                                                      "Location: {}".format(location)))
+                if not location.startswith("/") and not location.startswith(self.protocol + "://"):
+                    raise NMOSTestException(test.FAIL("Query API 'Location' response header is invalid for the "
+                                                      "current protocol: Location: {}".format(location)))
+        elif r.status_code in [400, 501]:
+            raise NMOSTestException(test.FAIL("Query API signalled that it does not support the requested "
+                                              "subscription parameters: {} {}".format(r.status_code, sub_json)))
+        else:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
+
+        # Currently can only validate schema for the API version under test
+        if query_url == self.query_url:
+            schema = self.get_schema(QUERY_API_KEY, "POST", "/subscriptions", r.status_code)
+            valid, message = self.check_response(schema, "POST", r)
+            if valid:
+                # if message:
+                #     return WARNING somehow...
+                pass
             else:
-                raise NMOSTestException(test.FAIL("Cannot request websocket subscription. Cannot execute test: {}"
-                                                  .format(r.status_code)))
+                raise NMOSTestException(test.FAIL(message))
+
+        try:
+            return r.json()
         except json.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
@@ -2319,7 +2338,7 @@ class IS0402Test(GenericTest):
         valid, r = self.do_request("POST", reg_url + "resource",
                                    json={"type": type, "data": data})
         if not valid:
-            raise NMOSTestException(fail(test, "Registration API did not respond as expected"))
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
 
         location = None
 
