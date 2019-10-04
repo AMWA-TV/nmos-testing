@@ -183,7 +183,7 @@ class IS05Utils(NMOSUtils):
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 stagedUrl, i, type(response3), stagedParams)
                         msg = "Transport parameters did not transition to active during an imeddiate activation"
-                        if stagedParam == activeParam:
+                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
                             pass
                         else:
                             return False, msg
@@ -258,7 +258,7 @@ class IS05Utils(NMOSUtils):
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(stagedUrl, i, type(activeParams), stagedParams)
-                        if stagedParam == activeParam:
+                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
                             finished = True
                         else:
                             retries = retries + 1
@@ -351,7 +351,7 @@ class IS05Utils(NMOSUtils):
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
                                           "{}".format(stagedUrl, i, type(activeParams), stagedParams)
-                        if activeParam == stagedParam:
+                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
                             finished = True
                         else:
                             retries = retries + 1
