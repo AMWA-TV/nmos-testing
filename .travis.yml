@@ -7,6 +7,8 @@ install:
   - pip install flake8
 script:
   - flake8 .
+before_deploy:
+  - sudo apt-get install libffi-dev
 deploy:
   provider: script
   script: bash utilities/deploy/docker_hub
