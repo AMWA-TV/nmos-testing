@@ -4,7 +4,7 @@ WORKDIR /home/nmos-testing
 ADD . .
 
 RUN apk update \
- && apk add gcc musl-dev linux-headers git \
+ && apk add gcc musl-dev linux-headers git libffi-dev \
  && rm -rf /var/cache/apk/* \
  && pip3 install -r requirements.txt \
  && mkdir -p /config \
