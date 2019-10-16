@@ -1,7 +1,14 @@
 language: python
 python:
-  - "3.5"
+  - 3.5
+services:
+  - docker
 install:
-  - "pip install flake8"
+  - pip install flake8
 script:
-  - "flake8 ."
+  - flake8 .
+deploy:
+  provider: script
+  script: bash utilities/deploy/docker_hub
+  on:
+    branch: docker-hub-test
