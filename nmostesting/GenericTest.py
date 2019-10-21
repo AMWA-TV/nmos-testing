@@ -109,8 +109,9 @@ class GenericTest(object):
         for api in self.apis:
             if "spec_path" not in self.apis[api]:
                 continue
-            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' +
-                                                                self.apis[api]["raml"]))
+            self.apis[api]["spec"] = Specification(
+                os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"])
+            )
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""

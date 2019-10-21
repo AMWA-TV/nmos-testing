@@ -14,27 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import Flask, render_template, flash, request, make_response
-from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
-from wtforms import FormField, FieldList
-from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
-from .mocks.Node import NODE, NODE_API
-from .GenericTest import NMOSInitException
-from .TestResult import TestStates
-from .CRL import CRL, CRL_API
-from .OCSP import OCSP, OCSP_API
-from .Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
-from .Config import CERTS_MOCKS, KEYS_MOCKS, PORT_BASE
-from .DNS import DNS
-from datetime import datetime, timedelta
-from junit_xml import TestSuite, TestCase
-from enum import IntEnum
-from werkzeug.serving import WSGIRequestHandler
-from .TestHelper import get_default_ip
-
 import git
 import os
-from requests.compat import json
 import copy
 import pickle
 import random
@@ -50,6 +31,28 @@ import socket
 import ssl
 import subprocess
 import pkgutil
+
+from flask import Flask, render_template, flash, request, make_response, jsonify
+from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
+from wtforms import FormField, FieldList
+from werkzeug.serving import WSGIRequestHandler
+from enum import IntEnum
+from junit_xml import TestSuite, TestCase
+from datetime import datetime, timedelta
+from types import SimpleNamespace
+from requests.compat import json
+
+from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
+from .mocks.Node import NODE, NODE_API
+from .GenericTest import NMOSInitException
+from .NMOSUtils import DEFAULT_ARGS
+from .TestResult import TestStates
+from .CRL import CRL, CRL_API
+from .OCSP import OCSP, OCSP_API
+from .Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
+from .Config import CERTS_MOCKS, KEYS_MOCKS, PORT_BASE
+from .DNS import DNS
+from .TestHelper import get_default_ip
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -477,7 +480,7 @@ def _check_test_result(test_result, results):
         print(
             "The following results currently are being returned: {}"
             .format([result.name for result in results["result"] if result != test_result])
-                )
+        )
         raise AttributeError("""
             None object returned as result from one of the tests. Please see the terminal output.
         """)
@@ -503,12 +506,14 @@ def format_test_results(results, endpoints, format, args):
         total_time += test_result.elapsed_time
         max_name_len = max(max_name_len, len(test_result.name))
     if format == "json":
-        formatted = {"suite": results["suite"],
-                     "timestamp": time.time(),
-                     "duration": total_time,
-                     "results": [],
-                     "config": _export_config(),
-                     "endpoints": endpoints}
+        formatted = {
+            "suite": results["suite"],
+            "timestamp": time.time(),
+            "duration": total_time,
+            "results": [],
+            "config": _export_config(),
+            "endpoints": endpoints
+        }
         for test_result in results["result"]:
             formatted["results"].append({
                 "name": test_result.name,
@@ -522,11 +527,13 @@ def format_test_results(results, endpoints, format, args):
         for test_result in results["result"]:
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
-            if test_result.name in ignored_tests or test_result.state in [TestStates.DISABLED,
-                                                                          TestStates.UNCLEAR,
-                                                                          TestStates.MANUAL,
-                                                                          TestStates.NA,
-                                                                          TestStates.OPTIONAL]:
+            if test_result.name in ignored_tests or test_result.state in [
+                TestStates.DISABLED,
+                TestStates.UNCLEAR,
+                TestStates.MANUAL,
+                TestStates.NA,
+                TestStates.OPTIONAL
+            ]:
                 test_case.add_skipped_info(test_result.detail)
             elif test_result.state in [TestStates.WARNING, TestStates.FAIL]:
                 test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
@@ -608,43 +615,56 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def validate_args(args):
-    if args.list_suites:
+def validate_args(args, access_type="cl"):
+    """Validate input arguments. access_type is 'cl' for command line tool and 'http' for api use"""
+    msg = ""
+    return_type = "ok"
+    if getattr(args, "list_suites", False):
         for test_suite in sorted(TEST_DEFINITIONS):
-            print(test_suite)
-        sys.exit(ExitCodes.OK)
-    elif args.describe_suites:
+            msg += test_suite + '\n'
+    elif getattr(args, "describe_suites", False):
         for test_suite in sorted(TEST_DEFINITIONS):
-            print(test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"])
-        sys.exit(ExitCodes.OK)
-
-    if "suite" in vars(args):
-        if args.suite not in TEST_DEFINITIONS:
-            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
-            sys.exit(ExitCodes.ERROR)
-        if args.list_tests:
+            msg += test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"] + '\n'
+    elif "suite" in vars(args):
+        if getattr(args, "list_tests", False):
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
             for test_name in tests:
-                print(test_name)
-            sys.exit(ExitCodes.OK)
-        if args.describe_tests:
+                msg += test_name + '\n'
+        elif getattr(args, "describe_tests", False):
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
             for test_description in tests:
-                print(test_description)
+                msg += test_description + '\n'
+        elif args.suite not in TEST_DEFINITIONS:
+            msg = " * ERROR: The requested test suite '{}' does not exist".format(args.suite)
+            return_type = "error"
+        elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+            msg = " * ERROR: Test with name '{}' does not exist in test definition '{}'".format(
+                args.selection, args.suite)
+            return_type = "error"
+        elif not hasattr(args, "host") or not hasattr(args, "port") or not hasattr(args, "version"):
+            msg = " * ERROR: No Host(s) or Port(s) or Version(s) specified"
+            return_type = "error"
+        elif len(args.host) != len(args.port) or len(args.host) != len(args.version):
+            msg = " * ERROR: Hostnames/IPs, ports and versions must contain the same number of elements"
+            return_type = "error"
+        elif len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
+            msg = " * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)".format(
+                len(TEST_DEFINITIONS[args.suite]["specs"]))
+            return_type = "error"
+        elif getattr(args, "output", None) and not args.output.endswith("xml") and not args.output.endswith("json"):
+            msg = " * ERROR: Output file must end with '.xml' or '.json'"
+            return_type = "error"
+    return arg_return(access_type, return_type, msg)
+
+
+def arg_return(access_type, return_type="ok", msg=""):
+    if access_type == "http":
+        return msg, return_type
+    elif msg:
+        print(msg)
+        if return_type == "ok":
             sys.exit(ExitCodes.OK)
-        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
-            print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
-                  .format(args.selection, args.suite))
-            sys.exit(ExitCodes.ERROR)
-        if len(args.host) != len(args.port) or len(args.host) != len(args.version):
-            print(" * ERROR: Hostnames/IPs, ports and versions must contain the same number of elements")
-            sys.exit(ExitCodes.ERROR)
-        if len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
-            print(" * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)"
-                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
-            sys.exit(ExitCodes.ERROR)
-        if args.output and not args.output.endswith("xml") and not args.output.endswith("json"):
-            print(" * ERROR: Output file must end with '.xml' or '.json'")
+        elif return_type == "error":
             sys.exit(ExitCodes.ERROR)
 
 
@@ -737,6 +757,39 @@ class ExitCodes(IntEnum):
     OK = 0  # Normal exit condition, or all tests passed in non-interactive mode
     WARNING = 1  # Worst case test was a warning in non-interactive mode
     FAIL = 2  # Worst case test was a failure in non-interactive mode
+
+
+@core_app.route('/api', methods=["GET", "POST"])
+def api():
+    if not request.is_json:
+        return "Error: Request mimetype is not set to a JSON specific type (e.g. application/json)", 400
+    request_data = dict(DEFAULT_ARGS, **request.json)
+    body = SimpleNamespace(**request_data)
+    return_message, return_type = validate_args(body, access_type="http")
+    if return_message:
+        if return_type == "ok":
+            return jsonify(return_message.split('\n')), 200
+        else:
+            return return_message, 400
+    data_format = request.args.get("format", "json")
+    try:
+        results = run_api_tests(body, data_format)
+        return results, 200
+    except Exception as e:
+        print(e)
+        results = traceback.format_exc()
+        return results, 400
+
+
+def run_api_tests(args, data_format):
+    endpoints = []
+    for i in range(len(args.host)):
+        endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
+    results = run_tests(args.suite, endpoints, [args.selection])
+    if data_format == "xml":
+        return format_test_results(results, endpoints, "junit", args)
+    else:
+        return format_test_results(results, endpoints, "json", args)
 
 
 def main(args):

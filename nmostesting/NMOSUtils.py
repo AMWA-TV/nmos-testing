@@ -57,6 +57,19 @@ UTC_LEAP = [
     (63072000, 63072009),  # 1 Jan 1972, 10 leap seconds
 ]
 
+DEFAULT_ARGS = {
+    "list_suites": False,
+    "describe_suites": False,
+    "list_tests": False,
+    "describe_tests": False,
+    "host": [],
+    "port": [],
+    "version": [],
+    "ignore": [],
+    "output": None,
+    "selection": "all"
+}
+
 IMMEDIATE_ACTIVATION = 'activate_immediate'
 SCHEDULED_ABSOLUTE_ACTIVATION = 'activate_scheduled_absolute'
 SCHEDULED_RELATIVE_ACTIVATION = 'activate_scheduled_relative'
