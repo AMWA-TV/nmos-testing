@@ -787,7 +787,8 @@ def run_api_tests(args, data_format):
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":
-        return format_test_results(results, endpoints, "junit", args)
+        test_suite = format_test_results(results, endpoints, "junit", args)
+        return TestSuite.to_xml_string([test_suite], prettyprint=True)
     else:
         return format_test_results(results, endpoints, "json", args)
 
