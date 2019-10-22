@@ -615,22 +615,22 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def validate_args(args, access_type="cl"):
+def validate_args(args, access_type="cli"):
     """Validate input arguments. access_type is 'cl' for command line tool and 'http' for api use"""
     msg = ""
     return_type = "ok"
-    if getattr(args, "list_suites", False):
+    if args.list_suites:
         for test_suite in sorted(TEST_DEFINITIONS):
             msg += test_suite + '\n'
-    elif getattr(args, "describe_suites", False):
+    elif args.describe_suites:
         for test_suite in sorted(TEST_DEFINITIONS):
             msg += test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"] + '\n'
     elif "suite" in vars(args):
-        if getattr(args, "list_tests", False):
+        if args.list_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
             for test_name in tests:
                 msg += test_name + '\n'
-        elif getattr(args, "describe_tests", False):
+        elif args.describe_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
             for test_description in tests:
                 msg += test_description + '\n'
@@ -641,7 +641,7 @@ def validate_args(args, access_type="cl"):
             msg = " * ERROR: Test with name '{}' does not exist in test definition '{}'".format(
                 args.selection, args.suite)
             return_type = "error"
-        elif not hasattr(args, "host") or not hasattr(args, "port") or not hasattr(args, "version"):
+        elif not args.host or not args.port or not args.version:
             msg = " * ERROR: No Host(s) or Port(s) or Version(s) specified"
             return_type = "error"
         elif len(args.host) != len(args.port) or len(args.host) != len(args.version):
@@ -651,14 +651,18 @@ def validate_args(args, access_type="cl"):
             msg = " * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)".format(
                 len(TEST_DEFINITIONS[args.suite]["specs"]))
             return_type = "error"
-        elif getattr(args, "output", None) and not args.output.endswith("xml") and not args.output.endswith("json"):
+        elif args.output and not args.output.endswith("xml") and not args.output.endswith("json"):
             msg = " * ERROR: Output file must end with '.xml' or '.json'"
             return_type = "error"
+    elif access_type == "http" and "suite" not in vars(args):
+        msg = "'suite' not found in arguments"
+        return_type = "error"
     return arg_return(access_type, return_type, msg)
 
 
 def arg_return(access_type, return_type="ok", msg=""):
     if access_type == "http":
+        msg.split('\n')
         return msg, return_type
     elif msg:
         print(msg)
@@ -762,10 +766,12 @@ class ExitCodes(IntEnum):
 @core_app.route('/api', methods=["GET", "POST"])
 def api():
     if not request.is_json:
-        return "Error: Request mimetype is not set to a JSON specific type (e.g. application/json)", 400
+        return "Error: Request mimetype is not set to a JSON specific type with a valid JSON Body", 400
+    if not request.get_json(silent=True):
+        return "Ensure the body of the request is valid JSON", 400
     request_data = dict(DEFAULT_ARGS, **request.json)
-    body = SimpleNamespace(**request_data)
-    return_message, return_type = validate_args(body, access_type="http")
+    request_args = SimpleNamespace(**request_data)
+    return_message, return_type = validate_args(request_args, access_type="http")
     if return_message:
         if return_type == "ok":
             return jsonify(return_message.split('\n')), 200
@@ -773,7 +779,7 @@ def api():
             return return_message, 400
     data_format = request.args.get("format", "json")
     try:
-        results = run_api_tests(body, data_format)
+        results = run_api_tests(request_args, data_format)
         return results, 200
     except Exception as e:
         print(e)
