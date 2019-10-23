@@ -662,7 +662,6 @@ def validate_args(args, access_type="cli"):
 
 def arg_return(access_type, return_type="ok", msg=""):
     if access_type == "http":
-        msg.split('\n')
         return msg, return_type
     elif msg:
         print(msg)
@@ -768,7 +767,7 @@ def api():
     if not request.is_json:
         return "Error: Request mimetype is not set to a JSON specific type with a valid JSON Body", 400
     if not request.get_json(silent=True):
-        return "Ensure the body of the request is valid JSON", 400
+        return "Error: Ensure the body of the request is valid JSON and non-empty", 400
     request_data = dict(DEFAULT_ARGS, **request.json)
     request_args = SimpleNamespace(**request_data)
     return_message, return_type = validate_args(request_args, access_type="http")
