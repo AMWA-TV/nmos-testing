@@ -4,7 +4,7 @@ WORKDIR /home/nmos-testing
 ADD . .
 
 RUN apk update \
- && apk add bash gcc musl-dev linux-headers git libffi-dev openssl-dev \
+ && apk add bash gcc musl-dev linux-headers git libffi-dev openssl-dev procps drill git coreutils libidn \
  && rm -rf /var/cache/apk/* \
  && pip3 install -r requirements.txt \
  && mkdir -p /config \
