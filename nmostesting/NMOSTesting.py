@@ -789,6 +789,26 @@ def api():
         return results, 400
 
 
+@core_app.route('/config', methods=["GET", "PUT"])
+def config():
+    if request.method == "GET":
+        return jsonify(_export_config())
+    elif request.method == "PUT":
+        try:
+            if not request.is_json:
+                return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
+            if not request.get_json(silent=True):
+                return jsonify("Error: Ensure the body of the request is valid JSON and non-empty"), 400
+            request_data = request.json
+            if not isinstance(request_data, dict):
+                return jsonify("Error: Body must be of type object/dict"), 400
+            for config_param in request_data:
+                setattr(CONFIG, config_param, request_data[config_param])
+            return jsonify(_export_config()), 200
+        except Exception:
+            return jsonify("Error: Config Update Failed"), 400
+
+
 def run_api_tests(args, data_format):
     endpoints = []
     for i in range(len(args.host)):
