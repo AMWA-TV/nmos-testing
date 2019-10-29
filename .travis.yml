@@ -11,4 +11,4 @@ deploy:
   provider: script
   script: bash utilities/deploy/docker_hub
   on:
-    branch: docker-hub-test
+    branch: master
