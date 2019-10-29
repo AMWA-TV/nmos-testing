@@ -20,7 +20,7 @@ from urllib.parse import parse_qs
 from OpenSSL import crypto
 
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
-from ..Config import AUTH_USERNAME, AUTH_PASSWORD, CERT_TRUST_ROOT_CA, DNS_SD_BROWSE_TIMEOUT, DNS_SD_MODE, ENABLE_HTTPS
+from .. import Config as CONFIG
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
 
@@ -50,7 +50,7 @@ class IS1001Test(GenericTest):
 
     def __init__(self, apis):
         super(IS1001Test, self).__init__(apis)
-        if not ENABLE_HTTPS:
+        if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("IS-10 can only be tested when ENABLE_HTTPS is set to True in Config.py")
         self.url = self.apis[AUTH_API_KEY]["url"]
         self.bearer_tokens = []
@@ -69,18 +69,18 @@ class IS1001Test(GenericTest):
             to the 'AUTH_USERNAME' and 'AUTH_PASSWORD' config options. They are currently:
             AUTH_USERNAME: '{}'
             AUTH_PASSWORD: '{}'
-        """.format(AUTH_USERNAME, AUTH_PASSWORD))
+        """.format(CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD))
 
     def tear_down_tests(self):
         """Print reminder to Delete Registered Client from Authorization Server"""
 
-        print("Remember to delete the registered client with username: {}".format(AUTH_USERNAME))
+        print("Remember to delete the registered client with username: {}".format(CONFIG.AUTH_USERNAME))
 
     def _make_auth_request(self, method, url_path, data=None, auth=None, params=None):
         """Utility function for making requests with Basic Authorization"""
         if auth == "user":
-            username = AUTH_USERNAME
-            password = AUTH_PASSWORD
+            username = CONFIG.AUTH_USERNAME
+            password = CONFIG.AUTH_PASSWORD
         elif auth == "client" and self.client_data:
             username = self.client_data["client_id"]
             password = self.client_data["client_secret"]
@@ -90,7 +90,7 @@ class IS1001Test(GenericTest):
             method=method, url=self.url + url_path, data=data, auth=(username, password), params=params
         )
 
-    def _post_to_authorize_endpoint(self, data, parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
+    def _post_to_authorize_endpoint(self, data, parameters, auth=(CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD)):
         """Post to /authorize endpoint, not allowing redirects to be automatically followed"""
         return requests.post(
             url=self.url + 'authorize',
@@ -98,7 +98,7 @@ class IS1001Test(GenericTest):
             params=parameters,
             allow_redirects=False,
             auth=auth,
-            verify=CERT_TRUST_ROOT_CA
+            verify=CONFIG.CERT_TRUST_ROOT_CA
         )
 
     def _raise_nmos_exception(self, test, response, string=''):
@@ -189,11 +189,11 @@ class IS1001Test(GenericTest):
     def do_dns_sd_advertisement_check(self, test, api, service_type):
         """Auth API advertises correctly via mDNS"""
 
-        if DNS_SD_MODE != "multicast":
+        if CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         ServiceBrowser(self.zc, service_type, self.zc_listener)
-        sleep(DNS_SD_BROWSE_TIMEOUT)
+        sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         serv_list = self.zc_listener.get_service_list()
         for service in serv_list:
             address = socket.inet_ntoa(service.address)
@@ -257,7 +257,7 @@ class IS1001Test(GenericTest):
         except NMOSTestException as e:
             raise NMOSTestException(test.FAIL("""
                 {}. Ensure a user is registered with the credentials, user: {} password: {}
-            """.format(e.args[0].detail, AUTH_USERNAME, AUTH_PASSWORD)))
+            """.format(e.args[0].detail, CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD)))
 
         for key in request_data:
             # Test that all request data keys are found in response. Added 's' compensates for grant_type/s, etc.
@@ -310,8 +310,8 @@ class IS1001Test(GenericTest):
         if self.client_data:
             for scope in GRANT_SCOPES:
                 request_data = {
-                    'username': AUTH_USERNAME,
-                    'password': AUTH_PASSWORD,
+                    'username': CONFIG.AUTH_USERNAME,
+                    'password': CONFIG.AUTH_PASSWORD,
                     'grant_type': 'password',
                     'scope': scope
                 }
@@ -353,7 +353,7 @@ class IS1001Test(GenericTest):
                     request_data = json.load(resource_data)
 
                 response = self._post_to_authorize_endpoint(
-                    data=request_data, parameters=parameters, auth=(AUTH_USERNAME, AUTH_PASSWORD)
+                    data=request_data, parameters=parameters, auth=(CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD)
                 )
 
                 self._verify_response(test=test, expected_status=302, response=response)
@@ -461,7 +461,8 @@ class IS1001Test(GenericTest):
         else:
             return test.DISABLED("No Bearer Tokens Available")
 
-    def _bad_post_to_authorize_endpoint(self, data, params, key, value, auth=(AUTH_USERNAME, AUTH_PASSWORD)):
+    def _bad_post_to_authorize_endpoint(
+            self, data, params, key, value, auth=(CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD)):
         """Post to /authorize endpoint with incorrect URL parameters"""
         params_copy = params.copy()
         params_copy[key] = value
@@ -575,8 +576,8 @@ class IS1001Test(GenericTest):
 
             # Use Pasword Grant flow wih incorrect credentials
             request_data = {
-                'username': AUTH_USERNAME,
-                'password': AUTH_PASSWORD,
+                'username': CONFIG.AUTH_USERNAME,
+                'password': CONFIG.AUTH_PASSWORD,
                 'grant_type': 'password',
                 'scope': "is-04"
             }

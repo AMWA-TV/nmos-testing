@@ -42,17 +42,16 @@ from datetime import datetime, timedelta
 from types import SimpleNamespace
 from requests.compat import json
 
-from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
-from .mocks.Node import NODE, NODE_API
+from . import Config as CONFIG
+from .DNS import DNS
 from .GenericTest import NMOSInitException
-from .NMOSUtils import DEFAULT_ARGS
 from .TestResult import TestStates
+from .TestHelper import get_default_ip
+from .NMOSUtils import DEFAULT_ARGS
 from .CRL import CRL, CRL_API
 from .OCSP import OCSP, OCSP_API
-from .Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
-from .Config import CERTS_MOCKS, KEYS_MOCKS, PORT_BASE
-from .DNS import DNS
-from .TestHelper import get_default_ip
+from .mocks.Node import NODE, NODE_API
+from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -73,7 +72,6 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS1001Test
 from .suites import BCP00301Test
-from . import Config
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -86,7 +84,7 @@ core_app = Flask(__name__)
 core_app.debug = False
 core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 core_app.config['TEST_ACTIVE'] = False
-core_app.config['PORT'] = PORT_BASE
+core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(core_app)
@@ -96,14 +94,14 @@ for instance in range(NUM_REGISTRIES):
     reg_app.debug = False
     reg_app.config['REGISTRY_INSTANCE'] = instance
     reg_app.config['PORT'] = REGISTRIES[instance].port
-    reg_app.config['SECURE'] = ENABLE_HTTPS
+    reg_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
     reg_app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
     FLASK_APPS.append(reg_app)
 
 sender_app = Flask(__name__)
 sender_app.debug = False
 sender_app.config['PORT'] = NODE.port
-sender_app.config['SECURE'] = ENABLE_HTTPS
+sender_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
 sender_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(sender_app)
 
@@ -306,7 +304,7 @@ class DataForm(Form):
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
-    hidden_specs = HiddenField(default=json.dumps(SPECIFICATIONS))
+    hidden_specs = HiddenField(default=json.dumps(CONFIG.SPECIFICATIONS))
 
 
 # Index page
@@ -352,18 +350,18 @@ def index_page():
 
     # Prepare configuration strings to display via the UI
     protocol = "HTTP"
-    if ENABLE_HTTPS:
+    if CONFIG.ENABLE_HTTPS:
         protocol = "HTTPS"
     discovery_mode = None
-    if ENABLE_DNS_SD:
-        if DNS_SD_MODE == "multicast":
+    if CONFIG.ENABLE_DNS_SD:
+        if CONFIG.DNS_SD_MODE == "multicast":
             discovery_mode = "Multicast DNS"
-        elif DNS_SD_MODE == "unicast":
+        elif CONFIG.DNS_SD_MODE == "unicast":
             discovery_mode = "Unicast DNS"
         else:
             discovery_mode = "Invalid Configuration"
     else:
-        discovery_mode = "Disabled (Using Query API {}:{})".format(QUERY_API_HOST, QUERY_API_PORT)
+        discovery_mode = "Disabled (Using Query API {}:{})".format(CONFIG.QUERY_API_HOST, CONFIG.QUERY_API_PORT)
 
     r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
                                                                        "protocol": protocol},
@@ -376,7 +374,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
         protocol = "http"
-        if ENABLE_HTTPS:
+        if CONFIG.ENABLE_HTTPS:
             protocol = "https"
         apis = {}
         tested_urls = []
@@ -401,10 +399,10 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "spec": None  # Used inside GenericTest
             }
             tested_urls.append(apis[api_key]["url"])
-            if SPECIFICATIONS[spec_key]["repo"] is not None and api_key in SPECIFICATIONS[spec_key]["apis"]:
-                apis[api_key]["name"] = SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
-                apis[api_key]["spec_path"] = CACHE_PATH + '/' + spec_key
-                apis[api_key]["raml"] = SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
+            if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+                apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
+                apis[api_key]["spec_path"] = CONFIG.CACHE_PATH + '/' + spec_key
+                apis[api_key]["raml"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
 
         # Instantiate the test class
         if test == "IS-04-01":
@@ -429,12 +427,12 @@ def run_tests(test, endpoints, test_selection=["all"]):
 def init_spec_cache():
     print(" * Initialising specification repositories...")
 
-    if not os.path.exists(CACHE_PATH):
-        os.makedirs(CACHE_PATH)
+    if not os.path.exists(CONFIG.CACHE_PATH):
+        os.makedirs(CONFIG.CACHE_PATH)
 
     # Prevent re-pulling of the spec repos too frequently
     time_now = datetime.now()
-    last_pull_file = os.path.join(CACHE_PATH + "/last_pull")
+    last_pull_file = os.path.join(CONFIG.CACHE_PATH + "/last_pull")
     last_pull_time = time_now - timedelta(hours=1)
     update_last_pull = False
     if os.path.exists(last_pull_file):
@@ -444,8 +442,8 @@ def init_spec_cache():
         except Exception as e:
             print(" * ERROR: Unable to load last pull time for cache: {}".format(e))
 
-    for repo_key, repo_data in SPECIFICATIONS.items():
-        path = os.path.join(CACHE_PATH + '/' + repo_key)
+    for repo_key, repo_data in CONFIG.SPECIFICATIONS.items():
+        path = os.path.join(CONFIG.CACHE_PATH + '/' + repo_key)
         if repo_data["repo"] is None:
             continue
         if not os.path.exists(path):
@@ -463,7 +461,7 @@ def init_spec_cache():
                     update_last_pull = True
                 except Exception:
                     print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
-                          "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
+                          "please delete the '{}' directory".format(repo_data["repo"], CONFIG.CACHE_PATH))
 
     if update_last_pull:
         try:
@@ -488,9 +486,9 @@ def _check_test_result(test_result, results):
 
 def _export_config():
     current_config = {"VERSION": TOOL_VERSION}
-    for param in dir(Config):
+    for param in dir(CONFIG):
         if not param.startswith("__") and param != "SPECIFICATIONS":
-            current_config[param] = getattr(Config, param)
+            current_config[param] = getattr(CONFIG, param)
     return current_config
 
 
@@ -685,10 +683,10 @@ class PortLoggingHandler(WSGIRequestHandler):
 
 def start_web_servers():
     ctx = None
-    if ENABLE_HTTPS:
+    if CONFIG.ENABLE_HTTPS:
         # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
         ctx = ssl.create_default_context()
-        for cert, key in zip(CERTS_MOCKS, KEYS_MOCKS):
+        for cert, key in zip(CONFIG.CERTS_MOCKS, CONFIG.KEYS_MOCKS):
             ctx.load_cert_chain(cert, key)
         # additionally disable TLS v1.0 and v1.1
         ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
@@ -807,7 +805,7 @@ def run_api_tests(args, data_format):
 def main(args):
     global CMD_ARGS, DNS_SERVER, TOOL_VERSION
     # Check if we're testing unicast DNS discovery, and if so ensure we have elevated privileges
-    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+    if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         is_admin = False
         if platform.system() == "Windows":
             from ctypes import windll
@@ -839,7 +837,7 @@ def main(args):
         TOOL_VERSION = "Unknown"
 
     # Start the DNS server
-    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+    if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
     # Start the HTTP servers
