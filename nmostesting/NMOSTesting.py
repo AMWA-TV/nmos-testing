@@ -599,26 +599,26 @@ def parse_arguments():
                               help="list available tests for a given suite")
     suite_parser.add_argument('--describe-tests', action='store_true',
                               help="describe the available tests for a given suite")
-    suite_parser.add_argument('--selection', default="all",
+    suite_parser.add_argument('--selection', default=DEFAULT_ARGS["selection"],
                               help="select a specific test to run, otherwise 'all' will be tested")
-    suite_parser.add_argument('--host', default=list(), nargs="*",
+    suite_parser.add_argument('--host', default=DEFAULT_ARGS["host"], nargs="*",
                               help="space separated hostnames or IPs of the APIs under test")
-    suite_parser.add_argument('--port', default=list(), nargs="*", type=int,
+    suite_parser.add_argument('--port', default=DEFAULT_ARGS["port"], nargs="*", type=int,
                               help="space separated ports of the APIs under test")
-    suite_parser.add_argument('--version', default=list(), nargs="*",
+    suite_parser.add_argument('--version', default=DEFAULT_ARGS["version"], nargs="*",
                               help="space separated versions of the APIs under test")
-    suite_parser.add_argument('--ignore', default=list(), nargs="*",
+    suite_parser.add_argument('--ignore', default=DEFAULT_ARGS["ignore"], nargs="*",
                               help="space separated test names to ignore the results from")
-    suite_parser.add_argument('--output', default=None,
+    suite_parser.add_argument('--output', default=DEFAULT_ARGS["output"],
                               help="filename to save test results to (ending .xml or .json), otherwise print to stdout")
 
     return parser.parse_args()
 
 
 def validate_args(args, access_type="cli"):
-    """Validate input arguments. access_type is 'cl' for command line tool and 'http' for api use"""
+    """Validate input arguments. access_type is 'cli' for command line tool and 'http' for api use"""
     msg = ""
-    return_type = "ok"
+    return_type = ExitCodes.OK
     if args.list_suites:
         for test_suite in sorted(TEST_DEFINITIONS):
             msg += test_suite + '\n'
@@ -636,39 +636,41 @@ def validate_args(args, access_type="cli"):
                 msg += test_description + '\n'
         elif args.suite not in TEST_DEFINITIONS:
             msg = " * ERROR: The requested test suite '{}' does not exist".format(args.suite)
-            return_type = "error"
+            return_type = ExitCodes.ERROR
         elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
             msg = " * ERROR: Test with name '{}' does not exist in test definition '{}'".format(
                 args.selection, args.suite)
-            return_type = "error"
+            return_type = ExitCodes.ERROR
         elif not args.host or not args.port or not args.version:
             msg = " * ERROR: No Host(s) or Port(s) or Version(s) specified"
-            return_type = "error"
+            return_type = ExitCodes.ERROR
         elif len(args.host) != len(args.port) or len(args.host) != len(args.version):
             msg = " * ERROR: Hostnames/IPs, ports and versions must contain the same number of elements"
-            return_type = "error"
+            return_type = ExitCodes.ERROR
         elif len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
             msg = " * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)".format(
                 len(TEST_DEFINITIONS[args.suite]["specs"]))
-            return_type = "error"
+            return_type = ExitCodes.ERROR
         elif args.output and not args.output.endswith("xml") and not args.output.endswith("json"):
             msg = " * ERROR: Output file must end with '.xml' or '.json'"
-            return_type = "error"
+            return_type = ExitCodes.ERROR
     elif access_type == "http" and "suite" not in vars(args):
         msg = "'suite' not found in arguments"
-        return_type = "error"
+        return_type = ExitCodes.ERROR
     return arg_return(access_type, return_type, msg)
 
 
-def arg_return(access_type, return_type="ok", msg=""):
+def arg_return(access_type, return_type, msg=""):
     if access_type == "http":
+        if msg.endswith('\n'):
+            msg = msg[:-1]
         return msg, return_type
     elif msg:
         print(msg)
-        if return_type == "ok":
-            sys.exit(ExitCodes.OK)
-        elif return_type == "error":
-            sys.exit(ExitCodes.ERROR)
+        if return_type == ExitCodes.OK:
+            sys.exit(return_type)
+        elif return_type == ExitCodes.ERROR:
+            sys.exit(return_type)
 
 
 class PortLoggingHandler(WSGIRequestHandler):
@@ -765,21 +767,24 @@ class ExitCodes(IntEnum):
 @core_app.route('/api', methods=["GET", "POST"])
 def api():
     if not request.is_json:
-        return "Error: Request mimetype is not set to a JSON specific type with a valid JSON Body", 400
+        return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
     if not request.get_json(silent=True):
-        return "Error: Ensure the body of the request is valid JSON and non-empty", 400
+        return jsonify("Error: Ensure the body of the request is valid JSON and non-empty"), 400
     request_data = dict(DEFAULT_ARGS, **request.json)
     request_args = SimpleNamespace(**request_data)
     return_message, return_type = validate_args(request_args, access_type="http")
     if return_message:
-        if return_type == "ok":
+        if return_type == ExitCodes.OK:
             return jsonify(return_message.split('\n')), 200
         else:
-            return return_message, 400
+            return jsonify(return_message), 400
     data_format = request.args.get("format", "json")
     try:
         results = run_api_tests(request_args, data_format)
-        return results, 200
+        if data_format == "json":
+            return jsonify(results), 200
+        else:
+            return results, 200, {"Content-Type": "text/xml; charset=utf-8"}
     except Exception as e:
         print(e)
         results = traceback.format_exc()
@@ -792,10 +797,11 @@ def run_api_tests(args, data_format):
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":
-        test_suite = format_test_results(results, endpoints, "junit", args)
-        return TestSuite.to_xml_string([test_suite], prettyprint=True)
+        formatted_test_results = format_test_results(results, endpoints, "junit", args)
+        return TestSuite.to_xml_string([formatted_test_results], prettyprint=True)
     else:
-        return format_test_results(results, endpoints, "json", args)
+        formatted_test_results = format_test_results(results, endpoints, "json", args)
+        return json.loads(formatted_test_results)
 
 
 def main(args):
