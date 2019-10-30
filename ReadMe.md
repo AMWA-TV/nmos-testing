@@ -1,4 +1,4 @@
-# NMOS API Testing Tool
+# NMOS API Testing Tool [![LICENSE](https://img.shields.io/github/license/amwa-tv/nmos-testing.svg?color=blue&logo=apache)](https://github.com/amwa-tv/nmos-testing/blob/master/LICENSE)
 
 This tool creates a simple web service which tests implementations of the NMOS APIs.
 
@@ -24,7 +24,9 @@ When testing any of the above APIs it is important that they contain representat
 *   The IS-04 Node tests create mock registry mDNS announcements on the network unless the `nmostesting/Config.py` `ENABLE_DNS_SD` parameter is set to `False`, or the `DNS_SD_MODE` parameter is set to `'unicast'`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_DNS_SD` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `nmostesting/Config.py`.
 *   For IS-05 tests #29 and #30 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.
 
-## Usage
+## Deploy
+
+### Local
 
 Ensure pip3 is installed and up to date. Then install the dependencies:
 
@@ -43,6 +45,33 @@ python3 nmos-test.py
 ```
 
 This tool provides a simple web service which is available on `http://localhost:5000`.
+
+### Docker
+
+There is a Dockerfile provided to build an image contianing the test suite.
+
+```shell
+docker build -t nmos-testing .
+```
+
+This image provides an quick way for deploying the test suite in your network.
+
+```shell
+docker run -d -p="5000:5000" nmos-testing
+```
+
+The web service will be available on `http://<DOCKER_HOST_IP>:5000`.
+
+If you need to change the `Config.py` settings. You can define your own copy with the required settings and add the following volume mount. _Note_: requires an absolute path, the example below is for working from current directory.
+
+```shell
+docker run -d -p="5000:5000" -v="$(pwd)/Config.py:/config/Config.py" nmos-testing
+```
+
+If you need to deploy multiple instances of the test suite for multiple users to have concurrent access, this is a possible method to met those requirements.
+
+## Usage
+
 Provide the URL of the relevant API under test (see the detailed description on the webpage) and select a test suite from the checklist. The result of the tests will be shown after a few seconds.
 
 The result of each test case will be one of the following:
