@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from requests.compat import json
 import time
 import uuid
+from requests.compat import json
 
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
-from ..Config import API_PROCESSING_TIMEOUT
+from .. import Config as CONFIG
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -142,7 +142,7 @@ class IS0502Test(GenericTest):
                         if not valid:
                             return False, response
 
-                        time.sleep(API_PROCESSING_TIMEOUT)
+                        time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
                         valid, response = self.do_request("GET", self.node_url + resource_type + "/" + is05_resource)
                         if not valid:
@@ -170,7 +170,7 @@ class IS0502Test(GenericTest):
             if not valid:
                 return False, response
 
-        time.sleep(API_PROCESSING_TIMEOUT)
+        time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
         valid, result = self.refresh_is04_resources(resource_type)
         if not valid:
@@ -222,7 +222,7 @@ class IS0502Test(GenericTest):
             if not valid:
                 return False, response
 
-        time.sleep(API_PROCESSING_TIMEOUT)
+        time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
         valid, result = self.refresh_is04_resources(resource_type)
         if not valid:
@@ -543,8 +543,9 @@ class IS0502Test(GenericTest):
                         continue
 
                     bindings_length = len(resource["interface_bindings"])
-                    valid, result = self.do_request("GET", self.connection_url + "single/" + resource_type + "/" +
-                                                    resource["id"] + "/active")
+                    valid, result = self.do_request(
+                        "GET",
+                        self.connection_url + "single/" + resource_type + "/" + resource["id"] + "/active")
                     if not valid:
                         return test.FAIL("Connection API returned unexpected result "
                                          "for {} '{}'".format(resource_type.capitalize(), resource["id"]))
@@ -581,8 +582,10 @@ class IS0502Test(GenericTest):
                     if valid and result.status_code != 404:
                         is04_transport_file = result.text
 
-                valid, result = self.do_request("GET", self.connection_url + "single/senders/" +
-                                                resource["id"] + "/transportfile")
+                valid, result = self.do_request(
+                    "GET",
+                    self.connection_url + "single/senders/" + resource["id"] + "/transportfile"
+                )
                 if valid and result.status_code != 404:
                     is05_transport_file = result.text
 

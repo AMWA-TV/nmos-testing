@@ -18,7 +18,7 @@ from jinja2 import Template
 from threading import Event
 
 from .TestHelper import get_default_ip
-from .Config import DNS_DOMAIN, PORT_BASE
+from . import Config as CONFIG
 
 
 class WatchingResolver(ZoneResolver):
@@ -61,7 +61,7 @@ class DNS(object):
         zone_file = open("test_data/IS0401/dns_records.zone").read()
         template = Template(zone_file)
         zone_data = template.render(ip_address=self.default_ip, api_ver=api_version, api_proto=api_protocol,
-                                    domain=DNS_DOMAIN, reg_port_base=PORT_BASE+100)
+                                    domain=CONFIG.DNS_DOMAIN, reg_port_base=CONFIG.PORT_BASE + 100)
         self.resolver = WatchingResolver(self.base_zone_data + zone_data)
         self.stop()
         print(" * Loading DNS zone file with api_ver={}".format(api_version))
@@ -70,7 +70,7 @@ class DNS(object):
     def reset(self):
         zone_file = open("test_data/IS0401/dns_base.zone").read()
         template = Template(zone_file)
-        self.base_zone_data = template.render(ip_address=self.default_ip, domain=DNS_DOMAIN)
+        self.base_zone_data = template.render(ip_address=self.default_ip, domain=CONFIG.DNS_DOMAIN)
         self.resolver = WatchingResolver(self.base_zone_data)
         self.stop()
         print(" * Loading DNS zone base file")

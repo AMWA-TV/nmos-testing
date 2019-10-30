@@ -20,7 +20,7 @@ import socket
 import ipaddress
 
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
-from ..Config import ENABLE_HTTPS, HTTP_TIMEOUT, CERT_TRUST_ROOT_CA
+from .. import Config as CONFIG
 
 BCP_API_KEY = "bcp-003-01"
 TMPFILE = "tls-report.json"
@@ -32,7 +32,7 @@ class BCP00301Test(GenericTest):
     """
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
-        if not ENABLE_HTTPS:
+        if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in Config.py")
         self.report_json = {}
 
@@ -46,11 +46,24 @@ class BCP00301Test(GenericTest):
             return self.report_json[arg_key]
         else:
             try:
-                ret = subprocess.run(["testssl/testssl.sh", "--jsonfile", TMPFILE, "--warnings", "off",
-                                      "--openssl-timeout", str(HTTP_TIMEOUT), "--add-ca",
-                                      CERT_TRUST_ROOT_CA] + args +
-                                     ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"],
-                                                     self.apis[BCP_API_KEY]["port"])])
+                ret = subprocess.run(
+                    [
+                        "testssl/testssl.sh",
+                        "--jsonfile",
+                        TMPFILE,
+                        "--warnings",
+                        "off",
+                        "--openssl-timeout",
+                        str(CONFIG.HTTP_TIMEOUT),
+                        "--add-ca",
+                        CONFIG.CERT_TRUST_ROOT_CA
+                    ] + args + [
+                        "{}:{}".format(
+                            self.apis[BCP_API_KEY]["hostname"],
+                            self.apis[BCP_API_KEY]["port"]
+                        )
+                    ]
+                )
                 if ret.returncode == 0:
                     with open(TMPFILE) as tls_data:
                         self.report_json[arg_key] = json.load(tls_data)
@@ -244,10 +257,10 @@ class BCP00301Test(GenericTest):
         """Certificate is valid and matches the host under test"""
 
         try:
-            context = ssl.create_default_context(cafile=CERT_TRUST_ROOT_CA)
+            context = ssl.create_default_context(cafile=CONFIG.CERT_TRUST_ROOT_CA)
             hostname = self.apis[BCP_API_KEY]["hostname"]
             sock = context.wrap_socket(socket.socket(), server_hostname=hostname)
-            sock.settimeout(HTTP_TIMEOUT)
+            sock.settimeout(CONFIG.HTTP_TIMEOUT)
             # Verification of certificate and CN/SAN matches is performed during connect
             sock.connect((hostname, self.apis[BCP_API_KEY]["port"]))
             sock.close()

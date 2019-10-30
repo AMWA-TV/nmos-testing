@@ -399,7 +399,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "spec": None  # Used inside GenericTest
             }
             tested_urls.append(apis[api_key]["url"])
-            if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+            if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
+                    and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
                 apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
                 apis[api_key]["spec_path"] = CONFIG.CACHE_PATH + '/' + spec_key
                 apis[api_key]["raml"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
@@ -764,6 +765,8 @@ class ExitCodes(IntEnum):
 
 @core_app.route('/api', methods=["GET", "POST"])
 def api():
+    if request.method == "GET":
+        return jsonify("This is the NMOS Testing API"), 200
     if not request.is_json:
         return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
     if not request.get_json(silent=True):

@@ -23,7 +23,7 @@ import uuid
 from . import TestHelper
 from .Specification import Specification
 from .TestResult import Test
-from .Config import ENABLE_HTTPS
+from . import Config as CONFIG
 
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
@@ -66,7 +66,7 @@ class GenericTest(object):
         self.result = list()
         self.protocol = "http"
         self.ws_protocol = "ws"
-        if ENABLE_HTTPS:
+        if CONFIG.ENABLE_HTTPS:
             self.protocol = "https"
             self.ws_protocol = "wss"
 

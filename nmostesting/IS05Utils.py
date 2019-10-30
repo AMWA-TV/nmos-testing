@@ -20,7 +20,7 @@ import time
 from random import randint
 from . import TestHelper
 from .NMOSUtils import NMOSUtils, IMMEDIATE_ACTIVATION, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
-from .Config import API_PROCESSING_TIMEOUT, PORT_BASE, ENABLE_HTTPS
+from . import Config as CONFIG
 
 
 class IS05Utils(NMOSUtils):
@@ -262,7 +262,7 @@ class IS05Utils(NMOSUtils):
                             finished = True
                         else:
                             retries = retries + 1
-                            time.sleep(API_PROCESSING_TIMEOUT)
+                            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
                     if finished:
                         try:
@@ -355,7 +355,7 @@ class IS05Utils(NMOSUtils):
                             finished = True
                         else:
                             retries = retries + 1
-                            time.sleep(API_PROCESSING_TIMEOUT)
+                            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
                     if finished:
                         try:
@@ -467,9 +467,9 @@ class IS05Utils(NMOSUtils):
                         toReturn.append(values[randint(0, len(values) - 1)])
                     else:
                         scheme = "ws"
-                        if ENABLE_HTTPS:
+                        if CONFIG.ENABLE_HTTPS:
                             scheme = "wss"
-                        toReturn.append("{}://{}:{}".format(scheme, TestHelper.get_default_ip(), PORT_BASE))
+                        toReturn.append("{}://{}:{}".format(scheme, TestHelper.get_default_ip(), CONFIG.PORT_BASE))
                 return True, toReturn
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),

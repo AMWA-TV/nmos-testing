@@ -14,20 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from time import sleep
+import re
 import socket
 import uuid
 from requests.compat import json
 from copy import deepcopy
+from time import sleep
 from jsonschema import ValidationError
-import re
 from urllib.parse import urlparse
-
 from zeroconf_monkey import ServiceBrowser, Zeroconf
+
+from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..Config import DNS_SD_MODE, GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT
 from ..TestHelper import WebsocketWorker, load_resolved_schema
 from ..TestResult import Test
 
@@ -41,9 +41,7 @@ class IS0402Test(GenericTest):
     """
     def __init__(self, apis):
         # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
-        omit_paths = [
-          "/health/nodes/{nodeId}"
-        ]
+        omit_paths = ["/health/nodes/{nodeId}"]
         GenericTest.__init__(self, apis, omit_paths)
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
@@ -68,11 +66,11 @@ class IS0402Test(GenericTest):
     def do_dns_sd_advertisement_check(self, test, api, service_type):
         """Registration API advertises correctly via mDNS"""
 
-        if DNS_SD_MODE != "multicast":
+        if CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         ServiceBrowser(self.zc, service_type, self.zc_listener)
-        sleep(DNS_SD_BROWSE_TIMEOUT)
+        sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         serv_list = self.zc_listener.get_service_list()
         for service in serv_list:
             address = socket.inet_ntoa(service.address)
@@ -1010,8 +1008,10 @@ class IS0402Test(GenericTest):
         # Raise an error if resources below the requested version are returned, or those for the relevant API versions
         # are not returned. Otherwise pass.
         for api_version in query_versions:
-            valid, r = self.do_request("GET", self.query_url +
-                                       "nodes/{}?query.downgrade={}".format(node_ids[api_version], api_version))
+            valid, r = self.do_request(
+                "GET",
+                self.query_url + "nodes/{}?query.downgrade={}".format(node_ids[api_version], api_version)
+            )
             if not valid:
                 return test.FAIL("Query API failed to respond to request")
             elif self.is04_query_utils.compare_api_version(query_api["version"], "v1.3") >= 0 and r.status_code == 501:
@@ -1182,7 +1182,7 @@ class IS0402Test(GenericTest):
             websockets[api_version] = WebsocketWorker(resp_json["ws_href"])
             websockets[api_version].start()
 
-        sleep(WS_MESSAGE_TIMEOUT)  # Wait for SYNC messages
+        sleep(CONFIG.WS_MESSAGE_TIMEOUT)  # Wait for SYNC messages
 
         # Verify no error occurred on starting websocket subscription & clear SYNC messages
         for api_version in query_versions:
@@ -1203,7 +1203,7 @@ class IS0402Test(GenericTest):
             reg_url = "{}/{}/".format(self.reg_url.rstrip(reg_api["version"] + "/"), api_version)
             self.post_resource(test, "node", test_data, codes=[201], reg_url=reg_url)
 
-        sleep(WS_MESSAGE_TIMEOUT)
+        sleep(CONFIG.WS_MESSAGE_TIMEOUT)
 
         # Read data & close websockets
         sub_data = dict()
@@ -1310,7 +1310,7 @@ class IS0402Test(GenericTest):
         websocket = WebsocketWorker(resp_json["ws_href"])
         try:
             websocket.start()
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             if websocket.did_error_occur():
                 return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
@@ -1334,7 +1334,7 @@ class IS0402Test(GenericTest):
                                               "queryapi-subscriptions-websocket.json")
 
             # Check that the single Node is reflected in the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1372,7 +1372,7 @@ class IS0402Test(GenericTest):
             self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1479,7 +1479,7 @@ class IS0402Test(GenericTest):
         websocket = WebsocketWorker(resp_json["ws_href"])
         try:
             websocket.start()
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             if websocket.did_error_occur():
                 return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
@@ -1503,7 +1503,7 @@ class IS0402Test(GenericTest):
                                               "queryapi-subscriptions-websocket.json")
 
             # Check that the single Node is reflected in the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1540,7 +1540,7 @@ class IS0402Test(GenericTest):
             self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1662,7 +1662,7 @@ class IS0402Test(GenericTest):
 
         # Wait for garbage collection (plus one whole second, since health is in whole seconds so
         # a registry may wait that much longer to guarantee a minimum garbage collection interval)
-        sleep(GARBAGE_COLLECTION_TIMEOUT + 1)
+        sleep(CONFIG.GARBAGE_COLLECTION_TIMEOUT + 1)
 
         # Verify all resources are removed
         for resource in resources:
@@ -1720,7 +1720,7 @@ class IS0402Test(GenericTest):
         resp_json = self.post_subscription(test, sub_json)
         # Check protocol
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-            if resp_json["secure"] is not ENABLE_HTTPS:
+            if resp_json["secure"] is not CONFIG.ENABLE_HTTPS:
                 return test.FAIL("Subscription 'secure' value is incorrect for the current protocol")
         if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
             return test.FAIL("Subscription 'ws_href' value does not match the current WebSocket protocol")
@@ -1754,7 +1754,7 @@ class IS0402Test(GenericTest):
         resp_json = self.post_subscription(test, sub_json)
         # Check protocol
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-            if resp_json["secure"] is not ENABLE_HTTPS:
+            if resp_json["secure"] is not CONFIG.ENABLE_HTTPS:
                 return test.FAIL("Subscription 'secure' value is incorrect for the current protocol")
         if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
             return test.FAIL("Subscription 'ws_href' value does not match the current WebSocket protocol")
@@ -1854,7 +1854,7 @@ class IS0402Test(GenericTest):
 
             for resource in resources_to_post:
                 websockets[resource].start()
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
 
             for resource, resource_data in test_data.items():
                 if websockets[resource].did_error_occur():
@@ -1899,7 +1899,7 @@ class IS0402Test(GenericTest):
                 # Update resource
                 self.post_resource(test, resource, resource_data, codes=[200])
 
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
 
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
@@ -1950,7 +1950,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
                                      .format(resource, r.status_code, r.text))
 
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
@@ -1990,7 +1990,7 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(test_data[resource])
                 self.post_resource(test, resource, test_data[resource], codes=[201])
 
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
@@ -2263,7 +2263,7 @@ class IS0402Test(GenericTest):
         sub_json = deepcopy(self.subscription_data)
         sub_json["resource_path"] = resource_path
         sub_json["params"] = params
-        sub_json["secure"] = ENABLE_HTTPS
+        sub_json["secure"] = CONFIG.ENABLE_HTTPS
         if self.is04_query_utils.compare_api_version(api_ver, "v1.3") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, api_ver)
         return sub_json
