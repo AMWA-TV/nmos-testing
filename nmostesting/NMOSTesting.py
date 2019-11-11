@@ -779,7 +779,7 @@ def api():
             return jsonify(return_message.split('\n')), 200
         else:
             return jsonify(return_message), 400
-    data_format = request_args.get("output") if request_args.get("output") is not None else "json"
+    data_format = request_args.output if request_args.output is not None else "json"
     if "." in data_format:
         filename, data_format = data_format.split(".")
     try:
@@ -794,11 +794,11 @@ def api():
         return results, 400
 
 
-@core_app.route('/config', methods=["GET", "PUT"])
+@core_app.route('/config', methods=["GET", "PATCH"])
 def config():
     if request.method == "GET":
         return jsonify(_export_config())
-    elif request.method == "PUT":
+    elif request.method == "PATCH":
         try:
             if not request.is_json:
                 return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
