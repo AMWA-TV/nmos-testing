@@ -779,7 +779,9 @@ def api():
             return jsonify(return_message.split('\n')), 200
         else:
             return jsonify(return_message), 400
-    data_format = request.args.get("format", "json")
+    data_format = request_args.get("output") if request_args.get("output") is not None else "json"
+    if "." in data_format:
+        filename, data_format = data_format.split(".")
     try:
         results = run_api_tests(request_args, data_format)
         if data_format == "json":
