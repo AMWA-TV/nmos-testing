@@ -90,14 +90,22 @@ class IS1001Test(GenericTest):
             method=method, url=self.url + url_path, data=data, auth=(username, password), params=params
         )
 
-    def _post_to_authorize_endpoint(self, data, parameters, auth=(CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD)):
+    def _post_to_authorize_endpoint(self, data, parameters, auth="user"):
         """Post to /authorize endpoint, not allowing redirects to be automatically followed"""
+        if auth == "user":
+            username = CONFIG.AUTH_USERNAME
+            password = CONFIG.AUTH_PASSWORD
+        elif auth == "client" and self.client_data:
+            username = self.client_data["client_id"]
+            password = self.client_data["client_secret"]
+        else:
+            username = password = None
         return requests.post(
             url=self.url + 'authorize',
             data=data,
             params=parameters,
             allow_redirects=False,
-            auth=auth,
+            auth=(username, password),
             verify=CONFIG.CERT_TRUST_ROOT_CA
         )
 
@@ -353,7 +361,7 @@ class IS1001Test(GenericTest):
                     request_data = json.load(resource_data)
 
                 response = self._post_to_authorize_endpoint(
-                    data=request_data, parameters=parameters, auth=(CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD)
+                    data=request_data, parameters=parameters, auth="user"
                 )
 
                 self._verify_response(test=test, expected_status=302, response=response)
@@ -462,7 +470,7 @@ class IS1001Test(GenericTest):
             return test.DISABLED("No Bearer Tokens Available")
 
     def _bad_post_to_authorize_endpoint(
-            self, data, params, key, value, auth=(CONFIG.AUTH_USERNAME, CONFIG.AUTH_PASSWORD)):
+            self, data, params, key, value, auth="user"):
         """Post to /authorize endpoint with incorrect URL parameters"""
         params_copy = params.copy()
         params_copy[key] = value

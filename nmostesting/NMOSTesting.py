@@ -740,7 +740,7 @@ def check_internal_requirements():
                 corrected_req = corrections[requirement_name]
             else:
                 corrected_req = requirement_name.replace("-", "_")
-            if corrected_req not in installed_pkgs:
+            if corrected_req.split(">")[0] not in installed_pkgs:
                 print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
                 sys.exit(ExitCodes.ERROR)
 
@@ -766,7 +766,15 @@ class ExitCodes(IntEnum):
 @core_app.route('/api', methods=["GET", "POST"])
 def api():
     if request.method == "GET":
-        return jsonify("This is the NMOS Testing API"), 200
+        example_dict = {}
+        example_dict["description"] = "An example of the body to POST to this endpoint might include:"
+        example_dict["suite"] = list(TEST_DEFINITIONS.keys())
+        example_dict["host"] = ["127.0.0.1"]
+        example_dict["port"] = [80]
+        example_dict["version"] = ["v1.2"]
+        example_dict["output"] = "json / xml"
+        example_dict["ignore"] = ["test_23"]
+        return jsonify(example_dict), 200
     if not request.is_json:
         return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
     if not request.get_json(silent=True):

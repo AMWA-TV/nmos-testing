@@ -140,6 +140,54 @@ python3 nmos-test.py -h
 python3 nmos-test.py suite -h
 ```
 
+### Using the API
+
+The testing tool comes with a minimal API for running tests remotely and configuring the testing tool instance dynamically.
+This is particularly useful for automated testing purposes. The two endpoints presented by the API are:
+- `/api` [GET, POST] - this is the primary endpoint for executing tests.
+- `/config` [GET, PATCH] - this endpoint returns the current config and allows dynamic configuration of the testing tool.
+
+#### `/api`
+_[GET, POST]_
+
+This endpoint accepts (almost) identical inputs as the interactive command line utility, except hyphens (-) are replaced with underscores (\_) for key values.
+
+- GET - Example page
+- POST - Perform a test for a remote host or list the set of test-suites / tests within a suite.
+
+For a list of test suites, the body of the POST request would be:
+
+```json
+{
+	"list_suites": true
+}
+```
+
+To execute a test for a remote API, the body of the POST request would look something like:
+
+```json
+{
+  "suite": "IS-05-01",
+  "host": ["127.0.0.1"],
+  "port": [80],
+  "version": ["v1.0"]
+}
+```
+
+#### `/config`
+_[GET, PATCH]_
+
+- GET - render the current loaded config.
+- PATCH - alter the running config.
+
+To change the testing tool from using HTTP to using HTTPS, the body of the request would be:
+
+```json
+{
+  "ENABLE_HTTPS": true
+}
+```
+
 ## External Dependencies
 
 *   Python 3
