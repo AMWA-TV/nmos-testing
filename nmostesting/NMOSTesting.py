@@ -768,11 +768,11 @@ def api():
     if request.method == "GET":
         example_dict = {}
         example_dict["description"] = "An example of the body to POST to this endpoint might include:"
-        example_dict["suite"] = list(TEST_DEFINITIONS.keys())
+        example_dict["suite"] = "IS-04-01"
         example_dict["host"] = ["127.0.0.1"]
         example_dict["port"] = [80]
         example_dict["version"] = ["v1.2"]
-        example_dict["output"] = "json / xml"
+        example_dict["output"] = "xml"
         example_dict["ignore"] = ["test_23"]
         return jsonify(example_dict), 200
     if not request.is_json:
