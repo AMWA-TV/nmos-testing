@@ -174,6 +174,8 @@ To execute a test for a remote API, the body of the POST request would look some
 }
 ```
 
+**NOTE**: Much like in non-interactive mode, the testing tool is currently limited to running a _single test suite at a time_.
+
 #### `/config`
 _[GET, PATCH]_
 
@@ -187,6 +189,13 @@ To change the testing tool from using HTTP to using HTTPS, the body of the reque
   "ENABLE_HTTPS": true
 }
 ```
+
+**NOTE**:
+- Changes to the `ENABLE_HTTPS` flag via the API will not configure the Testing Tool's Flask instances correctly for use with
+TLS. This specifically affects the IS-04 test suites. For changes to this parameter, it is advised the Config.py file is
+changed and the service restarted.
+- Changes to the `DNS_SD_MODE` parameter via the API to `unicast` will currently not work as expected. For changes to this
+parameter, it is advised the Config.py file is changed and the service restarted.
 
 ## External Dependencies
 
