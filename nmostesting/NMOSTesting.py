@@ -637,8 +637,8 @@ def validate_args(args, access_type="cli"):
             for test_description in tests:
                 msg += test_description + '\n'
         elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
-            msg = "ERROR: Test with name '{}' does not exist in test suite '{}'".format(
-                args.selection, args.suite)
+            msg = "ERROR: Test with name '{}' does not exist in test suite '{}'".format(args.selection,
+                                                                                        args.suite)
             return_type = ExitCodes.ERROR
         elif not args.host or not args.port or not args.version:
             msg = "ERROR: No Hostname(s)/IP address(es) or Port(s) or Version(s) specified"

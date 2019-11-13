@@ -543,9 +543,8 @@ class IS0502Test(GenericTest):
                         continue
 
                     bindings_length = len(resource["interface_bindings"])
-                    valid, result = self.do_request(
-                        "GET",
-                        self.connection_url + "single/" + resource_type + "/" + resource["id"] + "/active")
+                    url_path = self.connection_url + "single/" + resource_type + "/" + resource["id"] + "/active"
+                    valid, result = self.do_request("GET", url_path)
                     if not valid:
                         return test.FAIL("Connection API returned unexpected result "
                                          "for {} '{}'".format(resource_type.capitalize(), resource["id"]))
@@ -581,11 +580,8 @@ class IS0502Test(GenericTest):
                     valid, result = self.do_request("GET", resource["manifest_href"])
                     if valid and result.status_code != 404:
                         is04_transport_file = result.text
-
-                valid, result = self.do_request(
-                    "GET",
-                    self.connection_url + "single/senders/" + resource["id"] + "/transportfile"
-                )
+                url_path = self.connection_url + "single/senders/" + resource["id"] + "/transportfile"
+                valid, result = self.do_request("GET", url_path)
                 if valid and result.status_code != 404:
                     is05_transport_file = result.text
 

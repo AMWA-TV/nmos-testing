@@ -109,9 +109,8 @@ class GenericTest(object):
         for api in self.apis:
             if "spec_path" not in self.apis[api]:
                 continue
-            self.apis[api]["spec"] = Specification(
-                os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"])
-            )
+            raml_path = os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"])
+            self.apis[api]["spec"] = Specification(raml_path)
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
@@ -314,9 +313,7 @@ class GenericTest(object):
         jsonschema.validate(payload, schema, format_checker=checker)
 
     def do_request(self, method, url, **kwargs):
-        return TestHelper.do_request(
-            method=method, url=url, **kwargs
-        )
+        return TestHelper.do_request(method=method, url=url, **kwargs)
 
     def basics(self):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""

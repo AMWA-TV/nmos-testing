@@ -86,9 +86,8 @@ class IS1001Test(GenericTest):
             password = self.client_data["client_secret"]
         else:
             username = password = None
-        return self.do_request(
-            method=method, url=self.url + url_path, data=data, auth=(username, password), params=params
-        )
+        return self.do_request(method=method, url=self.url + url_path,
+                               data=data, auth=(username, password), params=params)
 
     def _post_to_authorize_endpoint(self, data, parameters, auth="user"):
         """Post to /authorize endpoint, not allowing redirects to be automatically followed"""
@@ -100,14 +99,8 @@ class IS1001Test(GenericTest):
             password = self.client_data["client_secret"]
         else:
             username = password = None
-        return requests.post(
-            url=self.url + 'authorize',
-            data=data,
-            params=parameters,
-            allow_redirects=False,
-            auth=(username, password),
-            verify=CONFIG.CERT_TRUST_ROOT_CA
-        )
+        return requests.post(url=self.url + 'authorize', data=data, params=parameters,
+                             allow_redirects=False, auth=(username, password), verify=CONFIG.CERT_TRUST_ROOT_CA)
 
     def _raise_nmos_exception(self, test, response, string=''):
         """Raise NMOS Exception with HTTP Response Information"""
@@ -132,8 +125,7 @@ class IS1001Test(GenericTest):
 
         elif isinstance(response, str):
             raise NMOSTestException(test.FAIL(
-                "Request to Auth Server failed due to: {}".format(response)
-            ))
+                "Request to Auth Server failed due to: {}".format(response)))
 
         if response.status_code != expected_status:
             self._raise_nmos_exception(test, response, "Expected status_code: {}".format(expected_status))
@@ -172,25 +164,21 @@ class IS1001Test(GenericTest):
 
         if redirect_uri != input_params["redirect_uri"]:
             raise NMOSTestException(test.FAIL(
-                "Expected {} but got {}".format(input_params["redirect_uri"], redirect_uri)
-            ))
+                "Expected {} but got {}".format(input_params["redirect_uri"], redirect_uri)))
 
         if state != input_params["state"]:
             raise NMOSTestException(test.FAIL(
-                "Expected {} but got {}".format(input_params["state"], state)
-            ))
+                "Expected {} but got {}".format(input_params["state"], state)))
 
         if query_key != "code":
             if expected_query_value is None:
                 if actual_query_value != input_params[query_key]:
                     raise NMOSTestException(test.FAIL(
-                        "Expected {} but got {}".format(input_params[query_key], actual_query_value)
-                    ))
+                        "Expected {} but got {}".format(input_params[query_key], actual_query_value)))
             else:
                 if actual_query_value != expected_query_value:
                     raise NMOSTestException(test.FAIL(
-                        "Expected {} but got {}".format(expected_query_value, actual_query_value)
-                    ))
+                        "Expected {} but got {}".format(expected_query_value, actual_query_value)))
         else:
             return actual_query_value
 
@@ -215,9 +203,8 @@ class IS1001Test(GenericTest):
                     if priority < 0:
                         return test.FAIL("Priority ('pri') TXT record must be greater than zero.")
                     elif priority >= 100:
-                        return test.WARNING("""
-                            Priority ('pri') TXT record must be less than 100 for a production instance.
-                        """)
+                        return test.WARNING(
+                            "Priority ('pri') TXT record must be less than 100 for a production instance.")
                 except Exception:
                     return test.FAIL("Priority ('pri') TXT record is not an integer.")
 
@@ -225,14 +212,11 @@ class IS1001Test(GenericTest):
                     return test.FAIL("No 'api_ver' TXT record found in {} advertisement.".format(api["name"]))
                 elif api["version"] not in properties["api_ver"].split(","):
                     return test.FAIL("Auth Server does not claim to support version under test.")
-
                 if "api_proto" not in properties:
                     return test.FAIL("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
                 elif properties["api_proto"] != "https":
-                    return test.FAIL("""
-                        API protocol ('api_proto') TXT record is {} and not 'https'
-                    """.format(properties["api_proto"]))
-
+                    return test.FAIL("API protocol ('api_proto') TXT record is {} and not 'https'".format(
+                        properties["api_proto"]))
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
                          .format(api["name"], api["ip"], api["port"]))
@@ -256,9 +240,8 @@ class IS1001Test(GenericTest):
         with open("test_data/IS1001/register_client_request_data.json") as resource_data:
             request_data = json.load(resource_data)
 
-        status, response = self._make_auth_request(
-            method="POST", url_path='register_client', data=request_data, auth="user"
-        )
+        status, response = self._make_auth_request(method="POST", url_path='register_client',
+                                                   data=request_data, auth="user")
 
         try:
             self._verify_response(test=test, expected_status=201, response=response)
@@ -323,9 +306,7 @@ class IS1001Test(GenericTest):
                     'grant_type': 'password',
                     'scope': scope
                 }
-                status, response = self._make_auth_request(
-                    "POST", 'token', data=request_data, auth="client"
-                )
+                status, response = self._make_auth_request("POST", 'token', data=request_data, auth="client")
 
                 self._verify_response(test=test, expected_status=200, response=response)
 
@@ -335,9 +316,8 @@ class IS1001Test(GenericTest):
                     self.bearer_tokens.append(response.json())
                     return test.PASS()
                 except Exception as e:
-                    return test.FAIL(
-                        "Status code was {} and Schema validation failed. {}".format(response.status_code, e)
-                    )
+                    return test.FAIL("Status code was {} and Schema validation failed. {}"
+                                     .format(response.status_code, e))
         else:
             return test.DISABLED("No Client Data available")
 
@@ -360,9 +340,7 @@ class IS1001Test(GenericTest):
                 with open("test_data/IS1001/authorization_request_data.json") as resource_data:
                     request_data = json.load(resource_data)
 
-                response = self._post_to_authorize_endpoint(
-                    data=request_data, parameters=parameters, auth="user"
-                )
+                response = self._post_to_authorize_endpoint(data=request_data, parameters=parameters, auth="user")
 
                 self._verify_response(test=test, expected_status=302, response=response)
                 auth_code = self._verify_redirect(test, response, parameters, "code")
@@ -386,9 +364,8 @@ class IS1001Test(GenericTest):
                     "client_id": self.client_data["client_id"]
                 }
 
-                status, response = self._make_auth_request(
-                    method="POST", url_path="token", data=request_data, auth="client"
-                )
+                status, response = self._make_auth_request(method="POST", url_path="token",
+                                                           data=request_data, auth="client")
 
                 self._verify_response(test=test, expected_status=200, response=response)
 
@@ -413,9 +390,7 @@ class IS1001Test(GenericTest):
                     "refresh_token": refresh_token
                 }
 
-                status, response = self._make_auth_request(
-                    "POST", url_path="token", data=request_data, auth="client"
-                )
+                status, response = self._make_auth_request("POST", url_path="token", data=request_data, auth="client")
 
                 self._verify_response(test=test, expected_status=200, response=response)
 
@@ -431,9 +406,7 @@ class IS1001Test(GenericTest):
 
     def test_07(self, test):
         """Test '/certs' endpoint for valid certificate"""
-        status, response = self.do_request(
-            method="GET", url=self.url + 'certs'
-        )
+        status, response = self.do_request(method="GET", url=self.url + 'certs')
 
         self._verify_response(test=test, expected_status=200, response=response)
 
@@ -459,9 +432,8 @@ class IS1001Test(GenericTest):
                     "token_type_hint": "access_token"
                 }
 
-                status, response = self._make_auth_request(
-                    method="POST", url_path='revoke', data=request_data, auth="client"
-                )
+                status, response = self._make_auth_request(method="POST", url_path='revoke',
+                                                           data=request_data, auth="client")
 
                 self._verify_response(test=test, expected_status=200, response=response)
 
@@ -485,9 +457,8 @@ class IS1001Test(GenericTest):
     def _verify_error_response(self, test, response, status_code, error_value):
 
         if response.status_code != status_code:
-            self._raise_nmos_exception(
-                test, response, string="Incorrect Status Code Returned. Expected {}".format(status_code)
-            )
+            self._raise_nmos_exception(test, response,
+                                       string="Incorrect Status Code Returned. Expected {}".format(status_code))
 
         ctype_valid, ctype_message = self.check_content_type(response.headers)
         if not ctype_valid:
@@ -522,46 +493,37 @@ class IS1001Test(GenericTest):
 
             response = self._post_to_authorize_endpoint(request_data, parameters)
             if response.status_code != 302:
-                return test.FAIL(
-                    "Correct Request Data didn't return 302 status code. Got {}"
-                    .format(response.status_code))
+                return test.FAIL("Correct Request Data didn't return 302 status code. Got {}"
+                                 .format(response.status_code))
 
             # Incorrect Redirect URI should result in error response
-            response = self._bad_post_to_authorize_endpoint(
-                data=request_data, params=parameters, key="redirect_uri", value="http://www.bogus.com"
-            )
+            response = self._bad_post_to_authorize_endpoint(data=request_data, params=parameters,
+                                                            key="redirect_uri", value="http://www.bogus.com")
             self._verify_error_response(test, response, 400, "invalid_request")
 
             # Incorrect Response Type should result in error response
-            response = self._bad_post_to_authorize_endpoint(
-                data=request_data, params=parameters, key="response_type", value="password"
-            )
+            response = self._bad_post_to_authorize_endpoint(data=request_data, params=parameters,
+                                                            key="response_type", value="password")
             self._verify_error_response(test, response, 400, "invalid_grant")
 
             # No Authorization Header should result in Access Denied error in redirect
-            response = self._bad_post_to_authorize_endpoint(
-                data=request_data, params=parameters, key="scope", value="is-04", auth=None
-            )
+            response = self._bad_post_to_authorize_endpoint(data=request_data, params=parameters,
+                                                            key="scope", value="is-04", auth=None)
             self._verify_redirect(test, response, parameters, "error", "access_denied")
 
             # Invalid scope should result in Bad Scope error in redirect
-            response = self._bad_post_to_authorize_endpoint(
-                data=request_data, params=parameters, key="scope", value="bad_scope"
-            )
+            response = self._bad_post_to_authorize_endpoint(data=request_data, params=parameters,
+                                                            key="scope", value="bad_scope")
             self._verify_redirect(test, response, parameters, "error", "invalid_scope")
 
             # Invalid client should result in Bad Client error in redirect
-            response = self._bad_post_to_authorize_endpoint(
-                data=request_data, params=parameters, key="client_id", value="bad_client"
-            )
+            response = self._bad_post_to_authorize_endpoint(data=request_data, params=parameters,
+                                                            key="client_id", value="bad_client")
             self._verify_redirect(test, response, parameters, "error", "invalid_client")
 
             # Lack of Resource Owner consent should result in Access Denied error in redirect
-            response = self._bad_post_to_authorize_endpoint(
-                data=None, params=parameters, key="scope", value="is-04"
-            )
+            response = self._bad_post_to_authorize_endpoint(data=None, params=parameters, key="scope", value="is-04")
             self._verify_redirect(test, response, parameters, "error", "access_denied")
-
             return test.PASS()
         else:
             return test.DISABLED("No Client Data available")
@@ -577,9 +539,8 @@ class IS1001Test(GenericTest):
                 "redirect_uri": self.client_data["redirect_uris"][0],
                 "client_id": self.client_data["client_id"]
             }
-            status, response = self._make_auth_request(
-                method="POST", url_path="token", data=request_data, auth="client"
-            )
+            status, response = self._make_auth_request(method="POST", url_path="token",
+                                                       data=request_data, auth="client")
             self._verify_error_response(test, response, 400, "invalid_request")
 
             # Use Pasword Grant flow wih incorrect credentials
@@ -590,26 +551,18 @@ class IS1001Test(GenericTest):
                 'scope': "is-04"
             }
 
-            status, response = self._bad_post_to_token_endpoint(
-                data=request_data, key="username", value="bad_username"
-            )
+            status, response = self._bad_post_to_token_endpoint(data=request_data, key="username", value="bad_username")
             self._verify_error_response(test, response, 400, "invalid_request")
 
-            status, response = self._bad_post_to_token_endpoint(
-                data=request_data, key="grant_type", value="bad_grant"
-            )
+            status, response = self._bad_post_to_token_endpoint(data=request_data, key="grant_type", value="bad_grant")
             self._verify_error_response(test, response, 400, "invalid_grant")
 
-            status, response = self._bad_post_to_token_endpoint(
-                data=request_data, key="scope", value="bad_scope"
-            )
+            status, response = self._bad_post_to_token_endpoint(data=request_data, key="scope", value="bad_scope")
             self._verify_error_response(test, response, 400, "invalid_scope")
 
-            status, response = self._bad_post_to_token_endpoint(
-                data=request_data, key="scope", value="is-04", auth=None
-            )
+            status, response = self._bad_post_to_token_endpoint(data=request_data, key="scope",
+                                                                value="is-04", auth=None)
             self._verify_error_response(test, response, 401, "invalid_client")
-
             return test.PASS()
         else:
             return test.DISABLED("No Client Data or Auth Codes available")
