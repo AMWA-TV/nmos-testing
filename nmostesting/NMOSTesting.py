@@ -625,7 +625,10 @@ def validate_args(args, access_type="cli"):
         for test_suite in sorted(TEST_DEFINITIONS):
             msg += test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"] + '\n'
     elif "suite" in vars(args):
-        if args.list_tests:
+        if args.suite not in TEST_DEFINITIONS:
+            msg = "ERROR: The requested test suite '{}' does not exist".format(args.suite)
+            return_type = ExitCodes.ERROR
+        elif args.list_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
             for test_name in tests:
                 msg += test_name + '\n'
@@ -633,28 +636,25 @@ def validate_args(args, access_type="cli"):
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
             for test_description in tests:
                 msg += test_description + '\n'
-        elif args.suite not in TEST_DEFINITIONS:
-            msg = " * ERROR: The requested test suite '{}' does not exist".format(args.suite)
-            return_type = ExitCodes.ERROR
         elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
-            msg = " * ERROR: Test with name '{}' does not exist in test definition '{}'".format(
+            msg = "ERROR: Test with name '{}' does not exist in test suite '{}'".format(
                 args.selection, args.suite)
             return_type = ExitCodes.ERROR
         elif not args.host or not args.port or not args.version:
-            msg = " * ERROR: No Host(s) or Port(s) or Version(s) specified"
+            msg = "ERROR: No Hostname(s)/IP address(es) or Port(s) or Version(s) specified"
             return_type = ExitCodes.ERROR
         elif len(args.host) != len(args.port) or len(args.host) != len(args.version):
-            msg = " * ERROR: Hostnames/IPs, ports and versions must contain the same number of elements"
+            msg = "ERROR: Hostname(s)/IP address(es), Port(s) and Version(s) must contain the same number of elements"
             return_type = ExitCodes.ERROR
         elif len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
-            msg = " * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)".format(
+            msg = "ERROR: This test suite expects {} Hostname(s)/IP address(es), Port(s) and Version(s)".format(
                 len(TEST_DEFINITIONS[args.suite]["specs"]))
             return_type = ExitCodes.ERROR
         elif args.output and not args.output.endswith("xml") and not args.output.endswith("json"):
-            msg = " * ERROR: Output file must end with '.xml' or '.json'"
+            msg = "ERROR: Output file must end with '.xml' or '.json'"
             return_type = ExitCodes.ERROR
     elif access_type == "http" and "suite" not in vars(args):
-        msg = "'suite' not found in arguments"
+        msg = "ERROR: 'suite' parameter not found in body of request"
         return_type = ExitCodes.ERROR
     return arg_return(access_type, return_type, msg)
 
@@ -665,6 +665,7 @@ def arg_return(access_type, return_type, msg=""):
             msg = msg[:-1]
         return msg, return_type
     elif msg:
+        msg = " * " + msg
         print(msg)
         if return_type == ExitCodes.OK:
             sys.exit(return_type)
@@ -775,6 +776,9 @@ def api():
         example_dict["output"] = "xml"
         example_dict["ignore"] = ["test_23"]
         return jsonify(example_dict), 200
+    elif core_app.config['TEST_ACTIVE'] is not False:
+        return jsonify("""Error: A test is currently in progress.
+                        Please wait until it has completed or restart the testing tool."""), 400
     if not request.is_json:
         return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
     if not request.get_json(silent=True):

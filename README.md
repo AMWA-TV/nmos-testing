@@ -150,7 +150,7 @@ This is particularly useful for automated testing purposes. The two endpoints pr
 #### `/api`
 _[GET, POST]_
 
-This endpoint accepts (almost) identical inputs as the interactive command line utility, except hyphens (-) are replaced with underscores (\_) for key values.
+This endpoint accepts (almost) identical inputs as the non-interactive command line utility, except hyphens (-) are replaced with underscores (\_) for key values.
 
 - GET - Example page
 - POST - Perform a test for a remote host or list the set of test-suites / tests within a suite.
@@ -159,7 +159,7 @@ For a list of test suites, the body of the POST request would be:
 
 ```json
 {
-	"list_suites": true
+  "list_suites": true
 }
 ```
 
@@ -168,7 +168,7 @@ To execute a test for a remote API, the body of the POST request would look some
 ```json
 {
   "suite": "IS-05-01",
-  "host": ["127.0.0.1"],
+  "host": ["192.168.1.2"],
   "port": [80],
   "version": ["v1.0"]
 }
