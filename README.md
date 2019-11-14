@@ -107,9 +107,16 @@ In order to ease testing of TLS with the various specifications, sample certific
 
 ### Testing IS-10 Authorization
 
-When testing IS-10 / BCP-003-02 implementations, ensure that a user is registered with the Authorization Server with a username and password that corresponds with the `AUTH_USERNAME` and `AUTH_PASSWORD` config options in the `nmostesting/Config.py` file. These values should be changed to sensible values before running the IS-10 tests.
+When testing IS-10 / BCP-003-02 implementations, ensure that a user is registered with the Authorization Server with a
+username and password that corresponds with the `AUTH_USERNAME` and `AUTH_PASSWORD` config options in the
+`nmostesting/Config.py` file. These values should be changed to sensible values before running the IS-10 tests
+and will be used as the Basic Authentication mechanism when contacting the Authorization Server.
 
-When testing the authorization code grant, the means by which consent is given by the resource owner will be implementation-specific. The contents of the file `test_data/IS1001/authorization_request_data.json` will be used as the body of the request to the authorization endpoint. Please edit this to comply with the implementation under test.
+When testing dynamic client registration, the contents of `/test_data/IS1001/register_client_request_data.json` will be used in
+the body of the request when registering the client, and should comply with [RFC7591](https://tools.ietf.org/html/rfc7591). When
+testing the authorization code grant, the means by which consent is given by the resource owner will be implementation-specific.
+The contents of the file `/test_data/IS1001/authorization_request_data.json` will be used as the body of the request to the
+authorization endpoint. **Please edit both files** to comply with the implementation under test.
 
 ### Testing of SDP files
 

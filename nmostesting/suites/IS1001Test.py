@@ -215,11 +215,13 @@ class IS1001Test(GenericTest):
                 if "api_proto" not in properties:
                     return test.FAIL("No 'api_proto' TXT record found in {} advertisement.".format(api["name"]))
                 elif properties["api_proto"] != "https":
-                    return test.FAIL("API protocol ('api_proto') TXT record is {} and not 'https'".format(
-                        properties["api_proto"]))
-                return test.PASS()
-        return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
-                         .format(api["name"], api["ip"], api["port"]))
+                    return test.FAIL("""
+                        API protocol ('api_proto') TXT record is {} and not 'https'
+                    """.format(properties["api_proto"]))
+
+                return test.WARNING("Authorization Server SHOULD NOT be advertised by mDNS based DNS-SD")
+        return test.OPTIONAL("""No matching mDNS announcement found for {} with IP/Port {}:{}.
+                                This is recommended by IS-10.""".format(api["name"], api["ip"], api["port"]))
 
     def test_01(self, test):
         """Registration API advertises correctly via mDNS"""
