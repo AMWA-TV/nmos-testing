@@ -140,6 +140,63 @@ python3 nmos-test.py -h
 python3 nmos-test.py suite -h
 ```
 
+### Using the API
+
+The testing tool comes with a minimal API for running tests remotely and configuring the testing tool instance dynamically.
+This is particularly useful for automated testing purposes. The two endpoints presented by the API are:
+- `/api` [GET, POST] - this is the primary endpoint for executing tests.
+- `/config` [GET, PATCH] - this endpoint returns the current config and allows dynamic configuration of the testing tool.
+
+#### `/api`
+_[GET, POST]_
+
+This endpoint accepts (almost) identical inputs as the non-interactive command line utility, except hyphens (-) are replaced with underscores (\_) for key values.
+
+- GET - Example page
+- POST - Perform a test for a remote host or list the set of test-suites / tests within a suite.
+
+For a list of test suites, the body of the POST request would be:
+
+```json
+{
+  "list_suites": true
+}
+```
+
+To execute a test for a remote API, the body of the POST request would look something like:
+
+```json
+{
+  "suite": "IS-05-01",
+  "host": ["192.168.1.2"],
+  "port": [80],
+  "version": ["v1.0"]
+}
+```
+
+**NOTE**: Much like in non-interactive mode, the testing tool is currently limited to running a _single test suite at a time_.
+
+#### `/config`
+_[GET, PATCH]_
+
+- GET - render the current loaded config.
+- PATCH - alter the running config.
+
+To change the testing tool from using HTTP to using HTTPS, the body of the request would be:
+
+```json
+{
+  "ENABLE_HTTPS": true
+}
+```
+
+**NOTE**:
+- Changes to the `ENABLE_HTTPS` flag via the API will not configure the Testing Tool's Flask instances correctly for use with
+TLS. This specifically affects the IS-04 test suites. For changes to this parameter, it is advised the Config.py file is
+changed and the service restarted.
+- Changes to the `DNS_SD_MODE` parameter via the API to `unicast` will currently not work as expected. For changes to this
+parameter, it is advised the Config.py file is changed and the service restarted.
+
 ## External Dependencies
 
 *   Python 3

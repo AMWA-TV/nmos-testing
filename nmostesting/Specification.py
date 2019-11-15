@@ -18,7 +18,6 @@ import ramlfications
 from .Patches import _parse_json
 from .TestHelper import load_resolved_schema
 
-
 try:
     # Patch ramlfications for Windows support
     ramlfications.loader.RAMLLoader._parse_json = _parse_json

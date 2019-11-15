@@ -23,7 +23,7 @@ import uuid
 from . import TestHelper
 from .Specification import Specification
 from .TestResult import Test
-from .Config import ENABLE_HTTPS
+from . import Config as CONFIG
 
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
@@ -66,7 +66,7 @@ class GenericTest(object):
         self.result = list()
         self.protocol = "http"
         self.ws_protocol = "ws"
-        if ENABLE_HTTPS:
+        if CONFIG.ENABLE_HTTPS:
             self.protocol = "https"
             self.ws_protocol = "wss"
 
@@ -109,8 +109,8 @@ class GenericTest(object):
         for api in self.apis:
             if "spec_path" not in self.apis[api]:
                 continue
-            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' +
-                                                                self.apis[api]["raml"]))
+            raml_path = os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"])
+            self.apis[api]["spec"] = Specification(raml_path)
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
@@ -313,9 +313,7 @@ class GenericTest(object):
         jsonschema.validate(payload, schema, format_checker=checker)
 
     def do_request(self, method, url, **kwargs):
-        return TestHelper.do_request(
-            method=method, url=url, **kwargs
-        )
+        return TestHelper.do_request(method=method, url=url, **kwargs)
 
     def basics(self):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""

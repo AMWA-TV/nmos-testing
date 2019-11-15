@@ -1086,16 +1086,16 @@ class IS0501Test(GenericTest):
                     schema_items = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
                                                         port + file_suffix)
                     schema = {
-                      "$schema": "http://json-schema.org/draft-04/schema#",
-                      "type": "array",
-                      "items": schema_items
+                        "$schema": "http://json-schema.org/draft-04/schema#",
+                        "type": "array",
+                        "items": schema_items
                     }
                 except FileNotFoundError:
                     schema = load_resolved_schema(self.apis[CONN_API_KEY]["spec_path"],
                                                   "v1.0_" + port + file_suffix)
-                constraints_valid, constraints_response = self.is05_utils.checkCleanRequestJSON("GET", "single/" +
-                                                                                                port + "s/" + myPort +
-                                                                                                "/constraints/")
+                url = "single/" + port + "s/" + myPort + "/constraints/"
+                constraints_valid, constraints_response = self.is05_utils.checkCleanRequestJSON("GET", url)
+
                 if constraints_valid:
                     count = 0
                     try:

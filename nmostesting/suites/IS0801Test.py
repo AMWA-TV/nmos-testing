@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
+import copy
+
 from ..GenericTest import GenericTest, NMOSTestException
 from ..TestHelper import compare_json
 from ..NMOSUtils import NMOSUtils, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
@@ -22,8 +25,7 @@ from .is08.outputs import getOutputList
 from .is08.active import Active
 from .is08.io import IO
 from .is08.testConfig import globalConfig
-import time
-import copy
+
 
 MAPPING_API_KEY = "channelmapping"
 

@@ -17,7 +17,7 @@ import functools
 from urllib.parse import urlparse
 from random import sample
 
-from .Config import MAX_TEST_ITERATIONS
+from . import Config as CONFIG
 
 # The UTC leap seconds table below was extracted from the information provided at
 # http://www.ietf.org/timezones/data/leap-seconds.list
@@ -56,6 +56,19 @@ UTC_LEAP = [
     (78796800, 78796810),  # 1 Jul 1972, 11 leap seconds
     (63072000, 63072009),  # 1 Jan 1972, 10 leap seconds
 ]
+
+DEFAULT_ARGS = {
+    "list_suites": False,
+    "describe_suites": False,
+    "list_tests": False,
+    "describe_tests": False,
+    "host": [],
+    "port": [],
+    "version": [],
+    "ignore": [],
+    "output": None,
+    "selection": "all"
+}
 
 IMMEDIATE_ACTIVATION = 'activate_immediate'
 SCHEDULED_ABSOLUTE_ACTIVATION = 'activate_scheduled_absolute'
@@ -147,8 +160,8 @@ class NMOSUtils(object):
         return True
 
     def sampled_list(self, resource_list):
-        if MAX_TEST_ITERATIONS > 0:
-            return sample(resource_list, min(MAX_TEST_ITERATIONS, len(resource_list)))
+        if CONFIG.MAX_TEST_ITERATIONS > 0:
+            return sample(resource_list, min(CONFIG.MAX_TEST_ITERATIONS, len(resource_list)))
         else:
             return resource_list
 
