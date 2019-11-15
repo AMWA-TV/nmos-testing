@@ -220,8 +220,7 @@ class IS1001Test(GenericTest):
                     """.format(properties["api_proto"]))
 
                 return test.WARNING("Authorization Server SHOULD NOT be advertised by mDNS based DNS-SD")
-        return test.OPTIONAL("""No matching mDNS announcement found for {} with IP/Port {}:{}.
-                                This is recommended by IS-10.""".format(api["name"], api["ip"], api["port"]))
+        return test.PASS()
 
     def test_01(self, test):
         """Registration API advertises correctly via mDNS"""
