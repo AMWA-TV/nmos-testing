@@ -1,9 +1,0 @@
-{
-  "client_name": "Example Client",
-  "client_uri": "http://www.example.com",
-  "scope": "is-04 is-05",
-  "redirect_uris": ["http://localhost:5000"],
-  "grant_types": ["password", "authorization_code", "refresh_token"],
-  "response_types": ["code", "token"],
-  "token_endpoint_auth_method": "client_secret_basic"
-}

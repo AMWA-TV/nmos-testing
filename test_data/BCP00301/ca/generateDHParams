@@ -1,4 +1,0 @@
-#!/bin/bash
-
-# Create DH parameters
-openssl dhparam -out intermediate/private/dhparam.pem 4096

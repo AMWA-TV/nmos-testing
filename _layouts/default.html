@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-   
+
 {% seo %}
     <link rel="stylesheet" href="{{ "/assets/css/style.css?v=" | append: site.github.build_revision | relative_url }}">
   </head>
@@ -17,54 +17,117 @@
         <span id="title">Networked Media Open Specifications</span>
         <a href="https://www.amwa.tv/"><img id="amwa-logo" src="{{ site.baseurl }}/assets/images/from-AMWA-80a0ff.png" target="_blank" alt="from AMWA logo"/></a>
       </div>
-        
-      <div class="header" id="myHeader">
-        <a href="{{ site.baseurl }}/">HOME</a>
-        <a href="https://amwa-tv.github.io/nmos/branches/master/NMOS_Technical_Overview.html">OVERVIEW</a>
-        <a href="{{ site.github.repository_url }}">GITHUB</a>
-        <a href="https://github.com/AMWA-TV/nmos/wiki">WIKI</a>
-        <a href="https://github.com/AMWA-TV/nmos/wiki/FAQ">FAQs</a>
-        <span class="dropdown">TOOLS...
-          <div class="dropdown-content">
-            <p><a href="https://amwa-tv.github.io/nmos-testing">API Testing Tool</a></p>
-          </div>
-        </span>
-        <span class="dropdown">IS-XX...
-          <div class="dropdown-content">
-            <p><a href="https://amwa-tv.github.io/nmos-discovery-registration">IS-04 Discovery & Registration</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-device-connection-management">IS-05 Connection Management</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-network-control">IS-06 Network Control</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-event-tally">IS-07 Event & Tally</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-audio-channel-mapping">IS-08 Audio Channel Mapping</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-system">IS-09 System</a></p>
-          </div>
-        </span>
-        <span class="dropdown">MORE...
-          <div class="dropdown-content">
-            <p><a href="https://amwa-tv.github.io/nmos">General NMOS Documentation</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-id-timing-model">MS-04 Identity & Timing Model</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-grouping">BCP-002 Grouping</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-api-security">BCP-003 API Security</a></p>
-            <p><a href="https://amwa-tv.github.io/nmos-parameter-registers">Parameter Registers</a></p>
-          </div>
-        </span>
-        <span class="dropdown">SEARCH
-          <div class="dropdown-content">
-              <script async src="https://cse.google.com/cse.js?cx=004212447740789395294:1oujtmtgsky"></script>
-              <div class="gcse-searchbox-only"></div>
-          </div>
-        </span>
-      </div>
+
+        <div class="header" id="myHeader">
+          <a href="{{ site.baseurl }}/">HOME</a>
+
+          {% case site.amwa_id %}
+
+          {% when "NMOS" %}
+            <a href="{{ site.baseurl }}/branches/master/NMOS_Technical_Overview.html">OVERVIEW</a>  
+
+          {% when "BCP-002" %}
+            <span class="dropdown">RECS...
+                <div class="dropdown-content">
+                  <p><a href="{{ site.baseurl }}/best-practice-natural-grouping.html">Natural Grouping</a></p>
+                </div>
+            </span>
+
+          {% when "BCP-003" %}
+            <span class="dropdown">RECS...
+                <div class="dropdown-content">
+                  <p><a href="{{ site.baseurl }}/best-practice-secure-comms.html">BCP-003-01 Securing Communications</a></p>
+                  <p><a href="{{ site.baseurl }}/best-practice-authorization.html">BCP-003-02 Authorization</a></p>
+                </div>
+            </span>
+
+          {% when "NMOS-PARAMETER-REGISTERS" %}
+            <span class="dropdown">REGISTERS...
+              <div class="dropdown-content">
+                <p><a href="{{ site.baseurl }}/node-service-types">Node Service Types</a></p>
+                <p><a href="{{ site.baseurl }}/device-control-types">Device Control Types</a></p>
+                <p><a href="{{ site.baseurl }}/formats">Formats</a></p>
+                <p><a href="{{ site.baseurl }}/transports">Transports</a></p>
+                <p><a href="{{ site.baseurl }}/device-types">Device Types</a></p>
+                <p><a href="{{ site.baseurl }}/tags">Tags</a></p>
+              </div>
+            </span>
+
+          {% when "MS-04" %}
+            <a href="{{ site.baseurl }}/{{ site.default_tree }}/docs/1.0._Overview.html">OVERVIEW</a>
+            <a href="{{ site.baseurl }}/{{ site.default_tree }}/docs/2.0._Identity_and_Timing_Model.html">MODEL</a>
+            <a href="{{ site.baseurl }}/{{ site.default_tree }}/docs/3.0._Practical_Guidance_for_Media.html">GUIDANCE</a>
+
+          {% else %}
+
+            {% if site.amwa_id contains "IS-" %}
+              <a href="{{ site.baseurl }}/{{ site.default_tree }}/docs">DOCS</a>
+              <span class="dropdown">SPEC...
+                <div class="dropdown-content">
+                  <p><a href="{{ site.baseurl }}/{{ site.default_tree }}/html-APIs">APIS</a></p>
+                  <p><a href="{{ site.baseurl }}/{{ site.default_tree }}/html-APIs/schemas">SCHEMAS</a></p>
+                  <p><a href="{{ site.baseurl }}/{{ site.default_tree }}/examples">EXAMPLES</a></p>
+                </div>
+              </span>
+              <span class="dropdown">VERSIONS...
+                <div class="dropdown-content">
+                  <p><a href="{{ site.baseurl }}/tags">RELEASES</a></p>
+                  <p><a href="{{ site.baseurl }}/branches">BRANCHES</a></p>
+                </div>
+              </span>
+            
+            {% else %}
+              UNKNOWN ID
+            {% endif %}
+
+          {% endcase %}
+
+          <a href="{{ site.github.repository_url }}">GITHUB</a>
+          <a href="https://github.com/AMWA-TV/nmos/wiki">WIKI</a>
+          <a href="https://github.com/AMWA-TV/nmos/wiki/FAQ">FAQs</a>
+          <span class="dropdown">TOOLS...
+            <div class="dropdown-content">
+              <p><a href="https://amwa-tv.github.io/nmos-testing">API Testing Tool</a></p>
+            </div>
+          </span>
+          <span class="dropdown">IS-XX...
+              <div class="dropdown-content">
+                  <p><a href="https://amwa-tv.github.io/nmos-discovery-registration">IS-04 Discovery & Registration</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-device-connection-management">IS-05 Connection Management</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-network-control">IS-06 Network Control</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-event-tally">IS-07 Event & Tally</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-audio-channel-mapping">IS-08 Audio Channel Mapping</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-system">IS-09 System</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-authorization">IS-10 Authorization</a></p>
+              </div>
+              </span>
+              <span class="dropdown">MORE...
+              <div class="dropdown-content">
+                  <p><a href="https://amwa-tv.github.io/nmos">General NMOS Documentation</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-id-timing-model">MS-04 Identity & Timing Model</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-grouping">BCP-002 Grouping</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-api-security">BCP-003 API Security</a></p>
+                  <p><a href="https://amwa-tv.github.io/nmos-parameter-registers">Parameter Registers</a></p>
+              </div>
+              </span>
+              <span class="dropdown">SEARCH
+              <div class="dropdown-content">
+                  <script async src="https://cse.google.com/cse.js?cx=004212447740789395294:1oujtmtgsky"></script>
+                  <div class="gcse-searchbox-only"></div>
+              </div>
+          </span>
+        </div>
   
       <div class="content">
         {{ content }}
       </div>
 
-      {% if site.github.private != true and site.github.license %}
       <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
-        This site is open source. {% github_edit_link "Improve this page" %}.
-      </div>
+          Documentation built at {{ site.time | date: '%H:%M:%S %Z on %Y-%m-%d' }}. 
+      {% if site.github.private != true and site.github.license %}
+          This site is open source. {% github_edit_link "Improve this page" %}.
       {% endif %}
+      </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
     <script>anchors.add();</script>

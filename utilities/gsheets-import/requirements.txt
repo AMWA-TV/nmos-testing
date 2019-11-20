@@ -1,2 +1,0 @@
-gspread
-oauth2client
