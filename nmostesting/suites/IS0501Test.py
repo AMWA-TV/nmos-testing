@@ -21,7 +21,7 @@ from jsonschema import ValidationError, SchemaError
 
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
-from ..TestHelper import compare_json, load_resolved_schema
+from ..TestHelper import load_resolved_schema
 
 CONN_API_KEY = "connection"
 
@@ -65,189 +65,42 @@ class IS0501Test(GenericTest):
     def test_01(self, test):
         """API root matches the spec"""
 
-        expected = ["single/", "bulk/"]
-        dest = ""
-        valid, result = self.is05_utils.checkCleanRequestJSON("GET", dest)
-        if valid:
-            msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing " \
-                  "slashes".format(dest, result)
-            if compare_json(expected, result):
-                return test.PASS()
-            else:
-                return test.FAIL(msg)
-        else:
-            return test.FAIL(result)
+        return test.NA("Replaced by 'auto' test")
 
     def test_02(self, test):
         """Single endpoint root matches the spec"""
 
-        expected = ["receivers/", "senders/"]
-        dest = "single/"
-        valid, result = self.is05_utils.checkCleanRequestJSON("GET", dest)
-        if valid:
-            msg = "Got the wrong json from {} - got {}. Please check json matches the spec, including trailing " \
-                  "slashes".format(dest, result)
-            if compare_json(expected, result):
-                return test.PASS()
-            else:
-                return test.FAIL(msg)
-        else:
-            return test.FAIL(result)
+        return test.NA("Replaced by 'auto' test")
 
     def test_03(self, test):
         """Root of /single/senders/ matches the spec"""
 
-        dest = "single/senders/"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-        smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
-        umsg = "Response from {} containts invalid UUIDs".format(dest)
-        amsg = "Expected an array from {}, got {}".format(dest, type(response))
-        if valid:
-            if isinstance(response, list):
-                if len(response) > 0:
-                    for value in response:
-                        # Check each UUID has a trailing slash as per the spec
-                        if value[-1] == "/":
-                            try:
-                                uuid.UUID(value[:-1])
-                            except ValueError:
-                                # Found something that isn't a valid UUID
-                                return test.FAIL(umsg)
-                        else:
-                            return test.FAIL(smsg)
-                    return test.PASS()
-                else:
-                    return test.UNCLEAR("Not tested. No resources found.")
-            else:
-                return test.FAIL(amsg)
-        else:
-            return test.FAIL(response)
+        return test.NA("Replaced by 'auto' test")
 
     def test_04(self, test):
         """Root of /single/receivers/ matches the spec"""
 
-        dest = "single/receivers/"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-        smsg = "UUIDs missing trailing slashes in response from {}".format(dest)
-        umsg = "Response from {} containts invalid UUIDs".format(dest)
-        amsg = "Expected an array from {}, got {}".format(dest, type(response))
-        if valid:
-            if isinstance(response, list):
-                if len(response) > 0:
-                    for value in response:
-                        # Check each UUID has a trailing slash as per the spec
-                        if value[-1] == "/":
-                            try:
-                                uuid.UUID(value[:-1])
-                            except ValueError:
-                                # Found something that isn't a valid UUID
-                                return test.FAIL(umsg)
-                        else:
-                            return test.FAIL(smsg)
-                    return test.PASS()
-                else:
-                    return test.UNCLEAR("Not tested. No resources found.")
-            else:
-                return test.FAIL(amsg)
-        else:
-            return test.FAIL(response)
+        return test.NA("Replaced by 'auto' test")
 
     def test_05(self, test):
         """Index of /single/senders/{senderId}/ matches the spec"""
 
-        if len(self.senders) > 0:
-            for sender in self.senders:
-                dest = "single/senders/" + sender + "/"
-                valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-                expected = [
-                    "constraints/",
-                    "staged/",
-                    "active/",
-                    "transportfile/"
-                ]
-                api = self.apis[CONN_API_KEY]
-                if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                    expected.append("transporttype/")
-                msg = "Sender root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
-                if valid:
-                    if compare_json(expected, response):
-                        pass
-                    else:
-                        return test.FAIL(msg)
-                else:
-                    return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        return test.NA("Replaced by 'auto' test")
 
     def test_06(self, test):
         """Index of /single/receivers/{receiverId}/ matches the spec"""
 
-        if len(self.receivers) > 0:
-            for receiver in self.receivers:
-                dest = "single/receivers/" + receiver + "/"
-                valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-                expected = [
-                    "constraints/",
-                    "staged/",
-                    "active/"
-                ]
-                api = self.apis[CONN_API_KEY]
-                if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                    expected.append("transporttype/")
-                msg = "Receiver root at {} response incorrect, expected :{}, got {}".format(dest, expected, response)
-                if valid:
-                    if compare_json(expected, response):
-                        pass
-                    else:
-                        return test.FAIL(msg)
-                else:
-                    return test.FAIL(response)
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        return test.NA("Replaced by 'auto' test")
 
     def test_07(self, test):
         """Return of /single/senders/{senderId}/constraints/ meets the schema"""
 
-        if len(self.senders) > 0:
-            warn = ""
-            for sender in self.senders:
-                dest = "single/senders/" + sender + "/constraints/"
-                schema = self.get_schema(CONN_API_KEY, "GET", "/single/senders/{senderId}/constraints", 200)
-                valid, msg = self.compare_to_schema(schema, dest)
-                if valid:
-                    if msg and not warn:
-                        warn = msg
-                else:
-                    return test.FAIL(msg)
-            if warn:
-                return test.WARNING(warn)
-            else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        return test.NA("Replaced by 'auto' test")
 
     def test_08(self, test):
         """Return of /single/receivers/{receiverId}/constraints/ meets the schema"""
 
-        if len(self.receivers) > 0:
-            warn = ""
-            for receiver in self.receivers:
-                dest = "single/receivers/" + receiver + "/constraints/"
-                schema = self.get_schema(CONN_API_KEY, "GET", "/single/receivers/{receiverId}/constraints", 200)
-                valid, msg = self.compare_to_schema(schema, dest)
-                if valid:
-                    if msg and not warn:
-                        warn = msg
-                else:
-                    return test.FAIL(msg)
-            if warn:
-                return test.WARNING(warn)
-            else:
-                return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        return test.NA("Replaced by 'auto' test")
 
     def test_09(self, test):
         """All params listed in /single/senders/{senderId}/constraints/ matches /staged/ and /active/"""
@@ -765,17 +618,7 @@ class IS0501Test(GenericTest):
     def test_33(self, test):
         """/bulk/ endpoint returns correct JSON"""
 
-        url = "bulk/"
-        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-        if valid:
-            expected = ['senders/', 'receivers/']
-            msg = "Got wrong response from {}, expected an array containing {}, got {}".format(url, expected, response)
-            if compare_json(expected, response):
-                return test.PASS()
-            else:
-                return test.FAIL(msg)
-        else:
-            return test.FAIL(response)
+        return test.NA("Replaced by 'auto' test")
 
     def test_34(self, test):
         """GET on /bulk/senders returns 405"""
