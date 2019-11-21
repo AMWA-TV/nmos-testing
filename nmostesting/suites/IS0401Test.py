@@ -1390,8 +1390,8 @@ class IS0401Test(GenericTest):
                         source_rate = source["grain_rate"]
                         if "denominator" not in source_rate:
                             source_rate["denominator"] = 1
-                        if ((source_rate["numerator"] / source_rate["denominator"]) %
-                           (flow_rate["numerator"] / flow_rate["denominator"])):
+                        if ((source_rate["numerator"] * flow_rate["denominator"]) %
+                           (flow_rate["numerator"] * source_rate["denominator"])):
                             return test.FAIL("Flow 'grain_rate' MUST be integer divisible by the Source 'grain_rate'")
                 if len(flow_response.json()) > 0:
                     return test.PASS()
