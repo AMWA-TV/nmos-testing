@@ -138,10 +138,12 @@ def post_resource(version):
     else:
         registered = True
     registry.add(request.headers, request.json, version)
+    location = "/x-nmos/registration/{}/resource/{}/{}".format(version, request.json["type"],
+                                                               request.json["data"]["id"])
     if registered:
-        return jsonify(request.json["data"]), 200
+        return jsonify(request.json["data"]), 200, {"Location": location}
     else:
-        return jsonify(request.json["data"]), 201
+        return jsonify(request.json["data"]), 201, {"Location": location}
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource/<resource_type>/<resource_id>', methods=["DELETE"])
