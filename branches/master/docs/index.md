@@ -17,4 +17,4 @@
   - [Adding New Tests](4.1._Extension_-_Adding_New_Tests.md)
   - [Testing A New Specification](4.2._Extension_-_Testing_A_New_Specification.md)
 - [Advanced Testing](5.0._Advanced_Testing.md)
-  - [IS0401](5.1._Advanced_Testing_-_IS0401.md)
+  - [IS-04-01](5.1._Advanced_Testing_-_IS-04-01.md)
