@@ -1348,6 +1348,60 @@ class IS0401Test(GenericTest):
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
                                  "https://amwa-tv.github.io/nmos-grouping/best-practice-natural-grouping.html")
 
+    def test_24(self, test):
+        """Periodic Sources specify a 'grain_rate'"""
+
+        valid, response = self.do_request("GET", self.node_url + "sources")
+        if valid and response.status_code == 200:
+            try:
+                for resource in response.json():
+                    # Currently testing where it would be particularly unusual to find a non-periodic Source
+                    if resource["format"] in ["urn:x-nmos:format:video",
+                                              "urn:x-nmos:format:audio",
+                                              "urn:x-nmos:format:mux"]:
+                        if "grain_rate" not in resource:
+                            return test.WARNING("Sources MUST specify a 'grain_rate' if they are periodic")
+                if len(response.json()) > 0:
+                    return test.PASS()
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.UNCLEAR("No Source resources were found on the Node")
+
+    def test_24_01(self, test):
+        """Periodic Flows' 'grain_rate' is divisible by their parent Source 'grain_rate'"""
+
+        source_valid, source_response = self.do_request("GET", self.node_url + "sources")
+        flow_valid, flow_response = self.do_request("GET", self.node_url + "flows")
+
+        if source_valid and flow_valid and source_response.status_code == 200 and flow_response.status_code == 200:
+            try:
+                sources = {source["id"]: source for source in source_response.json()}
+                flows = flow_response.json()
+                for flow in flows:
+                    if "grain_rate" in flow:
+                        source = sources[flow["source_id"]]
+                        if "grain_rate" not in source:
+                            return test.FAIL("Sources MUST specify a 'grain_rate' when their child Flows specify a "
+                                             "'grain_rate'")
+                        flow_rate = flow["grain_rate"]
+                        if "denominator" not in flow_rate:
+                            flow_rate["denominator"] = 1
+                        source_rate = source["grain_rate"]
+                        if "denominator" not in source_rate:
+                            source_rate["denominator"] = 1
+                        if ((source_rate["numerator"] / source_rate["denominator"]) %
+                           (flow_rate["numerator"] / flow_rate["denominator"])):
+                            return test.FAIL("Flow 'grain_rate' MUST be integer divisible by the Source 'grain_rate'")
+                if len(flow_response.json()) > 0:
+                    return test.PASS()
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError:
+                return test.FAIL("No Source found for one or more advertised Flows")
+
+        return test.UNCLEAR("No Source or Flow resources were found on the Node")
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
