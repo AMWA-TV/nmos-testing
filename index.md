@@ -45,7 +45,8 @@
 - Merges automatically constructed tests with manually defined ones
 - Launches a web interface to run tests from
 
-For more details see the [GitHub repo](https://github.com/AMWA-TV/nmos-testing)
+For more details see the [GitHub repo]({{ site.github.repository_url}})
+
 
 ---
 
@@ -66,4 +67,4 @@ For more details see the [GitHub repo](https://github.com/AMWA-TV/nmos-testing)
   - [Adding New Tests](branches/master/docs/4.1._Extension_-_Adding_New_Tests.md)
   - [Testing A New Specification](branches/master/docs/4.2._Extension_-_Testing_A_New_Specification.md)
 - [Advanced Testing](branches/master/docs/5.0._Advanced_Testing.md)
-  - [IS0401](branches/master/docs/5.1._Advanced_Testing_-_IS0401.md)
+  - [IS-04-01](branches/master/docs/5.1._Advanced_Testing_-_IS-04-01.md)

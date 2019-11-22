@@ -32,4 +32,4 @@
 - Merges automatically constructed tests with manually defined ones
 - Launches a web interface to run tests from
 
-For more details see the [GitHub repo](https://github.com/AMWA-TV/nmos-testing)
+For more details see the [GitHub repo]({{ site.github.repository_url}})
