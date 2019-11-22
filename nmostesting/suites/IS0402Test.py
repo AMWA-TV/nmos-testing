@@ -2029,6 +2029,47 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_32(self, test):
+        """Registration API generates 409 code when a conflicting registration exists"""
+
+        self.do_test_api_v1_x(test)
+        api = self.apis[REG_API_KEY]
+
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
+            return test.NA("This test only applies to API version v1.3+")
+
+        # Find the API versions supported by the Reg API
+        try:
+            valid, r = self.do_request("GET", self.reg_url.rstrip(api["version"] + "/"))
+            if not valid:
+                return test.FAIL("Registration API failed to respond to request")
+            else:
+                reg_versions = [version.rstrip("/") for version in r.json()]
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # Sort the list and remove the current version under test
+        reg_versions = self.is04_reg_utils.sort_versions(reg_versions)
+        reg_versions.remove(api["version"])
+
+        if len(reg_versions) == 0:
+            return test.NA("This test is only relevant to registries which implement multiple API versions")
+
+        node_id = str(uuid.uuid4())
+
+        # Post Node at a version other than the one under test
+        alt_reg_url = "{}/{}/".format(self.reg_url.rstrip(api["version"] + "/"), reg_versions[0])
+        alt_node = self.copy_resource("node", reg_versions[0])
+        alt_node["id"] = node_id
+        self.post_resource(test, "node", reg_url=alt_reg_url)
+
+        # Post Node at this version
+        test_node = self.copy_resource("node")
+        test_node["id"] = node_id
+        self.post_resource(test, "node", codes=[409])
+
+        return test.PASS()
+
     def load_resource_data(self):
         """Loads test data from files"""
         api = self.apis[REG_API_KEY]
