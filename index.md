@@ -36,7 +36,7 @@
 - Check conformance to specs before industry plug-fests
     - Compulsory for JT-NM TR-1001 Testing
 - Too time consuming to test everything manually
-- Helps identify where interoperbility issues lie with multiple vendors
+- Helps identify where interoperability issues lie with multiple vendors
 
 ### How does it work?
 
