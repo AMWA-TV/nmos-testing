@@ -2,7 +2,7 @@
 
 # {{ site.github.project_tagline }}
 
-[![Build Status](https://travis-ci.com/peterbrightwell/nmos-testing.svg)](https://travis-ci.com/peterbrightwell/nmos-testing)
+[![Build Status](https://travis-ci.com/peterbrightwell/nmos-testing/.svg)](https://travis-ci.com/peterbrightwell/nmos-testing/)
 
 
 
