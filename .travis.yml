@@ -1,14 +1,21 @@
-language: python
-python:
-  - 3.5
-services:
-  - docker
+if: type != push
+language: node_js
+node_js:
+  - 8
 install:
-  - pip install flake8
+  - "make distclean"
+  - "make build-tools"
 script:
-  - flake8 .
+  - "make clean"
+  - "make"
 deploy:
-  provider: script
-  script: bash utilities/deploy/docker_hub
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  keep_history: true
   on:
-    branch: master
+    branch: gh-pages
+branches:
+  only:
+    - gh-pages
+    - /.*/
