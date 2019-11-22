@@ -680,7 +680,6 @@ class IS0502Test(GenericTest):
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
                                                      "type {} and Sender {}".format(flow["media_type"], resource["id"]))
-                                # TODO: Test DID/SDID against Source
                         elif source["format"] == "urn:x-nmos:format:mux":
                             if flow["media_type"] == "video/SMPTE2022-6":
                                 rtpmap = re.search(r"^a=rtpmap:\d+ SMPTE2022-6/27000000$", sdp_line)
@@ -689,12 +688,42 @@ class IS0502Test(GenericTest):
                                                      "type {} and Sender {}".format(flow["media_type"], resource["id"]))
 
                     fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
-                    if fmtp and flow["media_type"] == "video/raw":
+                    if fmtp and source["format"] == "urn:x-nmos:format:video":
                         for param in fmtp.group(1).split(";"):
                             param_components = param.strip().split("=")
                             if param_components[0] == "sampling":
-                                # TODO: This governs some testing of Flow components
-                                pass
+                                sampling_format = param_components[1].split("-")
+                                components = sampling_format[0]
+                                if components in ["YCbCr", "ICtCp", "RGB"]:
+                                    if len(flow["components"]) != 3:
+                                        return test.FAIL("Video Flow {} components do not match those found in SDP for "
+                                                         "Sender {}", flow["id"], resource["id"])
+                                    if len(sampling_format) > 1:
+                                        sampling = sampling_format[1]
+                                    else:
+                                        sampling = None
+                                    # Assume these are listed in order!
+                                    for index, component in enumerate(flow["components"]):
+                                        if component["name"] not in components:
+                                            return test.FAIL("Video Flow component {} does not match the SDP sampling "
+                                                             "for Sender {}".format(component["name"], resource["id"]))
+                                        sampling_error = False
+                                        if sampling == "4:4:4" or (sampling is not None and index == 0):
+                                            if component["width"] != flow["frame_width"] or \
+                                                    component["height"] != flow["frame_height"]:
+                                                sampling_error = True
+                                        elif sampling == "4:2:2":
+                                            if component["width"] != (flow["frame_width"] / 2) or \
+                                                    component["height"] != flow["frame_height"]:
+                                                sampling_error = True
+                                        elif sampling == "4:2:0":
+                                            if component["width"] != (flow["frame_width"] / 2) or \
+                                                    component["height"] != (flow["frame_height"] / 2):
+                                                sampling_error = True
+                                        if sampling_error:
+                                            return test.FAIL("Video Flow {} components do not match the expected "
+                                                             "dimensions for Sender sampling {}"
+                                                             .format(flow["id"], sampling))
                             elif param_components[0] == "width":
                                 if flow["frame_width"] != int(param_components[1]):
                                     return test.FAIL("Width for Sender {} does not match its Flow {}"
@@ -747,6 +776,22 @@ class IS0502Test(GenericTest):
                                 elif "transfer_characteristic" in flow and \
                                         flow["transfer_characteristic"] != param_components[1]:
                                     return test.FAIL("TCS parameter for Sender {} does not match its Flow {}"
+                                                     .format(resource["id"], flow["id"]))
+                    elif fmtp and flow["media_type"] == "video/smpte291":
+                        for param in fmtp.group(1).split(";"):
+                            param_components = param.strip().split("=")
+                            if param_components[0] == "DID_SDID":
+                                did, sdid = param_components[1].strip("{").rstrip("}").split(",")
+                                if "DID_SDID" not in flow:
+                                    return test.FAIL("No DID_SDID found for Flow {} associated with Sender {}"
+                                                     .format(flow["id"], resource["id"]))
+                                found_match = False
+                                for did_sdid in flow["DID_SDID"]:
+                                    if did_sdid["DID"] == did and did_sdid["SDID"] == sdid:
+                                        found_match = True
+
+                                if not found_match:
+                                    return test.FAIL("DID/SDID parameters for Sender {} do not match the Flow {}"
                                                      .format(resource["id"], flow["id"]))
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
