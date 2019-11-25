@@ -758,14 +758,12 @@ class IS0502Test(GenericTest):
                                     return test.FAIL("No grain_rate found for Source {} associated with Sender {}"
                                                      .format(source["id"], resource["id"]))
                                 if "grain_rate" in flow:
-                                    flow_rate = "{}/{}".format(flow["grain_rate"]["numerator"],
-                                                               flow["grain_rate"].get("denominator", 1))
+                                    flow_rate = self.exactframerate(flow["grain_rate"])
                                     if param_components[1] != flow_rate:
                                         return test.FAIL("Exactframerate for Sender {} does not match its Flow {}"
                                                          .format(resource["id"], flow["id"]))
                                 else:
-                                    source_rate = "{}/{}".format(source["grain_rate"]["numerator"],
-                                                                 source["grain_rate"].get("denominator", 1))
+                                    source_rate = self.exactframerate(source["grain_rate"])
                                     if param_components[1] != source_rate:
                                         return test.FAIL("Exactframerate for Sender {} does not match its Source {} "
                                                          "and is not overridden by the Flow"
@@ -797,3 +795,11 @@ class IS0502Test(GenericTest):
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
         return test.PASS()
+
+    def exactframerate(self, grain_rate):
+        """Format an NMOS grain rate like the SDP video format-specific parameter 'exactframerate'"""
+        d = grain_rate.get("denominator", 1)
+        if d == 1:
+            return "{}".format(grain_rate.get("numerator"))
+        else:
+            return "{}/{}".format(grain_rate.get("numerator"), d)
