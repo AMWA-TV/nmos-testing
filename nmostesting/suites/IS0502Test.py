@@ -655,13 +655,13 @@ class IS0502Test(GenericTest):
                                                  "type {} and Sender {}".format(flow["media_type"], resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:audio":
                             if re.search(r"^audio\/L\d+$", flow["media_type"]):
-                                rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)\/(\d+)$", sdp_line)
+                                rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)(?:\/(\d+))?$", sdp_line)
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap does not match pattern expected by Flow media type {} "
                                                      "for Sender {}".format(flow["media_type"], resource["id"]))
                                 bit_depth = int(rtpmap.group(1))
                                 sample_rate = int(rtpmap.group(2))
-                                channels = int(rtpmap.group(3))
+                                channels = int(rtpmap.group(3)) if rtpmap.group(3) is not None else 1
                                 if len(source["channels"]) != channels:
                                     return test.FAIL("Number of channels for Sender {} does not match its Source {}"
                                                      .format(resource["id"], source["id"]))
