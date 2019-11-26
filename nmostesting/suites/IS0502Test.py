@@ -691,7 +691,7 @@ class IS0502Test(GenericTest):
                     if fmtp and source["format"] == "urn:x-nmos:format:video":
                         for param in fmtp.group(1).split(";"):
                             param_components = param.strip().split("=")
-                            if param_components[0] == "sampling":
+                            if param_components[0] == "sampling":  # ref: RFC4175 and ST.2110-20
                                 sampling_format = param_components[1].split("-")
                                 components = sampling_format[0]
                                 if components in ["YCbCr", "ICtCp", "RGB"]:
@@ -724,36 +724,59 @@ class IS0502Test(GenericTest):
                                             return test.FAIL("Video Flow {} components do not match the expected "
                                                              "dimensions for Sender sampling {}"
                                                              .format(flow["id"], sampling))
-                            elif param_components[0] == "width":
+                                        if index == 0 and component["name"] not in ["Y", "I", "R"]:
+                                            return test.FAIL("First video Flow component is not one of 'Y', 'I' or "
+                                                             "'R' for Sender {}".format(resource["id"]))
+                                        elif index == 1 and component["name"] not in ["Cb", "Ct", "G"]:
+                                            return test.FAIL("First video Flow component is not one of 'Cb', 'Ct' or "
+                                                             "'G' for Sender {}".format(resource["id"]))
+                                        elif index == 2 and component["name"] not in ["Cr", "Cp", "B"]:
+                                            return test.FAIL("First video Flow component is not one of 'Cr', 'Cp' or "
+                                                             "'B' for Sender {}".format(resource["id"]))
+                            elif param_components[0] == "width":  # ref: RFC4175
                                 if flow["frame_width"] != int(param_components[1]):
                                     return test.FAIL("Width for Sender {} does not match its Flow {}"
                                                      .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "height":
+                            elif param_components[0] == "height":  # ref: RFC4175
                                 if flow["frame_height"] != int(param_components[1]):
                                     return test.FAIL("Height for Sender {} does not match its Flow {}"
                                                      .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "depth":
+                            elif param_components[0] == "depth":  # ref: RFC4175
                                 for component in flow["components"]:
                                     if component["bit_depth"] != int(param_components[1]):
                                         return test.FAIL("Bit depth for Sender {} does not match its Flow {}"
                                                          .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "colorimetry":
-                                if flow["colorspace"] != param_components[1].split("-")[0].replace(".", ""):
+                            elif param_components[0] == "colorimetry":  # ref: RFC4175 and ST.2110-20
+                                if param_components[1].startswith("BT"):
+                                    # RFC4175 uses 'BT709-2', but ST.2110-20 uses 'BT709'
+                                    colorimetry_match = param_components[1].split("-")[0]
+                                else:
+                                    colorimetry_match = param_components[1]
+                                if flow["colorspace"] != colorimetry_match:
                                     return test.FAIL("Colorimetry for Sender {} does not match its Flow {}"
                                                      .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "interlace":
+                            elif param_components[0] == "interlace":  # ref: RFC4175
                                 if "interlace_mode" not in flow or flow["interlace_mode"] == "progressive":
                                     return test.FAIL("Interlace parameter for Sender {} does not match its Flow {}"
                                                      .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "top-field-first":
+                                elif len(param_components) > 1:
+                                    return test.FAIL("Interlace parameter for Sender {} incorrectly includes an '='"
+                                                     .format(resource["id"]))
+                            elif param_components[0] == "top-field-first":  # ref: RFC4175
                                 if "interlace_mode" not in flow or flow["interlace_mode"] != "interlaced_tff":
                                     return test.FAIL("Top-field-first parameter for Sender {} does not match its Flow "
                                                      "{}".format(resource["id"], flow["id"]))
-                            elif param_components[0] == "segmented":
+                                elif len(param_components) > 1:
+                                    return test.FAIL("Top-field-first parameter for Sender {} incorrectly includes an "
+                                                     "'='".format(resource["id"]))
+                            elif param_components[0] == "segmented":  # ref: ST.2110-20
                                 if "interlace_mode" not in flow or flow["interlace_mode"] != "interlaced_psf":
                                     return test.FAIL("Segmented parameter for Sender {} does not match its Flow {}"
                                                      .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "exactframerate":
+                                elif len(param_components) > 1:
+                                    return test.FAIL("Segmented parameter for Sender {} incorrectly includes an '='"
+                                                     .format(resource["id"]))
+                            elif param_components[0] == "exactframerate":  # ref: ST.2110-20
                                 if "grain_rate" not in source:
                                     return test.FAIL("No grain_rate found for Source {} associated with Sender {}"
                                                      .format(source["id"], resource["id"]))
@@ -768,7 +791,7 @@ class IS0502Test(GenericTest):
                                         return test.FAIL("Exactframerate for Sender {} does not match its Source {} "
                                                          "and is not overridden by the Flow"
                                                          .format(resource["id"], source["id"]))
-                            elif param_components[0] == "TCS":
+                            elif param_components[0] == "TCS":  # ref: ST.2110-20
                                 if "transfer_characteristic" not in flow and param_components[1] != "SDR":
                                     return test.FAIL("Transfer characteristic is missing from Flow attributes")
                                 elif "transfer_characteristic" in flow and \
@@ -778,14 +801,15 @@ class IS0502Test(GenericTest):
                     elif fmtp and flow["media_type"] == "video/smpte291":
                         for param in fmtp.group(1).split(";"):
                             param_components = param.strip().split("=")
-                            if param_components[0] == "DID_SDID":
+                            if param_components[0] == "DID_SDID":  # ref: RFC8331
                                 did, sdid = param_components[1].strip("{").rstrip("}").split(",")
                                 if "DID_SDID" not in flow:
                                     return test.FAIL("No DID_SDID found for Flow {} associated with Sender {}"
                                                      .format(flow["id"], resource["id"]))
                                 found_match = False
                                 for did_sdid in flow["DID_SDID"]:
-                                    if did_sdid["DID"] == did and did_sdid["SDID"] == sdid:
+                                    if int(did_sdid["DID"], 16) == int(did, 16) and \
+                                            int(did_sdid["SDID"], 16) == int(sdid, 16):
                                         found_match = True
 
                                 if not found_match:
