@@ -625,7 +625,7 @@ class IS0502Test(GenericTest):
                 if valid and result.status_code != 404:
                     is05_transport_file = result.text
                 else:
-                    return test.FAIL("Unable to download transport_file for Sender ID {}".format(resource["id"]))
+                    return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
 
                 payload_type = None
                 for sdp_line in is05_transport_file.split("\n"):
@@ -657,7 +657,7 @@ class IS0502Test(GenericTest):
                             if re.search(r"^audio\/L\d+$", flow["media_type"]):
                                 rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)(?:\/(\d+))?$", sdp_line)
                                 if not rtpmap:
-                                    return test.FAIL("a=rtpmap does not match pattern expected by Flow media type {} "
+                                    return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
                                                      "for Sender {}".format(flow["media_type"], resource["id"]))
                                 bit_depth = int(rtpmap.group(1))
                                 sample_rate = int(rtpmap.group(2))
@@ -702,8 +702,7 @@ class IS0502Test(GenericTest):
                                         sampling = sampling_format[1]
                                     else:
                                         sampling = None
-                                    # Assume these are listed in order!
-                                    for index, component in enumerate(flow["components"]):
+                                    for component in flow["components"]:
                                         if component["name"] not in components:
                                             return test.FAIL("Video Flow component {} does not match the SDP sampling "
                                                              "for Sender {}".format(component["name"], resource["id"]))
