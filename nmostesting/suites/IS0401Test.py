@@ -317,7 +317,7 @@ class IS0401Test(GenericTest):
         return test.PASS()
 
     def test_03(self, test):
-        """Registration API interactions use the correct Content-Type"""
+        """Registration API interactions use the correct headers"""
 
         if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
@@ -335,6 +335,11 @@ class IS0401Test(GenericTest):
                 return test.FAIL(ctype_message)
             elif ctype_message and not ctype_warn:
                 ctype_warn = ctype_message
+
+            accept_valid, accept_message = self.check_accept(resource[1]["headers"])
+            if not accept_valid:
+                return test.FAIL(accept_message)
+
             if "Transfer-Encoding" not in resource[1]["headers"]:
                 if "Content-Length" not in resource[1]["headers"]:
                     return test.FAIL("One or more Node POSTs did not include Content-Length")
@@ -568,11 +573,13 @@ class IS0401Test(GenericTest):
                                     "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
+
             if "Content-Type" in heartbeat[1]["headers"]:
                 return test.WARNING("Heartbeat POST contained a Content-Type header.",
                                     "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
+
             if "Transfer-Encoding" not in heartbeat[1]["headers"]:
                 if "Content-Length" not in heartbeat[1]["headers"] or \
                         int(heartbeat[1]["headers"]["Content-Length"]) != 0:
@@ -585,6 +592,10 @@ class IS0401Test(GenericTest):
             else:
                 if "Content-Length" in heartbeat[1]["headers"]:
                     return test.FAIL("API signalled both Transfer-Encoding and Content-Length")
+
+            accept_valid, accept_message = self.check_accept(heartbeat[1]["headers"])
+            if not accept_valid:
+                return test.FAIL(accept_message)
 
             last_hb = heartbeat
 
