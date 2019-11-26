@@ -247,6 +247,43 @@ class GenericTest(object):
                               .format(ctype)
         return True, ""
 
+    def check_accept(self, headers):
+        """Check the Accept header of an API request"""
+        if "Accept" in headers:
+            accept_params = headers["Accept"].split(",")
+            max_weight = 0
+            max_weight_types = []
+            for param in accept_params:
+                param_parts = param.split(";")
+                media_type = param_parts[0].strip()
+                weight = 1
+                for ext_param in param_parts[1:]:
+                    if ext_param.strip().startswith("q="):
+                        try:
+                            weight = float(ext_param.split("=")[1].strip())
+                            break
+                        except Exception:
+                            pass
+                if weight > max_weight:
+                    max_weight = weight
+                    max_weight_types.clear()
+                if weight == max_weight:
+                    max_weight_types.append(media_type)
+            if "application/json" not in max_weight_types and "*/*" not in max_weight_types:
+                return False, "API did not signal a preference for application/json via its Accept header."
+            try:
+                max_weight_types.remove("application/json")
+            except ValueError:
+                pass
+            try:
+                max_weight_types.remove("*/*")
+            except ValueError:
+                pass
+            if len(max_weight_types) > 0:
+                return False, "API signalled multiple media types with the same preference as application/json in " \
+                              "its Accept header: {}".format(max_weight_types)
+        return True, ""
+
     def auto_test_name(self, api_name):
         """Get the name which should be used for an automatically defined test"""
         self.auto_test_count += 1
