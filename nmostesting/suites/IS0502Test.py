@@ -708,7 +708,7 @@ class IS0502Test(GenericTest):
                                             return test.FAIL("Video Flow component {} does not match the SDP sampling "
                                                              "for Sender {}".format(component["name"], resource["id"]))
                                         sampling_error = False
-                                        if sampling == "4:4:4" or (sampling is not None and index == 0):
+                                        if sampling == "4:4:4" or sampling is None or component["name"] in ["Y", "I"]:
                                             if component["width"] != flow["frame_width"] or \
                                                     component["height"] != flow["frame_height"]:
                                                 sampling_error = True
@@ -724,15 +724,6 @@ class IS0502Test(GenericTest):
                                             return test.FAIL("Video Flow {} components do not match the expected "
                                                              "dimensions for Sender sampling {}"
                                                              .format(flow["id"], sampling))
-                                        if index == 0 and component["name"] not in ["Y", "I", "R"]:
-                                            return test.FAIL("First video Flow component is not one of 'Y', 'I' or "
-                                                             "'R' for Sender {}".format(resource["id"]))
-                                        elif index == 1 and component["name"] not in ["Cb", "Ct", "G"]:
-                                            return test.FAIL("First video Flow component is not one of 'Cb', 'Ct' or "
-                                                             "'G' for Sender {}".format(resource["id"]))
-                                        elif index == 2 and component["name"] not in ["Cr", "Cp", "B"]:
-                                            return test.FAIL("First video Flow component is not one of 'Cr', 'Cp' or "
-                                                             "'B' for Sender {}".format(resource["id"]))
                             elif param_components[0] == "width":  # ref: RFC4175
                                 if flow["frame_width"] != int(param_components[1]):
                                     return test.FAIL("Width for Sender {} does not match its Flow {}"
