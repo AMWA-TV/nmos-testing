@@ -2061,12 +2061,12 @@ class IS0402Test(GenericTest):
         alt_reg_url = "{}/{}/".format(self.reg_url.rstrip(api["version"] + "/"), reg_versions[0])
         alt_node = self.copy_resource("node", reg_versions[0])
         alt_node["id"] = node_id
-        self.post_resource(test, "node", reg_url=alt_reg_url)
+        self.post_resource(test, "node", alt_node, reg_url=alt_reg_url)
 
         # Post Node at this version
         test_node = self.copy_resource("node")
         test_node["id"] = node_id
-        self.post_resource(test, "node", codes=[409])
+        self.post_resource(test, "node", test_node, codes=[409])
 
         return test.PASS()
 
