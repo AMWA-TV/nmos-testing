@@ -633,7 +633,8 @@ class IS0502Test(GenericTest):
 
                 payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
-                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file")
+                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                     .format(resource["id"]))
 
                 for sdp_line in is05_transport_file.split("\n"):
                     sdp_line = sdp_line.replace("\r", "")
@@ -723,7 +724,8 @@ class IS0502Test(GenericTest):
 
                 payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
-                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file")
+                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                     .format(resource["id"]))
 
                 for sdp_line in is05_transport_file.split("\n"):
                     sdp_line = sdp_line.replace("\r", "")
@@ -847,6 +849,92 @@ class IS0502Test(GenericTest):
                                                      .format(resource["id"], flow["id"]))
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+
+        return test.PASS()
+
+    def test_16(self, test):
+        """IS-05 transportfile optional fmtp parameters match IS-04 Source and Flow"""
+
+        for resource_type in ["senders", "flows", "sources"]:
+            valid, result = self.get_is04_resources(resource_type)
+            if not valid:
+                return test.FAIL(result)
+
+        valid, result = self.get_is05_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is04_resources["senders"]) == 0:
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+
+        flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
+
+        for resource in self.is04_resources["senders"]:
+            if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
+                continue
+            if resource["flow_id"] is None:
+                continue
+
+            flow = flow_map[resource["flow_id"]]
+
+            is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+            if is05_transport_file is None:
+                return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+
+            payload_type = self.rtp_ptype(is05_transport_file)
+            if not payload_type:
+                return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                 .format(resource["id"]))
+
+            sdp_interlace = False
+            sdp_top_field_first = False
+            sdp_segmented = False
+            sdp_tcs = False
+            sdp_did_sdid = False
+
+            for sdp_line in is05_transport_file.split("\n"):
+                sdp_line = sdp_line.replace("\r", "")
+                fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
+                if fmtp and flow["format"] == "urn:x-nmos:format:video":
+                    for param in fmtp.group(1).split(";"):
+                        param_components = param.strip().split("=")
+                        if param_components[0] == "interlace":  # ref: RFC4175
+                            sdp_interlace = True
+                        elif param_components[0] == "top-field-first":  # ref: RFC4175
+                            sdp_top_field_first = True
+                        elif param_components[0] == "segmented":  # ref: ST.2110-20
+                            sdp_segmented = True
+                        elif param_components[0] == "TCS":  # ref: ST.2110-20
+                            sdp_tcs = True
+                elif fmtp and flow["media_type"] == "video/smpte291":
+                    for param in fmtp.group(1).split(";"):
+                        param_components = param.strip().split("=")
+                        if param_components[0] == "DID_SDID":  # ref: RFC8331
+                            sdp_did_sdid = True
+
+            if "DID_SDID" in flow and not sdp_did_sdid:
+                return test.FAIL("Flow for Sender {} indicates DID_SDID parameter but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "interlace_mode" in flow and flow["interlace_mode"] != "progressive" and not sdp_interlace:
+                return test.FAIL("Flow for Sender {} indicates video is interlaced, but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_tff" and not sdp_top_field_first:
+                return test.FAIL("Flow for Sender {} indicates video is top-field-first, but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_psf" and not sdp_segmented:
+                return test.FAIL("Flow for Sender {} indicates video is segmented, but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "transfer_characteristic" in flow and flow["transfer_characteristic"] != "SDR" and not sdp_tcs:
+                return test.FAIL("Flow for Sender {} indicates video's transfer characteristic, but this is missing "
+                                 "from its SDP file".format(resource["id"]))
+
+            # Technically the following are just SDP validation, so could move to sdpoker
+            if (sdp_top_field_first or sdp_segmented) and not sdp_interlace:
+                return test.FAIL("SDP file for Sender {} indicates top-field-first or segmented, but doesn't indicate "
+                                 "interlace".format(resource["id"]))
+            if sdp_top_field_first and sdp_segmented:
+                return test.FAIL("SDP file for Sender {} indicates top-field-first and segmented at the same time"
+                                 .format(resource["id"]))
 
         return test.PASS()
 
