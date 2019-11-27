@@ -37,7 +37,8 @@ class IS0502Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
-        self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {}}
+        self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {},
+                               "transport_files": {}}
         self.is04_resources = {"senders": [], "receivers": [], "_requested": [], "sources": [], "flows": []}
         self.is05_utils = IS05Utils(self.connection_url)
 
@@ -91,6 +92,9 @@ class IS0502Test(GenericTest):
                     self.is05_resources["transport_types"][resource_id] = transport_type
                 else:
                     self.is05_resources["transport_types"][resource_id] = "urn:x-nmos:transport:rtp"
+                if resource_type == "senders":
+                    transport_file = self.is05_utils.get_transportfile(resource_id)
+                    self.is05_resources["transport_files"][resource_id] = transport_file
             self.is05_resources["_requested"].append(resource_type)
         except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
@@ -603,6 +607,10 @@ class IS0502Test(GenericTest):
             if not valid:
                 return test.FAIL(result)
 
+        valid, result = self.get_is05_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
         if len(self.is04_resources["senders"]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Senders to test")
 
@@ -619,12 +627,8 @@ class IS0502Test(GenericTest):
                 flow = flow_map[resource["flow_id"]]
                 source = source_map[flow["source_id"]]
 
-                is05_transport_file = None
-                url_path = self.connection_url + "single/senders/" + resource["id"] + "/transportfile"
-                valid, result = self.do_request("GET", url_path)
-                if valid and result.status_code != 404:
-                    is05_transport_file = result.text
-                else:
+                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                if is05_transport_file is None:
                     return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
 
                 payload_type = None
