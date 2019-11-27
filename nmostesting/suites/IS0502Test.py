@@ -653,8 +653,8 @@ class IS0502Test(GenericTest):
                                 return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
                                                  "type {} and Sender {}".format(flow["media_type"], resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:audio":
+                            rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)(?:\/(\d+))?$", sdp_line)
                             if re.search(r"^audio\/L\d+$", flow["media_type"]):
-                                rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)(?:\/(\d+))?$", sdp_line)
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
                                                      "for Sender {}".format(flow["media_type"], resource["id"]))
@@ -673,18 +673,25 @@ class IS0502Test(GenericTest):
                                 if flow["media_type"] != "audio/L{}".format(bit_depth):
                                     return test.FAIL("Mismatch between bit depth and media_type for Flow {}"
                                                      .format(flow["id"]))
+                            elif rtpmap:
+                                return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
+                                                 .format(resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:data":
-                            if flow["media_type"] == "video/smpte291":
-                                rtpmap = re.search(r"^a=rtpmap:\d+ smpte291/90000$", sdp_line)
-                                if not rtpmap:
-                                    return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
-                                                     "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            rtpmap = re.search(r"^a=rtpmap:\d+ smpte291/90000$", sdp_line)
+                            if flow["media_type"] == "video/smpte291" and not rtpmap:
+                                return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
+                                                 "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            elif rtpmap:
+                                return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
+                                                 .format(resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:mux":
-                            if flow["media_type"] == "video/SMPTE2022-6":
-                                rtpmap = re.search(r"^a=rtpmap:\d+ SMPTE2022-6/27000000$", sdp_line)
-                                if not rtpmap:
-                                    return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
-                                                     "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            rtpmap = re.search(r"^a=rtpmap:\d+ SMPTE2022-6/27000000$", sdp_line)
+                            if flow["media_type"] == "video/SMPTE2022-6" and not rtpmap:
+                                return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
+                                                 "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            elif rtpmap:
+                                return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
+                                                 .format(resource["id"]))
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
