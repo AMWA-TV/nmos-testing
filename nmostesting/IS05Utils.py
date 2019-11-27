@@ -643,6 +643,9 @@ class IS05Utils(NMOSUtils):
                     if filter_line and filter_line.group(2) != transport_params["source_ip"]:
                         return False, "SDP source-filter IP {} does not match transport_params: {}" \
                                       .format(filter_line.group(2), transport_params["source_ip"])
+                    elif filter_line and filter_line.group(1) != transport_params["destination_ip"]:
+                        return False, "SDP source-filter multicast IP {} does not match transport_params {}" \
+                                      .format(filter_line.group(1), transport_params["destination_ip"])
             else:
                 return False, sdp_response
         else:
