@@ -600,7 +600,7 @@ class IS0502Test(GenericTest):
         return test.PASS()
 
     def test_14(self, test):
-        """IS-05 transportfile media parameters match IS-04 Source and Flow"""
+        """IS-05 transportfile rtpmap parameters match IS-04 Source and Flow"""
 
         for resource_type in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -631,13 +631,7 @@ class IS0502Test(GenericTest):
                 if is05_transport_file is None:
                     return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
 
-                payload_type = None
-                for sdp_line in is05_transport_file.split("\n"):
-                    sdp_line = sdp_line.replace("\r", "")
-                    try:
-                        payload_type = int(re.search(r"^a=rtpmap:(\d+) ", sdp_line).group(1))
-                    except Exception:
-                        pass
+                payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
                     return test.FAIL("Unable to locate payload type from rtpmap in SDP file")
 
@@ -690,7 +684,49 @@ class IS0502Test(GenericTest):
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
                                                      "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
+        return test.PASS()
+
+    def test_15(self, test):
+        """IS-05 transportfile fmtp parameters match IS-04 Source and Flow"""
+
+        for resource_type in ["senders", "flows", "sources"]:
+            valid, result = self.get_is04_resources(resource_type)
+            if not valid:
+                return test.FAIL(result)
+
+        valid, result = self.get_is05_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is04_resources["senders"]) == 0:
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+
+        flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
+        source_map = {source["id"]: source for source in self.is04_resources["sources"]}
+
+        try:
+            for resource in self.is04_resources["senders"]:
+                if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+                if resource["flow_id"] is None:
+                    continue
+
+                flow = flow_map[resource["flow_id"]]
+                source = source_map[flow["source_id"]]
+
+                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                if is05_transport_file is None:
+                    return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+
+                payload_type = self.rtp_ptype(is05_transport_file)
+                if not payload_type:
+                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file")
+
+                for sdp_line in is05_transport_file.split("\n"):
+                    sdp_line = sdp_line.replace("\r", "")
                     fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
                     if fmtp and source["format"] == "urn:x-nmos:format:video":
                         for param in fmtp.group(1).split(";"):
@@ -821,3 +857,14 @@ class IS0502Test(GenericTest):
             return "{}".format(grain_rate.get("numerator"))
         else:
             return "{}/{}".format(grain_rate.get("numerator"), d)
+
+    def rtp_ptype(self, sdp_file):
+        """Extract the payload type from an SDP file string"""
+        payload_type = None
+        for sdp_line in sdp_file.split("\n"):
+            sdp_line = sdp_line.replace("\r", "")
+            try:
+                payload_type = int(re.search(r"^a=rtpmap:(\d+) ", sdp_line).group(1))
+            except Exception:
+                pass
+        return payload_type
