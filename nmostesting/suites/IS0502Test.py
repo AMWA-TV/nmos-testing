@@ -37,7 +37,8 @@ class IS0502Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
-        self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {}}
+        self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {},
+                               "transport_files": {}}
         self.is04_resources = {"senders": [], "receivers": [], "_requested": [], "sources": [], "flows": []}
         self.is05_utils = IS05Utils(self.connection_url)
 
@@ -91,6 +92,9 @@ class IS0502Test(GenericTest):
                     self.is05_resources["transport_types"][resource_id] = transport_type
                 else:
                     self.is05_resources["transport_types"][resource_id] = "urn:x-nmos:transport:rtp"
+                if resource_type == "senders":
+                    transport_file = self.is05_utils.get_transportfile(resource_id)
+                    self.is05_resources["transport_files"][resource_id] = transport_file
             self.is05_resources["_requested"].append(resource_type)
         except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"
@@ -596,12 +600,16 @@ class IS0502Test(GenericTest):
         return test.PASS()
 
     def test_14(self, test):
-        """IS-05 transportfile media parameters match IS-04 Source and Flow"""
+        """IS-05 transportfile rtpmap parameters match IS-04 Source and Flow"""
 
         for resource_type in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
             if not valid:
                 return test.FAIL(result)
+
+        valid, result = self.get_is05_resources("senders")
+        if not valid:
+            return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
             return test.UNCLEAR("Could not find any IS-05 Senders to test")
@@ -619,23 +627,14 @@ class IS0502Test(GenericTest):
                 flow = flow_map[resource["flow_id"]]
                 source = source_map[flow["source_id"]]
 
-                is05_transport_file = None
-                url_path = self.connection_url + "single/senders/" + resource["id"] + "/transportfile"
-                valid, result = self.do_request("GET", url_path)
-                if valid and result.status_code != 404:
-                    is05_transport_file = result.text
-                else:
+                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                if is05_transport_file is None:
                     return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
 
-                payload_type = None
-                for sdp_line in is05_transport_file.split("\n"):
-                    sdp_line = sdp_line.replace("\r", "")
-                    try:
-                        payload_type = int(re.search(r"^a=rtpmap:(\d+) ", sdp_line).group(1))
-                    except Exception:
-                        pass
+                payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
-                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file")
+                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                     .format(resource["id"]))
 
                 for sdp_line in is05_transport_file.split("\n"):
                     sdp_line = sdp_line.replace("\r", "")
@@ -654,8 +653,8 @@ class IS0502Test(GenericTest):
                                 return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
                                                  "type {} and Sender {}".format(flow["media_type"], resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:audio":
+                            rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)(?:\/(\d+))?$", sdp_line)
                             if re.search(r"^audio\/L\d+$", flow["media_type"]):
-                                rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)(?:\/(\d+))?$", sdp_line)
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
                                                      "for Sender {}".format(flow["media_type"], resource["id"]))
@@ -674,19 +673,69 @@ class IS0502Test(GenericTest):
                                 if flow["media_type"] != "audio/L{}".format(bit_depth):
                                     return test.FAIL("Mismatch between bit depth and media_type for Flow {}"
                                                      .format(flow["id"]))
+                            elif rtpmap:
+                                return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
+                                                 .format(resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:data":
-                            if flow["media_type"] == "video/smpte291":
-                                rtpmap = re.search(r"^a=rtpmap:\d+ smpte291/90000$", sdp_line)
-                                if not rtpmap:
-                                    return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
-                                                     "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            rtpmap = re.search(r"^a=rtpmap:\d+ smpte291/90000$", sdp_line)
+                            if flow["media_type"] == "video/smpte291" and not rtpmap:
+                                return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
+                                                 "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            elif rtpmap:
+                                return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
+                                                 .format(resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:mux":
-                            if flow["media_type"] == "video/SMPTE2022-6":
-                                rtpmap = re.search(r"^a=rtpmap:\d+ SMPTE2022-6/27000000$", sdp_line)
-                                if not rtpmap:
-                                    return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
-                                                     "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            rtpmap = re.search(r"^a=rtpmap:\d+ SMPTE2022-6/27000000$", sdp_line)
+                            if flow["media_type"] == "video/SMPTE2022-6" and not rtpmap:
+                                return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
+                                                 "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            elif rtpmap:
+                                return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
+                                                 .format(resource["id"]))
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
+        return test.PASS()
+
+    def test_15(self, test):
+        """IS-05 transportfile fmtp parameters match IS-04 Source and Flow"""
+
+        for resource_type in ["senders", "flows", "sources"]:
+            valid, result = self.get_is04_resources(resource_type)
+            if not valid:
+                return test.FAIL(result)
+
+        valid, result = self.get_is05_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is04_resources["senders"]) == 0:
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+
+        flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
+        source_map = {source["id"]: source for source in self.is04_resources["sources"]}
+
+        try:
+            for resource in self.is04_resources["senders"]:
+                if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+                if resource["flow_id"] is None:
+                    continue
+
+                flow = flow_map[resource["flow_id"]]
+                source = source_map[flow["source_id"]]
+
+                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                if is05_transport_file is None:
+                    return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+
+                payload_type = self.rtp_ptype(is05_transport_file)
+                if not payload_type:
+                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                     .format(resource["id"]))
+
+                for sdp_line in is05_transport_file.split("\n"):
+                    sdp_line = sdp_line.replace("\r", "")
                     fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
                     if fmtp and source["format"] == "urn:x-nmos:format:video":
                         for param in fmtp.group(1).split(";"):
@@ -810,6 +859,92 @@ class IS0502Test(GenericTest):
 
         return test.PASS()
 
+    def test_16(self, test):
+        """IS-05 transportfile optional fmtp parameters match IS-04 Source and Flow"""
+
+        for resource_type in ["senders", "flows", "sources"]:
+            valid, result = self.get_is04_resources(resource_type)
+            if not valid:
+                return test.FAIL(result)
+
+        valid, result = self.get_is05_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is04_resources["senders"]) == 0:
+            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+
+        flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
+
+        for resource in self.is04_resources["senders"]:
+            if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
+                continue
+            if resource["flow_id"] is None:
+                continue
+
+            flow = flow_map[resource["flow_id"]]
+
+            is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+            if is05_transport_file is None:
+                return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+
+            payload_type = self.rtp_ptype(is05_transport_file)
+            if not payload_type:
+                return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                 .format(resource["id"]))
+
+            sdp_interlace = False
+            sdp_top_field_first = False
+            sdp_segmented = False
+            sdp_tcs = False
+            sdp_did_sdid = False
+
+            for sdp_line in is05_transport_file.split("\n"):
+                sdp_line = sdp_line.replace("\r", "")
+                fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
+                if fmtp and flow["format"] == "urn:x-nmos:format:video":
+                    for param in fmtp.group(1).split(";"):
+                        param_components = param.strip().split("=")
+                        if param_components[0] == "interlace":  # ref: RFC4175
+                            sdp_interlace = True
+                        elif param_components[0] == "top-field-first":  # ref: RFC4175
+                            sdp_top_field_first = True
+                        elif param_components[0] == "segmented":  # ref: ST.2110-20
+                            sdp_segmented = True
+                        elif param_components[0] == "TCS":  # ref: ST.2110-20
+                            sdp_tcs = True
+                elif fmtp and flow["media_type"] == "video/smpte291":
+                    for param in fmtp.group(1).split(";"):
+                        param_components = param.strip().split("=")
+                        if param_components[0] == "DID_SDID":  # ref: RFC8331
+                            sdp_did_sdid = True
+
+            if "DID_SDID" in flow and not sdp_did_sdid:
+                return test.FAIL("Flow for Sender {} indicates DID_SDID parameter but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "interlace_mode" in flow and flow["interlace_mode"] != "progressive" and not sdp_interlace:
+                return test.FAIL("Flow for Sender {} indicates video is interlaced, but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_tff" and not sdp_top_field_first:
+                return test.FAIL("Flow for Sender {} indicates video is top-field-first, but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_psf" and not sdp_segmented:
+                return test.FAIL("Flow for Sender {} indicates video is segmented, but this is missing from its "
+                                 "SDP file".format(resource["id"]))
+            if "transfer_characteristic" in flow and flow["transfer_characteristic"] != "SDR" and not sdp_tcs:
+                return test.FAIL("Flow for Sender {} indicates video's transfer characteristic, but this is missing "
+                                 "from its SDP file".format(resource["id"]))
+
+            # Technically the following are just SDP validation, so could move to sdpoker
+            if (sdp_top_field_first or sdp_segmented) and not sdp_interlace:
+                return test.FAIL("SDP file for Sender {} indicates top-field-first or segmented, but doesn't indicate "
+                                 "interlace".format(resource["id"]))
+            if sdp_top_field_first and sdp_segmented:
+                return test.FAIL("SDP file for Sender {} indicates top-field-first and segmented at the same time"
+                                 .format(resource["id"]))
+
+        return test.PASS()
+
     def exactframerate(self, grain_rate):
         """Format an NMOS grain rate like the SDP video format-specific parameter 'exactframerate'"""
         d = grain_rate.get("denominator", 1)
@@ -817,3 +952,14 @@ class IS0502Test(GenericTest):
             return "{}".format(grain_rate.get("numerator"))
         else:
             return "{}/{}".format(grain_rate.get("numerator"), d)
+
+    def rtp_ptype(self, sdp_file):
+        """Extract the payload type from an SDP file string"""
+        payload_type = None
+        for sdp_line in sdp_file.split("\n"):
+            sdp_line = sdp_line.replace("\r", "")
+            try:
+                payload_type = int(re.search(r"^a=rtpmap:(\d+) ", sdp_line).group(1))
+            except Exception:
+                pass
+        return payload_type

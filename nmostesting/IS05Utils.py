@@ -656,7 +656,7 @@ class IS05Utils(NMOSUtils):
         """Gets a list of the available senders on the API"""
         toReturn = []
         valid, r = TestHelper.do_request("GET", self.url + "single/senders/")
-        if valid:
+        if valid and r.status_code == 200:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
@@ -668,7 +668,7 @@ class IS05Utils(NMOSUtils):
         """Gets a list of the available receivers on the API"""
         toReturn = []
         valid, r = TestHelper.do_request("GET", self.url + "single/receivers/")
-        if valid:
+        if valid and r.status_code == 200:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
@@ -680,11 +680,19 @@ class IS05Utils(NMOSUtils):
         """Get the transport type for a given Sender or Receiver"""
         toReturn = None
         valid, r = TestHelper.do_request("GET", self.url + "single/" + portType + "s/" + port + "/transporttype")
-        if valid:
+        if valid and r.status_code == 200:
             try:
                 toReturn = r.json()
             except ValueError:
                 pass
+        return toReturn
+
+    def get_transportfile(self, port):
+        """Get the transport file for a given Sender"""
+        toReturn = None
+        valid, r = TestHelper.do_request("GET", self.url + "single/senders/" + port + "/transportfile")
+        if valid and r.status_code == 200:
+            toReturn = r.text
         return toReturn
 
     def get_num_paths(self, port, portType):
