@@ -973,8 +973,8 @@ class IS0502Test(GenericTest):
 
     def channel_order(self, channels):
         """Create an ST.2110-30 'channel-order' format-specific parameter value from an NMOS audio source 'channels'"""
-        # first, straightforward comma-separated channel symbols
-        symbols = ",".join([_["symbol"] for _ in channels])
+        # first, straightforward comma-separated channel symbols (or "?" if omitted)
+        symbols = ",".join([_["symbol"] if "symbol" in _ else "?" for _ in channels])
 
         # second, replace all ST.2110-30 defined groups with their grouping symbol
         GROUPS = [
