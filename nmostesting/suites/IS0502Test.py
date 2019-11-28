@@ -837,6 +837,13 @@ class IS0502Test(GenericTest):
                                         flow["transfer_characteristic"] != param_components[1]:
                                     return test.FAIL("TCS parameter for Sender {} does not match its Flow {}"
                                                      .format(resource["id"], flow["id"]))
+                    elif fmtp and flow["media_type"].startswith("audio/L"):
+                        for param in fmtp.group(1).split(";"):
+                            param_components = param.strip().split("=")
+                            if param_components[0] == "channel-order":  # ref: ST.2110-30
+                                if self.channel_order(source["channels"]) != param_components[1]:
+                                    return test.FAIL("Channel-order parameter for Sender {} does not match its Source "
+                                                     "{}".format(resource["id"], source["id"]))
                     elif fmtp and flow["media_type"] == "video/smpte291":
                         for param in fmtp.group(1).split(";"):
                             param_components = param.strip().split("=")
@@ -963,3 +970,28 @@ class IS0502Test(GenericTest):
             except Exception:
                 pass
         return payload_type
+
+    def channel_order(self, channels):
+        """Create an ST.2110-30 'channel-order' format-specific parameter value from an NMOS audio source 'channels'"""
+        # first, straightforward comma-separated channel symbols (or "?" if omitted)
+        symbols = ",".join([_["symbol"] if "symbol" in _ else "?" for _ in channels])
+
+        # second, replace all ST.2110-30 defined groups with their grouping symbol
+        GROUPS = [
+            ["L,R,C,LFE,Lss,Rss,Lrs,Rrs", "71"],
+            ["L,R,C,LFE,Ls,Rs", "51"],
+            ["Lt,Rt", "LtRt"],
+            ["L,R", "ST"],
+            ["M1,M2", "DM"],
+            ["M1", "M"]
+        ]
+        for G in GROUPS:
+            symbols = symbols.replace(G[0], G[1])
+
+        # third, replace all other channel symbols with 'U'
+        groups = ",".join([_ if _ in [G[1] for G in GROUPS] else "U" for _ in symbols.split(",")])
+
+        # finally, replace all sequences of 'U' with the required undefined grouping symbol
+        # and format as per ST.2110-30
+        return "SMPTE2110.({})" \
+               .format(re.sub(r"U(,U)*", lambda us: "U{:02d}".format(int((len(us.group())+1)/2)), groups))
