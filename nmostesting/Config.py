@@ -28,7 +28,7 @@ ENABLE_DNS_SD = True
 DNS_SD_MODE = 'multicast'
 
 # Number of seconds to wait after a DNS-SD advert is created for a client to notice and perform an action
-DNS_SD_ADVERT_TIMEOUT = 5
+DNS_SD_ADVERT_TIMEOUT = 30
 
 # Number of seconds to wait after browsing for a DNS-SD advert before checking the results
 DNS_SD_BROWSE_TIMEOUT = 2
