@@ -1017,9 +1017,12 @@ class IS0502Test(GenericTest):
                     if is04_clock["version"] != ptp_data[0]:
                         return test.FAIL("IS-04 Source PTP version {} does not match ts-refclk PTP version {} for "
                                          "Sender {}".format(is04_clock["version"], ptp_data[0], resource["id"]))
-                    if is04_clock["gmid"] != ptp_data[1].lower():
+                    if ptp_data[1] != "traceable" and is04_clock["gmid"] != ptp_data[1].lower():
                         return test.FAIL("IS-04 Source PTP gmid {} does not match ts-refclk PTP gmid {} for "
                                          "Sender {}".format(is04_clock["gmid"], ptp_data[1], resource["id"]))
+                    elif ptp_data[1] == "traceable" and is04_clock["traceable"] is not True:
+                        return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for Sender {}"
+                                         .format(resource["id"]))
 
             if source["clock_name"] is not None and not found_refclk:
                 return test.FAIL("IS-04 Source indicates a clock, but SDP ts-refclk is missing for Sender {}"
