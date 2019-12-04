@@ -14,7 +14,7 @@
 
 from requests.compat import json
 
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 
 EVENTS_API_KEY = "events"
 
