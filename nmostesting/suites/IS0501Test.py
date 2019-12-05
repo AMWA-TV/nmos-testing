@@ -832,6 +832,42 @@ class IS0501Test(GenericTest):
 
         return test.PASS()
 
+    def test_42(self, test):
+        """Transport files use the expected Content-Type"""
+
+        access_error = False
+        api = self.apis[CONN_API_KEY]
+        for sender in self.senders:
+            transport_type = "urn:x-nmos:transport:rtp"
+            if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                url = "single/senders/{}/transporttype".format(sender)
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+                if valid:
+                    transport_type = response
+                else:
+                    return test.FAIL(response)
+
+            if transport_type == "urn:x-nmos:transport:rtp":
+                url = self.url + "single/senders/{}/transportfile".format(sender)
+                valid, response = self.do_request("GET", url)
+                if valid and response.status_code == 200:
+                    if response.headers["Content-Type"] != "application/sdp":
+                        return test.WARNING("RTP Sender {} failed to indicate a transportfile Content-Type of "
+                                            "application/sdp".format(sender))
+                elif valid and response.status_code == 404:
+                    access_error = True
+                else:
+                    return test.FAIL("Unexpected response from IS-05 API")
+
+        if len(self.senders) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+        if access_error:
+            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
+                                "ensure 'master_enable' is set to true for all Senders and re-test.")
+
+        return test.PASS()
+
     def check_bulk_stage(self, port, portList):
         """Test changing staged parameters on the bulk interface"""
         url = self.url + "bulk/" + port + "s"
