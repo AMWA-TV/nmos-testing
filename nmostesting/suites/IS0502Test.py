@@ -980,6 +980,7 @@ class IS0502Test(GenericTest):
             return test.FAIL("Non-JSON response returned from Node API")
 
         clock_map = {clock["name"]: clock for clock in node_self["clocks"]}
+        interface_map = {interface["name"]: interface for interface in node_self["interfaces"]}
 
         for resource in self.is04_resources["senders"]:
             if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
@@ -1023,6 +1024,20 @@ class IS0502Test(GenericTest):
                     elif ptp_data[1] == "traceable" and is04_clock["traceable"] is not True:
                         return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for Sender {}"
                                          .format(resource["id"]))
+
+                if ts_refclk.group(1).startswith("localmac="):
+                    try:
+                        # This assumes that ts-refclk isn't specified globally, but this shouldn't be the case when
+                        # localmac is used given each RTP sender is likely to use a different interface
+                        api_mac = interface_map[resource["interface_bindings"][0]]["port_id"]
+                        sdp_mac = ts_refclk.group(1).strip("localmac=").lower()
+                        if api_mac != sdp_mac:
+                            return test.FAIL("IS-04 interface_binding MAC does not match SDP ts-refclk localmac for "
+                                             "Sender {}".format(resource["id"]))
+                        # Ensure that any further localmacs we test match the expected interface
+                        del resource["interface_bindings"][0]
+                    except (KeyError, IndexError) as e:
+                        return test.FAIL("Expected key not found in IS-04 API: {}".format(e))
 
             if source["clock_name"] is not None and not found_refclk:
                 return test.FAIL("IS-04 Source indicates a clock, but SDP ts-refclk is missing for Sender {}"
