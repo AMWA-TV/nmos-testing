@@ -1413,6 +1413,35 @@ class IS0401Test(GenericTest):
 
         return test.UNCLEAR("No Source or Flow resources were found on the Node")
 
+    def test_25(self, test):
+        """Receivers expose expected 'caps' for their API version"""
+
+        api = self.apis[NODE_API_KEY]
+        receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
+
+        no_receivers = True
+        if receivers_valid and receivers_response.status_code == 200:
+            try:
+                for receiver in receivers_response.json():
+                    no_receivers = False
+                    if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
+                        if "media_types" not in receiver["caps"]:
+                            return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types'")
+                    if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                        if receiver["format"] == "urn:x-nmos:format:data" and \
+                               receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
+                            # Technically this is a bit IS-07 specific, but it may still be best placed here for now
+                            if "event_types" not in receiver["caps"]:
+                                return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
+                                                    "if the Receiver accepts IS-07 events")
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        if no_receivers:
+            return test.UNCLEAR("No Receivers were found on the Node")
+        else:
+            return test.PASS()
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
