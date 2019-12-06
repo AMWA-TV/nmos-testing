@@ -1417,6 +1417,10 @@ class IS0401Test(GenericTest):
         """Receivers expose expected 'caps' for their API version"""
 
         api = self.apis[NODE_API_KEY]
+
+        if self.is04_utils.compare_api_version(api["version"], "v1.1") < 0:
+            return test.NA("Capabilities are not used before API v1.1")
+
         receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
 
         no_receivers = True
@@ -1424,16 +1428,21 @@ class IS0401Test(GenericTest):
             try:
                 for receiver in receivers_response.json():
                     no_receivers = False
-                    if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                        if "media_types" not in receiver["caps"]:
-                            return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types'")
+                    if "media_types" not in receiver["caps"]:
+                        return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types', unless "
+                                            "this Receiver can handle any 'media_type'",
+                                            "https://amwa-tv.github.io/nmos-discovery-registration/tags/v1.3/docs/"
+                                            "4.3._Behaviour_-_Nodes.html#all-resources")
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                         if receiver["format"] == "urn:x-nmos:format:data" and \
                                receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
                             # Technically this is a bit IS-07 specific, but it may still be best placed here for now
                             if "event_types" not in receiver["caps"]:
                                 return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
-                                                    "if the Receiver accepts IS-07 events")
+                                                    "if the Receiver accepts IS-07 events, unless this Receiver can "
+                                                    "handle any 'event_type'",
+                                                    "https://amwa-tv.github.io/nmos-discovery-registration/tags/v1.3/"
+                                                    "docs/4.3._Behaviour_-_Nodes.html#all-resources")
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
