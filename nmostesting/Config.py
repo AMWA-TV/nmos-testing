@@ -99,7 +99,7 @@ SPECIFICATIONS = {
     "is-04": {
         "repo": "nmos-discovery-registration",
         "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
-        "default_version": "v1.2",
+        "default_version": "v1.3",
         "apis": {
             "node": {
                 "name": "Node API",
@@ -118,7 +118,7 @@ SPECIFICATIONS = {
     "is-05": {
         "repo": "nmos-device-connection-management",
         "versions": ["v1.0", "v1.1"],
-        "default_version": "v1.0",
+        "default_version": "v1.1",
         "apis": {
             "connection": {
                 "name": "Connection API",
