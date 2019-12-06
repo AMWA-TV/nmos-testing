@@ -851,7 +851,7 @@ class IS0501Test(GenericTest):
                 url = self.url + "single/senders/{}/transportfile".format(sender)
                 valid, response = self.do_request("GET", url)
                 if valid and response.status_code == 200:
-                    if response.headers["Content-Type"] != "application/sdp":
+                    if "Content-Type" not in response.headers or response.headers["Content-Type"] != "application/sdp":
                         return test.WARNING("RTP Sender {} failed to indicate a transportfile Content-Type of "
                                             "application/sdp".format(sender))
                 elif valid and response.status_code == 404:
