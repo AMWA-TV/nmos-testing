@@ -857,7 +857,7 @@ class IS0501Test(GenericTest):
                 elif valid and response.status_code == 404:
                     access_error = True
                 else:
-                    return test.FAIL("Unexpected response from IS-05 API")
+                    return test.FAIL("Unexpected response from Connection API")
 
         if len(self.senders) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
