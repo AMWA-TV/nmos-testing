@@ -16,6 +16,7 @@ import time
 import uuid
 import re
 from requests.compat import json
+from copy import deepcopy
 
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
@@ -996,6 +997,7 @@ class IS0502Test(GenericTest):
                 return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
 
             found_refclk = False
+            interface_bindings = deepcopy(resource["interface_bindings"])
             for sdp_line in is05_transport_file.split("\n"):
                 sdp_line = sdp_line.replace("\r", "")
                 ts_refclk = re.search(r"^a=ts-refclk:(.+)$", sdp_line)
@@ -1029,13 +1031,13 @@ class IS0502Test(GenericTest):
                     try:
                         # This assumes that ts-refclk isn't specified globally, but this shouldn't be the case when
                         # localmac is used given each RTP sender is likely to use a different interface
-                        api_mac = interface_map[resource["interface_bindings"][0]]["port_id"]
+                        api_mac = interface_map[interface_bindings[0]]["port_id"]
                         sdp_mac = ts_refclk.group(1).strip("localmac=").lower()
                         if api_mac != sdp_mac:
                             return test.FAIL("IS-04 interface_binding MAC does not match SDP ts-refclk localmac for "
                                              "Sender {}".format(resource["id"]))
                         # Ensure that any further localmacs we test match the expected interface
-                        del resource["interface_bindings"][0]
+                        del interface_bindings[0]
                     except (KeyError, IndexError) as e:
                         return test.FAIL("Expected key not found in IS-04 API: {}".format(e))
 
