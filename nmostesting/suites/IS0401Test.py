@@ -1431,8 +1431,8 @@ class IS0401Test(GenericTest):
                     if "media_types" not in receiver["caps"]:
                         return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types', unless "
                                             "this Receiver can handle any 'media_type'",
-                                            "https://amwa-tv.github.io/nmos-discovery-registration/tags/v1.3/docs/"
-                                            "4.3._Behaviour_-_Nodes.html#all-resources")
+                                            "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/docs/"
+                                            "4.3._Behaviour_-_Nodes.html#all-resources".format(api["spec_branch"]))
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                         if receiver["format"] == "urn:x-nmos:format:data" and \
                                receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
@@ -1441,8 +1441,9 @@ class IS0401Test(GenericTest):
                                 return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
                                                     "if the Receiver accepts IS-07 events, unless this Receiver can "
                                                     "handle any 'event_type'",
-                                                    "https://amwa-tv.github.io/nmos-discovery-registration/tags/v1.3/"
-                                                    "docs/4.3._Behaviour_-_Nodes.html#all-resources")
+                                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/"
+                                                    "docs/4.3._Behaviour_-_Nodes.html#all-resources"
+                                                    .format(api["spec_branch"]))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
