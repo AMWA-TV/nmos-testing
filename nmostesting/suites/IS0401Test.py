@@ -1445,6 +1445,8 @@ class IS0401Test(GenericTest):
                                                     "docs/4.3._Behaviour_-_Nodes.html#all-resources")
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the Receiver: {}".format(e))
 
         if no_receivers:
             return test.UNCLEAR("No Receivers were found on the Node")
