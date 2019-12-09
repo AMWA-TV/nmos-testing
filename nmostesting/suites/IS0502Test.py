@@ -612,7 +612,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
-            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
@@ -712,7 +712,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
-            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
@@ -883,7 +883,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
-            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
 
@@ -971,7 +971,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
-            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
