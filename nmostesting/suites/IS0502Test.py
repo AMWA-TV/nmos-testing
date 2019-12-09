@@ -21,6 +21,7 @@ from copy import deepcopy
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
 from .. import Config as CONFIG
+from ..GenericTest import NMOSTestException
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -446,9 +447,7 @@ class IS0502Test(GenericTest):
     def test_09(self, test):
         """Activation of a sender to a multicast address updates the IS-04 subscription"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+        self.do_test_node_api_v1_2(test)
 
         resource_type = "senders"
 
@@ -476,9 +475,7 @@ class IS0502Test(GenericTest):
     def test_10(self, test):
         """Activation of a sender to a unicast NMOS receiver updates the IS-04 subscription"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+        self.do_test_node_api_v1_2(test)
 
         resource_type = "senders"
 
@@ -506,9 +503,7 @@ class IS0502Test(GenericTest):
     def test_11(self, test):
         """Activation of a sender to a unicast non-NMOS receiver updates the IS-04 subscription"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+        self.do_test_node_api_v1_2(test)
 
         resource_type = "senders"
 
@@ -536,9 +531,7 @@ class IS0502Test(GenericTest):
     def test_12(self, test):
         """IS-04 interface bindings array matches length of IS-05 transport_params array"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            return test.NA("IS-04 v1.1 and earlier do not have an interface_bindings attribute")
+        self.do_test_node_api_v1_2(test)
 
         for resource_type in ["senders", "receivers"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -607,9 +600,7 @@ class IS0502Test(GenericTest):
     def test_14(self, test):
         """IS-05 transportfile rtpmap parameters match IS-04 Source and Flow"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.0") == 0:
-            return test.NA("IS-04 v1.0 does not have sufficient Source and Flow attributes to perform this test")
+        self.do_test_node_api_v1_2(test)
 
         for resource_type in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -709,9 +700,7 @@ class IS0502Test(GenericTest):
     def test_15(self, test):
         """IS-05 transportfile fmtp parameters match IS-04 Source and Flow"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.0") == 0:
-            return test.NA("IS-04 v1.0 does not have sufficient Source and Flow attributes to perform this test")
+        self.do_test_node_api_v1_2(test)
 
         for resource_type in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -882,9 +871,7 @@ class IS0502Test(GenericTest):
     def test_16(self, test):
         """IS-05 transportfile optional fmtp parameters match IS-04 Flow"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.0") == 0:
-            return test.NA("IS-04 v1.0 does not have sufficient Source and Flow attributes to perform this test")
+        self.do_test_node_api_v1_2(test)
 
         for resource_type in ["senders", "flows"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -972,9 +959,7 @@ class IS0502Test(GenericTest):
     def test_17(self, test):
         """IS-05 transportfile ts-refclk matches IS-04 Source and Node"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.0") == 0:
-            return test.NA("IS-04 v1.0 does not have sufficient Source and Flow attributes to perform this test")
+        self.do_test_node_api_v1_2(test)
 
         for resource_type in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -1017,9 +1002,7 @@ class IS0502Test(GenericTest):
                 return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
 
             found_refclk = False
-            interface_bindings = None
-            if self.is05_utils.compare_api_version(api["version"], "v1.2") >= 0:
-                interface_bindings = deepcopy(resource["interface_bindings"])
+            interface_bindings = deepcopy(resource["interface_bindings"])
             for sdp_line in is05_transport_file.split("\n"):
                 sdp_line = sdp_line.replace("\r", "")
                 ts_refclk = re.search(r"^a=ts-refclk:(.+)$", sdp_line)
@@ -1049,8 +1032,7 @@ class IS0502Test(GenericTest):
                         return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for Sender {}"
                                          .format(resource["id"]))
 
-                if ts_refclk.group(1).startswith("localmac=") and \
-                        self.is05_utils.compare_api_version(api["version"], "v1.2") >= 0:
+                if ts_refclk.group(1).startswith("localmac="):
                     try:
                         # This assumes that ts-refclk isn't specified globally, but this shouldn't be the case when
                         # localmac is used given each RTP sender is likely to use a different interface
@@ -1113,3 +1095,12 @@ class IS0502Test(GenericTest):
         # and format as per ST.2110-30
         return "SMPTE2110.({})" \
                .format(re.sub(r"U(,U)*", lambda us: "U{:02d}".format(int((len(us.group())+1)/2)), groups))
+
+    def do_test_node_api_v1_2(self, test):
+        """
+        Precondition check of the API version.
+        Raises an NMOSTestException when the Node API version is less than v1.2
+        """
+        api = self.apis[NODE_API_KEY]
+        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
+            raise NMOSTestException(test.NA("This test cannot be run against IS-04 below version v1.2."))
