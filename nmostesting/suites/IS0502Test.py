@@ -16,10 +16,12 @@ import time
 import uuid
 import re
 from requests.compat import json
+from copy import deepcopy
 
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
 from .. import Config as CONFIG
+from ..GenericTest import NMOSTestException
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -445,9 +447,7 @@ class IS0502Test(GenericTest):
     def test_09(self, test):
         """Activation of a sender to a multicast address updates the IS-04 subscription"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+        self.do_test_node_api_v1_2(test)
 
         resource_type = "senders"
 
@@ -475,9 +475,7 @@ class IS0502Test(GenericTest):
     def test_10(self, test):
         """Activation of a sender to a unicast NMOS receiver updates the IS-04 subscription"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+        self.do_test_node_api_v1_2(test)
 
         resource_type = "senders"
 
@@ -505,9 +503,7 @@ class IS0502Test(GenericTest):
     def test_11(self, test):
         """Activation of a sender to a unicast non-NMOS receiver updates the IS-04 subscription"""
 
-        api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            return test.NA("IS-04 v1.1 and earlier Senders do not have a subscription object")
+        self.do_test_node_api_v1_2(test)
 
         resource_type = "senders"
 
@@ -534,6 +530,8 @@ class IS0502Test(GenericTest):
 
     def test_12(self, test):
         """IS-04 interface bindings array matches length of IS-05 transport_params array"""
+
+        self.do_test_node_api_v1_2(test)
 
         for resource_type in ["senders", "receivers"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -602,6 +600,8 @@ class IS0502Test(GenericTest):
     def test_14(self, test):
         """IS-05 transportfile rtpmap parameters match IS-04 Source and Flow"""
 
+        self.do_test_node_api_v1_2(test)
+
         for resource_type in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
             if not valid:
@@ -612,7 +612,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
-            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
@@ -700,6 +700,8 @@ class IS0502Test(GenericTest):
     def test_15(self, test):
         """IS-05 transportfile fmtp parameters match IS-04 Source and Flow"""
 
+        self.do_test_node_api_v1_2(test)
+
         for resource_type in ["senders", "flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
             if not valid:
@@ -710,7 +712,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
-            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
@@ -867,9 +869,11 @@ class IS0502Test(GenericTest):
         return test.PASS()
 
     def test_16(self, test):
-        """IS-05 transportfile optional fmtp parameters match IS-04 Source and Flow"""
+        """IS-05 transportfile optional fmtp parameters match IS-04 Flow"""
 
-        for resource_type in ["senders", "flows", "sources"]:
+        self.do_test_node_api_v1_2(test)
+
+        for resource_type in ["senders", "flows"]:
             valid, result = self.get_is04_resources(resource_type)
             if not valid:
                 return test.FAIL(result)
@@ -879,7 +883,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["senders"]) == 0:
-            return test.UNCLEAR("Could not find any IS-05 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
 
@@ -952,6 +956,102 @@ class IS0502Test(GenericTest):
 
         return test.PASS()
 
+    def test_17(self, test):
+        """IS-05 transportfile ts-refclk matches IS-04 Source and Node"""
+
+        self.do_test_node_api_v1_2(test)
+
+        for resource_type in ["senders", "flows", "sources"]:
+            valid, result = self.get_is04_resources(resource_type)
+            if not valid:
+                return test.FAIL(result)
+
+        valid, result = self.get_is05_resources("senders")
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is04_resources["senders"]) == 0:
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
+
+        flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
+        source_map = {source["id"]: source for source in self.is04_resources["sources"]}
+
+        valid, resource = self.do_request("GET", self.node_url + "self")
+        if not valid:
+            return test.FAIL("Node API did not respond as expected: {}".format(resource))
+
+        try:
+            node_self = resource.json()
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        clock_map = {clock["name"]: clock for clock in node_self["clocks"]}
+        interface_map = {interface["name"]: interface for interface in node_self["interfaces"]}
+
+        for resource in self.is04_resources["senders"]:
+            if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
+                continue
+            if resource["flow_id"] is None:
+                continue
+
+            flow = flow_map[resource["flow_id"]]
+            source = source_map[flow["source_id"]]
+
+            is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+            if is05_transport_file is None:
+                return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+
+            found_refclk = False
+            interface_bindings = deepcopy(resource["interface_bindings"])
+            for sdp_line in is05_transport_file.split("\n"):
+                sdp_line = sdp_line.replace("\r", "")
+                ts_refclk = re.search(r"^a=ts-refclk:(.+)$", sdp_line)
+                if not ts_refclk:
+                    continue
+                found_refclk = True
+                if source["clock_name"] is None:
+                    return test.FAIL("SDP file includes ts-refclk but Source {} does not indicate a clock_name"
+                                     .format(source["id"]))
+
+                is04_clock = clock_map[source["clock_name"]]
+                if is04_clock["ref_type"] == "internal" and ts_refclk.group(1).startswith("ptp="):
+                    return test.FAIL("IS-04 Source indicates 'internal' clock but SDP file indicates 'ptp' for Sender "
+                                     "{}".format(resource["id"]))
+                elif is04_clock["ref_type"] == "ptp":
+                    if not ts_refclk.group(1).startswith("ptp="):
+                        return test.FAIL("IS-04 Source indicates 'ptp' clock but SDP file indicates '{}' for Sender "
+                                         "{}".format(ts_refclk.group(1), resource["id"]))
+                    ptp_data = ts_refclk.group(1).strip("ptp=").split(":")
+                    if is04_clock["version"] != ptp_data[0]:
+                        return test.FAIL("IS-04 Source PTP version {} does not match ts-refclk PTP version {} for "
+                                         "Sender {}".format(is04_clock["version"], ptp_data[0], resource["id"]))
+                    if ptp_data[1] != "traceable" and is04_clock["gmid"] != ptp_data[1].lower():
+                        return test.FAIL("IS-04 Source PTP gmid {} does not match ts-refclk PTP gmid {} for "
+                                         "Sender {}".format(is04_clock["gmid"], ptp_data[1], resource["id"]))
+                    elif ptp_data[1] == "traceable" and is04_clock["traceable"] is not True:
+                        return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for Sender {}"
+                                         .format(resource["id"]))
+
+                if ts_refclk.group(1).startswith("localmac="):
+                    try:
+                        # This assumes that ts-refclk isn't specified globally, but this shouldn't be the case when
+                        # localmac is used given each RTP sender is likely to use a different interface
+                        api_mac = interface_map[interface_bindings[0]]["port_id"]
+                        sdp_mac = ts_refclk.group(1).strip("localmac=").lower()
+                        if api_mac != sdp_mac:
+                            return test.FAIL("IS-04 interface_binding MAC does not match SDP ts-refclk localmac for "
+                                             "Sender {}".format(resource["id"]))
+                        # Ensure that any further localmacs we test match the expected interface
+                        del interface_bindings[0]
+                    except (KeyError, IndexError) as e:
+                        return test.FAIL("Expected key not found in IS-04 API: {}".format(e))
+
+            if source["clock_name"] is not None and not found_refclk:
+                return test.FAIL("IS-04 Source indicates a clock, but SDP ts-refclk is missing for Sender {}"
+                                 .format(resource["id"]))
+
+        return test.PASS()
+
     def exactframerate(self, grain_rate):
         """Format an NMOS grain rate like the SDP video format-specific parameter 'exactframerate'"""
         d = grain_rate.get("denominator", 1)
@@ -995,3 +1095,12 @@ class IS0502Test(GenericTest):
         # and format as per ST.2110-30
         return "SMPTE2110.({})" \
                .format(re.sub(r"U(,U)*", lambda us: "U{:02d}".format(int((len(us.group())+1)/2)), groups))
+
+    def do_test_node_api_v1_2(self, test):
+        """
+        Precondition check of the API version.
+        Raises an NMOSTestException when the Node API version is less than v1.2
+        """
+        api = self.apis[NODE_API_KEY]
+        if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
+            raise NMOSTestException(test.NA("This test cannot be run against IS-04 below version v1.2."))
