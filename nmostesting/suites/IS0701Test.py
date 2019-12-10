@@ -135,7 +135,6 @@ class IS0701Test(GenericTest):
                 # check 'step'
                 if "step" in source["type"]:
                     step = self.get_number(source["type"]["step"])
-                    print("{} {} {} - {}".format(min, max, step, (payload - min) % step))
                     if 0 != (payload - min) % step:
                         return test.FAIL("Source {} state payload is not an integer multiple of the step"
                                          .format(source_id))
