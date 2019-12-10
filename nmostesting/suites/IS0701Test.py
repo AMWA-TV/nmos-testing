@@ -156,8 +156,6 @@ class IS0701Test(GenericTest):
                     continue
                 found_string = True
 
-                value = source["state"]["payload"]["value"]
-
                 if "min_length" in source["type"] and "max_length" in source["type"]:
                     min_length = source["type"]["min_length"]
                     max_length = source["type"]["max_length"]
