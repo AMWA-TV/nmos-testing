@@ -67,7 +67,7 @@ class IS0701Test(GenericTest):
                 if source_id != self.sources[source_id]["state"]["identity"]["source_id"]:
                     return test.FAIL("Source {} state has incorrect source_id".format(source_id))
         except KeyError:
-            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
 
         return test.PASS()
 
@@ -83,7 +83,7 @@ class IS0701Test(GenericTest):
                 if "flow_id" in self.sources[source_id]["state"]["identity"]:
                     return test.FAIL("Source {} state has flow_id which is not permitted".format(source_id))
         except KeyError:
-            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
 
         return test.PASS()
 
@@ -100,11 +100,112 @@ class IS0701Test(GenericTest):
                 if base_type != self.sources[source_id]["type"]["type"]:
                     return test.FAIL("Source {} state does not match the base type".format(source_id))
         except KeyError:
-            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
 
         return test.PASS()
 
     def test_04_01(self, test):
+        """Each number Source type describes a valid set of allowed values"""
+        self.do_collect_sources(test)
+
+        found_number = False
+
+        try:
+            for source_id in self.sources:
+                source = self.sources[source_id]
+                if "number" != source["type"]["type"]:
+                    continue
+                # all 'enum' types define the allowed values
+                if "values" in source["type"]:
+                    continue
+                found_number = True
+
+                min = self.get_number(source["type"]["min"])
+                max = self.get_number(source["type"]["max"])
+
+                if min > max:
+                    return test.FAIL("Source {} maximum value is less than the minimum".format(source_id))
+
+                # check 'step'
+                if "step" in source["type"]:
+                    step = self.get_number(source["type"]["step"])
+                    if 0 != (max - min) % step:
+                        return test.WARNING("Source {} max - min is not an integer multiple of the step"
+                                            .format(source_id))
+        except KeyError:
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+
+        if not found_number:
+            return test.UNCLEAR("No 'number' sources were returned from Events API")
+
+        return test.PASS()
+
+    def test_04_02(self, test):
+        """Each string Source type describes a valid set of allowed values"""
+        self.do_collect_sources(test)
+
+        found_string = False
+
+        try:
+            for source_id in self.sources:
+                source = self.sources[source_id]
+                if "string" != source["type"]["type"]:
+                    continue
+                # all 'enum' types define the allowed values
+                if "values" in source["type"]:
+                    continue
+                found_string = True
+
+                value = source["state"]["payload"]["value"]
+
+                if "min_length" in source["type"] and "max_length" in source["type"]:
+                    min_length = source["type"]["min_length"]
+                    max_length = source["type"]["max_length"]
+                    if min_length > max_length:
+                        return test.FAIL("Source {} minimum length is longer than the maximum"
+                                         .format(source_id))
+
+                if "pattern" in source["type"]:
+                    pattern = source["type"]["pattern"]
+                    re.compile(pattern)
+        except KeyError:
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except re.error:
+            return test.FAIL("Source {} type pattern is invalid".format(source_id))
+
+        if not found_string:
+            return test.UNCLEAR("No 'string' sources were returned from Events API")
+
+        return test.PASS()
+
+    def test_05(self, test):
+        """Each enum Source type describes a valid set of allowed values"""
+        self.do_collect_sources(test)
+
+        found_enum = False
+
+        try:
+            for source_id in self.sources:
+                source = self.sources[source_id]
+                # all 'enum' types define the allowed values
+                if "values" not in source["type"]:
+                    continue
+                found_enum = True
+
+                values = source["type"]["values"]
+                if len(values) == 0:
+                    return test.FAIL("Source {} type defines no allowed values".format(source_id))
+                if len(set([_["value"] for _ in values])) != len(values):
+                    return test.WARNING("Source {} type includes a duplicate in the allowed values".format(source_id))
+        except KeyError:
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+
+        if not found_enum:
+            return test.UNCLEAR("No 'enum' sources were returned from Events API")
+
+        return test.PASS()
+
+    def test_06_01(self, test):
         """Each number Source state payload 'value' is one of the allowed values"""
         self.do_collect_sources(test)
 
@@ -139,14 +240,14 @@ class IS0701Test(GenericTest):
                         return test.WARNING("Source {} state payload is not an integer multiple of the step"
                                             .format(source_id))
         except KeyError:
-            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
 
         if not found_number:
             return test.UNCLEAR("No 'number' sources were returned from Events API")
 
         return test.PASS()
 
-    def test_04_02(self, test):
+    def test_06_02(self, test):
         """Each string Source state payload 'value' is one of the allowed values"""
         self.do_collect_sources(test)
 
@@ -181,7 +282,7 @@ class IS0701Test(GenericTest):
                     if re.match(pattern, value) is None:
                         return test.FAIL("Source {} state payload does not match the pattern".format(source_id))
         except KeyError:
-            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
         except re.error:
             return test.FAIL("Source {} type pattern is invalid".format(source_id))
 
@@ -190,7 +291,7 @@ class IS0701Test(GenericTest):
 
         return test.PASS()
 
-    def test_04_03(self, test):
+    def test_06_03(self, test):
         """Each boolean Source state payload 'value' is one of the allowed values"""
         self.do_collect_sources(test)
 
@@ -208,14 +309,14 @@ class IS0701Test(GenericTest):
 
                 # nothing to do, since schema check is enough
         except KeyError:
-            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
 
         if not found_boolean:
             return test.UNCLEAR("No 'boolean' sources were returned from Events API")
 
         return test.PASS()
 
-    def test_04_04(self, test):
+    def test_07(self, test):
         """Each enum Source state payload 'value' is one of the allowed values"""
         self.do_collect_sources(test)
 
@@ -238,7 +339,7 @@ class IS0701Test(GenericTest):
                     return test.FAIL("Source {} state payload has a 'scale', which is invalid for number 'enum' types"
                                      .format(source_id))
         except KeyError:
-            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+            return test.FAIL("Source {} JSON data is invalid".format(source_id))
 
         if not found_enum:
             return test.UNCLEAR("No 'enum' sources were returned from Events API")
