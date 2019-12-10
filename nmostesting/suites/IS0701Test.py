@@ -216,6 +216,36 @@ class IS0701Test(GenericTest):
 
         return test.PASS()
 
+    def test_04_04(self, test):
+        """Each enum Source state payload 'value' is one of the allowed values"""
+        self.do_collect_sources(test)
+
+        found_enum = False
+
+        try:
+            for source_id in self.sources:
+                source = self.sources[source_id]
+                # all 'enum' types define the allowed values
+                if "values" not in source["type"]:
+                    continue
+                found_enum = True
+
+                value = source["state"]["payload"]["value"]
+
+                if value not in [_["value"] for _ in source["type"]["values"]]:
+                    return test.FAIL("Source {} state payload is not an allowed value".format(source_id))
+
+                if "number" == source["type"]["type"] and "scale" in source["state"]["payload"]:
+                    return test.FAIL("Source {} state payload has a 'scale', which is invalid for number 'enum' types"
+                                     .format(source_id))
+        except KeyError:
+            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+
+        if not found_enum:
+            return test.UNCLEAR("No 'enum' sources were returned from Events API")
+
+        return test.PASS()
+
     def get_number(self, payload):
         scale = 1 if "scale" not in payload else payload["scale"]
         return fractions.Fraction(payload["value"], scale)
