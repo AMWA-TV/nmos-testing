@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import fractions
+import re
+
 from requests.compat import json
 
 from ..GenericTest import GenericTest, NMOSTestException
@@ -79,6 +82,23 @@ class IS0701Test(GenericTest):
             for source_id in self.sources:
                 if "flow_id" in self.sources[source_id]["state"]["identity"]:
                     return test.FAIL("Source {} state has flow_id which is not permitted".format(source_id))
+        except KeyError:
+            return test.FAIL("Source {} state JSON data is invalid".format(source_id))
+
+        return test.PASS()
+
+    def test_03(self, test):
+        """Each Source type 'type' is a base type of the state 'event_type'"""
+        self.do_collect_sources(test)
+
+        if len(self.sources) == 0:
+            return test.UNCLEAR("No sources were returned from Events API")
+
+        try:
+            for source_id in self.sources:
+                base_type = self.sources[source_id]["state"]["event_type"].split("/")[0]
+                if base_type != self.sources[source_id]["type"]["type"]:
+                    return test.FAIL("Source {} state does not match the base type".format(source_id))
         except KeyError:
             return test.FAIL("Source {} state JSON data is invalid".format(source_id))
 
