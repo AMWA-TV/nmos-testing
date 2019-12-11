@@ -66,8 +66,8 @@ class IS0701Test(GenericTest):
             for source_id in self.sources:
                 if source_id != self.sources[source_id]["state"]["identity"]["source_id"]:
                     return test.FAIL("Source {} state has incorrect source_id".format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         return test.PASS()
 
@@ -82,8 +82,8 @@ class IS0701Test(GenericTest):
             for source_id in self.sources:
                 if "flow_id" in self.sources[source_id]["state"]["identity"]:
                     return test.FAIL("Source {} state has flow_id which is not permitted".format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         return test.PASS()
 
@@ -99,8 +99,8 @@ class IS0701Test(GenericTest):
                 base_type = self.sources[source_id]["state"]["event_type"].split("/")[0]
                 if base_type != self.sources[source_id]["type"]["type"]:
                     return test.FAIL("Source {} state does not match the base type".format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         return test.PASS()
 
@@ -132,8 +132,8 @@ class IS0701Test(GenericTest):
                     if 0 != (max - min) % step:
                         return test.WARNING("Source {} max - min is not an integer multiple of the step"
                                             .format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         if not found_number:
             return test.UNCLEAR("No 'number' sources were returned from Events API")
@@ -166,8 +166,8 @@ class IS0701Test(GenericTest):
                 if "pattern" in source["type"]:
                     pattern = source["type"]["pattern"]
                     re.compile(pattern)
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
         except re.error:
             return test.FAIL("Source {} type pattern is invalid".format(source_id))
 
@@ -195,8 +195,8 @@ class IS0701Test(GenericTest):
                     return test.FAIL("Source {} type defines no allowed values".format(source_id))
                 if len(set([_["value"] for _ in values])) != len(values):
                     return test.WARNING("Source {} type includes a duplicate in the allowed values".format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         if not found_enum:
             return test.UNCLEAR("No 'enum' sources were returned from Events API")
@@ -237,8 +237,8 @@ class IS0701Test(GenericTest):
                     if 0 != (payload - min) % step:
                         return test.WARNING("Source {} state payload is not an integer multiple of the step"
                                             .format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         if not found_number:
             return test.UNCLEAR("No 'number' sources were returned from Events API")
@@ -279,8 +279,8 @@ class IS0701Test(GenericTest):
                     pattern = source["type"]["pattern"]
                     if re.match(pattern, value) is None:
                         return test.FAIL("Source {} state payload does not match the pattern".format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
         except re.error:
             return test.FAIL("Source {} type pattern is invalid".format(source_id))
 
@@ -306,8 +306,8 @@ class IS0701Test(GenericTest):
                 found_boolean = True
 
                 # nothing to do, since schema check is enough
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         if not found_boolean:
             return test.UNCLEAR("No 'boolean' sources were returned from Events API")
@@ -336,8 +336,8 @@ class IS0701Test(GenericTest):
                 if "number" == source["type"]["type"] and "scale" in source["state"]["payload"]:
                     return test.FAIL("Source {} state payload has a 'scale', which is invalid for number 'enum' types"
                                      .format(source_id))
-        except KeyError:
-            return test.FAIL("Source {} JSON data is invalid".format(source_id))
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
         if not found_enum:
             return test.UNCLEAR("No 'enum' sources were returned from Events API")
