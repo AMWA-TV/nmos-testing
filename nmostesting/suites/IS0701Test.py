@@ -204,7 +204,7 @@ class IS0701Test(GenericTest):
         return test.PASS()
 
     def test_06_01(self, test):
-        """Each number Source state payload 'value' is one of the allowed values"""
+        """Each number Source state payload 'value' and 'scale' represent one of the allowed values"""
         self.do_collect_sources(test)
 
         found_number = False
@@ -344,6 +344,52 @@ class IS0701Test(GenericTest):
 
         return test.PASS()
 
+    def test_08(self, test):
+        """Each number Source type 'scale' values and state payload 'scale' are consistent"""
+        self.do_collect_sources(test)
+
+        found_number = False
+
+        try:
+            for source_id in self.sources:
+                source = self.sources[source_id]
+                if "number" != source["type"]["type"]:
+                    continue
+                # all 'enum' types define the allowed values
+                if "values" in source["type"]:
+                    continue
+                found_number = True
+
+                scale = source["type"]["scale"] if "scale" in source["type"] else self.get_scale(source["type"]["min"])
+
+                if self.get_scale(source["type"]["min"]) != scale:
+                    return test.WARNING("Source {} type 'min' scaleis inconsistent with 'scale'"
+                                        .format(source_id))
+
+                if self.get_scale(source["type"]["max"]) != scale:
+                    return test.WARNING("Source {} type 'max' scale is inconsistent with 'min' scale"
+                                        .format(source_id))
+
+                if "step" in source["type"]:
+                    if self.get_scale(source["type"]["step"]) != scale:
+                        return test.WARNING("Source {} type 'step' scale is inconsistent with 'min' and 'max' scale"
+                                            .format(source_id))
+
+                payload_scale = self.get_scale(source["state"]["payload"])
+                if payload_scale != scale:
+                    return test.WARNING("Source {} state payload 'scale' is inconsistent with type 'scale' values"
+                                        .format(source_id))
+
+        except KeyError as e:
+            return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
+
+        if not found_number:
+            return test.UNCLEAR("No 'number' sources were returned from Events API")
+
+        return test.PASS()
+
+    def get_scale(self, payload):
+        return 1 if "scale" not in payload else payload["scale"]
+
     def get_number(self, payload):
-        scale = 1 if "scale" not in payload else payload["scale"]
-        return fractions.Fraction(payload["value"], scale)
+        return fractions.Fraction(payload["value"], self.get_scale(payload))
