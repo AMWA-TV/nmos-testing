@@ -45,30 +45,33 @@ class IS0703Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender in self.senders:
-                dest = "single/senders/" + sender + "/active/"
+                dest = "single/senders/" + sender + "/active"
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                 if valid:
                     if len(response) > 0 and isinstance(response["transport_params"][0], dict):
                         self.sender_active_params[sender] = response["transport_params"][0]
 
     def test_01(self, test):
-        """Each Sender has ext_is_07_source_id and ext_is_07_rest_api_url parameters"""
+        """Each Sender has the required ext parameters"""
 
-        extParams = ['ext_is_07_source_id', 'ext_is_07_rest_api_url']
+        ext_params_websocket = ['ext_is_07_source_id', 'ext_is_07_rest_api_url']
+        ext_params_mqtt = ['ext_is_07_rest_api_url']
         if len(self.senders) > 0:
             for sender in self.senders:
                 if sender in self.sender_active_params:
                     all_params = self.sender_active_params[sender].keys()
                     params = [param for param in all_params if param.startswith("ext_")]
-                    valid_params = False
-                    if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
-                        if sorted(params) == sorted(extParams):
-                            valid_params = True
-                    elif self.transport_types[sender] == "urn:x-nmos:transport:mqtt":
-                        if sorted(params) == sorted(extParams):
-                            valid_params = True
-                    if not valid_params:
-                        return test.FAIL("Missing common ext parameters")
+                    if (self.transport_types[sender] == "urn:x-nmos:transport:websocket" or 
+                        self.transport_types[sender] == "urn:x-nmos:transport:mqtt"):
+                        valid_params = False
+                        if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
+                            if sorted(params) == sorted(ext_params_websocket):
+                                valid_params = True
+                        elif self.transport_types[sender] == "urn:x-nmos:transport:mqtt":
+                            if sorted(params) == sorted(ext_params_mqtt):
+                                valid_params = True
+                        if not valid_params:
+                            return test.FAIL("Missing required ext parameters")
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
