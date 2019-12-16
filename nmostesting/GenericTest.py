@@ -229,16 +229,16 @@ class GenericTest(object):
                 return False, "Incorrect CORS headers: {}".format(headers)
         return True, ""
 
-    def check_content_type(self, headers):
+    def check_content_type(self, headers, expected_type="application/json"):
         """Check the Content-Type header of an API request or response"""
         if "Content-Type" not in headers:
             return False, "API failed to signal a Content-Type."
         else:
             ctype = headers["Content-Type"]
             ctype_params = ctype.split(";")
-            if ctype_params[0] != "application/json":
-                return False, "API signalled a Content-Type of {} rather than application/json." \
-                              .format(ctype)
+            if ctype_params[0] != expected_type:
+                return False, "API signalled a Content-Type of {} rather than {}." \
+                              .format(ctype, expected_type)
             elif len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
                 return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
                              .format(ctype)

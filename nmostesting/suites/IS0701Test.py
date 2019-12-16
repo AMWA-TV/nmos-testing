@@ -134,6 +134,8 @@ class IS0701Test(GenericTest):
                                             .format(source_id))
         except KeyError as e:
             return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
+        except ZeroDivisionError as e:
+            return test.FAIL("Source {} scale of zero is not allowed: {}".format(source_id, e))
 
         if not found_number:
             return test.UNCLEAR("No 'number' sources were returned from Events API")
@@ -239,6 +241,8 @@ class IS0701Test(GenericTest):
                                             .format(source_id))
         except KeyError as e:
             return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
+        except ZeroDivisionError as e:
+            return test.FAIL("Source {} scale of zero is not allowed: {}".format(source_id, e))
 
         if not found_number:
             return test.UNCLEAR("No 'number' sources were returned from Events API")
@@ -392,4 +396,4 @@ class IS0701Test(GenericTest):
         return 1 if "scale" not in payload else payload["scale"]
 
     def get_number(self, payload):
-        return fractions.Fraction(payload["value"], self.get_scale(payload))
+        return fractions.Fraction(fractions.Fraction(payload["value"]), self.get_scale(payload))
