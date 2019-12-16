@@ -61,8 +61,8 @@ class IS0703Test(GenericTest):
                 if sender in self.sender_active_params:
                     all_params = self.sender_active_params[sender].keys()
                     params = [param for param in all_params if param.startswith("ext_")]
-                    if (self.transport_types[sender] == "urn:x-nmos:transport:websocket" or 
-                        self.transport_types[sender] == "urn:x-nmos:transport:mqtt"):
+                    if (self.transport_types[sender] == "urn:x-nmos:transport:websocket" or
+                            self.transport_types[sender] == "urn:x-nmos:transport:mqtt"):
                         valid_params = False
                         if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
                             if sorted(params) == sorted(ext_params_websocket):
