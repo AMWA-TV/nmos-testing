@@ -71,7 +71,7 @@ class IS0703Test(GenericTest):
                             if sorted(params) == sorted(ext_params_mqtt):
                                 valid_params = True
                         if not valid_params:
-                            return test.FAIL("Missing required ext parameters")
+                            return test.FAIL("Missing required ext parameters for Sender {}".format(sender))
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
