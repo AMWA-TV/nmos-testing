@@ -67,6 +67,7 @@ from .suites import IS0501Test
 from .suites import IS0502Test
 from .suites import IS0601Test
 from .suites import IS0701Test
+from .suites import IS0703Test
 from .suites import IS0801Test
 from .suites import IS0802Test
 from .suites import IS0901Test
@@ -182,6 +183,17 @@ TEST_DEFINITIONS = {
             "api_key": "events"
         }],
         "class": IS0701Test.IS0701Test
+    },
+    "IS-07-03": {
+        "name": "IS-07 Interaction with IS-05",
+        "specs": [{
+            "spec_key": 'is-07',
+            "api_key": "events"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "class": IS0703Test.IS0703Test
     },
     "IS-08-01": {
         "name": "IS-08 Channel Mapping API",
