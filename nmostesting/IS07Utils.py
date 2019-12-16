@@ -32,6 +32,6 @@ class IS07Utils(NMOSUtils):
                 toReturn[source_id] = {}
                 for sub_path in ["state", "type"]:
                     valid_sub, sub = TestHelper.do_request("GET", "{}/{}/{}".format(sources_url, source_id, sub_path))
-                    if valid_sub:
+                    if valid_sub and sub.status == 200:
                         toReturn[source_id][sub_path] = sub.json()
         return toReturn
