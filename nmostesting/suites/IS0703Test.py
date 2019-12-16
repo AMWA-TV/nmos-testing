@@ -76,8 +76,6 @@ class IS0703Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
-        return test.PASS()
-
     def test_02(self, test):
         """Each Source has a corresponding IS-05 sender"""
 
@@ -93,5 +91,5 @@ class IS0703Test(GenericTest):
 
                 if not found_source:
                     return test.FAIL("Source {} has no associated IS-05 sender".format(source))
-
-        return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
