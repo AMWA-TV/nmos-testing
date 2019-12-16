@@ -135,7 +135,7 @@ class IS0701Test(GenericTest):
         except KeyError as e:
             return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
         except ZeroDivisionError as e:
-            return test.FAIL("Source {} JSON zero data not allowed: {}".format(source_id, e))
+            return test.FAIL("Source {} scale of zero is not allowed: {}".format(source_id, e))
 
         if not found_number:
             return test.UNCLEAR("No 'number' sources were returned from Events API")
@@ -242,7 +242,7 @@ class IS0701Test(GenericTest):
         except KeyError as e:
             return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
         except ZeroDivisionError as e:
-            return test.FAIL("Source {} JSON zero data not allowed: {}".format(source_id, e))
+            return test.FAIL("Source {} scale of zero is not allowed: {}".format(source_id, e))
 
         if not found_number:
             return test.UNCLEAR("No 'number' sources were returned from Events API")
