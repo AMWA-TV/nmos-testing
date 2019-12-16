@@ -41,7 +41,7 @@ class IS0703Test(GenericTest):
             if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
                 self.transport_types[sender] = self.is05_utils.get_transporttype(sender, "sender")
             else:
-                self.transport_types[sender] = "unknown"
+                self.transport_types[sender] = "urn:x-nmos:transport:rtp"
 
         if len(self.senders) > 0:
             for sender in self.senders:
