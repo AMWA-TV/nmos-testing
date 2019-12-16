@@ -367,7 +367,7 @@ class IS0701Test(GenericTest):
                 scale = source["type"]["scale"] if "scale" in source["type"] else self.get_scale(source["type"]["min"])
 
                 if self.get_scale(source["type"]["min"]) != scale:
-                    return test.WARNING("Source {} type 'min' scaleis inconsistent with 'scale'"
+                    return test.WARNING("Source {} type 'min' scale is inconsistent with 'scale'"
                                         .format(source_id))
 
                 if self.get_scale(source["type"]["max"]) != scale:
