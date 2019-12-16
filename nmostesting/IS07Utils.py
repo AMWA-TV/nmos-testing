@@ -1,6 +1,4 @@
-# Copyright 2017 British Broadcasting Corporation
-#
-# Modifications Copyright 2018 Riedel Communications GmbH & Co. KG
+# Copyright (C) 2019 Advanced Media Workflow Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,9 +14,8 @@
 
 from . import TestHelper
 
-from requests.compat import json
-
 from .NMOSUtils import NMOSUtils
+
 
 class IS07Utils(NMOSUtils):
     def __init__(self, url):
@@ -27,9 +24,9 @@ class IS07Utils(NMOSUtils):
     def get_sources_states_and_types(self):
         """Gets a list of the available source objects with state and type on the API"""
         toReturn = {}
-        sources_url = self.url + "sources/"        
+        sources_url = self.url + "sources/"
         valid_sources, sources = TestHelper.do_request("GET", sources_url)
-        if valid_sources:            
+        if valid_sources:
             for source in sources.json():
                 source_id = source[:-1]
                 toReturn[source_id] = {}

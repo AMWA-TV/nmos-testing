@@ -1,4 +1,4 @@
-# Copyright (C) 2018 British Broadcasting Corporation
+# Copyright (C) 2019 Advanced Media Workflow Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from requests.compat import json
-
-from ..GenericTest import GenericTest, NMOSTestException
+from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
 from ..IS07Utils import IS07Utils
 
 EVENTS_API_KEY = "events"
 CONN_API_KEY = "connection"
+
 
 class IS0703Test(GenericTest):
     """
@@ -48,7 +47,7 @@ class IS0703Test(GenericTest):
             for sender in self.senders:
                 dest = "single/senders/" + sender + "/active/"
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-                if valid:                        
+                if valid:
                     if len(response) > 0 and isinstance(response["transport_params"][0], dict):
                         self.sender_active_params[sender] = response["transport_params"][0]
 
@@ -88,8 +87,8 @@ class IS0703Test(GenericTest):
                             found_source = True
                     except KeyError as e:
                         return test.FAIL("Sender {} parameters do not contain expected key: {}".format(sender, e))
-                
-                if found_source == False:
-                    return test.FAIL("Source: {} has no associated IS-05 sender".format(source))
+
+                if not found_source:
+                    return test.FAIL("Source {} has no associated IS-05 sender".format(source))
 
         return test.PASS()
