@@ -47,15 +47,13 @@ class IS0703Test(GenericTest):
         self.sources_to_test = {}
 
         for sender in self.is04_senders:
-            for flow in self.is04_flows:
-                if flow == self.is04_senders[sender]["flow_id"]:
-                    for source in self.is04_sources:
-                        if source == self.is04_flows[flow]["source_id"]:
-                            if 'event_type' in self.is04_sources[source]:
-                                self.senders_to_test[sender] = self.is04_senders[sender]
-                                self.sources_to_test[source] = self.is04_sources[source]
-                            break
-                    break
+            flow = self.is04_senders[sender]["flow_id"]
+            if flow in self.is04_flows:
+                source = self.is04_flows[flow]["source_id"]
+                if source in self.is04_sources:
+                    if 'event_type' in self.is04_sources[source]:
+                        self.senders_to_test[sender] = self.is04_senders[sender]
+                        self.sources_to_test[source] = self.is04_sources[source]
 
         for sender in self.is05_senders:
             if self.is05_utils.compare_api_version(self.apis[CONN_API_KEY]["version"], "v1.1") >= 0:
