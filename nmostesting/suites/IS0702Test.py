@@ -98,6 +98,8 @@ class IS0702Test(GenericTest):
         """Each Source has a corresponding sender in IS-04 and IS-05"""
 
         if len(self.is07_sources) > 0:
+            warn_topic = False
+            warn_message = ""
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
                     found_sender = None
@@ -105,23 +107,45 @@ class IS0702Test(GenericTest):
                         flow_id = self.senders_to_test[sender_id]["flow_id"]
                         if flow_id in self.is04_flows:
                             if source_id == self.is04_flows[flow_id]["source_id"]:
-                                found_sender = sender_id
+                                found_sender = self.senders_to_test[sender_id]
                                 break
                     if found_sender is not None:
-                        if found_sender in self.sender_active_params:
+                        if found_sender["id"] in self.sender_active_params:
                             try:
-                                if self.sender_active_params[found_sender]["ext_is_07_source_id"] == source_id:
-                                    return test.PASS()
+                                params = self.sender_active_params[found_sender["id"]]
+                                if found_sender["transport"] == "urn:x-nmos:transport:websocket":
+                                    if params["ext_is_07_source_id"] == source_id:
+                                        pass
+                                    else:
+                                        return test.FAIL("IS-05 sender {} does not indicate the correct"
+                                                         " 'ext_is_07_source_id': {}"
+                                                         .format(found_sender["id"], source_id))
+                                elif found_sender["transport"] == "urn:x-nmos:transport:mqtt":
+                                    split_topic = params["broker_topic"].split("/")
+                                    if len(split_topic) > 0:
+                                        if split_topic[-1] != source_id:
+                                            warn_topic = True
+                                            warn_message = "IS-05 sender {} does not indicate the correct source" \
+                                                " in 'broker_topic': {}".format(found_sender["id"], source_id)
+                                    else:
+                                        warn_topic = True
+                                        warn_message = "IS-05 sender {} does not indicate the correct source" \
+                                            " in 'broker_topic': {}".format(found_sender["id"], source_id)
                                 else:
-                                    return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
+                                    return test.FAIL("IS-05 sender {} has an unsupported transport {}"
+                                                     .format(found_sender["id"], found_sender["transport"]))
                             except KeyError as e:
                                 return test.FAIL("Sender {} parameters do not contain expected key: {}"
-                                                 .format(found_sender, e))
+                                                 .format(found_sender["id"], e))
                         else:
                             return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
                     else:
                         return test.FAIL("Source {} has no associated IS-04 sender".format(source_id))
                 else:
                     return test.FAIL("Source {} not found in Node API".format(source_id))
+            if warn_topic:
+                return test.WARNING(warn_message)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
