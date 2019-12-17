@@ -912,16 +912,16 @@ class IS0501Test(GenericTest):
         # Check the parameters have actually changed
         for portInst in portList:
             paramName = self.is05_utils.changeable_param_name(self.transport_types[portInst])
-            activeUrl = "single/" + port + "s/" + portInst + "/staged/"
+            url = "single/" + port + "s/" + portInst + "/staged/"
 
-            valid, response = self.is05_utils.checkCleanRequestJSON("GET", activeUrl)
+            valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
             if valid:
                 for i in range(0, self.is05_utils.get_num_paths(portInst, port)):
                     try:
                         value = response['transport_params'][i][paramName]
                     except KeyError:
                         return False, "Could not find `{}` parameter at {} on leg {}, got{}".format(
-                            paramName, activeUrl, i, response)
+                            paramName, url, i, response)
                     portNum = ports[portInst][i]
                     msg = "Problem updating {} value in bulk update, expected {} got {}".format(paramName, portNum,
                                                                                                 value)
