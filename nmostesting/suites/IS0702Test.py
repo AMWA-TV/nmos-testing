@@ -22,9 +22,9 @@ NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
 
 
-class IS0703Test(GenericTest):
+class IS0702Test(GenericTest):
     """
-    Runs IS-07-03-Test
+    Runs IS-07-02-Test
     """
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
