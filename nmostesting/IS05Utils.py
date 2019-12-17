@@ -182,7 +182,7 @@ class IS05Utils(NMOSUtils):
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 stagedUrl, i, type(response3), stagedParams)
-                        msg = "Transport parameters did not transition to active during an imeddiate activation"
+                        msg = "Transport parameters did not transition to active during an immediate activation"
                         if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
                             pass
                         else:
