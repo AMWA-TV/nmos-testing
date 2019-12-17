@@ -27,6 +27,8 @@ class IS04Utils(NMOSUtils):
         valid_resource, resource = TestHelper.do_request("GET", self.url + "self")
         if valid_resource and resource.status_code == 200:
             return resource.json()
+        else:
+            return None
 
     def get_devices(self, url=None):
         """Get node devices from the Node API"""
