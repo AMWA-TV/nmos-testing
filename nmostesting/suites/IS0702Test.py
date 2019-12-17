@@ -98,22 +98,21 @@ class IS0702Test(GenericTest):
         """Each Source has a corresponding IS-05 sender"""
 
         if len(self.is07_sources) > 0:
-            if len(self.sources_to_test.keys()) > 0:
-                for source in self.is07_sources:
-                    if source in self.sources_to_test:
-                        found_source = False
-                        for sender in self.senders_to_test:
-                            if sender in self.sender_active_params:
-                                try:
-                                    if self.sender_active_params[sender]["ext_is_07_source_id"] == source:
-                                        found_source = True
-                                except KeyError as e:
-                                    return test.FAIL("Sender {} parameters do not contain expected key: {}"
-                                                     .format(sender, e))
-                        if not found_source:
-                            return test.FAIL("Source {} has no associated IS-05 sender".format(source))
+            for source in self.is07_sources:
+                if source in self.sources_to_test:
+                    found_source = False
+                    for sender in self.senders_to_test:
+                        if sender in self.sender_active_params:
+                            try:
+                                if self.sender_active_params[sender]["ext_is_07_source_id"] == source:
+                                    found_source = True
+                            except KeyError as e:
+                                return test.FAIL("Sender {} parameters do not contain expected key: {}"
+                                                 .format(sender, e))
+                    if not found_source:
+                        return test.FAIL("Source {} has no associated IS-05 sender".format(source))
+                else:
+                    return test.FAIL("Source {} not found in Node API".format(source))
                 return test.PASS()
-            else:
-                return test.FAIL("No sources found in IS-04 Node API")
         else:
             return test.UNCLEAR("Not tested. No resources found.")
