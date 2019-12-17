@@ -95,24 +95,33 @@ class IS0702Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_02(self, test):
-        """Each Source has a corresponding IS-05 sender"""
+        """Each Source has a corresponding sender in IS-04 and IS-05"""
 
         if len(self.is07_sources) > 0:
-            for source in self.is07_sources:
-                if source in self.sources_to_test:
-                    found_source = False
-                    for sender in self.senders_to_test:
-                        if sender in self.sender_active_params:
+            for source_id in self.is07_sources:
+                if source_id in self.sources_to_test:
+                    found_sender = None
+                    for sender_id in self.senders_to_test:
+                        flow_id = self.senders_to_test[sender_id]["flow_id"]
+                        if flow_id in self.is04_flows:
+                            if source_id == self.is04_flows[flow_id]["source_id"]:
+                                found_sender = sender_id
+                                break
+                    if found_sender is not None:
+                        if found_sender in self.sender_active_params:
                             try:
-                                if self.sender_active_params[sender]["ext_is_07_source_id"] == source:
-                                    found_source = True
+                                if self.sender_active_params[found_sender]["ext_is_07_source_id"] == source_id:
+                                    return test.PASS()
+                                else:
+                                    return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
                             except KeyError as e:
                                 return test.FAIL("Sender {} parameters do not contain expected key: {}"
-                                                 .format(sender, e))
-                    if not found_source:
-                        return test.FAIL("Source {} has no associated IS-05 sender".format(source))
+                                                 .format(found_sender, e))
+                        else:
+                            return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
+                    else:
+                        return test.FAIL("Source {} has no associated IS-04 sender".format(source_id))
                 else:
-                    return test.FAIL("Source {} not found in Node API".format(source))
-                return test.PASS()
+                    return test.FAIL("Source {} not found in Node API".format(source_id))
         else:
             return test.UNCLEAR("Not tested. No resources found.")
