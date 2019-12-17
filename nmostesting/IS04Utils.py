@@ -21,7 +21,7 @@ class IS04Utils(NMOSUtils):
     def __init__(self, url):
         NMOSUtils.__init__(self, url)
 
-    def get_node(self):
+    def get_self(self):
         """Get node self resource from the Node API"""
 
         valid_resource, resource = TestHelper.do_request("GET", self.url + "self")
