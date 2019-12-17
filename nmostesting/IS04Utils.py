@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import TestHelper
 
 from .NMOSUtils import NMOSUtils
 
@@ -19,3 +20,46 @@ from .NMOSUtils import NMOSUtils
 class IS04Utils(NMOSUtils):
     def __init__(self, url):
         NMOSUtils.__init__(self, url)
+
+    def get_node(self):
+        """Get node self resource from the Node API"""
+
+        valid_resource, resource = TestHelper.do_request("GET", self.url + "self")
+        if valid_resource and resource.status_code == 200:
+            return resource.json()
+
+    def get_devices(self):
+        """Get node devices from the Node API"""
+
+        return self.get_resources(self.url + "devices")
+
+    def get_sources(self):
+        """Get node sources from the Node API"""
+
+        return self.get_resources(self.url + "sources")
+
+    def get_flows(self):
+        """Get node flows from the Node API"""
+
+        return self.get_resources(self.url + "flows")
+
+    def get_senders(self):
+        """Get node senders from the Node API"""
+
+        return self.get_resources(self.url + "senders")
+
+    def get_receivers(self):
+        """Get node receivers from the Node API"""
+
+        return self.get_resources(self.url + "receivers")
+
+    def get_resources(self, url):
+        """Get node resources from the Node API"""
+
+        toReturn = {}
+        valid_resources, resources = TestHelper.do_request("GET", url)
+        if valid_resources and resources.status_code == 200:
+            for res in resources.json():
+                toReturn[res["id"]] = res
+
+        return toReturn
