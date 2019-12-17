@@ -192,6 +192,9 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "is-05",
             "api_key": "connection"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node"
         }],
         "class": IS0703Test.IS0703Test
     },
@@ -298,8 +301,8 @@ class DataForm(Form):
     specs_per_test = sorted(specs_per_test, key=lambda x: x[0])
     max_endpoints = 0
     for spec in specs_per_test:
-        if len(spec) > max_endpoints:
-            max_endpoints = len(spec)
+        if len(spec[1]) > max_endpoints:
+            max_endpoints = len(spec[1])
     endpoints = FieldList(FormField(EndpointForm, label=""), min_entries=max_endpoints)
 
     # Define the secondary test selection dropdown
