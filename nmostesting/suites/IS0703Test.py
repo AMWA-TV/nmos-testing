@@ -88,6 +88,8 @@ class IS0703Test(GenericTest):
                             valid_params = True
                     if not valid_params:
                         return test.FAIL("Missing required ext parameters for Sender {}".format(sender))
+                else:
+                    return test.FAIL("Sender {} not found in Connection API".format(sender))
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
@@ -112,6 +114,6 @@ class IS0703Test(GenericTest):
                             return test.FAIL("Source {} has no associated IS-05 sender".format(source))
                 return test.PASS()
             else:
-                return test.UNCLEAR("Not tested. No resources found.")
+                return test.FAIL("No sources found in IS-04 Node API")
         else:
             return test.UNCLEAR("Not tested. No resources found.")
