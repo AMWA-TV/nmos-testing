@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 from ..GenericTest import GenericTest
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
@@ -97,6 +99,8 @@ class IS0702Test(GenericTest):
     def test_02(self, test):
         """Each Source has a corresponding sender in IS-04 and IS-05"""
 
+        api = self.apis[EVENTS_API_KEY]
+
         if len(self.is07_sources) > 0:
             warn_topic = False
             warn_message = ""
@@ -114,23 +118,24 @@ class IS0702Test(GenericTest):
                             try:
                                 params = self.sender_active_params[found_sender["id"]]
                                 if found_sender["transport"] == "urn:x-nmos:transport:websocket":
-                                    if params["ext_is_07_source_id"] == source_id:
-                                        pass
-                                    else:
-                                        return test.FAIL("IS-05 sender {} does not indicate the correct"
-                                                         " 'ext_is_07_source_id': {}"
+                                    if params["ext_is_07_source_id"] != source_id:
+                                        return test.FAIL("IS-05 sender {} does not indicate the correct "
+                                                         "'ext_is_07_source_id': {}"
                                                          .format(found_sender["id"], source_id))
                                 elif found_sender["transport"] == "urn:x-nmos:transport:mqtt":
-                                    split_topic = params["broker_topic"].split("/")
-                                    if len(split_topic) > 0:
-                                        if split_topic[-1] != source_id:
-                                            warn_topic = True
-                                            warn_message = "IS-05 sender {} does not indicate the correct source" \
-                                                " in 'broker_topic': {}".format(found_sender["id"], source_id)
-                                    else:
+                                    topic = re.search("^x-nmos/events/(.+)/sources/(.+)$", params["broker_topic"])
+                                    if not topic:
                                         warn_topic = True
-                                        warn_message = "IS-05 sender {} does not indicate the correct source" \
-                                            " in 'broker_topic': {}".format(found_sender["id"], source_id)
+                                        warn_message = "IS-05 sender {} does not follow the recommended convention " \
+                                            "in 'broker_topic': {}".format(found_sender["id"], source_id)
+                                    elif topic.group(2) != source_id:
+                                        warn_topic = True
+                                        warn_message = "IS-05 sender {} does not indicate the correct source " \
+                                            "in 'broker_topic': {}".format(found_sender["id"], source_id)
+                                    elif topic.group(1) != api["version"]:
+                                        warn_topic = True
+                                        warn_message = "IS-05 sender {} does not indicate the correct API version " \
+                                            "in 'broker_topic': {}".format(found_sender["id"], api["version"])
                                 else:
                                     return test.FAIL("IS-05 sender {} has an unsupported transport {}"
                                                      .format(found_sender["id"], found_sender["transport"]))
@@ -144,7 +149,10 @@ class IS0702Test(GenericTest):
                 else:
                     return test.FAIL("Source {} not found in Node API".format(source_id))
             if warn_topic:
-                return test.WARNING(warn_message)
+                return test.WARNING(warn_message,
+                                    "https://amwa-tv.github.io/nmos-event-tally/branches/{}"
+                                    "/docs/5.1._Transport_-_MQTT.html#32-broker_topic"
+                                    .format(api["spec_branch"]))
             else:
                 return test.PASS()
         else:
