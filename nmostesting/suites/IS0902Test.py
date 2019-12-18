@@ -46,7 +46,7 @@ class IS0902Test(GenericTest):
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
             self.dns_server.load_zone(self.apis[SYSTEM_API_KEY]["version"], self.protocol,
-                                      "test_data/IS0902/dns_records.zone", PORT_BASE+300)
+                                      "test_data/IS0902/dns_records.zone", CONFIG.PORT_BASE+300)
 
     def tear_down_tests(self):
         if self.zc:
