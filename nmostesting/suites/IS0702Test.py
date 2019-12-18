@@ -157,3 +157,66 @@ class IS0702Test(GenericTest):
                 return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_03(self, test):
+        """Websocket senders on the same device have the same connection_uri and connection_authorization parameters"""
+
+        if len(self.is07_sources) > 0:
+            for source_id in self.is07_sources:
+                if source_id in self.sources_to_test:
+                    current_device_id = None
+                    last_connection_uri = None
+                    last_connection_authorization = None
+                    found_sender = None
+                    for sender_id in self.senders_to_test:
+                        flow_id = self.senders_to_test[sender_id]["flow_id"]
+                        if flow_id in self.is04_flows:
+                            if source_id == self.is04_flows[flow_id]["source_id"]:
+                                found_sender = self.senders_to_test[sender_id]
+                                try:
+                                    if current_device_id != found_sender["device_id"]:
+                                        current_device_id = found_sender["device_id"]
+                                        last_connection_uri = None
+                                        last_connection_authorization = None
+                                except KeyError as e:
+                                    return test.FAIL("Sender {} do not contain expected key: {}"
+                                                     .format(found_sender["id"], e))
+                                break
+                    if found_sender is not None:
+                        if current_device_id is not None:
+                            if found_sender["id"] in self.sender_active_params:
+                                try:
+                                    params = self.sender_active_params[found_sender["id"]]
+
+                                    local_connection_uri = params["connection_uri"]
+                                    local_connection_authorization = params["connection_authorization"]
+
+                                    if last_connection_uri is None:
+                                        last_connection_uri = local_connection_uri
+                                    else:
+                                        if last_connection_uri != local_connection_uri:
+                                            return test.FAIL("Sender {} does not have the same connection_uri "
+                                                             "parameter within the same device"
+                                                             .format(found_sender["id"]))
+                                    if last_connection_authorization is None:
+                                        last_connection_authorization = local_connection_authorization
+                                    else:
+                                        if last_connection_authorization != local_connection_authorization:
+                                            return test.FAIL("Sender {} does not have the same "
+                                                             "connection_authorization parameter within "
+                                                             "the same device".format(found_sender["id"]))
+                                except KeyError as e:
+                                    return test.FAIL("Sender {} parameters do not contain expected key: {}"
+                                                     .format(found_sender["id"], e))
+                            else:
+                                return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
+                        else:
+                            return test.FAIL("Sender {} does not have an associated device_id"
+                                             .format(found_sender["id"]))
+                    else:
+                        return test.FAIL("Source {} has no associated IS-04 sender".format(source_id))
+                else:
+                    return test.FAIL("Source {} not found in Node API".format(source_id))
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
