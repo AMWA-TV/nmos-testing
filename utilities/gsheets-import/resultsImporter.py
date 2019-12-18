@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import argparse
+import datetime
 import gspread
 import json
 import sys
@@ -106,7 +107,8 @@ def main():
         cell_list_results[current_index].value = test_results["url"]
     current_index += 1
     cell_list_names[current_index].value = "Timestamp"
-    cell_list_results[current_index].value = test_results["timestamp"]
+    cell_list_results[current_index].value = (datetime.datetime.utcfromtimestamp(test_results["timestamp"])
+                                                               .strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z')
     current_index += 1
     cell_list_names[current_index].value = "Test Suite"
     try:

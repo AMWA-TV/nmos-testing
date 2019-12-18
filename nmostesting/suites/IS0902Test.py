@@ -14,12 +14,12 @@
 
 import time
 import socket
-
 from zeroconf_monkey import ServiceInfo, Zeroconf
-from MdnsListener import MdnsListener
-from GenericTest import GenericTest
-from Config import ENABLE_DNS_SD, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT, PORT_BASE
-from TestHelper import get_default_ip
+
+from .. import Config as CONFIG
+from ..MdnsListener import MdnsListener
+from ..GenericTest import GenericTest
+from ..TestHelper import get_default_ip
 
 SYSTEM_API_KEY = "system"
 
@@ -84,7 +84,7 @@ class IS0902Test(GenericTest):
         if self.system_basics_done:
             return
 
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             system_mdns = []
             priority = 0
 
@@ -118,7 +118,7 @@ class IS0902Test(GenericTest):
         self.invalid_system.enable()
         self.primary_system.enable()
 
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise the primary System API and invalid ones at pri 0, and allow the Node to do a basic registration
             self.zc.register_service(system_mdns[0])
             self.zc.register_service(system_mdns[1])
@@ -126,7 +126,7 @@ class IS0902Test(GenericTest):
 
         # Wait for n seconds after advertising the service for the first interaction
         start_time = time.time()
-        while time.time() < start_time + DNS_SD_ADVERT_TIMEOUT:
+        while time.time() < start_time + CONFIG.DNS_SD_ADVERT_TIMEOUT:
             if self.primary_system.requested:
                 break
             if self.invalid_system.requested:
@@ -134,7 +134,7 @@ class IS0902Test(GenericTest):
             time.sleep(0.2)
 
         # Clean up mDNS advertisements and disable System APIs
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             for info in system_mdns:
                 self.zc.unregister_service(info)
         self.invalid_system.disable()
@@ -156,7 +156,7 @@ class IS0902Test(GenericTest):
     def test_01(self, test):
         """Node can discover System API via multicast DNS"""
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'multicast'")
 
@@ -170,7 +170,7 @@ class IS0902Test(GenericTest):
     def test_01_01(self, test):
         """Node does not attempt to contact an unsuitable System API"""
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'multicast'")
 
@@ -184,7 +184,7 @@ class IS0902Test(GenericTest):
     def test_02(self, test):
         """Node can discover System API via unicast DNS"""
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'unicast'")
 
@@ -198,7 +198,7 @@ class IS0902Test(GenericTest):
     def test_02_01(self, test):
         """Node does not attempt to contact an unsuitable System API"""
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'unicast'")
 
@@ -212,7 +212,7 @@ class IS0902Test(GenericTest):
     def test_03(self, test):
         """System API interactions use the correct versioned path"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_system_basics_prereqs()
@@ -231,7 +231,7 @@ class IS0902Test(GenericTest):
     def test_04(self, test):
         """Node correctly selects a System API based on advertised priorities"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_system_basics_prereqs()

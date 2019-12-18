@@ -19,15 +19,13 @@ import socket
 from requests.compat import json
 from urllib.parse import urlparse
 from dnslib import QTYPE
-
 from copy import deepcopy
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
+
+from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..Config import ENABLE_DNS_SD, QUERY_API_HOST, QUERY_API_PORT, DNS_SD_MODE, DNS_SD_ADVERT_TIMEOUT
-from ..Config import HEARTBEAT_INTERVAL, ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT, API_PROCESSING_TIMEOUT, DNS_DOMAIN
-from ..Config import PORT_BASE
 from ..TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
@@ -49,8 +47,10 @@ class IS0401Test(GenericTest):
         self.registry_basics_data = []
         self.registry_primary_data = None
         self.registry_invalid_data = None
-        self.node_basics_data = {"self": None, "devices": None, "sources": None,
-                                 "flows": None, "senders": None, "receivers": None}
+        self.node_basics_data = {
+            "self": None, "devices": None, "sources": None,
+            "flows": None, "senders": None, "receivers": None
+        }
         self.is04_utils = IS04Utils(self.node_url)
         self.zc = None
         self.zc_listener = None
@@ -62,11 +62,15 @@ class IS0401Test(GenericTest):
             self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol,
                                       "test_data/IS0401/dns_records.zone", PORT_BASE+100)
             print(" * Waiting for up to {} seconds for a DNS query before executing tests"
-                  .format(DNS_SD_ADVERT_TIMEOUT))
-            self.dns_server.wait_for_query(QTYPE.PTR,
-                                           ["_nmos-register._tcp.{}.".format(DNS_DOMAIN),
-                                            "_nmos-registration._tcp.{}.".format(DNS_DOMAIN)],
-                                           DNS_SD_ADVERT_TIMEOUT)
+                  .format(CONFIG.DNS_SD_ADVERT_TIMEOUT))
+            self.dns_server.wait_for_query(
+                QTYPE.PTR,
+                [
+                    "_nmos-register._tcp.{}.".format(CONFIG.DNS_DOMAIN),
+                    "_nmos-registration._tcp.{}.".format(CONFIG.DNS_DOMAIN)
+                ],
+                CONFIG.DNS_SD_ADVERT_TIMEOUT
+            )
 
     def tear_down_tests(self):
         if self.zc:
@@ -118,11 +122,11 @@ class IS0401Test(GenericTest):
         if self.registry_basics_done:
             return
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             self.do_node_basics_prereqs()
             return
 
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             registry_mdns = []
             priority = 0
 
@@ -156,7 +160,7 @@ class IS0401Test(GenericTest):
         self.invalid_registry.enable()
         self.primary_registry.enable()
 
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
             if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
                 self.zc.register_service(registry_mdns[0])
@@ -165,7 +169,7 @@ class IS0401Test(GenericTest):
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         start_time = time.time()
-        while time.time() < start_time + DNS_SD_ADVERT_TIMEOUT:
+        while time.time() < start_time + CONFIG.DNS_SD_ADVERT_TIMEOUT:
             if self.primary_registry.has_registrations():
                 break
             if self.invalid_registry.has_registrations():
@@ -173,8 +177,8 @@ class IS0401Test(GenericTest):
             time.sleep(0.2)
 
         # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1 or \
-              (time.time() - self.invalid_registry.last_time) < HEARTBEAT_INTERVAL + 1:
+        while (time.time() - self.primary_registry.last_time) < CONFIG.HEARTBEAT_INTERVAL + 1 or \
+              (time.time() - self.invalid_registry.last_time) < CONFIG.HEARTBEAT_INTERVAL + 1:
             time.sleep(0.2)
 
         # Collect matching resources from the Node
@@ -184,14 +188,14 @@ class IS0401Test(GenericTest):
         if len(self.primary_registry.get_data().heartbeats) > 0 or len(self.invalid_registry.get_data().heartbeats) > 0:
             # It is heartbeating, but we don't have enough of them yet
             while len(self.primary_registry.get_data().heartbeats) < 2 and \
-                  len(self.invalid_registry.get_data().heartbeats) < 2:
+                    len(self.invalid_registry.get_data().heartbeats) < 2:
                 time.sleep(0.2)
 
             # Once registered, advertise all other registries at different (ascending) priorities
             for index, registry in enumerate(self.registries[1:]):
                 registry.enable()
 
-            if DNS_SD_MODE == "multicast":
+            if CONFIG.DNS_SD_MODE == "multicast":
                 for info in registry_mdns[3:]:
                     self.zc.register_service(info)
 
@@ -208,15 +212,15 @@ class IS0401Test(GenericTest):
                 # when the first registry is disabled, an additional few seconds is needed to ensure the node
                 # has a chance to make a connection to it, receive the 5xx error, and make a connection to
                 # the next one
-                if ENABLE_HTTPS:
-                    heartbeat_countdown = HEARTBEAT_INTERVAL + 1 + 5
+                if CONFIG.ENABLE_HTTPS:
+                    heartbeat_countdown = CONFIG.HEARTBEAT_INTERVAL + 1 + 5
                 else:
-                    heartbeat_countdown = HEARTBEAT_INTERVAL + 1
+                    heartbeat_countdown = CONFIG.HEARTBEAT_INTERVAL + 1
 
                 # Wait an extra heartbeat interval when dealing with the timout test
                 # This allows a Node's connection to time out and then register with the next mock registry
                 if (index + 2) == len(self.registries):
-                    heartbeat_countdown += HEARTBEAT_INTERVAL
+                    heartbeat_countdown += CONFIG.HEARTBEAT_INTERVAL
 
                 while len(self.registries[index + 1].get_data().heartbeats) < 1 and heartbeat_countdown > 0:
                     # Wait until the heartbeat interval has elapsed or a heartbeat has been received
@@ -228,7 +232,7 @@ class IS0401Test(GenericTest):
                     break
 
         # Clean up mDNS advertisements and disable registries
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             for info in registry_mdns:
                 self.zc.unregister_service(info)
         self.invalid_registry.disable()
@@ -250,7 +254,7 @@ class IS0401Test(GenericTest):
     def test_01(self, test):
         """Node can discover network registration service via multicast DNS"""
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'multicast'")
 
@@ -268,7 +272,7 @@ class IS0401Test(GenericTest):
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") == 0:
             return test.NA("Nodes running v1.0 do not check DNS-SD api_ver and api_proto TXT records")
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "multicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'multicast'")
 
@@ -283,7 +287,7 @@ class IS0401Test(GenericTest):
     def test_02(self, test):
         """Node can discover network registration service via unicast DNS"""
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'unicast'")
 
@@ -301,7 +305,7 @@ class IS0401Test(GenericTest):
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") == 0:
             return test.NA("Nodes running v1.0 do not check DNS-SD api_ver and api_proto TXT records")
 
-        if not ENABLE_DNS_SD or DNS_SD_MODE != "unicast":
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'unicast'")
 
@@ -314,16 +318,16 @@ class IS0401Test(GenericTest):
         return test.PASS()
 
     def test_03(self, test):
-        """Registration API interactions use the correct Content-Type"""
+        """Registration API interactions use the correct headers"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
         registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
-            return test.FAIL("No registrations found")
+            return test.UNCLEAR("No registrations found")
 
         ctype_warn = ""
         for resource in registry_data.posts:
@@ -333,6 +337,17 @@ class IS0401Test(GenericTest):
             elif ctype_message and not ctype_warn:
                 ctype_warn = ctype_message
 
+            accept_valid, accept_message = self.check_accept(resource[1]["headers"])
+            if not accept_valid:
+                return test.FAIL(accept_message)
+
+            if "Transfer-Encoding" not in resource[1]["headers"]:
+                if "Content-Length" not in resource[1]["headers"]:
+                    return test.FAIL("One or more Node POSTs did not include Content-Length")
+            else:
+                if "Content-Length" in resource[1]["headers"]:
+                    return test.FAIL("API signalled both Transfer-Encoding and Content-Length")
+
         if ctype_warn:
             return test.WARNING(ctype_warn)
         else:
@@ -341,7 +356,7 @@ class IS0401Test(GenericTest):
     def test_03_01(self, test):
         """Registration API interactions use the correct versioned path"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         api = self.apis[NODE_API_KEY]
@@ -350,7 +365,7 @@ class IS0401Test(GenericTest):
 
         registry_data = self.registry_primary_data
         if len(registry_data.posts) == 0:
-            return test.FAIL("No registrations found")
+            return test.UNCLEAR("No registrations found")
 
         for resource in registry_data.posts:
             if resource[1]["version"] != api["version"]:
@@ -372,7 +387,7 @@ class IS0401Test(GenericTest):
     def get_registry_resource(self, res_type, res_id):
         """Get a specific resource ID from the mock registry, or a real registry if DNS-SD is disabled"""
         found_resource = None
-        if ENABLE_DNS_SD:
+        if CONFIG.ENABLE_DNS_SD:
             # Look up data in local mock registry
             registry_data = self.registry_primary_data
             for resource in registry_data.posts:
@@ -380,8 +395,15 @@ class IS0401Test(GenericTest):
                     found_resource = resource[1]["payload"]["data"]
         else:
             # Look up data from a configured Query API
-            url = self.protocol + "://" + QUERY_API_HOST + ":" + str(QUERY_API_PORT) + "/x-nmos/query/" + \
-                  self.apis[NODE_API_KEY]["version"] + "/" + res_type + "s/" + res_id
+            url = "{}://{}:{}/x-nmos/query/{}/{}s/{}".format(
+                self.protocol,
+                CONFIG.QUERY_API_HOST,
+                str(CONFIG.QUERY_API_PORT),
+                self.apis[NODE_API_KEY]["version"],
+                res_type,
+                res_id
+            )
+
             try:
                 valid, r = self.do_request("GET", url)
                 if valid and r.status_code == 200:
@@ -389,8 +411,10 @@ class IS0401Test(GenericTest):
                 else:
                     raise Exception
             except Exception:
-                print(" * ERROR: Unable to load resource from the configured Query API ({}:{})".format(QUERY_API_HOST,
-                                                                                                       QUERY_API_PORT))
+                print(" * ERROR: Unable to load resource from the configured Query API ({}:{})".format(
+                    CONFIG.QUERY_API_HOST,
+                    CONFIG.QUERY_API_PORT
+                ))
         return found_resource
 
     def get_node_resources(self, res_type):
@@ -431,7 +455,7 @@ class IS0401Test(GenericTest):
             return test.FAIL("Failed to reach Node API or invalid JSON received!")
 
     def parent_resource_type(self, res_type):
-        """Find the parent resource type for a given resource"""
+        """Find the parent resource type required for a given resource type"""
         if res_type == "device":
             return "node"
         elif res_type == "flow" and \
@@ -442,26 +466,60 @@ class IS0401Test(GenericTest):
         else:
             return None
 
-    def do_test_matching_parents(self, test, res_type):
-        """Check that the parents for a specific resource type is held in the mock registry"""
+    def preceding_resource_type(self, res_type):
+        """Find the preceding resource type recommended for a given resource type,
+        if different than the parent resource type"""
+        # The recommendation ensures e.g. that a Query API client would find the Source and Flow
+        # associated with a particular Sender
+        if res_type == "flow" and \
+                self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") > 0:
+            return "source"
+        elif res_type == "sender":
+            return "flow"
+        else:
+            return None
+
+    def do_test_referential_integrity(self, test, res_type):
+        """Check that the parents for a specific resource type are held in the mock registry,
+        and the recommended order for referential integrity has been adhered to"""
+
+        api = self.apis[NODE_API_KEY]
+
         # Look up data in local mock registry
         registry_data = self.registry_primary_data
         parent_type = self.parent_resource_type(res_type)
         registered_parents = []
+        preceding_type = self.preceding_resource_type(res_type)
+        registered_preceding = []
+
+        preceding_warn = ""
         found_resource = False
         try:
             # Cycle over registrations in order
             for resource in registry_data.posts:
-                if resource[1]["payload"]["type"] == parent_type:
-                    registered_parents.append(resource[1]["payload"]["data"]["id"])
-                elif resource[1]["payload"]["type"] == res_type and \
-                        resource[1]["payload"]["data"][parent_type + "_id"] not in registered_parents:
-                    return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
-                                     .format(res_type.title(), resource[1]["payload"]["data"]["id"],
-                                             parent_type + "_id", resource[1]["payload"]["data"][parent_type + "_id"]))
-                elif resource[1]["payload"]["type"] == res_type:
+                rtype = resource[1]["payload"]["type"]
+                rdata = resource[1]["payload"]["data"]
+                if rtype == parent_type:
+                    registered_parents.append(rdata["id"])
+                elif preceding_type and rtype == preceding_type:
+                    registered_preceding.append(rdata["id"])
+                elif rtype == res_type:
                     found_resource = True
-            if found_resource:
+                    if rdata[parent_type + "_id"] not in registered_parents:
+                        return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
+                                         .format(res_type.title(), rdata["id"],
+                                                 parent_type + "_id", rdata[parent_type + "_id"]))
+                    if preceding_type and rdata[preceding_type + "_id"] not in registered_preceding \
+                            and not preceding_warn:
+                        preceding_warn = "{} '{}' was registered before its referenced '{}' '{}'" \
+                                         .format(res_type.title(), rdata["id"],
+                                                 preceding_type + "_id", rdata[preceding_type + "_id"])
+            if preceding_warn:
+                return test.WARNING(preceding_warn,
+                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                    "/docs/4.1._Behaviour_-_Registration.html#referential-integrity"
+                                    .format(api["spec_branch"]))
+            elif found_resource:
                 return test.PASS()
             else:
                 return test.UNCLEAR("No {} resources were registered with the mock registry.".format(res_type.title()))
@@ -479,7 +537,7 @@ class IS0401Test(GenericTest):
     def test_05(self, test):
         """Node maintains itself in the registry via periodic calls to the health resource"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         api = self.apis[NODE_API_KEY]
@@ -501,13 +559,13 @@ class IS0401Test(GenericTest):
             if last_hb:
                 # Check frequency of heartbeats matches the defaults
                 time_diff = heartbeat[0] - last_hb[0]
-                if time_diff > HEARTBEAT_INTERVAL + 0.5:
+                if time_diff > CONFIG.HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("Heartbeats are not frequent enough.")
-                elif time_diff < HEARTBEAT_INTERVAL - 0.5:
+                elif time_diff < CONFIG.HEARTBEAT_INTERVAL - 0.5:
                     return test.FAIL("Heartbeats are too frequent.")
             else:
                 # For first heartbeat, check against Node registration
-                if (heartbeat[0] - initial_node[0]) > HEARTBEAT_INTERVAL + 0.5:
+                if (heartbeat[0] - initial_node[0]) > CONFIG.HEARTBEAT_INTERVAL + 0.5:
                     return test.FAIL("First heartbeat occurred too long after initial Node registration.")
 
             # Ensure the heartbeat request body is empty
@@ -516,11 +574,29 @@ class IS0401Test(GenericTest):
                                     "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
+
             if "Content-Type" in heartbeat[1]["headers"]:
                 return test.WARNING("Heartbeat POST contained a Content-Type header.",
                                     "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
+
+            if "Transfer-Encoding" not in heartbeat[1]["headers"]:
+                if "Content-Length" not in heartbeat[1]["headers"] or \
+                        int(heartbeat[1]["headers"]["Content-Length"]) != 0:
+                    # The NMOS spec currently says Content-Length: 0 is OPTIONAL, but it is RECOMMENDED in RFC 7230
+                    # and omitting it causes problems for commonly deployed HTTP servers
+                    return test.WARNING("Heartbeat POST did not contain a valid Content-Length header.",
+                                        "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                        "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
+                                        .format(api["spec_branch"]))
+            else:
+                if "Content-Length" in heartbeat[1]["headers"]:
+                    return test.FAIL("API signalled both Transfer-Encoding and Content-Length")
+
+            accept_valid, accept_message = self.check_accept(heartbeat[1]["headers"])
+            if not accept_valid:
+                return test.FAIL(accept_message)
 
             last_hb = heartbeat
 
@@ -537,12 +613,12 @@ class IS0401Test(GenericTest):
     def test_07_01(self, test):
         """Registered Device was POSTed after a matching referenced Node"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
-        return self.do_test_matching_parents(test, "device")
+        return self.do_test_referential_integrity(test, "device")
 
     def test_08(self, test):
         """Node can register a valid Source resource with the network
@@ -555,12 +631,12 @@ class IS0401Test(GenericTest):
     def test_08_01(self, test):
         """Registered Source was POSTed after a matching referenced Device"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
-        return self.do_test_matching_parents(test, "source")
+        return self.do_test_referential_integrity(test, "source")
 
     def test_09(self, test):
         """Node can register a valid Flow resource with the network
@@ -573,12 +649,12 @@ class IS0401Test(GenericTest):
     def test_09_01(self, test):
         """Registered Flow was POSTed after a matching referenced Device or Source"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
-        return self.do_test_matching_parents(test, "flow")
+        return self.do_test_referential_integrity(test, "flow")
 
     def test_10(self, test):
         """Node can register a valid Sender resource with the network
@@ -591,12 +667,12 @@ class IS0401Test(GenericTest):
     def test_10_01(self, test):
         """Registered Sender was POSTed after a matching referenced Device"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
-        return self.do_test_matching_parents(test, "sender")
+        return self.do_test_referential_integrity(test, "sender")
 
     def test_11(self, test):
         """Node can register a valid Receiver resource with the network
@@ -609,18 +685,18 @@ class IS0401Test(GenericTest):
     def test_11_01(self, test):
         """Registered Receiver was POSTed after a matching referenced Device"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
 
-        return self.do_test_matching_parents(test, "receiver")
+        return self.do_test_referential_integrity(test, "receiver")
 
     def test_12(self, test):
         """Node advertises a Node type mDNS announcement with no ver_* TXT records
         in the presence of a Registration API (v1.0, v1.1 and v1.2)"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         api = self.apis[NODE_API_KEY]
@@ -667,7 +743,7 @@ class IS0401Test(GenericTest):
     def test_12_01(self, test):
         """Node does not advertise a Node type mDNS announcement in the presence of a Registration API (v1.3+)"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         api = self.apis[NODE_API_KEY]
@@ -725,7 +801,7 @@ class IS0401Test(GenericTest):
                 request_data = self.node.get_sender(stream_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
-                time.sleep(API_PROCESSING_TIMEOUT)
+                time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + receiver["id"])
                 if not valid or response.status_code != 200:
@@ -770,7 +846,7 @@ class IS0401Test(GenericTest):
             if test_receiver is not None:
                 self.do_receiver_put(test, test_receiver["id"], {})
 
-                time.sleep(API_PROCESSING_TIMEOUT)
+                time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
                 valid, response = self.do_request("GET", self.node_url + "receivers/" + test_receiver["id"])
                 if not valid or response.status_code != 200:
@@ -796,7 +872,7 @@ class IS0401Test(GenericTest):
     def test_15(self, test):
         """Node correctly selects a Registration API based on advertised priorities"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
@@ -824,7 +900,7 @@ class IS0401Test(GenericTest):
     def test_16(self, test):
         """Node correctly fails over between advertised Registration APIs when one fails"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
@@ -846,7 +922,7 @@ class IS0401Test(GenericTest):
     def test_16_01(self, test):
         """Node correctly handles Registration APIs whose connections time out"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_registry_basics_prereqs()
@@ -1151,7 +1227,7 @@ class IS0401Test(GenericTest):
     def test_21(self, test):
         """Node correctly interprets a 200 code from a registry upon initial registration"""
 
-        if not ENABLE_DNS_SD:
+        if not CONFIG.ENABLE_DNS_SD:
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         registry_info = self._registry_mdns_info(self.primary_registry.get_data().port, 0)
@@ -1160,20 +1236,20 @@ class IS0401Test(GenericTest):
         self.primary_registry.reset()
         self.primary_registry.enable(first_reg=True)
 
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
             self.zc.register_service(registry_info)
 
         # Wait for n seconds after advertising the service for the first POST and then DELETE from a Node
-        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
-        self.primary_registry.wait_for_delete(HEARTBEAT_INTERVAL + 1)
+        self.primary_registry.wait_for_registration(CONFIG.DNS_SD_ADVERT_TIMEOUT)
+        self.primary_registry.wait_for_delete(CONFIG.HEARTBEAT_INTERVAL + 1)
 
         # Wait for the Node to finish its interactions
-        while (time.time() - self.primary_registry.last_time) < HEARTBEAT_INTERVAL + 1:
+        while (time.time() - self.primary_registry.last_time) < CONFIG.HEARTBEAT_INTERVAL + 1:
             time.sleep(0.2)
 
         # By this point we should have had at least one Node POST and a corresponding DELETE
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             self.zc.unregister_service(registry_info)
         self.primary_registry.disable()
 
@@ -1284,6 +1360,101 @@ class IS0401Test(GenericTest):
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
                                  "https://amwa-tv.github.io/nmos-grouping/best-practice-natural-grouping.html")
 
+    def test_24(self, test):
+        """Periodic Sources specify a 'grain_rate'"""
+
+        valid, response = self.do_request("GET", self.node_url + "sources")
+        if valid and response.status_code == 200:
+            try:
+                for resource in response.json():
+                    # Currently testing where it would be particularly unusual to find a non-periodic Source
+                    if resource["format"] in ["urn:x-nmos:format:video",
+                                              "urn:x-nmos:format:audio",
+                                              "urn:x-nmos:format:mux"]:
+                        if "grain_rate" not in resource:
+                            return test.WARNING("Sources MUST specify a 'grain_rate' if they are periodic")
+                if len(response.json()) > 0:
+                    return test.PASS()
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.UNCLEAR("No Source resources were found on the Node")
+
+    def test_24_01(self, test):
+        """Periodic Flows' 'grain_rate' is divisible by their parent Source 'grain_rate'"""
+
+        source_valid, source_response = self.do_request("GET", self.node_url + "sources")
+        flow_valid, flow_response = self.do_request("GET", self.node_url + "flows")
+
+        if source_valid and flow_valid and source_response.status_code == 200 and flow_response.status_code == 200:
+            try:
+                sources = {source["id"]: source for source in source_response.json()}
+                flows = flow_response.json()
+                for flow in flows:
+                    if "grain_rate" in flow:
+                        source = sources[flow["source_id"]]
+                        if "grain_rate" not in source:
+                            return test.FAIL("Sources MUST specify a 'grain_rate' when their child Flows specify a "
+                                             "'grain_rate'")
+                        flow_rate = flow["grain_rate"]
+                        if "denominator" not in flow_rate:
+                            flow_rate["denominator"] = 1
+                        source_rate = source["grain_rate"]
+                        if "denominator" not in source_rate:
+                            source_rate["denominator"] = 1
+                        if ((source_rate["numerator"] * flow_rate["denominator"]) %
+                           (flow_rate["numerator"] * source_rate["denominator"])):
+                            return test.FAIL("Flow 'grain_rate' MUST be integer divisible by the Source 'grain_rate'")
+                if len(flow_response.json()) > 0:
+                    return test.PASS()
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError:
+                return test.FAIL("No Source found for one or more advertised Flows")
+
+        return test.UNCLEAR("No Source or Flow resources were found on the Node")
+
+    def test_25(self, test):
+        """Receivers expose expected 'caps' for their API version"""
+
+        api = self.apis[NODE_API_KEY]
+
+        if self.is04_utils.compare_api_version(api["version"], "v1.1") < 0:
+            return test.NA("Capabilities are not used before API v1.1")
+
+        receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
+
+        no_receivers = True
+        if receivers_valid and receivers_response.status_code == 200:
+            try:
+                for receiver in receivers_response.json():
+                    no_receivers = False
+                    if "media_types" not in receiver["caps"]:
+                        return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types', unless "
+                                            "this Receiver can handle any 'media_type'",
+                                            "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/docs/"
+                                            "4.3._Behaviour_-_Nodes.html#all-resources".format(api["spec_branch"]))
+                    if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                        if receiver["format"] == "urn:x-nmos:format:data" and \
+                               receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
+                            # Technically this is a bit IS-07 specific, but it may still be best placed here for now
+                            if "event_types" not in receiver["caps"]:
+                                return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
+                                                    "if the Receiver accepts IS-07 events, unless this Receiver can "
+                                                    "handle any 'event_type'",
+                                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/"
+                                                    "docs/4.3._Behaviour_-_Nodes.html#all-resources"
+                                                    .format(api["spec_branch"]))
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the Receiver: {}".format(e))
+
+        if no_receivers:
+            return test.UNCLEAR("No Receivers were found on the Node")
+        else:
+            return test.PASS()
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
@@ -1323,19 +1494,19 @@ class IS0401Test(GenericTest):
         self.primary_registry.reset()
         self.primary_registry.enable()
 
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
             self.zc.register_service(registry_info)
 
         # Wait for n seconds after advertising the service for the first POST from a Node
-        self.primary_registry.wait_for_registration(DNS_SD_ADVERT_TIMEOUT)
+        self.primary_registry.wait_for_registration(CONFIG.DNS_SD_ADVERT_TIMEOUT)
 
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
-        time.sleep(DNS_SD_BROWSE_TIMEOUT)
+        time.sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         node_list = self.zc_listener.get_service_list()
 
         # Withdraw the registry advertisement now we've performed a browse for Node advertisements
-        if DNS_SD_MODE == "multicast":
+        if CONFIG.DNS_SD_MODE == "multicast":
             self.zc.unregister_service(registry_info)
         self.primary_registry.disable()
 

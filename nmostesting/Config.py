@@ -28,7 +28,7 @@ ENABLE_DNS_SD = True
 DNS_SD_MODE = 'multicast'
 
 # Number of seconds to wait after a DNS-SD advert is created for a client to notice and perform an action
-DNS_SD_ADVERT_TIMEOUT = 5
+DNS_SD_ADVERT_TIMEOUT = 30
 
 # Number of seconds to wait after browsing for a DNS-SD advert before checking the results
 DNS_SD_BROWSE_TIMEOUT = 2
@@ -99,7 +99,7 @@ SPECIFICATIONS = {
     "is-04": {
         "repo": "nmos-discovery-registration",
         "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
-        "default_version": "v1.2",
+        "default_version": "v1.3",
         "apis": {
             "node": {
                 "name": "Node API",
@@ -118,7 +118,7 @@ SPECIFICATIONS = {
     "is-05": {
         "repo": "nmos-device-connection-management",
         "versions": ["v1.0", "v1.1"],
-        "default_version": "v1.0",
+        "default_version": "v1.1",
         "apis": {
             "connection": {
                 "name": "Connection API",

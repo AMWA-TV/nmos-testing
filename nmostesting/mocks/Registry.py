@@ -138,10 +138,12 @@ def post_resource(version):
     else:
         registered = True
     registry.add(request.headers, request.json, version)
+    location = "/x-nmos/registration/{}/resource/{}/{}".format(version, request.json["type"],
+                                                               request.json["data"]["id"])
     if registered:
-        return jsonify(request.json["data"]), 200
+        return jsonify(request.json["data"]), 200, {"Location": location}
     else:
-        return jsonify(request.json["data"]), 201
+        return jsonify(request.json["data"]), 201, {"Location": location}
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource/<resource_type>/<resource_id>', methods=["DELETE"])
@@ -175,9 +177,9 @@ def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    # store raw request payload, in order to check for empty request bodies later
-    registry.heartbeat(request.headers, request.data, version, node_id)
     if node_id in registry.get_resources()["node"]:
+        # store raw request payload, in order to check for empty request bodies later
+        registry.heartbeat(request.headers, request.data, version, node_id)
         return jsonify({"health": int(time.time())})
     else:
         abort(404)

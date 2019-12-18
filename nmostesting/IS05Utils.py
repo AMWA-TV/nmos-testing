@@ -20,7 +20,7 @@ import time
 from random import randint
 from . import TestHelper
 from .NMOSUtils import NMOSUtils, IMMEDIATE_ACTIVATION, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
-from .Config import API_PROCESSING_TIMEOUT, PORT_BASE, ENABLE_HTTPS
+from . import Config as CONFIG
 
 
 class IS05Utils(NMOSUtils):
@@ -167,7 +167,7 @@ class IS05Utils(NMOSUtils):
                 if valid3:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = response3['transport_params'][i][changedParam]
+                            activeParam = response3['transport_params'][i][changedParam]
                         except KeyError:
                             return False, "Could not find active {} entry on leg {} from {}, " \
                                           "got {}".format(changedParam, i, activeUrl, response3)
@@ -175,15 +175,15 @@ class IS05Utils(NMOSUtils):
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 activeUrl, i, type(response3), response3)
                         try:
-                            stagedPort = stagedParams[i][changedParam]
+                            stagedParam = stagedParams[i][changedParam]
                         except KeyError:
                             return False, "Could not find staged {} entry on leg {} from {}, " \
                                           "got {}".format(changedParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
                                 stagedUrl, i, type(response3), stagedParams)
-                        msg = "Transport parameters did not transition to active during an imeddiate activation"
-                        if stagedPort == activePort:
+                        msg = "Transport parameters did not transition to active during an immediate activation"
+                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
                             pass
                         else:
                             return False, msg
@@ -243,7 +243,7 @@ class IS05Utils(NMOSUtils):
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = activeParams['transport_params'][i][changedParam]
+                            activeParam = activeParams['transport_params'][i][changedParam]
                         except KeyError:
                             return False, "Could not find active {} entry on leg {} from {}, " \
                                           "got {}".format(changedParam, i, activeUrl, activeParams)
@@ -251,18 +251,18 @@ class IS05Utils(NMOSUtils):
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
-                            stagedPort = stagedParams[i][changedParam]
+                            stagedParam = stagedParams[i][changedParam]
                         except KeyError:
                             return False, "Could not find staged {} entry on leg {} from {}, " \
                                           "got {}".format(changedParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(stagedUrl, i, type(activeParams), stagedParams)
-                        if stagedPort == activePort:
+                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
                             finished = True
                         else:
                             retries = retries + 1
-                            time.sleep(API_PROCESSING_TIMEOUT)
+                            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
                     if finished:
                         try:
@@ -336,7 +336,7 @@ class IS05Utils(NMOSUtils):
                 if valid2:
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activePort = activeParams['transport_params'][i][changedParam]
+                            activeParam = activeParams['transport_params'][i][changedParam]
                         except KeyError:
                             return False, "Could not find active {} entry on leg {} from {}, " \
                                           "got {}".format(changedParam, i, activeUrl, activeParams)
@@ -344,18 +344,18 @@ class IS05Utils(NMOSUtils):
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
                                           "{}".format(activeUrl, i, type(activeParams), activeParams)
                         try:
-                            stagedPort = stagedParams[i][changedParam]
+                            stagedParam = stagedParams[i][changedParam]
                         except KeyError:
                             return False, "Could not find staged {} entry on leg {} from {}, " \
                                           "got {}".format(changedParam, i, stagedUrl, stagedParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
                                           "{}".format(stagedUrl, i, type(activeParams), stagedParams)
-                        if activePort == stagedPort:
+                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
                             finished = True
                         else:
                             retries = retries + 1
-                            time.sleep(API_PROCESSING_TIMEOUT)
+                            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
                     if finished:
                         try:
@@ -379,13 +379,14 @@ class IS05Utils(NMOSUtils):
     def check_activation(self, port, portId, activationMethod, transportType):
         """Checks that when an immediate activation is called staged parameters are moved
         to active and the activation is correctly displayed in the /active endpoint"""
-        # Set a new destination port in staged
+        # Set a new value for a transport_param for each leg in staged
         valid, paramValues = self.generate_changeable_param(port, portId, transportType)
         paramName = self.changeable_param_name(transportType)
         if valid:
             stagedUrl = "single/" + port + "s/" + portId + "/staged"
             data = {"transport_params": []}
-            for i in range(0, self.get_num_paths(portId, port)):
+            legs = self.get_num_paths(portId, port)
+            for i in range(0, legs):
                 data['transport_params'].append({paramName: paramValues[i]})
             if len(data["transport_params"]) == 0:
                 del data["transport_params"]
@@ -398,6 +399,12 @@ class IS05Utils(NMOSUtils):
                 except TypeError:
                     return False, "Expected a dict to be returned from {}, got a {}".format(stagedUrl,
                                                                                             type(stagedParams))
+                if len(stagedParams) != legs:
+                    return False, "Expected {} `transport_params` in response from {}".format(legs, stagedUrl)
+                for i in range(0, legs):
+                    if paramName not in stagedParams[i] or stagedParams[i][paramName] != paramValues[i]:
+                        return False, "Expected `transport_params` {} `{}` to be {} in response from {}" \
+                                      .format(i, paramName, paramValues[i], stagedUrl)
                 return activationMethod(port, portId, stagedParams, paramName)
             else:
                 return False, r
@@ -460,9 +467,9 @@ class IS05Utils(NMOSUtils):
                         toReturn.append(values[randint(0, len(values) - 1)])
                     else:
                         scheme = "ws"
-                        if ENABLE_HTTPS:
+                        if CONFIG.ENABLE_HTTPS:
                             scheme = "wss"
-                        toReturn.append("{}://{}:{}".format(scheme, TestHelper.get_default_ip(), PORT_BASE))
+                        toReturn.append("{}://{}:{}".format(scheme, TestHelper.get_default_ip(), CONFIG.PORT_BASE))
                 return True, toReturn
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
@@ -636,6 +643,9 @@ class IS05Utils(NMOSUtils):
                     if filter_line and filter_line.group(2) != transport_params["source_ip"]:
                         return False, "SDP source-filter IP {} does not match transport_params: {}" \
                                       .format(filter_line.group(2), transport_params["source_ip"])
+                    elif filter_line and filter_line.group(1) != transport_params["destination_ip"]:
+                        return False, "SDP source-filter multicast IP {} does not match transport_params {}" \
+                                      .format(filter_line.group(1), transport_params["destination_ip"])
             else:
                 return False, sdp_response
         else:
@@ -646,7 +656,7 @@ class IS05Utils(NMOSUtils):
         """Gets a list of the available senders on the API"""
         toReturn = []
         valid, r = TestHelper.do_request("GET", self.url + "single/senders/")
-        if valid:
+        if valid and r.status_code == 200:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
@@ -658,7 +668,7 @@ class IS05Utils(NMOSUtils):
         """Gets a list of the available receivers on the API"""
         toReturn = []
         valid, r = TestHelper.do_request("GET", self.url + "single/receivers/")
-        if valid:
+        if valid and r.status_code == 200:
             try:
                 for value in r.json():
                     toReturn.append(value[:-1])
@@ -670,11 +680,19 @@ class IS05Utils(NMOSUtils):
         """Get the transport type for a given Sender or Receiver"""
         toReturn = None
         valid, r = TestHelper.do_request("GET", self.url + "single/" + portType + "s/" + port + "/transporttype")
-        if valid:
+        if valid and r.status_code == 200:
             try:
                 toReturn = r.json()
             except ValueError:
                 pass
+        return toReturn
+
+    def get_transportfile(self, port):
+        """Get the transport file for a given Sender"""
+        toReturn = None
+        valid, r = TestHelper.do_request("GET", self.url + "single/senders/" + port + "/transportfile")
+        if valid and r.status_code == 200:
+            toReturn = r.text
         return toReturn
 
     def get_num_paths(self, port, portType):

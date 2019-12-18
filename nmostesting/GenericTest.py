@@ -23,7 +23,7 @@ import uuid
 from . import TestHelper
 from .Specification import Specification
 from .TestResult import Test
-from .Config import ENABLE_HTTPS
+from . import Config as CONFIG
 
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
@@ -66,7 +66,7 @@ class GenericTest(object):
         self.result = list()
         self.protocol = "http"
         self.ws_protocol = "ws"
-        if ENABLE_HTTPS:
+        if CONFIG.ENABLE_HTTPS:
             self.protocol = "https"
             self.ws_protocol = "wss"
 
@@ -110,8 +110,8 @@ class GenericTest(object):
         for api in self.apis:
             if "spec_path" not in self.apis[api]:
                 continue
-            self.apis[api]["spec"] = Specification(os.path.join(self.apis[api]["spec_path"] + '/APIs/' +
-                                                                self.apis[api]["raml"]))
+            raml_path = os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"])
+            self.apis[api]["spec"] = Specification(raml_path)
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
@@ -230,22 +230,59 @@ class GenericTest(object):
                 return False, "Incorrect CORS headers: {}".format(headers)
         return True, ""
 
-    def check_content_type(self, headers):
+    def check_content_type(self, headers, expected_type="application/json"):
         """Check the Content-Type header of an API request or response"""
         if "Content-Type" not in headers:
             return False, "API failed to signal a Content-Type."
         else:
             ctype = headers["Content-Type"]
             ctype_params = ctype.split(";")
-            if ctype_params[0] != "application/json":
-                return False, "API signalled a Content-Type of {} rather than application/json." \
-                              .format(ctype)
+            if ctype_params[0] != expected_type:
+                return False, "API signalled a Content-Type of {} rather than {}." \
+                              .format(ctype, expected_type)
             elif len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
                 return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
                              .format(ctype)
             elif len(ctype_params) >= 2:
                 return False, "API signalled unexpected additional parameters in its Content-Type: {}" \
                               .format(ctype)
+        return True, ""
+
+    def check_accept(self, headers):
+        """Check the Accept header of an API request"""
+        if "Accept" in headers:
+            accept_params = headers["Accept"].split(",")
+            max_weight = 0
+            max_weight_types = []
+            for param in accept_params:
+                param_parts = param.split(";")
+                media_type = param_parts[0].strip()
+                weight = 1
+                for ext_param in param_parts[1:]:
+                    if ext_param.strip().startswith("q="):
+                        try:
+                            weight = float(ext_param.split("=")[1].strip())
+                            break
+                        except Exception:
+                            pass
+                if weight > max_weight:
+                    max_weight = weight
+                    max_weight_types.clear()
+                if weight == max_weight:
+                    max_weight_types.append(media_type)
+            if "application/json" not in max_weight_types and "*/*" not in max_weight_types:
+                return False, "API did not signal a preference for application/json via its Accept header."
+            try:
+                max_weight_types.remove("application/json")
+            except ValueError:
+                pass
+            try:
+                max_weight_types.remove("*/*")
+            except ValueError:
+                pass
+            if len(max_weight_types) > 0:
+                return False, "API signalled multiple media types with the same preference as application/json in " \
+                              "its Accept header: {}".format(max_weight_types)
         return True, ""
 
     def auto_test_name(self, api_name):
@@ -314,9 +351,7 @@ class GenericTest(object):
         jsonschema.validate(payload, schema, format_checker=checker)
 
     def do_request(self, method, url, **kwargs):
-        return TestHelper.do_request(
-            method=method, url=url, **kwargs
-        )
+        return TestHelper.do_request(method=method, url=url, **kwargs)
 
     def basics(self):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""

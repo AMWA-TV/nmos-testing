@@ -15,15 +15,15 @@
 # limitations under the License.
 
 import threading
-from copy import copy
 import requests
 import websocket
 import os
 import jsonref
 import netifaces
+from copy import copy
 from pathlib import Path
 
-from .Config import HTTP_TIMEOUT, CERT_TRUST_ROOT_CA, BIND_INTERFACE
+from . import Config as CONFIG
 
 
 def ordered(obj):
@@ -42,7 +42,7 @@ def compare_json(json1, json2):
 
 def get_default_ip():
     """Get this machine's preferred IPv4 address"""
-    if BIND_INTERFACE is None:
+    if CONFIG.BIND_INTERFACE is None:
         default_gw = netifaces.gateways()['default']
         if netifaces.AF_INET in default_gw:
             preferred_interface = default_gw[netifaces.AF_INET][1]
@@ -50,7 +50,7 @@ def get_default_ip():
             interfaces = netifaces.interfaces()
             preferred_interface = next((i for i in interfaces if i != 'lo'), interfaces[0])
     else:
-        preferred_interface = BIND_INTERFACE
+        preferred_interface = CONFIG.BIND_INTERFACE
     return netifaces.ifaddresses(preferred_interface)[netifaces.AF_INET][0]['addr']
 
 
@@ -60,8 +60,8 @@ def do_request(method, url, **kwargs):
         s = requests.Session()
         req = requests.Request(method, url, **kwargs)
         prepped = s.prepare_request(req)
-        settings = s.merge_environment_settings(prepped.url, {}, None, CERT_TRUST_ROOT_CA, None)
-        response = s.send(prepped, timeout=HTTP_TIMEOUT, **settings)
+        settings = s.merge_environment_settings(prepped.url, {}, None, CONFIG.CERT_TRUST_ROOT_CA, None)
+        response = s.send(prepped, timeout=CONFIG.HTTP_TIMEOUT, **settings)
         if prepped.url.startswith("https://"):
             if not response.url.startswith("https://"):
                 return False, "Redirect changed protocol"
@@ -140,7 +140,7 @@ class WebsocketWorker(threading.Thread):
         self.error_message = ""
 
     def run(self):
-        self.ws.run_forever(sslopt={"ca_certs": CERT_TRUST_ROOT_CA})
+        self.ws.run_forever(sslopt={"ca_certs": CONFIG.CERT_TRUST_ROOT_CA})
 
     def on_open(self):
         pass

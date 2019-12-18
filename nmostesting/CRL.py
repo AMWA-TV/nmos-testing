@@ -13,12 +13,12 @@
 # limitations under the License.
 
 from flask import Blueprint, make_response
-from .Config import PORT_BASE
+from . import Config as CONFIG
 
 
 class CRLDistributionPoint(object):
     def __init__(self):
-        self.port = PORT_BASE + 7  # cf. test_data/BCP00301/ca/intermediate/openssl.cnf
+        self.port = CONFIG.PORT_BASE + 7  # cf. test_data/BCP00301/ca/intermediate/openssl.cnf
 
 
 CRL = CRLDistributionPoint()

@@ -14,20 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from time import sleep
+import re
 import socket
 import uuid
 from requests.compat import json
 from copy import deepcopy
+from time import sleep
 from jsonschema import ValidationError
-import re
 from urllib.parse import urlparse
-
 from zeroconf_monkey import ServiceBrowser, Zeroconf
+
+from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..Config import DNS_SD_MODE, GARBAGE_COLLECTION_TIMEOUT, WS_MESSAGE_TIMEOUT, ENABLE_HTTPS, DNS_SD_BROWSE_TIMEOUT
 from ..TestHelper import WebsocketWorker, load_resolved_schema
 from ..TestResult import Test
 
@@ -41,9 +41,7 @@ class IS0402Test(GenericTest):
     """
     def __init__(self, apis):
         # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
-        omit_paths = [
-          "/health/nodes/{nodeId}"
-        ]
+        omit_paths = ["/health/nodes/{nodeId}"]
         GenericTest.__init__(self, apis, omit_paths)
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
@@ -68,11 +66,11 @@ class IS0402Test(GenericTest):
     def do_dns_sd_advertisement_check(self, test, api, service_type):
         """Registration API advertises correctly via mDNS"""
 
-        if DNS_SD_MODE != "multicast":
+        if CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         ServiceBrowser(self.zc, service_type, self.zc_listener)
-        sleep(DNS_SD_BROWSE_TIMEOUT)
+        sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         serv_list = self.zc_listener.get_service_list()
         for service in serv_list:
             address = socket.inet_ntoa(service.address)
@@ -1010,8 +1008,10 @@ class IS0402Test(GenericTest):
         # Raise an error if resources below the requested version are returned, or those for the relevant API versions
         # are not returned. Otherwise pass.
         for api_version in query_versions:
-            valid, r = self.do_request("GET", self.query_url +
-                                       "nodes/{}?query.downgrade={}".format(node_ids[api_version], api_version))
+            valid, r = self.do_request(
+                "GET",
+                self.query_url + "nodes/{}?query.downgrade={}".format(node_ids[api_version], api_version)
+            )
             if not valid:
                 return test.FAIL("Query API failed to respond to request")
             elif self.is04_query_utils.compare_api_version(query_api["version"], "v1.3") >= 0 and r.status_code == 501:
@@ -1182,7 +1182,7 @@ class IS0402Test(GenericTest):
             websockets[api_version] = WebsocketWorker(resp_json["ws_href"])
             websockets[api_version].start()
 
-        sleep(WS_MESSAGE_TIMEOUT)  # Wait for SYNC messages
+        sleep(CONFIG.WS_MESSAGE_TIMEOUT)  # Wait for SYNC messages
 
         # Verify no error occurred on starting websocket subscription & clear SYNC messages
         for api_version in query_versions:
@@ -1203,7 +1203,7 @@ class IS0402Test(GenericTest):
             reg_url = "{}/{}/".format(self.reg_url.rstrip(reg_api["version"] + "/"), api_version)
             self.post_resource(test, "node", test_data, codes=[201], reg_url=reg_url)
 
-        sleep(WS_MESSAGE_TIMEOUT)
+        sleep(CONFIG.WS_MESSAGE_TIMEOUT)
 
         # Read data & close websockets
         sub_data = dict()
@@ -1220,21 +1220,30 @@ class IS0402Test(GenericTest):
 
         # Verify that all POSTed Nodes are announced via the corresponding websocket sub as expected (incl downgrade)
         for api_version in query_versions:
-            expected_nodes = []
+            expected_nodes = list()
+            unexpected_nodes = list()
             for node_api_version, node_id in node_ids.items():
                 if self.is04_query_utils.compare_api_version(node_api_version, api_version) >= 0:
                     expected_nodes.append(node_id)
-            for expected_node_id in expected_nodes:
-                found_data_set = False
-                for curr_data in sub_data[api_version]:
-                    if "pre" not in curr_data and "post" in curr_data:  # Only check the 'Added Event'
-                        if "id" in curr_data["post"]:
-                            if expected_node_id == curr_data["post"]["id"]:
-                                found_data_set = True
-                                break
+                else:
+                    unexpected_nodes.append(node_id)
 
-                if not found_data_set:
+            # Collect ids of added nodes
+            posted_node_ids = list()
+            for curr_data in sub_data[api_version]:
+                if "pre" not in curr_data and "post" in curr_data:  # Only check the 'Added Event'
+                    if "id" in curr_data["post"]:
+                        posted_node_ids.append(curr_data["post"]["id"])
+
+            # Check for expected nodes
+            for expected_node_id in expected_nodes:
+                if expected_node_id not in posted_node_ids:
                     return test.FAIL("Query API failed to announce POSTed Node via websocket subscription.")
+
+            # Check for unexpected nodes
+            for unexpected_node_id in unexpected_nodes:
+                if unexpected_node_id in posted_node_ids:
+                    return test.FAIL("Query API returned an unexpected Node via websocket subscription.")
 
         return test.PASS()
 
@@ -1301,7 +1310,7 @@ class IS0402Test(GenericTest):
         websocket = WebsocketWorker(resp_json["ws_href"])
         try:
             websocket.start()
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             if websocket.did_error_occur():
                 return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
@@ -1325,7 +1334,7 @@ class IS0402Test(GenericTest):
                                               "queryapi-subscriptions-websocket.json")
 
             # Check that the single Node is reflected in the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1363,7 +1372,7 @@ class IS0402Test(GenericTest):
             self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1470,7 +1479,7 @@ class IS0402Test(GenericTest):
         websocket = WebsocketWorker(resp_json["ws_href"])
         try:
             websocket.start()
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             if websocket.did_error_occur():
                 return test.FAIL("Error opening websocket: {}".format(websocket.get_error_message()))
 
@@ -1494,7 +1503,7 @@ class IS0402Test(GenericTest):
                                               "queryapi-subscriptions-websocket.json")
 
             # Check that the single Node is reflected in the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1531,7 +1540,7 @@ class IS0402Test(GenericTest):
             self.post_resource(test, "node", test_data, codes=[200])
 
             # Ensure it disappears from the subscription
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             received_messages = websocket.get_messages()
 
             if len(received_messages) < 1:
@@ -1653,7 +1662,7 @@ class IS0402Test(GenericTest):
 
         # Wait for garbage collection (plus one whole second, since health is in whole seconds so
         # a registry may wait that much longer to guarantee a minimum garbage collection interval)
-        sleep(GARBAGE_COLLECTION_TIMEOUT + 1)
+        sleep(CONFIG.GARBAGE_COLLECTION_TIMEOUT + 1)
 
         # Verify all resources are removed
         for resource in resources:
@@ -1711,7 +1720,7 @@ class IS0402Test(GenericTest):
         resp_json = self.post_subscription(test, sub_json)
         # Check protocol
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-            if resp_json["secure"] is not ENABLE_HTTPS:
+            if resp_json["secure"] is not CONFIG.ENABLE_HTTPS:
                 return test.FAIL("Subscription 'secure' value is incorrect for the current protocol")
         if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
             return test.FAIL("Subscription 'ws_href' value does not match the current WebSocket protocol")
@@ -1745,7 +1754,7 @@ class IS0402Test(GenericTest):
         resp_json = self.post_subscription(test, sub_json)
         # Check protocol
         if self.is04_query_utils.compare_api_version(api["version"], "v1.1") >= 0:
-            if resp_json["secure"] is not ENABLE_HTTPS:
+            if resp_json["secure"] is not CONFIG.ENABLE_HTTPS:
                 return test.FAIL("Subscription 'secure' value is incorrect for the current protocol")
         if not resp_json["ws_href"].startswith(self.ws_protocol + "://"):
             return test.FAIL("Subscription 'ws_href' value does not match the current WebSocket protocol")
@@ -1845,7 +1854,7 @@ class IS0402Test(GenericTest):
 
             for resource in resources_to_post:
                 websockets[resource].start()
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
 
             for resource, resource_data in test_data.items():
                 if websockets[resource].did_error_occur():
@@ -1890,7 +1899,7 @@ class IS0402Test(GenericTest):
                 # Update resource
                 self.post_resource(test, resource, resource_data, codes=[200])
 
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
 
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
@@ -1941,7 +1950,7 @@ class IS0402Test(GenericTest):
                     return test.FAIL("Registration API did not respond as expected: Cannot delete {}: {} {}"
                                      .format(resource, r.status_code, r.text))
 
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
@@ -1981,7 +1990,7 @@ class IS0402Test(GenericTest):
                 self.bump_resource_version(test_data[resource])
                 self.post_resource(test, resource, test_data[resource], codes=[201])
 
-            sleep(WS_MESSAGE_TIMEOUT)
+            sleep(CONFIG.WS_MESSAGE_TIMEOUT)
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
 
@@ -2017,6 +2026,47 @@ class IS0402Test(GenericTest):
             # Tear down
             for k, v in websockets.items():
                 v.close()  # hmm, can raise OSError
+
+        return test.PASS()
+
+    def test_32(self, test):
+        """Registration API generates 409 code when a conflicting registration exists"""
+
+        self.do_test_api_v1_x(test)
+        api = self.apis[REG_API_KEY]
+
+        if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
+            return test.NA("This test only applies to API version v1.3+")
+
+        # Find the API versions supported by the Reg API
+        try:
+            valid, r = self.do_request("GET", self.reg_url.rstrip(api["version"] + "/"))
+            if not valid:
+                return test.FAIL("Registration API failed to respond to request")
+            else:
+                reg_versions = [version.rstrip("/") for version in r.json()]
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned")
+
+        # Sort the list and remove the current version under test
+        reg_versions = self.is04_reg_utils.sort_versions(reg_versions)
+        reg_versions.remove(api["version"])
+
+        if len(reg_versions) == 0:
+            return test.NA("This test is only relevant to registries which implement multiple API versions")
+
+        node_id = str(uuid.uuid4())
+
+        # Post Node at a version other than the one under test
+        alt_reg_url = "{}/{}/".format(self.reg_url.rstrip(api["version"] + "/"), reg_versions[0])
+        alt_node = self.copy_resource("node", reg_versions[0])
+        alt_node["id"] = node_id
+        self.post_resource(test, "node", alt_node, reg_url=alt_reg_url)
+
+        # Post Node at this version
+        test_node = self.copy_resource("node")
+        test_node["id"] = node_id
+        self.post_resource(test, "node", test_node, codes=[409])
 
         return test.PASS()
 
@@ -2254,7 +2304,7 @@ class IS0402Test(GenericTest):
         sub_json = deepcopy(self.subscription_data)
         sub_json["resource_path"] = resource_path
         sub_json["params"] = params
-        sub_json["secure"] = ENABLE_HTTPS
+        sub_json["secure"] = CONFIG.ENABLE_HTTPS
         if self.is04_query_utils.compare_api_version(api_ver, "v1.3") < 0:
             sub_json = self.downgrade_resource("subscription", sub_json, api_ver)
         return sub_json
@@ -2263,27 +2313,46 @@ class IS0402Test(GenericTest):
         """Perform a POST request to a Query API to create a subscription"""
         if query_url is None:
             query_url = self.query_url
+
+        api_ver = query_url.rstrip("/").rsplit("/", 1)[-1]
+
         valid, r = self.do_request("POST", "{}subscriptions".format(query_url), json=sub_json)
 
         if not valid:
             raise NMOSTestException(test.FAIL("Query API returned an unexpected response: {}".format(r)))
 
-        try:
-            if r.status_code in [200, 201]:
-                schema = self.get_schema(QUERY_API_KEY, "POST", "/subscriptions", r.status_code)
-                valid, message = self.check_response(schema, "POST", r)
-                if valid:
-                    # if message:
-                    #     return WARNING somehow...
-                    return r.json()
-                else:
-                    raise NMOSTestException(test.FAIL(message))
-            elif r.status_code in [400, 501]:
-                raise NMOSTestException(test.FAIL("Query API signalled that it does not support the requested "
-                                                  "subscription parameters: {} {}".format(r.status_code, sub_json)))
+        if r.status_code in [200, 201]:
+            if self.is04_query_utils.compare_api_version(api_ver, "v1.3") >= 0:
+                if "Location" not in r.headers:
+                    raise NMOSTestException(test.FAIL("Query API failed to return a 'Location' response header"))
+                path = "{}subscriptions/".format(urlparse(query_url).path)
+                location = r.headers["Location"]
+                if path not in location:
+                    raise NMOSTestException(test.FAIL("Query API 'Location' response header is incorrect: "
+                                                      "Location: {}".format(location)))
+                if not location.startswith("/") and not location.startswith(self.protocol + "://"):
+                    raise NMOSTestException(test.FAIL("Query API 'Location' response header is invalid for the "
+                                                      "current protocol: Location: {}".format(location)))
+        elif r.status_code in [400, 501]:
+            raise NMOSTestException(test.FAIL("Query API signalled that it does not support the requested "
+                                              "subscription parameters: {} {}".format(r.status_code, sub_json)))
+        else:
+            raise NMOSTestException(test.FAIL("Query API returned an unexpected response: "
+                                              "{} {}".format(r.status_code, r.text)))
+
+        # Currently can only validate schema for the API version under test
+        if query_url == self.query_url:
+            schema = self.get_schema(QUERY_API_KEY, "POST", "/subscriptions", r.status_code)
+            valid, message = self.check_response(schema, "POST", r)
+            if valid:
+                # if message:
+                #     return WARNING somehow...
+                pass
             else:
-                raise NMOSTestException(test.FAIL("Cannot request websocket subscription. Cannot execute test: {}"
-                                                  .format(r.status_code)))
+                raise NMOSTestException(test.FAIL(message))
+
+        try:
+            return r.json()
         except json.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
@@ -2310,7 +2379,7 @@ class IS0402Test(GenericTest):
         valid, r = self.do_request("POST", reg_url + "resource",
                                    json={"type": type, "data": data})
         if not valid:
-            raise NMOSTestException(fail(test, "Registration API did not respond as expected"))
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
 
         location = None
 

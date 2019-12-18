@@ -16,7 +16,7 @@ import json
 import flask
 
 from flask import Blueprint, Response, abort
-from Config import PORT_BASE
+from ..Config import PORT_BASE
 
 
 class System(object):

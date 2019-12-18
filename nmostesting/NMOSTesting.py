@@ -14,28 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import Flask, render_template, flash, request, make_response
-from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
-from wtforms import FormField, FieldList
-from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
-from .mocks.Node import NODE, NODE_API
-from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
-from .GenericTest import NMOSInitException
-from .TestResult import TestStates
-from .CRL import CRL, CRL_API
-from .OCSP import OCSP, OCSP_API
-from .Config import CACHE_PATH, SPECIFICATIONS, ENABLE_DNS_SD, DNS_SD_MODE, ENABLE_HTTPS, QUERY_API_HOST, QUERY_API_PORT
-from .Config import CERTS_MOCKS, KEYS_MOCKS, PORT_BASE
-from .DNS import DNS
-from datetime import datetime, timedelta
-from junit_xml import TestSuite, TestCase
-from enum import IntEnum
-from werkzeug.serving import WSGIRequestHandler
-from .TestHelper import get_default_ip
-
 import git
 import os
-from requests.compat import json
 import copy
 import pickle
 import random
@@ -52,6 +32,28 @@ import ssl
 import subprocess
 import pkgutil
 
+from flask import Flask, render_template, flash, request, make_response, jsonify
+from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
+from wtforms import FormField, FieldList
+from werkzeug.serving import WSGIRequestHandler
+from enum import IntEnum
+from junit_xml import TestSuite, TestCase
+from datetime import datetime, timedelta
+from types import SimpleNamespace
+from requests.compat import json
+
+from . import Config as CONFIG
+from .DNS import DNS
+from .GenericTest import NMOSInitException
+from .TestResult import TestStates
+from .TestHelper import get_default_ip
+from .NMOSUtils import DEFAULT_ARGS
+from .CRL import CRL, CRL_API
+from .OCSP import OCSP, OCSP_API
+from .mocks.Node import NODE, NODE_API
+from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
+from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
+
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
     import colorama
@@ -66,13 +68,13 @@ from .suites import IS0501Test
 from .suites import IS0502Test
 from .suites import IS0601Test
 from .suites import IS0701Test
+from .suites import IS0702Test
 from .suites import IS0801Test
 from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 from .suites import IS1001Test
 from .suites import BCP00301Test
-from . import Config
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -85,7 +87,7 @@ core_app = Flask(__name__)
 core_app.debug = False
 core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 core_app.config['TEST_ACTIVE'] = False
-core_app.config['PORT'] = PORT_BASE
+core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(core_app)
@@ -95,7 +97,7 @@ for instance in range(NUM_REGISTRIES):
     reg_app.debug = False
     reg_app.config['REGISTRY_INSTANCE'] = instance
     reg_app.config['PORT'] = REGISTRIES[instance].port
-    reg_app.config['SECURE'] = ENABLE_HTTPS
+    reg_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
     reg_app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
     FLASK_APPS.append(reg_app)
 
@@ -104,14 +106,14 @@ for instance in range(NUM_SYSTEMS):
     sys_app.debug = False
     sys_app.config['SYSTEM_INSTANCE'] = instance
     sys_app.config['PORT'] = SYSTEMS[instance].port
-    sys_app.config['SECURE'] = ENABLE_HTTPS
+    sys_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
     sys_app.register_blueprint(SYSTEM_API)  # Dependency for IS0902Test
     FLASK_APPS.append(sys_app)
 
 sender_app = Flask(__name__)
 sender_app.debug = False
 sender_app.config['PORT'] = NODE.port
-sender_app.config['SECURE'] = ENABLE_HTTPS
+sender_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
 sender_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
 FLASK_APPS.append(sender_app)
 
@@ -161,7 +163,7 @@ TEST_DEFINITIONS = {
     "IS-05-01": {
         "name": "IS-05 Connection Management API",
         "specs": [{
-            "spec_key": 'is-05',
+            "spec_key": "is-05",
             "api_key": "connection"
         }],
         "class": IS0501Test.IS0501Test
@@ -180,7 +182,7 @@ TEST_DEFINITIONS = {
     "IS-06-01": {
         "name": "IS-06 Network Control API",
         "specs": [{
-            "spec_key": 'is-06',
+            "spec_key": "is-06",
             "api_key": "netctrl"
         }],
         "class": IS0601Test.IS0601Test
@@ -188,15 +190,29 @@ TEST_DEFINITIONS = {
     "IS-07-01": {
         "name": "IS-07 Event & Tally API",
         "specs": [{
-            "spec_key": 'is-07',
+            "spec_key": "is-07",
             "api_key": "events"
         }],
         "class": IS0701Test.IS0701Test
     },
+    "IS-07-02": {
+        "name": "IS-07 Interaction with IS-04 and IS-05",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }, {
+            "spec_key": "is-07",
+            "api_key": "events"
+        }],
+        "class": IS0702Test.IS0702Test
+    },
     "IS-08-01": {
         "name": "IS-08 Channel Mapping API",
         "specs": [{
-            "spec_key": 'is-08',
+            "spec_key": "is-08",
             "api_key": "channelmapping"
         }],
         "class": IS0801Test.IS0801Test
@@ -204,18 +220,18 @@ TEST_DEFINITIONS = {
     "IS-08-02": {
         "name": "IS-08 Interaction with Node API",
         "specs": [{
-            "spec_key": 'is-08',
-            "api_key": "channelmapping"
-        }, {
             "spec_key": "is-04",
             "api_key": "node"
+        }, {
+            "spec_key": "is-08",
+            "api_key": "channelmapping"
         }],
         "class": IS0802Test.IS0802Test
     },
     "IS-09-01": {
         "name": "IS-09 System API",
         "specs": [{
-            "spec_key": 'is-09',
+            "spec_key": "is-09",
             "api_key": "system"
         }],
         "class": IS0901Test.IS0901Test
@@ -223,7 +239,10 @@ TEST_DEFINITIONS = {
     "IS-09-02": {
         "name": "IS-09 System API Node Behaviour",
         "specs": [{
-            "spec_key": 'is-09',
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-09",
             "api_key": "system"
         }],
         "class": IS0902Test.IS0902Test
@@ -231,7 +250,7 @@ TEST_DEFINITIONS = {
     "IS-10-01": {
         "name": "IS-10 Authorization API",
         "specs": [{
-            "spec_key": 'is-10',
+            "spec_key": "is-10",
             "api_key": "auth"
         }],
         "class": IS1001Test.IS1001Test
@@ -304,8 +323,8 @@ class DataForm(Form):
     specs_per_test = sorted(specs_per_test, key=lambda x: x[0])
     max_endpoints = 0
     for spec in specs_per_test:
-        if len(spec) > max_endpoints:
-            max_endpoints = len(spec)
+        if len(spec[1]) > max_endpoints:
+            max_endpoints = len(spec[1])
     endpoints = FieldList(FormField(EndpointForm, label=""), min_entries=max_endpoints)
 
     # Define the secondary test selection dropdown
@@ -322,7 +341,7 @@ class DataForm(Form):
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
-    hidden_specs = HiddenField(default=json.dumps(SPECIFICATIONS))
+    hidden_specs = HiddenField(default=json.dumps(CONFIG.SPECIFICATIONS))
 
 
 # Index page
@@ -368,18 +387,18 @@ def index_page():
 
     # Prepare configuration strings to display via the UI
     protocol = "HTTP"
-    if ENABLE_HTTPS:
+    if CONFIG.ENABLE_HTTPS:
         protocol = "HTTPS"
     discovery_mode = None
-    if ENABLE_DNS_SD:
-        if DNS_SD_MODE == "multicast":
+    if CONFIG.ENABLE_DNS_SD:
+        if CONFIG.DNS_SD_MODE == "multicast":
             discovery_mode = "Multicast DNS"
-        elif DNS_SD_MODE == "unicast":
+        elif CONFIG.DNS_SD_MODE == "unicast":
             discovery_mode = "Unicast DNS"
         else:
             discovery_mode = "Invalid Configuration"
     else:
-        discovery_mode = "Disabled (Using Query API {}:{})".format(QUERY_API_HOST, QUERY_API_PORT)
+        discovery_mode = "Disabled (Using Query API {}:{})".format(CONFIG.QUERY_API_HOST, CONFIG.QUERY_API_PORT)
 
     r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
                                                                        "protocol": protocol},
@@ -392,7 +411,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
         protocol = "http"
-        if ENABLE_HTTPS:
+        if CONFIG.ENABLE_HTTPS:
             protocol = "https"
         apis = {}
         tested_urls = []
@@ -417,10 +436,11 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "spec": None  # Used inside GenericTest
             }
             tested_urls.append(apis[api_key]["url"])
-            if SPECIFICATIONS[spec_key]["repo"] is not None and api_key in SPECIFICATIONS[spec_key]["apis"]:
-                apis[api_key]["name"] = SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
-                apis[api_key]["spec_path"] = CACHE_PATH + '/' + spec_key
-                apis[api_key]["raml"] = SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
+            if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
+                    and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+                apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
+                apis[api_key]["spec_path"] = CONFIG.CACHE_PATH + '/' + spec_key
+                apis[api_key]["raml"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
 
         # Instantiate the test class
         if test == "IS-04-01":
@@ -448,12 +468,12 @@ def run_tests(test, endpoints, test_selection=["all"]):
 def init_spec_cache():
     print(" * Initialising specification repositories...")
 
-    if not os.path.exists(CACHE_PATH):
-        os.makedirs(CACHE_PATH)
+    if not os.path.exists(CONFIG.CACHE_PATH):
+        os.makedirs(CONFIG.CACHE_PATH)
 
     # Prevent re-pulling of the spec repos too frequently
     time_now = datetime.now()
-    last_pull_file = os.path.join(CACHE_PATH + "/last_pull")
+    last_pull_file = os.path.join(CONFIG.CACHE_PATH + "/last_pull")
     last_pull_time = time_now - timedelta(hours=1)
     update_last_pull = False
     if os.path.exists(last_pull_file):
@@ -463,8 +483,8 @@ def init_spec_cache():
         except Exception as e:
             print(" * ERROR: Unable to load last pull time for cache: {}".format(e))
 
-    for repo_key, repo_data in SPECIFICATIONS.items():
-        path = os.path.join(CACHE_PATH + '/' + repo_key)
+    for repo_key, repo_data in CONFIG.SPECIFICATIONS.items():
+        path = os.path.join(CONFIG.CACHE_PATH + '/' + repo_key)
         if repo_data["repo"] is None:
             continue
         if not os.path.exists(path):
@@ -482,7 +502,7 @@ def init_spec_cache():
                     update_last_pull = True
                 except Exception:
                     print(" * ERROR: Unable to update repository '{}'. If the problem persists, "
-                          "please delete the '{}' directory".format(repo_data["repo"], CACHE_PATH))
+                          "please delete the '{}' directory".format(repo_data["repo"], CONFIG.CACHE_PATH))
 
     if update_last_pull:
         try:
@@ -499,7 +519,7 @@ def _check_test_result(test_result, results):
         print(
             "The following results currently are being returned: {}"
             .format([result.name for result in results["result"] if result != test_result])
-                )
+        )
         raise AttributeError("""
             None object returned as result from one of the tests. Please see the terminal output.
         """)
@@ -507,9 +527,9 @@ def _check_test_result(test_result, results):
 
 def _export_config():
     current_config = {"VERSION": TOOL_VERSION}
-    for param in dir(Config):
+    for param in dir(CONFIG):
         if not param.startswith("__") and param != "SPECIFICATIONS":
-            current_config[param] = getattr(Config, param)
+            current_config[param] = getattr(CONFIG, param)
     return current_config
 
 
@@ -525,12 +545,14 @@ def format_test_results(results, endpoints, format, args):
         total_time += test_result.elapsed_time
         max_name_len = max(max_name_len, len(test_result.name))
     if format == "json":
-        formatted = {"suite": results["suite"],
-                     "timestamp": time.time(),
-                     "duration": total_time,
-                     "results": [],
-                     "config": _export_config(),
-                     "endpoints": endpoints}
+        formatted = {
+            "suite": results["suite"],
+            "timestamp": time.time(),
+            "duration": total_time,
+            "results": [],
+            "config": _export_config(),
+            "endpoints": endpoints
+        }
         for test_result in results["result"]:
             formatted["results"].append({
                 "name": test_result.name,
@@ -544,11 +566,13 @@ def format_test_results(results, endpoints, format, args):
         for test_result in results["result"]:
             test_case = TestCase(test_result.name, classname=results["suite"],
                                  elapsed_sec=test_result.elapsed_time, timestamp=test_result.timestamp)
-            if test_result.name in ignored_tests or test_result.state in [TestStates.DISABLED,
-                                                                          TestStates.UNCLEAR,
-                                                                          TestStates.MANUAL,
-                                                                          TestStates.NA,
-                                                                          TestStates.OPTIONAL]:
+            if test_result.name in ignored_tests or test_result.state in [
+                TestStates.DISABLED,
+                TestStates.UNCLEAR,
+                TestStates.MANUAL,
+                TestStates.NA,
+                TestStates.OPTIONAL
+            ]:
                 test_case.add_skipped_info(test_result.detail)
             elif test_result.state in [TestStates.WARNING, TestStates.FAIL]:
                 test_case.add_failure_info(test_result.detail, failure_type=str(test_result.state))
@@ -614,60 +638,79 @@ def parse_arguments():
                               help="list available tests for a given suite")
     suite_parser.add_argument('--describe-tests', action='store_true',
                               help="describe the available tests for a given suite")
-    suite_parser.add_argument('--selection', default="all",
+    suite_parser.add_argument('--selection', default=DEFAULT_ARGS["selection"],
                               help="select a specific test to run, otherwise 'all' will be tested")
-    suite_parser.add_argument('--host', default=list(), nargs="*",
+    suite_parser.add_argument('--host', default=DEFAULT_ARGS["host"], nargs="*",
                               help="space separated hostnames or IPs of the APIs under test")
-    suite_parser.add_argument('--port', default=list(), nargs="*", type=int,
+    suite_parser.add_argument('--port', default=DEFAULT_ARGS["port"], nargs="*", type=int,
                               help="space separated ports of the APIs under test")
-    suite_parser.add_argument('--version', default=list(), nargs="*",
+    suite_parser.add_argument('--version', default=DEFAULT_ARGS["version"], nargs="*",
                               help="space separated versions of the APIs under test")
-    suite_parser.add_argument('--ignore', default=list(), nargs="*",
+    suite_parser.add_argument('--ignore', default=DEFAULT_ARGS["ignore"], nargs="*",
                               help="space separated test names to ignore the results from")
-    suite_parser.add_argument('--output', default=None,
+    suite_parser.add_argument('--output', default=DEFAULT_ARGS["output"],
                               help="filename to save test results to (ending .xml or .json), otherwise print to stdout")
 
     return parser.parse_args()
 
 
-def validate_args(args):
+def validate_args(args, access_type="cli"):
+    """Validate input arguments. access_type is 'cli' for command line tool and 'http' for api use"""
+    msg = ""
+    return_type = ExitCodes.OK
     if args.list_suites:
         for test_suite in sorted(TEST_DEFINITIONS):
-            print(test_suite)
-        sys.exit(ExitCodes.OK)
+            msg += test_suite + '\n'
     elif args.describe_suites:
         for test_suite in sorted(TEST_DEFINITIONS):
-            print(test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"])
-        sys.exit(ExitCodes.OK)
-
-    if "suite" in vars(args):
+            msg += test_suite + ": " + TEST_DEFINITIONS[test_suite]["name"] + '\n'
+    elif "suite" in vars(args):
         if args.suite not in TEST_DEFINITIONS:
-            print(" * ERROR: The requested test suite '{}' does not exist".format(args.suite))
-            sys.exit(ExitCodes.ERROR)
-        if args.list_tests:
+            msg = "ERROR: The requested test suite '{}' does not exist".format(args.suite)
+            return_type = ExitCodes.ERROR
+        elif args.list_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
             for test_name in tests:
-                print(test_name)
-            sys.exit(ExitCodes.OK)
-        if args.describe_tests:
+                msg += test_name + '\n'
+        elif args.describe_tests:
             tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
             for test_description in tests:
-                print(test_description)
-            sys.exit(ExitCodes.OK)
-        if args.selection and args.selection not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
-            print(" * ERROR: Test with name '{}' does not exist in test definition '{}'"
-                  .format(args.selection, args.suite))
-            sys.exit(ExitCodes.ERROR)
-        if len(args.host) != len(args.port) or len(args.host) != len(args.version):
-            print(" * ERROR: Hostnames/IPs, ports and versions must contain the same number of elements")
-            sys.exit(ExitCodes.ERROR)
-        if len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
-            print(" * ERROR: This test definition expects {} Hostnames/IP(s), port(s) and version(s)"
-                  .format(len(TEST_DEFINITIONS[args.suite]["specs"])))
-            sys.exit(ExitCodes.ERROR)
-        if args.output and not args.output.endswith("xml") and not args.output.endswith("json"):
-            print(" * ERROR: Output file must end with '.xml' or '.json'")
-            sys.exit(ExitCodes.ERROR)
+                msg += test_description + '\n'
+        elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
+            msg = "ERROR: Test with name '{}' does not exist in test suite '{}'".format(args.selection,
+                                                                                        args.suite)
+            return_type = ExitCodes.ERROR
+        elif not args.host or not args.port or not args.version:
+            msg = "ERROR: No Hostname(s)/IP address(es) or Port(s) or Version(s) specified"
+            return_type = ExitCodes.ERROR
+        elif len(args.host) != len(args.port) or len(args.host) != len(args.version):
+            msg = "ERROR: Hostname(s)/IP address(es), Port(s) and Version(s) must contain the same number of elements"
+            return_type = ExitCodes.ERROR
+        elif len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
+            msg = "ERROR: This test suite expects {} Hostname(s)/IP address(es), Port(s) and Version(s)".format(
+                len(TEST_DEFINITIONS[args.suite]["specs"]))
+            return_type = ExitCodes.ERROR
+        elif args.output and not args.output.endswith("xml") and not args.output.endswith("json"):
+            msg = "ERROR: Output file must end with '.xml' or '.json'"
+            return_type = ExitCodes.ERROR
+    elif access_type == "http" and "suite" not in vars(args):
+        msg = "ERROR: 'suite' parameter not found in body of request"
+        return_type = ExitCodes.ERROR
+    return arg_return(access_type, return_type, msg)
+
+
+def arg_return(access_type, return_type, msg=""):
+    if access_type == "http":
+        if msg.endswith('\n'):
+            msg = msg[:-1]
+        return msg, return_type
+    elif msg:
+        msg = " * " + msg
+        print(msg)
+        if return_type == ExitCodes.OK:
+            sys.exit(return_type)
+        elif return_type == ExitCodes.ERROR:
+            sys.exit(return_type)
 
 
 class PortLoggingHandler(WSGIRequestHandler):
@@ -682,10 +725,10 @@ class PortLoggingHandler(WSGIRequestHandler):
 
 def start_web_servers():
     ctx = None
-    if ENABLE_HTTPS:
+    if CONFIG.ENABLE_HTTPS:
         # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
         ctx = ssl.create_default_context()
-        for cert, key in zip(CERTS_MOCKS, KEYS_MOCKS):
+        for cert, key in zip(CONFIG.CERTS_MOCKS, CONFIG.KEYS_MOCKS):
             ctx.load_cert_chain(cert, key)
         # additionally disable TLS v1.0 and v1.1
         ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
@@ -738,7 +781,7 @@ def check_internal_requirements():
                 corrected_req = corrections[requirement_name]
             else:
                 corrected_req = requirement_name.replace("-", "_")
-            if corrected_req not in installed_pkgs:
+            if corrected_req.split(">")[0] not in installed_pkgs:
                 print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
                 sys.exit(ExitCodes.ERROR)
 
@@ -761,10 +804,85 @@ class ExitCodes(IntEnum):
     FAIL = 2  # Worst case test was a failure in non-interactive mode
 
 
+@core_app.route('/api', methods=["GET", "POST"])
+def api():
+    if request.method == "GET":
+        example_dict = {}
+        example_dict["description"] = "An example of the body to POST to this endpoint might include:"
+        example_dict["suite"] = "IS-04-01"
+        example_dict["host"] = ["127.0.0.1"]
+        example_dict["port"] = [80]
+        example_dict["version"] = ["v1.2"]
+        example_dict["output"] = "xml"
+        example_dict["ignore"] = ["test_23"]
+        return jsonify(example_dict), 200
+    elif core_app.config['TEST_ACTIVE'] is not False:
+        return jsonify("""Error: A test is currently in progress.
+                        Please wait until it has completed or restart the testing tool."""), 400
+    if not request.is_json:
+        return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
+    if not request.get_json(silent=True):
+        return jsonify("Error: Ensure the body of the request is valid JSON and non-empty"), 400
+    request_data = dict(DEFAULT_ARGS, **request.json)
+    request_args = SimpleNamespace(**request_data)
+    return_message, return_type = validate_args(request_args, access_type="http")
+    if return_message:
+        if return_type == ExitCodes.OK:
+            return jsonify(return_message.split('\n')), 200
+        else:
+            return jsonify(return_message), 400
+    data_format = request_args.output if request_args.output is not None else "json"
+    if "." in data_format:
+        filename, data_format = data_format.split(".")
+    try:
+        results = run_api_tests(request_args, data_format)
+        if data_format == "json":
+            return jsonify(results), 200
+        else:
+            return results, 200, {"Content-Type": "text/xml; charset=utf-8"}
+    except Exception as e:
+        print(e)
+        results = traceback.format_exc()
+        return results, 400
+
+
+@core_app.route('/config', methods=["GET", "PATCH"])
+def config():
+    if request.method == "GET":
+        return jsonify(_export_config())
+    elif request.method == "PATCH":
+        try:
+            if not request.is_json:
+                return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
+            if not request.get_json(silent=True):
+                return jsonify("Error: Ensure the body of the request is valid JSON and non-empty"), 400
+            request_data = request.json
+            if not isinstance(request_data, dict):
+                return jsonify("Error: Body must be of type object/dict"), 400
+            for config_param in request_data:
+                setattr(CONFIG, config_param, request_data[config_param])
+            return jsonify(_export_config()), 200
+        except Exception:
+            return jsonify("Error: Config Update Failed"), 400
+
+
+def run_api_tests(args, data_format):
+    endpoints = []
+    for i in range(len(args.host)):
+        endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
+    results = run_tests(args.suite, endpoints, [args.selection])
+    if data_format == "xml":
+        formatted_test_results = format_test_results(results, endpoints, "junit", args)
+        return TestSuite.to_xml_string([formatted_test_results], prettyprint=True)
+    else:
+        formatted_test_results = format_test_results(results, endpoints, "json", args)
+        return json.loads(formatted_test_results)
+
+
 def main(args):
     global CMD_ARGS, DNS_SERVER, TOOL_VERSION
     # Check if we're testing unicast DNS discovery, and if so ensure we have elevated privileges
-    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+    if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         is_admin = False
         if platform.system() == "Windows":
             from ctypes import windll
@@ -796,7 +914,7 @@ def main(args):
         TOOL_VERSION = "Unknown"
 
     # Start the DNS server
-    if ENABLE_DNS_SD and DNS_SD_MODE == "unicast":
+    if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
     # Start the HTTP servers
