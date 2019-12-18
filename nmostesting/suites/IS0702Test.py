@@ -157,3 +157,64 @@ class IS0702Test(GenericTest):
                 return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_03(self, test):
+        """WebSocket senders on the same device have the same connection_uri and connection_authorization parameters"""
+
+        if len(self.is07_sources) > 0:
+            found_senders = False
+            senders_by_device = {}
+            for source_id in self.is07_sources:
+                if source_id in self.sources_to_test:
+                    for sender_id in self.senders_to_test:
+                        flow_id = self.senders_to_test[sender_id]["flow_id"]
+                        if flow_id in self.is04_flows:
+                            if source_id == self.is04_flows[flow_id]["source_id"]:
+                                found_sender = self.senders_to_test[sender_id]
+                                if found_sender["transport"] == "urn:x-nmos:transport:websocket":
+                                    if found_sender["device_id"] not in senders_by_device:
+                                        senders_dict = {}
+                                        senders_dict[found_sender["id"]] = found_sender
+                                        senders_by_device[found_sender["device_id"]] = senders_dict
+                                    else:
+                                        senders_dict = senders_by_device[found_sender["device_id"]]
+                                        senders_dict[found_sender["id"]] = found_sender
+
+            for device_id in senders_by_device:
+                device_connection_uri = None
+                device_connection_authorization = None
+                senders_dict = senders_by_device[device_id]
+                for sender_id in senders_dict:
+                    found_sender = senders_dict[sender_id]
+                    if found_sender["id"] in self.sender_active_params:
+                        found_senders = True
+                        try:
+                            params = self.sender_active_params[found_sender["id"]]
+                            sender_connection_uri = params["connection_uri"]
+                            sender_connection_authorization = params["connection_authorization"]
+
+                            if device_connection_uri is None:
+                                device_connection_uri = sender_connection_uri
+                            else:
+                                if device_connection_uri != sender_connection_uri:
+                                    return test.FAIL("Sender {} does not have the same connection_uri "
+                                                     "parameter within the same device"
+                                                     .format(found_sender["id"]))
+                            if device_connection_authorization is None:
+                                device_connection_authorization = sender_connection_authorization
+                            else:
+                                if device_connection_authorization != sender_connection_authorization:
+                                    return test.FAIL("Sender {} does not have the same "
+                                                     "connection_authorization parameter within "
+                                                     "the same device".format(found_sender["id"]))
+                        except KeyError as e:
+                            return test.FAIL("Sender {} parameters do not contain expected key: {}"
+                                             .format(found_sender["id"], e))
+                    else:
+                        return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
+            if found_senders:
+                return test.PASS()
+            else:
+                return test.UNCLEAR("Not tested. No WebSocket sender resources found.")
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
