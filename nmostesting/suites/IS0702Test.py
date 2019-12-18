@@ -226,7 +226,6 @@ class IS0702Test(GenericTest):
         """WebSocket connections get closed if no heartbeats are sent"""
 
         websocket_senders = {}
-        websocket_clients = {}
 
         if len(self.is07_sources) > 0:
             for source_id in self.is07_sources:
@@ -242,6 +241,7 @@ class IS0702Test(GenericTest):
                                         websocket_senders[found_sender["id"]] = params
 
         if len(list(websocket_senders)) > 0:
+            websocket_clients = {}
             for sender_id in websocket_senders:
                 if "connection_uri" in websocket_senders[sender_id]:
                     connection_uri = websocket_senders[sender_id]["connection_uri"]
