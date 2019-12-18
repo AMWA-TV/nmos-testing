@@ -163,63 +163,56 @@ class IS0702Test(GenericTest):
 
         if len(self.is07_sources) > 0:
             resources_tested = 0
+            senders_by_device = {}
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
-                    current_device_id = None
-                    last_connection_uri = None
-                    last_connection_authorization = None
-                    found_sender = None
                     for sender_id in self.senders_to_test:
                         flow_id = self.senders_to_test[sender_id]["flow_id"]
                         if flow_id in self.is04_flows:
                             if source_id == self.is04_flows[flow_id]["source_id"]:
                                 found_sender = self.senders_to_test[sender_id]
-                                try:
-                                    if current_device_id != found_sender["device_id"]:
-                                        current_device_id = found_sender["device_id"]
-                                        last_connection_uri = None
-                                        last_connection_authorization = None
-                                except KeyError as e:
-                                    return test.FAIL("Sender {} do not contain expected key: {}"
-                                                     .format(found_sender["id"], e))
-                                break
-                    if found_sender is not None:
-                        if found_sender["transport"] == "urn:x-nmos:transport:websocket":
-                            if current_device_id is not None:
-                                if found_sender["id"] in self.sender_active_params:
-                                    try:
-                                        params = self.sender_active_params[found_sender["id"]]
-                                        local_connection_uri = params["connection_uri"]
-                                        local_connection_authorization = params["connection_authorization"]
+                                if found_sender["transport"] == "urn:x-nmos:transport:websocket":
+                                    if found_sender["device_id"] not in senders_by_device:
+                                        senders_dict = {}
+                                        senders_dict[found_sender["id"]] = found_sender
+                                        senders_by_device[found_sender["device_id"]] = senders_dict
+                                    else:
+                                        senders_dict = senders_by_device[found_sender["device_id"]]
+                                        senders_dict[found_sender["id"]] = found_sender
 
-                                        if last_connection_uri is None:
-                                            last_connection_uri = local_connection_uri
-                                            resources_tested += 1
-                                        else:
-                                            if last_connection_uri != local_connection_uri:
-                                                return test.FAIL("Sender {} does not have the same connection_uri "
-                                                                 "parameter within the same device"
-                                                                 .format(found_sender["id"]))
-                                        if last_connection_authorization is None:
-                                            last_connection_authorization = local_connection_authorization
-                                            resources_tested += 1
-                                        else:
-                                            if last_connection_authorization != local_connection_authorization:
-                                                return test.FAIL("Sender {} does not have the same "
-                                                                 "connection_authorization parameter within "
-                                                                 "the same device".format(found_sender["id"]))
-                                    except KeyError as e:
-                                        return test.FAIL("Sender {} parameters do not contain expected key: {}"
-                                                         .format(found_sender["id"], e))
-                                else:
-                                    return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
+            for device_id in senders_by_device:
+                last_connection_uri = None
+                last_connection_authorization = None
+                senders_dict = senders_by_device[device_id]
+                for sender_id in senders_dict:
+                    found_sender = senders_dict[sender_id]
+                    if found_sender["id"] in self.sender_active_params:
+                        try:
+                            params = self.sender_active_params[found_sender["id"]]
+                            local_connection_uri = params["connection_uri"]
+                            local_connection_authorization = params["connection_authorization"]
+
+                            if last_connection_uri is None:
+                                last_connection_uri = local_connection_uri
+                                resources_tested += 1
                             else:
-                                return test.FAIL("Sender {} does not have an associated device_id"
-                                                 .format(found_sender["id"]))
+                                if last_connection_uri != local_connection_uri:
+                                    return test.FAIL("Sender {} does not have the same connection_uri "
+                                                     "parameter within the same device"
+                                                     .format(found_sender["id"]))
+                            if last_connection_authorization is None:
+                                last_connection_authorization = local_connection_authorization
+                                resources_tested += 1
+                            else:
+                                if last_connection_authorization != local_connection_authorization:
+                                    return test.FAIL("Sender {} does not have the same "
+                                                     "connection_authorization parameter within "
+                                                     "the same device".format(found_sender["id"]))
+                        except KeyError as e:
+                            return test.FAIL("Sender {} parameters do not contain expected key: {}"
+                                             .format(found_sender["id"], e))
                     else:
-                        return test.FAIL("Source {} has no associated IS-04 sender".format(source_id))
-                else:
-                    return test.FAIL("Source {} not found in Node API".format(source_id))
+                        return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
             if resources_tested > 0:
                 return test.PASS()
             else:
