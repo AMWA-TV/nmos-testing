@@ -162,6 +162,7 @@ class IS0702Test(GenericTest):
         """Websocket senders on the same device have the same connection_uri and connection_authorization parameters"""
 
         if len(self.is07_sources) > 0:
+            resources_tested = 0
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
                     current_device_id = None
@@ -183,40 +184,45 @@ class IS0702Test(GenericTest):
                                                      .format(found_sender["id"], e))
                                 break
                     if found_sender is not None:
-                        if current_device_id is not None:
-                            if found_sender["id"] in self.sender_active_params:
-                                try:
-                                    params = self.sender_active_params[found_sender["id"]]
+                        if found_sender["transport"] == "urn:x-nmos:transport:websocket":
+                            if current_device_id is not None:
+                                if found_sender["id"] in self.sender_active_params:
+                                    try:
+                                        params = self.sender_active_params[found_sender["id"]]
+                                        local_connection_uri = params["connection_uri"]
+                                        local_connection_authorization = params["connection_authorization"]
 
-                                    local_connection_uri = params["connection_uri"]
-                                    local_connection_authorization = params["connection_authorization"]
-
-                                    if last_connection_uri is None:
-                                        last_connection_uri = local_connection_uri
-                                    else:
-                                        if last_connection_uri != local_connection_uri:
-                                            return test.FAIL("Sender {} does not have the same connection_uri "
-                                                             "parameter within the same device"
-                                                             .format(found_sender["id"]))
-                                    if last_connection_authorization is None:
-                                        last_connection_authorization = local_connection_authorization
-                                    else:
-                                        if last_connection_authorization != local_connection_authorization:
-                                            return test.FAIL("Sender {} does not have the same "
-                                                             "connection_authorization parameter within "
-                                                             "the same device".format(found_sender["id"]))
-                                except KeyError as e:
-                                    return test.FAIL("Sender {} parameters do not contain expected key: {}"
-                                                     .format(found_sender["id"], e))
+                                        if last_connection_uri is None:
+                                            last_connection_uri = local_connection_uri
+                                            resources_tested += 1
+                                        else:
+                                            if last_connection_uri != local_connection_uri:
+                                                return test.FAIL("Sender {} does not have the same connection_uri "
+                                                                 "parameter within the same device"
+                                                                 .format(found_sender["id"]))
+                                        if last_connection_authorization is None:
+                                            last_connection_authorization = local_connection_authorization
+                                            resources_tested += 1
+                                        else:
+                                            if last_connection_authorization != local_connection_authorization:
+                                                return test.FAIL("Sender {} does not have the same "
+                                                                 "connection_authorization parameter within "
+                                                                 "the same device".format(found_sender["id"]))
+                                    except KeyError as e:
+                                        return test.FAIL("Sender {} parameters do not contain expected key: {}"
+                                                         .format(found_sender["id"], e))
+                                else:
+                                    return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
                             else:
-                                return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
-                        else:
-                            return test.FAIL("Sender {} does not have an associated device_id"
-                                             .format(found_sender["id"]))
+                                return test.FAIL("Sender {} does not have an associated device_id"
+                                                 .format(found_sender["id"]))
                     else:
                         return test.FAIL("Source {} has no associated IS-04 sender".format(source_id))
                 else:
                     return test.FAIL("Source {} not found in Node API".format(source_id))
-            return test.PASS()
+            if resources_tested > 0:
+                return test.PASS()
+            else:
+                return test.UNCLEAR("Not tested. No websocket sender resources found.")
         else:
             return test.UNCLEAR("Not tested. No resources found.")
