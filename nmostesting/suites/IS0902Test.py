@@ -21,6 +21,7 @@ from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest
 from ..TestHelper import get_default_ip
 
+NODE_API_KEY = "node"
 SYSTEM_API_KEY = "system"
 
 
@@ -127,9 +128,9 @@ class IS0902Test(GenericTest):
         # Wait for n seconds after advertising the service for the first interaction
         start_time = time.time()
         while time.time() < start_time + CONFIG.DNS_SD_ADVERT_TIMEOUT:
-            if self.primary_system.requested:
+            if len(self.primary_system.requests) > 0:
                 break
-            if self.invalid_system.requested:
+            if len(self.invalid_system.requests) > 0:
                 break
             time.sleep(0.2)
 
@@ -148,7 +149,7 @@ class IS0902Test(GenericTest):
 
         # If the Node preferred the invalid System API, don't penalise it for other tests which check the general
         # interactions are correct
-        if self.system_invalid_data.requested:
+        if len(self.system_invalid_data.requests) > 0:
             self.system_primary_data = self.system_invalid_data
         else:
             self.system_primary_data = self.system_basics_data[0]
@@ -162,7 +163,7 @@ class IS0902Test(GenericTest):
 
         self.do_system_basics_prereqs()
 
-        if self.system_primary_data.requested:
+        if self.apis[NODE_API_KEY]["ip"] in self.system_primary_data.requests:
             return test.PASS()
 
         return test.FAIL("Node did not attempt to contact the advertised System API.")
@@ -176,7 +177,7 @@ class IS0902Test(GenericTest):
 
         self.do_system_basics_prereqs()
 
-        if self.system_invalid_data.requested:
+        if self.apis[NODE_API_KEY]["ip"] in self.system_invalid_data.requests:
             return test.FAIL("Node incorrectly contacted a System API advertising an invalid 'api_ver' or 'api_proto'")
 
         return test.PASS()
@@ -190,7 +191,7 @@ class IS0902Test(GenericTest):
 
         self.do_system_basics_prereqs()
 
-        if self.system_primary_data.requested:
+        if self.apis[NODE_API_KEY]["ip"] in self.system_primary_data.requests:
             return test.PASS()
 
         return test.FAIL("Node did not attempt to contact the advertised System API.")
@@ -204,7 +205,7 @@ class IS0902Test(GenericTest):
 
         self.do_system_basics_prereqs()
 
-        if self.system_invalid_data.requested:
+        if self.apis[NODE_API_KEY]["ip"] in self.system_invalid_data.requests:
             return test.FAIL("Node incorrectly contacted a System API advertising an invalid 'api_ver' or 'api_proto'")
 
         return test.PASS()
@@ -219,10 +220,10 @@ class IS0902Test(GenericTest):
 
         api = self.apis[SYSTEM_API_KEY]
 
-        if not self.system_primary_data.requested:
+        if not self.apis[NODE_API_KEY]["ip"] in self.system_primary_data.requests:
             return test.FAIL("Node did not attempt to contact the advertised System API.")
 
-        if not self.system_primary_data.version == api["version"]:
+        if not self.system_primary_data.requests[self.apis[NODE_API_KEY]["ip"]] == api["version"]:
             return test.FAIL("System API interaction used version '{}' instead of '{}'"
                              .format(self.system_primary_data.version, api["version"]))
 
@@ -236,12 +237,12 @@ class IS0902Test(GenericTest):
 
         self.do_system_basics_prereqs()
 
-        if not self.system_primary_data.requested:
+        if not self.apis[NODE_API_KEY]["ip"] in self.system_primary_data.requests:
             return test.FAIL("Node did not attempt to contact the advertised System API.")
 
         # All but the first and last System API can be used for priority tests.
         for index, system_data in enumerate(self.system_basics_data[1:-1]):
-            if system_data.requested:
+            if self.apis[NODE_API_KEY]["ip"] in system_data.requests:
                 return test.FAIL("Node incorrectly contacted System API {} advertised on port {}"
                                  .format(index + 1, system_data.port))
 

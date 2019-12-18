@@ -15,7 +15,7 @@
 import json
 import flask
 
-from flask import Blueprint, Response, abort
+from flask import Blueprint, Response, abort, request
 from ..Config import PORT_BASE
 
 
@@ -25,8 +25,7 @@ class System(object):
         self.reset()
 
     def reset(self):
-        self.requested = False
-        self.version = None
+        self.requests = {}
         self.enabled = False
 
     def enable(self):
@@ -60,8 +59,7 @@ def system_global(version):
     system = SYSTEMS[flask.current_app.config["SYSTEM_INSTANCE"]]
     if not system.enabled:
         abort(500)
-    system.requested = True
-    system.version = version
+    system.requests[request.remote_addr] = version
     response = {
         "id": "3b8be755-08ff-452b-b217-c9151eb21193",
         "version": "1441700172:318426300",

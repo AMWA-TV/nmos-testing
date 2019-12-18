@@ -239,6 +239,10 @@ TEST_DEFINITIONS = {
     "IS-09-02": {
         "name": "IS-09 System API Node Behaviour",
         "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["port", "version"]
+        }, {
             "spec_key": "is-09",
             "api_key": "system",
             "disable_fields": ["host", "port"]
