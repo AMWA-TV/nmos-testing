@@ -159,10 +159,10 @@ class IS0702Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_03(self, test):
-        """Websocket senders on the same device have the same connection_uri and connection_authorization parameters"""
+        """WebSocket senders on the same device have the same connection_uri and connection_authorization parameters"""
 
         if len(self.is07_sources) > 0:
-            resources_tested = False
+            found_senders = False
             senders_by_device = {}
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
@@ -187,7 +187,7 @@ class IS0702Test(GenericTest):
                 for sender_id in senders_dict:
                     found_sender = senders_dict[sender_id]
                     if found_sender["id"] in self.sender_active_params:
-                        resources_tested = True
+                        found_senders = True
                         try:
                             params = self.sender_active_params[found_sender["id"]]
                             sender_connection_uri = params["connection_uri"]
@@ -212,9 +212,9 @@ class IS0702Test(GenericTest):
                                              .format(found_sender["id"], e))
                     else:
                         return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
-            if resources_tested:
+            if found_senders:
                 return test.PASS()
             else:
-                return test.UNCLEAR("Not tested. No websocket sender resources found.")
+                return test.UNCLEAR("Not tested. No WebSocket sender resources found.")
         else:
             return test.UNCLEAR("Not tested. No resources found.")
