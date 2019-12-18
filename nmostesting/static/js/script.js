@@ -26,6 +26,14 @@ function updateDropdown() {
           label.innerHTML = "";
         }
         div.style.display = "block";
+        var fields = ["host", "port", "version"];
+        for (var i=0; i<fields.length; i++) {
+          if ("disable_fields" in testData["specs"][apiNum] && testData["specs"][apiNum]["disable_fields"].indexOf(fields[i]) !== -1) {
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled = true;
+          } else {
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled = false;
+          }
+        }
       } else {
         div.style.display = "none";
       }
