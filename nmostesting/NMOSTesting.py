@@ -67,6 +67,7 @@ from .suites import IS0501Test
 from .suites import IS0502Test
 from .suites import IS0601Test
 from .suites import IS0701Test
+from .suites import IS0702Test
 from .suites import IS0801Test
 from .suites import IS0802Test
 from .suites import IS0901Test
@@ -151,7 +152,7 @@ TEST_DEFINITIONS = {
     "IS-05-01": {
         "name": "IS-05 Connection Management API",
         "specs": [{
-            "spec_key": 'is-05',
+            "spec_key": "is-05",
             "api_key": "connection"
         }],
         "class": IS0501Test.IS0501Test
@@ -170,7 +171,7 @@ TEST_DEFINITIONS = {
     "IS-06-01": {
         "name": "IS-06 Network Control API",
         "specs": [{
-            "spec_key": 'is-06',
+            "spec_key": "is-06",
             "api_key": "netctrl"
         }],
         "class": IS0601Test.IS0601Test
@@ -178,15 +179,29 @@ TEST_DEFINITIONS = {
     "IS-07-01": {
         "name": "IS-07 Event & Tally API",
         "specs": [{
-            "spec_key": 'is-07',
+            "spec_key": "is-07",
             "api_key": "events"
         }],
         "class": IS0701Test.IS0701Test
     },
+    "IS-07-02": {
+        "name": "IS-07 Interaction with IS-04 and IS-05",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }, {
+            "spec_key": "is-07",
+            "api_key": "events"
+        }],
+        "class": IS0702Test.IS0702Test
+    },
     "IS-08-01": {
         "name": "IS-08 Channel Mapping API",
         "specs": [{
-            "spec_key": 'is-08',
+            "spec_key": "is-08",
             "api_key": "channelmapping"
         }],
         "class": IS0801Test.IS0801Test
@@ -194,18 +209,18 @@ TEST_DEFINITIONS = {
     "IS-08-02": {
         "name": "IS-08 Interaction with Node API",
         "specs": [{
-            "spec_key": 'is-08',
-            "api_key": "channelmapping"
-        }, {
             "spec_key": "is-04",
             "api_key": "node"
+        }, {
+            "spec_key": "is-08",
+            "api_key": "channelmapping"
         }],
         "class": IS0802Test.IS0802Test
     },
     "IS-09-01": {
         "name": "IS-09 System API",
         "specs": [{
-            "spec_key": 'is-09',
+            "spec_key": "is-09",
             "api_key": "system"
         }],
         "class": IS0901Test.IS0901Test
@@ -213,7 +228,7 @@ TEST_DEFINITIONS = {
     "IS-10-01": {
         "name": "IS-10 Authorization API",
         "specs": [{
-            "spec_key": 'is-10',
+            "spec_key": "is-10",
             "api_key": "auth"
         }],
         "class": IS1001Test.IS1001Test
@@ -286,8 +301,8 @@ class DataForm(Form):
     specs_per_test = sorted(specs_per_test, key=lambda x: x[0])
     max_endpoints = 0
     for spec in specs_per_test:
-        if len(spec) > max_endpoints:
-            max_endpoints = len(spec)
+        if len(spec[1]) > max_endpoints:
+            max_endpoints = len(spec[1])
     endpoints = FieldList(FormField(EndpointForm, label=""), min_entries=max_endpoints)
 
     # Define the secondary test selection dropdown
