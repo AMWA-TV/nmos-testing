@@ -19,6 +19,9 @@ from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..IS07Utils import IS07Utils
 
+from time import sleep
+from ..TestHelper import WebsocketWorker
+
 EVENTS_API_KEY = "events"
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -216,5 +219,63 @@ class IS0702Test(GenericTest):
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No WebSocket sender resources found.")
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_04(self, test):
+        """WebSocket connections get closed if no heartbeats are sent"""
+
+        websocket_senders = {}
+        websocket_clients = {}
+
+        if len(self.is07_sources) > 0:
+            for source_id in self.is07_sources:
+                if source_id in self.sources_to_test:
+                    for sender_id in self.senders_to_test:
+                        flow_id = self.senders_to_test[sender_id]["flow_id"]
+                        if flow_id in self.is04_flows:
+                            if source_id == self.is04_flows[flow_id]["source_id"]:
+                                found_sender = self.senders_to_test[sender_id]
+                                if found_sender["transport"] == "urn:x-nmos:transport:websocket":
+                                    if found_sender["id"] in self.sender_active_params:
+                                        params = self.sender_active_params[found_sender["id"]]
+                                        websocket_senders[found_sender["id"]] = params
+
+        if len(list(websocket_senders)) > 0:
+            for sender_id in websocket_senders:
+                if "connection_uri" in websocket_senders[sender_id]:
+                    connection_uri = websocket_senders[sender_id]["connection_uri"]
+                    websocket_clients[sender_id] = WebsocketWorker(connection_uri)
+                else:
+                    return test.FAIL("Sender {} has no connection_uri parameter".format(sender_id))
+
+            print(" * Starting WebSocket clients")
+
+            for sender_id in websocket_clients:
+                client = websocket_clients[sender_id]
+                client.start()
+
+            print(" * Started WebSocket clients")
+
+            sleep(1)
+
+            timeout = 10
+            current_time = 1
+
+            while current_time <= timeout:
+                for sender_id in websocket_clients:
+                    if websocket_clients[sender_id].is_connected is False:
+                        return test.FAIL("Sender {} WebSocket not connected".format(sender_id))
+                current_time += 1
+                sleep(1)
+
+            sleep(2)
+
+            for sender_id in websocket_clients:
+                if websocket_clients[sender_id].is_connected:
+                    return test.FAIL("Sender {} WebSocket failed to disconnect after timeout".format(sender_id))
+
+            print(" * Checked WebSocket clients are disconnected")
+            return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
