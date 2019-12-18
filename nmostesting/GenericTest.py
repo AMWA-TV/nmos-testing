@@ -78,7 +78,7 @@ class GenericTest(object):
         test = Test("Test initialisation")
 
         for api_name, api_data in self.apis.items():
-            if "spec_path" not in api_data:
+            if "spec_path" not in api_data or api_data["version"] is None:
                 continue
 
             repo = git.Repo(api_data["spec_path"])
@@ -177,7 +177,7 @@ class GenericTest(object):
         # Set up
         test = Test("Test setup", "set_up_tests")
         for api in self.apis:
-            if "spec_path" not in self.apis[api]:
+            if "spec_path" not in self.apis[api] or self.apis[api]["url"] is None:
                 continue
             valid, response = self.do_request("GET", self.apis[api]["url"])
             if not valid or response.status_code != 200:

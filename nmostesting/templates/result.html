@@ -32,7 +32,7 @@
     </span>
     <h1>NMOS Test</h1>
     <div class="text text_result">
-        <h5>Result for test suite <b>{{ test }}</b> on:
+        <h5>Result for test suite <b>{{ test }}</b>{% if urls|length > 0 %} on:{% endif %}
             {% for url in urls %}
                 <b><a href={{ url }}>{{ url }}</a></b>{% if loop.index != loop.length %},{% endif %}
             {% endfor %}

@@ -355,9 +355,9 @@ def index_page():
                     test_def = TEST_DEFINITIONS[test]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
-                        host = request.form["endpoints-{}-host".format(index)]
-                        port = request.form["endpoints-{}-port".format(index)]
-                        version = request.form["endpoints-{}-version".format(index)]
+                        host = request.form.get("endpoints-{}-host".format(index), None)
+                        port = request.form.get("endpoints-{}-port".format(index), None)
+                        version = request.form.get("endpoints-{}-version".format(index), None)
                         endpoints.append({"host": host, "port": port, "version": version})
 
                     test_selection = request.form.getlist("test_selection")
@@ -414,26 +414,35 @@ def run_tests(test, endpoints, test_selection=["all"]):
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
-            if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
-                raise NMOSInitException("All IP/Hostname and Port fields must be completed")
-            base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
-            try:
-                ipaddress.ip_address(endpoints[index]["host"])
-                ip_address = endpoints[index]["host"]
-            except ValueError:
-                ip_address = socket.gethostbyname(endpoints[index]["host"])
+            if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
+                raise NMOSInitException("All IP/Hostname and Port fields must be completed")
+            elif endpoints[index]["host"] is not None and endpoints[index]["port"] is not None and \
+                    endpoints[index]["version"] is not None:
+                base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
+                try:
+                    ipaddress.ip_address(endpoints[index]["host"])
+                    ip_address = endpoints[index]["host"]
+                except ValueError:
+                    ip_address = socket.gethostbyname(endpoints[index]["host"])
+                url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
+                port = int(endpoints[index]["port"])
+                tested_urls.append(url)
+            else:
+                base_url = None
+                ip_address = None
+                url = None
+                port = None
             apis[api_key] = {
                 "base_url": base_url,
                 "hostname": endpoints[index]["host"],
                 "ip": ip_address,
-                "port": int(endpoints[index]["port"]),
-                "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
+                "port": port,
+                "url": url,
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
             }
-            tested_urls.append(apis[api_key]["url"])
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
                     and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
                 apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
