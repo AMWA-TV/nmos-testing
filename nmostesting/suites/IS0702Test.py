@@ -162,7 +162,7 @@ class IS0702Test(GenericTest):
         """Websocket senders on the same device have the same connection_uri and connection_authorization parameters"""
 
         if len(self.is07_sources) > 0:
-            resources_tested = 0
+            resources_tested = False
             senders_by_device = {}
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
@@ -181,30 +181,29 @@ class IS0702Test(GenericTest):
                                         senders_dict[found_sender["id"]] = found_sender
 
             for device_id in senders_by_device:
-                last_connection_uri = None
-                last_connection_authorization = None
+                device_connection_uri = None
+                device_connection_authorization = None
                 senders_dict = senders_by_device[device_id]
                 for sender_id in senders_dict:
                     found_sender = senders_dict[sender_id]
                     if found_sender["id"] in self.sender_active_params:
+                        resources_tested = True
                         try:
                             params = self.sender_active_params[found_sender["id"]]
-                            local_connection_uri = params["connection_uri"]
-                            local_connection_authorization = params["connection_authorization"]
+                            sender_connection_uri = params["connection_uri"]
+                            sender_connection_authorization = params["connection_authorization"]
 
-                            if last_connection_uri is None:
-                                last_connection_uri = local_connection_uri
-                                resources_tested += 1
+                            if device_connection_uri is None:
+                                device_connection_uri = sender_connection_uri
                             else:
-                                if last_connection_uri != local_connection_uri:
+                                if device_connection_uri != sender_connection_uri:
                                     return test.FAIL("Sender {} does not have the same connection_uri "
                                                      "parameter within the same device"
                                                      .format(found_sender["id"]))
-                            if last_connection_authorization is None:
-                                last_connection_authorization = local_connection_authorization
-                                resources_tested += 1
+                            if device_connection_authorization is None:
+                                device_connection_authorization = sender_connection_authorization
                             else:
-                                if last_connection_authorization != local_connection_authorization:
+                                if device_connection_authorization != sender_connection_authorization:
                                     return test.FAIL("Sender {} does not have the same "
                                                      "connection_authorization parameter within "
                                                      "the same device".format(found_sender["id"]))
@@ -213,7 +212,7 @@ class IS0702Test(GenericTest):
                                              .format(found_sender["id"], e))
                     else:
                         return test.FAIL("Source {} has no associated IS-05 sender".format(source_id))
-            if resources_tested > 0:
+            if resources_tested:
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No websocket sender resources found.")
