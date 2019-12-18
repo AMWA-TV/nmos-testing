@@ -67,7 +67,7 @@ class BCP00301Test(GenericTest):
                                                       "installation instructions: {}".format(e)))
         return None
 
-    def test_01_tls_protocols(self, test):
+    def test_01(self, test):
         """TLS Protocols"""
 
         tls_data = self.perform_test_ssl(test, ["-p"])
@@ -85,7 +85,7 @@ class BCP00301Test(GenericTest):
                                          "/best-practice-secure-comms.html#tls-versions")
             return test.PASS()
 
-    def test_02_tls_ciphers(self, test):
+    def test_02(self, test):
         """TLS Ciphers"""
 
         tls_data = self.perform_test_ssl(test, ["-E"])
@@ -139,7 +139,7 @@ class BCP00301Test(GenericTest):
             else:
                 return test.PASS()
 
-    def test_03_cn_san(self, test):
+    def test_03(self, test):
         """Certificate does not use IP addresses in CN/SANs"""
 
         tls_data = self.perform_test_ssl(test, ["-S"])
@@ -186,7 +186,7 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_04_hsts(self, test):
+    def test_04(self, test):
         """HSTS Header"""
 
         tls_data = self.perform_test_ssl(test, ["-h"])
@@ -209,7 +209,7 @@ class BCP00301Test(GenericTest):
             else:
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
 
-    def test_05_revocation(self, test):
+    def test_05(self, test):
         """Certificate revocation method is available"""
 
         tls_data = self.perform_test_ssl(test, ["-S"])
@@ -223,7 +223,7 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_06_ocsp_stapling(self, test):
+    def test_06(self, test):
         """OCSP Stapling"""
 
         tls_data = self.perform_test_ssl(test, ["-S"])
@@ -247,7 +247,7 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_07_verify_host(self, test):
+    def test_07(self, test):
         """Certificate is valid and matches the host under test"""
 
         try:
@@ -264,7 +264,7 @@ class BCP00301Test(GenericTest):
         except Exception as e:
             return test.FAIL(str(e))
 
-    def test_08_rsa_ecdsa(self, test):
+    def test_08(self, test):
         """Server exposes both an RSA and ECDSA certificate"""
 
         tls_data = self.perform_test_ssl(test, ["-S"])
@@ -287,7 +287,7 @@ class BCP00301Test(GenericTest):
 
             return test.PASS()
 
-    def test_09_trust_chain(self, test):
+    def test_09(self, test):
         """Server exposes a valid chain of trust including a certificate and intermediate"""
 
         tls_data = self.perform_test_ssl(test, ["-S"])
