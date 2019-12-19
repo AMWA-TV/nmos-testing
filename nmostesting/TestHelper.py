@@ -137,26 +137,31 @@ class WebsocketWorker(threading.Thread):
             raise
         self.messages = list()
         self.error_occured = False
+        self.connected = False
         self.error_message = ""
 
     def run(self):
         self.ws.run_forever(sslopt={"ca_certs": CONFIG.CERT_TRUST_ROOT_CA})
 
     def on_open(self):
-        pass
+        self.connected = True
 
     def on_message(self, message):
         self.messages.append(message)
 
     def on_close(self):
-        pass
+        self.connected = False
 
     def on_error(self, error):
         self.error_occured = True
         self.error_message = error
+        self.connected = False
 
     def close(self):
         self.ws.close()
+
+    def is_open(self):
+        return self.connected
 
     def get_messages(self):
         msg_cpy = copy(self.messages)

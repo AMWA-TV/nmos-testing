@@ -13,15 +13,25 @@
 # limitations under the License.
 
 import re
+import time
 
+from .. import Config as CONFIG
 from ..GenericTest import GenericTest
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..IS07Utils import IS07Utils
 
+from ..TestHelper import WebsocketWorker
+
 EVENTS_API_KEY = "events"
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
+
+# Number of seconds expected between heartbeats from IS-07 WebSocket Receivers
+WS_HEARTBEAT_INTERVAL = 5
+
+# Number of seconds without heartbeats before an IS-07 WebSocket Sender closes a connection
+WS_TIMEOUT = 12
 
 
 class IS0702Test(GenericTest):
@@ -44,7 +54,7 @@ class IS0702Test(GenericTest):
         self.is04_flows = self.is04_utils.get_flows()
         self.is04_senders = self.is04_utils.get_senders()
         self.transport_types = {}
-        self.sender_active_params = {}
+        self.senders_active = {}
         self.senders_to_test = {}
         self.sources_to_test = {}
 
@@ -69,7 +79,7 @@ class IS0702Test(GenericTest):
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                 if valid:
                     if len(response) > 0 and isinstance(response["transport_params"][0], dict):
-                        self.sender_active_params[sender] = response["transport_params"][0]
+                        self.senders_active[sender] = response
 
     def test_01(self, test):
         """Each Sender has the required ext parameters"""
@@ -78,8 +88,8 @@ class IS0702Test(GenericTest):
         ext_params_mqtt = ['ext_is_07_rest_api_url']
         if len(self.senders_to_test.keys()) > 0:
             for sender in self.senders_to_test:
-                if sender in self.sender_active_params:
-                    all_params = self.sender_active_params[sender].keys()
+                if sender in self.senders_active:
+                    all_params = self.senders_active[sender]["transport_params"][0].keys()
                     params = [param for param in all_params if param.startswith("ext_")]
                     valid_params = False
                     if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
@@ -114,9 +124,9 @@ class IS0702Test(GenericTest):
                                 found_sender = self.senders_to_test[sender_id]
                                 break
                     if found_sender is not None:
-                        if found_sender["id"] in self.sender_active_params:
+                        if found_sender["id"] in self.senders_active:
                             try:
-                                params = self.sender_active_params[found_sender["id"]]
+                                params = self.senders_active[found_sender["id"]]["transport_params"][0]
                                 if found_sender["transport"] == "urn:x-nmos:transport:websocket":
                                     if params["ext_is_07_source_id"] != source_id:
                                         return test.FAIL("IS-05 sender {} does not indicate the correct "
@@ -186,10 +196,10 @@ class IS0702Test(GenericTest):
                 senders_dict = senders_by_device[device_id]
                 for sender_id in senders_dict:
                     found_sender = senders_dict[sender_id]
-                    if found_sender["id"] in self.sender_active_params:
+                    if found_sender["id"] in self.senders_active:
                         found_senders = True
                         try:
-                            params = self.sender_active_params[found_sender["id"]]
+                            params = self.senders_active[found_sender["id"]]["transport_params"][0]
                             sender_connection_uri = params["connection_uri"]
                             sender_connection_authorization = params["connection_authorization"]
 
@@ -216,5 +226,91 @@ class IS0702Test(GenericTest):
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No WebSocket sender resources found.")
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_04(self, test):
+        """WebSocket connections get closed if no heartbeats are sent"""
+
+        # Gather the possible connections and sources which can be subscribed to
+        connection_sources = {}
+
+        warn_sender_not_enabled = False
+        warn_message = ""
+
+        if len(self.is07_sources) > 0:
+            for source_id in self.is07_sources:
+                if source_id in self.sources_to_test:
+                    for sender_id in self.senders_to_test:
+                        flow_id = self.senders_to_test[sender_id]["flow_id"]
+                        if flow_id in self.is04_flows:
+                            if source_id == self.is04_flows[flow_id]["source_id"]:
+                                found_sender = self.senders_to_test[sender_id]
+                                if found_sender["transport"] == "urn:x-nmos:transport:websocket":
+                                    if sender_id in self.senders_active:
+                                        active = self.senders_active[sender_id]
+                                        if active["master_enable"]:
+                                            if "connection_uri" not in active["transport_params"][0]:
+                                                return test.FAIL("Sender {} has no connection_uri parameter"
+                                                                 .format(sender_id))
+                                            connection_uri = active["transport_params"][0]["connection_uri"]
+
+                                            if connection_uri not in connection_sources:
+                                                connection_sources[connection_uri] = [source_id]
+                                            else:
+                                                connection_sources[connection_uri].append(source_id)
+                                        else:
+                                            warn_sender_not_enabled = True
+                                            warn_message = "Sender {} master_enable is false".format(sender_id)
+
+        if len(connection_sources) > 0:
+            websockets = {}
+            for connection_uri in connection_sources:
+                websockets[connection_uri] = WebsocketWorker(connection_uri)
+
+            for connection_uri in websockets:
+                websockets[connection_uri].start()
+
+            # Give each WebSocket client a chance to start and open its connection
+            start_time = time.time()
+            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+                if all([websockets[_].is_open() for _ in websockets]):
+                    break
+                time.sleep(0.2)
+
+            # After that short while, they must all be connected successfully
+            for connection_uri in websockets:
+                websocket = websockets[connection_uri]
+                if websocket.did_error_occur():
+                    return test.FAIL("Error opening WebSocket connection to {}: {}"
+                                     .format(connection_uri, websocket.get_error_message()))
+                elif not websocket.is_open():
+                    return test.FAIL("Error opening WebSocket connection to {}".format(connection_uri))
+
+            # All WebSocket connections must stay open for a period of time even without any heartbeats
+            while time.time() < start_time + WS_TIMEOUT - 1:
+                for connection_uri in websockets:
+                    websocket = websockets[connection_uri]
+                    if not websocket.is_open():
+                        return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
+                time.sleep(1)
+
+            # However, a short while after that timeout period, and certainly before another IS-07 heartbeat
+            # interval has passed, all WebSocket connections must be automatically closed by the Sender
+            while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL:
+                if all([not websockets[_].is_open() for _ in websockets]):
+                    break
+                time.sleep(0.2)
+
+            # Now, they must all be disconnected
+            for connection_uri in websockets:
+                websocket = websockets[connection_uri]
+                if websocket.is_open():
+                    return test.FAIL("WebSocket connection to {} was not closed after timeout".format(connection_uri))
+
+            if warn_sender_not_enabled:
+                return test.WARNING(warn_message)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
