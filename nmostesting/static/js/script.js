@@ -29,10 +29,12 @@ function updateDropdown() {
         var fields = ["host", "port", "version"];
         for (var i=0; i<fields.length; i++) {
           if ("disable_fields" in testData["specs"][apiNum] && testData["specs"][apiNum]["disable_fields"].indexOf(fields[i]) !== -1) {
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i] + "-save").value = document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value;
             document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled = true;
             document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value = "";
-          } else {
+          } else if (document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled === true){
             document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled = false;
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value = document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i] + "-save").value;
           }
         }
       } else {
@@ -100,9 +102,18 @@ function saveSettings() {
 
             var maxOptions = document.getElementById('hidden_options').value;
             for (var apiNum=0; apiNum<maxOptions; apiNum++) {
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host").value);
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port").value);
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version").value);
+                if (document.getElementById("endpoints-" + apiNum.toString() + "-host").disabled !== true) {
+                    console.log("save host " + apiNum.toString());
+                    sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host").value);
+                }
+                if (document.getElementById("endpoints-" + apiNum.toString() + "-port").disabled !== true) {
+                    console.log("save port " + apiNum.toString());
+                    sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port").value);
+                }
+                if (document.getElementById("endpoints-" + apiNum.toString() + "-version").disabled !== true) {
+                    console.log("save version " + apiNum.toString());
+                    sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version").value);
+                }
             }
         }
     }
