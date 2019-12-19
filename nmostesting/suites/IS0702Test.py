@@ -20,6 +20,8 @@ from ..IS05Utils import IS05Utils
 from ..IS07Utils import IS07Utils
 
 from time import sleep
+from datetime import datetime
+
 from ..TestHelper import WebsocketWorker
 
 EVENTS_API_KEY = "events"
@@ -72,7 +74,7 @@ class IS0702Test(GenericTest):
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                 if valid:
                     if len(response) > 0 and isinstance(response["transport_params"][0], dict):
-                        self.sender_active_params[sender] = response["transport_params"][0]
+                        self.sender_active_params[sender] = response
 
     def test_01(self, test):
         """Each Sender has the required ext parameters"""
@@ -82,7 +84,7 @@ class IS0702Test(GenericTest):
         if len(self.senders_to_test.keys()) > 0:
             for sender in self.senders_to_test:
                 if sender in self.sender_active_params:
-                    all_params = self.sender_active_params[sender].keys()
+                    all_params = self.sender_active_params[sender]["transport_params"][0].keys()
                     params = [param for param in all_params if param.startswith("ext_")]
                     valid_params = False
                     if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
@@ -119,7 +121,7 @@ class IS0702Test(GenericTest):
                     if found_sender is not None:
                         if found_sender["id"] in self.sender_active_params:
                             try:
-                                params = self.sender_active_params[found_sender["id"]]
+                                params = self.sender_active_params[found_sender["id"]]["transport_params"][0]
                                 if found_sender["transport"] == "urn:x-nmos:transport:websocket":
                                     if params["ext_is_07_source_id"] != source_id:
                                         return test.FAIL("IS-05 sender {} does not indicate the correct "
@@ -192,7 +194,7 @@ class IS0702Test(GenericTest):
                     if found_sender["id"] in self.sender_active_params:
                         found_senders = True
                         try:
-                            params = self.sender_active_params[found_sender["id"]]
+                            params = self.sender_active_params[found_sender["id"]]["transport_params"][0]
                             sender_connection_uri = params["connection_uri"]
                             sender_connection_authorization = params["connection_authorization"]
 
@@ -227,6 +229,9 @@ class IS0702Test(GenericTest):
 
         websocket_senders = {}
 
+        warn_sender_not_enabled = False
+        warn_message = ""
+
         if len(self.is07_sources) > 0:
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
@@ -238,13 +243,17 @@ class IS0702Test(GenericTest):
                                 if found_sender["transport"] == "urn:x-nmos:transport:websocket":
                                     if found_sender["id"] in self.sender_active_params:
                                         params = self.sender_active_params[found_sender["id"]]
-                                        websocket_senders[found_sender["id"]] = params
+                                        if params["master_enable"] is True:
+                                            websocket_senders[found_sender["id"]] = params
+                                        else:
+                                            warn_sender_not_enabled = True
+                                            warn_message = "Sender {} master_enable is fale".format(found_sender["id"])
 
         if len(list(websocket_senders)) > 0:
             websocket_clients = {}
             for sender_id in websocket_senders:
-                if "connection_uri" in websocket_senders[sender_id]:
-                    connection_uri = websocket_senders[sender_id]["connection_uri"]
+                if "connection_uri" in websocket_senders[sender_id]["transport_params"][0]:
+                    connection_uri = websocket_senders[sender_id]["transport_params"][0]["connection_uri"]
                     websocket_clients[sender_id] = WebsocketWorker(connection_uri)
                 else:
                     return test.FAIL("Sender {} has no connection_uri parameter".format(sender_id))
@@ -255,27 +264,44 @@ class IS0702Test(GenericTest):
                 client = websocket_clients[sender_id]
                 client.start()
 
-            print(" * Started WebSocket clients")
+            print(" * Start time: {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
 
             sleep(1)
 
-            timeout = 10
-            current_time = 1
+            end = 21
+            current_iteration = 1
 
-            while current_time <= timeout:
+            while current_iteration <= end:
                 for sender_id in websocket_clients:
                     if websocket_clients[sender_id].is_connected is False:
-                        return test.FAIL("Sender {} WebSocket not connected".format(sender_id))
-                current_time += 1
-                sleep(1)
+                        return test.FAIL("Sender {} WebSocket not connected, iteration {}"
+                                         .format(sender_id, current_iteration))
+                current_iteration += 1
+                sleep(0.5)
 
-            sleep(2)
+            end = 11
+            current_iteration = 1
+            while current_iteration <= end:
+                all_connections_closed = True
+                for sender_id in websocket_clients:
+                    if websocket_clients[sender_id].is_connected:
+                        if current_iteration == end:
+                            return test.FAIL("Sender {} WebSocket failed to disconnect after timeout".format(sender_id))
+                        else:
+                            all_connections_closed = False
+                            break
+                if all_connections_closed:
+                    break
+                current_iteration += 1
+                sleep(0.5)
 
-            for sender_id in websocket_clients:
-                if websocket_clients[sender_id].is_connected:
-                    return test.FAIL("Sender {} WebSocket failed to disconnect after timeout".format(sender_id))
+            print(" * End time: {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
 
             print(" * Checked WebSocket clients are disconnected")
-            return test.PASS()
+
+            if warn_sender_not_enabled is False:
+                return test.PASS()
+            else:
+                return test.WARNING(warn_message)
         else:
             return test.UNCLEAR("Not tested. No resources found.")
