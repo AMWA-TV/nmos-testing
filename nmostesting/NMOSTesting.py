@@ -886,6 +886,8 @@ def config():
 def run_api_tests(args, data_format):
     endpoints = []
     for i in range(len(args.host)):
+        if args.port[i] == 0:
+            args.port[i] = None
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":
