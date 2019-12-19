@@ -169,7 +169,7 @@ TEST_DEFINITIONS = {
         "class": IS0501Test.IS0501Test
     },
     "IS-05-02": {
-        "name": "IS-05 Interaction with Node API",
+        "name": "IS-05 Interaction with IS-04",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
@@ -218,7 +218,7 @@ TEST_DEFINITIONS = {
         "class": IS0801Test.IS0801Test
     },
     "IS-08-02": {
-        "name": "IS-08 Interaction with Node API",
+        "name": "IS-08 Interaction with IS-04",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
@@ -237,7 +237,7 @@ TEST_DEFINITIONS = {
         "class": IS0901Test.IS0901Test
     },
     "IS-09-02": {
-        "name": "IS-09 System API Node Behaviour",
+        "name": "IS-09 System API Discovery",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node",

@@ -10,6 +10,7 @@ The following test sets are currently supported:
 *   IS-05 Interaction with IS-04
 *   IS-06 Network Control API
 *   IS-07 Event & Tally API
+*   IS-07 Interaction with IS-04 and IS-05
 *   IS-08 Channel Mapping API
 *   IS-08 Interaction with IS-04
 *   IS-09 System API
