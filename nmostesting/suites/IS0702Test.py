@@ -250,7 +250,7 @@ class IS0702Test(GenericTest):
                                     if sender_id in self.senders_active:
                                         active = self.senders_active[sender_id]
                                         if active["master_enable"]:
-                                            if not "connection_uri" in active["transport_params"][0]:
+                                            if "connection_uri" not in active["transport_params"][0]:
                                                 return test.FAIL("Sender {} has no connection_uri parameter"
                                                                  .format(sender_id))
                                             connection_uri = active["transport_params"][0]["connection_uri"]
