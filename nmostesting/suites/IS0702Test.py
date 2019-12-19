@@ -303,9 +303,9 @@ class IS0702Test(GenericTest):
                 if websocket.is_open():
                     return test.FAIL("Sender {} failed to close after timeout".format(sender_id))
 
-            if warn_sender_not_enabled is False:
-                return test.PASS()
-            else:
+            if warn_sender_not_enabled:
                 return test.WARNING(warn_message)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
