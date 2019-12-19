@@ -287,6 +287,8 @@ class IS0701Test(GenericTest):
             return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
         except re.error:
             return test.FAIL("Source {} type pattern is invalid".format(source_id))
+        except TypeError as e:
+            return test.FAIL("Source {} JSON type error: {}".format(source_id, e))
 
         if not found_string:
             return test.UNCLEAR("No 'string' sources were returned from Events API")
