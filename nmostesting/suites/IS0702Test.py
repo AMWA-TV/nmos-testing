@@ -232,7 +232,8 @@ class IS0702Test(GenericTest):
     def test_04(self, test):
         """WebSocket connections get closed if no heartbeats are sent"""
 
-        websocket_senders = {}
+        # Gather the possible connections and sources which can be subscribed to
+        connection_sources = {}
 
         warn_sender_not_enabled = False
         warn_message = ""
@@ -249,22 +250,26 @@ class IS0702Test(GenericTest):
                                     if sender_id in self.senders_active:
                                         active = self.senders_active[sender_id]
                                         if active["master_enable"]:
-                                            websocket_senders[sender_id] = active
+                                            if not "connection_uri" in active["transport_params"][0]:
+                                                return test.FAIL("Sender {} has no connection_uri parameter"
+                                                                 .format(sender_id))
+                                            connection_uri = active["transport_params"][0]["connection_uri"]
+
+                                            if connection_uri not in connection_sources:
+                                                connection_sources[connection_uri] = [source_id]
+                                            else:
+                                                connection_sources[connection_uri].append(source_id)
                                         else:
                                             warn_sender_not_enabled = True
                                             warn_message = "Sender {} master_enable is false".format(sender_id)
 
-        if len(list(websocket_senders)) > 0:
+        if len(connection_sources) > 0:
             websockets = {}
-            for sender_id in websocket_senders:
-                if "connection_uri" in websocket_senders[sender_id]["transport_params"][0]:
-                    connection_uri = websocket_senders[sender_id]["transport_params"][0]["connection_uri"]
-                    websockets[sender_id] = WebsocketWorker(connection_uri)
-                else:
-                    return test.FAIL("Sender {} has no connection_uri parameter".format(sender_id))
+            for connection_uri in connection_sources:
+                websockets[connection_uri] = WebsocketWorker(connection_uri)
 
-            for sender_id in websockets:
-                websockets[sender_id].start()
+            for connection_uri in websockets:
+                websockets[connection_uri].start()
 
             # Give each WebSocket client a chance to start and open its connection
             start_time = time.time()
@@ -274,20 +279,20 @@ class IS0702Test(GenericTest):
                 time.sleep(0.2)
 
             # After that short while, they must all be connected successfully
-            for sender_id in websockets:
-                websocket = websockets[sender_id]
+            for connection_uri in websockets:
+                websocket = websockets[connection_uri]
                 if websocket.did_error_occur():
-                    return test.FAIL("Error opening websocket for Sender {}: {}"
-                                     .format(sender_id, websocket.get_error_message()))
+                    return test.FAIL("Error opening WebSocket connection to {}: {}"
+                                     .format(connection_uri, websocket.get_error_message()))
                 elif not websocket.is_open():
-                    return test.FAIL("Error opening websocket for Sender {}".format(sender_id))
+                    return test.FAIL("Error opening WebSocket connection to {}".format(connection_uri))
 
             # All WebSocket connections must stay open for a period of time even without any heartbeats
             while time.time() < start_time + WS_TIMEOUT - 1:
-                for sender_id in websockets:
-                    websocket = websockets[sender_id]
+                for connection_uri in websockets:
+                    websocket = websockets[connection_uri]
                     if not websocket.is_open():
-                        return test.FAIL("Sender {} closed websocket too early".format(sender_id))
+                        return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
                 time.sleep(1)
 
             # However, a short while after that timeout period, and certainly before another IS-07 heartbeat
@@ -298,10 +303,10 @@ class IS0702Test(GenericTest):
                 time.sleep(0.2)
 
             # Now, they must all be disconnected
-            for sender_id in websockets:
-                websocket = websockets[sender_id]
+            for connection_uri in websockets:
+                websocket = websockets[connection_uri]
                 if websocket.is_open():
-                    return test.FAIL("Sender {} failed to close after timeout".format(sender_id))
+                    return test.FAIL("WebSocket connection to {} was not closed after timeout".format(connection_uri))
 
             if warn_sender_not_enabled:
                 return test.WARNING(warn_message)
