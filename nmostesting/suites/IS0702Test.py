@@ -266,13 +266,14 @@ class IS0702Test(GenericTest):
             for sender_id in websockets:
                 websockets[sender_id].start()
 
-            # Give all WebSocket clients a chance to start and open the connection
+            # Give each WebSocket client a chance to start and open its connection
             start_time = time.time()
             while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
                 if all([websockets[_].is_open() for _ in websockets]):
                     break
                 time.sleep(0.2)
 
+            # After that short while, they must all be connected successfully
             for sender_id in websockets:
                 websocket = websockets[sender_id]
                 if websocket.did_error_occur():
@@ -281,7 +282,7 @@ class IS0702Test(GenericTest):
                 elif not websocket.is_open():
                     return test.FAIL("Error opening websocket for Sender {}".format(sender_id))
 
-            # All WebSockets must stay open for some time without any heartbeats according to the IS-07 spec
+            # All WebSocket connections must stay open for a period of time even without any heartbeats
             while time.time() < start_time + WS_TIMEOUT - 1:
                 for sender_id in websockets:
                     websocket = websockets[sender_id]
@@ -289,13 +290,14 @@ class IS0702Test(GenericTest):
                         return test.FAIL("Sender {} closed websocket too early".format(sender_id))
                 time.sleep(1)
 
-            # A short while later, certainly before another IS-07 heartbeat interval has passed,
-            # all WebSockets must be closed by the Sender
+            # However, a short while after that timeout period, and certainly before another IS-07 heartbeat
+            # interval has passed, all WebSocket connections must be automatically closed by the Sender
             while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL:
                 if all([not websockets[_].is_open() for _ in websockets]):
                     break
                 time.sleep(0.2)
 
+            # Now, they must all be disconnected
             for sender_id in websockets:
                 websocket = websockets[sender_id]
                 if websocket.is_open():
