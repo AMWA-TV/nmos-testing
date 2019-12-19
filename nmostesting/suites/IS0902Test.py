@@ -149,10 +149,9 @@ class IS0902Test(GenericTest):
 
         # If the Node preferred the invalid System API, don't penalise it for other tests which check the general
         # interactions are correct
+        self.system_primary_data = self.system_basics_data[0]
         if len(self.system_invalid_data.requests) > 0:
-            self.system_primary_data = self.system_invalid_data
-        else:
-            self.system_primary_data = self.system_basics_data[0]
+            self.system_primary_data.requests.update(self.system_invalid_data.requests)
 
     def test_01(self, test):
         """Node can discover System API via multicast DNS"""
