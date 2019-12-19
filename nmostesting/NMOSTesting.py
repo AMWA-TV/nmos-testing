@@ -769,6 +769,12 @@ def start_web_servers():
 def run_noninteractive_tests(args):
     endpoints = []
     for i in range(len(args.host)):
+        if args.host[i] == "null":
+            args.host[i] = None
+        if args.port[i] == 0:
+            args.port[i] = None
+        if args.version[i] == "null":
+            args.version[i] = None
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
