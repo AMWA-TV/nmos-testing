@@ -13,20 +13,25 @@
 # limitations under the License.
 
 import re
+import time
 
+from .. import Config as CONFIG
 from ..GenericTest import GenericTest
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 from ..IS07Utils import IS07Utils
-
-from time import sleep
-from datetime import datetime
 
 from ..TestHelper import WebsocketWorker
 
 EVENTS_API_KEY = "events"
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
+
+# Number of seconds expected between heartbeats from IS-07 WebSocket Receivers
+WS_HEARTBEAT_INTERVAL = 5
+
+# Number of seconds without heartbeats before an IS-07 WebSocket Sender closes a connection
+WS_TIMEOUT = 12
 
 
 class IS0702Test(GenericTest):
@@ -49,7 +54,7 @@ class IS0702Test(GenericTest):
         self.is04_flows = self.is04_utils.get_flows()
         self.is04_senders = self.is04_utils.get_senders()
         self.transport_types = {}
-        self.sender_active_params = {}
+        self.senders_active = {}
         self.senders_to_test = {}
         self.sources_to_test = {}
 
@@ -74,7 +79,7 @@ class IS0702Test(GenericTest):
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
                 if valid:
                     if len(response) > 0 and isinstance(response["transport_params"][0], dict):
-                        self.sender_active_params[sender] = response
+                        self.senders_active[sender] = response
 
     def test_01(self, test):
         """Each Sender has the required ext parameters"""
@@ -83,8 +88,8 @@ class IS0702Test(GenericTest):
         ext_params_mqtt = ['ext_is_07_rest_api_url']
         if len(self.senders_to_test.keys()) > 0:
             for sender in self.senders_to_test:
-                if sender in self.sender_active_params:
-                    all_params = self.sender_active_params[sender]["transport_params"][0].keys()
+                if sender in self.senders_active:
+                    all_params = self.senders_active[sender]["transport_params"][0].keys()
                     params = [param for param in all_params if param.startswith("ext_")]
                     valid_params = False
                     if self.transport_types[sender] == "urn:x-nmos:transport:websocket":
@@ -119,9 +124,9 @@ class IS0702Test(GenericTest):
                                 found_sender = self.senders_to_test[sender_id]
                                 break
                     if found_sender is not None:
-                        if found_sender["id"] in self.sender_active_params:
+                        if found_sender["id"] in self.senders_active:
                             try:
-                                params = self.sender_active_params[found_sender["id"]]["transport_params"][0]
+                                params = self.senders_active[found_sender["id"]]["transport_params"][0]
                                 if found_sender["transport"] == "urn:x-nmos:transport:websocket":
                                     if params["ext_is_07_source_id"] != source_id:
                                         return test.FAIL("IS-05 sender {} does not indicate the correct "
@@ -191,10 +196,10 @@ class IS0702Test(GenericTest):
                 senders_dict = senders_by_device[device_id]
                 for sender_id in senders_dict:
                     found_sender = senders_dict[sender_id]
-                    if found_sender["id"] in self.sender_active_params:
+                    if found_sender["id"] in self.senders_active:
                         found_senders = True
                         try:
-                            params = self.sender_active_params[found_sender["id"]]["transport_params"][0]
+                            params = self.senders_active[found_sender["id"]]["transport_params"][0]
                             sender_connection_uri = params["connection_uri"]
                             sender_connection_authorization = params["connection_authorization"]
 
@@ -241,63 +246,60 @@ class IS0702Test(GenericTest):
                             if source_id == self.is04_flows[flow_id]["source_id"]:
                                 found_sender = self.senders_to_test[sender_id]
                                 if found_sender["transport"] == "urn:x-nmos:transport:websocket":
-                                    if found_sender["id"] in self.sender_active_params:
-                                        params = self.sender_active_params[found_sender["id"]]
-                                        if params["master_enable"] is True:
-                                            websocket_senders[found_sender["id"]] = params
+                                    if sender_id in self.senders_active:
+                                        active = self.senders_active[sender_id]
+                                        if active["master_enable"]:
+                                            websocket_senders[sender_id] = active
                                         else:
                                             warn_sender_not_enabled = True
-                                            warn_message = "Sender {} master_enable is fale".format(found_sender["id"])
+                                            warn_message = "Sender {} master_enable is false".format(sender_id)
 
         if len(list(websocket_senders)) > 0:
-            websocket_clients = {}
+            websockets = {}
             for sender_id in websocket_senders:
                 if "connection_uri" in websocket_senders[sender_id]["transport_params"][0]:
                     connection_uri = websocket_senders[sender_id]["transport_params"][0]["connection_uri"]
-                    websocket_clients[sender_id] = WebsocketWorker(connection_uri)
+                    websockets[sender_id] = WebsocketWorker(connection_uri)
                 else:
                     return test.FAIL("Sender {} has no connection_uri parameter".format(sender_id))
 
-            print(" * Starting WebSocket clients")
+            for sender_id in websockets:
+                websockets[sender_id].start()
 
-            for sender_id in websocket_clients:
-                client = websocket_clients[sender_id]
-                client.start()
-
-            print(" * Start time: {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
-
-            sleep(1)
-
-            end = 21
-            current_iteration = 1
-
-            while current_iteration <= end:
-                for sender_id in websocket_clients:
-                    if websocket_clients[sender_id].is_connected is False:
-                        return test.FAIL("Sender {} WebSocket not connected, iteration {}"
-                                         .format(sender_id, current_iteration))
-                current_iteration += 1
-                sleep(0.5)
-
-            end = 11
-            current_iteration = 1
-            while current_iteration <= end:
-                all_connections_closed = True
-                for sender_id in websocket_clients:
-                    if websocket_clients[sender_id].is_connected:
-                        if current_iteration == end:
-                            return test.FAIL("Sender {} WebSocket failed to disconnect after timeout".format(sender_id))
-                        else:
-                            all_connections_closed = False
-                            break
-                if all_connections_closed:
+            # Give all WebSocket clients a chance to start and open the connection
+            start_time = time.time()
+            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+                if all([websockets[_].is_open() for _ in websockets]):
                     break
-                current_iteration += 1
-                sleep(0.5)
+                time.sleep(0.2)
 
-            print(" * End time: {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+            for sender_id in websockets:
+                websocket = websockets[sender_id]
+                if websocket.did_error_occur():
+                    return test.FAIL("Error opening websocket for Sender {}: {}"
+                                     .format(sender_id, websocket.get_error_message()))
+                elif not websocket.is_open():
+                    return test.FAIL("Error opening websocket for Sender {}".format(sender_id))
 
-            print(" * Checked WebSocket clients are disconnected")
+            # All WebSockets must stay open for some time without any heartbeats according to the IS-07 spec
+            while time.time() < start_time + WS_TIMEOUT - 1:
+                for sender_id in websockets:
+                    websocket = websockets[sender_id]
+                    if not websocket.is_open():
+                        return test.FAIL("Sender {} closed websocket too early".format(sender_id))
+                time.sleep(1)
+
+            # A short while later, certainly before another IS-07 heartbeat interval has passed,
+            # all WebSockets must be closed by the Sender
+            while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL:
+                if all([not websockets[_].is_open() for _ in websockets]):
+                    break
+                time.sleep(0.2)
+
+            for sender_id in websockets:
+                websocket = websockets[sender_id]
+                if websocket.is_open():
+                    return test.FAIL("Sender {} failed to close after timeout".format(sender_id))
 
             if warn_sender_not_enabled is False:
                 return test.PASS()
