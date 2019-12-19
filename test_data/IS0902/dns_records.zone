@@ -2,9 +2,9 @@
 mocks.{{ domain }}.	IN	A	{{ ip_address }}
 timeout.{{ domain }}.	IN	A	192.0.2.1
 
-{% for api, srv in [('reg', 'registration'), ('reg', 'register'), ('qry', 'query')] %}
+{% for api, srv in [('sys', 'system')] %}
 
-{% set registries = [
+{% set systems = [
 	('1-ver',	port_base + 1,	'mocks',	'v9.0',		api_proto,	10),
 	('1-proto',	port_base + 1,	'mocks',	api_ver,	'invalid',	10),
 	('2',		port_base + 2,	'mocks',	api_ver,	api_proto,	20),
@@ -15,7 +15,7 @@ timeout.{{ domain }}.	IN	A	192.0.2.1
 	('6',		port_base + 6,	'mocks',	api_ver,	api_proto,	60)
 ] %}
 
-{% for inst, port, host, ver, proto, pri in registries %}
+{% for inst, port, host, ver, proto, pri in systems %}
 
 ; There should be one PTR record for each instance of the service you wish to advertise.
 _nmos-{{ srv }}._tcp	PTR	{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp

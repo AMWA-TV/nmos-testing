@@ -59,7 +59,8 @@ class IS0401Test(GenericTest):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol)
+            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol,
+                                      "test_data/IS0401/dns_records.zone", CONFIG.PORT_BASE+100)
             print(" * Waiting for up to {} seconds for a DNS query before executing tests"
                   .format(CONFIG.DNS_SD_ADVERT_TIMEOUT))
             self.dns_server.wait_for_query(

@@ -26,6 +26,17 @@ function updateDropdown() {
           label.innerHTML = "";
         }
         div.style.display = "block";
+        var fields = ["host", "port", "version"];
+        for (var i=0; i<fields.length; i++) {
+          if ("disable_fields" in testData["specs"][apiNum] && testData["specs"][apiNum]["disable_fields"].indexOf(fields[i]) !== -1) {
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i] + "-save").value = document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value;
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled = true;
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value = "";
+          } else if (document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled === true){
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).disabled = false;
+            document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value = document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i] + "-save").value;
+          }
+        }
       } else {
         div.style.display = "none";
       }

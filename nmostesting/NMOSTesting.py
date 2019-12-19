@@ -52,6 +52,7 @@ from .CRL import CRL, CRL_API
 from .OCSP import OCSP, OCSP_API
 from .mocks.Node import NODE, NODE_API
 from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
+from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -71,6 +72,7 @@ from .suites import IS0702Test
 from .suites import IS0801Test
 from .suites import IS0802Test
 from .suites import IS0901Test
+from .suites import IS0902Test
 from .suites import IS1001Test
 from .suites import BCP00301Test
 
@@ -98,6 +100,15 @@ for instance in range(NUM_REGISTRIES):
     reg_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
     reg_app.register_blueprint(REGISTRY_API)  # Dependency for IS0401Test
     FLASK_APPS.append(reg_app)
+
+for instance in range(NUM_SYSTEMS):
+    sys_app = Flask(__name__)
+    sys_app.debug = False
+    sys_app.config['SYSTEM_INSTANCE'] = instance
+    sys_app.config['PORT'] = SYSTEMS[instance].port
+    sys_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
+    sys_app.register_blueprint(SYSTEM_API)  # Dependency for IS0902Test
+    FLASK_APPS.append(sys_app)
 
 sender_app = Flask(__name__)
 sender_app.debug = False
@@ -225,6 +236,19 @@ TEST_DEFINITIONS = {
         }],
         "class": IS0901Test.IS0901Test
     },
+    "IS-09-02": {
+        "name": "IS-09 System API Node Behaviour",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["port", "version"]
+        }, {
+            "spec_key": "is-09",
+            "api_key": "system",
+            "disable_fields": ["host", "port"]
+        }],
+        "class": IS0902Test.IS0902Test
+    },
     "IS-10-01": {
         "name": "IS-10 Authorization API",
         "specs": [{
@@ -335,9 +359,9 @@ def index_page():
                     test_def = TEST_DEFINITIONS[test]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
-                        host = request.form["endpoints-{}-host".format(index)]
-                        port = request.form["endpoints-{}-port".format(index)]
-                        version = request.form["endpoints-{}-version".format(index)]
+                        host = request.form.get("endpoints-{}-host".format(index), None)
+                        port = request.form.get("endpoints-{}-port".format(index), None)
+                        version = request.form.get("endpoints-{}-version".format(index), None)
                         endpoints.append({"host": host, "port": port, "version": version})
 
                     test_selection = request.form.getlist("test_selection")
@@ -394,26 +418,40 @@ def run_tests(test, endpoints, test_selection=["all"]):
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
-            if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
-                raise NMOSInitException("All IP/Hostname and Port fields must be completed")
-            base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
-            try:
-                ipaddress.ip_address(endpoints[index]["host"])
-                ip_address = endpoints[index]["host"]
-            except ValueError:
-                ip_address = socket.gethostbyname(endpoints[index]["host"])
+            if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
+                raise NMOSInitException("All IP/Hostname and Port fields must be completed")
+            if endpoints[index]["host"] is not None and endpoints[index]["port"] is not None:
+                base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
+            else:
+                base_url = None
+            if base_url is not None and endpoints[index]["version"] is not None:
+                url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
+                tested_urls.append(url)
+            else:
+                url = None
+            if endpoints[index]["host"] is not None:
+                try:
+                    ipaddress.ip_address(endpoints[index]["host"])
+                    ip_address = endpoints[index]["host"]
+                except ValueError:
+                    ip_address = socket.gethostbyname(endpoints[index]["host"])
+            else:
+                ip_address = None
+            if endpoints[index]["port"] is not None:
+                port = int(endpoints[index]["port"])
+            else:
+                port = None
             apis[api_key] = {
                 "base_url": base_url,
                 "hostname": endpoints[index]["host"],
                 "ip": ip_address,
-                "port": int(endpoints[index]["port"]),
-                "url": "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"]),
+                "port": port,
+                "url": url,
                 "version": endpoints[index]["version"],
                 "spec": None  # Used inside GenericTest
             }
-            tested_urls.append(apis[api_key]["url"])
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
                     and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
                 apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
@@ -424,6 +462,9 @@ def run_tests(test, endpoints, test_selection=["all"]):
         if test == "IS-04-01":
             # This test has an unusual constructor as it requires a registry instance
             test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
+        elif test == "IS-09-02":
+            # This test has an unusual constructor as it requires a system api instance
+            test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)
 
@@ -733,6 +774,12 @@ def start_web_servers():
 def run_noninteractive_tests(args):
     endpoints = []
     for i in range(len(args.host)):
+        if args.host[i] == "null":
+            args.host[i] = None
+        if args.port[i] == 0:
+            args.port[i] = None
+        if args.version[i] == "null":
+            args.version[i] = None
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
@@ -844,6 +891,8 @@ def config():
 def run_api_tests(args, data_format):
     endpoints = []
     for i in range(len(args.host)):
+        if args.port[i] == 0:
+            args.port[i] = None
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":

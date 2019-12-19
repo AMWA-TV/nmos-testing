@@ -52,12 +52,15 @@
                         </div>
                         <div class="input text input_data_fld">
                             {{ endpoint.host.label }} {{ endpoint.host(size="15") }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-host-save" />
                         </div>
                         <div class="input text input_data_fld">
                             {{ endpoint.port.label }} {{ endpoint.port(size="5") }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-port-save" />
                         </div>
                         <div class="input dropdown input_data_fld">
                             {{ endpoint.version.label }} {{ endpoint.version }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-version-save" />
                         </div>
                         <br />
                     </div>

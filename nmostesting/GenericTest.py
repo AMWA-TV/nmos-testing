@@ -58,7 +58,7 @@ class GenericTest(object):
     Generic testing class.
     Can be inherited from in order to perform detailed testing.
     """
-    def __init__(self, apis, omit_paths=None):
+    def __init__(self, apis, omit_paths=None, disable_auto=False):
         self.apis = apis
         self.saved_entities = {}
         self.auto_test_count = 0
@@ -73,11 +73,12 @@ class GenericTest(object):
         self.omit_paths = []
         if isinstance(omit_paths, list):
             self.omit_paths = omit_paths
+        self.disable_auto = disable_auto
 
         test = Test("Test initialisation")
 
         for api_name, api_data in self.apis.items():
-            if "spec_path" not in api_data:
+            if "spec_path" not in api_data or api_data["version"] is None:
                 continue
 
             repo = git.Repo(api_data["spec_path"])
@@ -123,7 +124,7 @@ class GenericTest(object):
         self.test_individual = (test_name != "all")
 
         # Run automatically defined tests
-        if test_name in ["auto", "all"]:
+        if test_name in ["auto", "all"] and not self.disable_auto:
             print(" * Running basic API tests")
             self.result += self.basics()
 
@@ -176,7 +177,7 @@ class GenericTest(object):
         # Set up
         test = Test("Test setup", "set_up_tests")
         for api in self.apis:
-            if "spec_path" not in self.apis[api]:
+            if "spec_path" not in self.apis[api] or self.apis[api]["url"] is None:
                 continue
             valid, response = self.do_request("GET", self.apis[api]["url"])
             if not valid or response.status_code != 200:
@@ -358,6 +359,9 @@ class GenericTest(object):
 
         for api in sorted(self.apis.keys()):
             if "spec_path" not in self.apis[api]:
+                continue
+
+            if self.apis[api]["url"] is None:
                 continue
 
             # Set the auto test count to zero as each test name includes the API type
