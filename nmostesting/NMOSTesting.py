@@ -422,21 +422,25 @@ def run_tests(test, endpoints, test_selection=["all"]):
             api_key = spec["api_key"]
             if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
                 raise NMOSInitException("All IP/Hostname and Port fields must be completed")
-            elif endpoints[index]["host"] is not None and endpoints[index]["port"] is not None and \
+            if endpoints[index]["host"] is not None and endpoints[index]["port"] is not None and \
                     endpoints[index]["version"] is not None:
                 base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
+                url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
+                tested_urls.append(url)
+            else:
+                base_url = None
+                url = None
+            if endpoints[index]["host"] is not None:
                 try:
                     ipaddress.ip_address(endpoints[index]["host"])
                     ip_address = endpoints[index]["host"]
                 except ValueError:
                     ip_address = socket.gethostbyname(endpoints[index]["host"])
-                url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
-                port = int(endpoints[index]["port"])
-                tested_urls.append(url)
             else:
-                base_url = None
                 ip_address = None
-                url = None
+            if endpoints[index]["port"] is not None:
+                port = int(endpoints[index]["port"])
+            else:
                 port = None
             apis[api_key] = {
                 "base_url": base_url,
