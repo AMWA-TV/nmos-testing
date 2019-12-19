@@ -15,7 +15,7 @@
 import json
 import flask
 
-from flask import Blueprint, Response, abort, request
+from flask import Blueprint, Response, abort, request, jsonify
 from ..Config import PORT_BASE
 
 
@@ -78,4 +78,4 @@ def system_global(version):
             "port": 3477
         }
     }
-    return response
+    return jsonify(response)
