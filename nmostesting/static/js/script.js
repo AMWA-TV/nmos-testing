@@ -103,15 +103,12 @@ function saveSettings() {
             var maxOptions = document.getElementById('hidden_options').value;
             for (var apiNum=0; apiNum<maxOptions; apiNum++) {
                 if (document.getElementById("endpoints-" + apiNum.toString() + "-host").disabled !== true) {
-                    console.log("save host " + apiNum.toString());
                     sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host").value);
                 }
                 if (document.getElementById("endpoints-" + apiNum.toString() + "-port").disabled !== true) {
-                    console.log("save port " + apiNum.toString());
                     sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port").value);
                 }
                 if (document.getElementById("endpoints-" + apiNum.toString() + "-version").disabled !== true) {
-                    console.log("save version " + apiNum.toString());
                     sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version").value);
                 }
             }
