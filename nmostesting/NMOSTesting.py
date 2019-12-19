@@ -422,13 +422,14 @@ def run_tests(test, endpoints, test_selection=["all"]):
             api_key = spec["api_key"]
             if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
                 raise NMOSInitException("All IP/Hostname and Port fields must be completed")
-            if endpoints[index]["host"] is not None and endpoints[index]["port"] is not None and \
-                    endpoints[index]["version"] is not None:
+            if endpoints[index]["host"] is not None and endpoints[index]["port"] is not None:
                 base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
+            else:
+                base_url = None
+            if base_url is not None and endpoints[index]["version"] is not None:
                 url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
                 tested_urls.append(url)
             else:
-                base_url = None
                 url = None
             if endpoints[index]["host"] is not None:
                 try:

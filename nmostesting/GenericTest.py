@@ -361,6 +361,9 @@ class GenericTest(object):
             if "spec_path" not in self.apis[api]:
                 continue
 
+            if self.apis[api]["url"] is None:
+                continue
+
             # Set the auto test count to zero as each test name includes the API type
             self.auto_test_count = 0
 
