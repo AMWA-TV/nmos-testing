@@ -17,11 +17,14 @@ import uuid
 import re
 from requests.compat import json
 from copy import deepcopy
+from random import randint
+from jinja2 import Template
 
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
 from .. import Config as CONFIG
 from ..GenericTest import NMOSTestException
+from ..TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -1051,6 +1054,93 @@ class IS0502Test(GenericTest):
                                  .format(resource["id"]))
 
         return test.PASS()
+
+    def test_18(self, test):
+        """Receiver correctly translates SDP file attributes into transport_params"""
+
+        self.do_test_node_api_v1_2(test)
+
+        valid, result = self.get_is04_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
+
+        if len(self.is04_resources["receivers"]) == 0:
+            return test.UNCLEAR("Could not find any IS-04 Senders to test")
+
+        video_sdp = open("test_data/IS0502/video.sdp").read()
+        audio_sdp = open("test_data/IS0502/audio.sdp").read()
+        data_sdp = open("test_data/IS0502/data.sdp").read()
+        mux_sdp = open("test_data/IS0502/mux.sdp").read()
+
+        sdp_tested = False
+        src_ip = get_default_ip()
+        for receiver in self.is04_resources["receivers"]:
+            if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
+                continue
+            if "media_types" not in receiver["caps"]:
+                continue
+
+            sdp_file = None
+            dst_ip = "232.40.50.{}".format(randint(1, 254))
+            dst_port = randint(5000, 5999)
+            if receiver["format"] == "urn:x-nmos:format:video":
+                template = Template(video_sdp)
+                if "video/raw" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw")
+                elif "video/vc2" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="vc2")
+                elif "video/H264" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264")
+            elif receiver["format"] == "urn:x-nmos:format:audio":
+                template = Template(audio_sdp)
+                if "audio/L16" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L16")
+                elif "audio/L24" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24")
+                elif "audio/L32" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L32")
+            elif receiver["format"] == "urn:x-nmos:format:data":
+                template = Template(data_sdp)
+                if "video/smpte291" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
+            elif receiver["format"] == "urn:x-nmos:format:mux":
+                template = Template(mux_sdp)
+                if "video/SMPTE2022-6" in receiver["caps"]["media_types"]:
+                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
+
+            if not sdp_file:
+                continue
+
+            sdp_tested = True
+            url = "single/receivers/{}/staged".format(receiver["id"])
+            data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
+            valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data)
+            if not valid:
+                return test.FAIL("Receiver {} rejected staging of SDP file: {}".format(receiver["id"], response))
+
+            if response["sender_id"] != data["sender_id"]:
+                return test.FAIL("Receiver {} did not set 'sender_id' to '{}' in staged response"
+                                 .format(receiver["id"], data["sender_id"]))
+            if response["transport_file"]["data"] != data["transport_file"]["data"]:
+                return test.FAIL("Receiver {} did not set 'data' to requested SDP file contents in staged response"
+                                 .format(receiver["id"]))
+            if response["transport_file"]["type"] != data["transport_file"]["type"]:
+                return test.FAIL("Receiver {} did not set 'type' to '{}' in staged response"
+                                 .format(receiver["id"], data["transport_file"]["type"]))
+            if response["transport_params"][0]["source_ip"] != src_ip:
+                return test.FAIL("Receiver {} did not set 'source_ip' to '{}' in staged response"
+                                 .format(receiver["id"], src_ip))
+            if response["transport_params"][0]["multicast_ip"] != dst_ip:
+                return test.FAIL("Receiver {} did not set 'multicast_ip' to '{}' in staged response"
+                                 .format(receiver["id"], dst_ip))
+            if response["transport_params"][0]["destination_port"] != dst_port:
+                return test.FAIL("Receiver {} did not set 'destination_port' to '{}' in staged response"
+                                 .format(receiver["id"], dst_port))
+
+        if sdp_tested:
+            return test.PASS()
+        else:
+            return test.UNCLEAR("No RTP Receivers found with an accepted 'media_type' we can currently test")
 
     def exactframerate(self, grain_rate):
         """Format an NMOS grain rate like the SDP video format-specific parameter 'exactframerate'"""
