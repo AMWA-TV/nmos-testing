@@ -1098,6 +1098,8 @@ class IS0401Test(GenericTest):
         try:
             for sender in response.json():
                 interface_bindings = sender["interface_bindings"]
+                if len(interface_bindings) == 0:
+                    return test.FAIL("Sender '{}' does not list any interface_bindings".format(sender["id"]))
                 for interface_name in interface_bindings:
                     if interface_name not in interfaces:
                         return test.FAIL("Sender '{}' uses a non-existent interface name '{}'"
@@ -1111,6 +1113,8 @@ class IS0401Test(GenericTest):
         try:
             for receiver in response.json():
                 interface_bindings = receiver["interface_bindings"]
+                if len(interface_bindings) == 0:
+                    return test.FAIL("Receiver '{}' does not list any interface_bindings".format(receiver["id"]))
                 for interface_name in interface_bindings:
                     if interface_name not in interfaces:
                         return test.FAIL("Receiver '{}' uses a non-existent interface name '{}'"
