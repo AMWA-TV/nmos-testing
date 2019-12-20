@@ -678,17 +678,19 @@ class IS0502Test(GenericTest):
                                                  .format(resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:data":
                             rtpmap = re.search(r"^a=rtpmap:\d+ smpte291/90000$", sdp_line)
-                            if flow["media_type"] == "video/smpte291" and not rtpmap:
-                                return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
-                                                 "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            if flow["media_type"] == "video/smpte291":
+                                if not rtpmap:
+                                    return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
+                                                     "and Sender {}".format(flow["media_type"], resource["id"]))
                             elif rtpmap:
                                 return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
                                                  .format(resource["id"]))
                         elif source["format"] == "urn:x-nmos:format:mux":
                             rtpmap = re.search(r"^a=rtpmap:\d+ SMPTE2022-6/27000000$", sdp_line)
-                            if flow["media_type"] == "video/SMPTE2022-6" and not rtpmap:
-                                return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
-                                                 "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                            if flow["media_type"] == "video/SMPTE2022-6":
+                                if not rtpmap:
+                                    return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
+                                                     "and Sender {}".format(flow["media_type"], resource["id"]))
                             elif rtpmap:
                                 return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
                                                  .format(resource["id"]))
