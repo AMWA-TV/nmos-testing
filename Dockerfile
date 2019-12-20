@@ -14,6 +14,7 @@ RUN apk update \
  && wget https://github.com/drwetter/testssl.sh/archive/3.0rc5.tar.gz \
  && tar -xvzf 3.0rc5.tar.gz --strip-components=1 \
  && rm 3.0rc5.tar.gz \
+ && npm config set unsafe-perm true \
  && npm install -g sdpoker
 
 VOLUME /config
