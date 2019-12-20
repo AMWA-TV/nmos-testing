@@ -1136,6 +1136,12 @@ class IS0502Test(GenericTest):
             if response["transport_params"][0]["destination_port"] != dst_port:
                 return test.FAIL("Receiver {} did not set 'destination_port' to '{}' in staged response"
                                  .format(receiver["id"], dst_port))
+            if response["transport_params"][0]["rtp_enabled"] is not True:
+                return test.FAIL("Receiver {} did not set 'rtp_enabled' to true in staged response"
+                                 .format(receiver["id"]))
+            if len(response["transport_params"]) > 1 and response["transport_params"][1]["rtp_enabled"] is not False:
+                return test.FAIL("Receiver {} did not set 'rtp_enabled' to false in second leg of staged response"
+                                 .format(receiver["id"]))
 
         if sdp_tested:
             return test.PASS()
