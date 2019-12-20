@@ -1065,7 +1065,7 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         if len(self.is04_resources["receivers"]) == 0:
-            return test.UNCLEAR("Could not find any IS-04 Senders to test")
+            return test.UNCLEAR("Could not find any IS-04 Receivers to test")
 
         video_sdp = open("test_data/IS0502/video.sdp").read()
         audio_sdp = open("test_data/IS0502/audio.sdp").read()
