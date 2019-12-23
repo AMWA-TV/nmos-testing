@@ -20,9 +20,11 @@ The following test suites are currently supported:
 *   BCP-003-01 Secure API Communications
 *   BCP-003-02 Authorization (see IS-10 Authorization API)
 
-See the [documentation](docs/)
-
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if devices support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
+
+## Installation & Usage
+
+Detailed instructions can be found in the [documentation](docs/)
 
 ## Important Notes
 *   The IS-04 Node and IS-09 Discovery tests create mock mDNS announcements on the network unless the `nmostesting/Config.py` `ENABLE_DNS_SD` parameter is set to `False`, or the `DNS_SD_MODE` parameter is set to `'unicast'`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_DNS_SD` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `nmostesting/Config.py`.
