@@ -2,7 +2,7 @@
 
 This tool creates a simple web service which tests implementations of the NMOS APIs.
 
-The following test sets are currently supported:
+The following test suites are currently supported:
 *   IS-04 Node API
 *   IS-04 Registry APIs
 *   IS-04 Node API (Peer to Peer)
@@ -22,7 +22,7 @@ The following test sets are currently supported:
 
 See the [documentation](docs/)
 
-When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if device support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
+When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if devices support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
 ## Important Notes
 *   The IS-04 Node and IS-09 Discovery tests create mock mDNS announcements on the network unless the `nmostesting/Config.py` `ENABLE_DNS_SD` parameter is set to `False`, or the `DNS_SD_MODE` parameter is set to `'unicast'`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_DNS_SD` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `nmostesting/Config.py`.
