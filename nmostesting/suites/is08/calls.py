@@ -52,7 +52,10 @@ class Call:
         self._checkForErrors()
         self._checkStatusCode()
         self._checkResponseSchema()
-        return self._getJSON()
+        if self.expectedCode != 204:
+            return self._getJSON()
+        else:
+            return None
 
     def _checkForErrors(self):
         if not self._callSucceeded:
