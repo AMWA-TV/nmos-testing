@@ -471,7 +471,8 @@ class IS0501Test(GenericTest):
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_immediate_activation,
-                                                                   self.transport_types[sender])
+                                                                   self.transport_types[sender],
+                                                                   True)
                 if valid:
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
@@ -508,7 +509,8 @@ class IS0501Test(GenericTest):
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_relative_activation,
-                                                                   self.transport_types[sender])
+                                                                   self.transport_types[sender],
+                                                                   True)
                 if valid:
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
@@ -544,7 +546,8 @@ class IS0501Test(GenericTest):
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_absolute_activation,
-                                                                   self.transport_types[sender])
+                                                                   self.transport_types[sender],
+                                                                   True)
                 if valid:
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
