@@ -198,6 +198,23 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_11_01(self, test):
+        """Sender /active parameters do not use the keyword 'auto'"""
+        if len(self.senders) > 0:
+            for sender in self.senders:
+                dest = "single/senders/" + sender + "/active/"
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
+                if valid:
+                    for leg in response["transport_params"]:
+                        if "auto" in leg.values():
+                            return test.FAIL("Found keyword 'auto' in one or more 'active' parameters for Sender {}"
+                                             .format(sender))
+                else:
+                    return test.FAIL(response)
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
     def test_12(self, test):
         """Receiver are using valid combination of parameters"""
 
@@ -244,6 +261,23 @@ class IS0501Test(GenericTest):
                     return test.FAIL("Expected an array from {}, got {}".format(dest, response))
                 except AttributeError:
                     return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_12_01(self, test):
+        """Receiver /active parameters do not use the keyword 'auto'"""
+        if len(self.receivers) > 0:
+            for receiver in self.receivers:
+                dest = "single/receivers/" + receiver + "/active/"
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
+                if valid:
+                    for leg in response["transport_params"]:
+                        if "auto" in leg.values():
+                            return test.FAIL("Found keyword 'auto' in one or more 'active' parameters for Receiver {}"
+                                             .format(receiver))
+                else:
+                    return test.FAIL(response)
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
