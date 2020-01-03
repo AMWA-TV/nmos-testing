@@ -72,6 +72,9 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
@@ -105,6 +108,9 @@ class IS0801Test(GenericTest):
 
         Active().unrouteAll()
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
@@ -127,6 +133,9 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
@@ -384,6 +393,10 @@ class IS0801Test(GenericTest):
         preActivationState = active.buildJSONObject()
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            msg = globalConfig.test.UNCLEAR("Not tested. No resources found.")
+            raise NMOSTestException(msg)
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
