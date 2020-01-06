@@ -33,10 +33,12 @@ DNS_SD_ADVERT_TIMEOUT = 30
 # Number of seconds to wait after browsing for a DNS-SD advert before checking the results
 DNS_SD_BROWSE_TIMEOUT = 2
 
-# Number of seconds expected between heartbeats for an IS-04 registry
+# Number of seconds expected between heartbeats for an IS-04 Node
+# Note: Currently this is only used for testing IS-04 Nodes. Registry behaviour is expected to match the defaults.
 HEARTBEAT_INTERVAL = 5
 
 # Number of seconds to wait before garbage collection for an IS-04 registry
+# Note: Currently this is only used for testing IS-04 registries. Node behaviour is expected to match the defaults.
 GARBAGE_COLLECTION_TIMEOUT = 12
 
 # Number of seconds to wait for messages to appear via a WebSocket subscription
