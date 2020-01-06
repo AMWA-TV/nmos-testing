@@ -317,4 +317,7 @@ class IS0702Test(GenericTest):
             else:
                 return test.PASS()
         else:
-            return test.UNCLEAR("Not tested. No resources found.")
+            if warn_sender_not_enabled:
+                return test.WARNING(warn_message)
+            else:
+                return test.UNCLEAR("Not tested. No resources found.")
