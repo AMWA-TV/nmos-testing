@@ -15,7 +15,7 @@
 
 # NMOS Testing Configuration File
 # -------------------------------
-# Please consult ReadMe.md for instructions on how to adjust these values for common testing setups including
+# Please consult the documentation for instructions on how to adjust these values for common testing setups including
 # unicast DNS-SD and HTTPS testing.
 
 
@@ -33,10 +33,12 @@ DNS_SD_ADVERT_TIMEOUT = 30
 # Number of seconds to wait after browsing for a DNS-SD advert before checking the results
 DNS_SD_BROWSE_TIMEOUT = 2
 
-# Number of seconds expected between heartbeats
+# Number of seconds expected between heartbeats for an IS-04 Node
+# Note: Currently this is only used for testing IS-04 Nodes. Registry behaviour is expected to match the defaults.
 HEARTBEAT_INTERVAL = 5
 
-# Number of seconds to wait for the garbage collection
+# Number of seconds to wait before garbage collection for an IS-04 registry
+# Note: Currently this is only used for testing IS-04 registries. Node behaviour is expected to match the defaults.
 GARBAGE_COLLECTION_TIMEOUT = 12
 
 # Number of seconds to wait for messages to appear via a WebSocket subscription
@@ -67,10 +69,11 @@ ENABLE_HTTPS = False
 BIND_INTERFACE = None
 
 # Which certificate authority to trust when performing requests in HTTPS mode.
-# Defaults to the CA contained within this test suite
+# Defaults to the CA contained within this testing tool
 CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
 
 # Certificate chains and the corresponding private keys
+# Used by the testing tool's mock Node, Registry and System API
 CERTS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/certs/ecdsa.mocks.testsuite.nmos.tv.cert.chain.pem",
     "test_data/BCP00301/ca/intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem"
