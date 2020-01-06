@@ -239,9 +239,6 @@ class IS0702Test(GenericTest):
         # Gather the possible connections and sources which can be subscribed to
         connection_sources = {}
 
-        warn_sender_not_enabled = False
-        warn_message = ""
-
         if len(self.is07_sources) > 0:
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
@@ -252,20 +249,24 @@ class IS0702Test(GenericTest):
                                 found_sender = self.senders_to_test[sender_id]
                                 if found_sender["transport"] == "urn:x-nmos:transport:websocket":
                                     if sender_id in self.senders_active:
-                                        active = self.senders_active[sender_id]
-                                        if active["master_enable"]:
-                                            if "connection_uri" not in active["transport_params"][0]:
-                                                return test.FAIL("Sender {} has no connection_uri parameter"
-                                                                 .format(sender_id))
-                                            connection_uri = active["transport_params"][0]["connection_uri"]
-
-                                            if connection_uri not in connection_sources:
-                                                connection_sources[connection_uri] = [source_id]
+                                        if not self.senders_active[sender_id]["master_enable"]:
+                                            valid, response = self.is05_utils.perform_activation("sender", sender_id,
+                                                                                                 masterEnable=True)
+                                            if valid:
+                                                self.senders_active[sender_id] = response
                                             else:
-                                                connection_sources[connection_uri].append(source_id)
+                                                return test.FAIL(response)
+
+                                        params = self.senders_active[sender_id]["transport_params"][0]
+                                        if "connection_uri" not in params:
+                                            return test.FAIL("Sender {} has no connection_uri parameter"
+                                                             .format(sender_id))
+                                        connection_uri = params["connection_uri"]
+
+                                        if connection_uri not in connection_sources:
+                                            connection_sources[connection_uri] = [source_id]
                                         else:
-                                            warn_sender_not_enabled = True
-                                            warn_message = "Sender {} master_enable is false".format(sender_id)
+                                            connection_sources[connection_uri].append(source_id)
 
         if len(connection_sources) > 0:
             websockets = {}
@@ -312,9 +313,6 @@ class IS0702Test(GenericTest):
                 if websocket.is_open():
                     return test.FAIL("WebSocket connection to {} was not closed after timeout".format(connection_uri))
 
-            if warn_sender_not_enabled:
-                return test.WARNING(warn_message)
-            else:
-                return test.PASS()
+            return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
