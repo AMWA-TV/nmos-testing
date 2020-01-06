@@ -116,7 +116,7 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
-    def perform_activation(self, port, portId, activateMode=IMMEDIATE_ACTIVATION, activateTime=None):
+    def perform_activation(self, port, portId, activateMode=IMMEDIATE_ACTIVATION, activateTime=None, masterEnable=None):
         # Request an immediate activation
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         data = {"activation": {"mode": activateMode}}
@@ -124,6 +124,8 @@ class IS05Utils(NMOSUtils):
         if activateMode != IMMEDIATE_ACTIVATION:
             data["activation"]["requested_time"] = activateTime
             code = 202
+        if masterEnable is not None:
+            data["master_enable"] = masterEnable
         return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
 
     def check_perform_immediate_activation(self, port, portId, stagedParams, changedParam):
