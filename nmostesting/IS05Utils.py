@@ -378,7 +378,7 @@ class IS05Utils(NMOSUtils):
         else:
             return False, response
 
-    def check_activation(self, port, portId, activationMethod, transportType):
+    def check_activation(self, port, portId, activationMethod, transportType, masterEnable=None):
         """Checks that when an immediate activation is called staged parameters are moved
         to active and the activation is correctly displayed in the /active endpoint"""
         # Set a new value for a transport_param for each leg in staged
@@ -387,6 +387,8 @@ class IS05Utils(NMOSUtils):
         if valid:
             stagedUrl = "single/" + port + "s/" + portId + "/staged"
             data = {"transport_params": []}
+            if masterEnable is not None:
+                data["master_enable"] = masterEnable
             legs = self.get_num_paths(portId, port)
             for i in range(0, legs):
                 data['transport_params'].append({paramName: paramValues[i]})
