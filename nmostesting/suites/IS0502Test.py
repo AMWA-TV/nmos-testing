@@ -1086,7 +1086,7 @@ class IS0502Test(GenericTest):
             dst_ip = "232.40.50.{}".format(randint(1, 254))
             dst_port = randint(5000, 5999)
             if receiver["format"] == "urn:x-nmos:format:video":
-                template = Template(video_sdp)
+                template = Template(video_sdp, keep_trailing_newline=True)
                 if "video/raw" in receiver["caps"]["media_types"]:
                     sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw")
                 elif "video/vc2" in receiver["caps"]["media_types"]:
@@ -1094,7 +1094,7 @@ class IS0502Test(GenericTest):
                 elif "video/H264" in receiver["caps"]["media_types"]:
                     sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264")
             elif receiver["format"] == "urn:x-nmos:format:audio":
-                template = Template(audio_sdp)
+                template = Template(audio_sdp, keep_trailing_newline=True)
                 if "audio/L16" in receiver["caps"]["media_types"]:
                     sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L16")
                 elif "audio/L24" in receiver["caps"]["media_types"]:
@@ -1102,11 +1102,11 @@ class IS0502Test(GenericTest):
                 elif "audio/L32" in receiver["caps"]["media_types"]:
                     sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L32")
             elif receiver["format"] == "urn:x-nmos:format:data":
-                template = Template(data_sdp)
+                template = Template(data_sdp, keep_trailing_newline=True)
                 if "video/smpte291" in receiver["caps"]["media_types"]:
                     sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
             elif receiver["format"] == "urn:x-nmos:format:mux":
-                template = Template(mux_sdp)
+                template = Template(mux_sdp, keep_trailing_newline=True)
                 if "video/SMPTE2022-6" in receiver["caps"]["media_types"]:
                     sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
 
