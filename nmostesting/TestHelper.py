@@ -160,6 +160,10 @@ class WebsocketWorker(threading.Thread):
     def close(self):
         self.ws.close()
 
+    def send(self, message):
+        if self.connected is True:
+            self.ws.send(message)
+
     def is_open(self):
         return self.connected
 
