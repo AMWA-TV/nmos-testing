@@ -400,7 +400,7 @@ class IS0702Test(GenericTest):
                         return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
                 time.sleep(1)
 
-            # However, a short while after that timeout period, and certainly before another IS-07 heartbeat
+            # A short while after that timeout period, and certainly before another IS-07 heartbeat
             # interval has passed, all WebSocket connections must be automatically closed by the Sender
             while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL * 2:
                 if all([not websockets[_].is_open() for _ in websockets]):
