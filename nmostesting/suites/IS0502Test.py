@@ -809,7 +809,7 @@ class IS0502Test(GenericTest):
                                     return test.FAIL("Interlace parameter for Sender {} incorrectly includes an '='"
                                                      .format(resource["id"]))
                             elif param_components[0] == "top-field-first":  # ref: RFC4175
-                                if "interlace_mode" not in flow or flow["interlace_mode"] != "interlaced_tff":
+                                if "interlace_mode" not in flow or flow["interlace_mode"] == "progressive":
                                     return test.FAIL("Top-field-first parameter for Sender {} does not match its Flow "
                                                      "{}".format(resource["id"], flow["id"]))
                                 elif len(param_components) > 1:
@@ -910,7 +910,7 @@ class IS0502Test(GenericTest):
                                  .format(resource["id"]))
 
             sdp_interlace = False
-            sdp_top_field_first = False
+            sdp_chroma_first_field = False
             sdp_segmented = False
             sdp_tcs = False
             sdp_did_sdid = False
@@ -924,7 +924,7 @@ class IS0502Test(GenericTest):
                         if param_components[0] == "interlace":  # ref: RFC4175
                             sdp_interlace = True
                         elif param_components[0] == "top-field-first":  # ref: RFC4175
-                            sdp_top_field_first = True
+                            sdp_chroma_first_field = True
                         elif param_components[0] == "segmented":  # ref: ST.2110-20
                             sdp_segmented = True
                         elif param_components[0] == "TCS":  # ref: ST.2110-20
@@ -941,9 +941,6 @@ class IS0502Test(GenericTest):
             if "interlace_mode" in flow and flow["interlace_mode"] != "progressive" and not sdp_interlace:
                 return test.FAIL("Flow for Sender {} indicates video is interlaced, but this is missing from its "
                                  "SDP file".format(resource["id"]))
-            if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_tff" and not sdp_top_field_first:
-                return test.FAIL("Flow for Sender {} indicates video is top-field-first, but this is missing from its "
-                                 "SDP file".format(resource["id"]))
             if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_psf" and not sdp_segmented:
                 return test.FAIL("Flow for Sender {} indicates video is segmented, but this is missing from its "
                                  "SDP file".format(resource["id"]))
@@ -951,13 +948,10 @@ class IS0502Test(GenericTest):
                 return test.FAIL("Flow for Sender {} indicates video's transfer characteristic, but this is missing "
                                  "from its SDP file".format(resource["id"]))
 
-            # Technically the following are just SDP validation, so could move to sdpoker
-            if (sdp_top_field_first or sdp_segmented) and not sdp_interlace:
+            # Technically the following is just SDP validation, so could move to sdpoker
+            if (sdp_chroma_first_field or sdp_segmented) and not sdp_interlace:
                 return test.FAIL("SDP file for Sender {} indicates top-field-first or segmented, but doesn't indicate "
                                  "interlace".format(resource["id"]))
-            if sdp_top_field_first and sdp_segmented:
-                return test.FAIL("SDP file for Sender {} indicates top-field-first and segmented at the same time"
-                                 .format(resource["id"]))
 
         return test.PASS()
 
