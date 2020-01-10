@@ -24,7 +24,7 @@ class IS07Utils(NMOSUtils):
     def get_sources_states_and_types(self):
         """Gets a list of the available source objects with state and type on the API"""
         toReturn = {}
-        sources_url = self.url + "sources/"
+        sources_url = self.url + "sources"
         valid_sources, sources = TestHelper.do_request("GET", sources_url)
         if valid_sources:
             for source in sources.json():
