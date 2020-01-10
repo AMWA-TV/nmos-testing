@@ -260,7 +260,7 @@ class IS0702Test(GenericTest):
                 with_health_connections_opened = False
                 if all([websockets_no_health[_].is_open() for _ in websockets_no_health]):
                     no_health_connections_opened = True
-                if all([websockets_with_health[_].is_open() for _ in websockets_no_health]):
+                if all([websockets_with_health[_].is_open() for _ in websockets_with_health]):
                     with_health_connections_opened = True
                 if no_health_connections_opened and with_health_connections_opened:
                     break
