@@ -241,78 +241,42 @@ class IS0702Test(GenericTest):
         connection_sources = self.get_websocket_connection_sources(test)
 
         if len(connection_sources) > 0:
-            websockets = {}
+            websockets_no_health = {}
+            websockets_with_health = {}
             for connection_uri in connection_sources:
-                websockets[connection_uri] = WebsocketWorker(connection_uri)
+                websockets_no_health[connection_uri] = WebsocketWorker(connection_uri)
+                websockets_with_health[connection_uri] = WebsocketWorker(connection_uri)
 
-            for connection_uri in websockets:
-                websockets[connection_uri].start()
+            for connection_uri in websockets_no_health:
+                websockets_no_health[connection_uri].start()
+
+            for connection_uri in websockets_with_health:
+                websockets_with_health[connection_uri].start()
 
             # Give each WebSocket client a chance to start and open its connection
             start_time = time.time()
             while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
-                if all([websockets[_].is_open() for _ in websockets]):
+                no_health_connections_opened = False
+                with_health_connections_opened = False
+                if all([websockets_no_health[_].is_open() for _ in websockets_no_health]):
+                    no_health_connections_opened = True
+                if all([websockets_with_health[_].is_open() for _ in websockets_no_health]):
+                    with_health_connections_opened = True
+                if no_health_connections_opened and with_health_connections_opened:
                     break
                 time.sleep(0.2)
 
             # After that short while, they must all be connected successfully
-            for connection_uri in websockets:
-                websocket = websockets[connection_uri]
+            for connection_uri in websockets_no_health:
+                websocket = websockets_no_health[connection_uri]
                 if websocket.did_error_occur():
                     return test.FAIL("Error opening WebSocket connection to {}: {}"
                                      .format(connection_uri, websocket.get_error_message()))
                 elif not websocket.is_open():
                     return test.FAIL("Error opening WebSocket connection to {}".format(connection_uri))
 
-            # All WebSocket connections must stay open for a period of time even without any heartbeats
-            while time.time() < start_time + WS_TIMEOUT - 1:
-                for connection_uri in websockets:
-                    websocket = websockets[connection_uri]
-                    if not websocket.is_open():
-                        return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
-                time.sleep(1)
-
-            # However, a short while after that timeout period, and certainly before another IS-07 heartbeat
-            # interval has passed, all WebSocket connections must be automatically closed by the Sender
-            while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL:
-                if all([not websockets[_].is_open() for _ in websockets]):
-                    break
-                time.sleep(0.2)
-
-            # Now, they must all be disconnected
-            for connection_uri in websockets:
-                websocket = websockets[connection_uri]
-                if websocket.is_open():
-                    return test.FAIL("WebSocket connection to {} was not closed after timeout".format(connection_uri))
-
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
-
-    def test_05(self, test):
-        """WebSocket connections stay open if health commands are sent"""
-
-        # Gather the possible connections and sources which can be subscribed to
-        connection_sources = self.get_websocket_connection_sources(test)
-
-        if len(connection_sources) > 0:
-            websockets = {}
-            for connection_uri in connection_sources:
-                websockets[connection_uri] = WebsocketWorker(connection_uri)
-
-            for connection_uri in websockets:
-                websockets[connection_uri].start()
-
-            # Give each WebSocket client a chance to start and open its connection
-            start_time = time.time()
-            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
-                if all([websockets[_].is_open() for _ in websockets]):
-                    break
-                time.sleep(0.2)
-
-            # After that short while, they must all be connected successfully
-            for connection_uri in websockets:
-                websocket = websockets[connection_uri]
+            for connection_uri in websockets_with_health:
+                websocket = websockets_with_health[connection_uri]
                 if websocket.did_error_occur():
                     return test.FAIL("Error opening WebSocket connection to {}: {}"
                                      .format(connection_uri, websocket.get_error_message()))
@@ -321,39 +285,65 @@ class IS0702Test(GenericTest):
 
             # All WebSocket connections must stay open until a health command is required
             while time.time() < start_time + WS_HEARTBEAT_INTERVAL:
-                for connection_uri in websockets:
-                    websocket = websockets[connection_uri]
+                for connection_uri in websockets_no_health:
+                    websocket = websockets_no_health[connection_uri]
+                    if not websocket.is_open():
+                        return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
+                for connection_uri in websockets_with_health:
+                    websocket = websockets_with_health[connection_uri]
                     if not websocket.is_open():
                         return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
                 time.sleep(1)
 
-            # send health command
+            # send health commands to one set of WebSockets
             health_command = {}
             health_command["command"] = "health"
             health_command["timestamp"] = self.is04_utils.get_TAI_time()
 
-            for connection_uri in websockets:
-                websockets[connection_uri].send(json.dumps(health_command))
+            for connection_uri in websockets_with_health:
+                websockets_with_health[connection_uri].send(json.dumps(health_command))
 
-            while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL:
-                for connection_uri in websockets:
-                    websocket = websockets[connection_uri]
+            # All WebSocket connections which haven't been sent a health command must stay opened
+            # for a period of time even without any heartbeats
+            while time.time() < start_time + WS_TIMEOUT - 1:
+                for connection_uri in websockets_no_health:
+                    websocket = websockets_no_health[connection_uri]
                     if not websocket.is_open():
-                        return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
+                        return test.FAIL("WebSocket connection (no health cmd sent) to {} was closed too early"
+                                         .format(connection_uri))
                 time.sleep(1)
 
             # A short while after that timeout period, and certainly before another IS-07 heartbeat
-            # interval has passed, all WebSocket connections must be automatically closed by the Sender
+            # interval has passed, all WebSocket connections which haven't been sent a health command
+            # should start being closed down and connections which have been sent a health command
+            # should still remain opened
+            while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL:
+                for connection_uri in websockets_with_health:
+                    websocket = websockets_with_health[connection_uri]
+                    if not websocket.is_open():
+                        return test.FAIL("WebSocket connection (health cmd sent) to {} was closed too early"
+                                         .format(connection_uri))
+                time.sleep(1)
+
+            # Now, all WebSocket connections which haven't been sent a health command must all be disconnected
+            for connection_uri in websockets_no_health:
+                websocket = websockets_no_health[connection_uri]
+                if websocket.is_open():
+                    return test.FAIL("WebSocket connection (no health cmd sent) to {} was not closed after timeout"
+                                     .format(connection_uri))
+
+            # WebSocket connections which have been sent a health command should start being closed down now
             while time.time() < start_time + WS_TIMEOUT + WS_HEARTBEAT_INTERVAL * 2:
-                if all([not websockets[_].is_open() for _ in websockets]):
+                if all([not websockets_with_health[_].is_open() for _ in websockets_with_health]):
                     break
                 time.sleep(0.2)
 
             # Now, they must all be disconnected
-            for connection_uri in websockets:
-                websocket = websockets[connection_uri]
+            for connection_uri in websockets_with_health:
+                websocket = websockets_with_health[connection_uri]
                 if websocket.is_open():
-                    return test.FAIL("WebSocket connection to {} was not closed after timeout".format(connection_uri))
+                    return test.FAIL("WebSocket connection (health cmd sent) to {} was not closed after timeout"
+                                     .format(connection_uri))
 
             return test.PASS()
         else:
@@ -380,13 +370,11 @@ class IS0702Test(GenericTest):
                                                 self.senders_active[sender_id] = response
                                             else:
                                                 raise NMOSTestException(test.FAIL(response))
-
                                         params = self.senders_active[sender_id]["transport_params"][0]
                                         if "connection_uri" not in params:
                                             raise NMOSTestException(test.FAIL("Sender {} has no connection_uri "
-                                                                              "parameter".format(sender_id)))
+                                                                    "parameter".format(sender_id)))
                                         connection_uri = params["connection_uri"]
-
                                         if connection_uri not in connection_sources:
                                             connection_sources[connection_uri] = [source_id]
                                         else:
