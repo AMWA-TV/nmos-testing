@@ -380,13 +380,16 @@ class IS0702Test(GenericTest):
                                                 self.senders_active[sender_id] = response
                                             else:
                                                 raise NMOSTestException(test.FAIL(response))
+
                                         params = self.senders_active[sender_id]["transport_params"][0]
                                         if "connection_uri" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no connection_uri"
-                                                                    " parameter".format(sender_id)))
+                                            raise NMOSTestException(test.FAIL("Sender {} has no connection_uri "
+                                                                              "parameter".format(sender_id)))
                                         connection_uri = params["connection_uri"]
+
                                         if connection_uri not in connection_sources:
                                             connection_sources[connection_uri] = [source_id]
                                         else:
                                             connection_sources[connection_uri].append(source_id)
+
         return connection_sources
