@@ -317,53 +317,56 @@ class IS0702Test(GenericTest):
 
             # All WebSocket connections which were sent a health command should respond with a health response
             while time.time() < start_time + WS_HEARTBEAT_INTERVAL * 2:
-                if all([len(websockets_with_health[_].messages) == 1 for _ in websockets_with_health]):
+                if all([len(websockets_with_health[_].messages) >= 1 for _ in websockets_with_health]):
                     break
                 time.sleep(0.2)
 
             for connection_uri in websockets_with_health:
                 websocket = websockets_with_health[connection_uri]
                 messages = websocket.get_messages()
-                if len(messages) == 1:
+                if len(messages) == 0:
+                    return test.FAIL("WebSocket {} did not respond with a health response"
+                                     "to the health command".format(connection_uri))
+                elif len(messages) > 1:
+                    return test.FAIL("WebSocket {} responded with more than 1 message"
+                                     "to the health command".format(connection_uri))
+                elif len(messages) == 1:
                     try:
                         message = json.loads(messages[0])
                         if "message_type" in message:
                             if message["message_type"] != "health":
-                                return test.FAIL("WebSocket {0} health response message_type is not "
-                                                 "set to health but instead is {1}"
+                                return test.FAIL("WebSocket {} health response message_type is not "
+                                                 "set to health but instead is {}"
                                                  .format(connection_uri, message["message_type"]))
                         else:
-                            return test.FAIL("WebSocket {0} health response"
+                            return test.FAIL("WebSocket {} health response"
                                              "does not have a message_type".format(connection_uri))
                         if "timing" in message:
                             if "origin_timestamp" in message["timing"]:
                                 origin_timestamp = message["timing"]["origin_timestamp"]
                                 if origin_timestamp != health_command["timestamp"]:
-                                    return test.FAIL("WebSocket {0} health response origin_timestamp is not "
-                                                     "set to the original timestamp but instead is {1}"
+                                    return test.FAIL("WebSocket {} health response origin_timestamp is not "
+                                                     "set to the original timestamp but instead is {}"
                                                      .format(connection_uri, origin_timestamp))
                             else:
-                                return test.FAIL("WebSocket {0} health response"
+                                return test.FAIL("WebSocket {} health response"
                                                  "does not have origin_timestamp".format(connection_uri))
                             if "creation_timestamp" in message["timing"]:
                                 creation_timestamp = message["timing"]["creation_timestamp"]
                                 if self.is04_utils.compare_resource_version(
                                         creation_timestamp, health_command["timestamp"]) != 1:
-                                    return test.FAIL("WebSocket {0} health response creation_timestamp expected to"
-                                                     "be later than origin. creation_timestamp was {1}"
+                                    return test.FAIL("WebSocket {} health response creation_timestamp expected to"
+                                                     "be later than origin. creation_timestamp was {}"
                                                      .format(connection_uri, creation_timestamp))
                             else:
-                                return test.FAIL("WebSocket {0} health response"
+                                return test.FAIL("WebSocket {} health response"
                                                  "does not have creation_timestamp".format(connection_uri))
                         else:
-                            return test.FAIL("WebSocket {0} health response"
+                            return test.FAIL("WebSocket {} health response"
                                              "does not have a timing object".format(connection_uri))
                     except Exception as e:
-                        return test.FAIL("WebSocket {0} health response cannot be parsed"
-                                         "exception {1}".format(connection_uri, e))
-                else:
-                    return test.FAIL("WebSocket {0} did not respond with a health response"
-                                     "to the health command".format(connection_uri))
+                        return test.FAIL("WebSocket {} health response cannot be parsed"
+                                         "exception {}".format(connection_uri, e))
 
             # All WebSocket connections which haven't been sent a health command must stay opened
             # for a period of time even without any heartbeats
