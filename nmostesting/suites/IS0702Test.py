@@ -86,7 +86,7 @@ class IS0702Test(GenericTest):
                         self.senders_active[sender] = response
 
     def test_01(self, test):
-        """Each Sender has the required ext parameters"""
+        """Each IS-05 Sender has the required ext parameters"""
 
         ext_params_websocket = ['ext_is_07_source_id', 'ext_is_07_rest_api_url']
         ext_params_mqtt = ['ext_is_07_rest_api_url']
@@ -111,7 +111,7 @@ class IS0702Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_02(self, test):
-        """Each Source has a corresponding sender in IS-04 and IS-05"""
+        """Each IS-07 Source has corresponding resources in IS-04 and IS-05"""
 
         api = self.apis[EVENTS_API_KEY]
 
@@ -120,14 +120,40 @@ class IS0702Test(GenericTest):
             warn_message = ""
             for source_id in self.is07_sources:
                 if source_id in self.sources_to_test:
+                    found_source = self.sources_to_test[source_id]
+                    try:
+                        if found_source["format"] != "urn:x-nmos:format:data":
+                            return test.FAIL("Source {} specifies an unsupported format in IS-04: {}"
+                                             .format(found_source["id"], found_source["format"]))
+                        if found_source["event_type"] != self.is07_sources[source_id]["state"]["event_type"]:
+                            return test.FAIL("Source {} specifies a different event_type in IS-04"
+                                             .format(found_source["id"]))
+                    except KeyError as e:
+                        return test.FAIL("Source {} does not contain expected key: {}"
+                                         .format(found_source["id"], e))
                     found_sender = None
                     for sender_id in self.senders_to_test:
                         flow_id = self.senders_to_test[sender_id]["flow_id"]
                         if flow_id in self.is04_flows:
                             if source_id == self.is04_flows[flow_id]["source_id"]:
+                                found_flow = self.is04_flows[flow_id]
                                 found_sender = self.senders_to_test[sender_id]
                                 break
                     if found_sender is not None:
+                        try:
+                            if found_flow["format"] != "urn:x-nmos:format:data":
+                                return test.FAIL("Flow {} specifies an unsupported format: {}"
+                                                 .format(found_flow["id"], found_flow["format"]))
+                            if found_flow["media_type"] != "application/json":
+                                return test.FAIL("Flow {} does not specify media_type 'application/json'"
+                                                 .format(found_flow["id"]))
+                            if found_flow["event_type"] != found_source["event_type"]:
+                                return test.FAIL("Flow {} specifies a different event_type to the Source"
+                                                 .format(found_flow["id"]))
+                        except KeyError as e:
+                            return test.FAIL("Flow {} does not contain expected key: {}"
+                                             .format(found_flow["id"], e))
+
                         if found_sender["id"] in self.senders_active:
                             try:
                                 params = self.senders_active[found_sender["id"]]["transport_params"][0]
