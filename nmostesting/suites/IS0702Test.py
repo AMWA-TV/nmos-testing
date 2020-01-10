@@ -256,43 +256,29 @@ class IS0702Test(GenericTest):
             # Give each WebSocket client a chance to start and open its connection
             start_time = time.time()
             while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
-                no_health_connections_opened = False
-                with_health_connections_opened = False
-                if all([websockets_no_health[_].is_open() for _ in websockets_no_health]):
-                    no_health_connections_opened = True
-                if all([websockets_with_health[_].is_open() for _ in websockets_with_health]):
-                    with_health_connections_opened = True
-                if no_health_connections_opened and with_health_connections_opened:
+                no_health_opened = all([websockets_no_health[_].is_open() for _ in websockets_no_health])
+                with_health_opened = all([websockets_with_health[_].is_open() for _ in websockets_with_health])
+                if no_health_opened and with_health_opened:
                     break
                 time.sleep(0.2)
 
             # After that short while, they must all be connected successfully
-            for connection_uri in websockets_no_health:
-                websocket = websockets_no_health[connection_uri]
-                if websocket.did_error_occur():
-                    return test.FAIL("Error opening WebSocket connection to {}: {}"
-                                     .format(connection_uri, websocket.get_error_message()))
-                elif not websocket.is_open():
-                    return test.FAIL("Error opening WebSocket connection to {}".format(connection_uri))
-
-            for connection_uri in websockets_with_health:
-                websocket = websockets_with_health[connection_uri]
-                if websocket.did_error_occur():
-                    return test.FAIL("Error opening WebSocket connection to {}: {}"
-                                     .format(connection_uri, websocket.get_error_message()))
-                elif not websocket.is_open():
-                    return test.FAIL("Error opening WebSocket connection to {}".format(connection_uri))
+            for websockets in [websockets_no_health, websockets_with_health]:
+                for connection_uri in websockets:
+                    websocket = websockets[connection_uri]
+                    if websocket.did_error_occur():
+                        return test.FAIL("Error opening WebSocket connection to {}: {}"
+                                         .format(connection_uri, websocket.get_error_message()))
+                    elif not websocket.is_open():
+                        return test.FAIL("Error opening WebSocket connection to {}".format(connection_uri))
 
             # All WebSocket connections must stay open until a health command is required
             while time.time() < start_time + WS_HEARTBEAT_INTERVAL:
-                for connection_uri in websockets_no_health:
-                    websocket = websockets_no_health[connection_uri]
-                    if not websocket.is_open():
-                        return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
-                for connection_uri in websockets_with_health:
-                    websocket = websockets_with_health[connection_uri]
-                    if not websocket.is_open():
-                        return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
+                for websockets in [websockets_no_health, websockets_with_health]:
+                    for connection_uri in websockets:
+                        websocket = websockets[connection_uri]
+                        if not websocket.is_open():
+                            return test.FAIL("WebSocket connection to {} was closed too early".format(connection_uri))
                 time.sleep(1)
 
             # send health commands to one set of WebSockets
