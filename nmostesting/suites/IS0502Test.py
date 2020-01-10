@@ -1123,7 +1123,8 @@ class IS0502Test(GenericTest):
             if response["sender_id"] != data["sender_id"]:
                 return test.FAIL("Receiver {} did not set 'sender_id' to '{}' in staged response"
                                  .format(receiver["id"], data["sender_id"]))
-            if response["transport_file"]["data"] != data["transport_file"]["data"]:
+            # TODO: Ensure the returned SDP has sufficiently similar contents to those submitted, if not identical
+            if response["transport_file"]["data"] is None or response["transport_file"]["data"] == "":
                 return test.FAIL("Receiver {} did not set 'data' to requested SDP file contents in staged response"
                                  .format(receiver["id"]))
             if response["transport_file"]["type"] != data["transport_file"]["type"]:
