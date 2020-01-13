@@ -36,12 +36,12 @@ def ocsp_response():
         f.write(request.data)
 
     try:
-        subprocess.run(["openssl", "ocsp", "-index", "../test_data/BCP00301/ca/intermediate/index.txt",
-                        "-rsigner", "../test_data/BCP00301/ca/intermediate/certs/intermediate.cert.pem",
-                        "-rkey", "../test_data/BCP00301/ca/intermediate/private/intermediate.key.pem",
-                        "-CA", "../test_data/BCP00301/ca/intermediate/certs/ca-chain.cert.pem",
-                        "-reqin", "../test_data/BCP00301/ca/ocspreq.der",
-                        "-respout", "../test_data/BCP00301/ca/ocspresp.der"])
+        subprocess.run(["openssl", "ocsp", "-index", "test_data/BCP00301/ca/intermediate/index.txt",
+                        "-rsigner", "test_data/BCP00301/ca/intermediate/certs/intermediate.cert.pem",
+                        "-rkey", "test_data/BCP00301/ca/intermediate/private/intermediate.key.pem",
+                        "-CA", "test_data/BCP00301/ca/intermediate/certs/ca-chain.cert.pem",
+                        "-reqin", "test_data/BCP00301/ca/ocspreq.der",
+                        "-respout", "test_data/BCP00301/ca/ocspresp.der"])
     except Exception as e:
         print(" * ERROR: {}".format(e))
         abort(500)
