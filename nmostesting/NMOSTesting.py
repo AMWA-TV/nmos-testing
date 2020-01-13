@@ -137,7 +137,8 @@ TEST_DEFINITIONS = {
         "name": "IS-04 Node API",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node"
+            "api_key": "node",
+            "disable_fields": ["instance"]
         }],
         "class": IS0401Test.IS0401Test
     },
@@ -145,10 +146,12 @@ TEST_DEFINITIONS = {
         "name": "IS-04 Registry APIs",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "registration"
+            "api_key": "registration",
+            "disable_fields": ["instance"]
         }, {
             "spec_key": "is-04",
-            "api_key": "query"
+            "api_key": "query",
+            "disable_fields": ["instance"]
         }],
         "class": IS0402Test.IS0402Test
     },
@@ -156,7 +159,8 @@ TEST_DEFINITIONS = {
         "name": "IS-04 Node API (Peer to Peer)",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node"
+            "api_key": "node",
+            "disable_fields": ["instance"]
         }],
         "class": IS0403Test.IS0403Test
     },
@@ -164,7 +168,8 @@ TEST_DEFINITIONS = {
         "name": "IS-05 Connection Management API",
         "specs": [{
             "spec_key": "is-05",
-            "api_key": "connection"
+            "api_key": "connection",
+            "disable_fields": ["instance"]
         }],
         "class": IS0501Test.IS0501Test
     },
@@ -172,10 +177,12 @@ TEST_DEFINITIONS = {
         "name": "IS-05 Interaction with IS-04",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node"
+            "api_key": "node",
+            "disable_fields": ["instance"]
         }, {
             "spec_key": "is-05",
-            "api_key": "connection"
+            "api_key": "connection",
+            "disable_fields": ["instance"]
         }],
         "class": IS0502Test.IS0502Test
     },
@@ -183,7 +190,8 @@ TEST_DEFINITIONS = {
         "name": "IS-06 Network Control API",
         "specs": [{
             "spec_key": "is-06",
-            "api_key": "netctrl"
+            "api_key": "netctrl",
+            "disable_fields": ["instance"]
         }],
         "class": IS0601Test.IS0601Test
     },
@@ -191,7 +199,8 @@ TEST_DEFINITIONS = {
         "name": "IS-07 Event & Tally API",
         "specs": [{
             "spec_key": "is-07",
-            "api_key": "events"
+            "api_key": "events",
+            "disable_fields": ["instance"]
         }],
         "class": IS0701Test.IS0701Test
     },
@@ -199,13 +208,16 @@ TEST_DEFINITIONS = {
         "name": "IS-07 Interaction with IS-04 and IS-05",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node"
+            "api_key": "node",
+            "disable_fields": ["instance"]
         }, {
             "spec_key": "is-05",
-            "api_key": "connection"
+            "api_key": "connection",
+            "disable_fields": ["instance"]
         }, {
             "spec_key": "is-07",
-            "api_key": "events"
+            "api_key": "events",
+            "disable_fields": ["instance"]
         }],
         "class": IS0702Test.IS0702Test
     },
@@ -221,7 +233,8 @@ TEST_DEFINITIONS = {
         "name": "IS-08 Interaction with IS-04",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node"
+            "api_key": "node",
+            "disable_fields": ["instance"]
         }, {
             "spec_key": "is-08",
             "api_key": "channelmapping"
@@ -232,7 +245,8 @@ TEST_DEFINITIONS = {
         "name": "IS-09 System API",
         "specs": [{
             "spec_key": "is-09",
-            "api_key": "system"
+            "api_key": "system",
+            "disable_fields": ["instance"]
         }],
         "class": IS0901Test.IS0901Test
     },
@@ -241,11 +255,11 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node",
-            "disable_fields": ["port", "version"]
+            "disable_fields": ["port", "version", "instance"]
         }, {
             "spec_key": "is-09",
             "api_key": "system",
-            "disable_fields": ["host", "port"]
+            "disable_fields": ["host", "port", "instance"]
         }],
         "class": IS0902Test.IS0902Test
     },
@@ -253,7 +267,8 @@ TEST_DEFINITIONS = {
         "name": "IS-10 Authorization API",
         "specs": [{
             "spec_key": "is-10",
-            "api_key": "auth"
+            "api_key": "auth",
+            "disable_fields": ["instance"]
         }],
         "class": IS1001Test.IS1001Test
     },
@@ -261,7 +276,8 @@ TEST_DEFINITIONS = {
         "name": "BCP-003-01 Secure API Communications",
         "specs": [{
             "spec_key": "bcp-003-01",
-            "api_key": "bcp-003-01"
+            "api_key": "bcp-003-01",
+            "disable_fields": ["instance"]
         }],
         "class": BCP00301Test.BCP00301Test
     }
@@ -312,6 +328,7 @@ class EndpointForm(Form):
                                                                       ("v1.1", "v1.1"),
                                                                       ("v1.2", "v1.2"),
                                                                       ("v1.3", "v1.3")])
+    instance = StringField(label="Instance Name:", validators=[validators.optional()])
 
 
 class DataForm(Form):
@@ -362,7 +379,8 @@ def index_page():
                         host = request.form.get("endpoints-{}-host".format(index), None)
                         port = request.form.get("endpoints-{}-port".format(index), None)
                         version = request.form.get("endpoints-{}-version".format(index), None)
-                        endpoints.append({"host": host, "port": port, "version": version})
+                        instance = request.form.get("endpoints-{}-instance".format(index), None)
+                        endpoints.append({"host": host, "port": port, "version": version, "instance": instance})
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
@@ -428,6 +446,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 base_url = None
             if base_url is not None and endpoints[index]["version"] is not None:
                 url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
+                if endpoints[index]["instance"] not in [None, ""]:
+                    url += "{}/".format(endpoints[index]["instance"])
                 tested_urls.append(url)
             else:
                 url = None
@@ -450,6 +470,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "port": port,
                 "url": url,
                 "version": endpoints[index]["version"],
+                "instance": endpoints[index]["instance"],
                 "spec": None  # Used inside GenericTest
             }
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
@@ -662,6 +683,8 @@ def parse_arguments():
                               help="space separated ports of the APIs under test")
     suite_parser.add_argument('--version', default=DEFAULT_ARGS["version"], nargs="*",
                               help="space separated versions of the APIs under test")
+    suite_parser.add_argument('--instance', default=DEFAULT_ARGS["instance"], nargs="*",
+                              help="space separated instance names of the APIs under test")
     suite_parser.add_argument('--ignore', default=DEFAULT_ARGS["ignore"], nargs="*",
                               help="space separated test names to ignore the results from")
     suite_parser.add_argument('--output', default=DEFAULT_ARGS["output"],
@@ -780,7 +803,10 @@ def run_noninteractive_tests(args):
             args.port[i] = None
         if args.version[i] == "null":
             args.version[i] = None
-        endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
+        if args.instance[i] == "null":
+            args.instance[i] = None
+        endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
+                          "instance": args.instance[i]})
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
@@ -835,6 +861,7 @@ def api():
         example_dict["host"] = ["127.0.0.1"]
         example_dict["port"] = [80]
         example_dict["version"] = ["v1.2"]
+        example_dict["instance"] = [None]
         example_dict["output"] = "xml"
         example_dict["ignore"] = ["test_23"]
         return jsonify(example_dict), 200
@@ -893,7 +920,8 @@ def run_api_tests(args, data_format):
     for i in range(len(args.host)):
         if args.port[i] == 0:
             args.port[i] = None
-        endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i]})
+        endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
+                          "instance": args.instance[i]})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":
         formatted_test_results = format_test_results(results, endpoints, "junit", args)
