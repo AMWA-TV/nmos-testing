@@ -6,7 +6,7 @@ requests
 netifaces
 gitpython
 ramlfications
-websocket-client
+websocket-client>=0.54.0
 jsonref
 dnslib
 jinja2

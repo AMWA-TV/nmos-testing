@@ -798,12 +798,12 @@ def check_internal_requirements():
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
-            requirement_name = requirement.strip()
+            requirement_name = requirement.strip().split(">")[0]
             if requirement_name in corrections:
                 corrected_req = corrections[requirement_name]
             else:
                 corrected_req = requirement_name.replace("-", "_")
-            if corrected_req.split(">")[0] not in installed_pkgs:
+            if corrected_req not in installed_pkgs:
                 print(" * ERROR: Could not find Python requirement '{}'".format(requirement_name))
                 sys.exit(ExitCodes.ERROR)
 
