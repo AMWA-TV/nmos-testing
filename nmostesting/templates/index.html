@@ -62,6 +62,10 @@
                             {{ endpoint.version.label }} {{ endpoint.version }}
                             <input type="hidden" id="endpoints-{{ loop.index-1 }}-version-save" />
                         </div>
+                        <div class="input text input_data_fld" id="endpoints-{{ loop.index-1 }}-selector-div">
+                            {{ endpoint.selector.label }} {{ endpoint.selector(size="10") }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-selector-save" />
+                        </div>
                         <br />
                     </div>
                 {% endfor %}

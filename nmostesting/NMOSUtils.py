@@ -65,6 +65,7 @@ DEFAULT_ARGS = {
     "host": [],
     "port": [],
     "version": [],
+    "selector": [],
     "ignore": [],
     "output": None,
     "selection": "all"
