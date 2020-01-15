@@ -745,9 +745,9 @@ class IS05Utils(NMOSUtils):
 
         for i in range(0, self.get_num_paths(resource_id, resource_type.rstrip("s"))):
             if multicast:
-                data['transport_params'].append({param: "239.10.53.5"})
+                data['transport_params'].append({param: CONFIG.MULTICAST_STREAM_TARGET})
             else:
-                data['transport_params'].append({param: "127.0.0.1"})
+                data['transport_params'].append({param: CONFIG.UNICAST_STREAM_TARGET})
 
         if len(data["transport_params"]) == 0:
             del data["transport_params"]

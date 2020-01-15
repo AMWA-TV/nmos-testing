@@ -97,6 +97,11 @@ DNS_DOMAIN = "testsuite.nmos.tv"
 # The mock DNS server port cannot be modified from the default of 53.
 PORT_BASE = 5000
 
+# A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed
+# into Sender configuration when testing IS-05.
+UNICAST_STREAM_TARGET = "192.0.2.1"
+MULTICAST_STREAM_TARGET = "233.252.2.1"
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
