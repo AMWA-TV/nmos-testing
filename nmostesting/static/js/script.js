@@ -26,7 +26,7 @@ function updateDropdown() {
           label.innerHTML = "";
         }
         div.style.display = "block";
-        var fields = ["host", "port", "version", "instance"];
+        var fields = ["host", "port", "version", "selector"];
         for (var i=0; i<fields.length; i++) {
           if ("disable_fields" in testData["specs"][apiNum] && testData["specs"][apiNum]["disable_fields"].indexOf(fields[i]) !== -1) {
             document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i] + "-save").value = document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value;
@@ -74,7 +74,7 @@ function loadSettings() {
                     document.getElementById("endpoints-" + apiNum.toString() + "-host").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-host");
                     document.getElementById("endpoints-" + apiNum.toString() + "-port").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-port");
                     document.getElementById("endpoints-" + apiNum.toString() + "-version").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-version");
-                    document.getElementById("endpoints-" + apiNum.toString() + "-instance").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-instance");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-selector").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-selector");
                 }
                 return;
             }
@@ -106,7 +106,7 @@ function saveSettings() {
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-host", document.getElementById("endpoints-" + apiNum.toString() + "-host").value);
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port").value);
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version").value);
-                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-instance", document.getElementById("endpoints-" + apiNum.toString() + "-instance").value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-selector", document.getElementById("endpoints-" + apiNum.toString() + "-selector").value);
             }
         }
     }
