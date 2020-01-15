@@ -37,6 +37,11 @@ function updateDropdown() {
             document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value = document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i] + "-save").value;
           }
         }
+        if ("selector" in testData && testData["selector"] === true) {
+          document.getElementById("endpoints-" + apiNum.toString() + "-selector-div").style.display = "inline-block";
+        } else {
+          document.getElementById("endpoints-" + apiNum.toString() + "-selector-div").style.display = "none";
+        }
       } else {
         div.style.display = "none";
       }

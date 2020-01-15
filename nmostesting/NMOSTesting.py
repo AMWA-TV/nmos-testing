@@ -137,8 +137,7 @@ TEST_DEFINITIONS = {
         "name": "IS-04 Node API",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node",
-            "disable_fields": ["selector"]
+            "api_key": "node"
         }],
         "class": IS0401Test.IS0401Test
     },
@@ -146,12 +145,10 @@ TEST_DEFINITIONS = {
         "name": "IS-04 Registry APIs",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "registration",
-            "disable_fields": ["selector"]
+            "api_key": "registration"
         }, {
             "spec_key": "is-04",
-            "api_key": "query",
-            "disable_fields": ["selector"]
+            "api_key": "query"
         }],
         "class": IS0402Test.IS0402Test
     },
@@ -159,8 +156,7 @@ TEST_DEFINITIONS = {
         "name": "IS-04 Node API (Peer to Peer)",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node",
-            "disable_fields": ["selector"]
+            "api_key": "node"
         }],
         "class": IS0403Test.IS0403Test
     },
@@ -168,8 +164,7 @@ TEST_DEFINITIONS = {
         "name": "IS-05 Connection Management API",
         "specs": [{
             "spec_key": "is-05",
-            "api_key": "connection",
-            "disable_fields": ["selector"]
+            "api_key": "connection"
         }],
         "class": IS0501Test.IS0501Test
     },
@@ -177,12 +172,10 @@ TEST_DEFINITIONS = {
         "name": "IS-05 Interaction with IS-04",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node",
-            "disable_fields": ["selector"]
+            "api_key": "node"
         }, {
             "spec_key": "is-05",
-            "api_key": "connection",
-            "disable_fields": ["selector"]
+            "api_key": "connection"
         }],
         "class": IS0502Test.IS0502Test
     },
@@ -190,8 +183,7 @@ TEST_DEFINITIONS = {
         "name": "IS-06 Network Control API",
         "specs": [{
             "spec_key": "is-06",
-            "api_key": "netctrl",
-            "disable_fields": ["selector"]
+            "api_key": "netctrl"
         }],
         "class": IS0601Test.IS0601Test
     },
@@ -199,8 +191,7 @@ TEST_DEFINITIONS = {
         "name": "IS-07 Event & Tally API",
         "specs": [{
             "spec_key": "is-07",
-            "api_key": "events",
-            "disable_fields": ["selector"]
+            "api_key": "events"
         }],
         "class": IS0701Test.IS0701Test
     },
@@ -208,16 +199,13 @@ TEST_DEFINITIONS = {
         "name": "IS-07 Interaction with IS-04 and IS-05",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node",
-            "disable_fields": ["selector"]
+            "api_key": "node"
         }, {
             "spec_key": "is-05",
-            "api_key": "connection",
-            "disable_fields": ["selector"]
+            "api_key": "connection"
         }, {
             "spec_key": "is-07",
-            "api_key": "events",
-            "disable_fields": ["selector"]
+            "api_key": "events"
         }],
         "class": IS0702Test.IS0702Test
     },
@@ -227,7 +215,8 @@ TEST_DEFINITIONS = {
             "spec_key": "is-08",
             "api_key": "channelmapping"
         }],
-        "class": IS0801Test.IS0801Test
+        "class": IS0801Test.IS0801Test,
+        "selector": True
     },
     "IS-08-02": {
         "name": "IS-08 Interaction with IS-04",
@@ -239,14 +228,14 @@ TEST_DEFINITIONS = {
             "spec_key": "is-08",
             "api_key": "channelmapping"
         }],
-        "class": IS0802Test.IS0802Test
+        "class": IS0802Test.IS0802Test,
+        "selector": True
     },
     "IS-09-01": {
         "name": "IS-09 System API",
         "specs": [{
             "spec_key": "is-09",
-            "api_key": "system",
-            "disable_fields": ["selector"]
+            "api_key": "system"
         }],
         "class": IS0901Test.IS0901Test
     },
@@ -255,11 +244,11 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node",
-            "disable_fields": ["port", "version", "selector"]
+            "disable_fields": ["port", "version"]
         }, {
             "spec_key": "is-09",
             "api_key": "system",
-            "disable_fields": ["host", "port", "selector"]
+            "disable_fields": ["host", "port"]
         }],
         "class": IS0902Test.IS0902Test
     },
@@ -267,8 +256,7 @@ TEST_DEFINITIONS = {
         "name": "IS-10 Authorization API",
         "specs": [{
             "spec_key": "is-10",
-            "api_key": "auth",
-            "disable_fields": ["selector"]
+            "api_key": "auth"
         }],
         "class": IS1001Test.IS1001Test
     },
@@ -276,8 +264,7 @@ TEST_DEFINITIONS = {
         "name": "BCP-003-01 Secure API Communications",
         "specs": [{
             "spec_key": "bcp-003-01",
-            "api_key": "bcp-003-01",
-            "disable_fields": ["selector"]
+            "api_key": "bcp-003-01"
         }],
         "class": BCP00301Test.BCP00301Test
     }
