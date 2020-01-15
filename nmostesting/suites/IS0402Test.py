@@ -159,7 +159,7 @@ class IS0402Test(GenericTest):
         """Registration API accepts and stores a valid Node resource containing unicode characters"""
 
         self.do_test_api_v1_x(test)
-        self.post_super_resources_and_resource(test, "node", "test_03_1 😁 😂 😃")
+        self.post_super_resources_and_resource(test, "node", "test_03_2 😁 😂 😃")
         return test.PASS()
 
     def test_04(self, test):
