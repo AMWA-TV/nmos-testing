@@ -712,6 +712,15 @@ def validate_args(args, access_type="cli"):
         elif len(args.host) != len(args.port) or len(args.host) != len(args.version):
             msg = "ERROR: Hostname(s)/IP address(es), Port(s) and Version(s) must contain the same number of elements"
             return_type = ExitCodes.ERROR
+        elif "selector" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["selector"] is True and not \
+                args.selector:
+            msg = "ERROR: No Selector(s) specified"
+            return_type = ExitCodes.ERROR
+        elif "selector" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["selector"] is True and \
+                len(args.host) != len(args.selector):
+            msg = "ERROR: Hostname(s)/IP address(es), Port(s), Version(s) and Selector(s) must contain the same " \
+                  "number of elements"
+            return_type = ExitCodes.ERROR
         elif len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
             msg = "ERROR: This test suite expects {} Hostname(s)/IP address(es), Port(s) and Version(s)".format(
                 len(TEST_DEFINITIONS[args.suite]["specs"]))
@@ -790,10 +799,11 @@ def run_noninteractive_tests(args):
             args.port[i] = None
         if args.version[i] == "null":
             args.version[i] = None
-        if args.selector[i] == "null":
-            args.selector[i] = None
+        selector = None
+        if len(args.selector) == len(args.host) and args.selector[i] != "null":
+            selector = args.selector[i]
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
-                          "selector": args.selector[i]})
+                          "selector": selector})
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
@@ -907,8 +917,11 @@ def run_api_tests(args, data_format):
     for i in range(len(args.host)):
         if args.port[i] == 0:
             args.port[i] = None
+        selector = None
+        if len(args.selector) == len(args.host):
+            selector = args.selector[i]
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
-                          "selector": args.selector[i]})
+                          "selector": selector})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":
         formatted_test_results = format_test_results(results, endpoints, "junit", args)
