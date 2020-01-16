@@ -230,7 +230,7 @@ class GenericTest(object):
             if expect_methods is not None:
                 allow_methods += expect_methods
             for allow_method in allow_methods:
-                if allow_method not in headers['Access-Control-Allow-Methods']:
+                if allow_method not in headers['Access-Control-Allow-Methods'].split(","):
                     return False, "{} not in 'Access-Control-Allow-Methods' CORS header: {}" \
                                   .format(method.upper(), headers)
         return True, ""
