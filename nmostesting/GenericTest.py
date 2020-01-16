@@ -451,7 +451,10 @@ class GenericTest(object):
         else:
             return None
 
-        valid, response = self.do_request(resource[1]['method'], url)
+        headers = None
+        if resource[1]['method'].upper() == "OPTIONS":
+            headers = self.prepare_CORS("OPTIONS")
+        valid, response = self.do_request(resource[1]['method'], url, headers=headers)
         if not valid:
             return test.FAIL(response)
 
