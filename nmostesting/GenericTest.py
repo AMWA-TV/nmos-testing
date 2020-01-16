@@ -217,7 +217,7 @@ class GenericTest(object):
         return headers
 
     # 'check' functions return a Boolean pass/fail indicator and a message
-    def check_CORS(self, method, headers):
+    def check_CORS(self, method, headers, expect_methods=None):
         """Check the CORS headers returned by an API call"""
         if 'Access-Control-Allow-Origin' not in headers:
             return False, "'Access-Control-Allow-Origin' not in CORS headers: {}".format(headers)
@@ -226,8 +226,13 @@ class GenericTest(object):
                 return False, "'Access-Control-Allow-Headers' not in CORS headers: {}".format(headers)
             if 'Access-Control-Allow-Methods' not in headers:
                 return False, "'Access-Control-Allow-Methods' not in CORS headers: {}".format(headers)
-            if method not in headers['Access-Control-Allow-Methods']:
-                return False, "{} not in 'Access-Control-Allow-Methods' CORS header: {}".format(method.upper(), headers)
+            allow_methods = [method]
+            if expect_methods is not None:
+                allow_methods += expect_methods
+            for allow_method in allow_methods:
+                if allow_method not in headers['Access-Control-Allow-Methods']:
+                    return False, "{} not in 'Access-Control-Allow-Methods' CORS header: {}" \
+                                  .format(method.upper(), headers)
         return True, ""
 
     def check_content_type(self, headers, expected_type="application/json"):
