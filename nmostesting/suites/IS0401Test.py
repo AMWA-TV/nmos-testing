@@ -1463,6 +1463,30 @@ class IS0401Test(GenericTest):
         else:
             return test.PASS()
 
+    def test_26(self, test):
+        """Source 'format' matches Flow 'format'"""
+
+        source_valid, source_response = self.do_request("GET", self.node_url + "sources")
+        flow_valid, flow_response = self.do_request("GET", self.node_url + "flows")
+
+        if source_valid and flow_valid and source_response.status_code == 200 and flow_response.status_code == 200:
+            try:
+                sources = {source["id"]: source for source in source_response.json()}
+                flows = flow_response.json()
+                for flow in flows:
+                    source = sources[flow["source_id"]]
+                    if flow["format"] != source["format"]:
+                        return test.FAIL("Source {} and Flow {} 'format' does not match"
+                                         .format(source["id"], flow["id"]))
+                if len(flow_response.json()) > 0:
+                    return test.PASS()
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError:
+                return test.FAIL("No Source found for one or more advertised Flows")
+
+        return test.UNCLEAR("No Source or Flow resources were found on the Node")
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
