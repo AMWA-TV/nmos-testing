@@ -227,16 +227,18 @@ class GenericTest(object):
             if expect_headers is None:
                 expect_headers = []
             for cors_header in expect_headers:
-                if cors_header not in headers['Access-Control-Allow-Headers'].split(","):
-                    return False, "{} not in 'Access-Control-Allow-Headers' CORS header: {}" \
+                current_headers = [x.strip().upper() for x in headers['Access-Control-Allow-Headers'].split(",")]
+                if cors_header.upper() not in current_headers:
+                    return False, "'{}' not in 'Access-Control-Allow-Headers' CORS header: {}" \
                                   .format(cors_header, headers)
             if 'Access-Control-Allow-Methods' not in headers:
                 return False, "'Access-Control-Allow-Methods' not in CORS headers: {}".format(headers)
             if expect_methods is None:
                 expect_methods = []
             for cors_method in expect_methods:
-                if cors_method not in headers['Access-Control-Allow-Methods'].split(","):
-                    return False, "{} not in 'Access-Control-Allow-Methods' CORS header: {}" \
+                current_methods = [x.strip().upper() for x in headers['Access-Control-Allow-Methods'].split(",")]
+                if cors_method.upper() not in current_methods:
+                    return False, "'{}' not in 'Access-Control-Allow-Methods' CORS header: {}" \
                                   .format(cors_method, headers)
         return True, ""
 
