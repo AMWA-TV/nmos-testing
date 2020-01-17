@@ -205,15 +205,11 @@ class GenericTest(object):
             return map(self.convert_bytes, data)
         return data
 
-# Tests: Schema checks for all resources
-# CORS checks for all resources
-# Trailing slashes
-
     def prepare_CORS(self, method, headers):
         """Prepare CORS headers to be used when making any API request"""
         headers = {}
         headers['Access-Control-Request-Method'] = method  # Match to request type
-        headers['Access-Control-Request-Headers'] = ", ".join(headers)  # Needed for POST/PATCH etc only
+        headers['Access-Control-Request-Headers'] = ", ".join(headers)
         return headers
 
     # 'check' functions return a Boolean pass/fail indicator and a message
@@ -471,12 +467,10 @@ class GenericTest(object):
         cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers,
                                                    cors_methods, cors_headers)
         if not cors_valid:
-            # Fail for a plain CORS check
+            # Fail immediately for CORS errors affecting any method
             return test.FAIL(cors_message)
-
-        # For methods which don't return a payload, just check the CORS headers
-        if resource[1]['method'].upper() in ["HEAD", "OPTIONS"] and cors_valid:
-            # Pass for a plain CORS check
+        elif resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
+            # For methods which don't return a payload, return immediately after the CORS header check
             return test.PASS()
 
         # For all other methods proceed to check the response against the schema
