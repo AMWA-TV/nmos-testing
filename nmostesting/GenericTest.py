@@ -213,7 +213,7 @@ class GenericTest(object):
         """Prepare CORS headers to be used when making any API request"""
         headers = {}
         headers['Access-Control-Request-Method'] = method  # Match to request type
-        headers['Access-Control-Request-Headers'] = ",".join(headers)  # Needed for POST/PATCH etc only
+        headers['Access-Control-Request-Headers'] = ", ".join(headers)  # Needed for POST/PATCH etc only
         return headers
 
     # 'check' functions return a Boolean pass/fail indicator and a message
