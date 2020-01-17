@@ -224,19 +224,19 @@ class GenericTest(object):
         if method.upper() == "OPTIONS" and expect_headers is not None:
             if 'Access-Control-Allow-Headers' not in headers:
                 return False, "'Access-Control-Allow-Headers' not in CORS headers: {}".format(headers)
+            current_headers = [x.strip().upper() for x in headers['Access-Control-Allow-Headers'].split(",")]
             for cors_header in expect_headers:
-                current_headers = [x.strip().upper() for x in headers['Access-Control-Allow-Headers'].split(",")]
                 if cors_header.upper() not in current_headers:
                     return False, "'{}' not in 'Access-Control-Allow-Headers' CORS header: {}" \
-                                  .format(cors_header, headers)
+                                  .format(cors_header, headers['Access-Control-Allow-Headers'])
         if method.upper() == "OPTIONS" and expect_methods is not None:
             if 'Access-Control-Allow-Methods' not in headers:
                 return False, "'Access-Control-Allow-Methods' not in CORS headers: {}".format(headers)
+            current_methods = [x.strip().upper() for x in headers['Access-Control-Allow-Methods'].split(",")]
             for cors_method in expect_methods:
-                current_methods = [x.strip().upper() for x in headers['Access-Control-Allow-Methods'].split(",")]
                 if cors_method.upper() not in current_methods:
                     return False, "'{}' not in 'Access-Control-Allow-Methods' CORS header: {}" \
-                                  .format(cors_method, headers)
+                                  .format(cors_method, headers['Access-Control-Allow-Methods'])
         return True, ""
 
     def check_content_type(self, headers, expected_type="application/json"):
