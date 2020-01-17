@@ -102,6 +102,9 @@ PORT_BASE = 5000
 UNICAST_STREAM_TARGET = "192.0.2.1"
 MULTICAST_STREAM_TARGET = "233.252.2.1"
 
+# Perform a GET against the submitted API before carrying out any tests to avoid wasting time if it doesn't exist
+PREVALIDATE_API = True
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
