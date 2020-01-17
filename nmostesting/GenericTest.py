@@ -452,8 +452,11 @@ class GenericTest(object):
         cors_methods = None
         cors_headers = None
         if resource[1]['method'].upper() == "OPTIONS":
+            cors_methods = self.apis[api]["spec"].get_methods(resource[0])
+            cors_methods.remove("OPTIONS")
             cors_headers = ["Content-Type"]
-            headers = self.prepare_CORS("OPTIONS", cors_headers)
+            # Check if one of the supported methods, and a header are permitted in other requests
+            headers = self.prepare_CORS(cors_methods[0], cors_headers)
 
         valid, response = self.do_request(resource[1]['method'], url, headers=headers)
         if not valid:
@@ -464,9 +467,6 @@ class GenericTest(object):
 
         # Gather IDs of sub-resources for testing of parameterised URLs...
         self.save_subresources(resource[0], response)
-
-        if resource[1]['method'].upper() == "OPTIONS":
-            cors_methods = self.apis[api]["spec"].get_methods(resource[0])
 
         cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers,
                                                    cors_methods, cors_headers)
