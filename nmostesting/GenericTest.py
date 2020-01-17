@@ -176,12 +176,13 @@ class GenericTest(object):
 
         # Set up
         test = Test("Test setup", "set_up_tests")
-        for api in self.apis:
-            if "spec_path" not in self.apis[api] or self.apis[api]["url"] is None:
-                continue
-            valid, response = self.do_request("GET", self.apis[api]["url"])
-            if not valid or response.status_code != 200:
-                raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
+        if CONFIG.PREVALIDATE_API:
+            for api in self.apis:
+                if "spec_path" not in self.apis[api] or self.apis[api]["url"] is None:
+                    continue
+                valid, response = self.do_request("GET", self.apis[api]["url"])
+                if not valid or response.status_code != 200:
+                    raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
         self.set_up_tests()
         self.result.append(test.NA(""))
 
