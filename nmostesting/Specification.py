@@ -179,3 +179,13 @@ class Specification(object):
                     resources.append((resource, method_def))
         resources = sorted(resources, key=lambda x: x[0])
         return resources
+
+    def get_methods(self, path):
+        """Get all methods which exist for a given path if available"""
+        methods = []
+        if path in self.data:
+            for response in self.data[path]:
+                # Don't return methods which are specified to return Method Not Allowed
+                if 405 not in response['responses']:
+                    methods.append(response['method'].upper())
+        return methods

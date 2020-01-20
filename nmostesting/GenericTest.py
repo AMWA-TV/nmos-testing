@@ -206,29 +206,34 @@ class GenericTest(object):
             return map(self.convert_bytes, data)
         return data
 
-# Tests: Schema checks for all resources
-# CORS checks for all resources
-# Trailing slashes
-
-    def prepare_CORS(self, method):
+    def prepare_CORS(self, method, request_headers):
         """Prepare CORS headers to be used when making any API request"""
         headers = {}
         headers['Access-Control-Request-Method'] = method  # Match to request type
-        headers['Access-Control-Request-Headers'] = "Content-Type"  # Needed for POST/PATCH etc only
+        headers['Access-Control-Request-Headers'] = ", ".join(request_headers)
         return headers
 
     # 'check' functions return a Boolean pass/fail indicator and a message
-    def check_CORS(self, method, headers):
+    def check_CORS(self, method, headers, expect_methods=None, expect_headers=None):
         """Check the CORS headers returned by an API call"""
         if 'Access-Control-Allow-Origin' not in headers:
-            return False, "Incorrect CORS headers: {}".format(headers)
-        if method == "OPTIONS":
+            return False, "'Access-Control-Allow-Origin' not in CORS headers: {}".format(headers)
+        if method.upper() == "OPTIONS" and expect_headers is not None:
             if 'Access-Control-Allow-Headers' not in headers:
-                return False, "Incorrect CORS headers: {}".format(headers)
+                return False, "'Access-Control-Allow-Headers' not in CORS headers: {}".format(headers)
+            current_headers = [x.strip().upper() for x in headers['Access-Control-Allow-Headers'].split(",")]
+            for cors_header in expect_headers:
+                if cors_header.upper() not in current_headers:
+                    return False, "'{}' not in 'Access-Control-Allow-Headers' CORS header: {}" \
+                                  .format(cors_header, headers['Access-Control-Allow-Headers'])
+        if method.upper() == "OPTIONS" and expect_methods is not None:
             if 'Access-Control-Allow-Methods' not in headers:
-                return False, "Incorrect CORS headers: {}".format(headers)
-            if method not in headers['Access-Control-Allow-Methods']:
-                return False, "Incorrect CORS headers: {}".format(headers)
+                return False, "'Access-Control-Allow-Methods' not in CORS headers: {}".format(headers)
+            current_methods = [x.strip().upper() for x in headers['Access-Control-Allow-Methods'].split(",")]
+            for cors_method in expect_methods:
+                if cors_method.upper() not in current_methods:
+                    return False, "'{}' not in 'Access-Control-Allow-Methods' CORS header: {}" \
+                                  .format(cors_method, headers['Access-Control-Allow-Methods'])
         return True, ""
 
     def check_content_type(self, headers, expected_type="application/json"):
@@ -440,7 +445,17 @@ class GenericTest(object):
         else:
             return None
 
-        valid, response = self.do_request(resource[1]['method'], url)
+        headers = None
+        cors_methods = None
+        cors_headers = None
+        if resource[1]['method'].upper() == "OPTIONS":
+            cors_methods = self.apis[api]["spec"].get_methods(resource[0])
+            cors_methods.remove("OPTIONS")
+            cors_headers = ["Content-Type"]
+            # Check if one of the supported methods, and a header are permitted in other requests
+            headers = self.prepare_CORS(cors_methods[0], cors_headers)
+
+        valid, response = self.do_request(resource[1]['method'], url, headers=headers)
         if not valid:
             return test.FAIL(response)
 
@@ -450,15 +465,14 @@ class GenericTest(object):
         # Gather IDs of sub-resources for testing of parameterised URLs...
         self.save_subresources(resource[0], response)
 
-        # For methods which don't return a payload, just check the CORS headers
-        if resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
-            cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers)
-            if cors_valid:
-                # Pass for a plain CORS check
-                return test.PASS()
-            else:
-                # Fail for a plain CORS check
-                return test.FAIL(cors_message)
+        cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers,
+                                                   cors_methods, cors_headers)
+        if not cors_valid:
+            # Fail immediately for CORS errors affecting any method
+            return test.FAIL(cors_message)
+        elif resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
+            # For methods which don't return a payload, return immediately after the CORS header check
+            return test.PASS()
 
         # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
