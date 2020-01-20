@@ -205,11 +205,11 @@ class GenericTest(object):
             return map(self.convert_bytes, data)
         return data
 
-    def prepare_CORS(self, method, headers):
+    def prepare_CORS(self, method, request_headers):
         """Prepare CORS headers to be used when making any API request"""
         headers = {}
         headers['Access-Control-Request-Method'] = method  # Match to request type
-        headers['Access-Control-Request-Headers'] = ", ".join(headers)
+        headers['Access-Control-Request-Headers'] = ", ".join(request_headers)
         return headers
 
     # 'check' functions return a Boolean pass/fail indicator and a message
