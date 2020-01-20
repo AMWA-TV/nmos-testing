@@ -185,5 +185,7 @@ class Specification(object):
         methods = []
         if path in self.data:
             for response in self.data[path]:
-                methods.append(response["method"].upper())
+                # Don't return methods which are specified to return Method Not Allowed
+                if 405 not in response['responses']:
+                    methods.append(response['method'].upper())
         return methods
