@@ -1,1 +1,1 @@
-{ "master_enable": true, "activation": {"mode": "activate_immediate"}}
+{ "master_enable": false, "activation": {"mode": "activate_immediate"}}

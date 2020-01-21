@@ -36,7 +36,7 @@ fetched_uuids = {"self": None, "devices": [], "sources": [], "flows": [],
 for path in fetched_uuids.keys():
     try:
         url = "http://{}:{}/x-nmos/node/v1.2/{}".format(args.ip, args.port, path)
-        response = requests.get(url, timeout=1)
+        response = requests.get(url, timeout=2)
         if path == "self":
             print("Host: {}".format(response.json()["description"]))
             fetched_uuids[path] = response.json()["id"]

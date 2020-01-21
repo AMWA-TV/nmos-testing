@@ -1,6 +1,6 @@
 {
   "receiver_id": null,
-  "master_enable": true,
+  "master_enable": false,
   "activation": {
     "mode": "activate_immediate",
     "requested_time": null

@@ -1,25 +1,33 @@
 v=0
-o=- 308701 53 IN IP4 0.0.0.0
-s=239.90.1.1:50090
-i=Nmos Testing 239.90.1.1:50090
+o=- 1 3857219969 IN IP4 192.168.60.66
+s=ST2110-30A
 t=0 0
+a=group:DUP S1 S2
+m=audio 50060 RTP/AVP 97
+i=Stream 1
+c=IN IP4 239.61.1.1/128
+a=source-filter: incl IN IP4 239.61.1.1 192.168.60.66
+a=rtpmap:97 L24/48000/8
+a=sync-time:0
+a=clock-domain:PTPv2 42
+a=framecount:48
 a=recvonly
-a=group:DUP PRIMARY SECONDARY
-m=audio 50090 RTP/AVP 97
-c=IN IP4 239.90.1.1/32
-a=rtpmap:97 L24/48000/8
-a=ptime:1
-a=fmtp:97 channel-order=SMPTE2110.(U08)
-a=ssrc:12345 cname:nmos@nmos.tv
-a=ts-refclk:ptp=IEEE1588-2008:08-00-11-FF-FE-21-A5-45:42
 a=mediaclk:direct=0
-a=mid:PRIMARY
-m=audio 50190 RTP/AVP 97
-c=IN IP4 239.190.1.1/32
-a=rtpmap:97 L24/48000/8
-a=ptime:1
-a=fmtp:97 channel-order=SMPTE2110.(U08)
-a=ssrc:12345 cname:nmos@nmos.tv
 a=ts-refclk:ptp=IEEE1588-2008:08-00-11-FF-FE-21-A5-45:42
+a=ptime:1
+a=maxptime:1
+a=mid:S1
+m=audio 50160 RTP/AVP 97
+i=Stream 1
+c=IN IP4 239.161.1.1/128
+a=source-filter: incl IN IP4 239.161.1.1 192.168.60.70
+a=rtpmap:97 L24/48000/8
+a=sync-time:0
+a=clock-domain:PTPv2 42
+a=framecount:48
+a=recvonly
 a=mediaclk:direct=0
-a=mid:SECONDARY
+a=ts-refclk:ptp=IEEE1588-2008:08-00-11-FF-FE-21-A5-45:42
+a=ptime:1
+a=maxptime:1
+a=mid:S2
