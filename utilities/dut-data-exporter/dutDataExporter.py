@@ -28,7 +28,7 @@ def url_port_number(url):
         else:
             return 80
     except ValueError:
-        print("IPv6 address could not be parsed: {}".format(url))
+        print("URL could not be parsed: {}".format(url))
         return None
 
 
@@ -36,6 +36,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", required=True, help="IP address or Hostname of DuT")
     parser.add_argument("--port", type=int, required=True, help="Port number of IS-04 API of DuT")
+    parser.add_argument("--version", default="v1.2", help="Version of IS-04 API of DuT")
     args = parser.parse_args()
 
     is04Port = args.port
@@ -46,38 +47,39 @@ if __name__ == "__main__":
     receivers = []
     mac_addresses = []
 
-    base_url = "http://{}:{}/x-nmos/node/v1.2/".format(args.ip, args.port)
+    base_url = "http://{}:{}/x-nmos/node/{}/".format(args.ip, args.port, args.version)
 
     # Self
     url = base_url + "self/"
     response = requests.get(url)
-    mac_addresses = response.json()['interfaces']
+    mac_addresses = response.json()["interfaces"]
     for address in mac_addresses:
-        if type(address['port_id']) == str:
-            address['port_id'] = address['port_id'].replace("-", ":")
-        if type(address['chassis_id']) == str:
-            address['chassis_id'] = address['chassis_id'].replace("-", ":")
-    node_id = response.json()['id']
-    print("Host: {}".format(response.json()['description']))
+        if type(address["port_id"]) == str:
+            address["port_id"] = address["port_id"].replace("-", ":")
+        if type(address["chassis_id"]) == str:
+            address["chassis_id"] = address["chassis_id"].replace("-", ":")
+    node_id = response.json()["id"]
+    print("Host: {}".format(response.json()["description"]))
 
-    # Devices
+    # Devices. We assume that the same port is used for all IS-05/08 instances
     url = base_url + "devices/"
     response = requests.get(url)
     json_data = response.json()
-    for d in json_data[0]["controls"]:
-        if d['type'] == "urn:x-nmos:control:sr-ctrl/v1.0":
-            is05Port = url_port_number(d['href'])
-        if d['type'] == "urn:x-nmos:control:cm-ctrl/v1.0":
-            is08Port = url_port_number(d['href'])
+    for device in json_data:
+        for control in device["controls"]:
+            if control["type"].startswith("urn:x-nmos:control:sr-ctrl"):
+                is05Port = url_port_number(control["href"])
+            if control["type"].startswith("urn:x-nmos:control:cm-ctrl"):
+                is08Port = url_port_number(control["href"])
 
     # Senders
     url = base_url + "senders/"
     response = requests.get(url)
     for d in response.json():
         data = {
-            "label": d['label'],
-            "id": d['id'],
-            "sdp": d['manifest_href']
+            "label": d["label"],
+            "id": d["id"],
+            "sdp": d["manifest_href"]
         }
         senders.append(data)
 
@@ -86,9 +88,9 @@ if __name__ == "__main__":
     response = requests.get(url)
     for d in response.json():
         data = {
-            "label": d['label'],
-            "format": d['format'],
-            "id": d['id']
+            "label": d["label"],
+            "format": d["format"],
+            "id": d["id"]
         }
         receivers.append(data)
 

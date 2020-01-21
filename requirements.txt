@@ -1,4 +1,4 @@
-flask
+flask>=1.0.0
 wtforms
 jsonschema
 zeroconf-monkey
@@ -6,7 +6,7 @@ requests
 netifaces
 gitpython
 ramlfications
-websocket-client
+websocket-client>=0.54.0
 jsonref
 dnslib
 jinja2

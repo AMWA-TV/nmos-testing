@@ -23,6 +23,7 @@ import sys
 parser = argparse.ArgumentParser()
 parser.add_argument("--ip", required=True, help="IP address or Hostname of DuT")
 parser.add_argument("--port", type=int, required=True, help="Port number of IS-05 API of DuT")
+parser.add_argument("--version", default="v1.0", help="Version of IS-05 API of DuT")
 parser.add_argument("--sender", action="store_true", help="Configure NMOS Sender")
 parser.add_argument("--receiver", action="store_true", help="Configure NMOS Receiver")
 parser.add_argument("-e", "--enable", action="store_true", help="Set master_enable=True")
@@ -35,10 +36,12 @@ args = parser.parse_args()
 # Configure for Sender or Receiver
 if args.sender:
     print("Configuring NMOS Sender using IS-05")
-    url = "http://{}:{}/x-nmos/connection/v1.0/single/senders/{}/staged".format(args.ip, args.port, args.uuid)
+    url = "http://{}:{}/x-nmos/connection/{}/single/senders/{}/staged".format(args.ip, args.port,
+                                                                              args.version, args.uuid)
 elif args.receiver:
     print("Configuring NMOS Receiver using IS-05")
-    url = "http://{}:{}/x-nmos/connection/v1.0/single/receivers/{}/staged".format(args.ip, args.port, args.uuid)
+    url = "http://{}:{}/x-nmos/connection/{}/single/receivers/{}/staged".format(args.ip, args.port,
+                                                                                args.version, args.uuid)
 else:
     print("Please select either Sender or Receiver mode")
     sys.exit()

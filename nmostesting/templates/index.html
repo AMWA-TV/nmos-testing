@@ -1,0 +1,119 @@
+<!--Copyright (C) 2018 Riedel Communications GmbH & Co. KG
+
+  Modifications Copyright 2018 British Broadcasting Corporation
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NMOS Tests</title>
+    <link rel="stylesheet" href="static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/css/style.css?nocache-{{ cachebuster }}">
+    <script src="static/js/script.js?nocache-{{ cachebuster }}"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div id="page">
+        <h1>NMOS Test</h1>
+        <noscript>
+          <div class="alert alert-danger top_alert" role="alert">
+              This test suite requires JavaScript. Please enable it to ensure accurate results.
+          </div>
+        </noscript>
+        <div class="alert alert-primary top_alert" role="alert">
+            This test suite is under active development and does not yet provide 100% coverage of specifications.<br />
+            We recommend regularly re-testing implementations as new tests are developed.
+        </div>
+        <form action="" method='POST' onsubmit="disableRunbtn(); saveSettings(); return true;">
+            <div class="input_data">
+                <div class="input dropdown input_data_fld">
+                    {{ form.test.label }} {{ form.test }}
+                    {{ form.hidden_tests }}
+                    {{ form.hidden_specs }}
+                    {{ form.hidden_options }}
+                </div><br/><br/>
+                {% for endpoint in form.endpoints %}
+                    <div id="endpoints-{{ loop.index-1 }}">
+                        <div class="input text input_data_fld">
+                            <label id="endpoints-{{ loop.index-1 }}-label"></label>
+                        </div>
+                        <div class="input text input_data_fld">
+                            {{ endpoint.host.label }} {{ endpoint.host(size="15") }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-host-save" />
+                        </div>
+                        <div class="input text input_data_fld">
+                            {{ endpoint.port.label }} {{ endpoint.port(size="5") }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-port-save" />
+                        </div>
+                        <div class="input dropdown input_data_fld">
+                            {{ endpoint.version.label }} {{ endpoint.version }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-version-save" />
+                        </div>
+                        <div class="input text input_data_fld" id="endpoints-{{ loop.index-1 }}-selector-div">
+                            {{ endpoint.selector.label }} {{ endpoint.selector(size="10") }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-selector-save" />
+                        </div>
+                        <br />
+                    </div>
+                {% endfor %}
+                <br />
+                <div>
+                    <label>Protocol:</label>
+                    <select disabled>
+                        <option>{{ config.protocol }}</option>
+                    </select><br />
+                    <label>Discovery Mode:</label>
+                    <select disabled>
+                      <option>{{ config.discovery }}</option>
+                    </select><br />
+                </div>
+                <br />
+                <div class="input dropdown input_data_fld">
+                    {{ form.test_selection.label }}
+                    <br />
+                    {{ form.test_selection }}
+                </div>
+                <br/><br/>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+
+                {% for message in messages %}
+                {% if "Error" not in message[1] %}
+                <div class="alert alert-info">
+                    <strong>Success! </strong> {{ message[1] }}
+                </div>
+                {% endif %}
+
+                {% if "Error" in message[1] %}
+                <div class="alert alert-warning">
+                    {{ message[1] }}
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+                <br/>
+                <div class="input submit input_data_fld">
+                    <input type="submit" id="runbtn" value="Run"/>
+                </div>
+            </div>
+
+        </form>
+    </div>
+    <br/>
+    <br>
+    </body>
+</html>
