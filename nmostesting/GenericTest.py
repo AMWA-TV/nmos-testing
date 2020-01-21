@@ -297,19 +297,27 @@ class GenericTest(object):
         return "auto_{}_{}".format(api_name, self.auto_test_count)
 
     # 'do_test' functions either return a TestResult, or raise an NMOSTestException when there's an error
-    def do_test_base_path(self, api_name, base_url, path, expectation):
+    def do_test_base_path(self, api_name, base_url, path, expectation, method="GET"):
         """Check that a GET to a path returns a JSON array containing a defined string"""
-        test = Test("GET {}".format(path), self.auto_test_name(api_name))
-        valid, response = self.do_request("GET", base_url + path)
+        test = Test("{} {}".format(method, path), self.auto_test_name(api_name))
+        valid, response = self.do_request(method, base_url + path)
         if not valid:
-            return test.FAIL("Unable to connect to API: {}".format(response))
+            if method == "HEAD":
+                return test.WARNING("Unable to connect to API: {}".format(response))
+            else:
+                return test.FAIL("Unable to connect to API: {}".format(response))
 
         if response.status_code != 200:
-            return test.FAIL("Incorrect response code: {}".format(response.status_code))
-        else:
-            cors_valid, cors_message = self.check_CORS('GET', response.headers)
-            if not cors_valid:
-                return test.FAIL(cors_message)
+            if method == "HEAD":
+                return test.WARNING("Incorrect response code: {}".format(response.status_code))
+            else:
+                return test.FAIL("Incorrect response code: {}".format(response.status_code))
+
+        cors_valid, cors_message = self.check_CORS('GET', response.headers)
+        if not cors_valid:
+            return test.FAIL(cors_message)
+
+        if method not in ["HEAD", "OPTIONS"]:
             try:
                 if not isinstance(response.json(), list) or expectation not in response.json():
                     return test.FAIL("Response is not an array containing '{}'".format(expectation))
@@ -375,8 +383,11 @@ class GenericTest(object):
 
             # We don't check the very base of the URL (before x-nmos) as it may be used for other things
             results.append(self.do_test_base_path(api, self.apis[api]["base_url"], "/x-nmos", api + "/"))
+            results.append(self.do_test_base_path(api, self.apis[api]["base_url"], "/x-nmos", api + "/", "HEAD"))
             results.append(self.do_test_base_path(api, self.apis[api]["base_url"], "/x-nmos/{}".format(api),
                                                   self.apis[api]["version"] + "/"))
+            results.append(self.do_test_base_path(api, self.apis[api]["base_url"], "/x-nmos/{}".format(api),
+                                                  self.apis[api]["version"] + "/", "HEAD"))
 
             for resource in self.apis[api]["spec"].get_reads():
                 for response_code in resource[1]['responses']:
@@ -386,28 +397,43 @@ class GenericTest(object):
                         result = self.do_test_api_resource(resource, response_code, api)
                         if result is not None:
                             results.append(result)
+                        if resource[1]['method'] == "get":
+                            resource[1]['method'] = "head"
+                            result = self.do_test_api_resource(resource, response_code, api)
+                            if result is not None:
+                                results.append(result)
 
             # Perform an automatic check for an error condition
             results.append(self.do_test_404_path(api))
+            results.append(self.do_test_404_path(api, "HEAD"))
 
         return results
 
-    def do_test_404_path(self, api_name):
+    def do_test_404_path(self, api_name, method="GET"):
         api = self.apis[api_name]
         error_code = 404
         invalid_path = str(uuid.uuid4())
         url = "{}/{}".format(api["url"].rstrip("/"), invalid_path)
-        test = Test("GET /x-nmos/{}/{}/{} ({})".format(api_name, api["version"], invalid_path, error_code),
+        test = Test("{} /x-nmos/{}/{}/{} ({})".format(method, api_name, api["version"], invalid_path, error_code),
                     self.auto_test_name(api_name))
 
-        valid, response = self.do_request("GET", url)
+        valid, response = self.do_request(method, url)
         if not valid:
-            return test.FAIL(response)
+            if method == "HEAD":
+                return test.WARNING(response)
+            else:
+                return test.FAIL(response)
 
         if response.status_code != error_code:
-            return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
+            if method == "HEAD":
+                return test.WARNING("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
+            else:
+                return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
 
-        valid, message = self.check_error_response("GET", response, error_code)
+        if method in ["HEAD", "OPTIONS"]:
+            return test.PASS()
+
+        valid, message = self.check_error_response(method, response, error_code)
         if valid:
             return test.PASS()
         else:
@@ -457,10 +483,16 @@ class GenericTest(object):
 
         valid, response = self.do_request(resource[1]['method'], url, headers=headers)
         if not valid:
-            return test.FAIL(response)
+            if resource[1]['method'] == "head":
+                return test.WARNING(response)
+            else:
+                return test.FAIL(response)
 
         if response.status_code != response_code:
-            return test.FAIL("Incorrect response code: {}".format(response.status_code))
+            if resource[1]['method'] == "head":
+                return test.WARNING("Incorrect response code: {}".format(response.status_code))
+            else:
+                return test.FAIL("Incorrect response code: {}".format(response.status_code))
 
         # Gather IDs of sub-resources for testing of parameterised URLs...
         self.save_subresources(resource[0], response)
