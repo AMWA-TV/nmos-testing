@@ -34,7 +34,7 @@ def make_request(url):
 def parse_nmos_url(url):
     port = 80
     version = None
-    label = None
+    selector = None
 
     try:
         result = urlparse(url)
@@ -45,13 +45,13 @@ def parse_nmos_url(url):
         version = result.path.replace('/x-nmos/connection/', '').strip('/')
         urlPathSections = result.path.split('/')
         version = urlPathSections[3]
-        label = urlPathSections[4]
+        selector = urlPathSections[4]
 
     except ValueError:
         print("URL could not be parsed: {}".format(url))
         return None, None
 
-    return port, version, label
+    return port, version, selector
 
 
 def _split_version(version):
@@ -59,25 +59,37 @@ def _split_version(version):
     return int(major), int(minor)
 
 
-def get_highest_version(versions):
+def get_highest_version(data):
     """Return the highest version in a list"""
-    return max(versions, key=_split_version)
+    if not data:
+        return None
+
+    versions = (x['version'] for x in data)
+    highestVersion = max(versions, key=_split_version)
+
+    data = next(item for item in data if item["version"] == highestVersion)
+
+    return data
 
 
 def perform_test(test_suite_url, data):
-    response = requests.post(test_suite_url + '/api', json=data)
+    #response = requests.post(test_suite_url + '/api', json=data)
+    print(f'{data}')
 
-    if response.status_code not in [200]:
-        print(f'Request: {url} response HTTP {response.status_code}')
-        raise Exception
+    # if response.status_code not in [200]:
+    #     print(f'Request: {url} response HTTP {response.status_code}')
+    #     raise Exception
 
-    print(response.json())
+    # print(response.json())
 
     return response
 
 
 def is_04_01_test(test_suite_url, node_ip, node_port, node_version):
     """IS-04 Node API"""
+    print(f'Running test IS-04-01:')
+    print(f'    Node API {node_version} {node_ip}:{node_port}')
+
     body = {
         "suite": "IS-04-01",
         "host": [node_ip],
@@ -89,6 +101,10 @@ def is_04_01_test(test_suite_url, node_ip, node_port, node_version):
 
 def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query_port, query_version):
     """IS-04 Registry API"""
+    print(f'Running test IS-04-02:')
+    print(f'    Registration API {reg_version} {reg_ip}:{reg_port}')
+    print(f'    Query API {query_version} {query_ip}:{query_port}')
+
     body = {
         "suite": "IS-04-02",
         "host": [reg_ip, query_ip],
@@ -100,6 +116,9 @@ def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query
 
 def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_version):
     """IS-05 Connection Management API"""
+    print(f'Running test IS-05-01:')
+    print(f'    Connection Management API {connection_version} {connection_ip}:{connection_port}')
+
     body = {
         "suite": "IS-05-01",
         "host": [connection_ip],
@@ -111,6 +130,10 @@ def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_ver
 
 def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_ip, connection_port, connection_version):
     """IS-05 Interaction with IS-04"""
+    print(f'Running test IS-05-02:')
+    print(f'    Node API {node_version} {node_ip}:{node_port}')
+    print(f'    Connection Management API {connection_version} {connection_ip}:{connection_port}')
+
     body = {
         "suite": "IS-05-02",
         "host": [node_ip, connection_ip],
@@ -122,6 +145,9 @@ def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_i
 
 def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, selector):
     """IS-08 Channel Mapping API"""
+    print(f'Running test IS-08-01:')
+    print(f'    Channel Mapping API {ch_map_version} {ch_map_ip}:{ch_map_port}  {selector}')
+
     body = {
         "suite": "IS-08-01",
         "host": [ch_map_ip],
@@ -134,6 +160,10 @@ def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, select
 
 def is_08_02_test(test_suite_url, node_ip, node_port, node_version, ch_map_ip, ch_map_port, ch_map_version, selector):
     """IS-08 Interaction with IS-04"""
+    print(f'Running test IS-08-02:')
+    print(f'    Node API {node_version} {node_ip}:{node_port}')
+    print(f'    Channel Mapping API {ch_map_version} {ch_map_ip}:{ch_map_port}  {selector}')
+
     body = {
         "suite": "IS-08-02",
         "host": [node_ip, ch_map_ip],
@@ -144,32 +174,55 @@ def is_08_02_test(test_suite_url, node_ip, node_port, node_version, ch_map_ip, c
     perform_test(test_suite_url, body)
 
 
+def run_all_tests(testSuiteUrl, is04NodeData, is05Data, is08Data):
+
+    # Find highest versions of each api
+    is04NodeData = get_highest_version(is04NodeData)
+    is05Data = get_highest_version(is05Data)
+    is08Data = get_highest_version(is08Data)
+
+    if is04NodeData:
+        is_04_01_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'])
+    if is05Data:
+        is_05_01_test(testSuiteUrl, is05Data['ip'], is05Data['port'], is05Data['version'])
+    if is04NodeData and is05Data:
+        is_05_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
+                      is05Data['ip'], is05Data['port'], is05Data['version'])
+    if is08Data:
+        is_08_01_test(testSuiteUrl, is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
+    if is04NodeData and is08Data:
+        is_08_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
+                      is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
+
+
 def print_nmos_api_data(api_name, data):
     print(f"{api_name}:")
     for x in data:
-        print(f"    Port: {x.get('port')}  Version: {x.get('version')} Label: {x.get('label')} href: {x.get('href')}")
+        print(f"    Port: {x.get('port')}  Version: {x.get('version')} Selector: {x.get('selector')} href: {x.get('href')}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", required=True, help="IP address or Hostname of DuT")
+    parser.add_argument("--test", required=True, help="URL of the testing tool, eg. http://localhost:3000")
+    parser.add_argument("--ip", required=True, help="IP address or Hostname of the Node API of DuT")
     parser.add_argument("--port", type=int, default=80, help="Port number of IS-04 API of DuT")
     parser.add_argument("--version", default="v1.2", help="Version of IS-04 API of DuT")
     args = parser.parse_args()
 
     nmosApis = []
-    is04 = [{
+    is04NodeData = [{
+        'ip': args.ip,
         'port': args.port,
         'version': args.version
     }]
-    is05 = []
-    is08 = []
+    is05Data = []
+    is08Data = []
     node_id = None
     senders = []
     receivers = []
     mac_addresses = []
 
-    base_url = f"http://{args.ip}:{is04[0]['port']}/x-nmos/node/{is04[0]['version']}/"
+    base_url = f"http://{is04NodeData[0]['ip']}:{is04NodeData[0]['port']}/x-nmos/node/{is04NodeData[0]['version']}/"
 
     # Self
     url = base_url + "self/"
@@ -191,25 +244,32 @@ if __name__ == "__main__":
     for device in json_data:
         for control in device["controls"]:
             if control["type"].startswith("urn:x-nmos:control:sr-ctrl"):
-                is05Port, version, label = parse_nmos_url(control['href'])
-                is05.append({
-                    'port': is05Port,
+                port, version, selector = parse_nmos_url(control['href'])
+                is05Data.append({
+                    'ip': args.ip,
+                    'port': port,
                     'version': version,
                     'href': control['href']
                 })
             if control["type"].startswith("urn:x-nmos:control:cm-ctrl"):
-                is08Port, version, label = parse_nmos_url(control["href"])
-                is08.append({
-                    'port': is08Port,
+                port, version, selector = parse_nmos_url(control["href"])
+                is08Data.append({
+                    'ip': args.ip,
+                    'port': port,
                     'version': version,
-                    'href': control['href']
+                    'href': control['href'],
+                    'selector': selector
                 })
 
     # Display Data
-    print_nmos_api_data('IS-04', is04)
-    print_nmos_api_data('IS-05', is05)
-    print_nmos_api_data('IS-08', is08)
+    print_nmos_api_data('IS-04', is04NodeData)
+    print_nmos_api_data('IS-05', is05Data)
+    print_nmos_api_data('IS-08', is08Data)
 
     print(f"Node ID: {node_id}")
     print("MAC Addresses:")
     pprint.pprint(mac_addresses)
+
+    run_all_tests(args.test, is04NodeData, is05Data, is08Data)
+
+    #TODO: Upload test results to google sheet
