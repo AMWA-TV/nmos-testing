@@ -246,7 +246,7 @@ class IS0801Test(GenericTest):
         """Attempting to violate routing constraints results in an HTTP 400 response"""
         globalConfig.test = test
 
-        outputList = getOutputList()        
+        outputList = getOutputList()
         inputList = getInputList()
 
         if len(inputList) == 0 and len(outputList) == 0:
