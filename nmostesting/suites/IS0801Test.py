@@ -154,6 +154,9 @@ class IS0801Test(GenericTest):
         activeInstance = Active()
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         for outputInstance in outputList:
             channelList = outputInstance.getChannelList()
             for channelID in range(0, len(channelList)):
@@ -181,6 +184,9 @@ class IS0801Test(GenericTest):
         forbiddenRoutes = []
         outputList = getOutputList()
         inputList = getInputList()
+        if len(inputList) == 0 or len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         for outputInstance in outputList:
             sourceID = outputInstance.getSourceID()
             for inputInstance in inputList:
@@ -216,6 +222,8 @@ class IS0801Test(GenericTest):
         """Inputs have at least one channel represented in their channels resource"""
         globalConfig.test = test
         inputList = getInputList()
+        if len(inputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
         for inputInstance in inputList:
             channels = inputInstance.getChannelList()
             if len(channels) == 0:
@@ -225,8 +233,9 @@ class IS0801Test(GenericTest):
     def test_12(self, test):
         """Outputs have at least one channel represented in their channels resource"""
         globalConfig.test = test
-
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
         for outputInstance in outputList:
             channels = outputInstance.getChannelList()
             if len(channels) == 0:
@@ -237,7 +246,12 @@ class IS0801Test(GenericTest):
         """Attempting to violate routing constraints results in an HTTP 400 response"""
         globalConfig.test = test
 
-        outputList = getOutputList()
+        outputList = getOutputList()        
+        inputList = getInputList()
+
+        if len(inputList) == 0 and len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         constrainedOutputList = []
         for outputInstance in outputList:
             constraints = outputInstance.getCaps()
@@ -256,7 +270,6 @@ class IS0801Test(GenericTest):
         if len(constrainedOutputList) == 0:
             return test.NA("Could not test - no outputs have routing constraints set.")
 
-        inputList = getInputList()
         inputIDList = []
         for inputInstance in inputList:
             inputIDList.append(inputInstance.id)
@@ -289,6 +302,8 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         inputList = getInputList()
+        if len(inputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
 
         constrainedInputs = []
         constraintSet = False
@@ -362,6 +377,9 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         inputList = getInputList()
+        if len(inputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         constraintSet = False
         constrainedInputs = []
         for inputInstance in inputList:
