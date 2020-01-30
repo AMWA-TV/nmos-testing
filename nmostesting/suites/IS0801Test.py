@@ -320,7 +320,7 @@ class IS0801Test(GenericTest):
         filteredInputs = []
         for inputInstance in constrainedInputs:
             blockSize = inputInstance.getBlockSize()
-            if len(inputInstance.getChannelList) >= blockSize * 2:
+            if len(inputInstance.getChannelList()) >= blockSize * 2:
                 # Constraint makes no sense, can't re-order to to block size
                 filteredInputs.append(inputInstance)
 
@@ -331,9 +331,9 @@ class IS0801Test(GenericTest):
         for inputInstance in filteredInputs:
             routableOutputList = inputInstance.getRoutableOutputs()
             for outputInstance in routableOutputList:
-                if len(outputInstance.getChannelList) >= inputInstance.getBlockSize() * 2:
+                if len(outputInstance.getChannelList()) >= inputInstance.getBlockSize() * 2:
                     targetOutputList[inputInstance.id] = outputInstance
-            if inputInstance.id in targetOutputList.keys:
+            if inputInstance.id in targetOutputList.keys():
                 testableInputs.append(inputInstance)
 
         # Cross over blocks one and two on an input and output
@@ -351,13 +351,13 @@ class IS0801Test(GenericTest):
                 outputChannelIndex = inputChannelIndex + blockSize
                 blockOneAction = Action(
                     inputInstance.id,
-                    targetOutputList[inputInstance.id],
+                    targetOutputList[inputInstance.id].id,
                     inputChannelIndex,
                     outputChannelIndex
                 )
                 blockTwoAction = Action(
                     inputInstance.id,
-                    targetOutputList[inputInstance.id],
+                    targetOutputList[inputInstance.id].id,
                     outputChannelIndex,
                     inputChannelIndex
                 )
