@@ -509,8 +509,8 @@ class IS0401Test(GenericTest):
                         return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
                                          .format(res_type.title(), rdata["id"],
                                                  parent_type + "_id", rdata[parent_type + "_id"]))
-                    if preceding_type and rdata[preceding_type + "_id"] not in registered_preceding \
-                            and not preceding_warn:
+                    if preceding_type and rdata[preceding_type + "_id"] and \
+                            rdata[preceding_type + "_id"] not in registered_preceding and not preceding_warn:
                         preceding_warn = "{} '{}' was registered before its referenced '{}' '{}'" \
                                          .format(res_type.title(), rdata["id"],
                                                  preceding_type + "_id", rdata[preceding_type + "_id"])
