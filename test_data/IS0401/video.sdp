@@ -5,7 +5,7 @@ t=0 0
 m=video 27346 RTP/AVP 97
 c=IN IP4 232.80.177.113/32
 a=source-filter: incl IN IP4 232.80.177.113 172.29.80.65
-a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE
+a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0
 a=rtpmap:97 raw/90000
 a=fmtp:97 sampling=YCbCr-4:2:2; width=1920; height=1080; depth=10; interlace; SSN=ST2110-20:2017; colorimetry=BT709; PM=2110GPM; TP=2110TPW; TCS=SDR; exactframerate=25
 a=mediaclk:direct=0 rate=90000
