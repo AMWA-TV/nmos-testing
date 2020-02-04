@@ -394,7 +394,7 @@ class IS0801Test(GenericTest):
         output = chosenInput.getRoutableOutputs()
         action = Action(
             chosenInput.id,
-            output.id
+            output[0].id
         )
         activation = Activation()
         activation.addAction(action)
