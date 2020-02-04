@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from ...GenericTest import NMOSTestException
-from ...NMOSUtils import IMMEDIATE_ACTIVATION
+from ...IS05Utils import IMMEDIATE_ACTIVATION
 from .calls import Call
 from .testConfig import globalConfig
 import re

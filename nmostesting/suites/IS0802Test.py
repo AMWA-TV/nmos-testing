@@ -43,7 +43,6 @@ class IS0802Test(GenericTest):
         self.is05_resources = {"senders": [], "receivers": [], "devices": [], "sources": [], "_requested": []}
         self.is04_resources = {"senders": [], "receivers": [], "devices": [], "sources": [], "_requested": []}
         self.node_url = self.apis[NODE_API_KEY]["url"]
-        self.nmos_utils = NMOSUtils(globalConfig.apiUrl)
 
     def test_01(self, test):
         """ Activations result in a Device version number increment"""
@@ -173,7 +172,7 @@ class IS0802Test(GenericTest):
                     if not alreadyAdded:
                         devicesWithAdvertisements.append(device)
                         alreadyAdded = True
-                        if self.nmos_utils.compare_urls(globalConfig.apiUrl, control["href"]):
+                        if NMOSUtils.compare_urls(globalConfig.apiUrl, control["href"]):
                             found_api_match = True
 
         if len(devicesWithAdvertisements) > 0 and not found_api_match:
