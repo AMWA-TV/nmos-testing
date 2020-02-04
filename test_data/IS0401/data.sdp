@@ -5,6 +5,6 @@ t=0 0
 m=video 11437 RTP/AVP 105
 c=IN IP4 232.32.87.86/32
 a=source-filter: incl IN IP4 232.32.87.86 172.29.80.65
-a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE
+a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0
 a=rtpmap:105 smpte291/90000
 a=mediaclk:direct=0 rate=90000
