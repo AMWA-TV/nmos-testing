@@ -44,7 +44,10 @@ class Activation:
     def _actionObject(self):
         actionObject = {}
         for action in self.actionList:
-            actionObject.update(action.toJSON())
+            if action.outputID not in actionObject:
+                actionObject[action.outputID] = action.channelJSON()
+            else:
+                actionObject[action.outputID].update(action.channelJSON())
         return actionObject
 
     def _buildPOSTObject(self):

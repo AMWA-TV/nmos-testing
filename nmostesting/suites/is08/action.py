@@ -21,12 +21,10 @@ class Action():
         self.inputChannel = inputChannel
         self.outputChannel = outputChannel
 
-    def toJSON(self):
+    def channelJSON(self):
         return {
-            self.outputID: {
-                self.outputChannel: {
-                    "input": self.inputID,
-                    "channel_index": self.inputChannel
-                }
+            self.outputChannel: {
+                "input": self.inputID,
+                "channel_index": self.inputChannel
             }
         }
