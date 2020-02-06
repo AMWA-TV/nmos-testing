@@ -147,7 +147,7 @@ class IS0402Test(GenericTest):
         data["description"] = "test_03_1"
 
         # most tests on the Location header are actually done in every call to post_resource
-        location = self.post_resource(test, "node", data, codes=[201])
+        location, timestamp = self.post_resource(test, "node", data, codes=[201])
 
         # also check an 'https' URL in the Location header has a hostname not an IP address
         if location is not None and location.startswith("https://") and urlparse(location).hostname[-1].isdigit():
@@ -335,7 +335,8 @@ class IS0402Test(GenericTest):
 
             # Add a little delay between the POST requests, and record the local timestamps
             # before the request and after the response, in order to test pagination cursors
-            # (unfortunately the required timestamp is unknowable via the registry APIs)
+            # (unfortunately the required timestamp is unknowable via the registry APIs,
+            # unless the implementation includes the X-Paging-Timestamp debugging header)
 
             # Note: In order to be able to accomplish 20 of these registration post requests
             # well before the default garbage collection interval of 12s, the delay can't be
@@ -345,12 +346,19 @@ class IS0402Test(GenericTest):
             before = self.is04_query_utils.get_TAI_time()
             sleep(PAGING_TIMESTAMP_DELAY)
 
-            self.post_resource(test, "node", node_data, codes=[201])
+            location, timestamp = self.post_resource(test, "node", node_data, codes=[201])
 
             sleep(PAGING_TIMESTAMP_DELAY)
             after = self.is04_query_utils.get_TAI_time()
 
-            update_timestamps.append(TS.permitted(before, after))
+            # Check API and Testing Tool appear to be synchronized (if debugging header provided)
+            permitted = TS.permitted(before, after)
+            if timestamp is not None and not TS.compare(permitted, timestamp):
+                raise NMOSTestException(test.FAIL("API and Testing Tool clocks appear not to be synchronized. "
+                                                  "The response header X-Paging-Timestamp '{}' is outside the "
+                                                  "expected range: {}".format(timestamp, TS.str(permitted))))
+
+            update_timestamps.append(TS.recommended(before, timestamp, after))
 
         # Bear in mind that the returned arrays are in forward order
         # whereas Query API responses are required to be in reverse order
@@ -2384,7 +2392,7 @@ class IS0402Test(GenericTest):
         """
         Perform a POST request on the Registration API to create or update a resource registration.
         Raises an NMOSTestException when the response is not as expected.
-        Otherwise, returns value of Location header for successful requests
+        Otherwise, on success, returns values of the Location header and X-Paging-Timestamp debugging header.
         """
 
         if not data:
@@ -2406,6 +2414,7 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
 
         location = None
+        timestamp = None
 
         wrong_codes = [_ for _ in [200, 201] if _ not in codes]
 
@@ -2415,6 +2424,9 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: "
                                                "{} {}".format(r.status_code, r.text)))
         elif r.status_code in [200, 201]:
+            # X-Paging-Timestamp is a response header that implementations may include to aid debugging
+            if "X-Paging-Timestamp" in r.headers:
+                timestamp = r.headers["X-Paging-Timestamp"]
             if "Location" not in r.headers:
                 raise NMOSTestException(fail(test, "Registration API failed to return a 'Location' response header"))
             path = "{}resource/{}s/{}".format(urlparse(reg_url).path, type, data["id"])
@@ -2437,7 +2449,7 @@ class IS0402Test(GenericTest):
             else:
                 raise NMOSTestException(test.FAIL(message))
 
-        return location
+        return location, timestamp
 
     def post_super_resources_and_resource(self, test, type, description, fail=Test.FAIL):
         """
