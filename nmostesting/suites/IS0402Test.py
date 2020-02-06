@@ -609,21 +609,24 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description=description, since=ts[4], limit=10)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[5:14 + 1],
-                                    expected_since=ts[4], expected_until=TS_recommended(14), expected_limit=10)
+                                    expected_since=TS.upper(ts[4]), expected_until=TS_recommended(14),
+                                    expected_limit=10)
 
         # Example 4: Request With Until Parameter
 
         response = self.do_paged_request(description=description, until=ts[16], limit=10)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[7:16 + 1],
-                                    expected_since=TS_recommended(6), expected_until=ts[16], expected_limit=10)
+                                    expected_since=TS_recommended(6), expected_until=TS.upper(ts[16]),
+                                    expected_limit=10)
 
         # Example 5: Request With Since & Until Parameters
 
         response = self.do_paged_request(description=description, since=ts[4], until=ts[16], limit=10)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[5:14 + 1],
-                                    expected_since=ts[4], expected_until=TS_recommended(14), expected_limit=10)
+                                    expected_since=TS.upper(ts[4]), expected_until=TS_recommended(14),
+                                    expected_limit=10)
 
         return test.PASS()
 
@@ -677,7 +680,7 @@ class IS0402Test(GenericTest):
 
         timestamps, ids = self.post_sample_nodes(test, 20, description)
 
-        ts = timestamps[12]
+        ts = TS.upper(timestamps[12])
 
         # Check paging.since == paging.until
 
