@@ -143,6 +143,7 @@ class IS0801Test(GenericTest):
         activation.activationTimestamp = "5:0"
         activation.fireActivation()
         activation.checkLock()
+        activation.delete()
 
         return test.PASS()
 
