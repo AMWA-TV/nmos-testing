@@ -71,16 +71,13 @@ DEFAULT_ARGS = {
     "selection": "all"
 }
 
-IMMEDIATE_ACTIVATION = 'activate_immediate'
-SCHEDULED_ABSOLUTE_ACTIVATION = 'activate_scheduled_absolute'
-SCHEDULED_RELATIVE_ACTIVATION = 'activate_scheduled_relative'
-
 
 class NMOSUtils(object):
     def __init__(self, url):
         self.url = url
 
-    def from_UTC(self, secs, nanos, is_leap=False):
+    @staticmethod
+    def from_UTC(secs, nanos, is_leap=False):
         """Convert a UTC time into a TAI time"""
         leap_sec = 0
         for tbl_sec, tbl_tai_sec_minus_1 in UTC_LEAP:
@@ -89,15 +86,17 @@ class NMOSUtils(object):
                 break
         return secs + leap_sec + is_leap, nanos
 
-    def get_TAI_time(self, offset=0.0):
+    @staticmethod
+    def get_TAI_time(offset=0.0):
         """Get the current TAI time as a colon-separated string"""
         myTime = time.time() + offset
         secs = int(myTime)
         nanos = int((myTime - secs) * 1e9)
-        ippTime = self.from_UTC(secs, nanos)
+        ippTime = NMOSUtils.from_UTC(secs, nanos)
         return str(ippTime[0]) + ":" + str(ippTime[1])
 
-    def compare_resource_version(self, ver1, ver2):
+    @staticmethod
+    def compare_resource_version(ver1, ver2):
         """Returns 1 if ver1>ver2, 0 if ver1=ver2, and -1 if ver1<ver2"""
         ver1_bits = ver1.split(":")
         ver2_bits = ver2.split(":")
@@ -116,7 +115,8 @@ class NMOSUtils(object):
         else:
             return 0
 
-    def compare_api_version(self, ver1, ver2):
+    @staticmethod
+    def compare_api_version(ver1, ver2):
         """Returns 1 if ver1>ver2, 0 if ver1=ver2, and -1 if ver1<ver2"""
         ver1_bits = ver1.strip("v").split(".")
         ver2_bits = ver2.strip("v").split(".")
@@ -135,7 +135,8 @@ class NMOSUtils(object):
         else:
             return 0
 
-    def compare_urls(self, url1, url2):
+    @staticmethod
+    def compare_urls(url1, url2):
         """Check that two URLs to a given API are sufficiently similar"""
 
         url1_parsed = urlparse(url1.rstrip("/"))
@@ -160,11 +161,13 @@ class NMOSUtils(object):
 
         return True
 
-    def sampled_list(self, resource_list):
+    @staticmethod
+    def sampled_list(resource_list):
         if CONFIG.MAX_TEST_ITERATIONS > 0:
             return sample(resource_list, min(CONFIG.MAX_TEST_ITERATIONS, len(resource_list)))
         else:
             return resource_list
 
-    def sort_versions(self, versions_list):
-        return sorted(versions_list, key=functools.cmp_to_key(self.compare_api_version))
+    @staticmethod
+    def sort_versions(versions_list):
+        return sorted(versions_list, key=functools.cmp_to_key(NMOSUtils.compare_api_version))

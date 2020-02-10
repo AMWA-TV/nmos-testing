@@ -147,7 +147,7 @@ class IS0402Test(GenericTest):
         data["description"] = "test_03_1"
 
         # most tests on the Location header are actually done in every call to post_resource
-        location = self.post_resource(test, "node", data, codes=[201])
+        location, timestamp = self.post_resource(test, "node", data, codes=[201])
 
         # also check an 'https' URL in the Location header has a hostname not an IP address
         if location is not None and location.startswith("https://") and urlparse(location).hostname[-1].isdigit():
@@ -333,18 +333,32 @@ class IS0402Test(GenericTest):
             # For debugging
             node_data["tags"]["index"] = [str(_)]
 
-            self.post_resource(test, "node", node_data, codes=[201])
+            # Add a little delay between the POST requests, and record the local timestamps
+            # before the request and after the response, in order to test pagination cursors
+            # (unfortunately the required timestamp is unknowable via the registry APIs,
+            # unless the implementation includes the X-Paging-Timestamp debugging header)
 
-            # Perform a Query API request to get the update timestamp of the most recently POSTed node
-            # Wish there was a better way, as this puts the cart before the horse!
-            # Another alternative would be to use local timestamps, provided clocks were synchronised?
+            # Note: In order to be able to accomplish 20 of these registration post requests
+            # well before the default garbage collection interval of 12s, the delay can't be
+            # much more than 0.1 seconds...
+            PAGING_TIMESTAMP_DELAY = 0.1
 
-            response = self.do_paged_request(limit=1)
-            self.do_test_paged_response(test, response,
-                                        expected_ids=[node_data["id"]],
-                                        expected_since=None, expected_until=None)
-            valid, r, query_parameters = response
-            update_timestamps.append(r.headers["X-Paging-Until"])
+            before = self.is04_query_utils.get_TAI_time()
+            sleep(PAGING_TIMESTAMP_DELAY)
+
+            location, timestamp = self.post_resource(test, "node", node_data, codes=[201])
+
+            sleep(PAGING_TIMESTAMP_DELAY)
+            after = self.is04_query_utils.get_TAI_time()
+
+            # Check API and Testing Tool appear to be synchronized (if debugging header provided)
+            permitted = TS.permitted(before, after)
+            if timestamp is not None and not TS.compare(permitted, timestamp):
+                raise NMOSTestException(test.FAIL("API and Testing Tool clocks appear not to be synchronized. "
+                                                  "The response header X-Paging-Timestamp '{}' is outside the "
+                                                  "expected range: {}".format(timestamp, TS.str(permitted))))
+
+            update_timestamps.append(TS.recommended(before, timestamp, after))
 
         # Bear in mind that the returned arrays are in forward order
         # whereas Query API responses are required to be in reverse order
@@ -358,10 +372,10 @@ class IS0402Test(GenericTest):
 
         if limit is not None:
             query_parameters.append("paging.limit=" + str(limit))
-        if since is not None:
-            query_parameters.append("paging.since=" + since)
-        if until is not None:
-            query_parameters.append("paging.until=" + until)
+        if since is not None and TS.upper_TAI(since) is not None:
+            query_parameters.append("paging.since=" + TS.upper_TAI(since))
+        if until is not None and TS.upper_TAI(until) is not None:
+            query_parameters.append("paging.until=" + TS.upper_TAI(until))
 
         if description is not None:
             query_parameters.append("description=" + description)
@@ -445,21 +459,22 @@ class IS0402Test(GenericTest):
 
         # check *values* of paging headers after body
 
-        def compare_timestamp(expected, actual):
-            return expected is None or self.is04_query_utils.compare_resource_version(expected, actual) == 0
-
         try:
             since = response.headers["X-Paging-Since"]
             until = response.headers["X-Paging-Until"]
             limit = response.headers["X-Paging-Limit"]
 
-            if not compare_timestamp(expected_since, since):
-                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Since "
-                                                  "header, for query: {}".format(query_string)))
+            if not TS.compare(expected_since, since):
+                raise NMOSTestException(test.FAIL("Query API response header X-Paging-Since '{}' is outside the "
+                                                  "expected range {}, for query: {}. This could just indicate the "
+                                                  "API and Testing Tool clocks are not synchronized."
+                                                  .format(since, TS.str(expected_since), query_string)))
 
-            if not compare_timestamp(expected_until, until):
-                raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Until "
-                                                  "header, for query: {}".format(query_string)))
+            if not TS.compare(expected_until, until):
+                raise NMOSTestException(test.FAIL("Query API response header X-Paging-Until '{}' is outside the "
+                                                  "expected range {}, for query: {}. This could just indicate the "
+                                                  "API and Testing Tool clocks are not synchronized."
+                                                  .format(until, TS.str(expected_until), query_string)))
 
             if not (expected_limit is None or str(expected_limit) == limit):
                 raise NMOSTestException(test.FAIL("Query API response did not include the correct X-Paging-Limit "
@@ -562,6 +577,11 @@ class IS0402Test(GenericTest):
         ts.insert(0, None)
         ids.insert(0, None)
 
+        # Definitely covers the timestamps that are after the i-th post and before the following one
+        # (but also covers shortly before the i-th or shortly after the following one unfortunately)
+        def TS_recommended(i):
+            return TS.extended(ts[i], ts[i], ts[i + 1] if len(ts) > i + 1 else None)
+
         # "Implementations may specify their own default and maximum for the limit"
         # so theoretically, if a Query API had a very low maximum limit, that number could be returned
         # rather than the requested limit, for many of the following tests.
@@ -573,35 +593,40 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description=description, limit=10)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[11:20 + 1],
-                                    expected_since=ts[10], expected_until=ts[20], expected_limit=10)
+                                    expected_since=TS_recommended(10), expected_until=TS_recommended(20),
+                                    expected_limit=10)
 
         # Example 2: Request With Custom Limit
 
         response = self.do_paged_request(description=description, limit=5)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[16:20 + 1],
-                                    expected_since=ts[15], expected_until=ts[20], expected_limit=5)
+                                    expected_since=TS_recommended(15), expected_until=TS_recommended(20),
+                                    expected_limit=5)
 
         # Example 3: Request With Since Parameter
 
         response = self.do_paged_request(description=description, since=ts[4], limit=10)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[5:14 + 1],
-                                    expected_since=ts[4], expected_until=ts[14], expected_limit=10)
+                                    expected_since=TS.upper(ts[4]), expected_until=TS_recommended(14),
+                                    expected_limit=10)
 
         # Example 4: Request With Until Parameter
 
         response = self.do_paged_request(description=description, until=ts[16], limit=10)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[7:16 + 1],
-                                    expected_since=ts[6], expected_until=ts[16], expected_limit=10)
+                                    expected_since=TS_recommended(6), expected_until=TS.upper(ts[16]),
+                                    expected_limit=10)
 
         # Example 5: Request With Since & Until Parameters
 
         response = self.do_paged_request(description=description, since=ts[4], until=ts[16], limit=10)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids[5:14 + 1],
-                                    expected_since=ts[4], expected_until=ts[14], expected_limit=10)
+                                    expected_since=TS.upper(ts[4]), expected_until=TS_recommended(14),
+                                    expected_limit=10)
 
         return test.PASS()
 
@@ -614,36 +639,36 @@ class IS0402Test(GenericTest):
         # Some additional test cases based on Basecamp discussion
         # See https://basecamp.com/1791706/projects/10192586/messages/70545892
 
-        timestamps, ids = self.post_sample_nodes(test, 20, description)
+        ts, ids = self.post_sample_nodes(test, 20, description)
 
-        after = "{}:0".format(int(timestamps[-1].split(":")[0]) + 1)
-        before = "{}:0".format(int(timestamps[0].split(":")[0]) - 1)
+        # Specifies a precise timestamp that is definitely after the last registration
+        after = TS.upper(ts[-1])
+        # Specifies a precise timestamp that is definitely before the first registration
+        before = TS.lower(ts[0])
 
         # Check the header values when a client specifies a paging.since value after the newest resource's timestamp
 
         self.do_test_paged_response(test, self.do_paged_request(description=description, since=after),
                                     expected_ids=[],
-                                    expected_since=after, expected_until=after)
+                                    expected_since=after, expected_until=TS.ge(after))
 
         # Check the header values when a client specifies a paging.until value before the oldest resource's timestamp
 
         self.do_test_paged_response(test, self.do_paged_request(description=description, until=before),
                                     expected_ids=[],
-                                    expected_since="0:0", expected_until=before)
+                                    expected_since=TS.epoch(), expected_until=before)
 
         # Check the header values for a query that results in only one resource, without any paging parameters
 
-        # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
         self.do_test_paged_response(test, self.do_paged_request(id=ids[12]),
                                     expected_ids=[ids[12]],
-                                    expected_since="0:0", expected_until=timestamps[-1])
+                                    expected_since=TS.epoch(), expected_until=TS.ge(ts[-1]))
 
         # Check the header values for a query that results in no resources, without any paging parameters
 
-        # expected_until check could be more forgiving, i.e. >= timestamps[-1] and <= 'now'
         self.do_test_paged_response(test, self.do_paged_request(id=str(uuid.uuid4())),
                                     expected_ids=[],
-                                    expected_since="0:0", expected_until=timestamps[-1])
+                                    expected_since=TS.epoch(), expected_until=TS.ge(ts[-1]))
 
         return test.PASS()
 
@@ -655,7 +680,7 @@ class IS0402Test(GenericTest):
 
         timestamps, ids = self.post_sample_nodes(test, 20, description)
 
-        ts = timestamps[12]
+        ts = TS.upper(timestamps[12])
 
         # Check paging.since == paging.until
 
@@ -702,11 +727,10 @@ class IS0402Test(GenericTest):
         #          request      (                                                                      ]
         #          response           (       ^  ^  ^        ^   ^   ^           ^   ^   ^           ^ ]
 
-        # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
-        # expected_since check could be more forgiving, i.e. >= ts[1] and < ts[4]
         self.do_test_paged_response(test, self.do_paged_request(label="foo", limit=10),
                                     expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][-10:],
-                                    expected_since=ts[1], expected_until=ts[19], expected_limit=10)
+                                    expected_since=TS.extended(ts[1], ts[1], ts[4]), expected_until=TS.ge(ts[19]),
+                                    expected_limit=10)
 
         # Query 2: 'prev' of Query 1
         #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
@@ -715,7 +739,8 @@ class IS0402Test(GenericTest):
 
         self.do_test_paged_response(test, self.do_paged_request(label="foo", until=ts[1], limit=10),
                                     expected_ids=[ids[i] for i in range(len(ids)) if foo(i)][0:-10],
-                                    expected_since="0:0", expected_until=ts[1], expected_limit=10)
+                                    expected_since=TS.epoch(), expected_until=TS.gt(ts[1]),
+                                    expected_limit=10)
 
         # Query 3: 'next' of Query 1
         #          filter         0, 1, -, -, 4, 5, 6, -, -, 9, 10, 11, --, --, 14, 15, 16, --, --, 19
@@ -724,38 +749,38 @@ class IS0402Test(GenericTest):
 
         self.do_test_paged_response(test, self.do_paged_request(label="foo", since=ts[19], limit=10),
                                     expected_ids=[],
-                                    expected_since=ts[19], expected_until=ts[19], expected_limit=10)
+                                    expected_since=TS.upper(ts[19]), expected_until=TS.gt(ts[19]),
+                                    expected_limit=10)
 
         # Query 4: "bar", default paging parameters
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
         #          request      (                                                                      ]
         #          response     (       ^  ^           ^  ^              ^   ^               ^   ^     ]
 
-        # expected_until check could be more forgiving, i.e. >= ts[19] and <= 'now'
         self.do_test_paged_response(test, self.do_paged_request(label="bar", limit=10),
                                     expected_ids=[ids[i] for i in range(len(ids)) if bar(i)],
-                                    expected_since="0:0", expected_until=ts[19], expected_limit=10)
+                                    expected_since=TS.epoch(), expected_until=TS.ge(ts[19]),
+                                    expected_limit=10)
 
         # Query 5: "bar", limited to 3
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
         #          request      (                                                                      ]
         #          response                                               (  ^               ^   ^     ]
 
-        # expected_until check could be more forgiving, i.e. >= ts[18] and <= 'now'
-        # expected_since check could be more forgiving, i.e. >= ts[12] and < ts[13]
         self.do_test_paged_response(test, self.do_paged_request(label="bar", limit=3),
                                     expected_ids=[ids[13], ids[17], ids[18]],
-                                    expected_since=ts[12], expected_until=ts[19], expected_limit=3)
+                                    expected_since=TS.extended(ts[12], ts[12], ts[13]), expected_until=TS.ge(ts[18]),
+                                    expected_limit=3)
 
         # Query 6: 'prev' of Query 5
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
         #          request      (                                          ]
         #          response                 (          ^  ^              ^ ]
 
-        # expected_since check could be more forgiving, i.e. >= ts[3] and < ts[7]
         self.do_test_paged_response(test, self.do_paged_request(label="bar", until=ts[12], limit=3),
                                     expected_ids=[ids[7], ids[8], ids[12]],
-                                    expected_since=ts[3], expected_until=ts[12], expected_limit=3)
+                                    expected_since=TS.extended(ts[3], ts[3], ts[7]), expected_until=TS.upper(ts[12]),
+                                    expected_limit=3)
 
         # Query 7: like Query 5, with paging.since specified, but still enough matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -764,7 +789,8 @@ class IS0402Test(GenericTest):
 
         self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[4], until=ts[12], limit=3),
                                     expected_ids=[ids[7], ids[8], ids[12]],
-                                    expected_since=ts[4], expected_until=ts[12], expected_limit=3)
+                                    expected_since=TS.upper(ts[4]), expected_until=TS.upper(ts[12]),
+                                    expected_limit=3)
 
         # Query 8: like Query 5, with paging.since specified, and not enough matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -773,7 +799,8 @@ class IS0402Test(GenericTest):
 
         self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[12], limit=3),
                                     expected_ids=[ids[12]],
-                                    expected_since=ts[9], expected_until=ts[12], expected_limit=3)
+                                    expected_since=TS.upper(ts[9]), expected_until=TS.upper(ts[12]),
+                                    expected_limit=3)
 
         # Query 9: like Query 5, but no matches
         #          filter         -, -, 2, 3, -, -, -, 7, 8, -, --, --, 12, 13, --, --, --, 17, 18, --
@@ -782,7 +809,8 @@ class IS0402Test(GenericTest):
 
         self.do_test_paged_response(test, self.do_paged_request(label="bar", since=ts[9], until=ts[11], limit=3),
                                     expected_ids=[],
-                                    expected_since=ts[9], expected_until=ts[11], expected_limit=3)
+                                    expected_since=TS.upper(ts[9]), expected_until=TS.upper(ts[11]),
+                                    expected_limit=3)
 
         return test.PASS()
 
@@ -791,8 +819,8 @@ class IS0402Test(GenericTest):
 
         self.do_test_paged_trait(test)
 
-        before = self.is04_query_utils.get_TAI_time()
-        after = self.is04_query_utils.get_TAI_time(1)
+        before = TS.required(self.is04_query_utils.get_TAI_time())
+        after = TS.required(self.is04_query_utils.get_TAI_time(1))
 
         # Specifying since after until is a bad request
         valid, response, query_parameters = self.do_paged_request(since=after, until=before)
@@ -840,7 +868,7 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description=description, limit=count)
         self.do_test_paged_response(test, response,
                                     expected_ids=ids,
-                                    expected_since="0:0", expected_until=ts[-1], expected_limit=count)
+                                    expected_since=TS.epoch(), expected_until=TS.ge(ts[-1]), expected_limit=count)
 
         resources = response[1].json()  # valid json guaranteed by do_test_paged_response
         resources.reverse()
@@ -850,14 +878,14 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.do_test_paged_response(test, response,
                                     expected_ids=[],
-                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
+                                    expected_since=TS.upper(ts[-1]), expected_until=None, expected_limit=count)
 
         # 'current' page should be same as initial response
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.do_test_paged_response(test, response,
                                     expected_ids=ids,
-                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
+                                    expected_since=None, expected_until=TS.ge(ts[-1]), expected_limit=count)
 
         # after an update, the 'next' page should now contain only the updated resource
 
@@ -866,14 +894,14 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.do_test_paged_response(test, response,
                                     expected_ids=[ids[1]],
-                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
+                                    expected_since=TS.upper(ts[-1]), expected_until=None, expected_limit=count)
 
         # and what was the 'current' page should now contain only the unchanged resources
 
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.do_test_paged_response(test, response,
                                     expected_ids=[ids[0], ids[2]],
-                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
+                                    expected_since=None, expected_until=TS.upper(ts[-1]), expected_limit=count)
 
         # after the other resources are also updated, what was the 'current' page should now be empty
 
@@ -883,14 +911,14 @@ class IS0402Test(GenericTest):
         response = self.do_paged_request(description=description, limit=count, until=ts[-1])
         self.do_test_paged_response(test, response,
                                     expected_ids=[],
-                                    expected_since=None, expected_until=ts[-1], expected_limit=count)
+                                    expected_since=None, expected_until=TS.upper(ts[-1]), expected_limit=count)
 
         # and what was the 'next' page should now contain all the resources in the update order
 
         response = self.do_paged_request(description=description, limit=count, since=ts[-1])
         self.do_test_paged_response(test, response,
                                     expected_ids=[ids[1], ids[2], ids[0]],
-                                    expected_since=ts[-1], expected_until=None, expected_limit=count)
+                                    expected_since=TS.upper(ts[-1]), expected_until=None, expected_limit=count)
 
         return test.PASS()
 
@@ -2367,7 +2395,7 @@ class IS0402Test(GenericTest):
         """
         Perform a POST request on the Registration API to create or update a resource registration.
         Raises an NMOSTestException when the response is not as expected.
-        Otherwise, returns value of Location header for successful requests
+        Otherwise, on success, returns values of the Location header and X-Paging-Timestamp debugging header.
         """
 
         if not data:
@@ -2389,6 +2417,7 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
 
         location = None
+        timestamp = None
 
         wrong_codes = [_ for _ in [200, 201] if _ not in codes]
 
@@ -2398,6 +2427,9 @@ class IS0402Test(GenericTest):
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: "
                                                "{} {}".format(r.status_code, r.text)))
         elif r.status_code in [200, 201]:
+            # X-Paging-Timestamp is a response header that implementations may include to aid debugging
+            if "X-Paging-Timestamp" in r.headers:
+                timestamp = r.headers["X-Paging-Timestamp"]
             if "Location" not in r.headers:
                 raise NMOSTestException(fail(test, "Registration API failed to return a 'Location' response header"))
             path = "{}resource/{}s/{}".format(urlparse(reg_url).path, type, data["id"])
@@ -2420,7 +2452,7 @@ class IS0402Test(GenericTest):
             else:
                 raise NMOSTestException(test.FAIL(message))
 
-        return location
+        return location, timestamp
 
     def post_super_resources_and_resource(self, test, type, description, fail=Test.FAIL):
         """
@@ -2469,3 +2501,93 @@ class IS0402Test(GenericTest):
         api = self.apis[REG_API_KEY]
         if not self.is04_reg_utils.compare_api_version(api["version"], "v2.0") < 0:
             raise NMOSTestException(test.FAIL("Version > 1 not supported yet."))
+
+
+class TS:
+    """
+    Timestamp Specifications represented as a tuple of TAI values, the first and last of which indicate the
+    lower and upper bounds, either of which may be None to indicate the range continues in that direction.
+    A middle element, when present and not None, indicates the expected value.
+    """
+
+    # Factory functions
+
+    @staticmethod
+    def required(required_TAI):
+        return (required_TAI,)
+
+    @staticmethod
+    def recommended(lower_TAI, recommended_TAI, upper_TAI):
+        return (lower_TAI, recommended_TAI, upper_TAI)
+
+    @staticmethod
+    def permitted(lower_TAI, upper_TAI):
+        return (lower_TAI, upper_TAI)
+
+    @staticmethod
+    def epoch():
+        return TS.required("0:0")
+
+    # Accessors
+
+    @staticmethod
+    def lower_TAI(ts):
+        return ts[0]
+
+    @staticmethod
+    def recommended_TAI(ts):
+        return ts[len(ts) // 2] if 1 == len(ts) % 2 else None
+
+    @staticmethod
+    def upper_TAI(ts):
+        return ts[-1]
+
+    # Transformations
+
+    @staticmethod
+    def lower(ts):
+        return TS.required(TS.lower_TAI(ts))
+
+    @staticmethod
+    def upper(ts):
+        return TS.required(TS.upper_TAI(ts))
+
+    @staticmethod
+    def lt(ts):
+        return (None, TS.lower_TAI(ts))
+
+    @staticmethod
+    def le(ts):
+        return (None, TS.upper_TAI(ts))
+
+    @staticmethod
+    def gt(ts):
+        return (TS.upper_TAI(ts), None)
+
+    @staticmethod
+    def ge(ts):
+        return (TS.lower_TAI(ts), None)
+
+    @staticmethod
+    def extended(lower, recommended, upper):
+        return (
+            TS.lower_TAI(lower) if lower is not None else None,
+            TS.recommended_TAI(recommended) if recommended is not None else None,
+            TS.upper_TAI(upper) if upper is not None else None
+        )
+
+    # Operations
+
+    @staticmethod
+    def compare(ts, TAI):
+        cmp = IS04Utils.compare_resource_version
+        return ts is None or \
+            ((TS.lower_TAI(ts) is None or cmp(TS.lower_TAI(ts), TAI) <= 0) and
+             (TS.upper_TAI(ts) is None or cmp(TS.upper_TAI(ts), TAI) >= 0))
+
+    @staticmethod
+    def str(ts):
+        if TS.recommended_TAI(ts) is None:
+            return "{} - {}".format(TS.lower_TAI(ts) or '', TS.upper_TAI(ts) or '')
+        else:
+            return "{} -({})- {}".format(TS.lower_TAI(ts) or '', TS.recommended_TAI(ts), TS.upper_TAI(ts) or '')

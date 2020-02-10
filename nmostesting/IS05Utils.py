@@ -19,8 +19,12 @@ import time
 
 from random import randint
 from . import TestHelper
-from .NMOSUtils import NMOSUtils, IMMEDIATE_ACTIVATION, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
+from .NMOSUtils import NMOSUtils
 from . import Config as CONFIG
+
+IMMEDIATE_ACTIVATION = 'activate_immediate'
+SCHEDULED_ABSOLUTE_ACTIVATION = 'activate_scheduled_absolute'
+SCHEDULED_RELATIVE_ACTIVATION = 'activate_scheduled_relative'
 
 
 class IS05Utils(NMOSUtils):

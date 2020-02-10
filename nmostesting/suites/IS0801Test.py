@@ -17,7 +17,7 @@ import copy
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..TestHelper import compare_json
-from ..NMOSUtils import NMOSUtils, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
+from ..IS05Utils import IS05Utils, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
 from .is08.action import Action
 from .is08.activation import Activation
 from .is08.inputs import getInputList
@@ -97,7 +97,7 @@ class IS0801Test(GenericTest):
         """Absolute offset activations can be called on the API"""
         globalConfig.test = test
 
-        timestamp = NMOSUtils(globalConfig.apiUrl).get_TAI_time(offset=2.0)
+        timestamp = IS05Utils.get_TAI_time(offset=2.0)
         self.check_delayed_activation(timestamp, SCHEDULED_ABSOLUTE_ACTIVATION)
 
         return test.PASS()
