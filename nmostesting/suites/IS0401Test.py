@@ -1157,7 +1157,8 @@ class IS0401Test(GenericTest):
             return test.UNCLEAR("Node 'interfaces' is empty")
         elif attached_network_device_warn:
             return test.OPTIONAL("One or more Node 'interfaces' used by a Sender or Receiver is missing "
-                                 "'attached_network_device' info")
+                                 "'attached_network_device' info",
+                                 NMOS_WIKI_URL + "/IS-04#nodes-interface-neighbour-information")
 
         return test.PASS()
 
