@@ -216,53 +216,38 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_11_02(self, test):
-        """Patched 'auto' values are translated on '/active' endpoint for all RTP senders"""
-        rtpSenders = list()
-        for sender in self.senders:
-            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                rtpSenders.append(sender)
-        for rtpSender in rtpSenders:
-            data = {
-                "transport_params": [
-                    {
-                        "source_ip": "auto",
-                        "destination_ip": "auto",
-                        "source_port": "auto",
-                        "destination_port": "auto"
-                    }
-                ],
-                "activation": {
-                    "mode": "activate_immediate"
-                }
-            }
-            dest_staged = "single/senders/" + rtpSender + "/staged/"
-            dest_active = "single/senders/" + rtpSender + "/active/"
-            valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", dest_staged, data=data)
-            if valid:
-                if len(response["transport_params"]) >= 1:
-                    valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", dest_active + "/")
-                    if valid2:
-                        try:
-                            if response2["transport_params"][0]["source_ip"] != "auto" and \
-                                    response2["transport_params"][0]["destination_ip"] != "auto":
-                                pass
-                            else:
-                                return test.FAIL("Patched 'auto' for 'interface_ip' did not translate on "
-                                                 "'/active' endpoint")
-                        except KeyError:
-                            return test.FAIL("Did not find interface_ip in response from {}"
-                                             .format(dest_active))
-                    else:
-                        return test.FAIL(response2)
-                else:
-                    return test.UNCLEAR("Not tested. No rtp ")
-            else:
-                return test.FAIL(response)
-
-        if len(rtpSenders) > 0:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        """Patched 'auto' values are translated on '/active' endpoint for all senders"""
+        rtpGeneralAutoParams = [
+            'source_ip',
+            'destination_ip',
+            'source_port',
+            'destination_port'
+        ]
+        fecAutoParams = [
+            'fec_destination_ip',
+            'fec1D_destination_port',
+            'fec2D_destination_port',
+            'fec1D_source_port',
+            'fec2D_source_port'
+        ]
+        rtcpAutoParams = [
+            'rtcp_destination_ip',
+            'rtcp_destination_port',
+            'rtcp_source_port'
+        ]
+        rtpAutoParams = rtpGeneralAutoParams + fecAutoParams + rtcpAutoParams
+        websocketAutoParams = [
+            'connection_uri',
+            'connection_authorization'
+        ]
+        mqttAutoParams = [
+            'destination_host',
+            'destination_port',
+            'broker_protocol',
+            'broker_authorization'
+        ]
+        autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
+        return self.patchAutoParams(test, self.senders, "senders", autoParams)
 
     def test_12(self, test):
         """Receiver are using valid combination of parameters"""
@@ -333,49 +318,33 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_12_02(self, test):
-        """Patched 'auto' values are translated on '/active' endpoint for all RTP receivers"""
-        rtpReceivers = list()
-        for receiver in self.receivers:
-            if self.transport_types[receiver] == "urn:x-nmos:transport:rtp":
-                rtpReceivers.append(receiver)
-        for rtpReceiver in rtpReceivers:
-            data = {
-                "transport_params": [
-                    {
-                        "interface_ip": "auto"
-                    }
-                ],
-                "activation": {
-                    "mode": "activate_immediate"
-                }
-            }
-            dest_staged = "single/receivers/" + rtpReceiver + "/staged/"
-            dest_active = "single/receivers/" + rtpReceiver + "/active/"
-            valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", dest_staged, data=data)
-            if valid:
-                if len(response["transport_params"]) >= 1:
-                    valid2, response2 = self.is05_utils.checkCleanRequestJSON("GET", dest_active + "/")
-                    if valid2:
-                        try:
-                            if response2["transport_params"][0]["interface_ip"] != "auto":
-                                pass
-                            else:
-                                return test.FAIL("Patched 'auto' for 'interface_ip' did not translate on "
-                                                 "'/active' endpoint")
-                        except KeyError:
-                            return test.FAIL("Did not find interface_ip in response from {}"
-                                             .format(dest_active))
-                    else:
-                        return test.FAIL(response2)
-                else:
-                    return test.UNCLEAR("Not tested. No rtp ")
-            else:
-                return test.FAIL(response)
-
-        if len(rtpReceivers) > 0:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No resources found.")
+        """Patched 'auto' values are translated on '/active' endpoint for all receivers"""
+        rtpGeneralAutoParams = [
+            'interface_ip',
+            'destination_port'
+            ]
+        fecAutoParams = [
+            'fec_destination_ip',
+            'fec_mode',
+            'fec1D_destination_port',
+            'fec2D_destination_port'
+        ]
+        rtcpAutoParams = [
+            'rtcp_destination_ip',
+            'rtcp_destination_port'
+        ]
+        rtpAutoParams = rtpGeneralAutoParams + fecAutoParams + rtcpAutoParams
+        websocketAutoParams = [
+            'connection_authorization'
+        ]
+        mqttAutoParams = [
+            'source_host',
+            'source_port',
+            'broker_protocol',
+            'broker_authorization'
+        ]
+        autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
+        return self.patchAutoParams(test, self.receivers, "receivers", autoParams)
 
     def test_13(self, test):
         """Return of /single/senders/{senderId}/staged/ meets the schema"""
@@ -1144,3 +1113,59 @@ class IS0501Test(GenericTest):
             return self.check_response(schema, "GET", response)
         else:
             return False, "Invalid response while getting data: " + response
+
+    def patchAutoParams(self, test, resources, resourceType, autoParams):
+        """
+        Patch all params to 'auto' from autoParams list to all resources (id-list) of type resourceType
+        ("senders" / "receivers") and validate response
+        """
+        if len(resources) > 0:
+            for resource in resources:
+                dest_staged = "single/" + resourceType + "/" + resource + "/staged/"
+                dest_active = "single/" + resourceType + "/" + resource + "/active/"
+
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest_staged)
+                if valid:
+                    patchData = {
+                        "transport_params": list(),
+                        "activation": {
+                            "mode": "activate_immediate"
+                        }
+                    }
+                    try:
+                        for leg in response["transport_params"]:
+                            patchDataLeg = {}
+                            for param in leg:
+                                if param in autoParams:
+                                    patchDataLeg[param] = "auto"
+                            patchData["transport_params"].append(patchDataLeg)
+                    except KeyError:
+                        return test.FAIL("Did not find 'transport_params' in response from {}"
+                                         .format(dest_staged))
+
+                    valid_patch, response_patch = self.is05_utils.checkCleanRequestJSON("PATCH",
+                                                                                        dest_staged,
+                                                                                        data=patchData)
+                    if valid_patch:
+                        pass
+                    else:
+                        return test.FAIL(response_patch)
+
+                    valid_active, response_active = self.is05_utils.checkCleanRequestJSON("GET", dest_active)
+                    if valid_active:
+                        try:
+                            for leg in response_active["transport_params"]:
+                                for param in leg:
+                                    if param in autoParams and leg[param] == "auto":
+                                        return test.FAIL("Patched 'auto' for '{}' did not translate on  \
+                                                        '/active' endpoint".format(param))
+                        except KeyError:
+                            return test.FAIL("Did not find 'transport_params' in response from {}"
+                                             .format(dest_active))
+                    else:
+                        return test.FAIL(response_active)
+                else:
+                    return test.FAIL(response)
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
