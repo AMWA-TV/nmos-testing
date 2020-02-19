@@ -73,12 +73,12 @@ def get_highest_version(data):
 
 
 def perform_test(test_suite_url, data):
-    #response = requests.post(test_suite_url + '/api', json=data)
+    response = requests.post(test_suite_url + '/api', json=data)
     print(f'{data}')
 
-    # if response.status_code not in [200]:
-    #     print(f'Request: {url} response HTTP {response.status_code}')
-    #     raise Exception
+    if response.status_code not in [200]:
+        print(f'Request: {test_suite_url} response HTTP {response.status_code}')
+        raise Exception
 
     # print(response.json())
 
@@ -201,41 +201,11 @@ def print_nmos_api_data(api_name, data):
         print(f"    Port: {x.get('port')}  Version: {x.get('version')} Selector: {x.get('selector')} href: {x.get('href')}")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--test", required=True, help="URL of the testing tool, eg. http://localhost:3000")
-    parser.add_argument("--ip", required=True, help="IP address or Hostname of the Node API of DuT")
-    parser.add_argument("--port", type=int, default=80, help="Port number of IS-04 API of DuT")
-    parser.add_argument("--version", default="v1.2", help="Version of IS-04 API of DuT")
-    args = parser.parse_args()
-
-    nmosApis = []
-    is04NodeData = [{
-        'ip': args.ip,
-        'port': args.port,
-        'version': args.version
-    }]
+def automated_discovery(ip, port, version='v1.2'):
     is05Data = []
     is08Data = []
-    node_id = None
-    senders = []
-    receivers = []
-    mac_addresses = []
 
-    base_url = f"http://{is04NodeData[0]['ip']}:{is04NodeData[0]['port']}/x-nmos/node/{is04NodeData[0]['version']}/"
-
-    # Self
-    url = base_url + "self/"
-    response = make_request(url)
-    print(response)
-    mac_addresses = response.json()["interfaces"]
-    for address in mac_addresses:
-        if type(address["port_id"]) == str:
-            address["port_id"] = address["port_id"].replace("-", ":")
-        if type(address["chassis_id"]) == str:
-            address["chassis_id"] = address["chassis_id"].replace("-", ":")
-    node_id = response.json()["id"]
-    print("Host: {}".format(response.json()["description"]))
+    base_url = f"http://{ip}:{port}/x-nmos/node/{version}/"
 
     # Devices. We assume that the same IP is used for all IS-05/08 instances
     url = base_url + "devices/"
@@ -261,14 +231,36 @@ if __name__ == "__main__":
                     'selector': selector
                 })
 
+    return is05Data, is08Data
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test", required=True, help="URL of the testing tool, eg. http://localhost:5000")
+    parser.add_argument("--ip", required=True, help="IP address or Hostname of the Node API of DuT")
+    parser.add_argument("--port", type=int, default=80, help="Port number of IS-04 API of DuT")
+    parser.add_argument("--version", default="v1.2", help="Version of IS-04 API of DuT")
+    args = parser.parse_args()
+
+    nmosApis = []
+    is04NodeData = [{
+        'ip': args.ip,
+        'port': args.port,
+        'version': args.version
+    }]
+    is05Data = []
+    is08Data = []
+    node_id = None
+    senders = []
+    receivers = []
+    mac_addresses = []
+
+    is05Data, is08Data = automated_discovery(is04NodeData[0]['ip'], is04NodeData[0]['port'], is04NodeData[0]['version'])
+
     # Display Data
     print_nmos_api_data('IS-04', is04NodeData)
     print_nmos_api_data('IS-05', is05Data)
     print_nmos_api_data('IS-08', is08Data)
-
-    print(f"Node ID: {node_id}")
-    print("MAC Addresses:")
-    pprint.pprint(mac_addresses)
 
     run_all_tests(args.test, is04NodeData, is05Data, is08Data)
 
