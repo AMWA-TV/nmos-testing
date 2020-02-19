@@ -225,9 +225,19 @@ class IS0501Test(GenericTest):
 
             if len(rtpSenders) > 0:
                 for rtpSender in rtpSenders:
-                    data = {"transport_params": [{"source_ip": "auto", "destination_ip": "auto", \
-                                                "source_port": "auto", "destination_port": "auto"}], \
-                            "activation": {"mode": "activate_immediate"}}
+                    data = {
+                        "transport_params": [
+                            {
+                                "source_ip": "auto",
+                                "destination_ip": "auto",
+                                "source_port": "auto",
+                                "destination_port": "auto"
+                            }
+                        ],
+                        "activation": {
+                            "mode": "activate_immediate"
+                        }
+                    }
                     dest_staged = "single/senders/" + rtpSender + "/staged/"
                     dest_active = "single/senders/" + rtpSender + "/active/"
                     valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", dest_staged, data=data)
@@ -237,14 +247,14 @@ class IS0501Test(GenericTest):
                             if valid2:
                                 try:
                                     if response2["transport_params"][0]["source_ip"] != "auto" and \
-                                        response2["transport_params"][0]["destination_ip"] != "auto":
-                                         pass
+                                     response2["transport_params"][0]["destination_ip"] != "auto":
+                                        pass
                                     else:
                                         return test.FAIL("Patched 'auto' for 'interface_ip' did not \
                                             translate on '/active' endpoint")
                                 except KeyError:
-                                    return test.FAIL("Did not find interface_ip in response from {}" \
-                                        .format(dest_active))
+                                    return test.FAIL("Did not find interface_ip in response from {}"
+                                                     .format(dest_active))
                             else:
                                 return test.FAIL(response2)
                         else:
@@ -299,8 +309,8 @@ class IS0501Test(GenericTest):
                 except IndexError:
                     return test.FAIL("Expected an array from {}, got {}".format(dest, response))
                 except AttributeError:
-                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}" \
-                        .format(dest, response))
+                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}"
+                                     .format(dest, response))
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
@@ -332,8 +342,16 @@ class IS0501Test(GenericTest):
             if len(rtpReceivers) > 0:
                 for rtpReceiver in rtpReceivers:
                     if self.transport_types[rtpReceiver] == "urn:x-nmos:transport:rtp":
-                        data = {"transport_params": [{"interface_ip": "auto"}], \
-                            "activation": {"mode": "activate_immediate"}}
+                        data = {
+                            "transport_params": [
+                                {
+                                    "interface_ip": "auto"
+                                }
+                            ],
+                            "activation": {
+                                "mode": "activate_immediate"
+                            }
+                        }
                         dest_staged = "single/receivers/" + rtpReceiver + "/staged/"
                         dest_active = "single/receivers/" + rtpReceiver + "/active/"
                         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", dest_staged, data=data)
@@ -348,8 +366,8 @@ class IS0501Test(GenericTest):
                                             return test.FAIL("Patched 'auto' for 'interface_ip' \
                                                 did not translate on '/active' endpoint")
                                     except KeyError:
-                                        return test.FAIL("Did not find interface_ip in response from {}" \
-                                            .format(dest_active))
+                                        return test.FAIL("Did not find interface_ip in response from {}"
+                                                         .format(dest_active))
                                 else:
                                     return test.FAIL(response2)
                             else:
