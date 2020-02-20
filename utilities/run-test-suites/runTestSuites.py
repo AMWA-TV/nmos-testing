@@ -163,7 +163,7 @@ def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_i
         "suite": "IS-05-02",
         "host": [node_ip, connection_ip],
         "port": [node_port, connection_port],
-        "version": [node_version, connection_port]
+        "version": [node_version, connection_version]
     }
 
     try:
