@@ -19,8 +19,15 @@ import requests
 from urllib.parse import urlparse
 import re
 import json
-from datetime import datetime, timezone
 from pathlib import Path
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+from gsheetsImport.resultsImporter import gsheets_import
+
+
+SCOPES = ['https://spreadsheets.google.com/feeds',
+          'https://www.googleapis.com/auth/drive']
 
 
 def make_request(url):
@@ -96,7 +103,13 @@ def is_04_01_test(test_suite_url, node_ip, node_port, node_version):
         "port": [node_port],
         "version": [node_version]
     }
-    return perform_test(test_suite_url, body)
+
+    try:
+        results = perform_test(test_suite_url, body)
+        return results
+    except Exception:
+        print("ERROR: is_04_01_test failed")
+        return None
 
 
 def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query_port, query_version):
@@ -111,7 +124,13 @@ def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query
         "port": [reg_port, query_port],
         "version": [reg_version, query_port]
     }
-    return perform_test(test_suite_url, body)
+
+    try:
+        results = perform_test(test_suite_url, body)
+        return results
+    except Exception:
+        print("ERROR: is_04_02_test failed")
+        return None
 
 
 def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_version):
@@ -125,7 +144,13 @@ def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_ver
         "port": [connection_port],
         "version": [connection_version]
     }
-    return perform_test(test_suite_url, body)
+
+    try:
+        results = perform_test(test_suite_url, body)
+        return results
+    except Exception:
+        print("ERROR: is_05_01_test failed")
+        return None
 
 
 def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_ip, connection_port, connection_version):
@@ -140,7 +165,13 @@ def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_i
         "port": [node_port, connection_port],
         "version": [node_version, connection_port]
     }
-    return perform_test(test_suite_url, body)
+
+    try:
+        results = perform_test(test_suite_url, body)
+        return results
+    except Exception:
+        print("ERROR: is_05_02_test failed")
+        return None
 
 
 def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, selector):
@@ -155,7 +186,13 @@ def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, select
         "version": [ch_map_version],
         "selector": selector
     }
-    return perform_test(test_suite_url, body)
+
+    try:
+        results = perform_test(test_suite_url, body)
+        return results
+    except Exception:
+        print("ERROR: is_08_01_test failed")
+        return None
 
 
 def is_08_02_test(test_suite_url, node_ip, node_port, node_version, ch_map_ip, ch_map_port, ch_map_version, selector):
@@ -171,7 +208,13 @@ def is_08_02_test(test_suite_url, node_ip, node_port, node_version, ch_map_ip, c
         "version": [node_version, ch_map_port],
         "selector": selector
     }
-    return perform_test(test_suite_url, body)
+
+    try:
+        results = perform_test(test_suite_url, body)
+        return results
+    except Exception:
+        print("ERROR: is_08_02_test failed")
+        return None
 
 
 def save_test_results_to_file(results, name, folder):
@@ -186,21 +229,46 @@ def save_test_results_to_file(results, name, folder):
 
     Path(folder).mkdir(parents=True, exist_ok=True)
 
-    date = int(datetime.now(timezone.utc).timestamp())
-
-    filename = f"{folder}{name}_{results.get('suite')}_{date}.json"
+    filename = f"{folder}{name}_{results.get('suite')}_{results.get('timestamp')}.json"
 
     with open(filename, 'w') as outfile:
         json.dump(results, outfile)
 
 
-def upload_test_results(results, name, worksheet):
+def upload_test_results(results, name, sheet, credentials):
     """Upload the test results to the the google sheet"""
 
-    filename = f"{name}_{results.get('suite')}_{date}.json"
+    if not sheet:
+        print('ERROR: No worksheet specified')
+        return
+    if not results:
+        print('ERROR: No results specified')
+        return
+
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(credentials, SCOPES)
+    gcloud = gspread.authorize(credentials)
+
+    spreadsheet = gcloud.open_by_url(sheet)
+
+    try:
+        worksheet = spreadsheet.worksheet(results["suite"])
+    except gspread.exceptions.WorksheetNotFound:
+        print(" * ERROR: Worksheet {} not found".format(results["suite"]))
+        return
+
+    filename = f"{name}_{results.get('suite')}_{results.get('timestamp')}.json"
+
+    gsheets_import(results, worksheet, filename)
 
 
-def run_all_tests(testSuiteUrl, is04NodeData, is05Data, is08Data, deviceName=None, resultsFolder=None, resultsSheet=None):
+def run_all_tests(testSuiteUrl,
+                  is04NodeData,
+                  is05Data,
+                  is08Data,
+                  deviceName=None,
+                  resultsFolder=None,
+                  resultsSheet=None,
+                  credentials=None):
 
     # Find highest versions of each api
     is04NodeData = get_highest_version(is04NodeData)
@@ -210,20 +278,25 @@ def run_all_tests(testSuiteUrl, is04NodeData, is05Data, is08Data, deviceName=Non
     if is04NodeData:
         results = is_04_01_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'])
         save_test_results_to_file(results, deviceName, resultsFolder)
+        upload_test_results(results, deviceName, resultsSheet, credentials)
     if is05Data:
         results = is_05_01_test(testSuiteUrl, is05Data['ip'], is05Data['port'], is05Data['version'])
         save_test_results_to_file(results, deviceName, resultsFolder)
+        upload_test_results(results, deviceName, resultsSheet, credentials)
     if is04NodeData and is05Data:
         results = is_05_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
                                 is05Data['ip'], is05Data['port'], is05Data['version'])
         save_test_results_to_file(results, deviceName, resultsFolder)
+        upload_test_results(results, deviceName, resultsSheet, credentials)
     if is08Data:
         results = is_08_01_test(testSuiteUrl, is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
         save_test_results_to_file(results, deviceName, resultsFolder)
+        upload_test_results(results, deviceName, resultsSheet, credentials)
     if is04NodeData and is08Data:
         results = is_08_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
                                 is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
         save_test_results_to_file(results, deviceName, resultsFolder)
+        upload_test_results(results, deviceName, resultsSheet, credentials)
 
 
 def print_nmos_api_data(api_name, data):
@@ -307,9 +380,10 @@ if __name__ == "__main__":
     }]
     is05Data = []
     is08Data = []
-    resultsFolder = "~/Downloads/"
+    resultsFolder = "test/"
     resultsSheet = None
     deviceName = "TestDevice"
+    credentials = None
 
     if args.config:
         print(args.config)
@@ -326,6 +400,7 @@ if __name__ == "__main__":
         if config.get('device-name'):
             deviceName = config.get('device-name')
             print(f'Device Name: {deviceName}')
+        credentials = config.get('credentials', 'credentials.json')
     else:
         is05Data, is08Data = automated_discovery(is04NodeData[0]['ip'], is04NodeData[0]['port'], is04NodeData[0]['version'])
 
@@ -334,4 +409,4 @@ if __name__ == "__main__":
     print_nmos_api_data('IS-05', is05Data)
     print_nmos_api_data('IS-08', is08Data)
 
-    run_all_tests(args.test, is04NodeData, is05Data, is08Data, deviceName, resultsFolder, resultsSheet)
+    run_all_tests(args.test, is04NodeData, is05Data, is08Data, deviceName, resultsFolder, resultsSheet, credentials)

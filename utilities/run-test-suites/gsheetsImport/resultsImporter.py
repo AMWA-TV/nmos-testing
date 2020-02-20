@@ -25,35 +25,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 SCOPES = ['https://spreadsheets.google.com/feeds',
           'https://www.googleapis.com/auth/drive']
 
-# TEST_STATES = ["Pass", "Warning", "Fail", "Manual", "Not Applicable", "Not Implemented", "Test Disabled",
-#                "Could Not Test"]
-# Reorder the values to group by severity
+
 TEST_STATES = ["Pass", "Fail", "Warning", "Not Implemented", "Test Disabled", "Could Not Test", "Manual",
                "Not Applicable"]
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--json", required=True)
-    parser.add_argument("--sheet", required=True)
-    parser.add_argument("--credentials", default="credentials.json")
-    parser.add_argument("--start_col", default="1", type=int)
-    args = parser.parse_args()
-
-    credentials = ServiceAccountCredentials.from_json_keyfile_name(args.credentials, SCOPES)
-    gcloud = gspread.authorize(credentials)
-
-    spreadsheet = gcloud.open_by_url(args.sheet)
-
-    with open(args.json) as json_file:
-        test_results = json.load(json_file)
-
-    try:
-        worksheet = spreadsheet.worksheet(test_results["suite"])
-    except gspread.exceptions.WorksheetNotFound:
-        print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
-        # could add_worksheet?
-        sys.exit(1)
+def gsheets_import(test_results, worksheet, filename, start_col=1):
+    """Upload results data to spreadsheet"""
 
     worksheet_data = worksheet.get_all_values()
     populated_rows = len(worksheet_data)
@@ -64,7 +42,7 @@ def main():
         current_row = populated_rows+1
 
     # Columns before start_col reserved for manually entered details
-    start_col = max(1, args.start_col)
+    start_col = max(1, start_col)
 
     # Columns for Filename, URLs Tested, Timestamp, Test Suite
     metadata_cols = 4
@@ -94,7 +72,7 @@ def main():
     # Columns for Filename, URLs Tested, Timestamp, Test Suite
     current_index = start_col-1  # list is 0-indexed whereas rows/cols are 1-indexed
     cell_list_names[current_index].value = "Filename"
-    cell_list_results[current_index].value = args.json
+    cell_list_results[current_index].value = filename
     current_index += 1
     cell_list_names[current_index].value = "URLs Tested"
     try:
@@ -152,6 +130,32 @@ def main():
     worksheet.update_cells(cell_list_names)
     # 'USER_ENTERED' allows formulae to be used
     worksheet.update_cells(cell_list_results, value_input_option='USER_ENTERED')
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json", required=True)
+    parser.add_argument("--sheet", required=True)
+    parser.add_argument("--credentials", default="credentials.json")
+    parser.add_argument("--start_col", default="1", type=int)
+    args = parser.parse_args()
+
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(args.credentials, SCOPES)
+    gcloud = gspread.authorize(credentials)
+
+    spreadsheet = gcloud.open_by_url(args.sheet)
+
+    with open(args.json) as json_file:
+        test_results = json.load(json_file)
+
+    try:
+        worksheet = spreadsheet.worksheet(test_results["suite"])
+    except gspread.exceptions.WorksheetNotFound:
+        print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
+        # could add_worksheet?
+        sys.exit(1)
+
+    gsheets_import(test_results, worksheet, args.json, args.start_col)
 
 
 if __name__ == '__main__':
