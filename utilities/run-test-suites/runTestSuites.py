@@ -17,8 +17,10 @@
 import argparse
 import requests
 from urllib.parse import urlparse
-import pprint
 import re
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 
 
 def make_request(url):
@@ -80,9 +82,7 @@ def perform_test(test_suite_url, data):
         print(f'Request: {test_suite_url} response HTTP {response.status_code}')
         raise Exception
 
-    # print(response.json())
-
-    return response
+    return response.json()
 
 
 def is_04_01_test(test_suite_url, node_ip, node_port, node_version):
@@ -96,7 +96,7 @@ def is_04_01_test(test_suite_url, node_ip, node_port, node_version):
         "port": [node_port],
         "version": [node_version]
     }
-    perform_test(test_suite_url, body)
+    return perform_test(test_suite_url, body)
 
 
 def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query_port, query_version):
@@ -111,7 +111,7 @@ def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query
         "port": [reg_port, query_port],
         "version": [reg_version, query_port]
     }
-    perform_test(test_suite_url, body)
+    return perform_test(test_suite_url, body)
 
 
 def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_version):
@@ -125,7 +125,7 @@ def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_ver
         "port": [connection_port],
         "version": [connection_version]
     }
-    perform_test(test_suite_url, body)
+    return perform_test(test_suite_url, body)
 
 
 def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_ip, connection_port, connection_version):
@@ -140,7 +140,7 @@ def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_i
         "port": [node_port, connection_port],
         "version": [node_version, connection_port]
     }
-    perform_test(test_suite_url, body)
+    return perform_test(test_suite_url, body)
 
 
 def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, selector):
@@ -155,7 +155,7 @@ def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, select
         "version": [ch_map_version],
         "selector": selector
     }
-    perform_test(test_suite_url, body)
+    return perform_test(test_suite_url, body)
 
 
 def is_08_02_test(test_suite_url, node_ip, node_port, node_version, ch_map_ip, ch_map_port, ch_map_version, selector):
@@ -171,10 +171,36 @@ def is_08_02_test(test_suite_url, node_ip, node_port, node_version, ch_map_ip, c
         "version": [node_version, ch_map_port],
         "selector": selector
     }
-    perform_test(test_suite_url, body)
+    return perform_test(test_suite_url, body)
 
 
-def run_all_tests(testSuiteUrl, is04NodeData, is05Data, is08Data):
+def save_test_results_to_file(results, name, folder):
+    """Save the JSON test results to the folder"""
+
+    if not folder:
+        print('ERROR: No folder specified')
+        return
+    if not results:
+        print('ERROR: No results specified')
+        return
+
+    Path(folder).mkdir(parents=True, exist_ok=True)
+
+    date = int(datetime.now(timezone.utc).timestamp())
+
+    filename = f"{folder}{name}_{results.get('suite')}_{date}.json"
+
+    with open(filename, 'w') as outfile:
+        json.dump(results, outfile)
+
+
+def upload_test_results(results, name, worksheet):
+    """Upload the test results to the the google sheet"""
+
+    filename = f"{name}_{results.get('suite')}_{date}.json"
+
+
+def run_all_tests(testSuiteUrl, is04NodeData, is05Data, is08Data, deviceName=None, resultsFolder=None, resultsSheet=None):
 
     # Find highest versions of each api
     is04NodeData = get_highest_version(is04NodeData)
@@ -182,17 +208,22 @@ def run_all_tests(testSuiteUrl, is04NodeData, is05Data, is08Data):
     is08Data = get_highest_version(is08Data)
 
     if is04NodeData:
-        is_04_01_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'])
+        results = is_04_01_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'])
+        save_test_results_to_file(results, deviceName, resultsFolder)
     if is05Data:
-        is_05_01_test(testSuiteUrl, is05Data['ip'], is05Data['port'], is05Data['version'])
+        results = is_05_01_test(testSuiteUrl, is05Data['ip'], is05Data['port'], is05Data['version'])
+        save_test_results_to_file(results, deviceName, resultsFolder)
     if is04NodeData and is05Data:
-        is_05_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
-                      is05Data['ip'], is05Data['port'], is05Data['version'])
+        results = is_05_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
+                                is05Data['ip'], is05Data['port'], is05Data['version'])
+        save_test_results_to_file(results, deviceName, resultsFolder)
     if is08Data:
-        is_08_01_test(testSuiteUrl, is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
+        results = is_08_01_test(testSuiteUrl, is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
+        save_test_results_to_file(results, deviceName, resultsFolder)
     if is04NodeData and is08Data:
-        is_08_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
-                      is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
+        results = is_08_02_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
+                                is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
+        save_test_results_to_file(results, deviceName, resultsFolder)
 
 
 def print_nmos_api_data(api_name, data):
@@ -234,12 +265,38 @@ def automated_discovery(ip, port, version='v1.2'):
     return is05Data, is08Data
 
 
+def parse_config_data(data):
+    is05Data = []
+    is08Data = []
+
+    if data.get('is05-port'):
+        is05Data = [{
+            'ip': data.get('node-ip'),
+            'port': data.get('is05-port'),
+            'version': data.get('is05-version', 'v1.0')
+        }]
+
+    if data.get('is08-port'):
+        is08Data = [{
+            'ip': data.get('node-ip'),
+            'port': data.get('is08-port'),
+            'version': data.get('is08-version', ),
+            'selector': data.get('is08-selector', 'v1.0')
+        }]
+
+    return is05Data, is08Data
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", required=True, help="URL of the testing tool, eg. http://localhost:5000")
     parser.add_argument("--ip", required=True, help="IP address or Hostname of the Node API of DuT")
     parser.add_argument("--port", type=int, default=80, help="Port number of IS-04 API of DuT")
     parser.add_argument("--version", default="v1.2", help="Version of IS-04 API of DuT")
+
+    # Manual checking
+    parser.add_argument("--config", help="JSON string of config, defines tests to be run, NMOS API ports and versions")
+
     args = parser.parse_args()
 
     nmosApis = []
@@ -250,18 +307,31 @@ if __name__ == "__main__":
     }]
     is05Data = []
     is08Data = []
-    node_id = None
-    senders = []
-    receivers = []
-    mac_addresses = []
+    resultsFolder = "~/Downloads/"
+    resultsSheet = None
+    deviceName = "TestDevice"
 
-    is05Data, is08Data = automated_discovery(is04NodeData[0]['ip'], is04NodeData[0]['port'], is04NodeData[0]['version'])
+    if args.config:
+        print(args.config)
+        config = json.loads(args.config)
+        print(config)
+        is05Data, is08Data = parse_config_data(config)
+
+        if config.get('results-sheet'):
+            resultsSheet = config.get('results-sheet')
+            print(f'Test results will be uploaded to {resultsSheet}')
+        if config.get('results-folder'):
+            resultsFolder = config.get('results-folder')
+            print(f'Results files will be stored in: {resultsFolder}')
+        if config.get('device-name'):
+            deviceName = config.get('device-name')
+            print(f'Device Name: {deviceName}')
+    else:
+        is05Data, is08Data = automated_discovery(is04NodeData[0]['ip'], is04NodeData[0]['port'], is04NodeData[0]['version'])
 
     # Display Data
     print_nmos_api_data('IS-04', is04NodeData)
     print_nmos_api_data('IS-05', is05Data)
     print_nmos_api_data('IS-08', is08Data)
 
-    run_all_tests(args.test, is04NodeData, is05Data, is08Data)
-
-    #TODO: Upload test results to google sheet
+    run_all_tests(args.test, is04NodeData, is05Data, is08Data, deviceName, resultsFolder, resultsSheet)
