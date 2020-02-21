@@ -247,7 +247,7 @@ class IS0501Test(GenericTest):
             'broker_authorization'
         ]
         autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
-        return self.patchAutoParams(test, self.senders, "senders", autoParams)
+        return self.patch_auto_params(test, self.senders, "senders", autoParams)
 
     def test_12(self, test):
         """Receiver are using valid combination of parameters"""
@@ -344,7 +344,7 @@ class IS0501Test(GenericTest):
             'broker_authorization'
         ]
         autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
-        return self.patchAutoParams(test, self.receivers, "receivers", autoParams)
+        return self.patch_auto_params(test, self.receivers, "receivers", autoParams)
 
     def test_13(self, test):
         """Return of /single/senders/{senderId}/staged/ meets the schema"""
@@ -1114,7 +1114,7 @@ class IS0501Test(GenericTest):
         else:
             return False, "Invalid response while getting data: " + response
 
-    def patchAutoParams(self, test, resources, resourceType, autoParams):
+    def patch_auto_params(self, test, resources, resourceType, autoParams):
         """
         Patch all params to 'auto' from autoParams list to all resources (id-list) of type resourceType
         ("senders" / "receivers") and validate response
