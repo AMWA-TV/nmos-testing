@@ -1157,8 +1157,8 @@ class IS0501Test(GenericTest):
                             for leg in response_active["transport_params"]:
                                 for param in leg:
                                     if param in autoParams and leg[param] == "auto":
-                                        return test.FAIL("Patched 'auto' for '{}' did not translate on  \
-                                                        '/active' endpoint".format(param))
+                                        return test.FAIL("Patched 'auto' for '{}' did not translate on "
+                                                         "'/active' endpoint".format(param))
                         except KeyError:
                             return test.FAIL("Did not find 'transport_params' in response from {}"
                                              .format(dest_active))
