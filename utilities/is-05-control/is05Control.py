@@ -106,9 +106,9 @@ def configure_receiver(url, sender_id, sdp_data):
     }
 
     # Add SDP file data to request payload
-    if sdp_payload:
+    if sdp_data:
         print("Using SDP file")
-        request_payload["transport_file"] = {"data": sdp_data, "type": "application/sdp"}
+        body["transport_file"] = {"data": sdp_data, "type": "application/sdp"}
 
     send_request(url, body)
 
