@@ -92,10 +92,20 @@ def perform_test(test_suite_url, data):
     return response.json()
 
 
-def is_04_01_test(test_suite_url, node_ip, node_port, node_version):
+def is_04_01_test(test_suite_url, node_ip, node_port, node_version, test_start_delay):
     """IS-04 Node API"""
     print(f'Running test IS-04-01:')
     print(f'    Node API {node_version} {node_ip}:{node_port}')
+
+    if test_start_delay:
+        data = {
+            "DNS_SD_ADVERT_TIMEOUT": test_start_delay
+        }
+        response = requests.post(test_suite_url + '/config', json=data)
+
+        if response.status_code not in [200]:
+            print(f'Request: {test_suite_url} response HTTP {response.status_code}')
+            raise Exception
 
     body = {
         "suite": "IS-04-01",
@@ -276,7 +286,8 @@ def run_all_tests(testSuiteUrl,
     is08Data = get_highest_version(is08Data)
 
     if is04NodeData:
-        results = is_04_01_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'])
+        results = is_04_01_test(testSuiteUrl, is04NodeData['ip'], is04NodeData['port'], is04NodeData['version'],
+                                is04NodeData['test-start-delay'])
         save_test_results_to_file(results, deviceName, resultsFolder)
         upload_test_results(results, deviceName, resultsSheet, credentials)
     if is05Data:
@@ -363,7 +374,7 @@ def parse_config_data(data):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", required=True, help="URL of the testing tool, eg. http://localhost:5000")
-    parser.add_argument("--ip", required=True, help="IP address or Hostname of the Node API of DuT")
+    parser.add_argument("--ip", required=True, help="IP address or Hostname of the DuT")
     parser.add_argument("--port", type=int, default=80, help="Port number of IS-04 API of DuT")
     parser.add_argument("--version", default="v1.2", help="Version of IS-04 API of DuT")
 
@@ -376,8 +387,10 @@ if __name__ == "__main__":
     is04NodeData = [{
         'ip': args.ip,
         'port': args.port,
-        'version': args.version
+        'version': args.version,
+        'test-start-delay': 31,
     }]
+    is04NodeData = []
     is05Data = []
     is08Data = []
     resultsFolder = "test/"
@@ -390,6 +403,8 @@ if __name__ == "__main__":
         config = json.loads(args.config)
         print(config)
         is05Data, is08Data = parse_config_data(config)
+
+        is04NodeData[0]['test-start-delay'] = config.get('test-start-delay', 29)
 
         if config.get('results-sheet'):
             resultsSheet = config.get('results-sheet')
