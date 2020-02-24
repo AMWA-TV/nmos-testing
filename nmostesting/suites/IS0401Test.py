@@ -71,6 +71,8 @@ class IS0401Test(GenericTest):
                 ],
                 CONFIG.DNS_SD_ADVERT_TIMEOUT
             )
+            # Wait for a short time to allow the device to react after performing the query
+            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
     def tear_down_tests(self):
         if self.zc:
