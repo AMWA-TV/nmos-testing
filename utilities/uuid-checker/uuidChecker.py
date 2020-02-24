@@ -34,6 +34,9 @@ else:
 
 fetched_uuids = {"self": None, "devices": [], "sources": [], "flows": [],
                  "senders": [], "receivers": []}
+
+num_uuids = 0
+
 for path in fetched_uuids.keys():
     try:
         url = "http://{}:{}/x-nmos/node/{}/{}".format(args.ip, args.port, args.version, path)
@@ -41,13 +44,17 @@ for path in fetched_uuids.keys():
         if path == "self":
             print("Host: {}".format(response.json()["description"]))
             fetched_uuids[path] = response.json()["id"]
+            num_uuids = num_uuids + 1
         else:
             for resource in response.json():
                 fetched_uuids[path].append(resource["id"])
+                num_uuids = num_uuids + 1
     except Exception:
         print(" * ERROR: Unable to fetch data from {}".format(url))
 
 if first_run:
+    fetched_uuids['count'] = num_uuids
+    print("{} UUIDs found in Node".format(fetched_uuids['count']))
     with open("uuids.json", "w") as json_file:
         json.dump(fetched_uuids, json_file)
 else:
@@ -67,6 +74,9 @@ else:
                       .format(path.capitalize(), sorted(fetched_uuids[path]),
                               path.capitalize(), sorted(previous_uuids[path])))
                 test_result = False
+
+    print("{} UUIDs previously found in Node".format(previous_uuids['count']))
+    print("{} UUIDs found in Node".format(num_uuids))
 
     if test_result is True:
         print(" * TEST PASSED")
