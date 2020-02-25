@@ -101,7 +101,7 @@ def is_04_01_test(test_suite_url, node_ip, node_port, node_version, test_start_d
         data = {
             "DNS_SD_ADVERT_TIMEOUT": test_start_delay
         }
-        response = requests.post(test_suite_url + '/config', json=data)
+        response = requests.patch(test_suite_url + '/config', json=data)
 
         if response.status_code not in [200]:
             print(f'Request: {test_suite_url} response HTTP {response.status_code}')
@@ -132,7 +132,7 @@ def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query
         "suite": "IS-04-02",
         "host": [reg_ip, query_ip],
         "port": [reg_port, query_port],
-        "version": [reg_version, query_port]
+        "version": [reg_version, query_version]
     }
 
     try:
@@ -273,6 +273,7 @@ def upload_test_results(results, name, sheet, credentials):
 
 def run_all_tests(testSuiteUrl,
                   is04NodeData,
+                  is04RegistryData,
                   is05Data,
                   is08Data,
                   deviceName=None,
@@ -282,6 +283,7 @@ def run_all_tests(testSuiteUrl,
 
     # Find highest versions of each api
     is04NodeData = get_highest_version(is04NodeData)
+    is04RegistryData = is04RegistryData[0]
     is05Data = get_highest_version(is05Data)
     is08Data = get_highest_version(is08Data)
 
@@ -300,7 +302,8 @@ def run_all_tests(testSuiteUrl,
         save_test_results_to_file(results, deviceName, resultsFolder)
         upload_test_results(results, deviceName, resultsSheet, credentials)
     if is08Data:
-        results = is_08_01_test(testSuiteUrl, is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
+        results = is_08_01_test(testSuiteUrl, is08Data['ip'], is08Data['port'], is08Data['version'],
+                                is08Data.get('selector'))
         save_test_results_to_file(results, deviceName, resultsFolder)
         upload_test_results(results, deviceName, resultsSheet, credentials)
     if is04NodeData and is08Data:
@@ -308,12 +311,19 @@ def run_all_tests(testSuiteUrl,
                                 is08Data['ip'], is08Data['port'], is08Data['version'], is08Data.get('selector'))
         save_test_results_to_file(results, deviceName, resultsFolder)
         upload_test_results(results, deviceName, resultsSheet, credentials)
+    if is04RegistryData:
+        results = is_04_02_test(testSuiteUrl, is04RegistryData['ip'], is04RegistryData['reg-port'],
+                                is04RegistryData['reg-version'], is04RegistryData['ip'],
+                                is04RegistryData['query-port'], is04RegistryData['query-version'],)
+        save_test_results_to_file(results, deviceName, resultsFolder)
+        upload_test_results(results, deviceName, resultsSheet, credentials)
 
 
 def print_nmos_api_data(api_name, data):
     print(f"{api_name}:")
     for x in data:
-        print(f"    Port: {x.get('port')}  Version: {x.get('version')} Selector: {x.get('selector')} href: {x.get('href')}")
+        print(f"    Port: {x.get('port')}  Version: {x.get('version')} Selector: {x.get('selector')} "
+              f"href: {x.get('href')}")
 
 
 def automated_discovery(ip, port, version='v1.2'):
@@ -352,6 +362,7 @@ def automated_discovery(ip, port, version='v1.2'):
 def parse_config_data(data):
     is05Data = []
     is08Data = []
+    is04RegistryData = []
 
     if data.get('is05-port'):
         is05Data = [{
@@ -364,11 +375,20 @@ def parse_config_data(data):
         is08Data = [{
             'ip': data.get('node-ip'),
             'port': data.get('is08-port'),
-            'version': data.get('is08-version', ),
-            'selector': data.get('is08-selector', 'v1.0')
+            'version': data.get('is08-version', 'v1.0'),
+            'selector': data.get('is08-selector')
         }]
 
-    return is05Data, is08Data
+    if data.get('is04-reg-port'):
+        is04RegistryData = [{
+            'ip': data.get('node-ip'),
+            'reg-port': data.get('is04-reg-port'),
+            'reg-version': data.get('is04-reg-version', 'v1.2'),
+            'query-port': data.get('is04-query-port'),
+            'query-version': data.get('is04-query-version', 'v1.2'),
+        }]
+
+    return is05Data, is08Data, is04RegistryData
 
 
 if __name__ == "__main__":
@@ -390,7 +410,7 @@ if __name__ == "__main__":
         'version': args.version,
         'test-start-delay': 31,
     }]
-    is04NodeData = []
+    is04RegistryData = []
     is05Data = []
     is08Data = []
     resultsFolder = "test/"
@@ -402,9 +422,13 @@ if __name__ == "__main__":
         print(args.config)
         config = json.loads(args.config)
         print(config)
-        is05Data, is08Data = parse_config_data(config)
+        is05Data, is08Data, is04RegistryData = parse_config_data(config)
 
         is04NodeData[0]['test-start-delay'] = config.get('test-start-delay', 29)
+
+        # If testing a registry, remove Node config
+        if is04RegistryData:
+            is04NodeData = []
 
         if config.get('results-sheet'):
             resultsSheet = config.get('results-sheet')
@@ -417,11 +441,13 @@ if __name__ == "__main__":
             print(f'Device Name: {deviceName}')
         credentials = config.get('credentials', 'credentials.json')
     else:
-        is05Data, is08Data = automated_discovery(is04NodeData[0]['ip'], is04NodeData[0]['port'], is04NodeData[0]['version'])
+        is05Data, is08Data = automated_discovery(is04NodeData[0]['ip'], is04NodeData[0]['port'],
+                                                 is04NodeData[0]['version'])
 
     # Display Data
     print_nmos_api_data('IS-04', is04NodeData)
     print_nmos_api_data('IS-05', is05Data)
     print_nmos_api_data('IS-08', is08Data)
 
-    run_all_tests(args.test, is04NodeData, is05Data, is08Data, deviceName, resultsFolder, resultsSheet, credentials)
+    run_all_tests(args.test, is04NodeData, is04RegistryData, is05Data, is08Data, deviceName, resultsFolder,
+                  resultsSheet, credentials)
