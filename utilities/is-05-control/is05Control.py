@@ -170,12 +170,16 @@ if __name__ == "__main__":
             print("SDP file \"{}\" does not exist".format(args.request))
             sys.exit()
 
+    # Read dummy SDP file
+    with open("dummy-sdp.sdp", "r") as sdp_file:
+        dummy_sdp_payload = sdp_file.read()
+
     while(True):
         print('\nPress \'e\' to set master_enable True')
         print('Press \'d\' to set master_enable False')
         print('Press \'c\' to set Sender or Receiver to valid config')
         print('Press \'u\' to set Sender or Receiver to dummy config')
-        print('Press \'7\' to set 2022-7 Receiver to dummy config')
+        print('Press \'7\' to set 2022-7 Sender to dummy config')
 
         print('Waiting for input...\n')
         # Check for escape character
@@ -196,7 +200,7 @@ if __name__ == "__main__":
             if args.sender:
                 configure_sender(url, dummy_data)
             else:
-                configure_receiver(url, "xxxxxxxx-1dd2-xxxx-8044-cc988b8696a2", sdp_payload)
+                configure_receiver(url, "xxxxxxxx-1dd2-xxxx-8044-cc988b8696a2", dummy_sdp_payload)
         elif ch == '7':
             if args.sender:
                 configure_sender(url, dummy_data_7)
