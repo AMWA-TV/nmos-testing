@@ -68,15 +68,15 @@ def _split_version(version):
     return int(major), int(minor)
 
 
-def get_highest_version(data):
+def get_highest_version(data, key='version'):
     """Return the highest version in a list"""
     if not data:
         return None
 
-    versions = (x['version'] for x in data)
+    versions = (x[key] for x in data)
     highestVersion = max(versions, key=_split_version)
 
-    data = next(item for item in data if item["version"] == highestVersion)
+    data = next(item for item in data if item[key] == highestVersion)
 
     return data
 
@@ -283,7 +283,7 @@ def run_all_tests(testSuiteUrl,
 
     # Find highest versions of each api
     is04NodeData = get_highest_version(is04NodeData)
-    is04RegistryData = is04RegistryData[0]
+    is04RegistryData = get_highest_version(is04RegistryData, key='reg-version')
     is05Data = get_highest_version(is05Data)
     is08Data = get_highest_version(is08Data)
 
