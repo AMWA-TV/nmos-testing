@@ -6,7 +6,7 @@ m=audio {{ dst_port }} RTP/AVP 102
 c=IN IP4 {{ dst_ip }}/32
 a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0
-a=rtpmap:102 {{ media_type }}/48000/2
+a=rtpmap:102 {{ media_type }}/{{ sample_rate }}/{{ channels }}
 a=mediaclk:direct=0
 a=ptime:1
 a=maxptime:1
