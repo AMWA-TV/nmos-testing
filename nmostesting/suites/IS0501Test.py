@@ -349,10 +349,10 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_17(self, test):
-        """Sender patch response schema is valid"""
+        """Sender patch response meets the schema"""
 
         if len(self.senders) > 0:
-            valid, response = self.check_patch_response_schema_valid("sender", self.senders)
+            valid, response = self.check_patch_response_valid("sender", self.senders)
             if valid:
                 return test.PASS()
             else:
@@ -361,10 +361,10 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_18(self, test):
-        """Receiver patch response schema is valid"""
+        """Receiver patch response meets the schema"""
 
         if len(self.receivers) > 0:
-            valid, response = self.check_patch_response_schema_valid("receiver", self.receivers)
+            valid, response = self.check_patch_response_valid("receiver", self.receivers)
             if valid:
                 return test.PASS()
             else:
@@ -477,6 +477,18 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_23_01(self, test):
+        """Senders accept a patch request with empty leg(s) in transport parameters"""
+
+        if len(self.receivers) > 0:
+            valid, response = self.check_patch_empty_transport_params("sender", self.senders)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(response)
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
     def test_24(self, test):
         """Receiver transport parameters are changeable"""
 
@@ -495,6 +507,18 @@ class IS0501Test(GenericTest):
                 else:
                     return test.FAIL(values)
             return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_24_01(self, test):
+        """Receivers accept a patch request with empty leg(s) in transport parameters"""
+
+        if len(self.receivers) > 0:
+            valid, response = self.check_patch_empty_transport_params("receiver", self.receivers)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(response)
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -970,7 +994,7 @@ class IS0501Test(GenericTest):
                 return False, response
         return True, ""
 
-    def check_patch_response_schema_valid(self, port, portList):
+    def check_patch_response_valid(self, port, portList):
         """Check the response to an empty patch request complies with the schema"""
         for myPort in portList:
             url = "single/" + port + "s/" + myPort + "/staged"
@@ -986,9 +1010,24 @@ class IS0501Test(GenericTest):
                 return False, response
         return True, ""
 
+    def check_patch_empty_transport_params(self, port, portList):
+        """Check a patch request with empty leg(s) in transport parameters is accepted"""
+        for myPort in portList:
+            url = "single/" + port + "s/" + myPort + "/staged"
+            data = {"transport_params": []}
+            paths = self.is05_utils.get_num_paths(myPort, port)
+            for i in range(0, paths):
+                data["transport_params"].append({})
+            valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
+            if valid:
+                pass
+            else:
+                return False, response
+        return True, ""
+
     def check_staged_complies_with_constraints(self, port, portList):
         """Check that the staged endpoint is using parameters that meet
-        the constents of the /constraints endpoint"""
+        the contents of the /constraints endpoint"""
         for myPort in portList:
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
