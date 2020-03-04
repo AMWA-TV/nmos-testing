@@ -480,7 +480,7 @@ class IS0501Test(GenericTest):
     def test_23_01(self, test):
         """Senders accept a patch request with empty leg(s) in transport parameters"""
 
-        if len(self.receivers) > 0:
+        if len(self.senders) > 0:
             valid, response = self.check_patch_empty_transport_params("sender", self.senders)
             if valid:
                 return test.PASS()
