@@ -54,7 +54,7 @@ def base_resource(version):
     return Response(json.dumps(base_data), mimetype='application/json')
 
 
-@SYSTEM_API.route('/x-nmos/system/<version>/global', methods=["GET"])
+@SYSTEM_API.route('/x-nmos/system/<version>/global', methods=["GET"], strict_slashes=False)
 def system_global(version):
     system = SYSTEMS[flask.current_app.config["SYSTEM_INSTANCE"]]
     if not system.enabled:
