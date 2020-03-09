@@ -34,7 +34,7 @@ def make_request(url):
     response = requests.get(url)
 
     if response.status_code not in [200]:
-        print(f'Request: {url} response HTTP {response.status_code}')
+        print('Request: {} response HTTP {}'.format(url, response.status_code))
         raise Exception
 
     return response
@@ -64,7 +64,7 @@ def parse_nmos_url(url):
 
 
 def _split_version(version):
-    major, minor = re.search('(\d+)\.(\d+)', version).groups()
+    major, minor = re.search('(\d+)\.(\d+)', version).groups() # noqa W605
     return int(major), int(minor)
 
 

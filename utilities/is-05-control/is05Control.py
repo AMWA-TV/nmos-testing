@@ -25,7 +25,8 @@ try:
 except ImportError:
     # UNIX
     def getch():
-        import tty, termios
+        import tty
+        import termios
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
         try:
@@ -75,7 +76,7 @@ dummy_data_7 = {
 
 def set_master_enable(url, state):
     """Set the master enable config to the state"""
-    print(f'Setting master_enable: {state}')
+    print('Setting master_enable: {}'.format(state))
 
     body = {
         "master_enable": state,
