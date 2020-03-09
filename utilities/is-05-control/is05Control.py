@@ -151,7 +151,7 @@ if __name__ == "__main__":
         )
     elif args.receiver:
         print("Configuring NMOS Receiver using IS-05")
-        url = f"http://{}:{}/x-nmos/connection/{}/single/receivers/{}/staged".format(
+        url = "http://{}:{}/x-nmos/connection/{}/single/receivers/{}/staged".format(
             args.ip,
             args.port,
             args.version,
