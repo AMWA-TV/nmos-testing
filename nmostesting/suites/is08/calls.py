@@ -28,13 +28,6 @@ class Call:
         self._method = None
         self.responseSchema = None
 
-    def _makeRequest(self):
-        self._responseObject = do_request(self.method, self.url, json=self.data)
-        self._checkForErrors()
-        self._checkStatusCode()
-        if self.expectedCode != 204:
-            self._getJSON()
-
     def get(self):
         return self._genericRequestProcess("get")
 
@@ -45,6 +38,7 @@ class Call:
         return self._genericRequestProcess("delete")
 
     def _genericRequestProcess(self, method, data=None):
+        self._method = method
         (self._callSucceeded, self._responseObject) = do_request(method, self.url, json=data)
         return self._processResponseObject()
 

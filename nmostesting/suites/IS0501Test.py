@@ -215,6 +215,40 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_11_02(self, test):
+        """Patched 'auto' values are translated on '/active' endpoint for all senders"""
+        rtpGeneralAutoParams = [
+            'source_ip',
+            'destination_ip',
+            'source_port',
+            'destination_port'
+        ]
+        fecAutoParams = [
+            'fec_destination_ip',
+            'fec1D_destination_port',
+            'fec2D_destination_port',
+            'fec1D_source_port',
+            'fec2D_source_port'
+        ]
+        rtcpAutoParams = [
+            'rtcp_destination_ip',
+            'rtcp_destination_port',
+            'rtcp_source_port'
+        ]
+        rtpAutoParams = rtpGeneralAutoParams + fecAutoParams + rtcpAutoParams
+        websocketAutoParams = [
+            'connection_uri',
+            'connection_authorization'
+        ]
+        mqttAutoParams = [
+            'destination_host',
+            'destination_port',
+            'broker_protocol',
+            'broker_authorization'
+        ]
+        autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
+        return self.patch_auto_params(test, self.senders, "senders", autoParams)
+
     def test_12(self, test):
         """Receiver are using valid combination of parameters"""
 
@@ -260,7 +294,8 @@ class IS0501Test(GenericTest):
                 except IndexError:
                     return test.FAIL("Expected an array from {}, got {}".format(dest, response))
                 except AttributeError:
-                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}".format(dest, response))
+                    return test.FAIL("Expected constraints array at {} to contain dicts, got {}"
+                                     .format(dest, response))
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
@@ -281,6 +316,35 @@ class IS0501Test(GenericTest):
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_12_02(self, test):
+        """Patched 'auto' values are translated on '/active' endpoint for all receivers"""
+        rtpGeneralAutoParams = [
+            'interface_ip',
+            'destination_port'
+            ]
+        fecAutoParams = [
+            'fec_destination_ip',
+            'fec_mode',
+            'fec1D_destination_port',
+            'fec2D_destination_port'
+        ]
+        rtcpAutoParams = [
+            'rtcp_destination_ip',
+            'rtcp_destination_port'
+        ]
+        rtpAutoParams = rtpGeneralAutoParams + fecAutoParams + rtcpAutoParams
+        websocketAutoParams = [
+            'connection_authorization'
+        ]
+        mqttAutoParams = [
+            'source_host',
+            'source_port',
+            'broker_protocol',
+            'broker_authorization'
+        ]
+        autoParams = rtpAutoParams + websocketAutoParams + mqttAutoParams
+        return self.patch_auto_params(test, self.receivers, "receivers", autoParams)
 
     def test_13(self, test):
         """Return of /single/senders/{senderId}/staged/ meets the schema"""
@@ -349,10 +413,10 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_17(self, test):
-        """Sender patch response schema is valid"""
+        """Sender patch response meets the schema"""
 
         if len(self.senders) > 0:
-            valid, response = self.check_patch_response_schema_valid("sender", self.senders)
+            valid, response = self.check_patch_response_valid("sender", self.senders)
             if valid:
                 return test.PASS()
             else:
@@ -361,10 +425,10 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_18(self, test):
-        """Receiver patch response schema is valid"""
+        """Receiver patch response meets the schema"""
 
         if len(self.receivers) > 0:
-            valid, response = self.check_patch_response_schema_valid("receiver", self.receivers)
+            valid, response = self.check_patch_response_valid("receiver", self.receivers)
             if valid:
                 return test.PASS()
             else:
@@ -477,6 +541,18 @@ class IS0501Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_23_01(self, test):
+        """Senders accept a patch request with empty leg(s) in transport parameters"""
+
+        if len(self.senders) > 0:
+            valid, response = self.check_patch_empty_transport_params("sender", self.senders)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(response)
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
     def test_24(self, test):
         """Receiver transport parameters are changeable"""
 
@@ -495,6 +571,18 @@ class IS0501Test(GenericTest):
                 else:
                     return test.FAIL(values)
             return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+    def test_24_01(self, test):
+        """Receivers accept a patch request with empty leg(s) in transport parameters"""
+
+        if len(self.receivers) > 0:
+            valid, response = self.check_patch_empty_transport_params("receiver", self.receivers)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(response)
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -970,7 +1058,7 @@ class IS0501Test(GenericTest):
                 return False, response
         return True, ""
 
-    def check_patch_response_schema_valid(self, port, portList):
+    def check_patch_response_valid(self, port, portList):
         """Check the response to an empty patch request complies with the schema"""
         for myPort in portList:
             url = "single/" + port + "s/" + myPort + "/staged"
@@ -986,9 +1074,24 @@ class IS0501Test(GenericTest):
                 return False, response
         return True, ""
 
+    def check_patch_empty_transport_params(self, port, portList):
+        """Check a patch request with empty leg(s) in transport parameters is accepted"""
+        for myPort in portList:
+            url = "single/" + port + "s/" + myPort + "/staged"
+            data = {"transport_params": []}
+            paths = self.is05_utils.get_num_paths(myPort, port)
+            for i in range(0, paths):
+                data["transport_params"].append({})
+            valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data=data)
+            if valid:
+                pass
+            else:
+                return False, response
+        return True, ""
+
     def check_staged_complies_with_constraints(self, port, portList):
         """Check that the staged endpoint is using parameters that meet
-        the constents of the /constraints endpoint"""
+        the contents of the /constraints endpoint"""
         for myPort in portList:
             dest = "single/" + port + "s/" + myPort + "/staged/"
             valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
@@ -1049,3 +1152,59 @@ class IS0501Test(GenericTest):
             return self.check_response(schema, "GET", response)
         else:
             return False, "Invalid response while getting data: " + response
+
+    def patch_auto_params(self, test, resources, resourceType, autoParams):
+        """
+        Patch all params to 'auto' from autoParams list to all resources (id-list) of type resourceType
+        ("senders" / "receivers") and validate response
+        """
+        if len(resources) > 0:
+            for resource in resources:
+                dest_staged = "single/" + resourceType + "/" + resource + "/staged/"
+                dest_active = "single/" + resourceType + "/" + resource + "/active/"
+
+                valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest_staged)
+                if valid:
+                    patchData = {
+                        "transport_params": list(),
+                        "activation": {
+                            "mode": "activate_immediate"
+                        }
+                    }
+                    try:
+                        for leg in response["transport_params"]:
+                            patchDataLeg = {}
+                            for param in leg:
+                                if param in autoParams:
+                                    patchDataLeg[param] = "auto"
+                            patchData["transport_params"].append(patchDataLeg)
+                    except KeyError:
+                        return test.FAIL("Did not find 'transport_params' in response from {}"
+                                         .format(dest_staged))
+
+                    valid_patch, response_patch = self.is05_utils.checkCleanRequestJSON("PATCH",
+                                                                                        dest_staged,
+                                                                                        data=patchData)
+                    if valid_patch:
+                        pass
+                    else:
+                        return test.FAIL(response_patch)
+
+                    valid_active, response_active = self.is05_utils.checkCleanRequestJSON("GET", dest_active)
+                    if valid_active:
+                        try:
+                            for leg in response_active["transport_params"]:
+                                for param in leg:
+                                    if param in autoParams and leg[param] == "auto":
+                                        return test.FAIL("Patched 'auto' for '{}' did not translate on "
+                                                         "'/active' endpoint".format(param))
+                        except KeyError:
+                            return test.FAIL("Did not find 'transport_params' in response from {}"
+                                             .format(dest_active))
+                    else:
+                        return test.FAIL(response_active)
+                else:
+                    return test.FAIL(response)
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")

@@ -105,6 +105,17 @@ MULTICAST_STREAM_TARGET = "233.252.2.1"
 # Perform a GET against the submitted API before carrying out any tests to avoid wasting time if it doesn't exist
 PREVALIDATE_API = True
 
+# SDP media parameters which can be modified for devices which do not support the defaults
+# SDP testing is not concerned with support for specific media parameters, but must include them in the file
+SDP_PREFERENCES = {
+    "audio_channels": 2,
+    "audio_sample_rate": 48000,
+    "video_width": 1920,
+    "video_height": 1080,
+    "video_interlace": True,
+    "video_exactframerate": "25"
+}
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {

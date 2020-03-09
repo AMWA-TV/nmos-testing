@@ -19,8 +19,12 @@ import time
 
 from random import randint
 from . import TestHelper
-from .NMOSUtils import NMOSUtils, IMMEDIATE_ACTIVATION, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
+from .NMOSUtils import NMOSUtils
 from . import Config as CONFIG
+
+IMMEDIATE_ACTIVATION = 'activate_immediate'
+SCHEDULED_ABSOLUTE_ACTIVATION = 'activate_scheduled_absolute'
+SCHEDULED_RELATIVE_ACTIVATION = 'activate_scheduled_relative'
 
 
 class IS05Utils(NMOSUtils):
@@ -419,6 +423,8 @@ class IS05Utils(NMOSUtils):
         """Use a port's constraints to generate a changeable parameter"""
         if transportType == "urn:x-nmos:transport:websocket":
             return self.generate_connection_uris(port, portId)
+        elif transportType == "urn:x-nmos:transport:mqtt":
+            return self.generate_broker_topics(port, portId)
         else:
             return self.generate_destination_ports(port, portId)
 
@@ -426,6 +432,8 @@ class IS05Utils(NMOSUtils):
         """Identify the parameter name which will be used to change IS-05 configuration"""
         if transportType == "urn:x-nmos:transport:websocket":
             return "connection_uri"
+        elif transportType == "urn:x-nmos:transport:mqtt":
+            return "broker_topic"
         else:
             return "destination_port"
 
@@ -455,6 +463,8 @@ class IS05Utils(NMOSUtils):
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
                                                                                             constraints)
+            except KeyError as e:
+                return False, "Expected key '{}' not found in response from {}".format(str(e), url)
         else:
             return False, constraints
 
@@ -478,6 +488,30 @@ class IS05Utils(NMOSUtils):
             except TypeError:
                 return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
                                                                                             constraints)
+            except KeyError as e:
+                return False, "Expected key '{}' not found in response from {}".format(str(e), url)
+        else:
+            return False, constraints
+
+    def generate_broker_topics(self, port, portId):
+        """Generates a fake broker topic, or re-uses one from the advertised constraints"""
+        url = "single/" + port + "s/" + portId + "/constraints/"
+        valid, constraints = self.checkCleanRequestJSON("GET", url)
+        if valid:
+            toReturn = []
+            try:
+                for entry in constraints:
+                    if "enum" in entry['broker_topic']:
+                        values = entry['broker_topic']['enum']
+                        toReturn.append(values[randint(0, len(values) - 1)])
+                    else:
+                        toReturn.append("test_broker_topic")
+                return True, toReturn
+            except TypeError:
+                return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
+                                                                                            constraints)
+            except KeyError as e:
+                return False, "Expected key '{}' not found in response from {}".format(str(e), url)
         else:
             return False, constraints
 

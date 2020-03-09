@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from ...GenericTest import NMOSTestException
-from ...NMOSUtils import IMMEDIATE_ACTIVATION
+from ...IS05Utils import IMMEDIATE_ACTIVATION
 from .calls import Call
 from .testConfig import globalConfig
 import re
@@ -44,7 +44,10 @@ class Activation:
     def _actionObject(self):
         actionObject = {}
         for action in self.actionList:
-            actionObject.update(action.toJSON())
+            if action.outputID not in actionObject:
+                actionObject[action.outputID] = action.channelJSON()
+            else:
+                actionObject[action.outputID].update(action.channelJSON())
         return actionObject
 
     def _buildPOSTObject(self):

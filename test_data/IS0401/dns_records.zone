@@ -25,7 +25,7 @@ _nmos-{{ srv }}._tcp	PTR	{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp
 ; The TXT records indicate additional metadata relevant to the IS-04 spec
 
 {{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	SRV	0 0 {{ port }} {{ host }}.{{ domain }}.
-{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	TXT	"api_ver={{ ver }}" "api_proto={{ proto }}" "pri={{ pri }}"
+{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	TXT	"api_ver={{ ver }}" "api_proto={{ proto }}" "pri={{ pri }}" "api_auth=false"
 
 {% endfor %}
 

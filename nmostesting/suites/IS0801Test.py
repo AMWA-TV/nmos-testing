@@ -17,7 +17,7 @@ import copy
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..TestHelper import compare_json
-from ..NMOSUtils import NMOSUtils, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
+from ..IS05Utils import IS05Utils, SCHEDULED_ABSOLUTE_ACTIVATION, SCHEDULED_RELATIVE_ACTIVATION
 from .is08.action import Action
 from .is08.activation import Activation
 from .is08.inputs import getInputList
@@ -72,6 +72,9 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
@@ -94,7 +97,7 @@ class IS0801Test(GenericTest):
         """Absolute offset activations can be called on the API"""
         globalConfig.test = test
 
-        timestamp = NMOSUtils(globalConfig.apiUrl).get_TAI_time(offset=2.0)
+        timestamp = IS05Utils.get_TAI_time(offset=2.0)
         self.check_delayed_activation(timestamp, SCHEDULED_ABSOLUTE_ACTIVATION)
 
         return test.PASS()
@@ -105,6 +108,9 @@ class IS0801Test(GenericTest):
 
         Active().unrouteAll()
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
@@ -127,6 +133,9 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)
@@ -134,6 +143,7 @@ class IS0801Test(GenericTest):
         activation.activationTimestamp = "5:0"
         activation.fireActivation()
         activation.checkLock()
+        activation.delete()
 
         return test.PASS()
 
@@ -145,6 +155,9 @@ class IS0801Test(GenericTest):
         activeInstance = Active()
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         for outputInstance in outputList:
             channelList = outputInstance.getChannelList()
             for channelID in range(0, len(channelList)):
@@ -172,6 +185,9 @@ class IS0801Test(GenericTest):
         forbiddenRoutes = []
         outputList = getOutputList()
         inputList = getInputList()
+        if len(inputList) == 0 or len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         for outputInstance in outputList:
             sourceID = outputInstance.getSourceID()
             for inputInstance in inputList:
@@ -207,6 +223,8 @@ class IS0801Test(GenericTest):
         """Inputs have at least one channel represented in their channels resource"""
         globalConfig.test = test
         inputList = getInputList()
+        if len(inputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
         for inputInstance in inputList:
             channels = inputInstance.getChannelList()
             if len(channels) == 0:
@@ -216,8 +234,9 @@ class IS0801Test(GenericTest):
     def test_12(self, test):
         """Outputs have at least one channel represented in their channels resource"""
         globalConfig.test = test
-
         outputList = getOutputList()
+        if len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
         for outputInstance in outputList:
             channels = outputInstance.getChannelList()
             if len(channels) == 0:
@@ -229,6 +248,11 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         outputList = getOutputList()
+        inputList = getInputList()
+
+        if len(inputList) == 0 and len(outputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         constrainedOutputList = []
         for outputInstance in outputList:
             constraints = outputInstance.getCaps()
@@ -247,7 +271,6 @@ class IS0801Test(GenericTest):
         if len(constrainedOutputList) == 0:
             return test.NA("Could not test - no outputs have routing constraints set.")
 
-        inputList = getInputList()
         inputIDList = []
         for inputInstance in inputList:
             inputIDList.append(inputInstance.id)
@@ -280,6 +303,8 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         inputList = getInputList()
+        if len(inputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
 
         constrainedInputs = []
         constraintSet = False
@@ -296,7 +321,7 @@ class IS0801Test(GenericTest):
         filteredInputs = []
         for inputInstance in constrainedInputs:
             blockSize = inputInstance.getBlockSize()
-            if len(inputInstance.getChannelList) >= blockSize * 2:
+            if len(inputInstance.getChannelList()) >= blockSize * 2:
                 # Constraint makes no sense, can't re-order to to block size
                 filteredInputs.append(inputInstance)
 
@@ -307,9 +332,9 @@ class IS0801Test(GenericTest):
         for inputInstance in filteredInputs:
             routableOutputList = inputInstance.getRoutableOutputs()
             for outputInstance in routableOutputList:
-                if len(outputInstance.getChannelList) >= inputInstance.getBlockSize() * 2:
+                if len(outputInstance.getChannelList()) >= inputInstance.getBlockSize() * 2:
                     targetOutputList[inputInstance.id] = outputInstance
-            if inputInstance.id in targetOutputList.keys:
+            if inputInstance.id in targetOutputList.keys():
                 testableInputs.append(inputInstance)
 
         # Cross over blocks one and two on an input and output
@@ -327,13 +352,13 @@ class IS0801Test(GenericTest):
                 outputChannelIndex = inputChannelIndex + blockSize
                 blockOneAction = Action(
                     inputInstance.id,
-                    targetOutputList[inputInstance.id],
+                    targetOutputList[inputInstance.id].id,
                     inputChannelIndex,
                     outputChannelIndex
                 )
                 blockTwoAction = Action(
                     inputInstance.id,
-                    targetOutputList[inputInstance.id],
+                    targetOutputList[inputInstance.id].id,
                     outputChannelIndex,
                     inputChannelIndex
                 )
@@ -353,6 +378,9 @@ class IS0801Test(GenericTest):
         globalConfig.test = test
 
         inputList = getInputList()
+        if len(inputList) == 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
         constraintSet = False
         constrainedInputs = []
         for inputInstance in inputList:
@@ -367,7 +395,7 @@ class IS0801Test(GenericTest):
         output = chosenInput.getRoutableOutputs()
         action = Action(
             chosenInput.id,
-            output.id
+            output[0].id
         )
         activation = Activation()
         activation.addAction(action)
@@ -384,6 +412,10 @@ class IS0801Test(GenericTest):
         preActivationState = active.buildJSONObject()
 
         outputList = getOutputList()
+        if len(outputList) == 0:
+            msg = globalConfig.test.UNCLEAR("Not tested. No resources found.")
+            raise NMOSTestException(msg)
+
         testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
         activation.addAction(testRouteAction)

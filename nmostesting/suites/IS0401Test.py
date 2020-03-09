@@ -71,6 +71,8 @@ class IS0401Test(GenericTest):
                 ],
                 CONFIG.DNS_SD_ADVERT_TIMEOUT
             )
+            # Wait for a short time to allow the device to react after performing the query
+            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
     def tear_down_tests(self):
         if self.zc:
@@ -509,8 +511,8 @@ class IS0401Test(GenericTest):
                         return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
                                          .format(res_type.title(), rdata["id"],
                                                  parent_type + "_id", rdata[parent_type + "_id"]))
-                    if preceding_type and rdata[preceding_type + "_id"] not in registered_preceding \
-                            and not preceding_warn:
+                    if preceding_type and rdata[preceding_type + "_id"] and \
+                            rdata[preceding_type + "_id"] not in registered_preceding and not preceding_warn:
                         preceding_warn = "{} '{}' was registered before its referenced '{}' '{}'" \
                                          .format(res_type.title(), rdata["id"],
                                                  preceding_type + "_id", rdata[preceding_type + "_id"])
@@ -1085,42 +1087,80 @@ class IS0401Test(GenericTest):
         try:
             for interface in response.json()["interfaces"]:
                 interface_name = interface["name"]
-                if interface_name in interfaces:
+                if interface_name not in interfaces:
+                    interfaces.add(interface_name)
+                else:
                     return test.FAIL("Duplicate interface name '{}' found in Node API self resource"
                                      .format(interface_name))
-                interfaces.add(interface_name)
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        valid, response = self.do_request("GET", self.node_url + "senders")
+        for binder_type in ["senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + binder_type)
+            if not valid or response.status_code != 200:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            try:
+                for binder in response.json():
+                    interface_bindings = binder["interface_bindings"]
+                    if len(interface_bindings) == 0:
+                        return test.FAIL("{} '{}' does not list any interface_bindings"
+                                         .format(binder_type.capitalize().rstrip("s"), binder["id"]))
+                    for interface_name in interface_bindings:
+                        if interface_name not in interfaces:
+                            return test.FAIL("{} '{}' uses a non-existent interface name '{}'"
+                                             .format(binder_type.capitalize().rstrip("s"),
+                                                     binder["id"],
+                                                     interface_name))
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        if len(interfaces) == 0:
+            return test.UNCLEAR("Node 'interfaces' is empty")
+
+        return test.PASS()
+
+    def test_19_01(self, test):
+        """All bound Node interfaces have attached_network_device info"""
+
+        api = self.apis[NODE_API_KEY]
+        if self.is04_utils.compare_api_version(api["version"], "v1.3") < 0:
+            return test.NA("Attached network device info is not available until IS-04 v1.3")
+
+        interfaces = {}
+        valid, response = self.do_request("GET", self.node_url + "self")
         if not valid or response.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(response))
         try:
-            for sender in response.json():
-                interface_bindings = sender["interface_bindings"]
-                if len(interface_bindings) == 0:
-                    return test.FAIL("Sender '{}' does not list any interface_bindings".format(sender["id"]))
-                for interface_name in interface_bindings:
-                    if interface_name not in interfaces:
-                        return test.FAIL("Sender '{}' uses a non-existent interface name '{}'"
-                                         .format(sender["id"], interface_name))
+            for interface in response.json()["interfaces"]:
+                interface_name = interface["name"]
+                if interface_name not in interfaces:
+                    interfaces[interface_name] = interface
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
-        valid, response = self.do_request("GET", self.node_url + "receivers")
-        if not valid or response.status_code != 200:
-            return test.FAIL("Unexpected response from the Node API: {}".format(response))
-        try:
-            for receiver in response.json():
-                interface_bindings = receiver["interface_bindings"]
-                if len(interface_bindings) == 0:
-                    return test.FAIL("Receiver '{}' does not list any interface_bindings".format(receiver["id"]))
-                for interface_name in interface_bindings:
-                    if interface_name not in interfaces:
-                        return test.FAIL("Receiver '{}' uses a non-existent interface name '{}'"
-                                         .format(receiver["id"], interface_name))
-        except json.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned from Node API")
+        attached_network_device_warn = False
+
+        for binder_type in ["senders", "receivers"]:
+            valid, response = self.do_request("GET", self.node_url + binder_type)
+            if not valid or response.status_code != 200:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            try:
+                for binder in response.json():
+                    interface_bindings = binder["interface_bindings"]
+                    for interface_name in interface_bindings:
+                        if interface_name not in interfaces:
+                            pass
+                        elif "attached_network_device" not in interfaces[interface_name]:
+                            attached_network_device_warn = True
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+
+        if len(interfaces) == 0:
+            return test.UNCLEAR("Node 'interfaces' is empty")
+        elif attached_network_device_warn:
+            return test.OPTIONAL("One or more Node 'interfaces' used by a Sender or Receiver is missing "
+                                 "'attached_network_device' info",
+                                 NMOS_WIKI_URL + "/IS-04#nodes-interface-neighbour-information")
 
         return test.PASS()
 
