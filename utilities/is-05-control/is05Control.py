@@ -167,7 +167,7 @@ if __name__ == "__main__":
             with open(args.sdp, "r") as sdp_file:
                 sdp_payload = sdp_file.read()
         else:
-            print("SDP file \"{}\" does not exist".format(args.request))
+            print("SDP file \"{}\" does not exist".format(args.sdp))
             sys.exit()
 
     # Read dummy SDP file
