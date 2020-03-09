@@ -83,10 +83,10 @@ def get_highest_version(data, key='version'):
 
 def perform_test(test_suite_url, data):
     response = requests.post(test_suite_url + '/api', json=data)
-    print(f'{data}')
+    print(data)
 
     if response.status_code not in [200]:
-        print(f'Request: {test_suite_url} response HTTP {response.status_code}')
+        print('Request: {} response HTTP {}'.format(test_suite_url, response.status_code))
         raise Exception
 
     return response.json()
@@ -94,8 +94,8 @@ def perform_test(test_suite_url, data):
 
 def is_04_01_test(test_suite_url, node_ip, node_port, node_version, test_start_delay):
     """IS-04 Node API"""
-    print(f'Running test IS-04-01:')
-    print(f'    Node API {node_version} {node_ip}:{node_port}')
+    print('Running test IS-04-01:')
+    print('    Node API {} {}:{}'.format(node_version, node_ip, node_port))
 
     if test_start_delay:
         data = {
@@ -104,7 +104,7 @@ def is_04_01_test(test_suite_url, node_ip, node_port, node_version, test_start_d
         response = requests.patch(test_suite_url + '/config', json=data)
 
         if response.status_code not in [200]:
-            print(f'Request: {test_suite_url} response HTTP {response.status_code}')
+            print('Request: {} response HTTP {}'.format(test_suite_url, response.status_code))
             raise Exception
 
     body = {
@@ -124,9 +124,9 @@ def is_04_01_test(test_suite_url, node_ip, node_port, node_version, test_start_d
 
 def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query_port, query_version):
     """IS-04 Registry API"""
-    print(f'Running test IS-04-02:')
-    print(f'    Registration API {reg_version} {reg_ip}:{reg_port}')
-    print(f'    Query API {query_version} {query_ip}:{query_port}')
+    print('Running test IS-04-02:')
+    print('    Registration API {} {}:{}'.format(reg_version, reg_ip, reg_port))
+    print('    Query API {} {}:{}'.format(query_version, query_ip, query_port))
 
     body = {
         "suite": "IS-04-02",
@@ -145,8 +145,8 @@ def is_04_02_test(test_suite_url, reg_ip, reg_port, reg_version, query_ip, query
 
 def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_version):
     """IS-05 Connection Management API"""
-    print(f'Running test IS-05-01:')
-    print(f'    Connection Management API {connection_version} {connection_ip}:{connection_port}')
+    print('Running test IS-05-01:')
+    print('    Connection Management API {} {}:{}'.format(connection_version, connection_ip, connection_port))
 
     body = {
         "suite": "IS-05-01",
@@ -165,9 +165,9 @@ def is_05_01_test(test_suite_url, connection_ip, connection_port, connection_ver
 
 def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_ip, connection_port, connection_version):
     """IS-05 Interaction with IS-04"""
-    print(f'Running test IS-05-02:')
-    print(f'    Node API {node_version} {node_ip}:{node_port}')
-    print(f'    Connection Management API {connection_version} {connection_ip}:{connection_port}')
+    print('Running test IS-05-02:')
+    print('    Node API {} {}:{}'.format(node_version, node_ip, node_port))
+    print('    Connection Management API {} {}:{}'.format(connection_version, connection_ip, connection_port))
 
     body = {
         "suite": "IS-05-02",
@@ -186,8 +186,8 @@ def is_05_02_test(test_suite_url, node_ip, node_port, node_version, connection_i
 
 def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, selector):
     """IS-08 Channel Mapping API"""
-    print(f'Running test IS-08-01:')
-    print(f'    Channel Mapping API {ch_map_version} {ch_map_ip}:{ch_map_port}  {selector}')
+    print('Running test IS-08-01:')
+    print('    Channel Mapping API {} {}:{}  {}'.format(ch_map_version, ch_map_ip, ch_map_port, selector))
 
     body = {
         "suite": "IS-08-01",
@@ -207,9 +207,9 @@ def is_08_01_test(test_suite_url, ch_map_ip, ch_map_port, ch_map_version, select
 
 def is_08_02_test(test_suite_url, node_ip, node_port, node_version, ch_map_ip, ch_map_port, ch_map_version, selector):
     """IS-08 Interaction with IS-04"""
-    print(f'Running test IS-08-02:')
-    print(f'    Node API {node_version} {node_ip}:{node_port}')
-    print(f'    Channel Mapping API {ch_map_version} {ch_map_ip}:{ch_map_port}  {selector}')
+    print('Running test IS-08-02:')
+    print('    Node API {} {}:{}'.format(node_version, node_ip, node_port))
+    print('    Channel Mapping API {} {}:{}  {}'.format(ch_map_version, ch_map_ip, ch_map_port, selector))
 
     body = {
         "suite": "IS-08-02",
@@ -239,7 +239,7 @@ def save_test_results_to_file(results, name, folder):
 
     Path(folder).mkdir(parents=True, exist_ok=True)
 
-    filename = f"{folder}{name}_{results.get('suite')}_{results.get('timestamp')}.json"
+    filename = "{}{}_{}_{}.json".format(folder, name, results.get('suite'), results.get('timestamp'))
 
     with open(filename, 'w') as outfile:
         json.dump(results, outfile)
@@ -249,7 +249,6 @@ def upload_test_results(results, name, sheet, credentials):
     """Upload the test results to the the google sheet"""
 
     if not sheet:
-        print('ERROR: No worksheet specified')
         return
     if not results:
         print('ERROR: No results specified')
@@ -266,7 +265,7 @@ def upload_test_results(results, name, sheet, credentials):
         print(" * ERROR: Worksheet {} not found".format(results["suite"]))
         return
 
-    filename = f"{name}_{results.get('suite')}_{results.get('timestamp')}.json"
+    filename = "{}_{}_{}.json".format(name, results.get('suite'), results.get('timestamp'))
 
     gsheets_import(results, worksheet, filename)
 
@@ -320,17 +319,21 @@ def run_all_tests(testSuiteUrl,
 
 
 def print_nmos_api_data(api_name, data):
-    print(f"{api_name}:")
+    print("{}:".format(api_name))
     for x in data:
-        print(f"    Port: {x.get('port')}  Version: {x.get('version')} Selector: {x.get('selector')} "
-              f"href: {x.get('href')}")
+        print("    Port: {}  Version: {} Selector: {} href: {}".format(
+            x.get('port'),
+            x.get('version'),
+            x.get('selector'),
+            x.get('href')
+        ))
 
 
 def automated_discovery(ip, port, version='v1.2'):
     is05Data = []
     is08Data = []
 
-    base_url = f"http://{ip}:{port}/x-nmos/node/{version}/"
+    base_url = "http://{}:{}/x-nmos/node/{}/".format(ip, port, version)
 
     # Devices. We assume that the same IP is used for all IS-05/08 instances
     url = base_url + "devices/"
@@ -432,13 +435,13 @@ if __name__ == "__main__":
 
         if config.get('results-sheet'):
             resultsSheet = config.get('results-sheet')
-            print(f'Test results will be uploaded to {resultsSheet}')
+            print('Test results will be uploaded to {}'.format(resultsSheet))
         if config.get('results-folder'):
             resultsFolder = config.get('results-folder')
-            print(f'Results files will be stored in: {resultsFolder}')
+            print('Results files will be stored in: {}'.format(resultsFolder))
         if config.get('device-name'):
             deviceName = config.get('device-name')
-            print(f'Device Name: {deviceName}')
+            print('Device Name: {}'.format(deviceName))
         credentials = config.get('credentials', 'credentials.json')
     else:
         is05Data, is08Data = automated_discovery(is04NodeData[0]['ip'], is04NodeData[0]['port'],

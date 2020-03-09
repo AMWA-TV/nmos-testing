@@ -143,10 +143,20 @@ if __name__ == "__main__":
     # Configure for Sender or Receiver
     if args.sender:
         print("Configuring NMOS Sender using IS-05")
-        url = f"http://{args.ip}:{args.port}/x-nmos/connection/{args.version}/single/senders/{args.uuid}/staged"
+        url = "http://{}:{}/x-nmos/connection/{}/single/senders/{}/staged".format(
+            args.ip,
+            args.port,
+            args.version,
+            args.uuid
+        )
     elif args.receiver:
         print("Configuring NMOS Receiver using IS-05")
-        url = f"http://{args.ip}:{args.port}/x-nmos/connection/{args.version}/single/receivers/{args.uuid}/staged"
+        url = f"http://{}:{}/x-nmos/connection/{}/single/receivers/{}/staged".format(
+            args.ip,
+            args.port,
+            args.version,
+            args.uuid
+        )
     else:
         print("Please select either Sender or Receiver mode")
         sys.exit()
