@@ -26,6 +26,7 @@ SCOPES = ['https://spreadsheets.google.com/feeds',
           'https://www.googleapis.com/auth/drive']
 
 
+# Test states grouped by severity
 TEST_STATES = ["Pass", "Fail", "Warning", "Not Implemented", "Test Disabled", "Could Not Test", "Manual",
                "Not Applicable"]
 

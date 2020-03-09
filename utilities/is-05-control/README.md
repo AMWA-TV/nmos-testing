@@ -4,7 +4,7 @@ Command line tool to control an NMOS IS-05 Sender or Receiver.
 
 Allows you to:
 * Enable/Disable `master_enable`
-* Set sender config
+* Set Sender config
 * Set Receiver config
 
 ## Installation

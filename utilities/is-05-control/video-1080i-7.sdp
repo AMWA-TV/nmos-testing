@@ -1,7 +1,7 @@
 v=0
 o=- 109502 53 IN IP4 192.168.60.34
 s=239.50.2.2:50050
-i=Nmos Testing 239.50.2.2:50050
+i=NMOS Testing 239.50.2.2:50050
 t=0 0
 a=recvonly
 a=group:DUP PRIMARY SECONDARY
