@@ -1,0 +1,8 @@
+{
+    "sender_id": "1e1c78ae-1dd2-11b2-8044-cc988b8696a2",
+    "master_enable": true,
+    "activation": {
+      "mode": "activate_immediate",
+      "requested_time": null
+    }
+}
