@@ -858,24 +858,13 @@ class IS0501Test(GenericTest):
         else:
             if len(self.senders) or len(self.receivers):
                 for sender in self.senders:
-                    url = "single/senders/{}/transporttype".format(sender)
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                    if valid:
-                        if response not in VALID_TRANSPORTS[api["version"]]:
-                            return test.FAIL("Sender {} indicates an invalid transport type of {}".format(sender,
-                                                                                                          response))
-                    else:
-                        return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
+                    if self.transport_types[sender] not in VALID_TRANSPORTS[api["version"]]:
+                        return test.FAIL("Sender {} indicates an invalid transport type of {}".format(sender,
+                                                                                                      response))
                 for receiver in self.receivers:
-                    url = "single/receivers/{}/transporttype".format(receiver)
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                    if valid:
-                        if response not in VALID_TRANSPORTS[api["version"]]:
-                            return test.FAIL("Receiver {} indicates an invalid transport type of {}".format(receiver,
-                                                                                                            response))
-                    else:
-                        return test.FAIL("Unexpected response from transporttype resource for Receiver {}"
-                                         .format(receiver))
+                    if self.transport_types[receiver] not in VALID_TRANSPORTS[api["version"]]:
+                        return test.FAIL("Receiver {} indicates an invalid transport type of {}".format(receiver,
+                                                                                                        response))
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No resources found.")
@@ -953,18 +942,8 @@ class IS0501Test(GenericTest):
         """Transport files use the expected Content-Type"""
 
         access_error = False
-        api = self.apis[CONN_API_KEY]
         for sender in self.senders:
-            transport_type = "urn:x-nmos:transport:rtp"
-            if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                url = "single/senders/{}/transporttype".format(sender)
-                valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                if valid:
-                    transport_type = response
-                else:
-                    return test.FAIL(response)
-
-            if transport_type == "urn:x-nmos:transport:rtp":
+            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                 url = self.url + "single/senders/{}/transportfile".format(sender)
                 valid, response = self.do_request("GET", url)
                 if valid and response.status_code == 200:
