@@ -883,28 +883,20 @@ class IS0501Test(GenericTest):
     def test_41(self, test):
         """SDP transport files pass SDPoker tests"""
 
-        api = self.apis[CONN_API_KEY]
         rtp_senders = []
         dup_senders = []
-        if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
-            # Find all RTP senders for v1.1+
-            for sender in self.senders:
-                url = "single/senders/{}/transporttype".format(sender)
+        for sender in self.senders:
+            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                rtp_senders.append(sender)
+                # Check whether this sender uses stream duplication
+                url = "single/senders/{}/active".format(sender)
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
                 if valid:
-                    if response == "urn:x-nmos:transport:rtp":
-                        rtp_senders.append(sender)
-                        # Check whether this sender uses stream duplication
-                        url = "single/senders/{}/active".format(sender)
-                        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                        if valid:
-                            if len(response["transport_params"]) == 2:
-                                dup_senders.append(sender)
+                    if len(response["transport_params"]) == 2:
+                        dup_senders.append(sender)
                 else:
-                    return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
-        else:
-            # RTP is the only transport type for v1.0
-            rtp_senders = self.senders
+                    return test.FAIL("Unable to identify 'transport_params' from IS-05 active resource for Sender {}"
+                                     .format(sender))
 
         if len(rtp_senders) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
