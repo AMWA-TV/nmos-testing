@@ -902,7 +902,7 @@ class IS0501Test(GenericTest):
                     (running_ver[0] == expected_ver[0] and running_ver[1] == expected_ver[1] and
                         running_ver[2] < expected_ver[2])):
                 return test.FAIL("SDPoker version is too old. Please update to version {}".format(sdpoker_min_version))
-        except (subprocess.CalledProcessError, IndexError) as e:
+        except (subprocess.CalledProcessError, IndexError):
             return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
                                  "installation instructions.")
 
