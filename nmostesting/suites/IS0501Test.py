@@ -890,6 +890,22 @@ class IS0501Test(GenericTest):
         if len(rtp_senders) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
 
+        # Check SDPoker version
+        sdpoker_min_version = "0.1.0"
+        try:
+            cmd_string = "sdpoker --version"
+            output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
+            running_ver = output.decode("utf-8").split(".")
+            expected_ver = sdpoker_min_version.split(".")
+            if (running_ver[0] < expected_ver[0] or
+                    (running_ver[0] == expected_ver[0] and running_ver[1] < expected_ver[1]) or
+                    (running_ver[0] == expected_ver[0] and running_ver[1] == expected_ver[1] and
+                        running_ver[2] < expected_ver[2])):
+                return test.FAIL("SDPoker version is too old. Please update to version {}".format(sdpoker_min_version))
+        except (subprocess.CalledProcessError, IndexError) as e:
+            return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
+                                 "installation instructions.")
+
         # First pass to check for errors
         access_error = False
         for sender in rtp_senders:
@@ -906,11 +922,7 @@ class IS0501Test(GenericTest):
                     access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
-                if output.startswith("Found"):
-                    return test.FAIL("Error for Sender {}: {}".format(sender, output))
-                else:
-                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
-                                         "installation instructions.")
+                return test.FAIL("Error for Sender {}: {}".format(sender, output))
 
         # Second pass to check for warnings
         for sender in rtp_senders:
@@ -928,11 +940,7 @@ class IS0501Test(GenericTest):
                     access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
-                if output.startswith("Found"):
-                    return test.WARNING("Warning for Sender {}: {}".format(sender, output))
-                else:
-                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
-                                         "installation instructions.")
+                return test.WARNING("Warning for Sender {}: {}".format(sender, output))
 
         if access_error:
             return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
