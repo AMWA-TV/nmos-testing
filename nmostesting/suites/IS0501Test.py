@@ -900,8 +900,9 @@ class IS0501Test(GenericTest):
             try:
                 cmd_string = "sdpoker --nmos false --shaping true{} {}".format(dup_params, self.url + path)
                 output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-                if "StatusCodeError" in output.decode("utf-8"):
+                if "Error" in output.decode("utf-8"):
                     # This case exits with a zero error code so can't be handled in the exception
+                    # These usually start with "{ StatusCodeError:" or "Error:"
                     access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
@@ -921,8 +922,9 @@ class IS0501Test(GenericTest):
                 cmd_string = "sdpoker --nmos false --shaping true --whitespace true --should true " \
                              "--checkEndings true{} {}".format(dup_params, self.url + path)
                 output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-                if "StatusCodeError" in output.decode("utf-8"):
+                if "Error" in output.decode("utf-8"):
                     # This case exits with a zero error code so can't be handled in the exception
+                    # These usually start with "{ StatusCodeError:" or "Error:"
                     access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
