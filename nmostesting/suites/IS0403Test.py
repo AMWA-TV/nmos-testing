@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 import socket
 
+from time import sleep
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOS_WIKI_URL
@@ -46,13 +46,18 @@ class IS0403Test(GenericTest):
         """Node advertises a Node type mDNS announcement with ver_* TXT records
         in the absence of a Registration API"""
 
+        api = self.apis[NODE_API_KEY]
+
+        if CONFIG.DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
+
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
-        time.sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
+        sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         node_list = self.zc_listener.get_service_list()
         for node in node_list:
             address = socket.inet_ntoa(node.address)
             port = node.port
-            if "/{}:{}/".format(address, port) in self.node_url:
+            if address == api["ip"] and port == api["port"]:
                 properties = self.convert_bytes(node.properties)
                 for ver_txt in ["ver_slf", "ver_src", "ver_flw", "ver_dvc", "ver_snd", "ver_rcv"]:
                     if ver_txt not in properties:
@@ -68,7 +73,7 @@ class IS0403Test(GenericTest):
                     except Exception:
                         return test.FAIL("Version ('{}') TXT record is not an integer.".format(ver_txt))
 
-                api = self.apis[NODE_API_KEY]
+                # Other TXT records only came in for IS-04 v1.1+
                 if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
                     if "api_ver" not in properties:
                         return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
@@ -88,8 +93,8 @@ class IS0403Test(GenericTest):
                         return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
 
                 return test.PASS()
-
-        return test.FAIL("No matching mDNS announcement found for Node. Peer to peer mode will not function correctly.",
+        return test.FAIL("No matching mDNS announcement found for Node with IP/Port {}:{}. Peer to peer mode will not "
+                         "function correctly.".format(api["ip"], api["port"]),
                          NMOS_WIKI_URL + "/IS-04#nodes-peer-to-peer-mode")
 
     def test_02(self, test):
