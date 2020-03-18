@@ -663,7 +663,7 @@ class IS05Utils(NMOSUtils):
                         group_name = re.search(r"a=mid:(\S+)", sdp_media)
                         if group_name.group(1) in sdp_group_names:
                             tp_compare.append("m=" + sdp_media)
-                else:
+                elif len(sdp_media_sections) > 0:
                     tp_compare.append("m=" + sdp_media_sections[0])
                 if len(tp_compare) != len(a_response["transport_params"]):
                     return False, "Number of SDP groups do not match the length of the 'transport_params' array"
