@@ -1413,7 +1413,6 @@ class IS0401Test(GenericTest):
                 for resource in response.json():
                     # Currently testing where it would be particularly unusual to find a non-periodic Source
                     if resource["format"] in ["urn:x-nmos:format:video",
-                                              "urn:x-nmos:format:audio",
                                               "urn:x-nmos:format:mux"]:
                         if "grain_rate" not in resource:
                             return test.WARNING("Source {} MUST specify a 'grain_rate' if it is periodic"
@@ -1452,7 +1451,6 @@ class IS0401Test(GenericTest):
                             return test.FAIL("Flow {} 'grain_rate' MUST be integer divisible by the Source "
                                              "'grain_rate'".format(flow["id"]))
                     elif flow["format"] in ["urn:x-nmos:format:video",
-                                            "urn:x-nmos:format:audio",
                                             "urn:x-nmos:format:mux"]:
                         return test.WARNING("Flow {} SHOULD specify a 'grain_rate' if it is periodic"
                                             .format(flow["id"]))
