@@ -858,24 +858,13 @@ class IS0501Test(GenericTest):
         else:
             if len(self.senders) or len(self.receivers):
                 for sender in self.senders:
-                    url = "single/senders/{}/transporttype".format(sender)
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                    if valid:
-                        if response not in VALID_TRANSPORTS[api["version"]]:
-                            return test.FAIL("Sender {} indicates an invalid transport type of {}".format(sender,
-                                                                                                          response))
-                    else:
-                        return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
+                    if self.transport_types[sender] not in VALID_TRANSPORTS[api["version"]]:
+                        return test.FAIL("Sender {} indicates an invalid transport type of {}".format(sender,
+                                                                                                      response))
                 for receiver in self.receivers:
-                    url = "single/receivers/{}/transporttype".format(receiver)
-                    valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                    if valid:
-                        if response not in VALID_TRANSPORTS[api["version"]]:
-                            return test.FAIL("Receiver {} indicates an invalid transport type of {}".format(receiver,
-                                                                                                            response))
-                    else:
-                        return test.FAIL("Unexpected response from transporttype resource for Receiver {}"
-                                         .format(receiver))
+                    if self.transport_types[receiver] not in VALID_TRANSPORTS[api["version"]]:
+                        return test.FAIL("Receiver {} indicates an invalid transport type of {}".format(receiver,
+                                                                                                        response))
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No resources found.")
@@ -883,31 +872,39 @@ class IS0501Test(GenericTest):
     def test_41(self, test):
         """SDP transport files pass SDPoker tests"""
 
-        api = self.apis[CONN_API_KEY]
         rtp_senders = []
         dup_senders = []
-        if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
-            # Find all RTP senders for v1.1+
-            for sender in self.senders:
-                url = "single/senders/{}/transporttype".format(sender)
+        for sender in self.senders:
+            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
+                rtp_senders.append(sender)
+                # Check whether this sender uses stream duplication
+                url = "single/senders/{}/active".format(sender)
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
                 if valid:
-                    if response == "urn:x-nmos:transport:rtp":
-                        rtp_senders.append(sender)
-                        # Check whether this sender uses stream duplication
-                        url = "single/senders/{}/active".format(sender)
-                        valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                        if valid:
-                            if len(response["transport_params"]) == 2:
-                                dup_senders.append(sender)
+                    if len(response["transport_params"]) == 2:
+                        dup_senders.append(sender)
                 else:
-                    return test.FAIL("Unexpected response from transporttype resource for Sender {}".format(sender))
-        else:
-            # RTP is the only transport type for v1.0
-            rtp_senders = self.senders
+                    return test.FAIL("Unable to identify 'transport_params' from IS-05 active resource for Sender {}"
+                                     .format(sender))
 
         if len(rtp_senders) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
+
+        # Check SDPoker version
+        sdpoker_min_version = "0.1.0"
+        try:
+            cmd_string = "sdpoker --version"
+            output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
+            running_ver = output.decode("utf-8").split(".")
+            expected_ver = sdpoker_min_version.split(".")
+            if (running_ver[0] < expected_ver[0] or
+                    (running_ver[0] == expected_ver[0] and running_ver[1] < expected_ver[1]) or
+                    (running_ver[0] == expected_ver[0] and running_ver[1] == expected_ver[1] and
+                        running_ver[2] < expected_ver[2])):
+                return test.FAIL("SDPoker version is too old. Please update to version {}".format(sdpoker_min_version))
+        except (subprocess.CalledProcessError, IndexError):
+            return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
+                                 "installation instructions.")
 
         # First pass to check for errors
         access_error = False
@@ -919,16 +916,13 @@ class IS0501Test(GenericTest):
             try:
                 cmd_string = "sdpoker --nmos false --shaping true{} {}".format(dup_params, self.url + path)
                 output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-                if output.decode("utf-8").startswith("{ StatusCodeError:"):
+                if "Error" in output.decode("utf-8"):
                     # This case exits with a zero error code so can't be handled in the exception
+                    # These usually start with "{ StatusCodeError:" or "Error:"
                     access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
-                if output.startswith("Found"):
-                    return test.FAIL("Error for Sender {}: {}".format(sender, output))
-                else:
-                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
-                                         "installation instructions.")
+                return test.FAIL("Error for Sender {}: {}".format(sender, output))
 
         # Second pass to check for warnings
         for sender in rtp_senders:
@@ -940,16 +934,13 @@ class IS0501Test(GenericTest):
                 cmd_string = "sdpoker --nmos false --shaping true --whitespace true --should true " \
                              "--checkEndings true{} {}".format(dup_params, self.url + path)
                 output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-                if output.decode("utf-8").startswith("{ StatusCodeError:"):
+                if "Error" in output.decode("utf-8"):
                     # This case exits with a zero error code so can't be handled in the exception
+                    # These usually start with "{ StatusCodeError:" or "Error:"
                     access_error = True
             except subprocess.CalledProcessError as e:
                 output = str(e.output, "utf-8")
-                if output.startswith("Found"):
-                    return test.WARNING("Warning for Sender {}: {}".format(sender, output))
-                else:
-                    return test.DISABLED("SDPoker may be unavailable on this system. Please see the README for "
-                                         "installation instructions.")
+                return test.WARNING("Warning for Sender {}: {}".format(sender, output))
 
         if access_error:
             return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
@@ -961,18 +952,8 @@ class IS0501Test(GenericTest):
         """Transport files use the expected Content-Type"""
 
         access_error = False
-        api = self.apis[CONN_API_KEY]
         for sender in self.senders:
-            transport_type = "urn:x-nmos:transport:rtp"
-            if self.is05_utils.compare_api_version(api["version"], "v1.1") >= 0:
-                url = "single/senders/{}/transporttype".format(sender)
-                valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-                if valid:
-                    transport_type = response
-                else:
-                    return test.FAIL(response)
-
-            if transport_type == "urn:x-nmos:transport:rtp":
+            if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                 url = self.url + "single/senders/{}/transportfile".format(sender)
                 valid, response = self.do_request("GET", url)
                 if valid and response.status_code == 200:
