@@ -1413,7 +1413,6 @@ class IS0401Test(GenericTest):
                 for resource in response.json():
                     # Currently testing where it would be particularly unusual to find a non-periodic Source
                     if resource["format"] in ["urn:x-nmos:format:video",
-                                              "urn:x-nmos:format:audio",
                                               "urn:x-nmos:format:mux"]:
                         if "grain_rate" not in resource:
                             return test.WARNING("Sources MUST specify a 'grain_rate' if they are periodic")
