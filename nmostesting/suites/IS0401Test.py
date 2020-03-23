@@ -1449,7 +1449,6 @@ class IS0401Test(GenericTest):
                            (flow_rate["numerator"] * source_rate["denominator"])):
                             return test.FAIL("Flow 'grain_rate' MUST be integer divisible by the Source 'grain_rate'")
                     elif flow["format"] in ["urn:x-nmos:format:video",
-                                            "urn:x-nmos:format:audio",
                                             "urn:x-nmos:format:mux"]:
                         return test.WARNING("Flows SHOULD specify a 'grain_rate' if they are periodic")
                 if len(flow_response.json()) > 0:
