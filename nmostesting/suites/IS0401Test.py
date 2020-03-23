@@ -1416,7 +1416,8 @@ class IS0401Test(GenericTest):
                                               "urn:x-nmos:format:audio",
                                               "urn:x-nmos:format:mux"]:
                         if "grain_rate" not in resource:
-                            return test.WARNING("Sources MUST specify a 'grain_rate' if they are periodic")
+                            return test.WARNING("Source {} MUST specify a 'grain_rate' if it is periodic"
+                                                .format(resource["id"]))
                 if len(response.json()) > 0:
                     return test.PASS()
             except json.JSONDecodeError:
@@ -1438,8 +1439,8 @@ class IS0401Test(GenericTest):
                     if "grain_rate" in flow:
                         source = sources[flow["source_id"]]
                         if "grain_rate" not in source:
-                            return test.FAIL("Sources MUST specify a 'grain_rate' when their child Flows specify a "
-                                             "'grain_rate'")
+                            return test.FAIL("Source {} MUST specify a 'grain_rate' because one or more of its "
+                                             "child Flows specify a 'grain_rate'".format(source["id"]))
                         flow_rate = flow["grain_rate"]
                         if "denominator" not in flow_rate:
                             flow_rate["denominator"] = 1
@@ -1448,11 +1449,13 @@ class IS0401Test(GenericTest):
                             source_rate["denominator"] = 1
                         if ((source_rate["numerator"] * flow_rate["denominator"]) %
                            (flow_rate["numerator"] * source_rate["denominator"])):
-                            return test.FAIL("Flow 'grain_rate' MUST be integer divisible by the Source 'grain_rate'")
+                            return test.FAIL("Flow {} 'grain_rate' MUST be integer divisible by the Source "
+                                             "'grain_rate'".format(flow["id"]))
                     elif flow["format"] in ["urn:x-nmos:format:video",
                                             "urn:x-nmos:format:audio",
                                             "urn:x-nmos:format:mux"]:
-                        return test.WARNING("Flows SHOULD specify a 'grain_rate' if they are periodic")
+                        return test.WARNING("Flow {} SHOULD specify a 'grain_rate' if it is periodic"
+                                            .format(flow["id"]))
                 if len(flow_response.json()) > 0:
                     return test.PASS()
             except json.JSONDecodeError:
