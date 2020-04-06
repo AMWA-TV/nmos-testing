@@ -1,7 +1,7 @@
 flask>=1.0.0
 wtforms
 jsonschema
-zeroconf-monkey
+zeroconf-monkey>=0.1.1
 requests
 netifaces
 gitpython
