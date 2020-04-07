@@ -16,6 +16,8 @@ import re
 import time
 import json
 
+from fractions import Fraction
+
 from .. import Config as CONFIG
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS04Utils import IS04Utils
@@ -51,6 +53,7 @@ class IS0702Test(GenericTest):
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.connection_url)
         self.is07_utils = IS07Utils(self.events_url)
+        self.base_event_types = ["boolean", "string", "number"]
 
     def set_up_tests(self):
         self.is05_senders = self.is05_utils.get_senders()
@@ -414,6 +417,100 @@ class IS0702Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_05(self, test):
+        """WebSocket state messages tests"""
+
+        # Gather the possible connections and sources which can be subscribed to
+        connection_sources = self.get_websocket_connection_sources(test)
+
+        if len(connection_sources) > 0:
+            target_websockets = {}
+            for connection_uri in connection_sources:
+                target_websockets[connection_uri] = WebsocketWorker(connection_uri)
+
+            for connection_uri in target_websockets:
+                target_websockets[connection_uri].start()
+
+            # Give each WebSocket client a chance to start and open its connection
+            start_time = time.time()
+            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+                if all([target_websockets[_].is_open() for _ in target_websockets]):
+                    break
+                time.sleep(0.2)
+
+            # After that short while, they must all be connected successfully
+            for connection_uri in target_websockets:
+                websocket = target_websockets[connection_uri]
+                if websocket.did_error_occur():
+                    return test.FAIL("Error opening WebSocket connection to {}: {}"
+                                     .format(connection_uri, websocket.get_error_message()))
+                elif not websocket.is_open():
+                    return test.FAIL("Error opening WebSocket connection to {}".format(connection_uri))
+
+            # All WebSocket connections must stay open until a health command is required
+            # then we can check that we have not received any state message
+            while time.time() < start_time + WS_HEARTBEAT_INTERVAL:
+                for connection_uri in target_websockets:
+                    websocket = target_websockets[connection_uri]
+                    messages = websocket.get_messages()
+                    if len(messages) >= 1:
+                        return test.FAIL("WebSocket {} sent a state message "
+                                         "without a prior subscription command".format(connection_uri))
+                time.sleep(1)
+
+            # Send health commands
+            health_command = {}
+            health_command["command"] = "health"
+            health_command["timestamp"] = self.is04_utils.get_TAI_time()
+
+            # Send health and subscription commands
+            for connection_uri in target_websockets:
+                subscription_command = {}
+                subscription_command["command"] = "subscription"
+                source_ids = [source["id"] for source in connection_sources[connection_uri]]
+                subscription_command["sources"] = source_ids
+                target_websockets[connection_uri].send(json.dumps(health_command))
+                target_websockets[connection_uri].send(json.dumps(subscription_command))
+
+            # All WebSocket connections which were sent commands should have responded
+            while time.time() < start_time + WS_HEARTBEAT_INTERVAL * 2:
+                if all([len(target_websockets[_].messages) >= 2 for _ in target_websockets]):
+                    break
+                time.sleep(0.2)
+
+            # Check all state messages
+            for connection_uri in target_websockets:
+                websocket = target_websockets[connection_uri]
+                messages = websocket.get_messages()
+                self.check_state_messages(test, messages, connection_sources, 1)
+
+            health_command["timestamp"] = self.is04_utils.get_TAI_time()
+
+            # Resend health and subscription commands
+            for connection_uri in target_websockets:
+                subscription_command = {}
+                subscription_command["command"] = "subscription"
+                source_ids = [source["id"] for source in connection_sources[connection_uri]]
+                subscription_command["sources"] = source_ids
+                target_websockets[connection_uri].send(json.dumps(health_command))
+                target_websockets[connection_uri].send(json.dumps(subscription_command))
+
+            # All WebSocket connections which were sent commands should have responded
+            while time.time() < start_time + WS_HEARTBEAT_INTERVAL * 3:
+                if all([len(target_websockets[_].messages) >= 2 for _ in target_websockets]):
+                    break
+                time.sleep(0.2)
+
+            # Recheck all state messages
+            for connection_uri in target_websockets:
+                websocket = target_websockets[connection_uri]
+                messages = websocket.get_messages()
+                self.check_state_messages(test, messages, connection_sources, 2)
+
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No resources found.")
+
     def get_websocket_connection_sources(self, test):
         """Returns a dictionary of WebSocket sources available for connection"""
         connection_sources = {}
@@ -441,8 +538,225 @@ class IS0702Test(GenericTest):
                                                                     "parameter".format(sender_id)))
                                         connection_uri = params["connection_uri"]
                                         if connection_uri not in connection_sources:
-                                            connection_sources[connection_uri] = [source_id]
+                                            connection_sources[connection_uri] = [self.is04_sources[source_id]]
                                         else:
-                                            connection_sources[connection_uri].append(source_id)
-
+                                            connection_sources[connection_uri].append(self.is04_sources[source_id])
         return connection_sources
+
+    def check_state_messages(self, test, messages, connection_sources, subscription_command_counter):
+        """Checks validity of received state messages"""
+
+        sources_dictionary = {}
+        sources_flows = {}
+        sources_checks = {}
+        for connection_uri in connection_sources:
+            sources = connection_sources[connection_uri]
+            for source in sources:
+                source_id = source["id"]
+                sources_dictionary[source_id] = source
+                sources_flows[source_id] = {}
+                for flow_id in self.is04_flows:
+                    flow = self.is04_flows[flow_id]
+                    if flow["source_id"] == source_id:
+                        sources_flows[source_id][flow_id] = self.is04_flows[flow_id]
+                if subscription_command_counter == 1:
+                    sources_checks[source["id"]] = ("Source {} did not have a matching state response"
+                                                    .format(source["id"]))
+                else:
+                    sources_checks[source["id"]] = ("Source {} did not have a matching state response after "
+                                                    "a second subscription command was sent".format(source["id"]))
+        try:
+            for msg in messages:
+                message = json.loads(msg)
+                if "message_type" in message:
+                    if message["message_type"] == "health":
+                        continue
+                    elif message["message_type"] != "state":
+                        raise NMOSTestException(test.FAIL("WebSocket {} state response message_type is not "
+                                                          "set to state but instead is {}"
+                                                          .format(connection_uri, message["message_type"])))
+                else:
+                    raise NMOSTestException(test.FAIL("WebSocket {} response "
+                                            "does not have a message_type".format(connection_uri)))
+
+                if "identity" in message:
+                    identity = message["identity"]
+                    if "source_id" in identity:
+                        identity_source = identity["source_id"]
+                        if identity_source in sources_dictionary:
+                            if "flow_id" in identity:
+                                identity_flow = identity["flow_id"]
+                                flows = sources_flows[identity_source]
+                                if identity_flow in flows:
+                                    sources_checks[identity_source] = "ok"
+                                    if "event_type" in message:
+                                        if "payload" in message:
+                                            self.check_event_payload(
+                                                test,
+                                                connection_uri,
+                                                sources_dictionary[identity_source],
+                                                message["event_type"],
+                                                message["payload"])
+                                        else:
+                                            raise NMOSTestException(
+                                                test.FAIL("WebSocket {} state response "
+                                                          "does not have a payload".format(connection_uri)))
+                                    else:
+                                        raise NMOSTestException(
+                                            test.FAIL("WebSocket {} state response "
+                                                      "does not have an event_type".format(connection_uri)))
+                                else:
+                                    raise NMOSTestException(
+                                        test.FAIL("WebSocket {} state response identity flow_id {} "
+                                                  "does not match id of any associated source flows, "
+                                                  "for source id {}".format(
+                                                                        connection_uri,
+                                                                        identity_flow,
+                                                                        identity_source)))
+                            else:
+                                raise NMOSTestException(test.FAIL("WebSocket {} state response identity "
+                                                        "does not have a flow_id".format(connection_uri)))
+                        else:
+                            raise NMOSTestException(test.FAIL("WebSocket {} state response "
+                                                    " is for an unknown source".format(connection_uri)))
+                    else:
+                        raise NMOSTestException(test.FAIL("WebSocket {} state response identity "
+                                                "does not have a source_id".format(connection_uri)))
+                else:
+                    raise NMOSTestException(test.FAIL("WebSocket {} state response"
+                                            " does not have identity".format(connection_uri)))
+                if "timing" in message:
+                    if "creation_timestamp" not in message["timing"]:
+                        raise NMOSTestException(test.FAIL("WebSocket {} state response "
+                                                "does not have a creation_timestamp".format(connection_uri)))
+                else:
+                    raise NMOSTestException(test.FAIL("WebSocket {} state response "
+                                            "does not have timing".format(connection_uri)))
+        except KeyError as e:
+            raise NMOSTestException(test.FAIL("WebSocket {} state response cannot be parsed "
+                                    "exception {}".format(connection_uri, e)))
+        for source in sources_checks:
+            if sources_checks[source] != "ok":
+                raise NMOSTestException(test.FAIL("WebSocket source had the following state message error: {}"
+                                                  .format(sources_checks[source])))
+
+    def check_event_payload(self, test, connection_uri, source, event_type, payload):
+        """Checks validity of event payload"""
+
+        source_id = source["id"]
+        source_event_type = source["event_type"]
+
+        if source_id not in self.is07_sources:
+            raise NMOSTestException(test.FAIL("WebSocket {}, source {} did not have a matching REST "
+                                              "type".format(connection_uri, source_id)))
+
+        source_type = self.is07_sources[source_id]["type"]
+
+        if source_event_type != event_type:
+            raise NMOSTestException(test.FAIL("WebSocket {} state response payload event_type "
+                                              "{} does not match source {} event_type {}"
+                                              .format(connection_uri, event_type, source_id, source_event_type)))
+
+        event_types_split = event_type.split("/")
+        base_event_type = event_types_split[0]
+
+        if base_event_type in self.base_event_types:
+            if "value" not in payload:
+                raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                  "does not have a value".format(connection_uri, source_id)))
+            value = payload["value"]
+            if base_event_type == "boolean":
+                if not isinstance(value, bool):
+                    raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                      "for boolean event type is not "
+                                                      "a valid boolean".format(connection_uri, source_id)))
+            elif base_event_type == "string":
+                if not isinstance(value, str):
+                    raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                      "for string event type is not "
+                                                      "a valid string".format(connection_uri, source_id)))
+                if "min_length" in source_type:
+                    if not isinstance(source_type["min_length"], int):
+                        raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} type "
+                                                          "for string event type, type does not have "
+                                                          "a valid min_length".format(connection_uri, source_id)))
+                    else:
+                        if len(value) < source_type["min_length"]:
+                            raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} response payload "
+                                                              "for string event type length is smaller than the "
+                                                              " min_length".format(connection_uri, source_id)))
+                if "max_length" in source_type:
+                    if not isinstance(source_type["max_length"], int):
+                        raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} type "
+                                                          "for string event type, type does not have "
+                                                          "a valid max_length".format(connection_uri, source_id)))
+                    else:
+                        if len(value) > source_type["max_length"]:
+                            raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} response payload "
+                                                              "for string event type length is bigger than the "
+                                                              " max_length".format(connection_uri, source_id)))
+            elif base_event_type == "number":
+                try:
+                    if not isinstance(value, int):
+                        raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                          "for number event type is not a "
+                                                          "a valid number".format(connection_uri, source_id)))
+                    if "scale" in payload:
+                        if not isinstance(payload["scale"], int):
+                            raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                              "for number event type does not have "
+                                                              "a valid scale".format(connection_uri, source_id)))
+                        # check value is between min and max using scales if defined
+                        fraction_value = Fraction(value, payload["scale"])
+                        if "min" in source_type:
+                            fraction_min = Fraction(source_type["min"]["value"], (source_type["min"]["scale"]))
+                            if fraction_value < fraction_min:
+                                raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                                  "for number event type value is less than "
+                                                                  " the min defined value in the type definition"
+                                                                  .format(connection_uri, source_id)))
+                        if "max" in source_type:
+                            fraction_max = Fraction(source_type["max"]["value"], (source_type["max"]["scale"]))
+                            if fraction_value > fraction_max:
+                                raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                                  "for number event type value is bigger than "
+                                                                  " the max defined value in the type definition"
+                                                                  .format(connection_uri, source_id)))
+                    else:
+                        # check value is between min and max if defined
+                        if "min" in source_type:
+                            if value < source_type["min"]["value"]:
+                                raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                                  "for number event type value is less than "
+                                                                  " the min defined value in the type definition"
+                                                                  .format(connection_uri, source_id)))
+                        if "max" in source_type:
+                            if value > source_type["max"]["value"]:
+                                raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                                  "for number event type value is bigger than "
+                                                                  " the max defined value in the type definition"
+                                                                  .format(connection_uri, source_id)))
+                except KeyError as e:
+                    raise NMOSTestException(test.FAIL("WebSocket {} state response cannot be parsed "
+                                            "exception {}".format(connection_uri, e)))
+            if "enum" in event_types_split:
+                try:
+                    valuesTypes = source_type["values"]
+                    valueMatches = False
+                    for valueType in valuesTypes:
+                        if valueType["value"] == value:
+                            valueMatches = True
+                            break
+                    if not valueMatches:
+                        raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response payload "
+                                                          "for enum event type, value does not match "
+                                                          "any of the values defined in the type definition"
+                                                          .format(connection_uri, source_id)))
+                except KeyError as e:
+                    raise NMOSTestException(test.FAIL("WebSocket {} state response cannot be parsed "
+                                            "exception {}".format(connection_uri, e)))
+
+        else:
+            raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response event_type {} "
+                                              "does not inherit from a known base type"
+                                              .format(connection_uri, source_id, event_type)))
