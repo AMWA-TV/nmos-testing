@@ -547,14 +547,13 @@ class IS0702Test(GenericTest):
     def check_state_messages(self, test, messages, connection_sources, subscription_command_counter):
         """Checks validity of received state messages"""
 
-        sources_dictionary = {}
+        sources = {}
         sources_flows = {}
         sources_errors = {}
         for connection_uri in connection_sources:
-            sources = connection_sources[connection_uri]
-            for source in sources:
+            for source in connection_sources[connection_uri]:
                 source_id = source["id"]
-                sources_dictionary[source_id] = source
+                sources[source_id] = source
                 sources_flows[source_id] = {}
                 for flow_id in self.is04_flows:
                     flow = self.is04_flows[flow_id]
@@ -588,7 +587,7 @@ class IS0702Test(GenericTest):
                     identity = parsed_message["identity"]
                     if "source_id" in identity:
                         identity_source = identity["source_id"]
-                        if identity_source in sources_dictionary:
+                        if identity_source in sources:
                             if "flow_id" in identity:
                                 identity_flow = identity["flow_id"]
                                 if identity_source in sources_flows:
@@ -600,7 +599,7 @@ class IS0702Test(GenericTest):
                                                 self.check_event_payload(
                                                     test,
                                                     connection_uri,
-                                                    sources_dictionary[identity_source],
+                                                    sources[identity_source],
                                                     parsed_message["event_type"],
                                                     parsed_message["payload"])
                                             else:
