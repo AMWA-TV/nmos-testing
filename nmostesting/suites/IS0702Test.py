@@ -729,6 +729,13 @@ class IS0702Test(GenericTest):
                                           "type is greater than the max_length {} defined in the type definition, "
                                           "original payload: {}"
                                           .format(connection_uri, source_id, source_type["max_length"], str_payload)))
+                if "pattern" in source_type:
+                    pattern = source_type["pattern"]
+                    if re.match(pattern, value) is None:
+                        raise NMOSTestException(
+                                test.FAIL("WebSocket {}, source id: {} value for string event type, does not "
+                                          "match the pattern defined in the type definition, original payload: {}"
+                                          .format(connection_uri, source_id, str_payload)))
             elif base_event_type == "number":
                 try:
                     if not isinstance(value, int):
