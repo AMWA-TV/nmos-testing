@@ -560,9 +560,9 @@ class IS0702Test(GenericTest):
                     flow = self.is04_flows[flow_id]
                     if flow["source_id"] == source_id:
                         sources_flows[source_id][flow_id] = self.is04_flows[flow_id]
-                sources_errors[source["id"]] = ("WebSocket {}, source {} did not have a matching state response "
-                                                "after subscription command attempt number {}"
-                                                .format(connection_uri, source["id"], subscription_command_counter))
+                sources_errors[source_id] = ("WebSocket {}, source {} did not have a matching state response "
+                                             "after subscription command attempt number {}"
+                                             .format(connection_uri, source_id, subscription_command_counter))
         try:
             for message in messages:
                 parsed_message = json.loads(message)
