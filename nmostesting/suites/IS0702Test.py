@@ -591,7 +591,7 @@ class IS0702Test(GenericTest):
                         if identity_source in sources_dictionary:
                             if "flow_id" in identity:
                                 identity_flow = identity["flow_id"]
-                                if identity_source in sources_flows[identity_source]:
+                                if identity_source in sources_flows:
                                     flows = sources_flows[identity_source]
                                     if identity_flow in flows:
                                         del sources_errors[identity_source]  # Remove sources which are ok
