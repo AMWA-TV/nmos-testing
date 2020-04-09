@@ -591,33 +591,39 @@ class IS0702Test(GenericTest):
                         if identity_source in sources_dictionary:
                             if "flow_id" in identity:
                                 identity_flow = identity["flow_id"]
-                                flows = sources_flows[identity_source]
-                                if identity_flow in flows:
-                                    del sources_errors[identity_source]  # Remove sources which are ok
-                                    if "event_type" in parsed_message:
-                                        if "payload" in parsed_message:
-                                            self.check_event_payload(
-                                                test,
-                                                connection_uri,
-                                                sources_dictionary[identity_source],
-                                                parsed_message["event_type"],
-                                                parsed_message["payload"])
+                                if identity_source in sources_flows[identity_source]:
+                                    flows = sources_flows[identity_source]
+                                    if identity_flow in flows:
+                                        del sources_errors[identity_source]  # Remove sources which are ok
+                                        if "event_type" in parsed_message:
+                                            if "payload" in parsed_message:
+                                                self.check_event_payload(
+                                                    test,
+                                                    connection_uri,
+                                                    sources_dictionary[identity_source],
+                                                    parsed_message["event_type"],
+                                                    parsed_message["payload"])
+                                            else:
+                                                raise NMOSTestException(
+                                                    test.FAIL("WebSocket {} state response "
+                                                              "does not have a payload, original message: {}"
+                                                              .format(connection_uri, message)))
                                         else:
                                             raise NMOSTestException(
                                                 test.FAIL("WebSocket {} state response "
-                                                          "does not have a payload, original message: {}"
+                                                          "does not have an event_type, original message: {}"
                                                           .format(connection_uri, message)))
                                     else:
                                         raise NMOSTestException(
-                                            test.FAIL("WebSocket {} state response "
-                                                      "does not have an event_type, original message: {}"
-                                                      .format(connection_uri, message)))
+                                            test.FAIL("WebSocket {} state response identity flow_id {} "
+                                                      "does not match id of any associated source flows, "
+                                                      "for source id {}, original message: {}"
+                                                      .format(connection_uri, identity_flow, identity_source, message)))
                                 else:
                                     raise NMOSTestException(
-                                        test.FAIL("WebSocket {} state response identity flow_id {} "
-                                                  "does not match id of any associated source flows, for source id {}, "
-                                                  "original message: {}"
-                                                  .format(connection_uri, identity_flow, identity_source, message)))
+                                        test.FAIL("WebSocket {} source {} "
+                                                  "does not have any associated flows"
+                                                  .format(connection_uri, identity_source)))
                             else:
                                 raise NMOSTestException(
                                     test.FAIL("WebSocket {} state response identity does not have a flow_id, "
