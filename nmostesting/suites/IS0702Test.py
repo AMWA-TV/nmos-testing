@@ -549,7 +549,7 @@ class IS0702Test(GenericTest):
 
         sources = {}
         sources_flows = {}
-        sources_errors = {}
+        missing_sources = {}
         for connection_uri in connection_sources:
             for source in connection_sources[connection_uri]:
                 source_id = source["id"]
@@ -559,9 +559,9 @@ class IS0702Test(GenericTest):
                     flow = self.is04_flows[flow_id]
                     if flow["source_id"] == source_id:
                         sources_flows[source_id][flow_id] = self.is04_flows[flow_id]
-                sources_errors[source_id] = ("WebSocket {}, source {} did not have a matching state response "
-                                             "after subscription command attempt number {}"
-                                             .format(connection_uri, source_id, subscription_command_counter))
+                missing_sources[source_id] = ("WebSocket {}, source {} did not have a matching state response "
+                                              "after subscription command attempt number {}"
+                                              .format(connection_uri, source_id, subscription_command_counter))
         try:
             for message in messages:
                 parsed_message = json.loads(message)
@@ -593,7 +593,7 @@ class IS0702Test(GenericTest):
                                 if identity_source in sources_flows:
                                     flows = sources_flows[identity_source]
                                     if identity_flow in flows:
-                                        del sources_errors[identity_source]  # Remove sources which are ok
+                                        del missing_sources[identity_source]  # Remove sources which are ok
                                         if "event_type" in parsed_message:
                                             if "payload" in parsed_message:
                                                 self.check_event_payload(
@@ -657,8 +657,8 @@ class IS0702Test(GenericTest):
             raise NMOSTestException(
                 test.FAIL("WebSocket {} state response cannot be parsed exception {}, original message: {}"
                           .format(connection_uri, e, message)))
-        for source in sources_errors:
-            raise NMOSTestException(test.FAIL(sources_errors[source]))
+        if len(missing_sources.keys()) > 0:
+            raise NMOSTestException(test.FAIL(list(missing_sources.keys())[0]))
 
     def check_event_payload(self, test, connection_uri, source, event_type, payload):
         """Checks validity of event payload"""
