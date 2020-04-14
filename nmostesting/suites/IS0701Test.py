@@ -223,22 +223,28 @@ class IS0701Test(GenericTest):
                     continue
                 found_number = True
 
-                payload = self.is07_utils.get_number(source["state"]["payload"])
+                payload = source["state"]["payload"]
+                if not isinstance(payload["value"], (int, float)) or \
+                        ("scale" in payload and not isinstance(payload["scale"], int)):
+                    return test.FAIL("Source {} state payload does not match the type: {}"
+                                     .format(source_id, source["type"]["type"]))
+
+                scaled_value = self.is07_utils.get_number(source["state"]["payload"])
 
                 min = self.is07_utils.get_number(source["type"]["min"])
                 # check 'min' inclusive
-                if min > payload:
+                if min > scaled_value:
                     return test.FAIL("Source {} state payload is less than the minimum".format(source_id))
 
                 max = self.is07_utils.get_number(source["type"]["max"])
                 # check 'max' inclusive
-                if max < payload:
+                if max < scaled_value:
                     return test.FAIL("Source {} state payload is greater than the maximum".format(source_id))
 
                 # check 'step'
                 if "step" in source["type"]:
                     step = self.is07_utils.get_number(source["type"]["step"])
-                    if 0 != (payload - min) % step:
+                    if 0 != (scaled_value - min) % step:
                         return test.WARNING("Source {} state payload is not an integer multiple of the step"
                                             .format(source_id))
         except KeyError as e:
@@ -268,6 +274,10 @@ class IS0701Test(GenericTest):
                 found_string = True
 
                 value = source["state"]["payload"]["value"]
+
+                if not isinstance(value, str):
+                    return test.FAIL("Source {} state payload does not match the type: {}"
+                                     .format(source_id, source["type"]["type"]))
 
                 if "min_length" in source["type"]:
                     min_length = source["type"]["min_length"]
@@ -313,7 +323,11 @@ class IS0701Test(GenericTest):
                     continue
                 found_boolean = True
 
-                # nothing to do, since schema check is enough
+                value = source["state"]["payload"]["value"]
+
+                if not isinstance(value, bool):
+                    return test.FAIL("Source {} state payload does not match the type: {}"
+                                     .format(source_id, source["type"]["type"]))
         except KeyError as e:
             return test.FAIL("Source {} JSON data did not include the expected key: {}".format(source_id, e))
 
@@ -368,7 +382,7 @@ class IS0701Test(GenericTest):
                     continue
                 found_number = True
 
-                scale = {}
+                scale = None
 
                 if "scale" in source["type"]:
                     scale = source["type"]["scale"]
