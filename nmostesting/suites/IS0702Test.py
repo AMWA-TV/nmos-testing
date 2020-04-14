@@ -655,8 +655,8 @@ class IS0702Test(GenericTest):
             raise NMOSTestException(
                 test.FAIL("WebSocket {} state response cannot be parsed exception {}, original message: {}"
                           .format(connection_uri, e, message)))
-        if len(missing_sources.keys()) > 0:
-            raise NMOSTestException(test.FAIL(list(missing_sources.keys())[0]))
+        if len(missing_sources) > 0:
+            raise NMOSTestException(test.FAIL(list(missing_sources.values())[0]))
 
     def check_event_payload(self, test, connection_uri, source, event_type, payload):
         """Checks validity of event payload"""
