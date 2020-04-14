@@ -16,8 +16,6 @@ import re
 import time
 import json
 
-from fractions import Fraction
-
 from .. import Config as CONFIG
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS04Utils import IS04Utils
@@ -738,40 +736,47 @@ class IS0702Test(GenericTest):
                                           .format(connection_uri, source_id, str_payload)))
             elif base_event_type == "number":
                 try:
-                    if not isinstance(value, int):
+                    if not isinstance(value, (int, float)):
                         raise NMOSTestException(
                                 test.FAIL("WebSocket {}, source id: {} state response payload for number event type "
                                           "is not a a valid number, original payload: {}"
                                           .format(connection_uri, source_id, str_payload)))
-                    if "scale" in payload:
-                        if not isinstance(payload["scale"], int):
-                            raise NMOSTestException(
-                                test.FAIL("WebSocket {}, source id: {} state response payload for number event type "
-                                          "does not have a valid scale, original payload: {}"
-                                          .format(connection_uri, source_id, str_payload)))
-                        # check value is between min and max if defined
-                        fraction_value = Fraction(value, payload["scale"])
-                        if "min" in source_type:
-                            fraction_min = Fraction(source_type["min"]["value"], (source_type["min"]["scale"]))
-                            self.check_value_greater_than_threshold(
-                                test, connection_uri, source_id, str_payload, fraction_value, fraction_min)
-                        if "max" in source_type:
-                            fraction_max = Fraction(source_type["max"]["value"], (source_type["max"]["scale"]))
-                            self.check_value_less_than_threshold(
-                                test, connection_uri, source_id, str_payload, fraction_value, fraction_max)
-                    else:
-                        # check value is between min and max if defined
-                        if "min" in source_type:
-                            self.check_value_greater_than_threshold(
-                                test, connection_uri, source_id, str_payload, value, source_type["min"]["value"])
-                        if "max" in source_type:
-                            self.check_value_less_than_threshold(
-                                test, connection_uri, source_id, str_payload, value, source_type["max"]["value"])
+
+                    if "values" not in source_type:
+                        if "scale" in payload:
+                            if not isinstance(payload["scale"], int):
+                                raise NMOSTestException(
+                                    test.FAIL("WebSocket {}, source id: {} state response payload for number event "
+                                              "type does not have a valid scale, original payload: {}"
+                                              .format(connection_uri, source_id, str_payload)))
+
+                        comparison_value = self.is07_utils.get_number(payload)
+
+                        minimum = self.is07_utils.get_number(source_type["min"])
+                        self.check_value_greater_than_threshold(
+                            test, connection_uri, source_id, str_payload, comparison_value, minimum)
+
+                        maximum = self.is07_utils.get_number(source_type["max"])
+                        self.check_value_less_than_threshold(
+                            test, connection_uri, source_id, str_payload, comparison_value, maximum)
+
+                        if "step" in source_type:
+                            step = self.is07_utils.get_number(source_type["step"])
+                            if 0 != (comparison_value - minimum) % step:
+                                raise NMOSTestException(
+                                    test.WARNING("WebSocket {}, source id: {} state response payload for number event "
+                                                 "type is not an integer multiple of step {}, original payload: {}"
+                                                 .format(connection_uri, source_id, source_type["step"], str_payload)))
                 except KeyError as e:
                     raise NMOSTestException(
-                        test.FAIL("WebSocket {} state response payload cannot be parsed "
+                        test.FAIL("WebSocket {}, source {}, state response payload cannot be parsed "
                                   "exception {}, original payload: {}"
-                                  .format(connection_uri, e, str_payload)))
+                                  .format(connection_uri, source_id, e, str_payload)))
+                except ZeroDivisionError as e:
+                    raise NMOSTestException(
+                        test.FAIL("WebSocket {}, source {}, state response payload, zero scale is "
+                                  "not allowed, exception {}, original payload: {}"
+                                  .format(connection_uri, source_id, e, str_payload)))
             if "enum" in event_types_split:
                 try:
                     valuesTypes = source_type["values"]
@@ -788,9 +793,9 @@ class IS0702Test(GenericTest):
                                       .format(connection_uri, source_id, str_payload)))
                 except KeyError as e:
                     raise NMOSTestException(
-                        test.FAIL("WebSocket {} state response payload cannot be parsed exception {}, "
+                        test.FAIL("WebSocket {}, source id: {} state response payload cannot be parsed exception {}, "
                                   "original payload: {}"
-                                  .format(connection_uri, e, str_payload)))
+                                  .format(connection_uri, source_id, e, str_payload)))
 
         else:
             raise NMOSTestException(test.FAIL("WebSocket {}, source id: {} state response event_type {} "
