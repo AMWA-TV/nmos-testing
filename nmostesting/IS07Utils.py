@@ -14,6 +14,8 @@
 
 from . import TestHelper
 
+import fractions
+
 from .NMOSUtils import NMOSUtils
 
 
@@ -35,3 +37,9 @@ class IS07Utils(NMOSUtils):
                     if valid_sub and sub.status_code == 200:
                         toReturn[source_id][sub_path] = sub.json()
         return toReturn
+
+    def get_scale(self, payload):
+        return 1 if "scale" not in payload else payload["scale"]
+
+    def get_number(self, payload):
+        return fractions.Fraction(fractions.Fraction(payload["value"]), self.get_scale(payload))

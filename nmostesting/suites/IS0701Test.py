@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import fractions
 import re
 
 from requests.compat import json
 
 from ..GenericTest import GenericTest, NMOSTestException
+
+from ..IS07Utils import IS07Utils
 
 EVENTS_API_KEY = "events"
 
@@ -29,6 +30,7 @@ class IS0701Test(GenericTest):
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
         self.events_url = self.apis[EVENTS_API_KEY]["url"]
+        self.is07_utils = IS07Utils(self.events_url)
         self.sources = {}
 
     def do_collect_sources(self, test):
@@ -120,15 +122,15 @@ class IS0701Test(GenericTest):
                     continue
                 found_number = True
 
-                min = self.get_number(source["type"]["min"])
-                max = self.get_number(source["type"]["max"])
+                min = self.is07_utils.get_number(source["type"]["min"])
+                max = self.is07_utils.get_number(source["type"]["max"])
 
                 if min > max:
                     return test.FAIL("Source {} maximum value is less than the minimum".format(source_id))
 
                 # check 'step'
                 if "step" in source["type"]:
-                    step = self.get_number(source["type"]["step"])
+                    step = self.is07_utils.get_number(source["type"]["step"])
                     if 0 != (max - min) % step:
                         return test.WARNING("Source {} max - min is not an integer multiple of the step"
                                             .format(source_id))
@@ -221,21 +223,21 @@ class IS0701Test(GenericTest):
                     continue
                 found_number = True
 
-                payload = self.get_number(source["state"]["payload"])
+                payload = self.is07_utils.get_number(source["state"]["payload"])
 
-                min = self.get_number(source["type"]["min"])
+                min = self.is07_utils.get_number(source["type"]["min"])
                 # check 'min' inclusive
                 if min > payload:
                     return test.FAIL("Source {} state payload is less than the minimum".format(source_id))
 
-                max = self.get_number(source["type"]["max"])
+                max = self.is07_utils.get_number(source["type"]["max"])
                 # check 'max' inclusive
                 if max < payload:
                     return test.FAIL("Source {} state payload is greater than the maximum".format(source_id))
 
                 # check 'step'
                 if "step" in source["type"]:
-                    step = self.get_number(source["type"]["step"])
+                    step = self.is07_utils.get_number(source["type"]["step"])
                     if 0 != (payload - min) % step:
                         return test.WARNING("Source {} state payload is not an integer multiple of the step"
                                             .format(source_id))
@@ -366,22 +368,27 @@ class IS0701Test(GenericTest):
                     continue
                 found_number = True
 
-                scale = source["type"]["scale"] if "scale" in source["type"] else self.get_scale(source["type"]["min"])
+                scale = {}
 
-                if self.get_scale(source["type"]["min"]) != scale:
+                if "scale" in source["type"]:
+                    scale = source["type"]["scale"]
+                else:
+                    scale = self.is07_utils.get_scale(source["type"]["min"])
+
+                if self.is07_utils.get_scale(source["type"]["min"]) != scale:
                     return test.WARNING("Source {} type 'min' scale is inconsistent with 'scale'"
                                         .format(source_id))
 
-                if self.get_scale(source["type"]["max"]) != scale:
+                if self.is07_utils.get_scale(source["type"]["max"]) != scale:
                     return test.WARNING("Source {} type 'max' scale is inconsistent with 'min' scale"
                                         .format(source_id))
 
                 if "step" in source["type"]:
-                    if self.get_scale(source["type"]["step"]) != scale:
+                    if self.is07_utils.get_scale(source["type"]["step"]) != scale:
                         return test.WARNING("Source {} type 'step' scale is inconsistent with 'min' and 'max' scale"
                                             .format(source_id))
 
-                payload_scale = self.get_scale(source["state"]["payload"])
+                payload_scale = self.is07_utils.get_scale(source["state"]["payload"])
                 if payload_scale != scale:
                     return test.WARNING("Source {} state payload 'scale' is inconsistent with type 'scale' values"
                                         .format(source_id))
@@ -393,9 +400,3 @@ class IS0701Test(GenericTest):
             return test.UNCLEAR("No 'number' sources were returned from Events API")
 
         return test.PASS()
-
-    def get_scale(self, payload):
-        return 1 if "scale" not in payload else payload["scale"]
-
-    def get_number(self, payload):
-        return fractions.Fraction(fractions.Fraction(payload["value"]), self.get_scale(payload))
