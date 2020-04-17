@@ -591,7 +591,9 @@ class IS0702Test(GenericTest):
                                 if identity_source in sources_flows:
                                     flows = sources_flows[identity_source]
                                     if identity_flow in flows:
-                                        del missing_sources[identity_source]  # Remove sources which are ok
+                                        # Remove sources which have had at least one state message
+                                        if identity_source in missing_sources:
+                                            del missing_sources[identity_source]
                                         if "event_type" in parsed_message:
                                             if "payload" in parsed_message:
                                                 self.check_event_payload(
