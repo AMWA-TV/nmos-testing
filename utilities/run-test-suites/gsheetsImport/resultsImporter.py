@@ -19,6 +19,7 @@ import datetime
 import gspread
 import json
 import sys
+import copy
 
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -29,6 +30,26 @@ SCOPES = ['https://spreadsheets.google.com/feeds',
 # Test states grouped by severity
 TEST_STATES = ["Pass", "Fail", "Warning", "Not Implemented", "Test Disabled", "Could Not Test", "Manual",
                "Not Applicable"]
+
+
+def get_range(worksheet_data, start_row, start_col, end_row, end_col):
+    result = []
+    for row_no in range(start_row-1, end_row):
+        row = worksheet_data[row_no] if row_no < len(worksheet_data) else []
+        for col_no in range(start_col-1, end_col):
+            result.append(gspread.Cell(row_no + 1, col_no + 1, row[col_no] if col_no < len(row) else ""))
+    return result
+
+
+def ranges_equal(first, second):
+    if len(first) != len(second):
+        return False
+    for i in range(len(first)):
+        if (first[i].row != second[i].row or
+                first[i].col != second[i].col or
+                first[i].value != second[i].value):
+            return False
+    return True
 
 
 def gsheets_import(test_results, worksheet, filename, start_col=1):
@@ -61,14 +82,11 @@ def gsheets_import(test_results, worksheet, filename, start_col=1):
         next_col = max(results_col, len(worksheet_data[0])+1)
 
     # Test Names
-    start_cell_addr = gspread.utils.rowcol_to_a1(1, 1)
-    end_cell_addr = gspread.utils.rowcol_to_a1(1, next_col)
-    cell_list_names = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))[:-1]
+    cell_list_names = get_range(worksheet_data, 1, 1, 1, next_col)
+    original_cell_list_names = copy.deepcopy(cell_list_names)
 
     # Results
-    start_cell_addr = gspread.utils.rowcol_to_a1(current_row, 1)
-    end_cell_addr = gspread.utils.rowcol_to_a1(current_row, next_col)
-    cell_list_results = worksheet.range("{}:{}".format(start_cell_addr, end_cell_addr))[:-1]
+    cell_list_results = get_range(worksheet_data, current_row, 1, current_row, next_col)
 
     # Columns for Filename, URLs Tested, Timestamp, Test Suite
     current_index = start_col-1  # list is 0-indexed whereas rows/cols are 1-indexed
@@ -128,14 +146,15 @@ def gsheets_import(test_results, worksheet, filename, start_col=1):
             cell_list_names.append(gspread.Cell(1, col, result["name"]))
             cell_list_results.append(gspread.Cell(current_row, col, cell_contents))
 
-    worksheet.update_cells(cell_list_names)
+    if not ranges_equal(original_cell_list_names, cell_list_names):
+        worksheet.update_cells(cell_list_names)
     # 'USER_ENTERED' allows formulae to be used
     worksheet.update_cells(cell_list_results, value_input_option='USER_ENTERED')
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--json", required=True)
+    parser.add_argument("--json", required=True, action="append")
     parser.add_argument("--sheet", required=True)
     parser.add_argument("--credentials", default="credentials.json")
     parser.add_argument("--start_col", default="1", type=int)
@@ -146,17 +165,20 @@ def main():
 
     spreadsheet = gcloud.open_by_url(args.sheet)
 
-    with open(args.json) as json_file:
-        test_results = json.load(json_file)
+    worksheets = spreadsheet.worksheets()
 
-    try:
-        worksheet = spreadsheet.worksheet(test_results["suite"])
-    except gspread.exceptions.WorksheetNotFound:
-        print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
-        # could add_worksheet?
-        sys.exit(1)
+    for json_file_name in args.json:
+        with open(json_file_name) as json_file:
+            test_results = json.load(json_file)
 
-    gsheets_import(test_results, worksheet, args.json, args.start_col)
+        try:
+            worksheet = next(x for x in worksheets if x.title == test_results["suite"])
+        except StopIteration:
+            print(" * ERROR: Worksheet {} not found".format(test_results["suite"]))
+            # could add_worksheet?
+            sys.exit(1)
+
+        gsheets_import(test_results, worksheet, json_file_name, args.start_col)
 
 
 if __name__ == '__main__':
