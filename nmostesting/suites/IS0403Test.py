@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 import socket
 
-from time import sleep
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOS_WIKI_URL
@@ -52,13 +52,21 @@ class IS0403Test(GenericTest):
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
-        sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
-        node_list = self.zc_listener.get_service_list()
-        for node in node_list:
-            address = socket.inet_ntoa(node.address)
-            port = node.port
-            if address == api["ip"] and port == api["port"]:
-                properties = self.convert_bytes(node.properties)
+        # Wait for n seconds for the Node to recognize it should adopt peer-to-peer operation
+        start_time = time.time()
+        while time.time() < start_time + CONFIG.DNS_SD_ADVERT_TIMEOUT:
+            properties = None
+            time.sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
+            node_list = self.zc_listener.get_service_list()
+            # Iterate in reverse order to check the most recent advert first
+            for node in reversed(node_list):
+                address = socket.inet_ntoa(node.address)
+                port = node.port
+                if address == api["ip"] and port == api["port"]:
+                    properties = self.convert_bytes(node.properties)
+                    break
+            # If the Node is still advertising as for registered operation, loop around
+            if properties and "ver_slf" in properties:
                 for ver_txt in ["ver_slf", "ver_src", "ver_flw", "ver_dvc", "ver_snd", "ver_rcv"]:
                     if ver_txt not in properties:
                         return test.FAIL("No '{}' TXT record found in Node API advertisement.".format(ver_txt))

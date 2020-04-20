@@ -24,14 +24,20 @@ class MdnsListener(object):
         self.services = list()
         self.resolve_queue = Queue()
 
-    def add_service(self, zeroconf, srv_type, name):
+    def _resolve_service(self, srv_type, name):
         self.resolve_queue.put((srv_type, name))
         t = Thread(target=self.worker)
         t.daemon = True
         t.start()
 
+    def add_service(self, zeroconf, srv_type, name):
+        self._resolve_service(srv_type, name)
+
     def remove_service(self, zeroconf, srv_type, name):
         pass
+
+    def update_service(self, zeroconf, srv_type, name):
+        self._resolve_service(srv_type, name)
 
     def get_service_list(self):
         self.resolve_queue.join()
