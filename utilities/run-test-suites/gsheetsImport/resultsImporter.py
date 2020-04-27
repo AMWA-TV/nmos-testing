@@ -65,7 +65,7 @@ def insert_row(worksheet, data, row):
                     'startIndex': row,
                     'endIndex': row + 1
                 },
-                "inheritFromBefore": False
+                'inheritFromBefore': False
             }
         }, {
             'updateCells': {
@@ -74,15 +74,20 @@ def insert_row(worksheet, data, row):
                     'rowIndex': row,
                     'columnIndex': 0,
                 },
-                'rows': [
-                    {
-                        "values": data_values
-                    }
-                ],
-                'fields': "userEnteredValue"
+                'rows': [{
+                    "values": data_values
+                }],
+                'fields': 'userEnteredValue'
             }
         }]
     })
+
+
+def append_row(worksheet, data):
+    worksheet.append_rows([data],
+                          value_input_option='USER_ENTERED',
+                          insert_data_option='INSERT_ROWS',
+                          table_range="A1")
 
 
 def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False):
@@ -178,19 +183,16 @@ def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False)
     if insert:
         insert_row(worksheet, cell_list_results, 1)
     else:
-        worksheet.append_rows([cell_list_results],
-                              value_input_option='USER_ENTERED',
-                              insert_data_option='INSERT_ROWS',
-                              table_range="A1")
+        append_row(worksheet, cell_list_results)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--json", required=True, action="append")
-    parser.add_argument("--sheet", required=True)
-    parser.add_argument("--credentials", default="credentials.json")
-    parser.add_argument("--start_col", default="1", type=int)
-    parser.add_argument("--insert", action="store_true")
+    parser.add_argument("--json", required=True, nargs="+", help="json test results filename(s) to import")
+    parser.add_argument("--sheet", required=True, help="spreadsheet url")
+    parser.add_argument("--credentials", default="credentials.json", help="credentials filename")
+    parser.add_argument("--start_col", default="1", type=int, help="reserve some columns for manually entered details")
+    parser.add_argument("--insert", action="store_true", help="insert new results at the top rather than the bottom")
     args = parser.parse_args()
 
     credentials = ServiceAccountCredentials.from_json_keyfile_name(args.credentials, SCOPES)
