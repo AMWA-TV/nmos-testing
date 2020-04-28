@@ -149,7 +149,7 @@ def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False)
 
     # Columns for counts of Tests and each Test Status
     result_col_name = gspread.utils.rowcol_to_a1(1, results_col)[0:-1]
-    results_addr = 'INDIRECT("{}"&ROW()&":"&ROW())'.format(result_col_name)
+    results_addr = 'INDIRECT("${}"&ROW()&":"&ROW())'.format(result_col_name)
 
     current_index += 1
     cell_list_names[current_index].value = "Tests"
@@ -159,9 +159,9 @@ def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False)
         current_index += 1
         cell_list_names[current_index].value = state
         # count cells on the rest of this row that match this column's status
-        current_col_addr = gspread.utils.rowcol_to_a1(1, cell_list_names[current_index].col)
-        cell_list_results[current_index] = "=COUNTIF({}, CONCAT({},\"*\"))" \
-            .format(results_addr, current_col_addr)
+        current_col_name = gspread.utils.rowcol_to_a1(1, cell_list_names[current_index].col)[0:-1]
+        cell_list_results[current_index] = "=COUNTIF({}, CONCAT({}$1,\"*\"))" \
+            .format(results_addr, current_col_name)
 
     # Columns for the Results
     for result in test_results["results"]:
