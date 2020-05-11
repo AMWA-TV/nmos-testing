@@ -15,7 +15,7 @@
 
 from requests.compat import json
 
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 from .is08.testConfig import globalConfig
 from .is08.activation import Activation
 from .is08.outputs import getOutputList
@@ -81,7 +81,7 @@ class IS0802Test(GenericTest):
 
         if len(self.find_device_advertisement()) > 0:
             return test.PASS()
-        return test.FAIL("Could not find a Device advertisement for the API")
+        return test.FAIL("Could not find a Device advertisement for the Channel Mapping API")
 
     def test_03(self, test):
         """ All Output Source IDs match up to the IS-04 Node API"""
@@ -161,7 +161,7 @@ class IS0802Test(GenericTest):
 
         valid, result = self.refresh_is04_resources("devices")
         if not valid:
-            return test.FAIL("")
+            raise NMOSTestException(test.FAIL(result))
 
         devicesWithAdvertisements = []
         found_api_match = False
@@ -176,13 +176,14 @@ class IS0802Test(GenericTest):
                             found_api_match = True
 
         if len(devicesWithAdvertisements) > 0 and not found_api_match:
-            return test.FAIL("Found one or more Device controls, but no href matched the Mapping API under test")
+            raise NMOSTestException(test.FAIL("Found one or more Device controls, but no href matched the "
+                                              "Channel Mapping API under test"))
 
         return devicesWithAdvertisements
 
     def findSourceID(self, sourceID):
         if not self.get_is04_resources("sources"):
-            return globalConfig.test.FAIL("Could not get sources from Node API")
+            raise NMOSTestException(globalConfig.test.FAIL("Could not get sources from Node API"))
         registrySources = self.is04_resources["sources"]
         for source in registrySources:
             if source['id'] == sourceID:
@@ -191,7 +192,7 @@ class IS0802Test(GenericTest):
 
     def findReceiverID(self, receiverID):
         if not self.get_is04_resources("receivers"):
-            return globalConfig.test.FAIL("Could not get receivers from Node API")
+            raise NMOSTestException(globalConfig.test.FAIL("Could not get receivers from Node API"))
         registryReceivers = self.is04_resources["receivers"]
         for receiver in registryReceivers:
             if receiver['id'] == receiverID:
