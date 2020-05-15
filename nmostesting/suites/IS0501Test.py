@@ -859,12 +859,12 @@ class IS0501Test(GenericTest):
             if len(self.senders) or len(self.receivers):
                 for sender in self.senders:
                     if self.transport_types[sender] not in VALID_TRANSPORTS[api["version"]]:
-                        return test.FAIL("Sender {} indicates an invalid transport type of {}".format(sender,
-                                                                                                      response))
+                        return test.FAIL("Sender {} indicates an invalid transport type of {}"
+                                         .format(sender, self.transport_types[sender]))
                 for receiver in self.receivers:
                     if self.transport_types[receiver] not in VALID_TRANSPORTS[api["version"]]:
-                        return test.FAIL("Receiver {} indicates an invalid transport type of {}".format(receiver,
-                                                                                                        response))
+                        return test.FAIL("Receiver {} indicates an invalid transport type of {}"
+                                         .format(receiver, self.transport_types[receiver]))
                 return test.PASS()
             else:
                 return test.UNCLEAR("Not tested. No resources found.")
