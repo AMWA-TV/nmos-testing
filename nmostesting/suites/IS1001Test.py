@@ -474,7 +474,8 @@ class IS1001Test(GenericTest):
             self._raise_nmos_exception(self, test, response, string=str(e))
 
         if error_value not in response.json()["error"]:
-            self._raise_nmos_exception(self, test, response, "'{}' not in response. Response: {}".format(error_value))
+            self._raise_nmos_exception(self, test, response, "'{}' not in error response. Response: {}"
+                                                             .format(error_value, response.json()["error"]))
 
     def test_09(self, test):
         """Test Error Response of Authorization Endpoint in line with RFC6749"""
