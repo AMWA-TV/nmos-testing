@@ -52,22 +52,36 @@ def ranges_equal(first, second):
     return True
 
 
-def insert_row(worksheet, data, row):
+def insert_row(worksheet, data, row, populated_cols):
     data_values = [{
             "userEnteredValue": ({"formulaValue": x} if x.startswith("=") else {"stringValue": x})
         } for x in data]
-    worksheet.spreadsheet.batch_update({
-        'requests': [{
-            'insertDimension': {
+    requests = []
+    if populated_cols < len(data):
+        requests.append({
+            'updateSheetProperties': {
+                'properties': {
+                    'sheetId': worksheet.id,
+                    'gridProperties': {
+                        'columnCount': len(data)
+                    }
+                },
+                'fields': 'gridProperties.columnCount'
+            }
+        })
+    requests.append({
+            'insertRange': {
                 'range': {
                     'sheetId': worksheet.id,
-                    'dimension': 'ROWS',
-                    'startIndex': row,
-                    'endIndex': row + 1
+                    'startRowIndex': row,
+                    'endRowIndex': row + 1,
+                    'startColumnIndex': 0,
+                    'endColumnIndex': len(data)
                 },
-                'inheritFromBefore': False
+                'shiftDimension': 'ROWS'
             }
-        }, {
+        })
+    requests.append({
             'updateCells': {
                 'start': {
                     'sheetId': worksheet.id,
@@ -79,7 +93,9 @@ def insert_row(worksheet, data, row):
                 }],
                 'fields': 'userEnteredValue'
             }
-        }]
+        })
+    worksheet.spreadsheet.batch_update({
+        'requests': requests
     })
 
 
@@ -95,6 +111,7 @@ def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False)
 
     worksheet_data = worksheet.get_all_values()
     populated_rows = len(worksheet_data)
+    populated_cols = 0 if populated_rows == 0 else len(worksheet_data[0])
     # Columns before start_col reserved for manually entered details
     start_col = max(1, start_col)
 
@@ -181,7 +198,7 @@ def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False)
     if not ranges_equal(original_cell_list_names, cell_list_names):
         worksheet.update_cells(cell_list_names)
     if insert:
-        insert_row(worksheet, cell_list_results, 1)
+        insert_row(worksheet, cell_list_results, 1, populated_cols)
     else:
         append_row(worksheet, cell_list_results)
 
