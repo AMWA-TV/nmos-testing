@@ -73,9 +73,13 @@ class IS0402Test(GenericTest):
         sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         serv_list = self.zc_listener.get_service_list()
         for service in serv_list:
-            address = socket.inet_ntoa(service.address)
             port = service.port
-            if address == api["ip"] and port == api["port"]:
+            if port != api["port"]:
+                continue
+            for address in service.addresses:
+                address = socket.inet_ntoa(address)
+                if address != api["ip"]:
+                    continue
                 properties = self.convert_bytes(service.properties)
                 if "pri" not in properties:
                     return test.FAIL("No 'pri' TXT record found in {} advertisement.".format(api["name"]))

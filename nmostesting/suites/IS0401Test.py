@@ -103,8 +103,8 @@ class IS0401Test(GenericTest):
 
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
-                           socket.inet_aton(ip), port, 0, 0,
-                           txt, hostname)
+                           addresses=[socket.inet_aton(ip)], port=port,
+                           properties=txt, server=hostname)
         return info
 
     def do_node_basics_prereqs(self):
@@ -709,9 +709,13 @@ class IS0401Test(GenericTest):
         node_list = self.collect_mdns_announcements()
 
         for node in node_list:
-            address = socket.inet_ntoa(node.address)
             port = node.port
-            if address == api["ip"] and port == api["port"]:
+            if port != api["port"]:
+                continue
+            for address in node.addresses:
+                address = socket.inet_ntoa(address)
+                if address != api["ip"]:
+                    continue
                 properties = self.convert_bytes(node.properties)
                 for prop in properties:
                     if "ver_" in prop:
@@ -755,9 +759,13 @@ class IS0401Test(GenericTest):
         node_list = self.collect_mdns_announcements()
 
         for node in node_list:
-            address = socket.inet_ntoa(node.address)
             port = node.port
-            if address == api["ip"] and port == api["port"]:
+            if port != api["port"]:
+                continue
+            for address in node.addresses:
+                address = socket.inet_ntoa(address)
+                if address != api["ip"]:
+                    continue
                 properties = self.convert_bytes(node.properties)
                 if "api_ver" not in properties:
                     return test.FAIL("No 'api_ver' TXT record found in Node API advertisement.")
