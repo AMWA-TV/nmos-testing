@@ -60,10 +60,16 @@ class IS0403Test(GenericTest):
             node_list = self.zc_listener.get_service_list()
             # Iterate in reverse order to check the most recent advert first
             for node in reversed(node_list):
-                address = socket.inet_ntoa(node.address)
                 port = node.port
-                if address == api["ip"] and port == api["port"]:
+                if port != api["port"]:
+                    continue
+                for address in node.addresses:
+                    address = socket.inet_ntoa(address)
+                    if address != api["ip"]:
+                        continue
                     properties = self.convert_bytes(node.properties)
+                    break
+                if properties:
                     break
             # If the Node is still advertising as for registered operation, loop around
             if properties and "ver_slf" in properties:

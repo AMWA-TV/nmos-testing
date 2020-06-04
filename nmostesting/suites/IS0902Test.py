@@ -75,8 +75,8 @@ class IS0902Test(GenericTest):
         service_type = "_nmos-system._tcp.local."
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
-                           socket.inet_aton(ip), port, 0, 0,
-                           txt, hostname)
+                           addresses=[socket.inet_aton(ip)], port=port,
+                           properties=txt, server=hostname)
         return info
 
     def do_system_basics_prereqs(self):
