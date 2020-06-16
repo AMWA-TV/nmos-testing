@@ -188,7 +188,7 @@ class IS0502Test(GenericTest):
 
         try:
             api = self.apis[NODE_API_KEY]
-            for is05_resource in self.is05_resources[resource_type]:
+            for is05_resource in resource_list:
                 found_04_resource = False
                 for is04_resource in self.is04_resources[resource_type]:
                     if is04_resource["id"] == is05_resource:
@@ -240,7 +240,7 @@ class IS0502Test(GenericTest):
 
         try:
             api = self.apis[NODE_API_KEY]
-            for is05_resource in self.is05_resources[resource_type]:
+            for is05_resource in resource_list:
                 if self.is05_resources["transport_types"][is05_resource] != "urn:x-nmos:transport:rtp":
                     continue
 
