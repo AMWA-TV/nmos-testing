@@ -271,7 +271,7 @@ class IS0801Test(GenericTest):
         if len(constrainedOutputList) == 0:
             return test.NA("Could not test - no outputs have routing constraints set.")
 
-        inputIDList = []
+        inputIDList = [None]
         for inputInstance in inputList:
             inputIDList.append(inputInstance.id)
 
