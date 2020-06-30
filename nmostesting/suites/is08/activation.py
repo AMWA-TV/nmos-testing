@@ -69,18 +69,13 @@ class Activation:
         except IndexError:
             msg = self.test.FAIL("Could not find activation ID in activation response")
             raise NMOSTestException(msg)
-        try:
-            activationID = int(activationID)
-        except ValueError:
-            msg = self.test.FAIL("Activations IDs must be an int, got {}".format(activationID))
-            raise NMOSTestException(msg)
-        self._checkActivationId(activationID)
+        self._checkActivationID(activationID)
         self.activationID = activationID
 
-    def _checkActivationId(self, activationId):
-        if not re.match("^[0-9]+$", str(activationId)):
-            msg = self.test.FAIL("Activation response code {} did"
-                                 " not match require regex.".format(activationId))
+    def _checkActivationID(self, activationID):
+        if re.match("^[a-zA-Z0-9\\-_]+$", activationID) is None:
+            msg = self.test.FAIL("Activation ID {} did not match "
+                                 "required regex".format(activationID))
             raise NMOSTestException(msg)
 
     def fireActivation(self):
