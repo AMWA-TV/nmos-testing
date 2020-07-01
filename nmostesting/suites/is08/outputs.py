@@ -60,7 +60,8 @@ class ACMOutput:
             msg = 'Could not find caps routable_inputs parameter for output {}'.format(self.id)
             raise NMOSTestException(self.test.FAIL(msg))
         if routableInputs is None:
-            return self.getInputList()
+            inputList = getIOList("input")
+            return inputList
         else:
             return routableInputs
 
