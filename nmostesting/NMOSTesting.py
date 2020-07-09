@@ -315,7 +315,7 @@ class EndpointForm(Form):
                                                                       ("v1.1", "v1.1"),
                                                                       ("v1.2", "v1.2"),
                                                                       ("v1.3", "v1.3")])
-    selector = StringField(label="Device Selector:", validators=[validators.optional()])
+    selector = StringField(label="API Selector:", validators=[validators.optional()])
 
 
 class DataForm(Form):
