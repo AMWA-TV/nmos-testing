@@ -50,11 +50,12 @@ def parse_nmos_url(url):
         # Extract port from URL
         if result.port:
             port = result.port
-        # Extract version from URL
-        version = result.path.replace('/x-nmos/connection/', '').strip('/')
-        urlPathSections = result.path.split('/')
-        version = urlPathSections[3]
-        selector = urlPathSections[4]
+        # Extract version and selector from URL path
+        # which must be of the form /x-nmos/{api}/{version}[/{selector}]
+        urlPathSections = result.path.strip('/').split('/')
+        version = urlPathSections[2]
+        if len(urlPathSections) > 3:
+            selector = urlPathSections[3]
 
     except ValueError:
         print("URL could not be parsed: {}".format(url))
