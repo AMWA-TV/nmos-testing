@@ -212,11 +212,11 @@ class IS0801Test(GenericTest):
         return test.PASS()
 
     def test_09(self, test):
-        """Human readable name provided in the props resource"""
+        """Human readable name provided in the properties resource"""
         return test.MANUAL()
 
     def test_10(self, test):
-        """Human readable description provided in the props resource"""
+        """Human readable description provided in the properties resource"""
         return test.MANUAL()
 
     def test_11(self, test):
