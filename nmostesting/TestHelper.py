@@ -25,6 +25,7 @@ from pathlib import Path
 from enum import IntEnum
 from numbers import Number
 from functools import cmp_to_key
+from collections.abc import KeysView
 
 from . import Config as CONFIG
 
@@ -48,7 +49,7 @@ class JsonType(IntEnum):
             return cls.NUMBER
         if isinstance(json, str):
             return cls.STRING
-        if isinstance(json, list):
+        if isinstance(json, list) or isinstance(json, KeysView):
             return cls.ARRAY
         if isinstance(json, dict):
             return cls.OBJECT
