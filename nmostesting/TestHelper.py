@@ -152,7 +152,12 @@ def do_request(method, url, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
         s = requests.Session()
-        req = requests.Request(method, url, **kwargs)
+        if CONFIG.ENABLE_AUTH and not 'headers' in kwargs: # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
+            req = requests.Request(method, url, headers={
+                "Authorization": "Bearer " + CONFIG.AUTH_TOKEN_NODE,
+            } ,**kwargs)
+        else:
+            req = requests.Request(method, url, **kwargs)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CONFIG.CERT_TRUST_ROOT_CA, None)
         response = s.send(prepped, timeout=CONFIG.HTTP_TIMEOUT, **settings)
