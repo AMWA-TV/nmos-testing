@@ -817,7 +817,7 @@ def run_noninteractive_tests(args):
 
 
 def check_internal_requirements():
-    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket"}
+    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket", "paho-mqtt": "paho"}
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():

@@ -116,6 +116,10 @@ SDP_PREFERENCES = {
     "video_exactframerate": "25"
 }
 
+# Username and password for connecting to MQTT broker
+MQTT_USERNAME = None
+MQTT_PASSWORD = None
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
