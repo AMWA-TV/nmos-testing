@@ -275,9 +275,10 @@ class WebsocketWorker(threading.Thread):
     def clear_messages(self):
         self.messages.clear()
 
+
 class MQTTClientWorker:
     """MQTT Client Worker"""
-    def __init__(self, host, port, secure = False, username = None, password = None):
+    def __init__(self, host, port, secure=False, username=None, password=None):
         """
         Initializer
         :param host: broker hostname (string)
@@ -291,7 +292,8 @@ class MQTTClientWorker:
         self.error_occurred = False
         self.connected = False
         self.error_message = ""
-        # MQTT 5 is required so that we can set retainAsPublished when subscribing to test whether messages have retain flags set
+        # MQTT 5 is required so that we can set retainAsPublished
+        # when subscribing to test whether messages have retain flags set
         self.client = mqtt.Client(protocol=mqtt.MQTTv5)
         self.client.on_connect = lambda client, userdata, flags, rc, properties=None: self.on_connect(flags, rc)
         self.client.on_disconnect = lambda client, userdata, rc: self.on_disconnect(rc)

@@ -38,6 +38,7 @@ WS_TIMEOUT = 12
 BrokerParameters = namedtuple('BrokerParameters', ['host', 'port', 'protocol', 'auth'])
 MQTTSenderParameters = namedtuple('MQTTSenderParameters', ['source', 'topic', 'connection_status_topic'])
 
+
 class IS0702Test(GenericTest):
     """
     Runs IS-07-02-Test
@@ -485,7 +486,8 @@ class IS0702Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_06(self, test):
-        """MQTT senders on the same device have the same destination host/port broker_protocol and broker_authorization parameters"""
+        """MQTT senders on the same device have the same destination host/port
+            broker_protocol and broker_authorization parameters"""
 
         if len(self.is07_sources) > 0:
             found_senders = False
@@ -577,7 +579,7 @@ class IS0702Test(GenericTest):
                     broker_params.port,
                     broker_params.protocol == "secure-mqtt",
                     CONFIG.MQTT_USERNAME,
-                    CONFIG.MQTT_PASSWORD) # TODO
+                    CONFIG.MQTT_PASSWORD)
             for broker_params in broker_senders:
                 target_brokers[broker_params].start()
 
@@ -597,21 +599,23 @@ class IS0702Test(GenericTest):
                     return test.FAIL("Error opening MQTT connection to {}:{}: {}"
                                      .format(broker_params.host, broker_params.port, broker.get_error_message()))
                 elif not broker.is_open():
-                    return test.FAIL("Error opening MQTT connection to {}:{}".format(broker_params.host, broker_params.port))
+                    return test.FAIL("Error opening MQTT connection to {}:{}"
+                                     .format(broker_params.host, broker_params.port))
 
             # A connection status message should have been published for each source
             start_time = time.time()
-            all_connection_status_published=True
-            all_connection_status_active=True
+            all_connection_status_published = True
+            all_connection_status_active = True
             while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
-                all_connection_status_published=True
-                all_connection_status_active=True
+                all_connection_status_published = True
+                all_connection_status_active = True
                 for broker_params in broker_senders:
                     broker = target_brokers[broker_params]
                     senders = broker_senders[broker_params]
                     for sender in senders:
                         if not sender.connection_status_topic:
-                            warning = "MQTT {} sender connection_status_broker_topic is null".format(sender.source["id"])
+                            warning = "MQTT {} sender connection_status_broker_topic is null" \
+                                .format(sender.source["id"])
                             continue
                         connection_status_message = broker.get_latest_message(sender.connection_status_topic)
                         if not connection_status_message:
@@ -625,7 +629,7 @@ class IS0702Test(GenericTest):
                             return test.FAIL("Incorrect connection status message_type at {}: {}"
                                              .format(sender.connection_status_topic, connection_status["message_type"]))
                         if connection_status["active"] is False:
-                            all_connection_status_active=False
+                            all_connection_status_active = False
                             continue
                         if connection_status["active"] is not True:
                             return test.FAIL("Incorrect connection status active at {}: {}"
@@ -636,16 +640,17 @@ class IS0702Test(GenericTest):
 
             # if connection_status_broker_topic is non-null connection status should be published
             if not all_connection_status_published:
-                return test.FAIL("Not all MQTT senders with non-null connection_status_broker_topic published connection status")
+                return test.FAIL(
+                    "Not all MQTT senders with non-null connection_status_broker_topic published connection status")
             # but if connection status is published "active" should be true
             if not all_connection_status_active:
                 return test.FAIL("Not all MQTT senders published active connection status")
 
             # A state message should have been published for each source
             start_time = time.time()
-            all_state_published=True
+            all_state_published = True
             while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
-                all_state_published=True
+                all_state_published = True
                 for broker_params in broker_senders:
                     broker = target_brokers[broker_params]
                     senders = broker_senders[broker_params]
@@ -671,8 +676,15 @@ class IS0702Test(GenericTest):
                             flow = self.is04_flows[flow_id]
                             if flow["source_id"] == source_id:
                                 sources_flows[source_id][flow_id] = self.is04_flows[flow_id]
-                        missing_sources = { source_id: True }
-                        self.check_state_message(test, state_message.payload, False, sender.topic, sources, sources_flows, missing_sources)
+                        missing_sources = {source_id: True}
+                        self.check_state_message(
+                            test,
+                            state_message.payload,
+                            False,
+                            sender.topic,
+                            sources,
+                            sources_flows,
+                            missing_sources)
                         if source_id in missing_sources:
                             return test.FAIL("Source ID mismatch in {}: {}"
                                              .format(sender.topic, state["message_type"]))
@@ -759,10 +771,18 @@ class IS0702Test(GenericTest):
                                             raise NMOSTestException(test.FAIL("Sender {} has no broker_topic "
                                                                               "parameter".format(sender_id)))
                                         if "connection_status_broker_topic" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no connection_status_broker_topic "
-                                                                              "parameter".format(sender_id)))
-                                        broker = BrokerParameters(host = params["destination_host"], port = params["destination_port"], protocol = params["broker_protocol"], auth = params["broker_authorization"])
-                                        sender = MQTTSenderParameters(source=self.is04_sources[source_id], topic=params["broker_topic"], connection_status_topic=params["connection_status_broker_topic"])
+                                            raise NMOSTestException(test.FAIL("Sender {} has no "
+                                                                              "connection_status_broker_topic parameter"
+                                                                              .format(sender_id)))
+                                        broker = BrokerParameters(
+                                            host=params["destination_host"],
+                                            port=params["destination_port"],
+                                            protocol=params["broker_protocol"],
+                                            auth=params["broker_authorization"])
+                                        sender = MQTTSenderParameters(
+                                            source=self.is04_sources[source_id],
+                                            topic=params["broker_topic"],
+                                            connection_status_topic=params["connection_status_broker_topic"])
                                         if broker not in broker_senders:
                                             broker_senders[broker] = [sender]
                                         else:
@@ -837,13 +857,13 @@ class IS0702Test(GenericTest):
             if message_type != "state":
                 raise NMOSTestException(
                     test.FAIL("{} {} state response message_type is not "
-                                "set to state but instead is {}, original message: {}"
-                                .format(name, source_name, message_type, message)))
+                              "set to state but instead is {}, original message: {}"
+                              .format(name, source_name, message_type, message)))
         else:
             raise NMOSTestException(
                 test.FAIL("{} {} response does not have a message_type, "
-                            "original message: {}"
-                            .format(name, source_name, message)))
+                          "original message: {}"
+                          .format(name, source_name, message)))
 
         if "identity" in parsed_message:
             identity = parsed_message["identity"]
@@ -870,54 +890,54 @@ class IS0702Test(GenericTest):
                                     else:
                                         raise NMOSTestException(
                                             test.FAIL("{} {} state response "
-                                                        "does not have a payload, original message: {}"
-                                                        .format(name, source_name, message)))
+                                                      "does not have a payload, original message: {}"
+                                                      .format(name, source_name, message)))
                                 else:
                                     raise NMOSTestException(
                                         test.FAIL("{} {} state response "
-                                                    "does not have an event_type, original message: {}"
-                                                    .format(name, source_name, message)))
+                                                  "does not have an event_type, original message: {}"
+                                                  .format(name, source_name, message)))
                             else:
                                 raise NMOSTestException(
                                     test.FAIL("{} {} state response identity flow_id {} "
-                                                "does not match id of any associated source flows, "
-                                                "for source id {}, original message: {}"
-                                                .format(name, source_name, identity_flow, identity_source, message)))
+                                              "does not match id of any associated source flows, "
+                                              "for source id {}, original message: {}"
+                                              .format(name, source_name, identity_flow, identity_source, message)))
                         else:
                             raise NMOSTestException(
                                 test.FAIL("{} {} source {} "
-                                            "does not have any associated flows"
-                                            .format(name, source_name, identity_source)))
+                                          "does not have any associated flows"
+                                          .format(name, source_name, identity_source)))
                     else:
                         raise NMOSTestException(
                             test.FAIL("{} {} state response identity does not have a flow_id, "
-                                        "original message: {}"
-                                        .format(name, source_name, message)))
+                                      "original message: {}"
+                                      .format(name, source_name, message)))
                 else:
                     raise NMOSTestException(
                         test.FAIL("{} {} state response is for an unknown source, "
-                                    "original message: {}"
-                                    .format(name, source_name, message)))
+                                  "original message: {}"
+                                  .format(name, source_name, message)))
             else:
                 raise NMOSTestException(
                     test.FAIL("{} {} state response identity does not have a source_id, "
-                                "original message: {}"
-                                .format(name, source_name, message)))
+                              "original message: {}"
+                              .format(name, source_name, message)))
         else:
             raise NMOSTestException(
                 test.FAIL("{} {} state response does not have identity, original message: {}"
-                            .format(name, source_name, message)))
+                          .format(name, source_name, message)))
         if "timing" in parsed_message:
             timing = parsed_message["timing"]
             if "creation_timestamp" not in timing:
                 raise NMOSTestException(
                     test.FAIL("{} {} state response does not have a creation_timestamp, "
-                                "original message: {}"
-                                .format(name, source_name, message)))
+                              "original message: {}"
+                              .format(name, source_name, message)))
         else:
             raise NMOSTestException(
                 test.FAIL("{} {} state response does not have timing, original message: {}"
-                            .format(name, source_name, message)))
+                          .format(name, source_name, message)))
 
     def check_event_payload(self, test, is_websocket, source_name, source, event_type, payload):
         """Checks validity of event payload"""
@@ -976,7 +996,12 @@ class IS0702Test(GenericTest):
                                 test.FAIL("{} {}, source {} state response payload value length for string "
                                           "event type is less than the min_length {} in the type definition, "
                                           "original payload: {}"
-                                          .format(name, source_name, source_id, source_type["min_length"], str_payload)))
+                                          .format(
+                                              name,
+                                              source_name,
+                                              source_id,
+                                              source_type["min_length"],
+                                              str_payload)))
                 if "max_length" in source_type:
                     if not isinstance(source_type["max_length"], int):
                         raise NMOSTestException(
@@ -989,7 +1014,11 @@ class IS0702Test(GenericTest):
                                 test.FAIL("{} {}, source {} state response payload value length for string "
                                           "event type is greater than the max_length {} in the type definition, "
                                           "original payload: {}"
-                                          .format(name, source_name, source_id, source_type["max_length"], str_payload)))
+                                          .format(name,
+                                                  source_name,
+                                                  source_id,
+                                                  source_type["max_length"],
+                                                  str_payload)))
                 if "pattern" in source_type:
                     pattern = source_type["pattern"]
                     if re.match(pattern, value) is None:
@@ -1029,7 +1058,11 @@ class IS0702Test(GenericTest):
                                 raise NMOSTestException(
                                     test.WARNING("{} {}, source {} state response payload for number event "
                                                  "type is not an integer multiple of step {}, original payload: {}"
-                                                 .format(name, source_name, source_id, source_type["step"], str_payload)))
+                                                 .format(name,
+                                                         source_name,
+                                                         source_id,
+                                                         source_type["step"],
+                                                         str_payload)))
                 except KeyError as e:
                     raise NMOSTestException(
                         test.FAIL("{} {}, source {} state response payload cannot be parsed, "
