@@ -494,12 +494,17 @@ class IS0702Test(GenericTest):
         if len(broker_senders) > 0:
             target_brokers = {}
             for broker_params in broker_senders:
+                topics = set()
+                for sender in broker_senders[broker_params]:
+                    topics.add(sender.connection_status_topic)
+                    topics.add(sender.topic)
                 target_brokers[broker_params] = MQTTClientWorker(
                     broker_params.host,
                     broker_params.port,
                     broker_params.protocol == "secure-mqtt",
                     CONFIG.MQTT_USERNAME,
-                    CONFIG.MQTT_PASSWORD)
+                    CONFIG.MQTT_PASSWORD,
+                    list(topics))
             for broker_params in broker_senders:
                 target_brokers[broker_params].start()
 

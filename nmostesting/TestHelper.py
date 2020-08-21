@@ -278,7 +278,7 @@ class WebsocketWorker(threading.Thread):
 
 class MQTTClientWorker:
     """MQTT Client Worker"""
-    def __init__(self, host, port, secure=False, username=None, password=None):
+    def __init__(self, host, port, secure=False, username=None, password=None, topics=[]):
         """
         Initializer
         :param host: broker hostname (string)
@@ -286,6 +286,7 @@ class MQTTClientWorker:
         :param secure: use TLS (bool)
         :param username: broker username (string)
         :param password: broker password (string)
+        :param topics: list of topics to subscribe to (list of string)
         """
         self.host = host
         self.port = port
@@ -304,6 +305,8 @@ class MQTTClientWorker:
             self.client.tls_set(CONFIG.CERT_TRUST_ROOT_CA)
         if username or password:
             self.client.username_pw_set(username, password)
+        self.topics = topics
+        self.pending_subs = set()
         self.messages = []
 
     def start(self):
@@ -314,12 +317,22 @@ class MQTTClientWorker:
         self.client.loop_stop()
 
     def on_connect(self, flags, rc):
-        result, message_id = self.client.subscribe("x-nmos/#", options=mqtt.SubscribeOptions(retainAsPublished=True))
-        if result != mqtt.MQTT_ERR_SUCCESS:
-            raise Exception("failed to subscribe to MQTT topics: {}".format(result))
+        if len(self.topics) == 0:
+            self.connected = True
+        else:
+            for topic in self.topics:
+                result, message_id = self.client.subscribe(topic, options=mqtt.SubscribeOptions(retainAsPublished=True))
+                if result != mqtt.MQTT_ERR_SUCCESS:
+                    raise Exception("failed to subscribe to MQTT topic {}: {}".format(topic, result))
+                self.pending_subs.add(message_id)
 
     def on_subscribe(self, message_id):
-        self.connected = True
+        if message_id in self.pending_subs:
+            self.pending_subs.remove(message_id)
+            if len(self.pending_subs) == 0:
+                self.connected = True
+        else:
+            print("Unexpected suback message ID: {}".format(message_id))
 
     def is_open(self):
         return self.connected
