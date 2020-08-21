@@ -44,6 +44,9 @@ GARBAGE_COLLECTION_TIMEOUT = 12
 # Number of seconds to wait for messages to appear via a WebSocket subscription
 WS_MESSAGE_TIMEOUT = 2
 
+# Number of seconds to wait for messages to appear via a MQTT subscription
+MQTT_MESSAGE_TIMEOUT = 2
+
 # Number of seconds to wait after performing an API action for the results to be fully visible via IS-04
 API_PROCESSING_TIMEOUT = 1
 

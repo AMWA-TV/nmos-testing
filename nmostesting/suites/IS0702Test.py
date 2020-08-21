@@ -505,7 +505,7 @@ class IS0702Test(GenericTest):
 
             # Give each MQTT client a chance to start and connect to the broker
             start_time = time.time()
-            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+            while time.time() < start_time + CONFIG.MQTT_MESSAGE_TIMEOUT:
                 if all([target_brokers[_].is_open() for _ in target_brokers]):
                     break
                 if any([target_brokers[_].did_error_occur() for _ in target_brokers]):
@@ -526,7 +526,7 @@ class IS0702Test(GenericTest):
             start_time = time.time()
             all_connection_status_published = True
             all_connection_status_active = True
-            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+            while time.time() < start_time + CONFIG.MQTT_MESSAGE_TIMEOUT:
                 all_connection_status_published = True
                 all_connection_status_active = True
                 for broker_params in broker_senders:
@@ -569,7 +569,7 @@ class IS0702Test(GenericTest):
             # A state message should have been published for each source
             start_time = time.time()
             all_state_published = True
-            while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+            while time.time() < start_time + CONFIG.MQTT_MESSAGE_TIMEOUT:
                 all_state_published = True
                 for broker_params in broker_senders:
                     broker = target_brokers[broker_params]

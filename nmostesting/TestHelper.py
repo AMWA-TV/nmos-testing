@@ -284,8 +284,8 @@ class MQTTClientWorker:
         :param host: broker hostname (string)
         :param port: broker port (int)
         :param secure: use TLS (bool)
-        :param username: broker username (int)
-        :param password: broker password (int)
+        :param username: broker username (string)
+        :param password: broker password (string)
         """
         self.host = host
         self.port = port
