@@ -834,7 +834,7 @@ def check_internal_requirements():
 def check_external_requirements():
     deps = {
         "sdpoker": ("sdpoker --version", "0.2.0"),
-        "testssl": ("testssl/testssl.sh -v", "3.0rc5")
+        "testssl": ("testssl/testssl.sh -v", "3.0.2")
     }
     for dep_name, dep_ver in deps.items():
         try:
