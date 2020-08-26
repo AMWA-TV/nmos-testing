@@ -108,7 +108,7 @@ class GenericTest(object):
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""
         for api in self.apis:
-            if "spec_path" not in self.apis[api]:
+            if "raml" not in self.apis[api]:
                 continue
             raml_path = os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"])
             self.apis[api]["spec"] = Specification(raml_path)
@@ -178,7 +178,7 @@ class GenericTest(object):
         test = Test("Test setup", "set_up_tests")
         if CONFIG.PREVALIDATE_API:
             for api in self.apis:
-                if "spec_path" not in self.apis[api] or self.apis[api]["url"] is None:
+                if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
                     continue
                 valid, response = self.do_request("GET", self.apis[api]["url"])
                 if not valid or response.status_code != 200:
@@ -364,7 +364,7 @@ class GenericTest(object):
         results = []
 
         for api in sorted(self.apis.keys()):
-            if "spec_path" not in self.apis[api]:
+            if "raml" not in self.apis[api]:
                 continue
 
             if self.apis[api]["url"] is None:

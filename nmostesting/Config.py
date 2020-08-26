@@ -204,7 +204,7 @@ SPECIFICATIONS = {
         }
     },
     "bcp-003-01": {
-        "repo": None,
+        "repo": "nmos-secure-communication",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
