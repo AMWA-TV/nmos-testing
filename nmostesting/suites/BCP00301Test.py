@@ -81,8 +81,9 @@ class BCP00301Test(GenericTest):
                     return test.FAIL("Protocol {} must be offered".format(report["id"].replace("_", ".")))
                 elif report["id"] in ["TLS1_3"] and not report["finding"].startswith("offered"):
                     return test.OPTIONAL("Protocol {} should be offered".format(report["id"].replace("_", ".")),
-                                         "https://amwa-tv.github.io/nmos-api-security"
-                                         "/best-practice-secure-comms.html#tls-versions")
+                                         "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                         "/docs/1.0._Secure_Communication.html#tls-versions"
+                                         .format(self.apis[BCP_API_KEY]["spec_branch"]))
             return test.PASS()
 
     def test_02(self, test):
@@ -130,12 +131,16 @@ class BCP00301Test(GenericTest):
                                  .format(",".join(tls1_3_shall)))
             elif len(tls1_2_should) > 0:
                 return test.OPTIONAL("Implementation of the following TLS 1.2 ciphers is recommended: {}"
-                                     .format(",".join(tls1_2_should)), "https://amwa-tv.github.io/nmos-api-security"
-                                     "/best-practice-secure-comms.html#tls-12-cipher-suites")
+                                     .format(",".join(tls1_2_should)),
+                                     "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                     "/docs/1.0._Secure_Communication.html#tls-12-cipher-suites"
+                                     .format(self.apis[BCP_API_KEY]["spec_branch"]))
             elif tls1_3_supported and len(tls1_3_should) > 0:
                 return test.OPTIONAL("Implementation of the following TLS 1.3 ciphers is recommended: {}"
-                                     .format(",".join(tls1_3_should)), "https://amwa-tv.github.io/nmos-api-security"
-                                     "/best-practice-secure-comms.html#tls-13-cipher-suites")
+                                     .format(",".join(tls1_3_should)),
+                                     "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                     "/docs/1.0._Secure_Communication.html#tls-13-cipher-suites"
+                                     .format(self.apis[BCP_API_KEY]["spec_branch"]))
             else:
                 return test.PASS()
 
@@ -153,31 +158,35 @@ class BCP00301Test(GenericTest):
                     try:
                         ipaddress.ip_address(report["finding"])
                         return test.WARNING("CN is an IP address: {}".format(report["finding"]),
-                                            "https://amwa-tv.github.io/nmos-api-security"
-                                            "/best-practice-secure-comms.html"
-                                            "#x509-certificates-and-certificate-authority")
+                                            "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                            "/docs/1.0._Secure_Communication.html"
+                                            "#x509-certificates-and-certificate-authority"
+                                            .format(self.apis[BCP_API_KEY]["spec_branch"]))
                     except ValueError:
                         pass
                 elif report["id"].split()[0] == "cert_subjectAltName":
                     if report["finding"].startswith("No SAN"):
                         return test.OPTIONAL("No SAN was found in the certificate",
-                                             "https://amwa-tv.github.io/nmos-api-security"
-                                             "/best-practice-secure-comms.html"
-                                             "#x509-certificates-and-certificate-authority")
+                                             "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                             "/docs/1.0._Secure_Communication.html"
+                                             "#x509-certificates-and-certificate-authority"
+                                             .format(self.apis[BCP_API_KEY]["spec_branch"]))
                     else:
                         alt_names = report["finding"].split()
                         if common_name not in alt_names:
                             return test.OPTIONAL("CN {} was not found in the SANs".format(common_name),
-                                                 "https://amwa-tv.github.io/nmos-api-security"
-                                                 "/best-practice-secure-comms.html"
-                                                 "#x509-certificates-and-certificate-authority")
+                                                 "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                                 "/docs/1.0._Secure_Communication.html"
+                                                 "#x509-certificates-and-certificate-authority"
+                                                 .format(self.apis[BCP_API_KEY]["spec_branch"]))
                         for name in alt_names:
                             try:
                                 ipaddress.ip_address(name)
                                 return test.WARNING("SAN is an IP address: {}".format(name),
-                                                    "https://amwa-tv.github.io/nmos-api-security"
-                                                    "/best-practice-secure-comms.html"
-                                                    "#x509-certificates-and-certificate-authority")
+                                                    "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                                    "/docs/1.0._Secure_Communication.html"
+                                                    "#x509-certificates-and-certificate-authority"
+                                                    .format(self.apis[BCP_API_KEY]["spec_branch"]))
                             except ValueError:
                                 pass
 
@@ -204,8 +213,9 @@ class BCP00301Test(GenericTest):
                 return test.PASS()
             elif hsts_supported is False:
                 return test.OPTIONAL("Strict Transport Security (HSTS) should be supported",
-                                     "https://amwa-tv.github.io/nmos-api-security"
-                                     "/best-practice-secure-comms.html#http-server")
+                                     "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                     "/docs/1.0._Secure_Communication.html#http-server"
+                                     .format(self.apis[BCP_API_KEY]["spec_branch"]))
             else:
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
 
@@ -235,9 +245,10 @@ class BCP00301Test(GenericTest):
                 if report["id"].split()[0] == "OCSP_stapling":
                     if report["finding"] == "not offered":
                         return test.OPTIONAL("OCSP stapling is not offered by this server",
-                                             "https://amwa-tv.github.io/nmos-api-security"
-                                             "/best-practice-secure-comms.html"
-                                             "#x509-certificates-and-certificate-authority")
+                                             "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
+                                             "/docs/1.0._Secure_Communication.html"
+                                             "#x509-certificates-and-certificate-authority"
+                                             .format(self.apis[BCP_API_KEY]["spec_branch"]))
                 elif report["id"].split()[0] == "cert_ocspURL":
                     if report["finding"].startswith("http"):
                         ocsp_found = True

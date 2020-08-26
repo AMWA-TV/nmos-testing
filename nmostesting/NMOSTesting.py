@@ -458,12 +458,12 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "url": url,
                 "version": endpoints[index]["version"],
                 "selector": endpoints[index]["selector"],
-                "spec": None  # Used inside GenericTest
+                "spec": None,  # Used inside GenericTest
+                "spec_path": CONFIG.CACHE_PATH + '/' + spec_key
             }
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
                     and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
                 apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
-                apis[api_key]["spec_path"] = CONFIG.CACHE_PATH + '/' + spec_key
                 apis[api_key]["raml"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
 
         # Instantiate the test class
