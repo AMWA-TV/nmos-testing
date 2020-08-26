@@ -832,7 +832,7 @@ def check_internal_requirements():
 
 
 def check_external_requirements():
-    deps = {"sdpoker": ("sdpoker --version", "0.1.0"), "testssl": ("testssl/testssl.sh -v", "3.0rc5")}
+    deps = {"sdpoker": ("sdpoker --version", "0.2.0"), "testssl": ("testssl/testssl.sh -v", "3.0rc5")}
     for dep_name, dep_ver in deps.items():
         try:
             output = subprocess.check_output(dep_ver[0], stderr=subprocess.STDOUT, shell=True)

@@ -891,7 +891,7 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
         # Check SDPoker version
-        sdpoker_min_version = "0.1.0"
+        sdpoker_min_version = "0.2.0"
         try:
             cmd_string = "sdpoker --version"
             output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
@@ -914,7 +914,7 @@ class IS0501Test(GenericTest):
                 dup_params = " --duplicate true"
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                cmd_string = "sdpoker --nmos false --shaping true{} {}".format(dup_params, self.url + path)
+                cmd_string = "sdpoker --shaping true{} {}".format(dup_params, self.url + path)
                 output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
                 if "Error" in output.decode("utf-8"):
                     # This case exits with a zero error code so can't be handled in the exception
@@ -931,7 +931,7 @@ class IS0501Test(GenericTest):
                 dup_params = " --duplicate true"
             path = "single/senders/{}/transportfile".format(sender)
             try:
-                cmd_string = "sdpoker --nmos false --shaping true --whitespace true --should true " \
+                cmd_string = "sdpoker --shaping true --whitespace true --should true " \
                              "--checkEndings true{} {}".format(dup_params, self.url + path)
                 output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
                 if "Error" in output.decode("utf-8"):
