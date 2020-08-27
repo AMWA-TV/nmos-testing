@@ -393,6 +393,10 @@ class GenericTest(object):
             # Perform an automatic check for an error condition
             results.append(self.do_test_404_path(api))
 
+            # Test that the API responds with a 401 when no Authorization header is present
+            # TODO: Add additional tests using invalid and expired tokens
+            results.append(self.do_test_authorization(api))
+
         return results
 
     def do_test_404_path(self, api_name):
@@ -400,7 +404,7 @@ class GenericTest(object):
         error_code = 404
         invalid_path = str(uuid.uuid4())
         url = "{}/{}".format(api["url"].rstrip("/"), invalid_path)
-        test = Test("GET /x-nmos/{}/{}/{} ({})".format(api_name, api["version"], invalid_path, error_code),
+        test = Test("GET /x-nmos/{}/{}/{} (Invalid Path {})".format(api_name, api["version"], invalid_path, error_code),
                     self.auto_test_name(api_name))
 
         valid, response = self.do_request("GET", url)
@@ -415,6 +419,29 @@ class GenericTest(object):
             return test.PASS()
         else:
             return test.FAIL(message)
+
+    def do_test_authorization(self, api_name):
+        api = self.apis[api_name]
+        error_code = 401
+        url = "{}".format(api["url"].rstrip("/"))
+        test = Test("GET /x-nmos/{}/{} (Missing Authorization Header {})".format(api_name, api["version"], error_code),
+                    self.auto_test_name(api_name))
+
+        if self.authorization:
+            valid, response = self.do_request("GET", url, headers={})
+            if not valid:
+                return test.FAIL(response)
+
+            if response.status_code != error_code:
+                return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
+
+            valid, message = self.check_error_response("GET", response, error_code)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(message)
+        else:
+            return test.DISABLED("This test is only necessary when 'ENABLE_AUTH' is True")
 
     def do_test_api_resource(self, resource, response_code, api):
         # Test URLs which include a {resourceId} or similar parameter
