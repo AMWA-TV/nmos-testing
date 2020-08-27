@@ -69,6 +69,9 @@ class GenericTest(object):
         if CONFIG.ENABLE_HTTPS:
             self.protocol = "https"
             self.ws_protocol = "wss"
+        self.authorization = False
+        if CONFIG.ENABLE_AUTH:
+            self.authorization = True
 
         self.omit_paths = []
         if isinstance(omit_paths, list):

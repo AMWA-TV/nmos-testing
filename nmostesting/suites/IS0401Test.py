@@ -59,7 +59,7 @@ class IS0401Test(GenericTest):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol,
+            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol, self.authorization,
                                       "test_data/IS0401/dns_records.zone", CONFIG.PORT_BASE+100)
             print(" * Waiting for up to {} seconds for a DNS query before executing tests"
                   .format(CONFIG.DNS_SD_ADVERT_TIMEOUT))
@@ -81,12 +81,14 @@ class IS0401Test(GenericTest):
         if self.dns_server:
             self.dns_server.reset()
 
-    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, ip=None):
+    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         if api_ver is None:
             api_ver = self.apis[NODE_API_KEY]["version"]
         if api_proto is None:
             api_proto = self.protocol
+        if api_auth is None:
+            api_auth = self.authorization
 
         if ip is None:
             ip = get_default_ip()
@@ -95,7 +97,7 @@ class IS0401Test(GenericTest):
             hostname = ip.replace(".", "-") + ".local."
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': 'false'}
+        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': str(api_auth).lower()}
 
         service_type = "_nmos-registration._tcp.local."
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
@@ -735,8 +737,9 @@ class IS0401Test(GenericTest):
                 if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                     if "api_auth" not in properties:
                         return test.FAIL("No 'api_auth' TXT record found in Node API advertisement.")
-                    elif properties["api_auth"] not in ["true", "false"]:
-                        return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
+                    elif properties["api_auth"] != str(self.authorization).lower():
+                        return test.FAIL("API authorization ('api_auth') TXT record is not '{}'."
+                                         .format(str(self.authorization).lower()))
 
                 return test.PASS()
 

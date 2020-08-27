@@ -5,17 +5,17 @@ timeout.{{ domain }}.	IN	A	192.0.2.1
 {% for api, srv in [('reg', 'registration'), ('reg', 'register'), ('qry', 'query')] %}
 
 {% set registries = [
-	('1-ver',	port_base + 1,	'mocks',	'v9.0',		api_proto,	10),
-	('1-proto',	port_base + 1,	'mocks',	api_ver,	'invalid',	10),
-	('2',		port_base + 2,	'mocks',	api_ver,	api_proto,	20),
- 	('3',		port_base + 3,	'mocks',	api_ver,	api_proto,	30),
-	('4',		port_base + 4,	'mocks',	api_ver,	api_proto,	40),
-	('5',		port_base + 5,	'mocks',	api_ver,	api_proto,	50),
-	('timeout',	444,			'timeout',	api_ver,	api_proto,	55),
-	('6',		port_base + 6,	'mocks',	api_ver,	api_proto,	60)
+	('1-ver',	port_base + 1,	'mocks',	'v9.0',		api_proto,	api_auth, 10),
+	('1-proto',	port_base + 1,	'mocks',	api_ver,	'invalid',	api_auth, 10),
+	('2',		port_base + 2,	'mocks',	api_ver,	api_proto,	api_auth, 20),
+	('3',		port_base + 3,	'mocks',	api_ver,	api_proto,	api_auth, 30),
+	('4',		port_base + 4,	'mocks',	api_ver,	api_proto,	api_auth, 40),
+	('5',		port_base + 5,	'mocks',	api_ver,	api_proto,	api_auth, 50),
+	('timeout',		444,	'timeout',	api_ver,	api_proto,	api_auth, 55),
+	('6',		port_base + 6,	'mocks',	api_ver,	api_proto,	api_auth, 60)
 ] %}
 
-{% for inst, port, host, ver, proto, pri in registries %}
+{% for inst, port, host, ver, proto, auth, pri in registries %}
 
 ; There should be one PTR record for each instance of the service you wish to advertise.
 _nmos-{{ srv }}._tcp	PTR	{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp
@@ -25,7 +25,7 @@ _nmos-{{ srv }}._tcp	PTR	{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp
 ; The TXT records indicate additional metadata relevant to the IS-04 spec
 
 {{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	SRV	0 0 {{ port }} {{ host }}.{{ domain }}.
-{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	TXT	"api_ver={{ ver }}" "api_proto={{ proto }}" "pri={{ pri }}" "api_auth=false"
+{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	TXT	"api_ver={{ ver }}" "api_proto={{ proto }}" "pri={{ pri }}" "api_auth={{ auth }}"
 
 {% endfor %}
 

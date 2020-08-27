@@ -57,11 +57,12 @@ class DNS(object):
     def wait_for_query(self, record_type, record_name, timeout):
         self.resolver.wait_for_query(record_type, record_name, timeout)
 
-    def load_zone(self, api_version, api_protocol, zone_name, port_base):
+    def load_zone(self, api_version, api_protocol, api_authorization, zone_name, port_base):
         zone_file = open(zone_name).read()
         template = Template(zone_file)
         zone_data = template.render(ip_address=self.default_ip, api_ver=api_version, api_proto=api_protocol,
-                                    domain=CONFIG.DNS_DOMAIN, port_base=port_base)
+                                    api_auth=str(api_authorization).lower(), domain=CONFIG.DNS_DOMAIN,
+                                    port_base=port_base)
         self.resolver = WatchingResolver(self.base_zone_data + zone_data)
         self.stop()
         print(" * Loading DNS zone file '{}' with api_ver={}".format(zone_name, api_version))
