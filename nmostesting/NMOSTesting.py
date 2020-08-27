@@ -397,6 +397,9 @@ def index_page():
     protocol = "HTTP"
     if CONFIG.ENABLE_HTTPS:
         protocol = "HTTPS"
+    authorization = "Disabled"
+    if CONFIG.ENABLE_AUTH:
+        authorization = "Enabled"
     discovery_mode = None
     if CONFIG.ENABLE_DNS_SD:
         if CONFIG.DNS_SD_MODE == "multicast":
@@ -409,7 +412,8 @@ def index_page():
         discovery_mode = "Disabled (Using Query API {}:{})".format(CONFIG.QUERY_API_HOST, CONFIG.QUERY_API_PORT)
 
     r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
-                                                                       "protocol": protocol},
+                                                                       "protocol": protocol,
+                                                                       "authorization": authorization},
                                       cachebuster=CACHEBUSTER))
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r

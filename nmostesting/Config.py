@@ -88,8 +88,8 @@ KEYS_MOCKS = [
 
 # Test using interactions with an Authorization Server
 ENABLE_AUTH = False
-AUTH_TOKEN_NODE = "sdgdrfg.dfhrthsdfh." # MUST include `x-nmos-node` and `x-nmos-connection`
-AUTH_TOKEN_RDS = "sdgdrfg.dfhrthsdfh." # MUST include `x-nmos-registration`
+AUTH_TOKEN_NODE = "sdgdrfg.dfhrthsdfh."  # MUST include `x-nmos-node` and `x-nmos-connection`
+AUTH_TOKEN_RDS = "sdgdrfg.dfhrthsdfh."  # MUST include `x-nmos-registration`
 
 # Domain name to use for the local DNS server and mock Node
 # This must match the domain name used for certificates in HTTPS mode
