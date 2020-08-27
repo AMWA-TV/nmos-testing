@@ -19,6 +19,8 @@ import jsonschema
 import traceback
 import inspect
 import uuid
+import authlib
+from authlib.jose import jwt
 
 from . import TestHelper
 from .Specification import Specification
@@ -186,6 +188,36 @@ class GenericTest(object):
                 valid, response = self.do_request("GET", self.apis[api]["url"])
                 if not valid or response.status_code != 200:
                     raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
+        if self.authorization:
+            tokens = {"AUTH_TOKEN_PRIMARY": CONFIG.AUTH_TOKEN_PRIMARY,
+                      "AUTH_TOKEN_SECONDARY": CONFIG.AUTH_TOKEN_SECONDARY}
+            client_ids = []
+            # Check that the tokens we have in the config file are suitable
+            for token_name, token_value in tokens.items():
+                try:
+                    token_claims = jwt.decode(token_value, open(CONFIG.AUTH_TOKEN_PUBKEY).read())
+                except authlib.jose.errors.DecodeError:
+                    raise NMOSInitException("'{}' is not a valid JSON Web Token".format(token_name))
+                except authlib.jose.errors.BadSignatureError:
+                    raise NMOSInitException("'{}' signature does not match the public key in "
+                                            "'AUTH_TOKEN_PUBKEY'".format(token_name))
+                except ValueError as e:
+                    raise NMOSInitException("Could not decode token '{}': {}".format(token_name, e))
+                token_claims.validate()
+                for api in self.apis:
+                    expected_claim = "x-nmos-{}".format(api)
+                    if expected_claim not in token_claims:
+                        raise NMOSInitException("No '{}' claim found in '{}'".format(expected_claim, token_name))
+                client_id = token_claims.get("client_id")
+                if not client_id:
+                    client_id = token_claims.get("azp")
+                if not client_id:
+                    raise NMOSInitException("No 'client_id' or 'azp' claim found in '{}'".format(token_name))
+                if client_id in client_ids:
+                    raise NMOSInitException("'client_id' or 'azp' claim in 'AUTH_TOKEN_PRIMARY' and "
+                                            "'AUTH_TOKEN_SECONDARY' must not match")
+                client_ids.append(client_id)
+
         self.set_up_tests()
         self.result.append(test.NA(""))
 

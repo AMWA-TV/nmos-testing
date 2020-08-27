@@ -155,7 +155,7 @@ def do_request(method, url, **kwargs):
         # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
         if CONFIG.ENABLE_AUTH and 'headers' not in kwargs:
             req = requests.Request(method, url, headers={
-                "Authorization": "Bearer " + CONFIG.AUTH_TOKEN_NODE,
+                "Authorization": "Bearer " + CONFIG.AUTH_TOKEN_PRIMARY,
             }, **kwargs)
         else:
             req = requests.Request(method, url, **kwargs)
