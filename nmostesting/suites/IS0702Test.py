@@ -57,6 +57,14 @@ class IS0702Test(GenericTest):
         self.is07_utils = IS07Utils(self.events_url)
         self.base_event_types = ["boolean", "string", "number"]
 
+    def update_active_sender(self, sender):
+        dest = "single/senders/" + sender + "/active"
+        valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
+        if valid:
+            if len(response) > 0 and isinstance(response["transport_params"][0], dict):
+                self.senders_active[sender] = response
+        return valid, response
+
     def set_up_tests(self):
         self.is05_senders = self.is05_utils.get_senders()
         self.is07_sources = self.is07_utils.get_sources_states_and_types()
@@ -85,11 +93,7 @@ class IS0702Test(GenericTest):
 
         if len(self.is05_senders) > 0:
             for sender in self.is05_senders:
-                dest = "single/senders/" + sender + "/active"
-                valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest)
-                if valid:
-                    if len(response) > 0 and isinstance(response["transport_params"][0], dict):
-                        self.senders_active[sender] = response
+                self.update_active_sender(sender)
 
     def test_01(self, test):
         """Each IS-05 Sender has the required ext parameters"""
@@ -676,8 +680,8 @@ class IS0702Test(GenericTest):
                                             valid, response = self.is05_utils.perform_activation("sender", sender_id,
                                                                                                  masterEnable=True)
                                             if valid:
-                                                self.senders_active[sender_id] = response
-                                            else:
+                                                valid, response = self.update_active_sender(sender_id)
+                                            if not valid:
                                                 raise NMOSTestException(test.FAIL(response))
                                         params = self.senders_active[sender_id]["transport_params"][0]
                                         if "destination_host" not in params:
@@ -686,6 +690,14 @@ class IS0702Test(GenericTest):
                                         if "destination_port" not in params:
                                             raise NMOSTestException(test.FAIL("Sender {} has no destination_port "
                                                                               "parameter".format(sender_id)))
+                                        try:
+                                            destination_port = int(params["destination_port"])
+                                        except ValueError:
+                                            raise NMOSTestException(test.FAIL("Sender {} has invalid "
+                                                                              "destination_port {} parameter"
+                                                                              .format(
+                                                                                  sender_id,
+                                                                                  params["destination_port"])))
                                         if "broker_protocol" not in params:
                                             raise NMOSTestException(test.FAIL("Sender {} has no broker_protocol "
                                                                               "parameter".format(sender_id)))
@@ -701,7 +713,7 @@ class IS0702Test(GenericTest):
                                                                               .format(sender_id)))
                                         broker = BrokerParameters(
                                             host=params["destination_host"],
-                                            port=params["destination_port"],
+                                            port=destination_port,
                                             protocol=params["broker_protocol"],
                                             auth=params["broker_authorization"])
                                         sender = MQTTSenderParameters(
