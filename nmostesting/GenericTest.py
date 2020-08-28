@@ -192,10 +192,25 @@ class GenericTest(object):
             tokens = {"AUTH_TOKEN_PRIMARY": CONFIG.AUTH_TOKEN_PRIMARY,
                       "AUTH_TOKEN_SECONDARY": CONFIG.AUTH_TOKEN_SECONDARY}
             client_ids = []
+            claims_options = {
+                "iss": {
+                    "essential": True
+                },
+                "sub": {
+                    "essential": True
+                },
+                "aud": {
+                    "essential": True
+                },
+                "exp": {
+                    "essential": True
+                }
+            }
             # Check that the tokens we have in the config file are suitable
             for token_name, token_value in tokens.items():
                 try:
-                    token_claims = jwt.decode(token_value, open(CONFIG.AUTH_TOKEN_PUBKEY).read())
+                    token_claims = jwt.decode(token_value, open(CONFIG.AUTH_TOKEN_PUBKEY).read(),
+                                              claims_options=claims_options)
                 except authlib.jose.errors.DecodeError:
                     raise NMOSInitException("'{}' is not a valid JSON Web Token".format(token_name))
                 except authlib.jose.errors.BadSignatureError:
