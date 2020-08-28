@@ -183,8 +183,10 @@ class GenericTest(object):
         test = Test("Test setup", "set_up_tests")
         if self.authorization:
             # We write to config here as this needs to be available outside this class
-            CONFIG.AUTH_TOKEN = self.generate_token(["node", "registration", "query", "connection", "netctrl", "events",
-                                                     "channelmapping"], True)
+            scopes = []
+            for api in self.apis:
+                scopes.append(api)
+            CONFIG.AUTH_TOKEN = self.generate_token(scopes, True)
         if CONFIG.PREVALIDATE_API:
             for api in self.apis:
                 if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
@@ -418,13 +420,12 @@ class GenericTest(object):
             results.append(self.do_test_authorization(api, "Missing Authorization Header", error_codes=[400, 401],
                                                       error_type="invalid_request"))
             results.append(self.do_test_authorization(api, "Invalid Authorization Token", token=str(uuid.uuid4())))
-            token_scopes = ["node", "registration", "query", "connection", "netctrl", "events", "channelmapping"]
-            token = self.generate_token(token_scopes, True, overrides={"iat": int(time.time() - 7200),
-                                                                       "exp": int(time.time() - 3600)})
+            token = self.generate_token([api], True, overrides={"iat": int(time.time() - 7200),
+                                                                "exp": int(time.time() - 3600)})
             results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
-            token = self.generate_token(token_scopes, True, overrides={"x-nmos-{}".format(api): []})
+            token = self.generate_token([api], True, overrides={"x-nmos-{}".format(api): []})
             results.append(self.do_test_authorization(api, "Missing Authorization Claims", token=token))
-            token = self.generate_token(token_scopes, True, overrides={"aud": ["https://*.nmos.example.com"]})
+            token = self.generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
             results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", token=token))
 
         return results
