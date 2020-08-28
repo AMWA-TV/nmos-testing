@@ -20,6 +20,7 @@ import traceback
 import inspect
 import uuid
 import authlib
+import time
 from authlib.jose import jwt
 
 from . import TestHelper
@@ -181,6 +182,10 @@ class GenericTest(object):
 
         # Set up
         test = Test("Test setup", "set_up_tests")
+        if self.authorization:
+            # We write to config here as this needs to be available outside this class
+            CONFIG.AUTH_TOKEN = self.generate_token(["node", "registration", "query", "connection", "netctrl", "events",
+                                                     "channelmapping"], True)
         if CONFIG.PREVALIDATE_API:
             for api in self.apis:
                 if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
@@ -188,50 +193,6 @@ class GenericTest(object):
                 valid, response = self.do_request("GET", self.apis[api]["url"])
                 if not valid or response.status_code != 200:
                     raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
-        if self.authorization:
-            tokens = {"AUTH_TOKEN_PRIMARY": CONFIG.AUTH_TOKEN_PRIMARY,
-                      "AUTH_TOKEN_SECONDARY": CONFIG.AUTH_TOKEN_SECONDARY}
-            client_ids = []
-            claims_options = {
-                "iss": {
-                    "essential": True
-                },
-                "sub": {
-                    "essential": True
-                },
-                "aud": {
-                    "essential": True
-                },
-                "exp": {
-                    "essential": True
-                }
-            }
-            # Check that the tokens we have in the config file are suitable
-            for token_name, token_value in tokens.items():
-                try:
-                    token_claims = jwt.decode(token_value, open(CONFIG.AUTH_TOKEN_PUBKEY).read(),
-                                              claims_options=claims_options)
-                except authlib.jose.errors.DecodeError:
-                    raise NMOSInitException("'{}' is not a valid JSON Web Token".format(token_name))
-                except authlib.jose.errors.BadSignatureError:
-                    raise NMOSInitException("'{}' signature does not match the public key in "
-                                            "'AUTH_TOKEN_PUBKEY'".format(token_name))
-                except ValueError as e:
-                    raise NMOSInitException("Could not decode token '{}': {}".format(token_name, e))
-                token_claims.validate()
-                for api in self.apis:
-                    expected_claim = "x-nmos-{}".format(api)
-                    if expected_claim not in token_claims:
-                        raise NMOSInitException("No '{}' claim found in '{}'".format(expected_claim, token_name))
-                client_id = token_claims.get("client_id")
-                if not client_id:
-                    client_id = token_claims.get("azp")
-                if not client_id:
-                    raise NMOSInitException("No 'client_id' or 'azp' claim found in '{}'".format(token_name))
-                if client_id in client_ids:
-                    raise NMOSInitException("'client_id' or 'azp' claim in 'AUTH_TOKEN_PRIMARY' and "
-                                            "'AUTH_TOKEN_SECONDARY' must not match")
-                client_ids.append(client_id)
 
         self.set_up_tests()
         self.result.append(test.NA(""))
@@ -596,3 +557,29 @@ class GenericTest(object):
 
     def get_schema(self, api_name, method, path, status_code):
         return self.apis[api_name]["spec"].get_schema(method, path, status_code)
+
+    def generate_token(self, scope=None, write=False, azp=False, overrides=None):
+        if scope is None:
+            scope = []
+        header = {"typ": "JWT", "alg": "RS512"}
+        payload = {"iss": "https://{}".format(CONFIG.DNS_DOMAIN),
+                   "sub": "testsuite@nmos.tv",
+                   "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN)],
+                   "exp": int(time.time() + 3600),
+                   "iat": int(time.time()),
+                   "scope": scope}
+        if azp:
+            payload["azp"] = str(uuid.uuid4())
+        else:
+            payload["client_id"] = str(uuid.uuid4())
+        nmos_claims = {}
+        for api in scope:
+            nmos_claims["x-nmos-{}".format(api)] = {"read": ["*"]}
+            if write:
+                nmos_claims["x-nmos-{}".format(api)]["write"] = ["*"]
+        payload.update(nmos_claims)
+        if overrides:
+            payload.update(overrides)
+        key = open(CONFIG.AUTH_TOKEN_PRIVKEY).read()
+        token = jwt.encode(header, payload, key).decode()
+        return token
