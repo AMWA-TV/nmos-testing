@@ -19,7 +19,6 @@ import jsonschema
 import traceback
 import inspect
 import uuid
-import authlib
 import time
 from authlib.jose import jwt
 
@@ -359,6 +358,20 @@ class GenericTest(object):
         else:
             return False, message
 
+    def check_auth_error_response(self, method, response, error_type=None):
+        """
+        Confirm that a given Requests response conforms to the authorization error schema and has any expected
+        headers
+        """
+        schema = TestHelper.load_resolved_schema("test_data/IS1001", "error.json", path_prefix=False)
+        valid, message = self.check_response(schema, method, response)
+        if valid:
+            if error_type and response.json()["error"] != error_type:
+                return False, "Error JSON 'error' attribute was not set to {}".format(error_type)
+            return True, ""
+        else:
+            return False, message
+
     def validate_schema(self, payload, schema):
         """
         Validate the payload under the given schema.
@@ -401,9 +414,16 @@ class GenericTest(object):
             # Perform an automatic check for an error condition
             results.append(self.do_test_404_path(api))
 
-            # Test that the API responds with a 401 when no Authorization header is present
-            # TODO: Add additional tests using invalid and expired tokens
-            results.append(self.do_test_authorization(api))
+            # Test that the API responds with a 401 when a missing or invalid token is used
+            results.append(self.do_test_missing_token(api))
+            results.append(self.do_test_invalid_token(api))
+            results.append(self.do_test_modified_token(api, "Expired Authorization Token",
+                                                       {"iat": int(time.time() - 7200),
+                                                        "exp": int(time.time() - 3600)}))
+            results.append(self.do_test_modified_token(api, "Missing Authorization Claims",
+                                                       {"x-nmos-{}".format(api): []}))
+            results.append(self.do_test_modified_token(api, "Incorrect Authorization Audience",
+                                                       {"aud": ["https://*.nmos.example.com"]}))
 
         return results
 
@@ -428,7 +448,7 @@ class GenericTest(object):
         else:
             return test.FAIL(message)
 
-    def do_test_authorization(self, api_name):
+    def do_test_missing_token(self, api_name):
         api = self.apis[api_name]
         error_code = 401
         url = "{}".format(api["url"].rstrip("/"))
@@ -443,7 +463,56 @@ class GenericTest(object):
             if response.status_code != error_code:
                 return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
 
-            valid, message = self.check_error_response("GET", response, error_code)
+            valid, message = self.check_auth_error_response("GET", response, "invalid_request")
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(message)
+        else:
+            return test.DISABLED("This test is only necessary when 'ENABLE_AUTH' is True")
+
+    def do_test_invalid_token(self, api_name):
+        api = self.apis[api_name]
+        error_code = 401
+        url = "{}".format(api["url"].rstrip("/"))
+        test = Test("GET /x-nmos/{}/{} (Invalid Authorization Token {})".format(api_name, api["version"], error_code),
+                    self.auto_test_name(api_name))
+
+        if self.authorization:
+            valid, response = self.do_request("GET", url, headers={"Authorization": "Bearer {}"
+                                                                   .format(str(uuid.uuid4()))})
+            if not valid:
+                return test.FAIL(response)
+
+            if response.status_code != error_code:
+                return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
+
+            valid, message = self.check_auth_error_response("GET", response, "invalid_client")
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(message)
+        else:
+            return test.DISABLED("This test is only necessary when 'ENABLE_AUTH' is True")
+
+    def do_test_modified_token(self, api_name, impairment="", token_overrides=None):
+        api = self.apis[api_name]
+        error_code = 401
+        url = "{}".format(api["url"].rstrip("/"))
+        test = Test("GET /x-nmos/{}/{} ({} {})".format(api_name, api["version"], impairment, error_code),
+                    self.auto_test_name(api_name))
+
+        if self.authorization:
+            token = self.generate_token(["node", "registration", "query", "connection", "netctrl", "events",
+                                         "channelmapping"], True, overrides=token_overrides)
+            valid, response = self.do_request("GET", url, headers={"Authorization": "Bearer {}".format(token)})
+            if not valid:
+                return test.FAIL(response)
+
+            if response.status_code != error_code:
+                return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
+
+            valid, message = self.check_auth_error_response("GET", response, "invalid_client")
             if valid:
                 return test.PASS()
             else:
