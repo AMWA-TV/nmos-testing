@@ -708,6 +708,10 @@ class IS0702Test(GenericTest):
                                         if "broker_topic" not in params:
                                             raise NMOSTestException(test.FAIL("Sender {} has no broker_topic "
                                                                               "parameter".format(sender_id)))
+                                        broker_topic = params["broker_topic"]
+                                        if not broker_topic:
+                                            raise NMOSTestException(test.FAIL("Sender {} broker_topic "
+                                                                              "parameter is null".format(sender_id)))
                                         if "connection_status_broker_topic" not in params:
                                             raise NMOSTestException(test.FAIL("Sender {} has no "
                                                                               "connection_status_broker_topic parameter"
@@ -719,7 +723,7 @@ class IS0702Test(GenericTest):
                                             auth=params["broker_authorization"])
                                         sender = MQTTSenderParameters(
                                             source=self.is04_sources[source_id],
-                                            topic=params["broker_topic"],
+                                            topic=broker_topic,
                                             connection_status_topic=params["connection_status_broker_topic"])
                                         if broker not in broker_senders:
                                             broker_senders[broker] = [sender]
