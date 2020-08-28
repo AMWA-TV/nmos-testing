@@ -15,10 +15,12 @@
 import time
 import flask
 import json
+import re
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
-from ..Config import PORT_BASE
+from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH
+from authlib.jose import jwt
 
 
 class RegistryCommon(object):
@@ -101,6 +103,36 @@ class Registry(object):
     def has_registrations(self):
         return self.add_event.is_set()
 
+    def _check_path_match(self, path, path_wildcards):
+        path_match = False
+        for path_wildcard in path_wildcards:
+            pattern = path_wildcard.replace("*", ".*")
+            if re.search(pattern, path):
+                path_match = True
+                break
+        return path_match
+
+    def check_authorized(self, headers, path, write=False):
+        # TODO: Add support for BCP-003-02 checks
+        if ENABLE_AUTH:
+            try:
+                if not request.headers["Authorization"].startswith("Bearer "):
+                    return False
+                token = request.headers["Authorization"].split(" ")[1]
+                claims = jwt.decode(token, open(AUTH_TOKEN_PUBKEY).read())
+                claims.validate()
+                if not self._check_path_match(path, claims["x-nmos-registration"]["read"]):
+                    return False
+                if write:
+                    if not self._check_path_match(path, claims["x-nmos-registration"]["write"]):
+                        return False
+            except KeyError:
+                # TODO: Add debug which can be returned in the error response JSON
+                return False
+            except Exception:
+                return False
+        return True
+
 
 # 0 = Invalid request testing registry
 # 1 = Primary testing registry
@@ -117,6 +149,8 @@ def base_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
+    if not registry.check_authorized(request.headers, request.path):
+        abort(401)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
     return Response(json.dumps(base_data), mimetype='application/json')
@@ -127,6 +161,8 @@ def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
+    if not registry.check_authorized(request.headers, request.path, True):
+        abort(401)
     if not registry.test_first_reg:
         registered = False
         try:
@@ -151,6 +187,8 @@ def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
+    if not registry.check_authorized(request.headers, request.path, True):
+        abort(401)
     resource_type = resource_type.rstrip("s")
     if not registry.test_first_reg:
         registered = False
@@ -177,6 +215,8 @@ def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
+    if not registry.check_authorized(request.headers, request.path, True):
+        abort(401)
     if node_id in registry.get_resources()["node"]:
         # store raw request payload, in order to check for empty request bodies later
         registry.heartbeat(request.headers, request.data, version, node_id)

@@ -56,6 +56,7 @@ NODE_API = Blueprint('node_api', __name__)
 
 @NODE_API.route('/<stream_type>.sdp', methods=["GET"])
 def node_video_sdp(stream_type):
+    # TODO: Should we check for an auth token here? May depend on the URL?
     response = None
     if stream_type == "video":
         with open("test_data/IS0401/video.sdp") as f:
