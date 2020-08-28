@@ -417,16 +417,17 @@ class GenericTest(object):
             results.append(self.do_test_404_path(api))
 
             # Test that the API responds with a 4xx when a missing or invalid token is used
-            results.append(self.do_test_authorization(api, "Missing Authorization Header", error_codes=[400, 401],
-                                                      error_type="invalid_request"))
+            results.append(self.do_test_authorization(api, "Missing Authorization Header", error_type=None))
             results.append(self.do_test_authorization(api, "Invalid Authorization Token", token=str(uuid.uuid4())))
             token = self.generate_token([api], True, overrides={"iat": int(time.time() - 7200),
                                                                 "exp": int(time.time() - 3600)})
             results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
             token = self.generate_token([api], True, overrides={"x-nmos-{}".format(api): []})
-            results.append(self.do_test_authorization(api, "Missing Authorization Claims", token=token))
+            results.append(self.do_test_authorization(api, "Missing Authorization Claims", error_code=403,
+                                                      error_type="insufficient_scope", token=token))
             token = self.generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
-            results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", token=token))
+            results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", error_code=403,
+                                                      error_type="insufficient_scope", token=token))
 
         return results
 
@@ -451,10 +452,7 @@ class GenericTest(object):
         else:
             return test.FAIL(message)
 
-    def do_test_authorization(self, api_name, test_name, error_codes=None, error_type="invalid_client", token=None):
-        if error_codes is None:
-            error_codes = [401]
-
+    def do_test_authorization(self, api_name, test_name, error_code=401, error_type="invalid_token", token=None):
         api = self.apis[api_name]
         url = "{}".format(api["url"].rstrip("/"))
         test = Test("GET /x-nmos/{}/{} ({})".format(api_name, api["version"], test_name), self.auto_test_name(api_name))
@@ -467,16 +465,33 @@ class GenericTest(object):
             if not valid:
                 return test.FAIL(response)
 
-            if response.status_code not in error_codes:
-                error_code_str = " or ".join("{}".format(code) for code in error_codes)
+            if response.status_code != error_code:
                 return test.FAIL("Incorrect response code, expected {}. Received {}"
-                                 .format(error_code_str, response.status_code))
+                                 .format(error_code, response.status_code))
 
-            valid, message = self.check_auth_error_response("GET", response, error_type)
-            if valid:
-                return test.PASS()
-            else:
-                return test.FAIL(message)
+            # https://tools.ietf.org/html/rfc6750#section-3
+            if error_type is not None:
+                if "WWW-Authenticate" not in response.headers:
+                    return test.FAIL("Authorization error responses must include a 'WWW-Authenticate' header")
+                if not response.headers["WWW-Authenticate"].startswith("Bearer"):
+                    return test.FAIL("'WWW-Authenticate' response header must begin 'Bearer'")
+
+                valid, message = self.check_auth_error_response("GET", response, error_type)
+                if not valid:
+                    return test.FAIL(message)
+
+                error_header_ok = False
+                auth_params = response.headers["WWW-Authenticate"].strip("Bearer ").split(",")
+                for param in auth_params:
+                    param_parts = param.split("=")
+                    if param_parts[0] == "error":
+                        if param_parts[1] == error_type:
+                            error_header_ok = True
+                if not error_header_ok:
+                    return test.WARNING("'WWW-Authenticate' response header should contain 'error={}'"
+                                        .format(error_type))
+
+            return test.PASS()
         else:
             return test.DISABLED("This test is only performed when 'ENABLE_AUTH' is True")
 

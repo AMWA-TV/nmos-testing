@@ -150,6 +150,7 @@ def base_resource(version):
     if not registry.enabled:
         abort(503)
     if not registry.check_authorized(request.headers, request.path):
+        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
         abort(401)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
@@ -162,6 +163,7 @@ def post_resource(version):
     if not registry.enabled:
         abort(500)
     if not registry.check_authorized(request.headers, request.path, True):
+        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
         abort(401)
     if not registry.test_first_reg:
         registered = False
@@ -188,6 +190,7 @@ def delete_resource(version, resource_type, resource_id):
     if not registry.enabled:
         abort(500)
     if not registry.check_authorized(request.headers, request.path, True):
+        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
         abort(401)
     resource_type = resource_type.rstrip("s")
     if not registry.test_first_reg:
@@ -216,6 +219,7 @@ def heartbeat(version, node_id):
     if not registry.enabled:
         abort(500)
     if not registry.check_authorized(request.headers, request.path, True):
+        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
         abort(401)
     if node_id in registry.get_resources()["node"]:
         # store raw request payload, in order to check for empty request bodies later

@@ -2126,6 +2126,7 @@ class IS0402Test(GenericTest):
         data["description"] = "test_33"
         self.post_resource(test, "node", data, headers={"Authorization": "Bearer {}".format(a_token)})
         self.bump_resource_version(data)
+        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
         self.post_resource(test, "node", data, codes=[401], headers={"Authorization": "Bearer {}".format(b_token)})
 
         return test.PASS()
@@ -2147,6 +2148,7 @@ class IS0402Test(GenericTest):
         data["description"] = "test_33_1"
         self.post_resource(test, "node", data, headers={"Authorization": "Bearer {}".format(a_token)})
         self.bump_resource_version(data)
+        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
         self.post_resource(test, "node", data, codes=[401], headers={"Authorization": "Bearer {}".format(b_token)})
 
         return test.PASS()
