@@ -181,6 +181,7 @@ class GenericTest(object):
 
         # Set up
         test = Test("Test setup", "set_up_tests")
+        CONFIG.AUTH_TOKEN = None
         if self.authorization:
             # We write to config here as this needs to be available outside this class
             scopes = []
@@ -469,19 +470,20 @@ class GenericTest(object):
                 return test.FAIL("Incorrect response code, expected {}. Received {}"
                                  .format(error_code, response.status_code))
 
+            if "WWW-Authenticate" not in response.headers:
+                return test.FAIL("Authorization error responses must include a 'WWW-Authenticate' header")
+            if not response.headers["WWW-Authenticate"].startswith("Bearer "):
+                return test.FAIL("'WWW-Authenticate' response header must begin 'Bearer'")
+
             # https://tools.ietf.org/html/rfc6750#section-3
             if error_type is not None:
-                if "WWW-Authenticate" not in response.headers:
-                    return test.FAIL("Authorization error responses must include a 'WWW-Authenticate' header")
-                if not response.headers["WWW-Authenticate"].startswith("Bearer"):
-                    return test.FAIL("'WWW-Authenticate' response header must begin 'Bearer'")
-
                 valid, message = self.check_auth_error_response("GET", response, error_type)
                 if not valid:
                     return test.FAIL(message)
 
                 error_header_ok = False
-                auth_params = response.headers["WWW-Authenticate"].strip("Bearer ").split(",")
+                # Remove 'Bearer ' and tokenise
+                auth_params = response.headers["WWW-Authenticate"][7:].split(",")
                 for param in auth_params:
                     param_parts = param.split("=")
                     if param_parts[0] == "error":
@@ -493,7 +495,8 @@ class GenericTest(object):
 
             return test.PASS()
         else:
-            return test.DISABLED("This test is only performed when 'ENABLE_AUTH' is True")
+            return test.DISABLED("This test is only performed when an API supports Authorization and 'ENABLE_AUTH' "
+                                 "is True")
 
     def do_test_api_resource(self, resource, response_code, api):
         # Test URLs which include a {resourceId} or similar parameter

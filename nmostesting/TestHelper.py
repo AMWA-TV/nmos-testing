@@ -153,7 +153,7 @@ def do_request(method, url, **kwargs):
     try:
         s = requests.Session()
         # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
-        if CONFIG.ENABLE_AUTH and 'headers' not in kwargs:
+        if CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and 'headers' not in kwargs:
             req = requests.Request(method, url, headers={
                 "Authorization": "Bearer " + CONFIG.AUTH_TOKEN,
             }, **kwargs)
@@ -223,7 +223,7 @@ class WebsocketWorker(threading.Thread):
         Initializer
         :param ws_href: websocket url (string)
         """
-        if CONFIG.ENABLE_AUTH and "access_token" not in ws_href:
+        if CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and "access_token" not in ws_href:
             if "?" in ws_href:
                 ws_href += "&access_token={}".format(CONFIG.AUTH_TOKEN)
             else:
