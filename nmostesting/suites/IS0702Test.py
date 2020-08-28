@@ -500,7 +500,8 @@ class IS0702Test(GenericTest):
             for broker_params in broker_senders:
                 topics = set()
                 for sender in broker_senders[broker_params]:
-                    topics.add(sender.connection_status_topic)
+                    if sender.connection_status_topic:
+                        topics.add(sender.connection_status_topic)
                     topics.add(sender.topic)
                 target_brokers[broker_params] = MQTTClientWorker(
                     broker_params.host,
