@@ -223,6 +223,11 @@ class WebsocketWorker(threading.Thread):
         Initializer
         :param ws_href: websocket url (string)
         """
+        if CONFIG.ENABLE_AUTH and "access_token" not in ws_href:
+            if "?" in ws_href:
+                ws_href += "&access_token={}".format(CONFIG.AUTH_TOKEN)
+            else:
+                ws_href += "?access_token={}".format(CONFIG.AUTH_TOKEN)
         threading.Thread.__init__(self, daemon=True)
         self.ws_href = ws_href
         try:
