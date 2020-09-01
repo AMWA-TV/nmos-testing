@@ -688,6 +688,11 @@ class IS0702Test(GenericTest):
                                         if "destination_host" not in params:
                                             raise NMOSTestException(test.FAIL("Sender {} has no destination_host "
                                                                               "parameter".format(sender_id)))
+                                        destination_host = params["destination_host"]
+                                        if not destination_host:
+                                            raise NMOSTestException(test.FAIL("Sender {} has an empty "
+                                                                              "destination_host parameter"
+                                                                              .format(sender_id)))
                                         if "destination_port" not in params:
                                             raise NMOSTestException(test.FAIL("Sender {} has no destination_port "
                                                                               "parameter".format(sender_id)))
@@ -717,7 +722,7 @@ class IS0702Test(GenericTest):
                                                                               "connection_status_broker_topic parameter"
                                                                               .format(sender_id)))
                                         broker = BrokerParameters(
-                                            host=params["destination_host"],
+                                            host=destination_host,
                                             port=destination_port,
                                             protocol=params["broker_protocol"],
                                             auth=params["broker_authorization"])
