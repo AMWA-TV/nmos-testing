@@ -193,8 +193,11 @@ class GenericTest(object):
                 if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
                     continue
                 valid, response = self.do_request("GET", self.apis[api]["url"])
-                if not valid or response.status_code != 200:
+                if not valid:
                     raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
+                elif response.status_code != 200:
+                    raise NMOSInitException("No API found or unexpected error at {} ({})".format(self.apis[api]["url"],
+                                                                                                 response.status_code))
 
         self.set_up_tests()
         self.result.append(test.NA(""))
