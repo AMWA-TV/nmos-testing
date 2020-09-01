@@ -605,22 +605,22 @@ class GenericTest(object):
     def get_schema(self, api_name, method, path, status_code):
         return self.apis[api_name]["spec"].get_schema(method, path, status_code)
 
-    def generate_token(self, scope=None, write=False, azp=False, overrides=None):
-        if scope is None:
-            scope = []
+    def generate_token(self, scopes=None, write=False, azp=False, overrides=None):
+        if scopes is None:
+            scopes = []
         header = {"typ": "JWT", "alg": "RS512"}
         payload = {"iss": "https://{}".format(CONFIG.DNS_DOMAIN),
                    "sub": "testsuite@nmos.tv",
                    "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN)],
                    "exp": int(time.time() + 3600),
                    "iat": int(time.time()),
-                   "scope": scope}
+                   "scope": " ".join(scopes)}
         if azp:
             payload["azp"] = str(uuid.uuid4())
         else:
             payload["client_id"] = str(uuid.uuid4())
         nmos_claims = {}
-        for api in scope:
+        for api in scopes:
             nmos_claims["x-nmos-{}".format(api)] = {"read": ["*"]}
             if write:
                 nmos_claims["x-nmos-{}".format(api)]["write"] = ["*"]
