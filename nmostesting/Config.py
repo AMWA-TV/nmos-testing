@@ -95,6 +95,9 @@ ENABLE_AUTH = False
 AUTH_TOKEN_PUBKEY = "test_data/BCP00301/ca/intermediate/certs/intermediate.pubkey.pem"
 AUTH_TOKEN_PRIVKEY = "test_data/BCP00301/ca/intermediate/private/intermediate.key.pem"
 
+# Set the contents of the 'iss' key within generated JSON Web Tokens to match what the network authorization server uses
+AUTH_TOKEN_ISSUER = "https://testsuite.nmos.tv"
+
 # The following token is set by the application at runtime and should be left as 'None'
 AUTH_TOKEN = None
 

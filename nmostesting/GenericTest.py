@@ -612,7 +612,7 @@ class GenericTest(object):
         if scopes is None:
             scopes = []
         header = {"typ": "JWT", "alg": "RS512"}
-        payload = {"iss": "https://{}".format(CONFIG.DNS_DOMAIN),
+        payload = {"iss": "{}".format(CONFIG.AUTH_TOKEN_ISSUER),
                    "sub": "testsuite@nmos.tv",
                    "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN)],
                    "exp": int(time.time() + 3600),
