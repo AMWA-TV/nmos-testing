@@ -19,7 +19,7 @@ import re
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
-from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH
+from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER
 from authlib.jose import jwt
 
 
@@ -121,6 +121,8 @@ class Registry(object):
                 token = request.headers["Authorization"].split(" ")[1]
                 claims = jwt.decode(token, open(AUTH_TOKEN_PUBKEY).read())
                 claims.validate()
+                if claims["iss"] != AUTH_TOKEN_ISSUER:
+                    return False
                 if not self._check_path_match(path, claims["x-nmos-registration"]["read"]):
                     return False
                 if write:
