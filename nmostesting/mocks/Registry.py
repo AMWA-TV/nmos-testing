@@ -39,6 +39,10 @@ class RegistryData(object):
         self.heartbeats = []
 
 
+class BCP00302Exception(Exception):
+    pass
+
+
 class Registry(object):
     def __init__(self, data_store, port_increment):
         self.common = data_store
@@ -56,6 +60,7 @@ class Registry(object):
         self.test_first_reg = False
         self.add_event.clear()
         self.delete_event.clear()
+        self.auth_clients = {}
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
@@ -65,6 +70,10 @@ class Registry(object):
             if payload["type"] not in self.common.resources:
                 self.common.resources[payload["type"]] = {}
             if "id" in payload["data"]:
+                client_id = self._get_client_id(headers)
+                if payload["data"]["id"] in self.auth_clients and self.auth_clients[payload["data"]["id"]] != client_id:
+                    raise BCP00302Exception
+                self.auth_clients[payload["data"]["id"]] = client_id
                 self.common.resources[payload["type"]][payload["data"]["id"]] = payload["data"]
 
     def delete(self, headers, payload, version, resource_type, resource_id):
@@ -73,10 +82,16 @@ class Registry(object):
         self.data.deletes.append((self.last_time, {"headers": headers, "payload": payload, "version": version,
                                                    "type": resource_type, "id": resource_id}))
         if resource_type in self.common.resources:
+            client_id = self._get_client_id(headers)
+            if resource_id in self.auth_clients and self.auth_clients[resource_id] != client_id:
+                raise BCP00302Exception
             self.common.resources[resource_type].pop(resource_id, None)
 
     def heartbeat(self, headers, payload, version, node_id):
         self.last_hb_time = time.time()
+        client_id = self._get_client_id(headers)
+        if node_id in self.auth_clients and self.auth_clients[node_id] != client_id:
+            raise BCP00302Exception
         self.data.heartbeats.append((self.last_hb_time, {"headers": headers, "payload": payload, "version": version,
                                                          "node_id": node_id}))
 
@@ -103,6 +118,23 @@ class Registry(object):
     def has_registrations(self):
         return self.add_event.is_set()
 
+    def _get_client_id(self, headers):
+        if ENABLE_AUTH:
+            try:
+                if not request.headers["Authorization"].startswith("Bearer "):
+                    return False
+                token = request.headers["Authorization"].split(" ")[1]
+                claims = jwt.decode(token, open(AUTH_TOKEN_PUBKEY).read())
+                if "client_id" in claims:
+                    return claims["client_id"]
+                elif "azp" in claims:
+                    return claims["azp"]
+            except KeyError:
+                return None
+            except Exception:
+                return None
+        return None
+
     def _check_path_match(self, path, path_wildcards):
         path_match = False
         for path_wildcard in path_wildcards:
@@ -113,7 +145,6 @@ class Registry(object):
         return path_match
 
     def check_authorized(self, headers, path, write=False):
-        # TODO: Add support for BCP-003-02 checks
         if ENABLE_AUTH:
             try:
                 if not request.headers["Authorization"].startswith("Bearer "):
@@ -123,6 +154,7 @@ class Registry(object):
                 claims.validate()
                 if claims["iss"] != AUTH_TOKEN_ISSUER:
                     return False
+                # TODO: Check 'aud' claim matches 'mocks.<domain>'
                 if not self._check_path_match(path, claims["x-nmos-registration"]["read"]):
                     return False
                 if write:
@@ -177,7 +209,10 @@ def post_resource(version):
             pass
     else:
         registered = True
-    registry.add(request.headers, request.json, version)
+    try:
+        registry.add(request.headers, request.json, version)
+    except BCP00302Exception:
+        abort(403)
     location = "/x-nmos/registration/{}/resource/{}/{}".format(version, request.json["type"],
                                                                request.json["data"]["id"])
     if registered:
@@ -208,7 +243,10 @@ def delete_resource(version, resource_type, resource_id):
         if resource_type == "node":
             # Once we have seen a DELETE for a Node, ensure we respond with a 201 to future POSTs
             registry.test_first_reg = False
-    registry.delete(request.headers, request.data, version, resource_type, resource_id)
+    try:
+        registry.delete(request.headers, request.data, version, resource_type, resource_id)
+    except BCP00302Exception:
+        abort(403)
     if registered:
         return "", 204
     else:
@@ -225,7 +263,10 @@ def heartbeat(version, node_id):
         abort(401)
     if node_id in registry.get_resources()["node"]:
         # store raw request payload, in order to check for empty request bodies later
-        registry.heartbeat(request.headers, request.data, version, node_id)
+        try:
+            registry.heartbeat(request.headers, request.data, version, node_id)
+        except BCP00302Exception:
+            abort(403)
         return jsonify({"health": int(time.time())})
     else:
         abort(404)
