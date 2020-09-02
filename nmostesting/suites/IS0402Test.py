@@ -2489,7 +2489,8 @@ class IS0402Test(GenericTest):
                                              "current protocol: Location: {}".format(location)))
 
         # Currently can only validate schema for the API version under test
-        if reg_url == self.reg_url:
+        # TODO: Schemas for 401 responses don't exist in the RAML at present
+        if reg_url == self.reg_url and r.status_code != 401:
             schema = self.get_schema(REG_API_KEY, "POST", "/resource", r.status_code)
             valid, message = self.check_response(schema, "POST", r)
             if valid:
