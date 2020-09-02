@@ -153,7 +153,9 @@ def do_request(method, url, **kwargs):
     try:
         s = requests.Session()
         # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
-        if CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and 'headers' not in kwargs:
+        if "headers" in kwargs and kwargs["headers"] is None:
+            del kwargs["headers"]
+        if CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and "headers" not in kwargs:
             req = requests.Request(method, url, headers={
                 "Authorization": "Bearer " + CONFIG.AUTH_TOKEN,
             }, **kwargs)
