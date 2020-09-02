@@ -614,7 +614,7 @@ class GenericTest(object):
         header = {"typ": "JWT", "alg": "RS512"}
         payload = {"iss": "{}".format(CONFIG.AUTH_TOKEN_ISSUER),
                    "sub": "testsuite@nmos.tv",
-                   "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN)],
+                   "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN), "https://*.local"],
                    "exp": int(time.time() + 3600),
                    "iat": int(time.time()),
                    "scope": " ".join(scopes)}
