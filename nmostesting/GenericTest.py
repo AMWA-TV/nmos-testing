@@ -369,7 +369,7 @@ class GenericTest(object):
         Confirm that a given Requests response conforms to the authorization error schema and has any expected
         headers
         """
-        schema = TestHelper.load_resolved_schema("test_data/IS1001", "error.json", path_prefix=False)
+        schema = TestHelper.load_resolved_schema("test_data/IS1001", "resource_error_response.json", path_prefix=False)
         valid, message = self.check_response(schema, method, response)
         if valid:
             if error_type and response.json()["error"] != error_type:
@@ -426,8 +426,9 @@ class GenericTest(object):
             token = self.generate_token([api], True, overrides={"iat": int(time.time() - 7200),
                                                                 "exp": int(time.time() - 3600)})
             results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
-            token = self.generate_token([api], True, overrides={"x-nmos-{}".format(api): []})
-            results.append(self.do_test_authorization(api, "Missing Authorization Claims", error_code=403,
+            token = self.generate_token([api], True,
+                                        overrides={"x-nmos-{}".format(api): {"read": [str(uuid.uuid4())]}})
+            results.append(self.do_test_authorization(api, "Incorrect Authorization Claims", error_code=403,
                                                       error_type="insufficient_scope", token=token))
             token = self.generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
             results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", error_code=403,
