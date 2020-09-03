@@ -89,6 +89,13 @@ KEYS_MOCKS = [
 # Test using authorization as per AMWA IS-10 and BCP-003-02
 ENABLE_AUTH = False
 
+# Where the Authorization Server is located on the network. Required when 'ENABLE_AUTH' is True
+# The hostname must match the CN or SAN in the TLS certificate used by the Authorization Server when combined
+# with the DNS_DOMAIN setting
+AUTH_SERVER_HOSTNAME = "auth"
+AUTH_SERVER_IP = "127.0.0.1"
+AUTH_SERVER_PORT = 443
+
 # Which private and public key to use to generate authorization tokens. These must match the keys used by an
 # authorization server on the network to ensure that Nodes trust tokens generated from them. DO NOT use production
 # keys for testing purposes.

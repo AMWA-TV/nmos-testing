@@ -71,13 +71,28 @@ class DNS(object):
     def reset(self):
         zone_file = open("test_data/core/dns_base.zone").read()
         template = Template(zone_file)
-        mqtt_proto = "mqtt"  # or "secure-mqtt"
-        mqtt_authorization = False
+
+        extra_services = {}
+        if CONFIG.ENABLE_AUTH:
+            auth_proto = "https"
+            if not CONFIG.ENABLE_HTTPS:
+                auth_proto = "http"
+            extra_services["auth"] = {
+                "host": CONFIG.AUTH_SERVER_HOSTNAME,
+                "ip": CONFIG.AUTH_SERVER_IP,
+                "port": CONFIG.AUTH_SERVER_PORT,
+                "txt": ["api_ver=v1.0", "api_proto={}".format(auth_proto), "pri=0"]
+            }
+        if CONFIG.ENABLE_MQTT_BROKER:
+            extra_services["mqtt"] = {
+                "host": CONFIG.MQTT_BROKER_HOSTNAME,
+                "ip": CONFIG.MQTT_BROKER_IP,
+                "port": CONFIG.MQTT_BROKER_PORT,
+                "txt": ["api_proto=mqtt", "api_auth=false"]
+            }
+
         self.base_zone_data = template.render(ip_address=self.default_ip, domain=CONFIG.DNS_DOMAIN,
-                                              mqtt_enabled=CONFIG.ENABLE_MQTT_BROKER,
-                                              mqtt_host=CONFIG.MQTT_BROKER_HOSTNAME,
-                                              mqtt_ip=CONFIG.MQTT_BROKER_IP, mqtt_port=CONFIG.MQTT_BROKER_PORT,
-                                              mqtt_proto=mqtt_proto, mqtt_auth=str(mqtt_authorization).lower())
+                                              extra_services=extra_services)
         self.resolver = WatchingResolver(self.base_zone_data)
         self.stop()
         print(" * Loading DNS zone base file")

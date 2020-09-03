@@ -13,12 +13,13 @@ _services._dns-sd._udp	PTR	_nmos-registration._tcp
 _services._dns-sd._udp	PTR	_nmos-register._tcp
 _services._dns-sd._udp	PTR	_nmos-query._tcp
 _services._dns-sd._udp	PTR	_nmos-system._tcp
-_services._dns-sd._udp	PTR	_nmos-mqtt._tcp
+{% for service_type in extra_services.keys() %}
+_services._dns-sd._udp	PTR	_nmos-{{ service_type }}._tcp
+{% endfor %}
 
-{% if mqtt_enabled %}
-; These lines allow clients to find a remote MQTT Broker
-{{ mqtt_host }}.{{ domain }}. IN  A     {{ mqtt_ip }}
-_nmos-mqtt._tcp	PTR	mqttrelay._nmos-mqtt._tcp
-mqttrelay._nmos-mqtt._tcp	SRV	0 0 {{ mqtt_port }} {{ mqtt_host }}.{{ domain }}.
-mqttrelay._nmos-mqtt._tcp	TXT	"api_proto={{ mqtt_proto }}" "api_auth={{ mqtt_auth }}"
-{% endif %}
+{% for service_type, service_data in extra_services.items() %}
+{{ service_data["host"] }}.{{ domain }}. IN  A     {{ service_data["ip"] }}
+_nmos-{{ service_type }}._tcp	PTR	relay._nmos-{{ service_type }}._tcp
+relay._nmos-{{ service_type }}._tcp	SRV	0 0 {{ service_data["port"] }} {{ service_data["host"] }}.{{ domain }}.
+relay._nmos-{{ service_type }}._tcp	TXT	"{{ '" "'.join(service_data["txt"]) }}"
+{% endfor %}
