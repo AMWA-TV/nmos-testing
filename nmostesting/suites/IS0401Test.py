@@ -1203,6 +1203,11 @@ class IS0401Test(GenericTest):
                 for endpoint in node_self["api"]["endpoints"]:
                     if endpoint["protocol"] != self.protocol:
                         return test.FAIL("One or more Node 'api.endpoints' do not match the current protocol")
+                    if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                        if ("authorization" in endpoint and endpoint["authorization"] != self.authorization) or \
+                                ("authorization" not in endpoint and self.authorization):
+                            return test.FAIL("One or more Node 'api.endpoints' do not match the current authorization "
+                                             "mode")
                     if endpoint["host"] == api["hostname"] and endpoint["port"] == api["port"]:
                         found_api_endpoint = True
                     if self.is04_utils.compare_urls(node_self["href"], "{}://{}:{}"
@@ -1235,6 +1240,12 @@ class IS0401Test(GenericTest):
                 node_devices = response.json()
                 for device in node_devices:
                     for control in device["controls"]:
+                        if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
+                                control["type"].startswith("urn:x-nmos:"):
+                            if ("authorization" in control and control["authorization"] != self.authorization) or \
+                                    ("authorization" not in control and self.authorization):
+                                return test.FAIL("One or more Device 'controls' do not match the current authorization "
+                                                 "mode")
                         href = control["href"]
                         if href.startswith("http") and not href.startswith(self.protocol + "://"):
                             # Only warn about these at the end so that more major failures are flagged first
