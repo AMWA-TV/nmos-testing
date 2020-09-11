@@ -16,6 +16,7 @@ import re
 import time
 import json
 from collections import namedtuple
+from enum import Enum, auto
 
 from .. import Config as CONFIG
 from ..GenericTest import GenericTest, NMOSTestException
@@ -37,6 +38,11 @@ WS_TIMEOUT = 12
 
 BrokerParameters = namedtuple('BrokerParameters', ['host', 'port', 'protocol', 'auth'])
 MQTTSenderParameters = namedtuple('MQTTSenderParameters', ['source', 'topic', 'connection_status_topic'])
+
+
+class IS07Transports(Enum):
+    MQTT = auto()
+    WebSocket = auto()
 
 
 class IS0702Test(GenericTest):
@@ -610,7 +616,7 @@ class IS0702Test(GenericTest):
                         self.check_state_message(
                             test,
                             state_message.payload,
-                            False,
+                            IS07Transports.MQTT,
                             sender.topic,
                             sources,
                             sources_flows,
@@ -785,7 +791,14 @@ class IS0702Test(GenericTest):
                                               .format(connection_uri, source_id, subscription_command_counter))
         try:
             for message in messages:
-                self.check_state_message(test, message, True, connection_uri, sources, sources_flows, missing_sources)
+                self.check_state_message(
+                    test,
+                    message,
+                    IS07Transports.WebSocket,
+                    connection_uri,
+                    sources,
+                    sources_flows,
+                    missing_sources)
         except KeyError as e:
             raise NMOSTestException(
                 test.FAIL("WebSocket {} message cannot be parsed, exception {}, original message: {}"
@@ -793,24 +806,26 @@ class IS0702Test(GenericTest):
         if len(missing_sources) > 0:
             raise NMOSTestException(test.FAIL(list(missing_sources.values())[0]))
 
-    def check_state_message(self, test, message, is_websocket, source_name, sources, sources_flows, missing_sources):
-        name = "WebSocket" if is_websocket else "MQTT"
+    def check_state_message(self, test, message, transport, source_name, sources, sources_flows, missing_sources):
         parsed_message = json.loads(message)
         if "message_type" in parsed_message:
             message_type = parsed_message["message_type"]
-            ignored_message_types = ["health", "reboot", "shutdown"] if is_websocket else ["reboot", "shutdown"]
+            if transport is IS07Transports.WebSocket:
+                ignored_message_types = ["health", "reboot", "shutdown"]
+            else:
+                ignored_message_types = ["reboot", "shutdown"]
             if (message_type in ignored_message_types):
                 return
             if message_type != "state":
                 raise NMOSTestException(
                     test.FAIL("{} {} state response message_type is not "
                               "set to state but instead is {}, original message: {}"
-                              .format(name, source_name, message_type, message)))
+                              .format(transport.name, source_name, message_type, message)))
         else:
             raise NMOSTestException(
                 test.FAIL("{} {} response does not have a message_type, "
                           "original message: {}"
-                          .format(name, source_name, message)))
+                          .format(transport.name, source_name, message)))
 
         if "identity" in parsed_message:
             identity = parsed_message["identity"]
@@ -829,7 +844,7 @@ class IS0702Test(GenericTest):
                                     if "payload" in parsed_message:
                                         self.check_event_payload(
                                             test,
-                                            is_websocket,
+                                            transport,
                                             source_name,
                                             sources[identity_source],
                                             parsed_message["event_type"],
@@ -838,58 +853,60 @@ class IS0702Test(GenericTest):
                                         raise NMOSTestException(
                                             test.FAIL("{} {} state response "
                                                       "does not have a payload, original message: {}"
-                                                      .format(name, source_name, message)))
+                                                      .format(transport.name, source_name, message)))
                                 else:
                                     raise NMOSTestException(
                                         test.FAIL("{} {} state response "
                                                   "does not have an event_type, original message: {}"
-                                                  .format(name, source_name, message)))
+                                                  .format(transport.name, source_name, message)))
                             else:
                                 raise NMOSTestException(
                                     test.FAIL("{} {} state response identity flow_id {} "
                                               "does not match id of any associated source flows, "
                                               "for source id {}, original message: {}"
-                                              .format(name, source_name, identity_flow, identity_source, message)))
+                                              .format(transport.name,
+                                                      source_name,
+                                                      identity_flow,
+                                                      identity_source,
+                                                      message)))
                         else:
                             raise NMOSTestException(
                                 test.FAIL("{} {} source {} "
                                           "does not have any associated flows"
-                                          .format(name, source_name, identity_source)))
+                                          .format(transport.name, source_name, identity_source)))
                     else:
                         raise NMOSTestException(
                             test.FAIL("{} {} state response identity does not have a flow_id, "
                                       "original message: {}"
-                                      .format(name, source_name, message)))
+                                      .format(transport.name, source_name, message)))
                 else:
                     raise NMOSTestException(
                         test.FAIL("{} {} state response is for an unknown source, "
                                   "original message: {}"
-                                  .format(name, source_name, message)))
+                                  .format(transport.name, source_name, message)))
             else:
                 raise NMOSTestException(
                     test.FAIL("{} {} state response identity does not have a source_id, "
                               "original message: {}"
-                              .format(name, source_name, message)))
+                              .format(transport.name, source_name, message)))
         else:
             raise NMOSTestException(
                 test.FAIL("{} {} state response does not have identity, original message: {}"
-                          .format(name, source_name, message)))
+                          .format(transport.name, source_name, message)))
         if "timing" in parsed_message:
             timing = parsed_message["timing"]
             if "creation_timestamp" not in timing:
                 raise NMOSTestException(
                     test.FAIL("{} {} state response does not have a creation_timestamp, "
                               "original message: {}"
-                              .format(name, source_name, message)))
+                              .format(transport.name, source_name, message)))
         else:
             raise NMOSTestException(
                 test.FAIL("{} {} state response does not have timing, original message: {}"
-                          .format(name, source_name, message)))
+                          .format(transport.name, source_name, message)))
 
-    def check_event_payload(self, test, is_websocket, source_name, source, event_type, payload):
+    def check_event_payload(self, test, transport, source_name, source, event_type, payload):
         """Checks validity of event payload"""
-
-        name = "WebSocket" if is_websocket else "MQTT"
 
         source_id = source["id"]
         source_event_type = source["event_type"]
@@ -899,7 +916,7 @@ class IS0702Test(GenericTest):
         if source_id not in self.is07_sources:
             raise NMOSTestException(
                 test.FAIL("{} {}, source {} did not have a matching REST type"
-                          .format(name, source_name, source_id)))
+                          .format(transport.name, source_name, source_id)))
 
         source_type = self.is07_sources[source_id]["type"]
 
@@ -907,7 +924,7 @@ class IS0702Test(GenericTest):
             raise NMOSTestException(
                 test.FAIL("{} {} state response payload event_type {} does not match "
                           "source {} event_type {}, original payload: {}"
-                          .format(name, source_name, event_type, source_id, source_event_type, str_payload)))
+                          .format(transport.name, source_name, event_type, source_id, source_event_type, str_payload)))
 
         event_types_split = event_type.split("/")
         base_event_type = event_types_split[0]
@@ -917,26 +934,26 @@ class IS0702Test(GenericTest):
                 raise NMOSTestException(
                     test.FAIL("{} {}, source {} state response payload "
                               "does not have a value, original payload: {}"
-                              .format(name, source_name, source_id, str_payload)))
+                              .format(transport.name, source_name, source_id, str_payload)))
             value = payload["value"]
             if base_event_type == "boolean":
                 if not isinstance(value, bool):
                     raise NMOSTestException(
                         test.FAIL("{} {}, source {} state response payload value "
                                   "for boolean event type is not a valid boolean, original payload: {}"
-                                  .format(name, source_name, source_id, str_payload)))
+                                  .format(transport.name, source_name, source_id, str_payload)))
             elif base_event_type == "string":
                 if not isinstance(value, str):
                     raise NMOSTestException(
                         test.FAIL("{} {}, source {} state response payload value "
                                   "for string event type is not a valid string, original payload: {}"
-                                  .format(name, source_name, source_id, str_payload)))
+                                  .format(transport.name, source_name, source_id, str_payload)))
                 if "min_length" in source_type:
                     if not isinstance(source_type["min_length"], int):
                         raise NMOSTestException(
                             test.FAIL("{} {}, source {} type for string event type, does not have "
                                       "a valid min_length, original payload: {}"
-                                      .format(name, source_name, source_id, str_payload)))
+                                      .format(transport.name, source_name, source_id, str_payload)))
                     else:
                         if len(value) < source_type["min_length"]:
                             raise NMOSTestException(
@@ -944,7 +961,7 @@ class IS0702Test(GenericTest):
                                           "event type is less than the min_length {} in the type definition, "
                                           "original payload: {}"
                                           .format(
-                                              name,
+                                              transport.name,
                                               source_name,
                                               source_id,
                                               source_type["min_length"],
@@ -954,14 +971,14 @@ class IS0702Test(GenericTest):
                         raise NMOSTestException(
                             test.FAIL("{} {}, source {} type for string event type, type does not have "
                                       "a valid max_length, original payload: {}"
-                                      .format(name, source_name, source_id, str_payload)))
+                                      .format(transport.name, source_name, source_id, str_payload)))
                     else:
                         if len(value) > source_type["max_length"]:
                             raise NMOSTestException(
                                 test.FAIL("{} {}, source {} state response payload value length for string "
                                           "event type is greater than the max_length {} in the type definition, "
                                           "original payload: {}"
-                                          .format(name,
+                                          .format(transport.name,
                                                   source_name,
                                                   source_id,
                                                   source_type["max_length"],
@@ -972,14 +989,14 @@ class IS0702Test(GenericTest):
                         raise NMOSTestException(
                                 test.FAIL("{} {}, source {} state response payload value for string event type "
                                           "does not match the pattern in the type definition, original payload: {}"
-                                          .format(name, source_name, source_id, str_payload)))
+                                          .format(transport.name, source_name, source_id, str_payload)))
             elif base_event_type == "number":
                 try:
                     if not isinstance(value, (int, float)):
                         raise NMOSTestException(
                                 test.FAIL("{} {}, source {} state response payload value for number event type "
                                           "is not a a valid number, original payload: {}"
-                                          .format(name, source_name, source_id, str_payload)))
+                                          .format(transport.name, source_name, source_id, str_payload)))
 
                     if "values" not in source_type:
                         if "scale" in payload:
@@ -987,17 +1004,17 @@ class IS0702Test(GenericTest):
                                 raise NMOSTestException(
                                     test.FAIL("{} {}, source {} state response payload for number event "
                                               "type does not have a valid scale, original payload: {}"
-                                              .format(name, source_name, source_id, str_payload)))
+                                              .format(transport.name, source_name, source_id, str_payload)))
 
                         comparison_value = self.is07_utils.get_number(payload)
 
                         minimum = self.is07_utils.get_number(source_type["min"])
                         self.check_value_greater_than_threshold(
-                            test, name, source_name, source_id, str_payload, comparison_value, minimum)
+                            test, transport, source_name, source_id, str_payload, comparison_value, minimum)
 
                         maximum = self.is07_utils.get_number(source_type["max"])
                         self.check_value_less_than_threshold(
-                            test, name, source_name, source_id, str_payload, comparison_value, maximum)
+                            test, transport, source_name, source_id, str_payload, comparison_value, maximum)
 
                         if "step" in source_type:
                             step = self.is07_utils.get_number(source_type["step"])
@@ -1005,7 +1022,7 @@ class IS0702Test(GenericTest):
                                 raise NMOSTestException(
                                     test.WARNING("{} {}, source {} state response payload for number event "
                                                  "type is not an integer multiple of step {}, original payload: {}"
-                                                 .format(name,
+                                                 .format(transport.name,
                                                          source_name,
                                                          source_id,
                                                          source_type["step"],
@@ -1014,12 +1031,12 @@ class IS0702Test(GenericTest):
                     raise NMOSTestException(
                         test.FAIL("{} {}, source {} state response payload cannot be parsed, "
                                   "exception {}, original payload: {}"
-                                  .format(name, source_name, source_id, e, str_payload)))
+                                  .format(transport.name, source_name, source_id, e, str_payload)))
                 except ZeroDivisionError as e:
                     raise NMOSTestException(
                         test.FAIL("{} {}, source {} state response payload, zero scale is "
                                   "not allowed, exception {}, original payload: {}"
-                                  .format(name, source_name, source_id, e, str_payload)))
+                                  .format(transport.name, source_name, source_id, e, str_payload)))
             if "enum" in event_types_split:
                 try:
                     valuesTypes = source_type["values"]
@@ -1033,32 +1050,38 @@ class IS0702Test(GenericTest):
                             test.FAIL("{} {}, source {} state response payload value for enum "
                                       "event type, does not match any of the values defined "
                                       "in the type definition, original payload: {}"
-                                      .format(name, source_name, source_id, str_payload)))
+                                      .format(transport.name, source_name, source_id, str_payload)))
                 except KeyError as e:
                     raise NMOSTestException(
                         test.FAIL("{} {}, source {} state response payload cannot be parsed, "
                                   "exception {}, original payload: {}"
-                                  .format(name, source_name, source_id, e, str_payload)))
+                                  .format(transport.name, source_name, source_id, e, str_payload)))
 
         else:
             raise NMOSTestException(test.FAIL("{} {}, source {} state response event_type {} "
                                               "does not inherit from a known base type, original payload: {}"
-                                              .format(name, source_name, source_id, event_type, str_payload)))
+                                              .format(transport.name,
+                                                      source_name,
+                                                      source_id,
+                                                      event_type,
+                                                      str_payload)))
 
-    def check_value_greater_than_threshold(self, test, name, source_name, source_id, str_payload, value, threshold):
+    def check_value_greater_than_threshold(self, test, transport, source_name, source_id, str_payload,
+                                           value, threshold):
         """Checks value is greater than threshold"""
         if value < threshold:
             raise NMOSTestException(
                 test.FAIL("{} {}, source {} state response payload value for number "
                           "event type is less than the min value {} in the type definition, "
                           "original payload: {}"
-                          .format(name, source_name, source_id, threshold, str_payload)))
+                          .format(transport.name, source_name, source_id, threshold, str_payload)))
 
-    def check_value_less_than_threshold(self, test, name, source_name, source_id, str_payload, value, threshold):
+    def check_value_less_than_threshold(self, test, transport, source_name, source_id, str_payload,
+                                        value, threshold):
         """Checks value is less than threshold"""
         if value > threshold:
             raise NMOSTestException(
                 test.FAIL("{} {}, source {} state response payload value for number "
                           "event type is greater than the max value {} in the type definition, "
                           "original payload: {}"
-                          .format(name, source_name, source_id, threshold, str_payload)))
+                          .format(transport.name, source_name, source_id, threshold, str_payload)))
