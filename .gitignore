@@ -116,4 +116,4 @@ test_data/BCP00301/ca/ocspreq.der
 test_data/BCP00301/ca/ocspresp.der
 utilities/uuid-checker/uuids.json
 utilities/gsheets-import/credentials.json
-/nmostesting/UserConfig.py
+nmostesting/UserConfig.py
