@@ -364,20 +364,6 @@ class GenericTest(object):
         else:
             return False, message
 
-    def check_auth_error_response(self, method, response, error_type=None):
-        """
-        Confirm that a given Requests response conforms to the authorization error schema and has any expected
-        headers
-        """
-        schema = TestHelper.load_resolved_schema("test_data/IS1001", "resource_error_response.json", path_prefix=False)
-        valid, message = self.check_response(schema, method, response)
-        if valid:
-            if error_type and response.json()["error"] != error_type:
-                return False, "Error JSON 'error' attribute was not set to {}".format(error_type)
-            return True, ""
-        else:
-            return False, message
-
     def validate_schema(self, payload, schema):
         """
         Validate the payload under the given schema.
@@ -479,14 +465,14 @@ class GenericTest(object):
             if not response.headers["WWW-Authenticate"].startswith("Bearer "):
                 return test.FAIL("'WWW-Authenticate' response header must begin 'Bearer'")
 
-            # https://tools.ietf.org/html/rfc6750#section-3
             if error_type is not None:
-                valid, message = self.check_auth_error_response("GET", response, error_type)
+                valid, message = self.check_error_response("GET", response, error_type)
                 if not valid:
                     return test.FAIL(message)
 
-                error_header_ok = False
                 # Remove 'Bearer ' and tokenise
+                # https://tools.ietf.org/html/rfc6750#section-3
+                error_header_ok = False
                 auth_params = response.headers["WWW-Authenticate"][7:].split(",")
                 for param in auth_params:
                     param_parts = param.split("=")
