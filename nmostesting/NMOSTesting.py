@@ -753,9 +753,15 @@ class PortLoggingHandler(WSGIRequestHandler):
     def log(self, type, message, *args):
         # Conform to Combined Log Format, replacing Referer with the Host header or the local server address
         url_scheme = "http" if self.server.ssl_context is None else "https"
-        host = self.headers.get("Host", "{}:{}".format(self.server.server_address[0], self.server.server_address[1]))
+        if hasattr(self, "headers"):
+            host = self.headers.get("Host", "{}:{}".format(self.server.server_address[0],
+                                                           self.server.server_address[1]))
+            user_agent = self.headers.get("User-Agent", "")
+        else:
+            host = "{}:{}".format(self.server.server_address[0], self.server.server_address[1])
+            user_agent = ""
         referer = "{}://{}".format(url_scheme, host)
-        message += ' "{}" "{}"'.format(referer, self.headers.get("User-Agent", ""))
+        message += ' "{}" "{}"'.format(referer, user_agent)
         super().log(type, message, *args)
 
 
