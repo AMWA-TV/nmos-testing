@@ -73,7 +73,7 @@ from .suites import IS0801Test
 from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
-from .suites import IS1001Test
+# from .suites import IS1001Test
 from .suites import BCP00301Test
 
 FLASK_APPS = []
@@ -252,14 +252,15 @@ TEST_DEFINITIONS = {
         }],
         "class": IS0902Test.IS0902Test
     },
-    "IS-10-01": {
-        "name": "IS-10 Authorization API",
-        "specs": [{
-            "spec_key": "is-10",
-            "api_key": "auth"
-        }],
-        "class": IS1001Test.IS1001Test
-    },
+    # IS-10 testing is disabled until testing can be refactored to deal with commercial servers
+    # "IS-10-01": {
+    #     "name": "IS-10 Authorization API",
+    #     "specs": [{
+    #         "spec_key": "is-10",
+    #         "api_key": "auth"
+    #     }],
+    #     "class": IS1001Test.IS1001Test
+    # },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure API Communications",
         "specs": [{
