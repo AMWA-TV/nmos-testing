@@ -8,8 +8,8 @@ RUN apk update \
  && rm -rf /var/cache/apk/* \
  && pip3 install -r requirements.txt \
  && mkdir -p /config \
- && mv nmostesting/Config.py /config/Config.py \
- && ln -s /config/Config.py nmostesting/Config.py \
+ && cp nmostesting/UserConfig.example.py /config/UserConfig.py \
+ && ln -s /config/UserConfig.py nmostesting/UserConfig.py \
  && cd testssl \
  && wget https://github.com/drwetter/testssl.sh/archive/3.0rc5.tar.gz \
  && tar -xvzf 3.0rc5.tar.gz --strip-components=1 \

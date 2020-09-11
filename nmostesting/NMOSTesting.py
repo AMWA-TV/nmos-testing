@@ -552,7 +552,7 @@ def _check_test_result(test_result, results):
 def _export_config():
     current_config = {"VERSION": TOOL_VERSION}
     for param in dir(CONFIG):
-        if not param.startswith("__") and param != "SPECIFICATIONS":
+        if not param.startswith("__") and param != "SPECIFICATIONS" and param != "UserConfig":
             current_config[param] = getattr(CONFIG, param)
     return current_config
 
