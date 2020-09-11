@@ -212,3 +212,8 @@ SPECIFICATIONS = {
         }
     }
 }
+
+try:
+    from . import UserConfig  # noqa: F401
+except ImportError:
+    pass
