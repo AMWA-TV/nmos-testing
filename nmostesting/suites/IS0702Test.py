@@ -496,7 +496,7 @@ class IS0702Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_06(self, test):
-        """Check MQTT appropriate messages are published on the MQTT broker for each sender"""
+        """MQTT messages tests for each MQTT sender"""
 
         # Gather the possible brokers and senders which can be subscribed to
         broker_senders = self.get_mqtt_broker_senders(test)
@@ -654,14 +654,17 @@ class IS0702Test(GenericTest):
                                         valid, response = self.is05_utils.perform_activation("sender", sender_id,
                                                                                              masterEnable=True)
                                         if valid:
-                                            self.senders_active[sender_id] = response
-                                        else:
+                                            valid, response = self.update_active_sender(sender_id)
+                                        if not valid:
                                             raise NMOSTestException(test.FAIL(response))
                                     params = self.senders_active[sender_id]["transport_params"][0]
                                     if "connection_uri" not in params:
                                         raise NMOSTestException(test.FAIL("Sender {} has no connection_uri "
                                                                           "parameter".format(sender_id)))
                                     connection_uri = params["connection_uri"]
+                                    if "connection_authorization" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no connection_authorization "
+                                                                          "parameter".format(sender_id)))
                                     if connection_uri not in connection_sources:
                                         connection_sources[connection_uri] = [self.is04_sources[source_id]]
                                     else:
@@ -704,7 +707,7 @@ class IS0702Test(GenericTest):
                                         destination_port = int(params["destination_port"])
                                     except ValueError:
                                         raise NMOSTestException(test.FAIL("Sender {} has invalid "
-                                                                          "destination_port {} parameter"
+                                                                          "destination_port parameter: {}"
                                                                           .format(
                                                                               sender_id,
                                                                               params["destination_port"])))
