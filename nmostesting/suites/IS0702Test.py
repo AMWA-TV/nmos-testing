@@ -641,105 +641,103 @@ class IS0702Test(GenericTest):
         """Returns a dictionary of WebSocket sources available for connection"""
         connection_sources = {}
 
-        if len(self.is07_sources) > 0:
-            for source_id in self.is07_sources:
-                if source_id in self.sources_to_test:
-                    for sender_id in self.senders_to_test:
-                        flow_id = self.senders_to_test[sender_id]["flow_id"]
-                        if flow_id in self.is04_flows:
-                            if source_id == self.is04_flows[flow_id]["source_id"]:
-                                found_sender = self.senders_to_test[sender_id]
-                                if found_sender["transport"] == "urn:x-nmos:transport:websocket":
-                                    if sender_id in self.senders_active:
-                                        if not self.senders_active[sender_id]["master_enable"]:
-                                            valid, response = self.is05_utils.perform_activation("sender", sender_id,
-                                                                                                 masterEnable=True)
-                                            if valid:
-                                                self.senders_active[sender_id] = response
-                                            else:
-                                                raise NMOSTestException(test.FAIL(response))
-                                        params = self.senders_active[sender_id]["transport_params"][0]
-                                        if "connection_uri" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no connection_uri "
-                                                                              "parameter".format(sender_id)))
-                                        connection_uri = params["connection_uri"]
-                                        if connection_uri not in connection_sources:
-                                            connection_sources[connection_uri] = [self.is04_sources[source_id]]
+        for source_id in self.is07_sources:
+            if source_id in self.sources_to_test:
+                for sender_id in self.senders_to_test:
+                    flow_id = self.senders_to_test[sender_id]["flow_id"]
+                    if flow_id in self.is04_flows:
+                        if source_id == self.is04_flows[flow_id]["source_id"]:
+                            found_sender = self.senders_to_test[sender_id]
+                            if found_sender["transport"] == "urn:x-nmos:transport:websocket":
+                                if sender_id in self.senders_active:
+                                    if not self.senders_active[sender_id]["master_enable"]:
+                                        valid, response = self.is05_utils.perform_activation("sender", sender_id,
+                                                                                             masterEnable=True)
+                                        if valid:
+                                            self.senders_active[sender_id] = response
                                         else:
-                                            connection_sources[connection_uri].append(self.is04_sources[source_id])
+                                            raise NMOSTestException(test.FAIL(response))
+                                    params = self.senders_active[sender_id]["transport_params"][0]
+                                    if "connection_uri" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no connection_uri "
+                                                                          "parameter".format(sender_id)))
+                                    connection_uri = params["connection_uri"]
+                                    if connection_uri not in connection_sources:
+                                        connection_sources[connection_uri] = [self.is04_sources[source_id]]
+                                    else:
+                                        connection_sources[connection_uri].append(self.is04_sources[source_id])
         return connection_sources
 
     def get_mqtt_broker_senders(self, test):
         """Returns a dictionary of MQTT senders available for connection"""
         broker_senders = {}
 
-        if len(self.is07_sources) > 0:
-            for source_id in self.is07_sources:
-                if source_id in self.sources_to_test:
-                    for sender_id in self.senders_to_test:
-                        flow_id = self.senders_to_test[sender_id]["flow_id"]
-                        if flow_id in self.is04_flows:
-                            if source_id == self.is04_flows[flow_id]["source_id"]:
-                                found_sender = self.senders_to_test[sender_id]
-                                if found_sender["transport"] == "urn:x-nmos:transport:mqtt":
-                                    if sender_id in self.senders_active:
-                                        if not self.senders_active[sender_id]["master_enable"]:
-                                            valid, response = self.is05_utils.perform_activation("sender", sender_id,
-                                                                                                 masterEnable=True)
-                                            if valid:
-                                                valid, response = self.update_active_sender(sender_id)
-                                            if not valid:
-                                                raise NMOSTestException(test.FAIL(response))
-                                        params = self.senders_active[sender_id]["transport_params"][0]
-                                        if "destination_host" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no destination_host "
-                                                                              "parameter".format(sender_id)))
-                                        destination_host = params["destination_host"]
-                                        if not destination_host:
-                                            raise NMOSTestException(test.FAIL("Sender {} has an empty "
-                                                                              "destination_host parameter"
-                                                                              .format(sender_id)))
-                                        if "destination_port" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no destination_port "
-                                                                              "parameter".format(sender_id)))
-                                        try:
-                                            destination_port = int(params["destination_port"])
-                                        except ValueError:
-                                            raise NMOSTestException(test.FAIL("Sender {} has invalid "
-                                                                              "destination_port {} parameter"
-                                                                              .format(
-                                                                                  sender_id,
-                                                                                  params["destination_port"])))
-                                        if "broker_protocol" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no broker_protocol "
-                                                                              "parameter".format(sender_id)))
-                                        if "broker_authorization" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no broker_authorization "
-                                                                              "parameter".format(sender_id)))
-                                        if "broker_topic" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no broker_topic "
-                                                                              "parameter".format(sender_id)))
-                                        broker_topic = params["broker_topic"]
-                                        if not broker_topic:
-                                            raise NMOSTestException(test.FAIL("Sender {} broker_topic "
-                                                                              "parameter is null".format(sender_id)))
-                                        if "connection_status_broker_topic" not in params:
-                                            raise NMOSTestException(test.FAIL("Sender {} has no "
-                                                                              "connection_status_broker_topic parameter"
-                                                                              .format(sender_id)))
-                                        broker = BrokerParameters(
-                                            host=destination_host,
-                                            port=destination_port,
-                                            protocol=params["broker_protocol"],
-                                            auth=params["broker_authorization"])
-                                        sender = MQTTSenderParameters(
-                                            source=self.is04_sources[source_id],
-                                            topic=broker_topic,
-                                            connection_status_topic=params["connection_status_broker_topic"])
-                                        if broker not in broker_senders:
-                                            broker_senders[broker] = [sender]
-                                        else:
-                                            broker_senders[broker].append(sender)
+        for source_id in self.is07_sources:
+            if source_id in self.sources_to_test:
+                for sender_id in self.senders_to_test:
+                    flow_id = self.senders_to_test[sender_id]["flow_id"]
+                    if flow_id in self.is04_flows:
+                        if source_id == self.is04_flows[flow_id]["source_id"]:
+                            found_sender = self.senders_to_test[sender_id]
+                            if found_sender["transport"] == "urn:x-nmos:transport:mqtt":
+                                if sender_id in self.senders_active:
+                                    if not self.senders_active[sender_id]["master_enable"]:
+                                        valid, response = self.is05_utils.perform_activation("sender", sender_id,
+                                                                                             masterEnable=True)
+                                        if valid:
+                                            valid, response = self.update_active_sender(sender_id)
+                                        if not valid:
+                                            raise NMOSTestException(test.FAIL(response))
+                                    params = self.senders_active[sender_id]["transport_params"][0]
+                                    if "destination_host" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no destination_host "
+                                                                          "parameter".format(sender_id)))
+                                    destination_host = params["destination_host"]
+                                    if not destination_host:
+                                        raise NMOSTestException(test.FAIL("Sender {} has an empty "
+                                                                          "destination_host parameter"
+                                                                          .format(sender_id)))
+                                    if "destination_port" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no destination_port "
+                                                                          "parameter".format(sender_id)))
+                                    try:
+                                        destination_port = int(params["destination_port"])
+                                    except ValueError:
+                                        raise NMOSTestException(test.FAIL("Sender {} has invalid "
+                                                                          "destination_port {} parameter"
+                                                                          .format(
+                                                                              sender_id,
+                                                                              params["destination_port"])))
+                                    if "broker_protocol" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no broker_protocol "
+                                                                          "parameter".format(sender_id)))
+                                    if "broker_authorization" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no broker_authorization "
+                                                                          "parameter".format(sender_id)))
+                                    if "broker_topic" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no broker_topic "
+                                                                          "parameter".format(sender_id)))
+                                    broker_topic = params["broker_topic"]
+                                    if not broker_topic:
+                                        raise NMOSTestException(test.FAIL("Sender {} broker_topic "
+                                                                          "parameter is null".format(sender_id)))
+                                    if "connection_status_broker_topic" not in params:
+                                        raise NMOSTestException(test.FAIL("Sender {} has no "
+                                                                          "connection_status_broker_topic parameter"
+                                                                          .format(sender_id)))
+                                    broker = BrokerParameters(
+                                        host=destination_host,
+                                        port=destination_port,
+                                        protocol=params["broker_protocol"],
+                                        auth=params["broker_authorization"])
+                                    sender = MQTTSenderParameters(
+                                        source=self.is04_sources[source_id],
+                                        topic=broker_topic,
+                                        connection_status_topic=params["connection_status_broker_topic"])
+                                    if broker not in broker_senders:
+                                        broker_senders[broker] = [sender]
+                                    else:
+                                        broker_senders[broker].append(sender)
         return broker_senders
 
     def websocket_state_messages_test_run(self, test, target_websockets, connection_sources, end_time, run_number):
