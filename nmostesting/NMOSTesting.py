@@ -261,10 +261,10 @@ TEST_DEFINITIONS = {
         "class": IS1001Test.IS1001Test
     },
     "BCP-003-01": {
-        "name": "BCP-003-01 Secure API Communications",
+        "name": "BCP-003-01 Secure Communication",
         "specs": [{
             "spec_key": "bcp-003-01",
-            "api_key": "bcp-003-01"
+            "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
     }
@@ -431,8 +431,12 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             else:
                 base_url = None
-            if base_url is not None and endpoints[index]["version"] is not None:
-                url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
+            if base_url is not None:
+                url = base_url + "/"
+                if api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+                    url += "x-nmos/{}/".format(api_key)
+                    if endpoints[index]["version"] is not None:
+                        url += "{}/".format(endpoints[index]["version"])
                 if endpoints[index]["selector"] not in [None, ""]:
                     url += "{}/".format(endpoints[index]["selector"])
                 tested_urls.append(url)
