@@ -119,7 +119,15 @@ SDP_PREFERENCES = {
     "video_exactframerate": "25"
 }
 
-# Username and password for connecting to MQTT broker
+# Test with an MQTT Broker as per AMWA IS-07
+ENABLE_MQTT_BROKER = True
+
+# Where the MQTT Broker is located on the network. Required when 'ENABLE_MQTT_BROKER' is True
+MQTT_BROKER_HOSTNAME = "mqtt"
+MQTT_BROKER_IP = "127.0.0.1"
+MQTT_BROKER_PORT = 1883
+
+# Username and password for connecting to the MQTT Broker
 MQTT_USERNAME = None
 MQTT_PASSWORD = None
 
