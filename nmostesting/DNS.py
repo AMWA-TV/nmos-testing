@@ -70,7 +70,13 @@ class DNS(object):
     def reset(self):
         zone_file = open("test_data/core/dns_base.zone").read()
         template = Template(zone_file)
-        self.base_zone_data = template.render(ip_address=self.default_ip, domain=CONFIG.DNS_DOMAIN)
+        mqtt_proto = "mqtt"  # or "secure-mqtt"
+        mqtt_authorization = False
+        self.base_zone_data = template.render(ip_address=self.default_ip, domain=CONFIG.DNS_DOMAIN,
+                                              mqtt_enabled=CONFIG.ENABLE_MQTT_BROKER,
+                                              mqtt_host=CONFIG.MQTT_BROKER_HOSTNAME,
+                                              mqtt_ip=CONFIG.MQTT_BROKER_IP, mqtt_port=CONFIG.MQTT_BROKER_PORT,
+                                              mqtt_proto=mqtt_proto, mqtt_auth=str(mqtt_authorization).lower())
         self.resolver = WatchingResolver(self.base_zone_data)
         self.stop()
         print(" * Loading DNS zone base file")
