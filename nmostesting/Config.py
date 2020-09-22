@@ -44,6 +44,9 @@ GARBAGE_COLLECTION_TIMEOUT = 12
 # Number of seconds to wait for messages to appear via a WebSocket subscription
 WS_MESSAGE_TIMEOUT = 2
 
+# Number of seconds to wait for messages to appear via a MQTT subscription
+MQTT_MESSAGE_TIMEOUT = 2
+
 # Number of seconds to wait after performing an API action for the results to be fully visible via IS-04
 API_PROCESSING_TIMEOUT = 1
 
@@ -115,6 +118,18 @@ SDP_PREFERENCES = {
     "video_interlace": True,
     "video_exactframerate": "25"
 }
+
+# Test with an MQTT Broker as per AMWA IS-07
+ENABLE_MQTT_BROKER = True
+
+# Where the MQTT Broker is located on the network. Required when 'ENABLE_MQTT_BROKER' is True
+MQTT_BROKER_HOSTNAME = "mqtt"
+MQTT_BROKER_IP = "127.0.0.1"
+MQTT_BROKER_PORT = 1883
+
+# Username and password for connecting to the MQTT Broker
+MQTT_USERNAME = None
+MQTT_PASSWORD = None
 
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
@@ -207,8 +222,11 @@ SPECIFICATIONS = {
         "repo": "nmos-secure-communication",
         "versions": ["v1.0"],
         "default_version": "v1.0",
-        "apis": {
-            "secure": {}
-        }
+        "apis": {}
     }
 }
+
+try:
+    from . import UserConfig  # noqa: F401
+except ImportError:
+    pass

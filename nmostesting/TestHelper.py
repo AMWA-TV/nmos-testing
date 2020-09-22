@@ -20,6 +20,7 @@ import websocket
 import os
 import jsonref
 import netifaces
+import paho.mqtt.client as mqtt
 from copy import copy
 from pathlib import Path
 from enum import IntEnum
@@ -229,7 +230,7 @@ class WebsocketWorker(threading.Thread):
                   "Please uninstall 'websocket' and install 'websocket-client'")
             raise
         self.messages = list()
-        self.error_occured = False
+        self.error_occurred = False
         self.connected = False
         self.error_message = ""
 
@@ -246,7 +247,7 @@ class WebsocketWorker(threading.Thread):
         self.connected = False
 
     def on_error(self, error):
-        self.error_occured = True
+        self.error_occurred = True
         self.error_message = error
         self.connected = False
 
@@ -266,10 +267,99 @@ class WebsocketWorker(threading.Thread):
         return msg_cpy
 
     def did_error_occur(self):
-        return self.error_occured
+        return self.error_occurred
 
     def get_error_message(self):
         return self.error_message
 
     def clear_messages(self):
         self.messages.clear()
+
+
+class MQTTClientWorker:
+    """MQTT Client Worker"""
+    def __init__(self, host, port, secure=False, username=None, password=None, topics=[]):
+        """
+        Initializer
+        :param host: broker hostname (string)
+        :param port: broker port (int)
+        :param secure: use TLS (bool)
+        :param username: broker username (string)
+        :param password: broker password (string)
+        :param topics: list of topics to subscribe to (list of string)
+        """
+        self.host = host
+        self.port = port
+        self.error_occurred = False
+        self.connected = False
+        self.error_message = ""
+        # MQTT 5 is required so that we can set retainAsPublished
+        # when subscribing to test whether messages have retain flags set
+        self.client = mqtt.Client(protocol=mqtt.MQTTv5)
+        self.client.on_connect = lambda client, userdata, flags, rc, properties=None: self.on_connect(flags, rc)
+        self.client.on_disconnect = lambda client, userdata, rc: self.on_disconnect(rc)
+        self.client.on_message = lambda client, userdata, msg: self.on_message(msg)
+        self.client.on_subscribe = lambda client, userdata, mid, *args: self.on_subscribe(mid)
+        self.client.on_log = lambda client, userdata, level, buf: self.on_log(level, buf)
+        if secure:
+            self.client.tls_set(CONFIG.CERT_TRUST_ROOT_CA)
+        if username or password:
+            self.client.username_pw_set(username, password)
+        self.topics = topics
+        self.pending_subs = set()
+        self.messages = []
+
+    def start(self):
+        self.client.connect_async(self.host, self.port)
+        self.client.loop_start()
+
+    def close(self):
+        self.client.loop_stop()
+
+    def on_connect(self, flags, rc):
+        if len(self.topics) == 0:
+            self.connected = True
+        else:
+            for topic in self.topics:
+                result, message_id = self.client.subscribe(topic, options=mqtt.SubscribeOptions(retainAsPublished=True))
+                if result != mqtt.MQTT_ERR_SUCCESS:
+                    raise Exception("failed to subscribe to MQTT topic {}: {}".format(topic, result))
+                self.pending_subs.add(message_id)
+
+    def on_subscribe(self, message_id):
+        if message_id in self.pending_subs:
+            self.pending_subs.remove(message_id)
+            if len(self.pending_subs) == 0:
+                self.connected = True
+        else:
+            print("Unexpected suback message ID: {}".format(message_id))
+
+    def is_open(self):
+        return self.connected
+
+    def get_error_message(self):
+        return self.error_message
+
+    def did_error_occur(self):
+        return self.error_occurred
+
+    def get_latest_message(self, topic):
+        for message in reversed(self.messages):
+            if message.topic == topic:
+                return message
+        return None
+
+    def on_disconnect(self, rc):
+        self.connected = False
+        if rc != mqtt.MQTT_ERROR_SUCCESS:
+            self.error_occurred = True
+            self.error_message = "disconnected with rc {}".format(rc)
+
+    def on_message(self, message):
+        self.messages.append(message)
+
+    def on_log(self, level, buf):
+        if level == mqtt.MQTT_LOG_ERR:
+            self.error_occurred = True
+            self.error_message = buf
+        print("MQTT log: {}: {}".format(level, buf))

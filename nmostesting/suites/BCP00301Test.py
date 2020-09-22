@@ -33,7 +33,7 @@ class BCP00301Test(GenericTest):
     def __init__(self, apis):
         GenericTest.__init__(self, apis)
         if not CONFIG.ENABLE_HTTPS:
-            raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in Config.py")
+            raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
         self.report_json = {}
 
     def perform_test_ssl(self, test, args=None):
@@ -292,6 +292,8 @@ class BCP00301Test(GenericTest):
                         ecdsa_found = True
 
             if not ecdsa_found:
+                if not rsa_found:
+                    return test.FAIL("Server is not providing an ECDSA or RSA certificate")
                 return test.WARNING("Server is not providing an ECDSA certificate")
             if not rsa_found:
                 return test.WARNING("Server is not providing an RSA certificate")

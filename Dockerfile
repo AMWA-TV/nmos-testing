@@ -16,12 +16,12 @@ RUN apt-get update \
     && pip3 install setuptools wheel \
     && pip3 install -r requirements.txt \
     && mkdir -p /config \
-    && mv nmostesting/Config.py /config/Config.py \
-    && ln -s /config/Config.py nmostesting/Config.py \
+    && cp nmostesting/UserConfig.example.py /config/UserConfig.py \
+    && ln -s /config/UserConfig.py nmostesting/UserConfig.py \
     && cd testssl \
-    && wget https://github.com/drwetter/testssl.sh/archive/3.0rc5.tar.gz \
-    && tar -xvzf 3.0rc5.tar.gz --strip-components=1 \
-    && rm 3.0rc5.tar.gz \
+    && wget https://github.com/drwetter/testssl.sh/archive/3.0.2.tar.gz \
+    && tar -xvzf 3.0.2.tar.gz --strip-components=1 \
+    && rm 3.0.2.tar.gz \
     && npm config set unsafe-perm true \
     && npm install -g AMWA-TV/sdpoker#v0.2.0 \
     && rm /home/nmos-testing/setup_14.x \

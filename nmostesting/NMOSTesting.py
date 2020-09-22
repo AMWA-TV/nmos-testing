@@ -73,7 +73,7 @@ from .suites import IS0801Test
 from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
-from .suites import IS1001Test
+# from .suites import IS1001Test
 from .suites import BCP00301Test
 
 FLASK_APPS = []
@@ -252,19 +252,20 @@ TEST_DEFINITIONS = {
         }],
         "class": IS0902Test.IS0902Test
     },
-    "IS-10-01": {
-        "name": "IS-10 Authorization API",
-        "specs": [{
-            "spec_key": "is-10",
-            "api_key": "auth"
-        }],
-        "class": IS1001Test.IS1001Test
-    },
+    # IS-10 testing is disabled until testing can be refactored to deal with commercial servers
+    # "IS-10-01": {
+    #     "name": "IS-10 Authorization API",
+    #     "specs": [{
+    #         "spec_key": "is-10",
+    #         "api_key": "auth"
+    #     }],
+    #     "class": IS1001Test.IS1001Test
+    # },
     "BCP-003-01": {
-        "name": "BCP-003-01 Secure API Communications",
+        "name": "BCP-003-01 Secure Communication",
         "specs": [{
             "spec_key": "bcp-003-01",
-            "api_key": "bcp-003-01"
+            "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
     }
@@ -431,8 +432,12 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 base_url = "{}://{}:{}".format(protocol, endpoints[index]["host"], str(endpoints[index]["port"]))
             else:
                 base_url = None
-            if base_url is not None and endpoints[index]["version"] is not None:
-                url = "{}/x-nmos/{}/{}/".format(base_url, api_key, endpoints[index]["version"])
+            if base_url is not None:
+                url = base_url + "/"
+                if api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+                    url += "x-nmos/{}/".format(api_key)
+                    if endpoints[index]["version"] is not None:
+                        url += "{}/".format(endpoints[index]["version"])
                 if endpoints[index]["selector"] not in [None, ""]:
                     url += "{}/".format(endpoints[index]["selector"])
                 tested_urls.append(url)
@@ -552,7 +557,7 @@ def _check_test_result(test_result, results):
 def _export_config():
     current_config = {"VERSION": TOOL_VERSION}
     for param in dir(CONFIG):
-        if not param.startswith("__") and param != "SPECIFICATIONS":
+        if not param.startswith("__") and param != "SPECIFICATIONS" and param != "UserConfig":
             current_config[param] = getattr(CONFIG, param)
     return current_config
 
@@ -752,9 +757,15 @@ class PortLoggingHandler(WSGIRequestHandler):
     def log(self, type, message, *args):
         # Conform to Combined Log Format, replacing Referer with the Host header or the local server address
         url_scheme = "http" if self.server.ssl_context is None else "https"
-        host = self.headers.get("Host", "{}:{}".format(self.server.server_address[0], self.server.server_address[1]))
+        if hasattr(self, "headers"):
+            host = self.headers.get("Host", "{}:{}".format(self.server.server_address[0],
+                                                           self.server.server_address[1]))
+            user_agent = self.headers.get("User-Agent", "")
+        else:
+            host = "{}:{}".format(self.server.server_address[0], self.server.server_address[1])
+            user_agent = ""
         referer = "{}://{}".format(url_scheme, host)
-        message += ' "{}" "{}"'.format(referer, self.headers.get("User-Agent", ""))
+        message += ' "{}" "{}"'.format(referer, user_agent)
         super().log(type, message, *args)
 
 
@@ -817,7 +828,7 @@ def run_noninteractive_tests(args):
 
 
 def check_internal_requirements():
-    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket"}
+    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket", "paho-mqtt": "paho"}
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
@@ -834,7 +845,7 @@ def check_internal_requirements():
 def check_external_requirements():
     deps = {
         "sdpoker": ("sdpoker --version", "0.2.0"),
-        "testssl": ("testssl/testssl.sh -v", "3.0rc5")
+        "testssl": ("testssl/testssl.sh -v", "3.0.2")
     }
     for dep_name, dep_ver in deps.items():
         try:
