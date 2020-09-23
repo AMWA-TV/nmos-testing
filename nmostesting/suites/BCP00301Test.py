@@ -22,7 +22,7 @@ import ipaddress
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from .. import Config as CONFIG
 
-BCP_API_KEY = "bcp-003-01"
+SECURE_API_KEY = "secure"
 TMPFILE = "tls-report.json"
 
 
@@ -55,8 +55,8 @@ class BCP00301Test(GenericTest):
                                       str(CONFIG.HTTP_TIMEOUT),
                                       "--add-ca",
                                       CONFIG.CERT_TRUST_ROOT_CA
-                                      ] + args + ["{}:{}".format(self.apis[BCP_API_KEY]["hostname"],
-                                                                 self.apis[BCP_API_KEY]["port"])]
+                                      ] + args + ["{}:{}".format(self.apis[SECURE_API_KEY]["hostname"],
+                                                                 self.apis[SECURE_API_KEY]["port"])]
                                      )
                 if ret.returncode == 0:
                     with open(TMPFILE) as tls_data:
@@ -83,7 +83,7 @@ class BCP00301Test(GenericTest):
                     return test.OPTIONAL("Protocol {} should be offered".format(report["id"].replace("_", ".")),
                                          "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                          "/docs/1.0._Secure_Communication.html#tls-versions"
-                                         .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                         .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             return test.PASS()
 
     def test_02(self, test):
@@ -134,13 +134,13 @@ class BCP00301Test(GenericTest):
                                      .format(",".join(tls1_2_should)),
                                      "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                      "/docs/1.0._Secure_Communication.html#tls-12-cipher-suites"
-                                     .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                     .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             elif tls1_3_supported and len(tls1_3_should) > 0:
                 return test.OPTIONAL("Implementation of the following TLS 1.3 ciphers is recommended: {}"
                                      .format(",".join(tls1_3_should)),
                                      "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                      "/docs/1.0._Secure_Communication.html#tls-13-cipher-suites"
-                                     .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                     .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             else:
                 return test.PASS()
 
@@ -161,7 +161,7 @@ class BCP00301Test(GenericTest):
                                             "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                             "/docs/1.0._Secure_Communication.html"
                                             "#x509-certificates-and-certificate-authority"
-                                            .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                            .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                     except ValueError:
                         pass
                 elif report["id"].split()[0] == "cert_subjectAltName":
@@ -170,7 +170,7 @@ class BCP00301Test(GenericTest):
                                              "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                              "/docs/1.0._Secure_Communication.html"
                                              "#x509-certificates-and-certificate-authority"
-                                             .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                             .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                     else:
                         alt_names = report["finding"].split()
                         if common_name not in alt_names:
@@ -178,7 +178,7 @@ class BCP00301Test(GenericTest):
                                                  "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                                  "/docs/1.0._Secure_Communication.html"
                                                  "#x509-certificates-and-certificate-authority"
-                                                 .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                                 .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                         for name in alt_names:
                             try:
                                 ipaddress.ip_address(name)
@@ -186,7 +186,7 @@ class BCP00301Test(GenericTest):
                                                     "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                                     "/docs/1.0._Secure_Communication.html"
                                                     "#x509-certificates-and-certificate-authority"
-                                                    .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                                    .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                             except ValueError:
                                 pass
 
@@ -215,7 +215,7 @@ class BCP00301Test(GenericTest):
                 return test.OPTIONAL("Strict Transport Security (HSTS) should be supported",
                                      "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                      "/docs/1.0._Secure_Communication.html#http-server"
-                                     .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                     .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             else:
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
 
@@ -248,7 +248,7 @@ class BCP00301Test(GenericTest):
                                              "https://amwa-tv.github.io/nmos-secure-communication/branches/{}"
                                              "/docs/1.0._Secure_Communication.html"
                                              "#x509-certificates-and-certificate-authority"
-                                             .format(self.apis[BCP_API_KEY]["spec_branch"]))
+                                             .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                 elif report["id"].split()[0] == "cert_ocspURL":
                     if report["finding"].startswith("http"):
                         ocsp_found = True
@@ -263,11 +263,11 @@ class BCP00301Test(GenericTest):
 
         try:
             context = ssl.create_default_context(cafile=CONFIG.CERT_TRUST_ROOT_CA)
-            hostname = self.apis[BCP_API_KEY]["hostname"]
+            hostname = self.apis[SECURE_API_KEY]["hostname"]
             sock = context.wrap_socket(socket.socket(), server_hostname=hostname)
             sock.settimeout(CONFIG.HTTP_TIMEOUT)
             # Verification of certificate and CN/SAN matches is performed during connect
-            sock.connect((hostname, self.apis[BCP_API_KEY]["port"]))
+            sock.connect((hostname, self.apis[SECURE_API_KEY]["port"]))
             sock.close()
             return test.PASS()
         except ssl.CertificateError as e:
