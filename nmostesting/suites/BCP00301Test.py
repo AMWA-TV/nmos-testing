@@ -46,7 +46,8 @@ class BCP00301Test(GenericTest):
             return self.report_json[arg_key]
         else:
             try:
-                ret = subprocess.run(["testssl/testssl.sh",
+                ret = subprocess.run([CONFIG.TEST_SSL_BASH,
+                                      "testssl/testssl.sh",
                                       "--jsonfile",
                                       TMPFILE,
                                       "--warnings",
