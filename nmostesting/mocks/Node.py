@@ -15,7 +15,7 @@
 import uuid
 
 from flask import Blueprint, make_response, abort
-from ..Config import ENABLE_HTTPS, DNS_DOMAIN, PORT_BASE
+from ..Config import ENABLE_HTTPS, DNS_DOMAIN, PORT_BASE, DNS_SD_MODE
 from ..TestHelper import get_default_ip
 
 
@@ -28,7 +28,10 @@ class Node(object):
         host = get_default_ip()
         if ENABLE_HTTPS:
             protocol = "https"
-            host = "mocks.{}".format(DNS_DOMAIN)
+            if DNS_SD_MODE == "multicast":
+                host = "nmos-mocks.local"
+            else:
+                host = "mocks.{}".format(DNS_DOMAIN)
         # TODO: Provide the means to downgrade this to a <v1.2 JSON representation
         sender = {
             "id": str(uuid.uuid4()),
