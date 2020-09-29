@@ -31,6 +31,7 @@ import socket
 import ssl
 import subprocess
 import pkgutil
+import shlex
 
 from flask import Flask, render_template, flash, request, make_response, jsonify
 from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
@@ -845,7 +846,7 @@ def check_internal_requirements():
 def check_external_requirements():
     deps = {
         "sdpoker": ("sdpoker --version", "0.2.0"),
-        "testssl": ("testssl/testssl.sh -v", "3.0.2")
+        "testssl": ("{} testssl/testssl.sh -v".format(shlex.quote(CONFIG.TEST_SSL_BASH)), "3.0.2")
     }
     for dep_name, dep_ver in deps.items():
         try:
