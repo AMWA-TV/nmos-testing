@@ -114,7 +114,7 @@ def gsheets_import(test_results, worksheet, filename, start_col=1, insert=False)
         next_col = max(results_col, len(worksheet_data[0])+1)
 
     # Test Names
-    cell_list_names = get_range(worksheet_data, 1, 1, 1, next_col)
+    cell_list_names = get_range(worksheet_data, 1, 1, 1, next_col-1)
     original_cell_list_names = copy.deepcopy(cell_list_names)
 
     # Results
