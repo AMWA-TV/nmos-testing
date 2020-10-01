@@ -918,15 +918,19 @@ class IS0501Test(GenericTest):
                 path = "single/senders/{}/transportfile".format(sender)
                 url = self.url + path
                 valid, response = self.do_request("GET", url)
-                if not valid:
-                    return test.FAIL("Error downloading SDP file for Sender {}: {}".format(sender, response))
-                file, temp_path = tempfile.mkstemp()
-                for chunk in response.iter_content(chunk_size=128):
-                    os.write(file, chunk)
-                os.close(file)
-                sdp_files[sender] = temp_path
+                if valid and response.status_code == 200:
+                    file, temp_path = tempfile.mkstemp()
+                    for chunk in response.iter_content(chunk_size=128):
+                        os.write(file, chunk)
+                    os.close(file)
+                    sdp_files[sender] = temp_path
+                elif valid and response.status_code == 404:
+                    access_error = True
+                else:
+                    return test.FAIL("Unexpected response from Connection API "
+                                     "downloading SDP file for Sender {}: {}".format(sender, response))
 
-            for sender in rtp_senders:
+            for sender in sdp_files:
                 dup_params = ""
                 if sender in dup_senders:
                     dup_params = " --duplicate true"
@@ -937,14 +941,14 @@ class IS0501Test(GenericTest):
                     if "Error" in decoded_output:
                         # This case exits with a zero error code so can't be handled in the exception
                         # These usually start with "{ StatusCodeError:" or "Error:"
-                        access_error = True
-                        print(" * ERROR: error in sdpoker output for path {}: {}".format(path, decoded_output))
+                        return test.FAIL("SDPoker error for Sender {} transport file: {}"
+                                         .format(sender, decoded_output))
                 except subprocess.CalledProcessError as e:
                     output = str(e.output, "utf-8")
-                    return test.FAIL("Error for Sender {}: {}".format(sender, output))
+                    return test.FAIL("SDPoker error for Sender {} transport file: {}".format(sender, output))
 
             # Second pass to check for warnings
-            for sender in rtp_senders:
+            for sender in sdp_files:
                 dup_params = ""
                 if sender in dup_senders:
                     dup_params = " --duplicate true"
@@ -956,14 +960,14 @@ class IS0501Test(GenericTest):
                     if "Error" in decoded_output:
                         # This case exits with a zero error code so can't be handled in the exception
                         # These usually start with "{ StatusCodeError:" or "Error:"
-                        access_error = True
-                        print(" * ERROR: error in sdpoker output for path {}: {}".format(path, decoded_output))
+                        return test.FAIL("SDPoker error for Sender {} transport file: {}"
+                                         .format(sender, decoded_output))
                 except subprocess.CalledProcessError as e:
                     output = str(e.output, "utf-8")
-                    return test.WARNING("Warning for Sender {}: {}".format(sender, output))
+                    return test.WARNING("SDPoker warning for Sender {} transport file: {}".format(sender, output))
 
             if access_error:
-                return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
                                     "ensure 'master_enable' is set to true for all Senders and re-test.")
 
         finally:
@@ -995,7 +999,7 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
         if access_error:
-            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
+            return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
                                 "ensure 'master_enable' is set to true for all Senders and re-test.")
 
         return test.PASS()
