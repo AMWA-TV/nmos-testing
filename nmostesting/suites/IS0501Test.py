@@ -17,6 +17,8 @@
 
 import uuid
 import subprocess
+import tempfile
+import os
 from jsonschema import ValidationError, SchemaError
 
 from ..GenericTest import GenericTest
@@ -908,43 +910,69 @@ class IS0501Test(GenericTest):
 
         # First pass to check for errors
         access_error = False
-        for sender in rtp_senders:
-            dup_params = ""
-            if sender in dup_senders:
-                dup_params = " --duplicate true"
-            path = "single/senders/{}/transportfile".format(sender)
-            try:
-                cmd_string = "sdpoker --shaping true{} {}".format(dup_params, self.url + path)
-                output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-                if "Error" in output.decode("utf-8"):
-                    # This case exits with a zero error code so can't be handled in the exception
-                    # These usually start with "{ StatusCodeError:" or "Error:"
-                    access_error = True
-            except subprocess.CalledProcessError as e:
-                output = str(e.output, "utf-8")
-                return test.FAIL("Error for Sender {}: {}".format(sender, output))
 
-        # Second pass to check for warnings
-        for sender in rtp_senders:
-            dup_params = ""
-            if sender in dup_senders:
-                dup_params = " --duplicate true"
-            path = "single/senders/{}/transportfile".format(sender)
-            try:
-                cmd_string = "sdpoker --shaping true --whitespace true --should true " \
-                             "--checkEndings true{} {}".format(dup_params, self.url + path)
-                output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
-                if "Error" in output.decode("utf-8"):
-                    # This case exits with a zero error code so can't be handled in the exception
-                    # These usually start with "{ StatusCodeError:" or "Error:"
+        sdp_files = {}
+        try:
+            # Download SDP files
+            for sender in rtp_senders:
+                path = "single/senders/{}/transportfile".format(sender)
+                url = self.url + path
+                valid, response = self.do_request("GET", url)
+                if valid and response.status_code == 200:
+                    file, temp_path = tempfile.mkstemp()
+                    for chunk in response.iter_content(chunk_size=128):
+                        os.write(file, chunk)
+                    os.close(file)
+                    sdp_files[sender] = temp_path
+                elif valid and response.status_code == 404:
                     access_error = True
-            except subprocess.CalledProcessError as e:
-                output = str(e.output, "utf-8")
-                return test.WARNING("Warning for Sender {}: {}".format(sender, output))
+                else:
+                    return test.FAIL("Unexpected response from Connection API "
+                                     "downloading SDP file for Sender {}: {}".format(sender, response))
 
-        if access_error:
-            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
-                                "ensure 'master_enable' is set to true for all Senders and re-test.")
+            for sender in sdp_files:
+                dup_params = ""
+                if sender in dup_senders:
+                    dup_params = " --duplicate true"
+                try:
+                    cmd_string = "sdpoker --shaping true{} {}".format(dup_params, sdp_files[sender])
+                    output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
+                    decoded_output = output.decode("utf-8")
+                    if "Error" in decoded_output:
+                        # This case exits with a zero error code so can't be handled in the exception
+                        # These usually start with "{ StatusCodeError:" or "Error:"
+                        return test.FAIL("SDPoker error for Sender {} transport file: {}"
+                                         .format(sender, decoded_output))
+                except subprocess.CalledProcessError as e:
+                    output = str(e.output, "utf-8")
+                    return test.FAIL("SDPoker error for Sender {} transport file: {}".format(sender, output))
+
+            # Second pass to check for warnings
+            for sender in sdp_files:
+                dup_params = ""
+                if sender in dup_senders:
+                    dup_params = " --duplicate true"
+                try:
+                    cmd_string = "sdpoker --shaping true --whitespace true --should true " \
+                                "--checkEndings true{} {}".format(dup_params, sdp_files[sender])
+                    output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
+                    decoded_output = output.decode("utf-8")
+                    if "Error" in decoded_output:
+                        # This case exits with a zero error code so can't be handled in the exception
+                        # These usually start with "{ StatusCodeError:" or "Error:"
+                        return test.FAIL("SDPoker error for Sender {} transport file: {}"
+                                         .format(sender, decoded_output))
+                except subprocess.CalledProcessError as e:
+                    output = str(e.output, "utf-8")
+                    return test.WARNING("SDPoker warning for Sender {} transport file: {}".format(sender, output))
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
+
+        finally:
+            for sender in sdp_files:
+                os.remove(sdp_files[sender])
 
         return test.PASS()
 
@@ -971,7 +999,7 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
         if access_error:
-            return test.UNCLEAR("One or more of the tested transport files returned a non-200 HTTP code. Please "
+            return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
                                 "ensure 'master_enable' is set to true for all Senders and re-test.")
 
         return test.PASS()
