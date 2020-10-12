@@ -466,7 +466,7 @@ class GenericTest(object):
                 return test.FAIL("'WWW-Authenticate' response header must begin 'Bearer'")
 
             if error_type is not None:
-                valid, message = self.check_error_response("GET", response, error_type)
+                valid, message = self.check_error_response("GET", response, error_code)
                 if not valid:
                     return test.FAIL(message)
 
