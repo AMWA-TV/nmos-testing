@@ -2126,8 +2126,7 @@ class IS0402Test(GenericTest):
         data["description"] = "test_33"
         self.post_resource(test, "node", data, headers={"Authorization": "Bearer {}".format(a_token)})
         self.bump_resource_version(data)
-        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
-        self.post_resource(test, "node", data, codes=[401], headers={"Authorization": "Bearer {}".format(b_token)})
+        self.post_resource(test, "node", data, codes=[403], headers={"Authorization": "Bearer {}".format(b_token)})
 
         return test.PASS()
 
@@ -2148,8 +2147,7 @@ class IS0402Test(GenericTest):
         data["description"] = "test_33_1"
         self.post_resource(test, "node", data, headers={"Authorization": "Bearer {}".format(a_token)})
         self.bump_resource_version(data)
-        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
-        self.post_resource(test, "node", data, codes=[401], headers={"Authorization": "Bearer {}".format(b_token)})
+        self.post_resource(test, "node", data, codes=[403], headers={"Authorization": "Bearer {}".format(b_token)})
 
         return test.PASS()
 
@@ -2489,8 +2487,8 @@ class IS0402Test(GenericTest):
                                              "current protocol: Location: {}".format(location)))
 
         # Currently can only validate schema for the API version under test
-        # TODO: Schemas for 401 responses don't exist in the RAML at present
-        if reg_url == self.reg_url and r.status_code != 401:
+        # TODO: Schemas for 401/403 responses don't exist in the RAML at present
+        if reg_url == self.reg_url and r.status_code not in [401, 403]:
             schema = self.get_schema(REG_API_KEY, "POST", "/resource", r.status_code)
             valid, message = self.check_response(schema, "POST", r)
             if valid:

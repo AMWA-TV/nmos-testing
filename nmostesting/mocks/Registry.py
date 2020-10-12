@@ -148,23 +148,24 @@ class Registry(object):
         if ENABLE_AUTH:
             try:
                 if not request.headers["Authorization"].startswith("Bearer "):
-                    return False
+                    return 400
                 token = request.headers["Authorization"].split(" ")[1]
                 claims = jwt.decode(token, open(AUTH_TOKEN_PUBKEY).read())
                 claims.validate()
                 if claims["iss"] != AUTH_TOKEN_ISSUER:
-                    return False
+                    return 401
                 # TODO: Check 'aud' claim matches 'mocks.<domain>'
                 if not self._check_path_match(path, claims["x-nmos-registration"]["read"]):
-                    return False
+                    return 403
                 if write:
                     if not self._check_path_match(path, claims["x-nmos-registration"]["write"]):
-                        return False
+                        return 403
             except KeyError:
                 # TODO: Add debug which can be returned in the error response JSON
-                return False
+                return 400
             except Exception:
-                return False
+                # TODO: Add debug which can be returned in the error response JSON
+                return 400
         return True
 
 
@@ -183,9 +184,9 @@ def base_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    if not registry.check_authorized(request.headers, request.path):
-        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
-        abort(401)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
     return Response(json.dumps(base_data), mimetype='application/json')
@@ -196,9 +197,9 @@ def post_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    if not registry.check_authorized(request.headers, request.path, True):
-        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
-        abort(401)
+    authorized = registry.check_authorized(request.headers, request.path, True)
+    if authorized is not True:
+        abort(authorized)
     if not registry.test_first_reg:
         registered = False
         try:
@@ -226,9 +227,9 @@ def delete_resource(version, resource_type, resource_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    if not registry.check_authorized(request.headers, request.path, True):
-        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
-        abort(401)
+    authorized = registry.check_authorized(request.headers, request.path, True)
+    if authorized is not True:
+        abort(authorized)
     resource_type = resource_type.rstrip("s")
     if not registry.test_first_reg:
         registered = False
@@ -258,9 +259,9 @@ def heartbeat(version, node_id):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(500)
-    if not registry.check_authorized(request.headers, request.path, True):
-        # TODO: Review error code based upon https://github.com/AMWA-TV/nmos-authorization-practice/issues/1
-        abort(401)
+    authorized = registry.check_authorized(request.headers, request.path, True)
+    if authorized is not True:
+        abort(authorized)
     if node_id in registry.get_resources()["node"]:
         # store raw request payload, in order to check for empty request bodies later
         try:
