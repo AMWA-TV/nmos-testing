@@ -412,13 +412,16 @@ class GenericTest(object):
             token = self.generate_token([api], True, overrides={"iat": int(time.time() - 7200),
                                                                 "exp": int(time.time() - 3600)})
             results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
-            token = self.generate_token([api], True,
-                                        overrides={"x-nmos-{}".format(api): {"read": [str(uuid.uuid4())]}})
-            results.append(self.do_test_authorization(api, "Incorrect Authorization Claims", error_code=403,
-                                                      error_type="insufficient_scope", token=token))
             token = self.generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
             results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", error_code=403,
                                                       error_type="insufficient_scope", token=token))
+            token = self.generate_token(["nonsense"], overrides={"x-nmos-nonsense": {"read": [str(uuid.uuid4())]}})
+            results.append(self.do_test_authorization(api, "Incorrect Authorization Scope", error_code=403,
+                                                      error_type="insufficient_scope", token=token))
+
+            # Test that the API responds with a 200 when only the scope is present
+            token = self.generate_token([api], False, add_claims=False)
+            results.append(self.do_test_authorization(api, "Valid Authorization Scope", error_code=200, token=token))
 
         return results
 
@@ -459,6 +462,8 @@ class GenericTest(object):
             if response.status_code != error_code:
                 return test.FAIL("Incorrect response code, expected {}. Received {}"
                                  .format(error_code, response.status_code))
+            if response.status_code == 200:
+                return test.PASS()
 
             if "WWW-Authenticate" not in response.headers:
                 return test.FAIL("Authorization error responses must include a 'WWW-Authenticate' header")
@@ -595,7 +600,7 @@ class GenericTest(object):
     def get_schema(self, api_name, method, path, status_code):
         return self.apis[api_name]["spec"].get_schema(method, path, status_code)
 
-    def generate_token(self, scopes=None, write=False, azp=False, overrides=None):
+    def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
         if scopes is None:
             scopes = []
         header = {"typ": "JWT", "alg": "RS512"}
@@ -610,10 +615,11 @@ class GenericTest(object):
         else:
             payload["client_id"] = str(uuid.uuid4())
         nmos_claims = {}
-        for api in scopes:
-            nmos_claims["x-nmos-{}".format(api)] = {"read": ["*"]}
-            if write:
-                nmos_claims["x-nmos-{}".format(api)]["write"] = ["*"]
+        if add_claims:
+            for api in scopes:
+                nmos_claims["x-nmos-{}".format(api)] = {"read": ["*"]}
+                if write:
+                    nmos_claims["x-nmos-{}".format(api)]["write"] = ["*"]
         payload.update(nmos_claims)
         if overrides:
             payload.update(overrides)
