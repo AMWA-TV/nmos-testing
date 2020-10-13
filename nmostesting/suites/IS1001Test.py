@@ -52,7 +52,7 @@ class IS1001Test(GenericTest):
         super(IS1001Test, self).__init__(apis)
         if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("IS-10 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
-        self.authorization = False  # Don't send tokens in every request
+        self.authorization = False  # Authorization API itself doesn't use auth, so don't send tokens in every request
         self.url = self.apis[AUTH_API_KEY]["url"]
         self.bearer_tokens = []
         self.client_data = {}
