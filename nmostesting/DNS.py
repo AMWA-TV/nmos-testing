@@ -74,9 +74,7 @@ class DNS(object):
 
         extra_services = {}
         if CONFIG.ENABLE_AUTH:
-            auth_proto = "https"
-            if not CONFIG.ENABLE_HTTPS:
-                auth_proto = "http"
+            auth_proto = "https" if CONFIG.ENABLE_HTTPS else "http"
             extra_services["auth"] = {
                 "host": CONFIG.AUTH_SERVER_HOSTNAME,
                 "ip": CONFIG.AUTH_SERVER_IP,
