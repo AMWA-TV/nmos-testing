@@ -1255,7 +1255,7 @@ class IS0401Test(GenericTest):
                         if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
                                 control["type"].startswith("urn:x-nmos:"):
                             if self.authorization is not control.get("authorization", False):
-                                device_href_auth_warn = True
+                                control_href_auth_warn = True
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
@@ -1291,7 +1291,7 @@ class IS0401Test(GenericTest):
             return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
         elif service_href_auth_warn:
             return test.WARNING("One or more Node 'x-nmos' services do not match the current authorization mode")
-        elif device_href_auth_warn:
+        elif control_href_auth_warn:
             return test.WARNING("One or more Device 'x-nmos' controls do not match the current authorization mode")
 
         return test.PASS()
