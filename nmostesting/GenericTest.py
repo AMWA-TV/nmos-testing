@@ -598,7 +598,10 @@ class GenericTest(object):
                 self.saved_entities[path] += subresources
 
     def get_schema(self, api_name, method, path, status_code):
-        return self.apis[api_name]["spec"].get_schema(method, path, status_code)
+        schema = self.apis[api_name]["spec"].get_schema(method, path, status_code)
+        if not schema and status_code // 100 in [4, 5]:
+            schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
+        return schema
 
     def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
         if scopes is None:
