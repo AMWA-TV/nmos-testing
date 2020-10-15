@@ -163,23 +163,21 @@ class IS0802Test(GenericTest):
         if not valid:
             raise NMOSTestException(test.FAIL(result))
 
-        devicesWithAdvertisements = []
+        devicesWithAdvertisements = set()
         found_api_match = False
         for device in self.is04_resources["devices"]:
-            alreadyAdded = False
             for control in device['controls']:
                 if control['type'] == "urn:x-nmos:control:cm-ctrl/v1.0":
-                    if not alreadyAdded:
-                        devicesWithAdvertisements.append(device)
-                        alreadyAdded = True
-                        if NMOSUtils.compare_urls(globalConfig.apiUrl, control["href"]):
-                            found_api_match = True
+                    devicesWithAdvertisements.add(device)
+                    if NMOSUtils.compare_urls(globalConfig.apiUrl, control["href"]) and \
+                            self.authorization is control.get("authorization", False):
+                        found_api_match = True
 
         if len(devicesWithAdvertisements) > 0 and not found_api_match:
-            raise NMOSTestException(test.FAIL("Found one or more Device controls, but no href matched the "
-                                              "Channel Mapping API under test"))
+            raise NMOSTestException(test.FAIL("Found one or more Device controls, but no href or authorization mode "
+                                              "matched the Channel Mapping API under test"))
 
-        return devicesWithAdvertisements
+        return list(devicesWithAdvertisements)
 
     def findSourceID(self, sourceID):
         if not self.get_is04_resources("sources"):

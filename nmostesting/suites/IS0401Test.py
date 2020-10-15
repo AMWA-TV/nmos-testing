@@ -1184,8 +1184,10 @@ class IS0401Test(GenericTest):
         api_endpoint_host_warn = False
         service_href_scheme_warn = False
         service_href_hostname_warn = False
+        service_href_auth_warn = False
         control_href_scheme_warn = False
         control_href_hostname_warn = False
+        control_href_auth_warn = False
         manifest_href_scheme_warn = False
         manifest_href_hostname_warn = False
 
@@ -1204,8 +1206,7 @@ class IS0401Test(GenericTest):
                     if endpoint["protocol"] != self.protocol:
                         return test.FAIL("One or more Node 'api.endpoints' do not match the current protocol")
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
-                        if ("authorization" in endpoint and endpoint["authorization"] != self.authorization) or \
-                                ("authorization" not in endpoint and self.authorization):
+                        if self.authorization is not endpoint.get("authorization", False):
                             return test.FAIL("One or more Node 'api.endpoints' do not match the current authorization "
                                              "mode")
                     if endpoint["host"] == api["hostname"] and endpoint["port"] == api["port"]:
@@ -1223,6 +1224,10 @@ class IS0401Test(GenericTest):
                     service_href_scheme_warn = True
                 if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
                     service_href_hostname_warn = True
+                if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
+                        service["type"].startswith("urn:x-nmos:"):
+                    if self.authorization is not service.get("authorization", False):
+                        service_href_auth_warn = True
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
 
@@ -1240,12 +1245,6 @@ class IS0401Test(GenericTest):
                 node_devices = response.json()
                 for device in node_devices:
                     for control in device["controls"]:
-                        if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
-                                control["type"].startswith("urn:x-nmos:"):
-                            if ("authorization" in control and control["authorization"] != self.authorization) or \
-                                    ("authorization" not in control and self.authorization):
-                                return test.FAIL("One or more Device 'controls' do not match the current authorization "
-                                                 "mode")
                         href = control["href"]
                         if href.startswith("http") and not href.startswith(self.protocol + "://"):
                             # Only warn about these at the end so that more major failures are flagged first
@@ -1253,6 +1252,10 @@ class IS0401Test(GenericTest):
                             control_href_scheme_warn = True
                         if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
                             control_href_hostname_warn = True
+                        if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
+                                control["type"].startswith("urn:x-nmos:"):
+                            if self.authorization is not control.get("authorization", False):
+                                device_href_auth_warn = True
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
 
@@ -1286,6 +1289,10 @@ class IS0401Test(GenericTest):
             return test.WARNING("One or more Device control 'href' values do not match the current protocol")
         elif manifest_href_scheme_warn:
             return test.WARNING("One or more Sender 'manifest_href' values do not match the current protocol")
+        elif service_href_auth_warn:
+            return test.WARNING("One or more Node 'x-nmos' services do not match the current authorization mode")
+        elif device_href_auth_warn:
+            return test.WARNING("One or more Device 'x-nmos' controls do not match the current authorization mode")
 
         return test.PASS()
 
