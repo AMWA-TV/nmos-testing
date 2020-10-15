@@ -174,7 +174,7 @@ class IS0802Test(GenericTest):
                         found_api_match = True
 
         if len(devicesWithAdvertisements) > 0 and not found_api_match:
-            raise NMOSTestException(test.FAIL("Found one or more Device controls, but no href or authorization mode "
+            raise NMOSTestException(test.FAIL("Found one or more Device controls, but no href and authorization mode "
                                               "matched the Channel Mapping API under test"))
 
         return list(devicesWithAdvertisements)
