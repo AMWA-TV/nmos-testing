@@ -301,7 +301,8 @@ class IS0502Test(GenericTest):
                 for control in controls:
                     if control["type"] == device_type:
                         is05_devices.append(control["href"])
-                        if self.is05_utils.compare_urls(self.connection_url, control["href"]):
+                        if self.is05_utils.compare_urls(self.connection_url, control["href"]) and \
+                                self.authorization is control.get("authorization", False):
                             found_api_match = True
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
@@ -311,7 +312,8 @@ class IS0502Test(GenericTest):
         if len(is05_devices) > 0 and found_api_match:
             return test.PASS()
         elif len(is05_devices) > 0:
-            return test.FAIL("Found one or more Device controls, but no href matched the Connection API under test")
+            return test.FAIL("Found one or more Device controls, but no href and authorization mode matched the "
+                             "Connection API under test")
         else:
             return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(device_type))
 

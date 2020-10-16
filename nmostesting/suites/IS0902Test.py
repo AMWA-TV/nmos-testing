@@ -31,6 +31,7 @@ class IS0902Test(GenericTest):
     """
     def __init__(self, apis, systems, dns_server):
         GenericTest.__init__(self, apis, disable_auto=True)
+        self.authorization = False  # System API doesn't use auth, so don't send tokens in every request
         self.invalid_system = systems[0]
         self.primary_system = systems[1]
         self.systems = systems[1:]
@@ -46,7 +47,7 @@ class IS0902Test(GenericTest):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[SYSTEM_API_KEY]["version"], self.protocol,
+            self.dns_server.load_zone(self.apis[SYSTEM_API_KEY]["version"], self.protocol, self.authorization,
                                       "test_data/IS0902/dns_records.zone", CONFIG.PORT_BASE+300)
 
     def tear_down_tests(self):
@@ -56,12 +57,14 @@ class IS0902Test(GenericTest):
         if self.dns_server:
             self.dns_server.reset()
 
-    def _system_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, ip=None):
+    def _system_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         if api_ver is None:
             api_ver = self.apis[SYSTEM_API_KEY]["version"]
         if api_proto is None:
             api_proto = self.protocol
+        if api_auth is None:
+            api_auth = self.authorization
 
         if ip is None:
             ip = get_default_ip()
@@ -70,7 +73,7 @@ class IS0902Test(GenericTest):
             hostname = ip.replace(".", "-") + ".local."
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': 'false'}
+        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': str(api_auth).lower()}
 
         service_type = "_nmos-system._tcp.local."
         info = ServiceInfo(service_type,

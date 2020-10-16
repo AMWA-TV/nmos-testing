@@ -86,9 +86,27 @@ KEYS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/private/rsa.mocks.testsuite.nmos.tv.key.pem"
 ]
 
-# Default User Credentials for interacting with Authorization Server
-AUTH_USERNAME = "TEST_USER"
-AUTH_PASSWORD = "TEST_PASSWORD"
+# Test using authorization as per AMWA IS-10 and BCP-003-02
+ENABLE_AUTH = False
+
+# Where the Authorization Server is located on the network. Required when 'ENABLE_AUTH' is True
+# The hostname must match the CN or SAN in the TLS certificate used by the Authorization Server when combined
+# with the DNS_DOMAIN setting
+AUTH_SERVER_HOSTNAME = "auth"
+AUTH_SERVER_IP = "127.0.0.1"
+AUTH_SERVER_PORT = 443
+
+# Which private and public key to use to generate authorization tokens. These must match the keys used by an
+# authorization server on the network to ensure that Nodes trust tokens generated from them. DO NOT use production
+# keys for testing purposes.
+AUTH_TOKEN_PUBKEY = "test_data/BCP00301/ca/intermediate/certs/intermediate.pubkey.pem"
+AUTH_TOKEN_PRIVKEY = "test_data/BCP00301/ca/intermediate/private/intermediate.key.pem"
+
+# Set the contents of the 'iss' key within generated JSON Web Tokens to match what the network authorization server uses
+AUTH_TOKEN_ISSUER = "https://testsuite.nmos.tv"
+
+# The following token is set by the application at runtime and should be left as 'None'
+AUTH_TOKEN = None
 
 # Domain name to use for the local DNS server and mock Node
 # This must match the domain name used for certificates in HTTPS mode

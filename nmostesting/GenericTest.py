@@ -19,6 +19,8 @@ import jsonschema
 import traceback
 import inspect
 import uuid
+import time
+from authlib.jose import jwt
 
 from . import TestHelper
 from .Specification import Specification
@@ -69,6 +71,9 @@ class GenericTest(object):
         if CONFIG.ENABLE_HTTPS:
             self.protocol = "https"
             self.ws_protocol = "wss"
+        self.authorization = False
+        if CONFIG.ENABLE_AUTH:
+            self.authorization = True
 
         self.omit_paths = []
         if isinstance(omit_paths, list):
@@ -176,13 +181,24 @@ class GenericTest(object):
 
         # Set up
         test = Test("Test setup", "set_up_tests")
+        CONFIG.AUTH_TOKEN = None
+        if self.authorization:
+            # We write to config here as this needs to be available outside this class
+            scopes = []
+            for api in self.apis:
+                scopes.append(api)
+            CONFIG.AUTH_TOKEN = self.generate_token(scopes, True)
         if CONFIG.PREVALIDATE_API:
             for api in self.apis:
                 if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
                     continue
                 valid, response = self.do_request("GET", self.apis[api]["url"])
-                if not valid or response.status_code != 200:
+                if not valid:
                     raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
+                elif response.status_code != 200:
+                    raise NMOSInitException("No API found or unexpected error at {} ({})".format(self.apis[api]["url"],
+                                                                                                 response.status_code))
+
         self.set_up_tests()
         self.result.append(test.NA(""))
 
@@ -390,20 +406,37 @@ class GenericTest(object):
             # Perform an automatic check for an error condition
             results.append(self.do_test_404_path(api))
 
+            # Test that the API responds with a 4xx when a missing or invalid token is used
+            results.append(self.do_test_authorization(api, "Missing Authorization Header", error_type=None))
+            results.append(self.do_test_authorization(api, "Invalid Authorization Token", token=str(uuid.uuid4())))
+            token = self.generate_token([api], True, overrides={"iat": int(time.time() - 7200),
+                                                                "exp": int(time.time() - 3600)})
+            results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
+            token = self.generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
+            results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", error_code=403,
+                                                      error_type="insufficient_scope", token=token))
+            token = self.generate_token(["nonsense"], overrides={"x-nmos-nonsense": {"read": [str(uuid.uuid4())]}})
+            results.append(self.do_test_authorization(api, "Incorrect Authorization Scope", error_code=403,
+                                                      error_type="insufficient_scope", token=token))
+
+            # Test that the API responds with a 200 when only the scope is present
+            token = self.generate_token([api], False, add_claims=False)
+            results.append(self.do_test_authorization(api, "Valid Authorization Scope", error_code=200, token=token))
+
         return results
 
     def do_test_404_path(self, api_name):
         api = self.apis[api_name]
-        error_code = 404
         invalid_path = str(uuid.uuid4())
         url = "{}/{}".format(api["url"].rstrip("/"), invalid_path)
-        test = Test("GET /x-nmos/{}/{}/{} ({})".format(api_name, api["version"], invalid_path, error_code),
+        test = Test("GET /x-nmos/{}/{}/{} (Invalid Path)".format(api_name, api["version"], invalid_path),
                     self.auto_test_name(api_name))
 
         valid, response = self.do_request("GET", url)
         if not valid:
             return test.FAIL(response)
 
+        error_code = 404
         if response.status_code != error_code:
             return test.FAIL("Incorrect response code, expected {}: {}".format(error_code, response.status_code))
 
@@ -412,6 +445,53 @@ class GenericTest(object):
             return test.PASS()
         else:
             return test.FAIL(message)
+
+    def do_test_authorization(self, api_name, test_name, error_code=401, error_type="invalid_token", token=None):
+        api = self.apis[api_name]
+        url = "{}".format(api["url"].rstrip("/"))
+        test = Test("GET /x-nmos/{}/{} ({})".format(api_name, api["version"], test_name), self.auto_test_name(api_name))
+
+        if self.authorization:
+            headers = {}
+            if token:
+                headers = {"Authorization": "Bearer {}".format(token)}
+            valid, response = self.do_request("GET", url, headers=headers)
+            if not valid:
+                return test.FAIL(response)
+
+            if response.status_code != error_code:
+                return test.FAIL("Incorrect response code, expected {}. Received {}"
+                                 .format(error_code, response.status_code))
+            if response.status_code == 200:
+                return test.PASS()
+
+            if "WWW-Authenticate" not in response.headers:
+                return test.FAIL("Authorization error responses must include a 'WWW-Authenticate' header")
+            if not response.headers["WWW-Authenticate"].startswith("Bearer "):
+                return test.FAIL("'WWW-Authenticate' response header must begin 'Bearer'")
+
+            if error_type is not None:
+                valid, message = self.check_error_response("GET", response, error_code)
+                if not valid:
+                    return test.FAIL(message)
+
+                # Remove 'Bearer ' and tokenise
+                # https://tools.ietf.org/html/rfc6750#section-3
+                error_header_ok = False
+                auth_params = response.headers["WWW-Authenticate"][7:].split(",")
+                for param in auth_params:
+                    param_parts = param.split("=")
+                    if param_parts[0] == "error":
+                        if param_parts[1] == error_type:
+                            error_header_ok = True
+                if not error_header_ok:
+                    return test.WARNING("'WWW-Authenticate' response header should contain 'error={}'"
+                                        .format(error_type))
+
+            return test.PASS()
+        else:
+            return test.DISABLED("This test is only performed when an API supports Authorization and 'ENABLE_AUTH' "
+                                 "is True")
 
     def do_test_api_resource(self, resource, response_code, api):
         # Test URLs which include a {resourceId} or similar parameter
@@ -518,4 +598,38 @@ class GenericTest(object):
                 self.saved_entities[path] += subresources
 
     def get_schema(self, api_name, method, path, status_code):
-        return self.apis[api_name]["spec"].get_schema(method, path, status_code)
+        try:
+            schema = self.apis[api_name]["spec"].get_schema(method, path, status_code)
+        except KeyError:
+            if status_code // 100 in [4, 5]:
+                schema = TestHelper.load_resolved_schema("test_data/core", "error.json", path_prefix=False)
+            else:
+                raise
+        return schema
+
+    def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
+        if scopes is None:
+            scopes = []
+        header = {"typ": "JWT", "alg": "RS512"}
+        payload = {"iss": "{}".format(CONFIG.AUTH_TOKEN_ISSUER),
+                   "sub": "testsuite@nmos.tv",
+                   "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN), "https://*.local"],
+                   "exp": int(time.time() + 3600),
+                   "iat": int(time.time()),
+                   "scope": " ".join(scopes)}
+        if azp:
+            payload["azp"] = str(uuid.uuid4())
+        else:
+            payload["client_id"] = str(uuid.uuid4())
+        nmos_claims = {}
+        if add_claims:
+            for api in scopes:
+                nmos_claims["x-nmos-{}".format(api)] = {"read": ["*"]}
+                if write:
+                    nmos_claims["x-nmos-{}".format(api)]["write"] = ["*"]
+        payload.update(nmos_claims)
+        if overrides:
+            payload.update(overrides)
+        key = open(CONFIG.AUTH_TOKEN_PRIVKEY).read()
+        token = jwt.encode(header, payload, key).decode()
+        return token

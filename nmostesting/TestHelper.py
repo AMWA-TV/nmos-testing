@@ -152,7 +152,15 @@ def do_request(method, url, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
         s = requests.Session()
-        req = requests.Request(method, url, **kwargs)
+        # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
+        if "headers" in kwargs and kwargs["headers"] is None:
+            del kwargs["headers"]
+        if CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and "headers" not in kwargs:
+            req = requests.Request(method, url, headers={
+                "Authorization": "Bearer " + CONFIG.AUTH_TOKEN,
+            }, **kwargs)
+        else:
+            req = requests.Request(method, url, **kwargs)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CONFIG.CERT_TRUST_ROOT_CA, None)
         response = s.send(prepped, timeout=CONFIG.HTTP_TIMEOUT, **settings)
@@ -217,6 +225,11 @@ class WebsocketWorker(threading.Thread):
         Initializer
         :param ws_href: websocket url (string)
         """
+        if CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and "access_token" not in ws_href:
+            if "?" in ws_href:
+                ws_href += "&access_token={}".format(CONFIG.AUTH_TOKEN)
+            else:
+                ws_href += "?access_token={}".format(CONFIG.AUTH_TOKEN)
         threading.Thread.__init__(self, daemon=True)
         self.ws_href = ws_href
         try:

@@ -108,8 +108,9 @@ class IS0402Test(GenericTest):
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") >= 0:
                     if "api_auth" not in properties:
                         return test.FAIL("No 'api_auth' TXT record found in {} advertisement.".format(api["name"]))
-                    elif properties["api_auth"] not in ["true", "false"]:
-                        return test.FAIL("API authorization ('api_auth') TXT record is not one of 'true' or 'false'.")
+                    elif properties["api_auth"] != str(self.authorization).lower():
+                        return test.FAIL("API authorization ('api_auth') TXT record is not '{}'."
+                                         .format(str(self.authorization).lower()))
 
                 return test.PASS()
         return test.FAIL("No matching mDNS announcement found for {} with IP/Port {}:{}."
@@ -2108,6 +2109,48 @@ class IS0402Test(GenericTest):
 
         return test.PASS()
 
+    def test_33(self, test):
+        """Registration API rejects resource updates from mismatched clients as per BCP-003-02 (using client_id)"""
+
+        if not CONFIG.ENABLE_AUTH:
+            return test.DISABLED("This test is only performed when 'ENABLE_AUTH' is True")
+
+        self.do_test_api_v1_x(test)
+
+        token_scopes = ["registration"]
+        a_token = self.generate_token(token_scopes, True)
+        b_token = self.generate_token(token_scopes, True)
+
+        data = self.copy_resource("node")
+        data["id"] = str(uuid.uuid4())
+        data["description"] = "test_33"
+        self.post_resource(test, "node", data, headers={"Authorization": "Bearer {}".format(a_token)})
+        self.bump_resource_version(data)
+        self.post_resource(test, "node", data, codes=[403], headers={"Authorization": "Bearer {}".format(b_token)})
+
+        return test.PASS()
+
+    def test_33_1(self, test):
+        """Registration API rejects resource updates from mismatched clients as per BCP-003-02 (using azp)"""
+
+        if not CONFIG.ENABLE_AUTH:
+            return test.DISABLED("This test is only performed when 'ENABLE_AUTH' is True")
+
+        self.do_test_api_v1_x(test)
+
+        token_scopes = ["registration"]
+        a_token = self.generate_token(token_scopes, True, azp=True)
+        b_token = self.generate_token(token_scopes, True)  # Checks tha client_id and azp are treated the same way
+
+        data = self.copy_resource("node")
+        data["id"] = str(uuid.uuid4())
+        data["description"] = "test_33_1"
+        self.post_resource(test, "node", data, headers={"Authorization": "Bearer {}".format(a_token)})
+        self.bump_resource_version(data)
+        self.post_resource(test, "node", data, codes=[403], headers={"Authorization": "Bearer {}".format(b_token)})
+
+        return test.PASS()
+
     def load_resource_data(self):
         """Loads test data from files"""
         api = self.apis[REG_API_KEY]
@@ -2394,7 +2437,7 @@ class IS0402Test(GenericTest):
         except json.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned for Query API subscription request"))
 
-    def post_resource(self, test, type, data=None, reg_url=None, codes=None, fail=Test.FAIL):
+    def post_resource(self, test, type, data=None, reg_url=None, codes=None, fail=Test.FAIL, headers=None):
         """
         Perform a POST request on the Registration API to create or update a resource registration.
         Raises an NMOSTestException when the response is not as expected.
@@ -2414,8 +2457,7 @@ class IS0402Test(GenericTest):
         if 200 in codes:
             self.bump_resource_version(data)
 
-        valid, r = self.do_request("POST", reg_url + "resource",
-                                   json={"type": type, "data": data})
+        valid, r = self.do_request("POST", reg_url + "resource", json={"type": type, "data": data}, headers=headers)
         if not valid:
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
 
@@ -2425,7 +2467,7 @@ class IS0402Test(GenericTest):
         wrong_codes = [_ for _ in [200, 201] if _ not in codes]
 
         if r.status_code in wrong_codes:
-            raise NMOSTestException(fail(test, "Registration API returned wrong HTTP code"))
+            raise NMOSTestException(fail(test, "Registration API returned wrong HTTP code: {}".format(r.status_code)))
         elif r.status_code not in codes:
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: "
                                                "{} {}".format(r.status_code, r.text)))

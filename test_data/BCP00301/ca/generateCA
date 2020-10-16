@@ -38,6 +38,8 @@ export DOMAIN=$DOMAIN
 openssl req -config intermediate/openssl.cnf -new -sha256 -key intermediate/private/intermediate.key.pem -out intermediate/csr/intermediate.csr.pem -subj "/C=GB/ST=England/O=NMOS Testing Ltd/CN=ica.$DOMAIN"
 openssl ca -batch -config openssl.cnf -extensions v3_intermediate_ca -days 18250 -notext -md sha256 -in intermediate/csr/intermediate.csr.pem -out intermediate/certs/intermediate.cert.pem
 chmod 444 intermediate/certs/intermediate.cert.pem
+openssl x509 -pubkey -noout -in intermediate/certs/intermediate.cert.pem -out intermediate/certs/intermediate.pubkey.pem
+chmod 444 intermediate/certs/intermediate.pubkey.pem
 
 # Create certificate chain
 cat intermediate/certs/intermediate.cert.pem certs/ca.cert.pem > intermediate/certs/ca-chain.cert.pem

@@ -14,3 +14,4 @@ junit-xml
 rfc3987
 pyopenssl
 paho-mqtt
+authlib
