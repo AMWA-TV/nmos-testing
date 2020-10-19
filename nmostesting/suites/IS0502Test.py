@@ -555,11 +555,12 @@ class IS0502Test(GenericTest):
                     valid, result = self.do_request("GET", url_path)
                     if not valid:
                         return test.FAIL("Connection API returned unexpected result "
-                                         "for {} '{}'".format(resource_type.capitalize(), resource["id"]))
+                                         "for {} '{}'".format(resource_type.rstrip("s").capitalize(), resource["id"]))
 
                     trans_params_length = len(result.json()["transport_params"])
                     if trans_params_length != bindings_length:
-                        return test.FAIL("Array length mismatch for Sender/Receiver ID '{}'".format(resource["id"]))
+                        return test.FAIL("Array length mismatch "
+                                         "for {} '{}'".format(resource_type.rstrip("s").capitalize(), resource["id"]))
 
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Connection API")
@@ -594,6 +595,12 @@ class IS0502Test(GenericTest):
                     is05_transport_file = result.text
 
                 if is04_transport_file != is05_transport_file:
+                    if is04_transport_file is None:
+                        return test.FAIL("Sender '{}' did not return a transport file "
+                                         "from IS-04".format(resource["id"]))
+                    if is05_transport_file is None:
+                        return test.FAIL("Sender '{}' did not return a transport file "
+                                         "from IS-05".format(resource["id"]))
                     return test.FAIL("Transport file contents for Sender '{}' do not match "
                                      "between IS-04 and IS-05".format(resource["id"]))
 
