@@ -331,7 +331,7 @@ class IS05Utils(NMOSUtils):
             except KeyError:
                 return False, "Expected 'activation_time' key in 'activation' object."
             # Allow extra time for processing between getting time and making request
-            time.sleep(2)
+            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
             retries = 0
             finished = False
