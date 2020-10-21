@@ -173,7 +173,7 @@ class IS05Utils(NMOSUtils):
                 time.sleep(activateSleep)
 
             # Check the values now on /active
-            maxTries = 1 if activateMode == IMMEDIATE_ACTIVATION else 5
+            maxTries = 1 if activateMode == IMMEDIATE_ACTIVATION else 2
             tries = 0
             ready = False
 
@@ -227,9 +227,9 @@ class IS05Utils(NMOSUtils):
                     return False, activeParams
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
             if ready:
-                return False, "Activation entries were not set at {} during {} activation{}" \
+                return False, "Activation entries were not set at {} after {} activation{}" \
                               .format(activeUrl, activationName, " (Tries: {})".format(tries) if tries > 1 else "")
-            return False, "Transport parameters did not transition to {} during {} activation{}" \
+            return False, "Transport parameters did not transition to {} after {} activation{}" \
                           .format(activeUrl, activationName, " (Tries: {})".format(tries) if tries > 1 else "")
         else:
             return False, response
@@ -239,11 +239,16 @@ class IS05Utils(NMOSUtils):
 
     def check_perform_relative_activation(self, port, portId, stagedParams, changedParam):
         return self._check_perform_activation(port, portId, stagedParams, changedParam,
-                                              "relative", SCHEDULED_RELATIVE_ACTIVATION, "0:100000000", 0.1)
+                                              "relative", SCHEDULED_RELATIVE_ACTIVATION,
+                                              "0:200000000", 0.2)
 
     def check_perform_absolute_activation(self, port, portId, stagedParams, changedParam):
+        # As stated in the README, the time of the test device and the time of the device hosting the tests
+        # needs to be synchronized in order to test absolute activation, but allow a 0.1 seconds difference...
+        MAX_TIME_SYNC_OFFSET = 0.1
         return self._check_perform_activation(port, portId, stagedParams, changedParam,
-                                              "absolute", SCHEDULED_ABSOLUTE_ACTIVATION, self.get_TAI_time(1), 1)
+                                              "absolute", SCHEDULED_ABSOLUTE_ACTIVATION,
+                                              self.get_TAI_time(1), 1 + MAX_TIME_SYNC_OFFSET)
 
     def check_activation(self, port, portId, activationMethod, transportType, masterEnable=None):
         """Checks that when an immediate activation is called staged parameters are moved
