@@ -132,121 +132,56 @@ class IS05Utils(NMOSUtils):
             data["master_enable"] = masterEnable
         return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
 
-    def check_perform_immediate_activation(self, port, portId, stagedParams, changedParam):
-        # Request an immediate activation
+    def _check_perform_activation(self, port, portId, stagedParams, changedParam, activationName="immediate",
+                                  activateMode=IMMEDIATE_ACTIVATION, activateTime=None, activateSleep=0):
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        valid, response = self.perform_activation(port, portId)
+        valid, response = self.perform_activation(port, portId, activateMode, activateTime)
         if valid:
             try:
-                mode = response['activation']['mode']
-                requested = response['activation']['requested_time']
-                activation = response['activation']['activation_time']
+                stagedMode = response['activation']['mode']
+                stagedRequested = response['activation']['requested_time']
+                stagedActivation = response['activation']['activation_time']
             except KeyError:
-                return False, "Could not find all activation entries from {}, got {}".format(stagedUrl, response)
+                return False, "Could not find all activation entries from {}, " \
+                              "got {}".format(stagedUrl, response)
             except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(response),
-                                                                                            response)
-            mmsg = "Unexpected mode returned: expected `activate_immediate`, got {}".format(mode)
-            rmsg = "Expected null requested time for immediate activation, got {}".format(requested)
-            amsg = "Expected an activation time matching the regex ^[0-9]+:[0-9]+$, but got {}".format(activation)
-            if mode == IMMEDIATE_ACTIVATION:
+                return False, "Expected a dict to be returned from {}, " \
+                              "got a {}: {}".format(stagedUrl, type(response), response)
+            if stagedMode == activateMode:
                 pass
             else:
-                return False, mmsg
-            if requested is None:
+                return False, "Expected mode `{}` for {} activation, " \
+                              "got {}".format(activateMode, activationName, stagedMode)
+            if stagedRequested == activateTime:
                 pass
             else:
-                return False, rmsg
-            try:
-                if re.match("^[0-9]+:[0-9]+$", activation) is not None:
-                    pass
-                else:
-                    return False, amsg
-            except TypeError:
-                return False, amsg
-
-            valid2, response2 = self.check_staged_activation_params_default(port, portId)
-            if valid2:
-                # Check the values now on /active
-                valid3, response3 = self.checkCleanRequestJSON("GET", activeUrl)
-                if valid3:
-                    for i in range(0, self.get_num_paths(portId, port)):
-                        try:
-                            activeParam = response3['transport_params'][i][changedParam]
-                        except KeyError:
-                            return False, "Could not find active {} entry on leg {} from {}, " \
-                                          "got {}".format(changedParam, i, activeUrl, response3)
-                        except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
-                                activeUrl, i, type(response3), response3)
-                        try:
-                            stagedParam = stagedParams[i][changedParam]
-                        except KeyError:
-                            return False, "Could not find staged {} entry on leg {} from {}, " \
-                                          "got {}".format(changedParam, i, stagedUrl, stagedParams)
-                        except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: {}".format(
-                                stagedUrl, i, type(response3), stagedParams)
-                        msg = "Transport parameters did not transition to active during an immediate activation"
-                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
-                            pass
-                        else:
-                            return False, msg
-
-                    msg = "Activation mode was not set to `activate_immediate` at {} " \
-                          "after an immediate activation".format(activeUrl)
-                    if response3['activation']['mode'] == IMMEDIATE_ACTIVATION:
-                        pass
-                    else:
-                        return False, msg
-                else:
-                    return False, response3
-            else:
-                return False, response2
-        else:
-            return False, response
-        return True, ""
-
-    def check_perform_relative_activation(self, port, portId, stagedParams, changedParam):
-        # Request an relative activation 2 nanoseconds in the future
-        stagedUrl = "single/" + port + "s/" + portId + "/staged"
-        activeUrl = "single/" + port + "s/" + portId + "/active"
-        valid, response = self.perform_activation(port, portId, SCHEDULED_RELATIVE_ACTIVATION, "0:2")
-        if valid:
-            try:
-                mode = response['activation']['mode']
-                requested = response['activation']['requested_time']
-                activation = response['activation']['activation_time']
-            except KeyError:
-                return False, "Could not find all activation entries from {}, got {}".format(stagedUrl, response)
-            except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(response),
-                                                                                            response)
-            mmsg = "Expected mode `activate_sechduled_relative` for relative activation, got {}".format(mode)
-            rmsg = "Expected requested time `0:2` for relative activation, got {}".format(requested)
-            amsg = "Expected activation time to match regex ^[0-9]+:[0-9]+$, got {}".format(activation)
-            if mode == SCHEDULED_RELATIVE_ACTIVATION:
+                return False, "Expected requested time `{}` for {} activation, " \
+                              "got {}".format(activateTime or "null", activationName, stagedRequested)
+            if re.match("^[0-9]+:[0-9]+$", stagedActivation) is not None:
                 pass
             else:
-                return False, mmsg
-            if requested == "0:2":
-                pass
-            else:
-                return False, rmsg
-            if re.match("^[0-9]+:[0-9]+$", activation) is not None:
-                pass
-            else:
-                return False, amsg
-            time.sleep(0.5)
+                return False, "Expected activation time to match regex ^[0-9]+:[0-9]+$, " \
+                              "got {}".format(stagedActivation)
 
-            retries = 0
-            finished = False
+            if activateMode == IMMEDIATE_ACTIVATION:
+                validImmediate, responseImmediate = self.check_staged_activation_params_default(port, portId)
+                if not validImmediate:
+                    return False, responseImmediate
 
-            while retries < 5 and not finished:
-                # Check the values now on /active
+            if activateSleep > 0:
+                time.sleep(activateSleep)
+
+            # Check the values now on /active
+            maxTries = 1 if activateMode == IMMEDIATE_ACTIVATION else 5
+            tries = 0
+            ready = False
+
+            while tries < maxTries:
+                tries = tries + 1
                 valid2, activeParams = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid2:
+                    ready = True
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
                             activeParam = activeParams['transport_params'][i][changedParam]
@@ -265,122 +200,50 @@ class IS05Utils(NMOSUtils):
                             return False, "Expected a dict to be returned from {} on leg {}, " \
                                           "got a {}: {}".format(stagedUrl, i, type(activeParams), stagedParams)
                         if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
-                            finished = True
+                            # changed param is ready, though maybe it was already so also check activation entries
+                            pass
                         else:
-                            retries = retries + 1
-                            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
+                            ready = False
 
-                    if finished:
+                    if ready:
                         try:
-                            if activeParams['activation']['mode'] == SCHEDULED_RELATIVE_ACTIVATION:
-                                if retries > 0:
-                                    return True, "(Retries: {})".format(str(retries))
-                                else:
-                                    return True, ""
-                            else:
-                                return False, "Activation mode was not set to `activate_scheduled_relative` at {} " \
-                                              "after a relative activation".format(activeUrl)
+                            activeMode = response['activation']['mode']
+                            activeRequested = response['activation']['requested_time']
+                            activeActivation = response['activation']['activation_time']
                         except KeyError:
-                            return False, "Expected 'mode' key in 'activation' object."
+                            return False, "Could not find all activation entries from {}, " \
+                                          "got {}".format(activeUrl, response)
+                        except TypeError:
+                            return False, "Expected a dict to be returned from {}, " \
+                                          "got a {}: {}".format(activeUrl, type(response), response)
 
+                        if activeMode == activateMode and activeRequested == activateTime \
+                                and self.compare_resource_version(activeActivation, stagedActivation) >= 0:
+                            if tries > 1:
+                                return True, "(Tries: {})".format(tries)
+                            else:
+                                return True, ""
                 else:
                     return False, activeParams
-            return False, "Transport parameters did not transition to active during an relative activation " \
-                          "(Retries: {})".format(str(retries))
+                time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
+            if ready:
+                return False, "Activation entries were not set at {} during {} activation{}" \
+                              .format(activeUrl, activationName, " (Tries: {})".format(tries) if tries > 1 else "")
+            return False, "Transport parameters did not transition to {} during {} activation{}" \
+                          .format(activeUrl, activationName, " (Tries: {})".format(tries) if tries > 1 else "")
         else:
             return False, response
+
+    def check_perform_immediate_activation(self, port, portId, stagedParams, changedParam):
+        return self._check_perform_activation(port, portId, stagedParams, changedParam)
+
+    def check_perform_relative_activation(self, port, portId, stagedParams, changedParam):
+        return self._check_perform_activation(port, portId, stagedParams, changedParam,
+                                              "relative", SCHEDULED_RELATIVE_ACTIVATION, "0:100000000", 0.1)
 
     def check_perform_absolute_activation(self, port, portId, stagedParams, changedParam):
-        # request an absolute activation
-        stagedUrl = "single/" + port + "s/" + portId + "/staged"
-        activeUrl = "single/" + port + "s/" + portId + "/active"
-        TAItime = self.get_TAI_time(1)
-        valid, response = self.perform_activation(port, portId, SCHEDULED_ABSOLUTE_ACTIVATION, TAItime)
-        if valid:
-            try:
-                mode = response['activation']['mode']
-                requested = response['activation']['requested_time']
-                activation = response['activation']['activation_time']
-            except KeyError:
-                return False, "Could not find all activation entries from {}, got {}".format(stagedUrl, response)
-            except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(response),
-                                                                                            response)
-            mmsg = "Expected mode `activate_sechduled_absolute` for relative activation, got {}".format(mode)
-            rmsg = "Expected requested time `{}` for relative activation, got {}".format(TAItime, requested)
-            amsg = "Expected activation time to match regex ^[0-9]+:[0-9]+$, got {}".format(activation)
-            try:
-                if response['activation']['mode'] == SCHEDULED_ABSOLUTE_ACTIVATION:
-                    pass
-                else:
-                    return False, mmsg
-            except KeyError:
-                return False, "Expected 'mode' key in 'activation' object."
-            try:
-                if response['activation']['requested_time'] == TAItime:
-                    pass
-                else:
-                    return False, rmsg
-            except KeyError:
-                return False, "Expected 'requested_time' key in 'activation' object."
-            try:
-                if re.match("^[0-9]+:[0-9]+$", response['activation']['activation_time']) is not None:
-                    pass
-                else:
-                    return False, amsg
-            except KeyError:
-                return False, "Expected 'activation_time' key in 'activation' object."
-            # Allow extra time for processing between getting time and making request
-            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
-
-            retries = 0
-            finished = False
-
-            while retries < 5 and not finished:
-                # Check the values now on /active
-                valid2, activeParams = self.checkCleanRequestJSON("GET", activeUrl)
-                if valid2:
-                    for i in range(0, self.get_num_paths(portId, port)):
-                        try:
-                            activeParam = activeParams['transport_params'][i][changedParam]
-                        except KeyError:
-                            return False, "Could not find active {} entry on leg {} from {}, " \
-                                          "got {}".format(changedParam, i, activeUrl, activeParams)
-                        except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
-                                          "{}".format(activeUrl, i, type(activeParams), activeParams)
-                        try:
-                            stagedParam = stagedParams[i][changedParam]
-                        except KeyError:
-                            return False, "Could not find staged {} entry on leg {} from {}, " \
-                                          "got {}".format(changedParam, i, stagedUrl, stagedParams)
-                        except TypeError:
-                            return False, "Expected a dict to be returned from {} on leg {}, got a {}: " \
-                                          "{}".format(stagedUrl, i, type(activeParams), stagedParams)
-                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
-                            finished = True
-                        else:
-                            retries = retries + 1
-                            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
-
-                    if finished:
-                        try:
-                            if activeParams['activation']['mode'] == SCHEDULED_ABSOLUTE_ACTIVATION:
-                                if retries > 0:
-                                    return True, "(Retries: {})".format(str(retries))
-                                else:
-                                    return True, ""
-                            else:
-                                return False, "Activation mode was not set to `activate_scheduled_absolute` at {} " \
-                                              "after a absolute activation".format(activeUrl)
-                        except KeyError:
-                            return False, "Expected 'mode' key in 'activation' object."
-                else:
-                    return False, activeParams
-            return False, "Transport parameters did not transition to active during an absolute activation " \
-                          "(Retries: {})".format(str(retries))
-        else:
-            return False, response
+        return self._check_perform_activation(port, portId, stagedParams, changedParam,
+                                              "absolute", SCHEDULED_ABSOLUTE_ACTIVATION, self.get_TAI_time(1), 1)
 
     def check_activation(self, port, portId, activationMethod, transportType, masterEnable=None):
         """Checks that when an immediate activation is called staged parameters are moved
