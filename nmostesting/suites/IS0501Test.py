@@ -592,12 +592,15 @@ class IS0501Test(GenericTest):
         """Immediate activation of a sender is possible"""
 
         if len(self.senders) > 0:
+            warn = ""
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_immediate_activation,
                                                                    self.transport_types[sender],
                                                                    True)
                 if valid:
+                    if response and not warn:
+                        warn = response
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
                         if not valid2:
@@ -605,7 +608,10 @@ class IS0501Test(GenericTest):
                                              .format(sender, response2))
                 else:
                     return test.FAIL(response)
-            return test.PASS()
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -613,16 +619,20 @@ class IS0501Test(GenericTest):
         """Immediate activation of a receiver is possible"""
 
         if len(self.receivers) > 0:
+            warn = ""
             for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_immediate_activation,
                                                                    self.transport_types[receiver])
                 if valid:
-                    pass
+                    if response and not warn:
+                        warn = response
                 else:
                     return test.FAIL(response)
-
-            return test.PASS()
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -630,12 +640,15 @@ class IS0501Test(GenericTest):
         """Relative activation of a sender is possible"""
 
         if len(self.senders) > 0:
+            warn = ""
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_relative_activation,
                                                                    self.transport_types[sender],
                                                                    True)
                 if valid:
+                    if response and not warn:
+                        warn = response
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
                         if not valid2:
@@ -643,7 +656,10 @@ class IS0501Test(GenericTest):
                                              .format(sender, response2))
                 else:
                     return test.FAIL(response)
-            return test.PASS(response)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -651,15 +667,20 @@ class IS0501Test(GenericTest):
         """Relative activation of a receiver is possible"""
 
         if len(self.receivers) > 0:
+            warn = ""
             for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_relative_activation,
                                                                    self.transport_types[receiver])
                 if valid:
-                    pass
+                    if response and not warn:
+                        warn = response
                 else:
                     return test.FAIL(response)
-            return test.PASS(response)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -667,12 +688,15 @@ class IS0501Test(GenericTest):
         """Absolute activation of a sender is possible"""
 
         if len(self.senders) > 0:
+            warn = ""
             for sender in self.is05_utils.sampled_list(self.senders):
                 valid, response = self.is05_utils.check_activation("sender", sender,
                                                                    self.is05_utils.check_perform_absolute_activation,
                                                                    self.transport_types[sender],
                                                                    True)
                 if valid:
+                    if response and not warn:
+                        warn = response
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
                         if not valid2:
@@ -680,7 +704,10 @@ class IS0501Test(GenericTest):
                                              .format(sender, response2))
                 else:
                     return test.FAIL(response)
-            return test.PASS(response)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -688,15 +715,20 @@ class IS0501Test(GenericTest):
         """Absolute activation of a receiver is possible"""
 
         if len(self.receivers) > 0:
+            warn = ""
             for receiver in self.is05_utils.sampled_list(self.receivers):
                 valid, response = self.is05_utils.check_activation("receiver", receiver,
                                                                    self.is05_utils.check_perform_absolute_activation,
                                                                    self.transport_types[receiver])
                 if valid:
-                    pass
+                    if response and not warn:
+                        warn = response
                 else:
                     return test.FAIL(response)
-            return test.PASS(response)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
