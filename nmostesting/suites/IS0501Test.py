@@ -608,7 +608,10 @@ class IS0501Test(GenericTest):
                                              .format(sender, response2))
                 else:
                     return test.FAIL(response)
-            return test.PASS(warn)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -626,8 +629,10 @@ class IS0501Test(GenericTest):
                         warn = response
                 else:
                     return test.FAIL(response)
-
-            return test.PASS(warn)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -651,7 +656,10 @@ class IS0501Test(GenericTest):
                                              .format(sender, response2))
                 else:
                     return test.FAIL(response)
-            return test.PASS(warn)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -669,7 +677,10 @@ class IS0501Test(GenericTest):
                         warn = response
                 else:
                     return test.FAIL(response)
-            return test.PASS(warn)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -693,7 +704,10 @@ class IS0501Test(GenericTest):
                                              .format(sender, response2))
                 else:
                     return test.FAIL(response)
-            return test.PASS(warn)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
@@ -711,7 +725,10 @@ class IS0501Test(GenericTest):
                         warn = response
                 else:
                     return test.FAIL(response)
-            return test.PASS(warn)
+            if warn:
+                return test.WARNING(warn)
+            else:
+                return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 

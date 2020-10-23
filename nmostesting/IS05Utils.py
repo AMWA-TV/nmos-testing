@@ -138,6 +138,8 @@ class IS05Utils(NMOSUtils):
         activeUrl = "single/" + port + "s/" + portId + "/active"
         valid, response = self.perform_activation(port, portId, activateMode, activateTime)
         if valid:
+            # Check the values in the /staged PATCH response
+
             try:
                 stagedMode = response['activation']['mode']
                 stagedRequested = response['activation']['requested_time']
@@ -164,6 +166,8 @@ class IS05Utils(NMOSUtils):
                 return False, "Expected activation time to match regex ^[0-9]+:[0-9]+$, " \
                               "got {}".format(stagedActivation)
 
+            # For immediate activations, check the values now on /staged
+
             if activateMode == IMMEDIATE_ACTIVATION:
                 validImmediate, responseImmediate = self.check_staged_activation_params_default(port, portId)
                 if not validImmediate:
@@ -173,7 +177,10 @@ class IS05Utils(NMOSUtils):
                 time.sleep(activateSleep)
 
             # Check the values now on /active
-            maxTries = 1 if activateMode == IMMEDIATE_ACTIVATION else 2
+
+            # API and Testing Tool clocks need to be synchronized to test absolute scheduled activations
+            # so allow a couple of retries for scheduled activations and report late activations as a WARNING
+            maxTries = 1 if activateMode == IMMEDIATE_ACTIVATION else 3
             tries = 0
             ready = False
 
@@ -220,7 +227,10 @@ class IS05Utils(NMOSUtils):
                         if activeMode == activateMode and activeRequested == activateTime \
                                 and self.compare_resource_version(activeActivation, stagedActivation) >= 0:
                             if tries > 1:
-                                return True, "(Tries: {})".format(tries)
+                                # True with a message means WARNING!
+                                return True, "Activation entries were set at {} later than expected. " \
+                                             "This could just indicate the API and Testing Tool clocks are " \
+                                             "not synchronized. (Tries: {})".format(activeUrl, tries)
                             else:
                                 return True, ""
                 else:
