@@ -1581,8 +1581,12 @@ class IS0401Test(GenericTest):
                         try:
                             self.validate_schema(receiver, schema)
                         except ValidationError as e:
-                            return test.FAIL("Receiver {} does not comply with BCP-004-01: "
-                                             "{}".format(receiver["id"], str(e)))
+                            return test.FAIL("Receiver {} does not comply with the BCP-004-01 schema: "
+                                             "{}".format(receiver["id"], str(e)),
+                                             "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                             "/docs/1.0._Receiver_Capabilities.html"
+                                             "#validating-parameter-constraints-and-constraint-sets"
+                                             .format(api["spec_branch"]))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
@@ -1593,7 +1597,45 @@ class IS0401Test(GenericTest):
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
                                  "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html"
+                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 .format(api["spec_branch"]))
+        else:
+            return test.PASS()
+
+    def test_27_2(self, test):
+        """Receiver 'caps' version is valid"""
+
+        api = self.apis[RECEIVER_CAPS_KEY]
+
+        receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
+
+        no_receivers = True
+        no_caps_version = True
+        if receivers_valid and receivers_response.status_code == 200:
+            try:
+                for receiver in receivers_response.json():
+                    no_receivers = False
+                    if "version" in receiver["caps"]:
+                        no_caps_version = False
+                        caps_version = receiver["caps"]["version"]
+                        core_version = receiver["version"]
+                        if self.is04_utils.compare_resource_version(caps_version, core_version) > 0:
+                            return test.FAIL("Receiver {} caps version is later than resource version"
+                                             .format(receiver["id"]),
+                                             "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                             "/docs/1.0._Receiver_Capabilities.html#behaviour-receivers"
+                                             .format(api["spec_branch"]))
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the Receiver: {}".format(e))
+
+        if no_receivers:
+            return test.UNCLEAR("No Receivers were found on the Node")
+        elif no_caps_version:
+            return test.OPTIONAL("No Receiver caps versions were found",
+                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "/docs/1.0._Receiver_Capabilities.html#capabilities-version"
                                  .format(api["spec_branch"]))
         else:
             return test.PASS()
