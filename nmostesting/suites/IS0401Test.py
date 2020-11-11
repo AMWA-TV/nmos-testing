@@ -31,6 +31,7 @@ from ..TestHelper import get_default_ip, load_resolved_schema
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
+CAPS_REGISTER_KEY = "caps-register"
 
 
 class IS0401Test(GenericTest):
@@ -1637,6 +1638,44 @@ class IS0401Test(GenericTest):
                                  "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#capabilities-version"
                                  .format(api["spec_branch"]))
+        else:
+            return test.PASS()
+
+    def test_27_3(self, test):
+        """Receiver 'caps' parameter constraints should be listed in the Capabilities register"""
+
+        api = self.apis[RECEIVER_CAPS_KEY]
+        reg_api = self.apis[CAPS_REGISTER_KEY]
+
+        schema = load_resolved_schema(reg_api["spec_path"],
+                                      "../../capabilities/constraint_set.json")
+
+        receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
+
+        no_receivers = True
+        warn_unregistered = ""
+        if receivers_valid and receivers_response.status_code == 200:
+            try:
+                for receiver in receivers_response.json():
+                    no_receivers = False
+                    if "constraint_sets" in receiver["caps"]:
+                        for constraint_set in receiver["caps"]["constraint_sets"]:
+                            for param_constraint in constraint_set:
+                                if param_constraint not in schema["properties"] and not warn_unregistered:
+                                    warn_unregistered = "Receiver {} caps includes an unregistered " \
+                                        "parameter constraint '{}'".format(receiver["id"], param_constraint)
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the Receiver: {}".format(e))
+
+        if no_receivers:
+            return test.UNCLEAR("No Receivers were found on the Node")
+        elif warn_unregistered:
+            return test.WARNING(warn_unregistered,
+                                "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                "/docs/1.0._Receiver_Capabilities.html#defining-parameter-constraints"
+                                .format(api["spec_branch"]))
         else:
             return test.PASS()
 
