@@ -17,6 +17,7 @@
 import time
 import socket
 from requests.compat import json
+from jsonschema import ValidationError
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from copy import deepcopy
@@ -26,7 +27,7 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..TestHelper import get_default_ip
+from ..TestHelper import get_default_ip, load_resolved_schema
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -1566,6 +1567,9 @@ class IS0401Test(GenericTest):
 
         receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
 
+        schema = load_resolved_schema(api["spec_path"],
+                                      "receiver_constraint_sets.json")
+
         no_receivers = True
         no_constraint_sets = True
         if receivers_valid and receivers_response.status_code == 200:
@@ -1574,6 +1578,11 @@ class IS0401Test(GenericTest):
                     no_receivers = False
                     if "constraint_sets" in receiver["caps"]:
                         no_constraint_sets = False
+                        try:
+                            self.validate_schema(receiver, schema)
+                        except ValidationError as e:
+                            return test.FAIL("Receiver {} does not comply with BCP-004-01: "
+                                             "{}".format(receiver["id"], str(e)))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
