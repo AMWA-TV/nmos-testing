@@ -139,6 +139,14 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
+        }, {
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps",
+            "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register",
+            "disable_fields": ["host", "port"]
         }],
         "class": IS0401Test.IS0401Test
     },
@@ -473,8 +481,10 @@ def run_tests(test, endpoints, test_selection=["all"]):
             }
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
                     and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
-                apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
-                apis[api_key]["raml"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
+                spec_api = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]
+                apis[api_key]["name"] = spec_api["name"]
+                if "raml" in spec_api:
+                    apis[api_key]["raml"] = spec_api["raml"]
 
         # Instantiate the test class
         if test == "IS-04-01":

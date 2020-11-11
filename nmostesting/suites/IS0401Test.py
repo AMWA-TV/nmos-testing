@@ -29,6 +29,7 @@ from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip
 
 NODE_API_KEY = "node"
+RECEIVER_CAPS_KEY = "receiver-caps"
 
 
 class IS0401Test(GenericTest):
@@ -1430,7 +1431,8 @@ class IS0401Test(GenericTest):
             return test.PASS()
         else:
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
-                                 "https://amwa-tv.github.io/nmos-grouping/best-practice-natural-grouping.html")
+                                 "https://amwa-tv.github.io/nmos-grouping/branches/master"
+                                 "/best-practice-natural-grouping.html")
 
     def test_24(self, test):
         """Periodic Sources specify a 'grain_rate'"""
@@ -1509,8 +1511,9 @@ class IS0401Test(GenericTest):
                     if "media_types" not in receiver["caps"]:
                         return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types', unless "
                                             "this Receiver can handle any 'media_type'",
-                                            "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/docs/"
-                                            "4.3._Behaviour_-_Nodes.html#all-resources".format(api["spec_branch"]))
+                                            "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                            "/docs/4.3._Behaviour_-_Nodes.html#all-resources"
+                                            .format(api["spec_branch"]))
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                         if receiver["format"] == "urn:x-nmos:format:data" and \
                                receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
@@ -1519,8 +1522,8 @@ class IS0401Test(GenericTest):
                                 return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
                                                     "if the Receiver accepts IS-07 events, unless this Receiver can "
                                                     "handle any 'event_type'",
-                                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}/"
-                                                    "docs/4.3._Behaviour_-_Nodes.html#all-resources"
+                                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                                    "/docs/4.3._Behaviour_-_Nodes.html#all-resources"
                                                     .format(api["spec_branch"]))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
@@ -1555,6 +1558,36 @@ class IS0401Test(GenericTest):
                 return test.FAIL("No Source found for one or more advertised Flows")
 
         return test.UNCLEAR("No Source or Flow resources were found on the Node")
+
+    def test_27_1(self, test):
+        """Node API implements BCP-004-01 Receiver Capabilities"""
+
+        api = self.apis[RECEIVER_CAPS_KEY]
+
+        receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
+
+        no_receivers = True
+        no_constraint_sets = True
+        if receivers_valid and receivers_response.status_code == 200:
+            try:
+                for receiver in receivers_response.json():
+                    no_receivers = False
+                    if "constraint_sets" in receiver["caps"]:
+                        no_constraint_sets = False
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the Receiver: {}".format(e))
+
+        if no_receivers:
+            return test.UNCLEAR("No Receivers were found on the Node")
+        elif no_constraint_sets:
+            return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
+                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "/docs/1.0._Receiver_Capabilities.html"
+                                 .format(api["spec_branch"]))
+        else:
+            return test.PASS()
 
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""

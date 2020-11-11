@@ -91,7 +91,7 @@ class GenericTest(object):
             # List remote branches and check there is a v#.#.x or v#.#-dev
             branches = repo.git.branch('-a')
             spec_branch = None
-            branch_names = [api_data["version"] + ".x", api_data["version"] + "-dev"]
+            branch_names = [api_data["version"] + ".x", api_data["version"] + "-dev", api_data["version"]]
             for branch in branch_names:
                 if "remotes/origin/" + branch in branches:
                     spec_branch = branch
