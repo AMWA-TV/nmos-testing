@@ -1588,6 +1588,19 @@ class IS0401Test(GenericTest):
                                              "/docs/1.0._Receiver_Capabilities.html"
                                              "#validating-parameter-constraints-and-constraint-sets"
                                              .format(api["spec_branch"]))
+                        for constraint_set in receiver["caps"]["constraint_sets"]:
+                            found_param_constraint = False
+                            for param_constraint in constraint_set:
+                                if not param_constraint.startswith("urn:x-nmos:cap:meta:"):
+                                    found_param_constraint = True
+                                    break
+                            if not found_param_constraint:
+                                return test.FAIL("Receiver {} caps includes a constraint set without any "
+                                                 "parameter constraints".format(receiver["id"]),
+                                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                                 "/docs/1.0._Receiver_Capabilities.html"
+                                                 "#constraint-sets"
+                                                 .format(api["spec_branch"]))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
@@ -1660,6 +1673,8 @@ class IS0401Test(GenericTest):
                     no_receivers = False
                     if "constraint_sets" in receiver["caps"]:
                         for constraint_set in receiver["caps"]["constraint_sets"]:
+                            # keys in each constraint set must be either parameter constraints
+                            # or constraint set metadata, both of which are listed in the schema
                             for param_constraint in constraint_set:
                                 if param_constraint not in schema["properties"] and not warn_unregistered:
                                     warn_unregistered = "Receiver {} caps includes an unregistered " \
