@@ -1694,6 +1694,56 @@ class IS0401Test(GenericTest):
         else:
             return test.PASS()
 
+    def test_27_4(self, test):
+        """Node API implements BCP-004-01 Receiver Capabilities constraint set labels"""
+        return self.do_test_constraint_set_meta(test, "label", "human-readable labels")
+
+    def test_27_5(self, test):
+        """Node API implements BCP-004-01 Receiver Capabilities constraint set preferences"""
+        return self.do_test_constraint_set_meta(test, "preference", "preferences")
+
+    def test_27_6(self, test):
+        """Node API implements BCP-004-01 Receiver Capabilities enabled/disabled constraint sets"""
+        return self.do_test_constraint_set_meta(test, "enabled", "enabled/disabled flags")
+
+    def do_test_constraint_set_meta(self, test, meta, description):
+        api = self.apis[RECEIVER_CAPS_KEY]
+
+        receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
+
+        no_receivers = True
+        no_constraint_sets = True
+        no_meta = True
+
+        if receivers_valid and receivers_response.status_code == 200:
+            try:
+                for receiver in receivers_response.json():
+                    no_receivers = False
+                    if "constraint_sets" in receiver["caps"]:
+                        no_constraint_sets = False
+                        for constraint_set in receiver["caps"]["constraint_sets"]:
+                            if "urn:x-nmos:cap:meta:" + meta in constraint_set:
+                                no_meta = False
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the Receiver: {}".format(e))
+
+        if no_receivers:
+            return test.UNCLEAR("No Receivers were found on the Node")
+        elif no_constraint_sets:
+            return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
+                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 .format(api["spec_branch"]))
+        elif no_meta:
+            return test.OPTIONAL("No BCP-004-01 'constraint_sets' have {}".format(description),
+                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "/docs/1.0._Receiver_Capabilities.html#constraint-set-{}"
+                                 .format(api["spec_branch"], meta))
+        else:
+            return test.PASS()
+
     def do_receiver_put(self, test, receiver_id, data):
         """Perform a PUT to the Receiver 'target' resource with the specified data"""
 
