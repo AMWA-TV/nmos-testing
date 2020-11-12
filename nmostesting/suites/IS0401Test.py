@@ -16,11 +16,13 @@
 
 import time
 import socket
+import os
 from requests.compat import json
 from jsonschema import ValidationError
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from copy import deepcopy
+from pathlib import Path
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 
 from .. import Config as CONFIG
@@ -1565,11 +1567,17 @@ class IS0401Test(GenericTest):
         """Node API implements BCP-004-01 Receiver Capabilities"""
 
         api = self.apis[RECEIVER_CAPS_KEY]
+        reg_api = self.apis[CAPS_REGISTER_KEY]
 
         receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
 
-        schema = load_resolved_schema(api["spec_path"],
-                                      "receiver_constraint_sets.json")
+        schema = load_resolved_schema(api["spec_path"], "receiver_constraint_sets.json")
+        # workaround to load the Capabilities register schema as if with load_resolved_schema directly
+        # but with the base_uri of the Receiver Capabilities schemas
+        reg_schema_file = str(Path(os.path.abspath(reg_api["spec_path"])) / "capabilities/constraint_set.json")
+        with open(reg_schema_file, "r") as f:
+            reg_schema_obj = json.load(f)
+        reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
 
         no_receivers = True
         no_constraint_sets = True
@@ -1589,6 +1597,15 @@ class IS0401Test(GenericTest):
                                              "#validating-parameter-constraints-and-constraint-sets"
                                              .format(api["spec_branch"]))
                         for constraint_set in receiver["caps"]["constraint_sets"]:
+                            try:
+                                self.validate_schema(constraint_set, reg_schema)
+                            except ValidationError as e:
+                                return test.FAIL("Receiver {} does not comply with the Capabilities register schema: "
+                                                 "{}".format(receiver["id"], str(e)),
+                                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                                 "/docs/1.0._Receiver_Capabilities.html"
+                                                 "#behaviour-receivers"
+                                                 .format(api["spec_branch"]))
                             found_param_constraint = False
                             for param_constraint in constraint_set:
                                 if not param_constraint.startswith("urn:x-nmos:cap:meta:"):
@@ -1660,8 +1677,10 @@ class IS0401Test(GenericTest):
         api = self.apis[RECEIVER_CAPS_KEY]
         reg_api = self.apis[CAPS_REGISTER_KEY]
 
-        schema = load_resolved_schema(reg_api["spec_path"],
-                                      "../../capabilities/constraint_set.json")
+        # load the Capabilities register schema as JSON as we're only interested in the list of properties
+        reg_schema_file = str(Path(os.path.abspath(reg_api["spec_path"])) / "capabilities/constraint_set.json")
+        with open(reg_schema_file, "r") as f:
+            reg_schema_obj = json.load(f)
 
         receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
 
@@ -1676,7 +1695,7 @@ class IS0401Test(GenericTest):
                             # keys in each constraint set must be either parameter constraints
                             # or constraint set metadata, both of which are listed in the schema
                             for param_constraint in constraint_set:
-                                if param_constraint not in schema["properties"] and not warn_unregistered:
+                                if param_constraint not in reg_schema_obj["properties"] and not warn_unregistered:
                                     warn_unregistered = "Receiver {} caps includes an unregistered " \
                                         "parameter constraint '{}'".format(receiver["id"], param_constraint)
             except json.JSONDecodeError:
@@ -1696,7 +1715,7 @@ class IS0401Test(GenericTest):
 
     def test_27_4(self, test):
         """Node API implements BCP-004-01 Receiver Capabilities constraint set labels"""
-        return self.do_test_constraint_set_meta(test, "label", "human-readable labels")
+        return self.do_test_constraint_set_meta(test, "label", "human-readable labels", warn_not_all=True)
 
     def test_27_5(self, test):
         """Node API implements BCP-004-01 Receiver Capabilities constraint set preferences"""
@@ -1706,7 +1725,7 @@ class IS0401Test(GenericTest):
         """Node API implements BCP-004-01 Receiver Capabilities enabled/disabled constraint sets"""
         return self.do_test_constraint_set_meta(test, "enabled", "enabled/disabled flags")
 
-    def do_test_constraint_set_meta(self, test, meta, description):
+    def do_test_constraint_set_meta(self, test, meta, description, warn_not_all=False):
         api = self.apis[RECEIVER_CAPS_KEY]
 
         receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
@@ -1714,6 +1733,7 @@ class IS0401Test(GenericTest):
         no_receivers = True
         no_constraint_sets = True
         no_meta = True
+        all_meta = True
 
         if receivers_valid and receivers_response.status_code == 200:
             try:
@@ -1724,6 +1744,8 @@ class IS0401Test(GenericTest):
                         for constraint_set in receiver["caps"]["constraint_sets"]:
                             if "urn:x-nmos:cap:meta:" + meta in constraint_set:
                                 no_meta = False
+                            else:
+                                all_meta = False
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
@@ -1741,6 +1763,74 @@ class IS0401Test(GenericTest):
                                  "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#constraint-set-{}"
                                  .format(api["spec_branch"], meta))
+        elif warn_not_all and not all_meta:
+            return test.WARNING("Only some BCP-004-01 'constraint_sets' have {}".format(description),
+                                "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                "/docs/1.0._Receiver_Capabilities.html#constraint-set-{}"
+                                .format(api["spec_branch"], meta))
+        else:
+            return test.PASS()
+
+    def test_27_7(self, test):
+        """Receiver 'caps' parameter constraints should be used with the correct format"""
+
+        # general_constraints = [
+        #     "urn:x-nmos:cap:format:media_type",
+        #     "urn:x-nmos:cap:format:grain_rate"
+        # ]
+        video_specific_constraints = [
+            "urn:x-nmos:cap:format:frame_width",
+            "urn:x-nmos:cap:format:frame_height",
+            "urn:x-nmos:cap:format:interlace_mode",
+            "urn:x-nmos:cap:format:colorspace",
+            "urn:x-nmos:cap:format:transfer_characteristic",
+            "urn:x-nmos:cap:format:color_sampling",
+            "urn:x-nmos:cap:format:component_depth",
+            "urn:x-nmos:cap:transport:st2110_21_sender_type"
+        ]
+        audio_specific_constraints = [
+            "urn:x-nmos:cap:format:channel_count",
+            "urn:x-nmos:cap:format:sample_rate",
+            "urn:x-nmos:cap:format:sample_depth",
+            "urn:x-nmos:cap:transport:packet_time",
+            "urn:x-nmos:cap:transport:max_packet_time"
+        ]
+        data_specific_constraints = [
+            "urn:x-nmos:cap:format:event_type"
+        ]
+        format_specific_constraints = {
+            "urn:x-nmos:format:video": video_specific_constraints,
+            "urn:x-nmos:format:audio": audio_specific_constraints,
+            "urn:x-nmos:format:data": data_specific_constraints,
+            "urn:x-nmos:format:mux": []
+        }
+
+        receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
+
+        no_receivers = True
+        warn_format = ""
+        if receivers_valid and receivers_response.status_code == 200:
+            try:
+                for receiver in receivers_response.json():
+                    no_receivers = False
+                    if "constraint_sets" in receiver["caps"]:
+                        format = receiver["format"]
+                        wrong_constraints = [c for f in format_specific_constraints if f != format
+                                             for c in format_specific_constraints[f]]
+                        for constraint_set in receiver["caps"]["constraint_sets"]:
+                            for param_constraint in constraint_set:
+                                if param_constraint in wrong_constraints and not warn_format:
+                                    warn_format = "Receiver {} caps includes a parameter constraint '{}' " \
+                                        "that is not relevant for {}".format(receiver["id"], param_constraint, format)
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the Receiver: {}".format(e))
+
+        if no_receivers:
+            return test.UNCLEAR("No Receivers were found on the Node")
+        elif warn_format:
+            return test.WARNING(warn_format)
         else:
             return test.PASS()
 
