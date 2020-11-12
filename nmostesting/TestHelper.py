@@ -134,6 +134,20 @@ def compare_json(json1, json2):
     return JsonType.eq(json1, json2)
 
 
+def has_jsonref(json):
+    if isinstance(json, list) or isinstance(json, KeysView):
+        for item in json:
+            if has_jsonref(item):
+                return True
+    elif isinstance(json, dict):
+        if "$ref" in json:
+            return True
+        for key in json:
+            if has_jsonref(json[key]):
+                return True
+    return False
+
+
 def get_default_ip():
     """Get this machine's preferred IPv4 address"""
     if CONFIG.BIND_INTERFACE is None:
@@ -209,7 +223,7 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix
             schema = jsonref.load(f, base_uri=base_uri_path, loader=loader, jsonschema=True)
     elif schema_obj:
         # Work around an exception when there's nothing to resolve using an object
-        if "$ref" in schema_obj:
+        if has_jsonref(schema_obj):
             schema = jsonref.JsonRef.replace_refs(schema_obj, base_uri=base_uri_path, loader=loader, jsonschema=True)
         else:
             schema = schema_obj
