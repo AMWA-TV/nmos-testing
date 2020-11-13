@@ -489,7 +489,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                     apis[api_key]["raml"] = spec_api["raml"]
 
         # extra specs
-        for spec in test_def["extra_specs"]:
+        for spec in test_def["extra_specs"] if "extra_specs" in test_def else []:
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
             apis[api_key] = {
