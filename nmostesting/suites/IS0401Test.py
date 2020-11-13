@@ -1685,12 +1685,14 @@ class IS0401Test(GenericTest):
         receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
 
         no_receivers = True
+        no_constraint_sets = True
         warn_unregistered = ""
         if receivers_valid and receivers_response.status_code == 200:
             try:
                 for receiver in receivers_response.json():
                     no_receivers = False
                     if "constraint_sets" in receiver["caps"]:
+                        no_constraint_sets = False
                         for constraint_set in receiver["caps"]["constraint_sets"]:
                             # keys in each constraint set must be either parameter constraints
                             # or constraint set metadata, both of which are listed in the schema
@@ -1705,6 +1707,11 @@ class IS0401Test(GenericTest):
 
         if no_receivers:
             return test.UNCLEAR("No Receivers were found on the Node")
+        elif no_constraint_sets:
+            return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
+                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 .format(api["spec_branch"]))
         elif warn_unregistered:
             return test.WARNING(warn_unregistered,
                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
@@ -1734,7 +1741,6 @@ class IS0401Test(GenericTest):
         no_constraint_sets = True
         no_meta = True
         all_meta = True
-
         if receivers_valid and receivers_response.status_code == 200:
             try:
                 for receiver in receivers_response.json():
@@ -1805,15 +1811,19 @@ class IS0401Test(GenericTest):
             "urn:x-nmos:format:mux": []
         }
 
+        api = self.apis[RECEIVER_CAPS_KEY]
+
         receivers_valid, receivers_response = self.do_request("GET", self.node_url + "receivers")
 
         no_receivers = True
+        no_constraint_sets = True
         warn_format = ""
         if receivers_valid and receivers_response.status_code == 200:
             try:
                 for receiver in receivers_response.json():
                     no_receivers = False
                     if "constraint_sets" in receiver["caps"]:
+                        no_constraint_sets = False
                         format = receiver["format"]
                         wrong_constraints = [c for f in format_specific_constraints if f != format
                                              for c in format_specific_constraints[f]]
@@ -1829,6 +1839,11 @@ class IS0401Test(GenericTest):
 
         if no_receivers:
             return test.UNCLEAR("No Receivers were found on the Node")
+        elif no_constraint_sets:
+            return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
+                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 .format(api["spec_branch"]))
         elif warn_format:
             return test.WARNING(warn_format)
         else:
