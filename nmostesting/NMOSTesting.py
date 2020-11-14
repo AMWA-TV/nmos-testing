@@ -372,6 +372,7 @@ def index_page():
                     test_def = TEST_DEFINITIONS[test]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
+                        # "disable_fields" is optional, none are disabled by default
                         disable_fields = spec["disable_fields"] if "disable_fields" in spec else []
                         endpoint = {}
                         for field in ["host", "port", "version", "selector"]:
