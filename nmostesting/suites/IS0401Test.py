@@ -1296,6 +1296,50 @@ class IS0401Test(GenericTest):
 
         return test.PASS()
 
+    def test_20_01(self, test):
+        """Sender manifests use the expected Content-Type"""
+
+        valid, response = self.do_request("GET", self.node_url + "senders")
+        if not valid or response.status_code != 200:
+            return test.FAIL("Unexpected response from the Node API: {}".format(response))
+        try:
+            access_error = False
+            content_type_warn = None
+            node_senders = response.json()
+            for sender in node_senders:
+                if not sender["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+
+                href = sender["manifest_href"]
+                if not href:
+                    access_error = True
+                    continue
+
+                valid, response = self.do_request("GET", href)
+                if valid and response.status_code == 200:
+                    valid, message = self.check_content_type(response.headers, "application/sdp")
+                    if not content_type_warn and (not valid or message != ""):
+                        content_type_warn = message
+                elif valid and response.status_code == 404:
+                    access_error = True
+                else:
+                    return test.FAIL("Unexpected response from manifest_href '{}': {}"
+                                     .format(href, response))
+
+            if len(node_senders) == 0:
+                return test.UNCLEAR("Not tested. No resources found.")
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested Senders had null or empty 'manifest_href' or "
+                                    "returned a 404 HTTP code. Please ensure all Senders are enabled and re-test.")
+
+            if content_type_warn:
+                return test.WARNING(content_type_warn)
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+
+        return test.PASS()
+
     def test_21(self, test):
         """Node correctly interprets a 200 code from a registry upon initial registration"""
 
