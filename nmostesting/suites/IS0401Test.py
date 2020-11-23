@@ -836,6 +836,8 @@ class IS0401Test(GenericTest):
                 return test.PASS()
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         return test.UNCLEAR("Node API does not expose any RTP Receivers")
 
@@ -878,6 +880,8 @@ class IS0401Test(GenericTest):
                 return test.PASS()
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         return test.UNCLEAR("Node API does not expose any RTP Receivers")
 
@@ -964,6 +968,8 @@ class IS0401Test(GenericTest):
             uuids.add(response.json()["id"])
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         for resource_type in ["devices", "sources", "flows", "senders", "receivers"]:
             valid, response = self.do_request("GET", self.node_url + resource_type)
@@ -977,6 +983,8 @@ class IS0401Test(GenericTest):
                     uuids.add(resource["id"])
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
 
         return test.PASS()
 
@@ -1000,6 +1008,8 @@ class IS0401Test(GenericTest):
                 }
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         if len(from_devices) == 0:
             return test.UNCLEAR("Node API does not expose any Devices")
@@ -1018,6 +1028,8 @@ class IS0401Test(GenericTest):
                     to_devices[id][resource_type].add(resource["id"])
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
 
         found_empty_refs = False
 
@@ -1069,6 +1081,8 @@ class IS0401Test(GenericTest):
                 clocks.add(clock_name)
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         valid, response = self.do_request("GET", self.node_url + "sources")
         if not valid or response.status_code != 200:
@@ -1080,6 +1094,8 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Source '{}' uses a non-existent clock name '{}'".format(source["id"], clock_name))
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         return test.PASS()
 
@@ -1104,6 +1120,8 @@ class IS0401Test(GenericTest):
                                      .format(interface_name))
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         for binder_type in ["senders", "receivers"]:
             valid, response = self.do_request("GET", self.node_url + binder_type)
@@ -1123,6 +1141,8 @@ class IS0401Test(GenericTest):
                                                      interface_name))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
 
         if len(interfaces) == 0:
             return test.UNCLEAR("Node 'interfaces' is empty")
@@ -1147,6 +1167,8 @@ class IS0401Test(GenericTest):
                     interfaces[interface_name] = interface
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         attached_network_device_warn = False
 
@@ -1164,6 +1186,8 @@ class IS0401Test(GenericTest):
                             attached_network_device_warn = True
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
 
         if len(interfaces) == 0:
             return test.UNCLEAR("Node 'interfaces' is empty")
@@ -1230,6 +1254,8 @@ class IS0401Test(GenericTest):
                         service_href_auth_warn = True
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
             if not found_api_endpoint:
@@ -1258,6 +1284,8 @@ class IS0401Test(GenericTest):
                                 control_href_auth_warn = True
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
 
         valid, response = self.do_request("GET", self.node_url + "senders")
         if not valid or response.status_code != 200:
@@ -1272,6 +1300,8 @@ class IS0401Test(GenericTest):
                     manifest_href_hostname_warn = True
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         if href_hostname_warn:
             return test.WARNING("Node 'href' value has an IP address not a hostname")
@@ -1337,6 +1367,8 @@ class IS0401Test(GenericTest):
                 return test.WARNING(content_type_warn)
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))
 
         return test.PASS()
 
@@ -1397,6 +1429,8 @@ class IS0401Test(GenericTest):
                                         "encountering a 200 code on initial registration")
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
         else:
             return test.FAIL("Unexpected responses from Node API self resource")
 
@@ -1467,6 +1501,8 @@ class IS0401Test(GenericTest):
 
                 except json.JSONDecodeError:
                     return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
 
         if not found_senders_receivers:
             return test.UNCLEAR("No Sender or Receiver resources were found on the Node")
@@ -1493,6 +1529,8 @@ class IS0401Test(GenericTest):
                     return test.PASS()
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
 
         return test.UNCLEAR("No Source resources were found on the Node")
 
