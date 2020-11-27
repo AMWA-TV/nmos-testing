@@ -410,7 +410,11 @@ class IS0402Test(GenericTest):
         Raises an NMOSTestException when there's an error
         """
 
+        api = self.apis[QUERY_API_KEY]
+
         valid, response, query_parameters = paged_response
+
+        explicit_paging = len([qp for qp in query_parameters if qp.startswith("paging.")]) > 0
 
         query_string = "?" + "&".join(query_parameters) if len(query_parameters) != 0 else ""
 
@@ -420,7 +424,7 @@ class IS0402Test(GenericTest):
         elif response.status_code == 501:
             # Many of the paged queries also use basic query parameters, which means that
             # a 501 could indicate lack of support for either basic queries or pagination.
-            # The initial "test_21_1" therefore does not use basic query parameters.
+            # "test_21_1" and "test_21_1_1" therefore do not use basic query parameters.
             raise NMOSTestException(test.OPTIONAL("Query API signalled that it does not support this query: {}. "
                                                   "Query APIs should support pagination for scalability."
                                                   .format(query_string),
@@ -435,6 +439,11 @@ class IS0402Test(GenericTest):
 
         absent_paging_headers = [_ for _ in PAGING_HEADERS if _ not in response.headers]
         if (len(absent_paging_headers) == len(PAGING_HEADERS)):
+            if explicit_paging and self.is04_query_utils.compare_api_version(api["version"], "v1.3") >= 0:
+                raise NMOSTestException(test.FAIL("Query API response did not include any pagination headers. "
+                                                  "Query APIs must return 501 if they do not support pagination. "
+                                                  "Query APIs should support pagination for scalability.",
+                                                  NMOS_WIKI_URL + "/IS-04#registries-pagination"))
             raise NMOSTestException(test.OPTIONAL("Query API response did not include any pagination headers. "
                                                   "Query APIs should support pagination for scalability.",
                                                   NMOS_WIKI_URL + "/IS-04#registries-pagination"))
