@@ -192,7 +192,7 @@ class IS0801Test(GenericTest):
             sourceID = outputInstance.getSourceID()
             for inputInstance in inputList:
                 inputParent = inputInstance.getParent()
-                if sourceID == inputParent:
+                if inputParent['type'] == "source" and sourceID == inputParent['id']:
                     route = {
                         "input": inputInstance,
                         "output": outputInstance
@@ -206,8 +206,9 @@ class IS0801Test(GenericTest):
             try:
                 routableInputs = outputCaps['routable_inputs']
             except KeyError:
-                return test.FAIL(msg)
-            if route['output'].id not in routableInputs:
+                return test.FAIL("Could not find 'routable_inputs' in /caps "
+                                 "for Output {}".format(route['output'].id))
+            if routableInputs is None or route['input'].id in routableInputs:
                 return test.FAIL(msg)
         return test.PASS()
 
@@ -255,12 +256,13 @@ class IS0801Test(GenericTest):
 
         constrainedOutputList = []
         for outputInstance in outputList:
-            constraints = outputInstance.getCaps()
+            outputCaps = outputInstance.getCaps()
             try:
-                routableInputs = constraints['routable_inputs']
+                routableInputs = outputCaps['routable_inputs']
             except KeyError:
-                pass
-            else:
+                return test.FAIL("Could not find 'routable_inputs' in /caps "
+                                 "for Output {}".format(outputInstance.id))
+            if routableInputs is not None:
                 constrainedOutputList.append(
                     {
                         "output": outputInstance,
