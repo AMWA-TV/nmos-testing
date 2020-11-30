@@ -171,8 +171,8 @@ class IS0801Test(GenericTest):
                 )
                 if inputChannelIndex is None or inputChannelName is None:
                     if inputChannelIndex != inputChannelName:
-                        msg = ("Both the channel index and name must be set"
-                               " to `null` when the a channel is not routed")
+                        msg = ("Both the channel index and name must be set "
+                               "to `null` when the a channel is not routed")
                         test.FAIL(msg)
 
         return test.PASS()
@@ -201,8 +201,8 @@ class IS0801Test(GenericTest):
 
         for route in forbiddenRoutes:
             outputCaps = route['output'].getCaps()
-            msg = ("It is possible to create a loop using re-entrant matricies"
-                   " between input {} and output {}".format(route['input'].id, route['output'].id))
+            msg = ("It is possible to create a loop using re-entrant matrices "
+                   "between input {} and output {}".format(route['input'].id, route['output'].id))
             try:
                 routableInputs = outputCaps['routable_inputs']
             except KeyError:
@@ -293,9 +293,9 @@ class IS0801Test(GenericTest):
                     activation.checkReject()
                     return test.PASS()
                 except NMOSTestException:
-                    msg = ("Was able to create a forbidden route between input {}"
-                           " and output {} despite routing constraint."
-                           "".format(forbiddenRoutes[0], outputInstance.id))
+                    msg = ("Was able to create a forbidden route between input {} "
+                           "and output {} despite routing constraint."
+                           .format(forbiddenRoutes[0], outputInstance.id))
                     return test.FAIL(msg)
         return test.NA("Could not test - no route is forbidden.")
 
