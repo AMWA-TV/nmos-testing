@@ -88,6 +88,9 @@ class Active:
         return [Action(None, output.id, None, i) for i in range(0, channels)]
 
     def getRouteBlockActionsForInputOutput(self, input, output, blockNumber=0, reverse=False):
+        if input.id is None:
+            res = self.test.FAIL("Expected routable Input for Output {}, got null".format(output.id))
+            raise NMOSTestException(res)
         channels = len(output.getChannelList())
         block = input.getBlockSize()
         # note, doesn't handle the case where channels is not a multiple of block
@@ -112,6 +115,7 @@ class Active:
                     print(" * Unrouting Output {}".format(output.id))
                     return self.getUnrouteAllActionsForOutput(output)
             # otherwise, route the first block of the first routable input
+            # (if the first one is null, the second shouldn't be)
             routableInput = routableInputs[0] or routableInputs[1]
             input = ACMInput(routableInput)
             print(" * Routing Input {} on Output {}".format(input.id, output.id))
