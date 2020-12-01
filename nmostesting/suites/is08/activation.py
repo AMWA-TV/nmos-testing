@@ -33,6 +33,13 @@ class Activation:
     def addAction(self, action):
         self.actionList.append(action)
 
+    def addActions(self, actions):
+        for action in actions:
+            self.addAction(action)
+
+    def getActions(self):
+        return self.actionList
+
     def _activationObject(self):
         activationObject = {
             "mode": self.type
@@ -67,16 +74,16 @@ class Activation:
         try:
             activationID = list(activationResponse)[0]
         except IndexError:
-            msg = self.test.FAIL("Could not find activation ID in activation response")
-            raise NMOSTestException(msg)
+            res = self.test.FAIL("Could not find activation ID in activation response")
+            raise NMOSTestException(res)
         self._checkActivationID(activationID)
         self.activationID = activationID
 
     def _checkActivationID(self, activationID):
         if re.match("^[a-zA-Z0-9\\-_]+$", activationID) is None:
-            msg = self.test.FAIL("Activation ID {} did not match "
+            res = self.test.FAIL("Activation ID {} did not match "
                                  "required regex".format(activationID))
-            raise NMOSTestException(msg)
+            raise NMOSTestException(res)
 
     def fireActivation(self):
         postObject = self._buildPOSTObject()

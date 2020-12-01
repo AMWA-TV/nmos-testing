@@ -15,9 +15,8 @@
 from .testConfig import globalConfig
 from .inputs import ACMInput
 from .calls import Call
-from .outputs import ACMOutput, getOutputList
+from .outputs import ACMOutput
 from .action import Action
-from .activation import Activation
 from ...GenericTest import NMOSTestException
 
 
@@ -31,71 +30,119 @@ class Active:
         call = Call(self.url)
         return call.get()
 
-    def getInputChannelIndex(self, output, channelIndex):
+    def getOutputMap(self, output):
         activeObject = self.buildJSONObject()
         try:
-            inputID = activeObject['map'][output.id][str(channelIndex)]['channel_index']
+            return activeObject['map'][output.id]
         except KeyError:
-            msg = self.test.FAIL("Could not find 'input' field in /active "
-                                 "for Output {} Channel {}".format(output.id, channelIndex))
-            raise NMOSTestException(msg)
-        return inputID
+            res = self.test.FAIL("Could not find 'map' entry for Output {} in /active"
+                                 .format(output.id))
+            raise NMOSTestException(res)
 
-    def getInputChannelName(self, output, channelIndex):
-        activeObject = self.buildJSONObject()
+    def getInputIDChannelIndex(self, output, outputChannelIndex):
+        outputMap = self.getOutputMap(output)
         try:
-            inputName = activeObject['map'][output.id][str(channelIndex)]['input']
+            outputChannel = outputMap[str(outputChannelIndex)]
+            inputID = outputChannel['input']
+            inputChannelIndex = outputChannel['channel_index']
         except KeyError:
-            msg = self.test.FAIL("Could not find 'input' field in /active "
-                                 "for Output {} Channel {}".format(output.id, channelIndex))
-            raise NMOSTestException(msg)
-        return inputName
+            res = self.test.FAIL("Could not find 'input' or 'channel_index' field in /active "
+                                 "for Output {} channel {}".format(output.id, outputChannelIndex))
+            raise NMOSTestException(res)
+        return inputID, inputChannelIndex
 
-    def getInput(self, output, channelIndex):
-        activeObject = self.buildJSONObject()
-        try:
-            inputChannelID = activeObject['map'][output.id][str(channelIndex)]['input']
-        except KeyError:
-            msg = self.test.FAIL("Could not find 'input' field in /active "
-                                 "for Output {} Channel {}".format(output.id, channelIndex))
-            NMOSTestException(msg)
-        return ACMInput(inputChannelID)
+    def getInput(self, output, outputChannelIndex):
+        inputID, inputChannelIndex = self.getInputIDChannelIndex(output, outputChannelIndex)
+        return ACMInput(inputID)
 
-    def assertActionCompleted(self, action, retries=0):
-        ouputChannelIndex = action.outputChannel
-        output = ACMOutput(action.outputID)
-        inputChannelIndex = self.getInputChannelIndex(output, action.outputChannel)
-        input = self.getInput(output, ouputChannelIndex)
+    def assertActionsCompleted(self, actions):
+        for action in actions:
+            outputChannelIndex = action.outputChannel
+            output = ACMOutput(action.outputID)
+            inputID, inputChannelIndex = self.getInputIDChannelIndex(output, action.outputChannel)
+            input = self.getInput(output, outputChannelIndex)
 
-        failure = True
-        while retries >= 0 and failure:
-            channelFail = action.inputChannel != inputChannelIndex
-            idFail = action.inputID != input.id
-            failure = channelFail or idFail
-            retries = retries - 1
-
-        if idFail:
-            msg = self.test.FAIL("Did not get expected input channel index in active"
-                                 " map, expected {}, got {} for Output {}".format(
+            if action.inputID != input.id:
+                res = self.test.FAIL("Did not get expected input channel index in active "
+                                     "map, expected {}, got {} for Output {} channel {}"
+                                     .format(
                                         action.inputChannel,
                                         inputChannelIndex,
-                                        output.id
-                                    ))
-            raise NMOSTestException(msg)
-        if channelFail:
-            msg = self.test.FAIL("Did not get expected input channel ID in active"
-                                 " map, expected {}, got {} for Output {}".format(
-                                     action.inputID,
-                                     input.id,
-                                     output.id
-                                 ))
-            raise NMOSTestException(msg)
+                                        output.id,
+                                        outputChannelIndex
+                                     ))
+                raise NMOSTestException(res)
+            if action.inputChannel != inputChannelIndex:
+                res = self.test.FAIL("Did not get expected input channel ID in active "
+                                     "map, expected {}, got {} for Output {} channel {}"
+                                     .format(
+                                         action.inputID,
+                                         input.id,
+                                         output.id,
+                                         outputChannelIndex
+                                     ))
+                raise NMOSTestException(res)
 
-    def unrouteAll(self):
-        outputList = getOutputList()
-        activation = Activation()
-        for outputInstance in outputList:
-            for channelID in range(0, len(outputInstance.getChannelList())):
-                action = Action(None, outputInstance.id, None, channelID)
-                activation.addAction(action)
-        activation.fireActivation()
+    def getUnrouteAllActionsForOutput(self, output):
+        channels = len(output.getChannelList())
+        return [Action(None, output.id, None, i) for i in range(0, channels)]
+
+    def getRouteBlockActionsForInputOutput(self, input, output, blockNumber=0, reverse=False):
+        if input.id is None:
+            res = self.test.FAIL("Expected routable Input for Output {}, got null".format(output.id))
+            raise NMOSTestException(res)
+        channels = len(output.getChannelList())
+        block = input.getBlockSize()
+        # note, doesn't handle the case where channels is not a multiple of block
+        offset = blockNumber * block
+        if reverse:
+            return [Action(input.id, output.id, offset + i % block, channels - i - 1) for i in range(0, channels)]
+        else:
+            return [Action(input.id, output.id, offset + i % block, i) for i in range(0, channels)]
+
+    def getAcceptableActionsForOutput(self, output):
+        """Find an acceptable set of actions that would change the Output's active map"""
+
+        activeMap = self.getOutputMap(output)
+
+        routableInputs = output.getRoutableInputList()
+
+        # if unrouted channels are supported
+        if None in routableInputs:
+            # if any are currently routed, then unroute all
+            for outputChannel in activeMap:
+                if activeMap[outputChannel]['input'] is not None:
+                    print(" * Unrouting Output {}".format(output.id))
+                    return self.getUnrouteAllActionsForOutput(output)
+            # otherwise, route the first block of the first routable input
+            # (if the first one is null, the second shouldn't be)
+            routableInput = routableInputs[0] or routableInputs[1]
+            input = ACMInput(routableInput)
+            print(" * Routing Input {} on Output {}".format(input.id, output.id))
+            return self.getRouteBlockActionsForInputOutput(input, output)
+        else:
+            # if there is more than one routable input, route a different one
+            activeInput = activeMap[str(0)]['input']
+            for routableInput in routableInputs:
+                if routableInput != activeInput:
+                    input = ACMInput(routableInput)
+                    print(" * Switching to Input {} on Output {}".format(input.id, output.id))
+                    return self.getRouteBlockActionsForInputOutput(input, output)
+            # otherwise, only a single input to work with...
+            input = ACMInput(activeInput)
+            blockSize = input.getBlockSize()
+            if blockSize < len(input.getChannelList()):
+                # if the input has more than one block, route a different one
+                activeBlock = activeMap[str(0)]['channel_index'] / blockSize
+                print(" * Switching channels of Input {} on Output {}".format(input.id, output.id))
+                return self.getRouteBlockActionsForInputOutput(input, output, blockNumber=0 if activeBlock else 1)
+            elif len(input.getChannelList()) > 1 and input.getReordering():
+                # if the input supports reordering, do so
+                activeChannel = activeMap[str(0)]['channel_index']
+                print(" * Reordering channels of Input {} on Output {}".format(input.id, output.id))
+                return self.getRouteBlockActionsForInputOutput(input, output, reverse=activeChannel == 0)
+            else:
+                res = self.test.UNCLEAR("This test cannot run automatically as the routing constraints "
+                                        "for Output {} are not currently supported by the test suite"
+                                        .format(output.id))
+                raise NMOSTestException(res)

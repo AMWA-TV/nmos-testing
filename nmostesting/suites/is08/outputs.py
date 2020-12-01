@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-from .action import Action
 from .helperTools import getIOList
 from ...GenericTest import NMOSTestException
 from .testConfig import globalConfig
@@ -36,7 +35,7 @@ class ACMOutput:
         self.test = globalConfig.test
 
     def assembleOutputObject(self):
-        """Create JSON representation of an Output"""
+        """Create JSON representation of an output"""
         toReturn = {}
         resourceList = {
             'sourceid': 'source_id',
@@ -57,26 +56,21 @@ class ACMOutput:
         try:
             routableInputs = outputObject['caps']['routable_inputs']
         except KeyError:
-            msg = 'Could not find caps routable_inputs parameter for output {}'.format(self.id)
+            msg = 'Could not find caps routable_inputs parameter for Output {}'.format(self.id)
             raise NMOSTestException(self.test.FAIL(msg))
         if routableInputs is None:
-            inputList = getIOList("input")
-            return inputList
-        else:
-            return routableInputs
+            routableInputs = getIOList("input")
+            routableInputs.append(None)
+        return routableInputs
 
     def getChannelList(self):
         outputObject = self.assembleOutputObject()
         try:
             channelList = outputObject['channels']
         except KeyError:
-            msg = 'Could not find channel list resource for output {}'.format(self.id)
+            msg = 'Could not find channel list resource for Output {}'.format(self.id)
             raise NMOSTestException(self.test.FAIL(msg))
         return channelList
-
-    def findAcceptableTestRoute(self):
-        routableInputs = self.getRoutableInputList()
-        return Action(routableInputs[0], self.id)
 
     def getSourceID(self):
         return self.assembleOutputObject()['source_id']

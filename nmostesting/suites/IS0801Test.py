@@ -75,21 +75,21 @@ class IS0801Test(GenericTest):
         if len(outputList) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
 
-        testRouteAction = outputList[0].findAcceptableTestRoute()
+        active = Active()
+
         activation = Activation()
-        activation.addAction(testRouteAction)
+        for output in outputList:
+            activation.addActions(active.getAcceptableActionsForOutput(output))
         activation.fireActivation()
 
-        activeResource = Active()
-        activeResource.assertActionCompleted(testRouteAction)
+        active.assertActionsCompleted(activation.getActions())
         return test.PASS()
 
     def test_03(self, test):
         """Relative offset activations can be called on the API"""
         globalConfig.test = test
 
-        offset = "2:0"
-        self.check_delayed_activation(offset, SCHEDULED_RELATIVE_ACTIVATION)
+        self.check_delayed_activation(SCHEDULED_RELATIVE_ACTIVATION)
 
         return test.PASS()
 
@@ -97,8 +97,7 @@ class IS0801Test(GenericTest):
         """Absolute offset activations can be called on the API"""
         globalConfig.test = test
 
-        timestamp = IS05Utils.get_TAI_time(offset=2.0)
-        self.check_delayed_activation(timestamp, SCHEDULED_ABSOLUTE_ACTIVATION)
+        self.check_delayed_activation(SCHEDULED_ABSOLUTE_ACTIVATION)
 
         return test.PASS()
 
@@ -106,14 +105,13 @@ class IS0801Test(GenericTest):
         """Activations can be deleted once created"""
         globalConfig.test = test
 
-        Active().unrouteAll()
         outputList = getOutputList()
         if len(outputList) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
+        output = outputList[0]
 
-        testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
-        activation.addAction(testRouteAction)
+        activation.addActions(Active().getAcceptableActionsForOutput(output))
         activation.type = SCHEDULED_RELATIVE_ACTIVATION
         activation.activationTimestamp = "2:0"
         try:
@@ -135,10 +133,10 @@ class IS0801Test(GenericTest):
         outputList = getOutputList()
         if len(outputList) == 0:
             return test.UNCLEAR("Not tested. No resources found.")
+        output = outputList[0]
 
-        testRouteAction = outputList[0].findAcceptableTestRoute()
         activation = Activation()
-        activation.addAction(testRouteAction)
+        activation.addActions(Active().getAcceptableActionsForOutput(output))
         activation.type = SCHEDULED_RELATIVE_ACTIVATION
         activation.activationTimestamp = "5:0"
         activation.fireActivation()
@@ -148,11 +146,11 @@ class IS0801Test(GenericTest):
         return test.PASS()
 
     def test_07(self, test):
-        """Channels in the active resource where no input channel is routed have `null`
-        set as the `input` and `channel_index`"""
+        """Channels in the active resource where no input channel is routed have null
+        set as the 'input' and 'channel_index'"""
         globalConfig.test = test
 
-        activeInstance = Active()
+        active = Active()
 
         outputList = getOutputList()
         if len(outputList) == 0:
@@ -160,20 +158,15 @@ class IS0801Test(GenericTest):
 
         for outputInstance in outputList:
             channelList = outputInstance.getChannelList()
-            for channelID in range(0, len(channelList)):
-                inputChannelIndex = activeInstance.getInputChannelIndex(
+            for channelIndex in range(0, len(channelList)):
+                inputID, inputChannelIndex = active.getInputIDChannelIndex(
                     outputInstance,
-                    channelID
+                    channelIndex
                 )
-                inputChannelName = activeInstance.getInputChannelName(
-                    outputInstance,
-                    channelID
-                )
-                if inputChannelIndex is None or inputChannelName is None:
-                    if inputChannelIndex != inputChannelName:
-                        msg = ("Both the channel index and name must be set "
-                               "to `null` when the a channel is not routed")
-                        test.FAIL(msg)
+                if (inputID is None) != (inputChannelIndex is None):
+                    msg = ("Both the input and channel index must be set "
+                           "to null when a channel is not routed")
+                    test.FAIL(msg)
 
         return test.PASS()
 
@@ -202,7 +195,7 @@ class IS0801Test(GenericTest):
         for route in forbiddenRoutes:
             outputCaps = route['output'].getCaps()
             msg = ("It is possible to create a loop using re-entrant matrices "
-                   "between input {} and output {}".format(route['input'].id, route['output'].id))
+                   "between Input {} and Output {}".format(route['input'].id, route['output'].id))
             try:
                 routableInputs = outputCaps['routable_inputs']
             except KeyError:
@@ -293,15 +286,14 @@ class IS0801Test(GenericTest):
                     activation.checkReject()
                     return test.PASS()
                 except NMOSTestException:
-                    msg = ("Was able to create a forbidden route between input {} "
-                           "and output {} despite routing constraint."
+                    msg = ("Was able to create a forbidden route between Input {} "
+                           "and Output {} despite routing constraint."
                            .format(forbiddenRoutes[0], outputInstance.id))
                     return test.FAIL(msg)
         return test.NA("Could not test - no route is forbidden.")
 
     def test_14(self, test):
-        """It is not possible to re-order channels when re-ordering is
-        set to `false`"""
+        """It is not possible to re-order channels when re-ordering is set to false"""
         globalConfig.test = test
 
         inputList = getInputList()
@@ -395,12 +387,12 @@ class IS0801Test(GenericTest):
 
         chosenInput = constrainedInputs[0]
         output = chosenInput.getRoutableOutputs()
-        action = Action(
-            chosenInput.id,
-            output[0].id
-        )
+        actions = [
+            Action(chosenInput.id, output[0].id, 0, 0),
+            Action(chosenInput.id, output[0].id, 0, 1),
+        ]
         activation = Activation()
-        activation.addAction(action)
+        activation.addActions(actions)
         try:
             activation.fireActivation()
         except NMOSTestException:
@@ -408,34 +400,38 @@ class IS0801Test(GenericTest):
 
         return test.FAIL("Was able to break block size routing constraint")
 
-    def check_delayed_activation(self, activationTime, activationType):
+    def check_delayed_activation(self, activationType):
         active = Active()
-        active.unrouteAll()
         preActivationState = active.buildJSONObject()
 
         outputList = getOutputList()
         if len(outputList) == 0:
-            msg = globalConfig.test.UNCLEAR("Not tested. No resources found.")
-            raise NMOSTestException(msg)
+            res = globalConfig.test.UNCLEAR("Not tested. No resources found.")
+            raise NMOSTestException(res)
+        output = outputList[0]
 
-        testRouteAction = outputList[0].findAcceptableTestRoute()
+        active = Active()
+
         activation = Activation()
-        activation.addAction(testRouteAction)
+        for output in outputList:
+            activation.addActions(active.getAcceptableActionsForOutput(output))
+
         activation.type = activationType
-        activation.activationTimestamp = activationTime
+        if activationType == SCHEDULED_RELATIVE_ACTIVATION:
+            activation.activationTimestamp = "2:0"
+        elif activationType == SCHEDULED_ABSOLUTE_ACTIVATION:
+            activation.activationTimestamp = IS05Utils.get_TAI_time(offset=2.0)
         try:
             activation.fireActivation()
         except NMOSTestException as e:
-            time.sleep(2)
+            time.sleep(3)
             raise e
 
         pendingState = active.buildJSONObject()
         if not compare_json(preActivationState, pendingState):
-            msg = globalConfig.test.FAIL("Scheduled Activation completed immediately")
-            raise NMOSTestException(msg)
+            res = globalConfig.test.FAIL("Scheduled Activation completed immediately")
+            raise NMOSTestException(res)
 
-        time.sleep(2)
+        time.sleep(3)
 
-        active.assertActionCompleted(testRouteAction, retries=5)
-
-        time.sleep(1)
+        active.assertActionsCompleted(activation.getActions())

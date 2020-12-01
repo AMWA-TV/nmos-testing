@@ -60,9 +60,9 @@ class Call:
             statusCode = self._responseObject.status_code
 
             if statusCode != self.expectedCode:
-                msg = (self.test.FAIL("Unexpected response code {} from url {}, expected"
-                       " {}".format(statusCode, self.url, self.expectedCode)))
-                raise NMOSTestException(msg)
+                res = self.test.FAIL("Unexpected response code {} from url {}, expected {}"
+                                     .format(statusCode, self.url, self.expectedCode))
+                raise NMOSTestException(res)
 
     def _checkResponseSchema(self):
         if self.responseSchema is not None:

@@ -18,6 +18,7 @@ from requests.compat import json
 from ..GenericTest import GenericTest, NMOSTestException
 from .is08.testConfig import globalConfig
 from .is08.activation import Activation
+from .is08.active import Active
 from .is08.outputs import getOutputList
 from .is08.inputs import getInputList
 from ..NMOSUtils import NMOSUtils
@@ -54,10 +55,14 @@ class IS0802Test(GenericTest):
         for device in devicesWithAdvertisements:
             versionNumbersBeforeActivation.append(device['version'])
 
-        output = getOutputList()[0]
-        action = output.findAcceptableTestRoute()
+        outputList = getOutputList()
+        if len(outputList) == 0:
+            res = globalConfig.test.UNCLEAR("Not tested. No resources found.")
+            raise NMOSTestException(res)
+        output = outputList[0]
+
         activation = Activation()
-        activation.addAction(action)
+        activation.addActions(Active().getAcceptableActionsForOutput(output))
         activation.fireActivation()
 
         versionIncremented = False
