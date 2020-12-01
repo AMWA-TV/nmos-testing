@@ -65,8 +65,8 @@ class ACMInput:
             return self.getConstraints()['block_size']
         except KeyError:
             raise NMOSTestException(
-                globalConfig.test.FAIL("Could not find `block_size` parameter in"
-                                       " input caps for input {}".format(self.id))
+                globalConfig.test.FAIL("Could not find 'block_size' parameter in "
+                                       "input caps for Input {}".format(self.id))
             )
 
     def getReordering(self):
@@ -74,8 +74,8 @@ class ACMInput:
             return self.getConstraints()['reordering']
         except KeyError:
             raise NMOSTestException(
-                globalConfig.test.FAIL("Could not find `reordering` parameter in"
-                                       " input caps for input {}".format(self.id))
+                globalConfig.test.FAIL("Could not find 'reordering' parameter in "
+                                       "input caps for Input {}".format(self.id))
             )
 
     def getRoutableOutputs(self):

@@ -21,6 +21,14 @@ class Action():
         self.inputChannel = inputChannel
         self.outputChannel = outputChannel
 
+    def __str__(self):
+        output = "{}[{}]".format(self.outputID, self.outputChannel)
+        input = "{}[{}]".format(self.inputID, self.inputChannel) if self.inputID is not None else None
+        return output + " = " + input
+
+    def __repr__(self):
+        return str(self)
+
     def channelJSON(self):
         return {
             self.outputChannel: {
