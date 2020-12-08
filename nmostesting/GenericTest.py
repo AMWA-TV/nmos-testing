@@ -190,6 +190,9 @@ class GenericTest(object):
             scopes = []
             for api in self.apis:
                 scopes.append(api)
+            # Add 'query' permission when mock registry is disabled and existing network registry is used
+            if not CONFIG.ENABLE_DNS_SD and "query" not in scopes:
+                scopes.append("query")
             CONFIG.AUTH_TOKEN = self.generate_token(scopes, True)
         if CONFIG.PREVALIDATE_API:
             for api in self.apis:
