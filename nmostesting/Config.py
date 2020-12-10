@@ -244,6 +244,26 @@ SPECIFICATIONS = {
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {}
+    },
+    "bcp-004-01": {
+        "repo": "nmos-receiver-capabilities",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "receiver-caps": {
+                "name": "Receiver Capabilities"
+            }
+        }
+    },
+    "nmos-parameter-registers": {
+        "repo": "nmos-parameter-registers",
+        "versions": ["capabilities"],
+        "default_version": "capabilities",
+        "apis": {
+            "caps-register": {
+                "name": "Capabilities Register"
+            }
+        }
     }
 }
 

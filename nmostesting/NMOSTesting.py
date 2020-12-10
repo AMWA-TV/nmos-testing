@@ -140,6 +140,13 @@ TEST_DEFINITIONS = {
             "spec_key": "is-04",
             "api_key": "node"
         }],
+        "extra_specs": [{
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register"
+        }],
         "class": IS0401Test.IS0401Test
     },
     "IS-04-02": {
@@ -365,11 +372,15 @@ def index_page():
                     test_def = TEST_DEFINITIONS[test]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
-                        host = request.form.get("endpoints-{}-host".format(index), None)
-                        port = request.form.get("endpoints-{}-port".format(index), None)
-                        version = request.form.get("endpoints-{}-version".format(index), None)
-                        selector = request.form.get("endpoints-{}-selector".format(index), None)
-                        endpoints.append({"host": host, "port": port, "version": version, "selector": selector})
+                        # "disable_fields" is optional, none are disabled by default
+                        disable_fields = spec["disable_fields"] if "disable_fields" in spec else []
+                        endpoint = {}
+                        for field in ["host", "port", "version", "selector"]:
+                            if field not in disable_fields:
+                                endpoint[field] = request.form.get("endpoints-{}-{}".format(index, field), None)
+                            else:
+                                endpoint[field] = None
+                        endpoints.append(endpoint)
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
@@ -473,8 +484,26 @@ def run_tests(test, endpoints, test_selection=["all"]):
             }
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
                     and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
-                apis[api_key]["name"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["name"]
-                apis[api_key]["raml"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["raml"]
+                spec_api = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]
+                apis[api_key]["name"] = spec_api["name"]
+                if "raml" in spec_api:
+                    apis[api_key]["raml"] = spec_api["raml"]
+
+        # extra specs
+        for spec in test_def["extra_specs"] if "extra_specs" in test_def else []:
+            spec_key = spec["spec_key"]
+            api_key = spec["api_key"]
+            apis[api_key] = {
+                "version": CONFIG.SPECIFICATIONS[spec_key]["default_version"],  # For now
+                "spec": None,  # Used inside GenericTest
+                "spec_path": CONFIG.CACHE_PATH + '/' + spec_key
+            }
+            if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
+                    and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+                spec_api = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]
+                apis[api_key]["name"] = spec_api["name"]
+                if "raml" in spec_api:
+                    apis[api_key]["raml"] = spec_api["raml"]
 
         # Instantiate the test class
         if test == "IS-04-01":

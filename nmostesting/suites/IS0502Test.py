@@ -24,7 +24,7 @@ from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
 from .. import Config as CONFIG
 from ..GenericTest import NMOSTestException
-from ..TestHelper import get_default_ip
+from ..TestHelper import compare_json, get_default_ip
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -146,6 +146,11 @@ class IS0502Test(GenericTest):
                         current_ver = is04_resource["version"]
                         transport_type = self.is05_resources["transport_types"][is05_resource]
 
+                        if resource_type == "receivers":
+                            # also check 'caps' version defined by BCP-004-01
+                            current_caps = is04_resource["caps"]
+                            current_caps_ver = current_caps["version"] if "version" in current_caps else None
+
                         method = self.is05_utils.check_perform_immediate_activation
                         valid, response = self.is05_utils.check_activation(resource_type.rstrip("s"), is05_resource,
                                                                            method, transport_type)
@@ -157,12 +162,24 @@ class IS0502Test(GenericTest):
                         valid, response = self.do_request("GET", self.node_url + resource_type + "/" + is05_resource)
                         if not valid:
                             return False, "Node API did not respond as expected: {}".format(response)
+                        new_is04_resource = response.json()
 
-                        new_ver = response.json()["version"]
+                        new_ver = new_is04_resource["version"]
 
                         if self.is05_utils.compare_resource_version(new_ver, current_ver) != 1:
                             return False, "IS-04 resource version did not change when {} {} was activated" \
                                           .format(resource_type.rstrip("s").capitalize(), is05_resource)
+
+                        if resource_type == "receivers" and current_caps_ver:
+                            # the 'caps' version shouldn't change unless something else in 'caps' has changed
+                            # and that shouldn't happen as a result of the activation
+                            new_caps = new_is04_resource["caps"]
+                            new_caps_ver = new_caps["version"]
+                            if self.is05_utils.compare_resource_version(new_caps_ver, current_caps_ver) != 0:
+                                new_caps["version"] = current_caps_ver
+                                if compare_json(new_caps, current_caps):
+                                    return False, "IS-04 caps version changed when {} {} was activated" \
+                                                  .format(resource_type.rstrip("s").capitalize(), is05_resource)
 
                 if not found_04_resource:
                     return False, "Unable to find an IS-04 resource with ID {}".format(is05_resource)
@@ -372,6 +389,8 @@ class IS0502Test(GenericTest):
         valid, response = self.activate_check_version(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
+        elif response:
+            return test.WARNING(response)
         else:
             return test.PASS()
 
@@ -394,6 +413,8 @@ class IS0502Test(GenericTest):
         valid, response = self.activate_check_version(resource_type, resource_subset)
         if not valid:
             return test.FAIL(response)
+        elif response:
+            return test.WARNING(response)
         else:
             return test.PASS()
 
