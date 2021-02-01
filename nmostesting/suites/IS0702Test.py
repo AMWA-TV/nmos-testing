@@ -206,7 +206,7 @@ class IS0702Test(GenericTest):
                     return test.FAIL("Source {} not found in Node API".format(source_id))
             if warn_topic:
                 return test.WARNING(warn_message,
-                                    "https://amwa-tv.github.io/nmos-event-tally/branches/{}"
+                                    "https://specs.amwa.tv/is-07/branches/{}"
                                     "/docs/5.1._Transport_-_MQTT.html#32-broker_topic"
                                     .format(api["spec_branch"]))
             else:
