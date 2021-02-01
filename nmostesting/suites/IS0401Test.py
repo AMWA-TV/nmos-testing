@@ -1516,7 +1516,6 @@ class IS0401Test(GenericTest):
         else:
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
                                  "https://specs.amwa.tv/bcp-002-01/branches/v1.0.x"
-
                                  "/docs/1.0._Natural_Grouping.html")
 
     def test_24(self, test):
