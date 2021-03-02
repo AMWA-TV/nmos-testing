@@ -602,7 +602,7 @@ class GenericTest(object):
                 if not error_header_ok:
                     warning = "'WWW-Authenticate' response header should contain 'error={}'".format(error_type)
 
-            # if node responds with 503 retry GET based on the Retry-After value or maiximum up to 5 sec
+            # if node responds with 503 retry GET based on the Retry-After value or maiximum up to API_PROCESSING_TIMEOUT
             # https://specs.amwa.tv/is-10/branches/v1.0-dev/docs/4.5._Behaviour_-_Resource_Servers.html#public-keys
             if response.status_code == 503:
                 # get retry-after from response
@@ -611,9 +611,9 @@ class GenericTest(object):
                     warning = "'Retry-After' response should include a 'Retry-After' header"
                 else:
                     delay = int(retry_after)
-                    # maximum wait for 5 sec before retry
-                    if delay > 5:
-                        delay = 5
+                    max_delay = CONFIG.API_PROCESSING_TIMEOUT
+                    if delay > max_delay:
+                        delay = max_delay
                     time.sleep(delay)
 
                     # do retry GET
