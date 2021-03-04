@@ -1,0 +1,16 @@
+# Don't change these
+theme: jekyll-theme-primer
+spec_server: specs.amwa.tv
+
+# AMWA ID
+amwa_id: NMOS-TESTING
+
+# GitHub project
+baseurl: /nmos-testing
+
+# Which relase or branch appears in header links and on the home page
+default_tree: branches/master # alternatively e.g. tags/v1.0
+
+# Regex patterns of tags (releases) and branches to show
+show_tags: # jtnm.*
+show_branches: master
