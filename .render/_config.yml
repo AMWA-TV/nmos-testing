@@ -5,12 +5,12 @@ spec_server: specs.amwa.tv
 # AMWA ID
 amwa_id: NMOS-TESTING
 
-# GitHub project
+# Base name for site (typically lower case version of AMWA ID, or the repo name)
 baseurl: /nmos-testing
 
-# Which relase or branch appears in header links and on the home page
-default_tree: branches/master # alternatively e.g. tags/v1.0
+# Which release or branch appears in header links and on the home page
+default_tree: branches/master
 
-# Regex patterns of tags (releases) and branches to show
-show_tags:
-show_branches: master
+# Regex patterns of releases and branches to show
+show_releases:
+show_branches: ^master$|^publish-
