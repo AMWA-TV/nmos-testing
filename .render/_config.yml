@@ -12,5 +12,5 @@ baseurl: /nmos-testing
 default_tree: branches/master # alternatively e.g. tags/v1.0
 
 # Regex patterns of tags (releases) and branches to show
-show_tags: # jtnm.*
+show_tags:
 show_branches: master
