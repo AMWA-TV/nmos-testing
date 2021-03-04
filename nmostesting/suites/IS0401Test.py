@@ -525,7 +525,7 @@ class IS0401Test(GenericTest):
                                                  preceding_type + "_id", rdata[preceding_type + "_id"])
             if preceding_warn:
                 return test.WARNING(preceding_warn,
-                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                    "https://specs.amwa.tv/is-04/branches/{}"
                                     "/docs/4.1._Behaviour_-_Registration.html#referential-integrity"
                                     .format(api["spec_branch"]))
             elif found_resource:
@@ -580,13 +580,13 @@ class IS0401Test(GenericTest):
             # Ensure the heartbeat request body is empty
             if heartbeat[1]["payload"] is not bytes():
                 return test.WARNING("Heartbeat POST contained a payload body.",
-                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                    "https://specs.amwa.tv/is-04/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
 
             if "Content-Type" in heartbeat[1]["headers"]:
                 return test.WARNING("Heartbeat POST contained a Content-Type header.",
-                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                    "https://specs.amwa.tv/is-04/branches/{}"
                                     "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                     .format(api["spec_branch"]))
 
@@ -596,7 +596,7 @@ class IS0401Test(GenericTest):
                     # The NMOS spec currently says Content-Length: 0 is OPTIONAL, but it is RECOMMENDED in RFC 7230
                     # and omitting it causes problems for commonly deployed HTTP servers
                     return test.WARNING("Heartbeat POST did not contain a valid Content-Length header.",
-                                        "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                        "https://specs.amwa.tv/is-04/branches/{}"
                                         "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
                                         .format(api["spec_branch"]))
             else:
@@ -1515,8 +1515,8 @@ class IS0401Test(GenericTest):
             return test.PASS()
         else:
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
-                                 "https://amwa-tv.github.io/nmos-grouping/branches/master"
-                                 "/best-practice-natural-grouping.html")
+                                 "https://specs.amwa.tv/bcp-002-01/branches/v1.0.x"
+                                 "/docs/1.0._Natural_Grouping.html")
 
     def test_24(self, test):
         """Periodic Sources specify a 'grain_rate'"""
@@ -1597,7 +1597,7 @@ class IS0401Test(GenericTest):
                     if "media_types" not in receiver["caps"]:
                         return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types', unless "
                                             "this Receiver can handle any 'media_type'",
-                                            "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                            "https://specs.amwa.tv/is-04/branches/{}"
                                             "/docs/4.3._Behaviour_-_Nodes.html#all-resources"
                                             .format(api["spec_branch"]))
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
@@ -1608,7 +1608,7 @@ class IS0401Test(GenericTest):
                                 return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
                                                     "if the Receiver accepts IS-07 events, unless this Receiver can "
                                                     "handle any 'event_type'",
-                                                    "https://amwa-tv.github.io/nmos-discovery-registration/branches/{}"
+                                                    "https://specs.amwa.tv/is-04/branches/{}"
                                                     "/docs/4.3._Behaviour_-_Nodes.html#all-resources"
                                                     .format(api["spec_branch"]))
             except json.JSONDecodeError:
@@ -1674,7 +1674,7 @@ class IS0401Test(GenericTest):
                         except ValidationError as e:
                             return test.FAIL("Receiver {} does not comply with the BCP-004-01 schema: "
                                              "{}".format(receiver["id"], str(e)),
-                                             "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                             "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                              "/docs/1.0._Receiver_Capabilities.html"
                                              "#validating-parameter-constraints-and-constraint-sets"
                                              .format(api["spec_branch"]))
@@ -1684,7 +1684,7 @@ class IS0401Test(GenericTest):
                             except ValidationError as e:
                                 return test.FAIL("Receiver {} does not comply with the Capabilities register schema: "
                                                  "{}".format(receiver["id"], str(e)),
-                                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                                  "/docs/1.0._Receiver_Capabilities.html"
                                                  "#behaviour-receivers"
                                                  .format(api["spec_branch"]))
@@ -1696,7 +1696,7 @@ class IS0401Test(GenericTest):
                             if not found_param_constraint:
                                 return test.FAIL("Receiver {} caps includes a constraint set without any "
                                                  "parameter constraints".format(receiver["id"]),
-                                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                                  "/docs/1.0._Receiver_Capabilities.html"
                                                  "#constraint-sets"
                                                  .format(api["spec_branch"]))
@@ -1709,7 +1709,7 @@ class IS0401Test(GenericTest):
             return test.UNCLEAR("No Receivers were found on the Node")
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
-                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         else:
@@ -1735,7 +1735,7 @@ class IS0401Test(GenericTest):
                         if self.is04_utils.compare_resource_version(caps_version, core_version) > 0:
                             return test.FAIL("Receiver {} caps version is later than resource version"
                                              .format(receiver["id"]),
-                                             "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                             "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                              "/docs/1.0._Receiver_Capabilities.html#behaviour-receivers"
                                              .format(api["spec_branch"]))
             except json.JSONDecodeError:
@@ -1747,7 +1747,7 @@ class IS0401Test(GenericTest):
             return test.UNCLEAR("No Receivers were found on the Node")
         elif no_caps_version:
             return test.OPTIONAL("No Receiver caps versions were found",
-                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#capabilities-version"
                                  .format(api["spec_branch"]))
         else:
@@ -1791,12 +1791,12 @@ class IS0401Test(GenericTest):
             return test.UNCLEAR("No Receivers were found on the Node")
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
-                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         elif warn_unregistered:
             return test.WARNING(warn_unregistered,
-                                "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                 "/docs/1.0._Receiver_Capabilities.html#defining-parameter-constraints"
                                 .format(api["spec_branch"]))
         else:
@@ -1843,17 +1843,17 @@ class IS0401Test(GenericTest):
             return test.UNCLEAR("No Receivers were found on the Node")
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
-                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         elif no_meta:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' have {}".format(description),
-                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#constraint-set-{}"
                                  .format(api["spec_branch"], meta))
         elif warn_not_all and not all_meta:
             return test.WARNING("Only some BCP-004-01 'constraint_sets' have {}".format(description),
-                                "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                 "/docs/1.0._Receiver_Capabilities.html#constraint-set-{}"
                                 .format(api["spec_branch"], meta))
         else:
@@ -1923,7 +1923,7 @@ class IS0401Test(GenericTest):
             return test.UNCLEAR("No Receivers were found on the Node")
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
-                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         elif warn_format:
@@ -1966,7 +1966,7 @@ class IS0401Test(GenericTest):
             return test.UNCLEAR("No Receivers were found on the Node")
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
-                                 "https://amwa-tv.github.io/nmos-receiver-capabilities/branches/{}"
+                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         else:
