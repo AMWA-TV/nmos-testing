@@ -13,6 +13,7 @@ RUN apt-get update \
     gcc openssl libssl-dev wget ca-certificates avahi-daemon avahi-utils libnss-mdns libavahi-compat-libdnssd-dev \
     python3 python3-pip python3-dev nodejs \
     procps ldnsutils libidn11 git coreutils curl bsdmainutils \
+    && pip3 install --upgrade pip \
     && pip3 install setuptools wheel \
     && pip3 install -r requirements.txt \
     && mkdir -p /config \
