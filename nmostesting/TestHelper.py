@@ -264,16 +264,16 @@ class WebsocketWorker(threading.Thread):
     def run(self):
         self.ws.run_forever(sslopt={"ca_certs": CONFIG.CERT_TRUST_ROOT_CA})
 
-    def on_open(self):
+    def on_open(self, ws):
         self.connected = True
 
-    def on_message(self, message):
+    def on_message(self, ws, message):
         self.messages.append(message)
 
-    def on_close(self):
+    def on_close(self, ws):
         self.connected = False
 
-    def on_error(self, error):
+    def on_error(self, ws, error):
         self.error_occurred = True
         self.error_message = error
         self.connected = False
