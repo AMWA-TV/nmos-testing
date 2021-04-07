@@ -1,0 +1,21 @@
+name: Deploy
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+        - main
+        - master
+        - deploy-action
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Docker build and deploy
+        run: make -C .deploy
+        env:
+            DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+            DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
