@@ -257,8 +257,8 @@ SPECIFICATIONS = {
     },
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
-        "versions": ["capabilities"],
-        "default_version": "capabilities",
+        "versions": ["main"],
+        "default_version": "main",
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
