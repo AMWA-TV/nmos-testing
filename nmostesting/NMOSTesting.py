@@ -76,6 +76,7 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import BCP00301Test
+from .suites import Heather
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -276,7 +277,15 @@ TEST_DEFINITIONS = {
             "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
-    }
+    },
+        "Heather": {
+        "name": "Heather testing",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": Heather.HeatherTest
+    },
 }
 
 
@@ -512,6 +521,9 @@ def run_tests(test, endpoints, test_selection=["all"]):
         elif test == "IS-09-02":
             # This test has an unusual constructor as it requires a system api instance
             test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
+        elif test == "Heather":
+            # This test is temporary
+            test_obj = test_def["class"](apis, REGISTRIES, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)
 
