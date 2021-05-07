@@ -76,6 +76,7 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import BCP00301Test
+from .suites import JTNMTest
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -276,6 +277,14 @@ TEST_DEFINITIONS = {
             "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
+    },
+    "JT-NM-Tested": {
+        "name": "JT-NM Tested Client Tests",
+        "specs": [{
+            "spec_key": "jt-nm-tested",
+            "api_key": "client-testing"
+        }],
+        "class": JTNMTest.JTNMTest
     }
 }
 
