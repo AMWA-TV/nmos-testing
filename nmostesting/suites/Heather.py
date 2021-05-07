@@ -2,6 +2,7 @@ import time
 import json
 import socket
 import requests
+import inspect
 from time import sleep
 from urllib.parse import parse_qs
 from OpenSSL import crypto
@@ -13,6 +14,7 @@ from .. import Config as CONFIG
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
 from ..TestHelper import get_default_ip, load_resolved_schema
+from ..TestResult import Test
 
 NODE_API_KEY = "node"
 
@@ -39,6 +41,8 @@ class HeatherTest(GenericTest):
         self.zc = None
         self.zc_listener = None
         self.is04_utils = IS04Utils(self.node_url)
+        self.registry_location = ''
+        self.test_list = {}
 
     def set_up_tests(self):
         print('Setting up tests')
@@ -82,6 +86,7 @@ class HeatherTest(GenericTest):
             registry.reset()
 
         self.primary_registry.enable()
+        self.registry_location = get_default_ip() + ':' + str(self.primary_registry.get_data().port)
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
@@ -139,6 +144,67 @@ class HeatherTest(GenericTest):
             self.zc = None
         if self.dns_server:
             self.dns_server.reset()
+
+        self.registry_location = ''
+        self.test_list = {}
+    
+    def run_tests(self, test_name=["all"]):
+        """
+        Perform tests and return the results as a list
+        Overriding GenericTest run_tests to stop after set up since this test suite is user-driven
+        """
+        # Set up
+        test = Test("Test setup", "set_up_tests")
+        CONFIG.AUTH_TOKEN = None
+        if self.authorization:
+            # We write to config here as this needs to be available outside this class
+            scopes = []
+            for api in self.apis:
+                scopes.append(api)
+            # Add 'query' permission when mock registry is disabled and existing network registry is used
+            if not CONFIG.ENABLE_DNS_SD and "query" not in scopes:
+                scopes.append("query")
+            CONFIG.AUTH_TOKEN = self.generate_token(scopes, True)
+        if CONFIG.PREVALIDATE_API:
+            for api in self.apis:
+                if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
+                    continue
+                valid, response = self.do_request("GET", self.apis[api]["url"])
+                if not valid:
+                    raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
+                elif response.status_code != 200:
+                    raise NMOSInitException("No API found or unexpected error at {} ({})".format(self.apis[api]["url"],
+                                                                                                 response.status_code))
+
+        self.set_up_tests()
+        self.result.append(test.NA(""))
+
+        # Run tests
+        self.execute_tests(test_name)
+        # TODO move return_results to somewhere else, triggered by user completing tests
+        self.return_results()
+        return self.result
+
+    def return_results(self):
+        """
+        Tear down section from GenericTest run_tests to be called once the user has completed the tests
+        """
+        # Tear down
+        test = Test("Test teardown", "tear_down_tests")
+        self.tear_down_tests()
+        self.result.append(test.NA(""))
+
+        return self.result
+
+    def execute_tests(self, test_names):
+        """
+        Overriding GenericTest execute tests to not auto run all of the tests.
+        Produces dict of test names and descriptions
+        """        
+        for test in test_names:
+            method = getattr(self, test)
+            if callable(method):
+                self.test_list[test] = inspect.getdoc(method)
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
