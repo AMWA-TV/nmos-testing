@@ -16,8 +16,33 @@ from ..MdnsListener import MdnsListener
 from ..TestHelper import get_default_ip, load_resolved_schema
 from ..TestResult import Test
 
+from flask import Flask, render_template, make_response, abort, Blueprint, flash, request
+import random
+
 NODE_API_KEY = "node"
 
+CACHEBUSTER = random.randint(1, 10000)
+app = Flask(__name__)
+TEST_API = Blueprint('test_api', __name__)
+TESTS_COMPLETE = False
+TESTS_CANCELLED = False
+
+@TEST_API.route('/testing', methods=['GET', 'POST'])
+def index():
+    global TESTS_COMPLETE, TESTS_CANCELLED
+    if request.method == 'POST':
+        if 'Cancel' in request.form:
+            TESTS_CANCELLED = True
+            flash("Tests were cancelled")
+            print('Tests cancelled')
+        elif 'Finish' in request.form:
+            TESTS_COMPLETE = True
+            flash("Tests were completed")
+            print("Tests completed")
+
+    r = make_response(render_template("controller.html", cachebuster=CACHEBUSTER))
+    r.headers['Cache-Control'] = 'no-cache, no-store'
+    return r
 
 class HeatherTest(GenericTest):
     """
@@ -129,6 +154,9 @@ class HeatherTest(GenericTest):
         # if CONFIG.DNS_SD_MODE == "multicast":
         #     for info in registry_mdns:
         #         self.zc.unregister_service(info)
+        global TESTS_COMPLETE, TESTS_CANCELLED
+        TESTS_CANCELLED = False
+        TESTS_COMPLETE = False
 
         for index, registry in enumerate(self.registries):
             registry.disable()
@@ -154,6 +182,8 @@ class HeatherTest(GenericTest):
         Overriding GenericTest run_tests to stop after set up since this test suite is user-driven
         """
         # Set up
+        global TESTS_COMPLETE, TESTS_CANCELLED
+        print('Running')
         test = Test("Test setup", "set_up_tests")
         CONFIG.AUTH_TOKEN = None
         if self.authorization:
@@ -181,6 +211,11 @@ class HeatherTest(GenericTest):
 
         # Run tests
         self.execute_tests(test_name)
+
+        while not TESTS_CANCELLED and not TESTS_COMPLETE:
+            print('waiting')
+            time.sleep(20)
+
         # TODO move return_results to somewhere else, triggered by user completing tests
         self.return_results()
         return self.result

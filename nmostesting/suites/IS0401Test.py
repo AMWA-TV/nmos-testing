@@ -137,7 +137,7 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             registry_mdns = []
-            priority = 0
+            priority = 100
 
             # Add advertisement with invalid version
             info = self._registry_mdns_info(self.invalid_registry.get_data().port, priority, "v9.0")
