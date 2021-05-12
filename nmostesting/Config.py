@@ -264,6 +264,16 @@ SPECIFICATIONS = {
                 "name": "Capabilities Register"
             }
         }
+    },
+    "jt-nm-tested": {
+        "repo": None,
+        "versions": [],
+        "default_version": "v1.0",
+        "apis": {
+            "client-testing": {
+                "name": "Client Testing Façade"
+            }
+        }
     }
 }
 

@@ -19,7 +19,7 @@ from ..TestResult import Test
 from flask import Flask, render_template, make_response, abort, Blueprint, flash, request, Response
 import random
 
-NODE_API_KEY = "node"
+JTNM_API_KEY = "client-testing"
 
 CACHEBUSTER = random.randint(1, 10000)
 app = Flask(__name__)
@@ -50,22 +50,24 @@ def test_selection():
     """
     API endpoint to pass list of selected tests to jtnm test UI
     """
-    base_data = HeatherTest.get_test_list()
+    base_data = JTNMTest.get_test_list()
     return Response(json.dumps(base_data), mimetype='application/json')
 
-class HeatherTest(GenericTest):
+class JTNMTest(GenericTest):
     """
     Testing initial set up of new test suite for controller testing
     """
     test_list = {}
     
     def __init__(self, apis, registries, dns_server):
-        print('init-ing')
+        # JRT: overwrite the spec_path parameter to prevent GenericTest from attempting to download RAML from repo
+        apis["client-testing"]["spec_path"] = None
         GenericTest.__init__(self, apis)
+        self.authorization = False  # System API doesn't use auth, so don't send tokens in every request
         self.primary_registry = registries[1]
         self.registries = registries[1:]
         self.dns_server = dns_server
-        self.node_url = self.apis[NODE_API_KEY]["url"]
+        self.jtnm_url = self.apis[JTNM_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
         self.registry_primary_data = None
@@ -76,7 +78,7 @@ class HeatherTest(GenericTest):
         }
         self.zc = None
         self.zc_listener = None
-        self.is04_utils = IS04Utils(self.node_url)
+        self.is04_utils = IS04Utils(self.jtnm_url)
         self.registry_location = ''
 
     @classmethod
@@ -88,7 +90,7 @@ class HeatherTest(GenericTest):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[NODE_API_KEY]["version"], self.protocol, self.authorization,
+            self.dns_server.load_zone(self.apis[JTNM_API_KEY]["version"], self.protocol, self.authorization,
                                       "test_data/IS0401/dns_records.zone", CONFIG.PORT_BASE+100)
             print(" * Waiting for up to {} seconds for a DNS query before executing tests"
                   .format(CONFIG.DNS_SD_ADVERT_TIMEOUT))
@@ -128,39 +130,17 @@ class HeatherTest(GenericTest):
         self.registry_location = get_default_ip() + ':' + str(self.primary_registry.get_data().port)
 
         if CONFIG.DNS_SD_MODE == "multicast":
-            # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
-            if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
-                self.zc.register_service(registry_mdns[0])
-                self.zc.register_service(registry_mdns[1])
+            self.zc.register_service(registry_mdns[0])
+            self.zc.register_service(registry_mdns[1])
             self.zc.register_service(registry_mdns[2])
 
-        # Wait for n seconds after advertising the service for the first POST from a Node
-        start_time = time.time()
-        while time.time() < start_time + CONFIG.DNS_SD_ADVERT_TIMEOUT:
-            if self.primary_registry.has_registrations():
-                break
-            time.sleep(0.2)
+        # Once registered, advertise all other registries at different (ascending) priorities
+        for index, registry in enumerate(self.registries[1:]):
+            registry.enable()
 
-        # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.primary_registry.last_time) < CONFIG.HEARTBEAT_INTERVAL + 1:
-            time.sleep(0.2)
-
-        # Collect matching resources from the Node
-        self.do_node_basics_prereqs()
-
-        # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.primary_registry.get_data().heartbeats) > 0:
-            # It is heartbeating, but we don't have enough of them yet
-            while len(self.primary_registry.get_data().heartbeats) < 2:
-                time.sleep(0.2)
-
-            # Once registered, advertise all other registries at different (ascending) priorities
-            for index, registry in enumerate(self.registries[1:]):
-                registry.enable()
-
-            if CONFIG.DNS_SD_MODE == "multicast":
-                for info in registry_mdns[3:]:
-                    self.zc.register_service(info)
+        if CONFIG.DNS_SD_MODE == "multicast":
+            for info in registry_mdns[3:]:
+                self.zc.register_service(info)
 
     def tear_down_tests(self):
         print('Tearing down tests')
@@ -188,7 +168,7 @@ class HeatherTest(GenericTest):
             self.dns_server.reset()
 
         self.registry_location = ''
-        HeatherTest.test_list = {}
+        JTNMTest.test_list = {}
     
     def run_tests(self, test_name=["all"]):
         """
@@ -253,12 +233,12 @@ class HeatherTest(GenericTest):
         for test in test_names:
             method = getattr(self, test)
             if callable(method):
-                HeatherTest.test_list[test] = inspect.getdoc(method)
+                JTNMTest.test_list[test] = inspect.getdoc(method)
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         if api_ver is None:
-            api_ver = self.apis[NODE_API_KEY]["version"]
+            api_ver = self.apis[JTNM_API_KEY]["version"]
         if api_proto is None:
             api_proto = self.protocol
         if api_auth is None:
@@ -273,26 +253,13 @@ class HeatherTest(GenericTest):
         # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': str(api_auth).lower()}
 
-        service_type = "_nmos-registration._tcp.local."
-        if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
-            service_type = "_nmos-register._tcp.local."
+        service_type = "_nmos-register._tcp.local."
 
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
                            addresses=[socket.inet_aton(ip)], port=port,
                            properties=txt, server=hostname)
         return info
-
-    def do_node_basics_prereqs(self):
-        """Collect a copy of each of the Node's resources"""
-        for resource in self.node_basics_data:
-            url = "{}{}".format(self.node_url, resource)
-            valid, r = self.do_request("GET", url)
-            if valid and r.status_code == 200:
-                try:
-                    self.node_basics_data[resource] = r.json()
-                except Exception:
-                    pass
     
     def do_registry_basics_prereqs(self):
         """Advertise a registry and collect data from any Nodes which discover it"""
@@ -321,39 +288,17 @@ class HeatherTest(GenericTest):
         self.primary_registry.enable()
 
         if CONFIG.DNS_SD_MODE == "multicast":
-            # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
-            if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
-                self.zc.register_service(registry_mdns[0])
-                self.zc.register_service(registry_mdns[1])
+            self.zc.register_service(registry_mdns[0])
+            self.zc.register_service(registry_mdns[1])
             self.zc.register_service(registry_mdns[2])
 
-        # Wait for n seconds after advertising the service for the first POST from a Node
-        start_time = time.time()
-        while time.time() < start_time + CONFIG.DNS_SD_ADVERT_TIMEOUT:
-            if self.primary_registry.has_registrations():
-                break
-            time.sleep(0.2)
+        # Once registered, advertise all other registries at different (ascending) priorities
+        for index, registry in enumerate(self.registries[1:]):
+            registry.enable()
 
-        # Wait until we're sure the Node has registered everything it intends to, and we've had at least one heartbeat
-        while (time.time() - self.primary_registry.last_time) < CONFIG.HEARTBEAT_INTERVAL + 1:
-            time.sleep(0.2)
-
-        # Collect matching resources from the Node
-        self.do_node_basics_prereqs()
-
-        # Ensure we have two heartbeats from the Node, assuming any are arriving (for test_05)
-        if len(self.primary_registry.get_data().heartbeats) > 0:
-            # It is heartbeating, but we don't have enough of them yet
-            while len(self.primary_registry.get_data().heartbeats) < 2:
-                time.sleep(0.2)
-
-            # Once registered, advertise all other registries at different (ascending) priorities
-            for index, registry in enumerate(self.registries[1:]):
-                registry.enable()
-
-            if CONFIG.DNS_SD_MODE == "multicast":
-                for info in registry_mdns[3:]:
-                    self.zc.register_service(info)
+        if CONFIG.DNS_SD_MODE == "multicast":
+            for info in registry_mdns[3:]:
+                self.zc.register_service(info)
 
     def test_01(self, test):
         """

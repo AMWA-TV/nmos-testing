@@ -76,7 +76,7 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import BCP00301Test
-from .suites import Heather
+from .suites import JTNMTest
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -92,7 +92,7 @@ core_app.config['TEST_ACTIVE'] = False
 core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
-core_app.register_blueprint(Heather.TEST_API)
+core_app.register_blueprint(JTNMTest.TEST_API)
 FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
@@ -279,13 +279,13 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP00301Test.BCP00301Test
     },
-        "Heather": {
-        "name": "Heather testing",
+    "JT-NM-Tested": {
+        "name": "JT-NM Client Tests",
         "specs": [{
-            "spec_key": "is-04",
-            "api_key": "node"
+            "spec_key": "jt-nm-tested",
+            "api_key": "client-testing"
         }],
-        "class": Heather.HeatherTest
+        "class": JTNMTest.JTNMTest
     },
 }
 
@@ -522,8 +522,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
         elif test == "IS-09-02":
             # This test has an unusual constructor as it requires a system api instance
             test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
-        elif test == "Heather":
-            # This test is temporary
+        elif test == "JT-NM-Tested":
+            # This test has an unusual constructor as it requires a registry instance
             test_obj = test_def["class"](apis, REGISTRIES, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)
