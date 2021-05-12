@@ -16,7 +16,7 @@ from ..MdnsListener import MdnsListener
 from ..TestHelper import get_default_ip, load_resolved_schema
 from ..TestResult import Test
 
-from flask import Flask, render_template, make_response, abort, Blueprint, flash, request
+from flask import Flask, render_template, make_response, abort, Blueprint, flash, request, Response
 import random
 
 NODE_API_KEY = "node"
@@ -27,27 +27,38 @@ TEST_API = Blueprint('test_api', __name__)
 TESTS_COMPLETE = False
 TESTS_CANCELLED = False
 
-@TEST_API.route('/testing', methods=['GET', 'POST'])
+@TEST_API.route('/testing', methods=['POST'])
 def index():
+    """
+    Testing cancel/complete buttons to end test suite execution
+    """
     global TESTS_COMPLETE, TESTS_CANCELLED
-    if request.method == 'POST':
-        if 'Cancel' in request.form:
-            TESTS_CANCELLED = True
-            flash("Tests were cancelled")
-            print('Tests cancelled')
-        elif 'Finish' in request.form:
-            TESTS_COMPLETE = True
-            flash("Tests were completed")
-            print("Tests completed")
 
-    r = make_response(render_template("controller.html", cachebuster=CACHEBUSTER))
-    r.headers['Cache-Control'] = 'no-cache, no-store'
-    return r
+    form = request.form.to_dict()
+    if 'button_type' in form:
+        if form['button_type'] == 'Cancel':
+            TESTS_CANCELLED = True
+            print('Tests cancelled')
+            return 'Tests cancelled'
+        elif form['button_type'] == 'Finish':
+            TESTS_COMPLETE = True
+            print("Tests completed")
+            return 'Tests completed'
+
+@TEST_API.route('/test_selection', methods=['GET'])
+def test_selection():
+    """
+    API endpoint to pass list of selected tests to jtnm test UI
+    """
+    base_data = HeatherTest.get_test_list()
+    return Response(json.dumps(base_data), mimetype='application/json')
 
 class HeatherTest(GenericTest):
     """
     Testing initial set up of new test suite for controller testing
     """
+    test_list = {}
+    
     def __init__(self, apis, registries, dns_server):
         print('init-ing')
         GenericTest.__init__(self, apis)
@@ -67,7 +78,10 @@ class HeatherTest(GenericTest):
         self.zc_listener = None
         self.is04_utils = IS04Utils(self.node_url)
         self.registry_location = ''
-        self.test_list = {}
+
+    @classmethod
+    def get_test_list(cls):
+        return cls.test_list
 
     def set_up_tests(self):
         print('Setting up tests')
@@ -174,7 +188,7 @@ class HeatherTest(GenericTest):
             self.dns_server.reset()
 
         self.registry_location = ''
-        self.test_list = {}
+        HeatherTest.test_list = {}
     
     def run_tests(self, test_name=["all"]):
         """
@@ -239,7 +253,7 @@ class HeatherTest(GenericTest):
         for test in test_names:
             method = getattr(self, test)
             if callable(method):
-                self.test_list[test] = inspect.getdoc(method)
+                HeatherTest.test_list[test] = inspect.getdoc(method)
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""

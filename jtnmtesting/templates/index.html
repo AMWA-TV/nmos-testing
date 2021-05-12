@@ -5,8 +5,23 @@
     <title>NMOS Controller Tests</title>
     <link rel="stylesheet" href="static/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/css/style.css?nocache-{{ cachebuster }}">
-    <script src="static/js/script.js?nocache-{{ cachebuster }}"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script>
+        $(function () {
+            $('#end_tests').submit(function(e) {
+                var form = $(this);
+                $.ajax({
+                    type: form.attr('method'),
+                    url: form.attr('action'),
+                    data: form.serialize(),
+                });
+                e.preventDefault();
+            });
+        });
+    </script>
+
 </head>
 <body>
     <div id="page">
@@ -23,10 +38,45 @@
         <div class="text">
             Run the JT_NM Test suite on your NMOS testing instance and click start below to begin the interactive Controller test process
         </div><br/>
+        <div class="text">
+            {% if test_url != '' %}
+                Currently connected to NMOS testing instance on {{ test_url }}.
+            {% endif %}
+        </div><br/>
 
-        <div id="actions">
-            <button class="btn">Start</button>
-            <button class="btn">Cancel</button>
+        <div id="test_suite_form">
+            <form method="POST" action="/">
+                <div class="input text input_data_fld">
+                    {{ form.host.label }} {{ form.host(size="15") }}
+                </div>
+                <div class="input text input_data_fld">
+                    {{ form.port.label }} {{ form.port(size="5") }}
+                </div>
+            
+                <div class="input submit input_data_fld">
+                    <input type="submit" id="savebtn" value="Connect"/>
+                </div>
+            </form>
+        </div><br/>
+
+        <div id="test_list">
+            {% if tests %}
+                <ul>
+                    Selected tests:
+                    {% for test, description in tests.items() %}
+                        <li>{{ test }} - {{ description }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div>
+            <form id="end_tests" method="post" action="{{ test_url }}/testing">
+                <input type="hidden" name="button_type" value="">
+                <input type="submit" value="Cancel" name="Cancel" onclick="this.form.button_type.value=this.value"/>
+                <input type="submit" value="Finish" name="Finish" onclick="this.form.button_type.value=this.value"/>
+
+            </form>
         </div>
     </div>
     <br/>
