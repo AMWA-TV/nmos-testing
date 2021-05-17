@@ -5,6 +5,7 @@ import requests
 import inspect
 from time import sleep
 from urllib.parse import parse_qs
+from dnslib import QTYPE
 from OpenSSL import crypto
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 
@@ -45,13 +46,6 @@ def index():
             print("Tests completed")
             return 'Tests completed'
 
-@TEST_API.route('/test_selection', methods=['GET'])
-def test_selection():
-    """
-    API endpoint to pass list of selected tests to jtnm test UI
-    """
-    base_data = JTNMTest.get_test_list()
-    return Response(json.dumps(base_data), mimetype='application/json')
 
 class JTNMTest(GenericTest):
     """
@@ -80,10 +74,6 @@ class JTNMTest(GenericTest):
         self.zc_listener = None
         self.is04_utils = IS04Utils(self.jtnm_url)
         self.registry_location = ''
-
-    @classmethod
-    def get_test_list(cls):
-        return cls.test_list
 
     def set_up_tests(self):
         print('Setting up tests')
@@ -141,6 +131,8 @@ class JTNMTest(GenericTest):
         if CONFIG.DNS_SD_MODE == "multicast":
             for info in registry_mdns[3:]:
                 self.zc.register_service(info)
+
+        print('Registry should be available at http://' + get_default_ip() + ':' + str(self.primary_registry.get_data().port))
 
     def tear_down_tests(self):
         print('Tearing down tests')
@@ -229,11 +221,28 @@ class JTNMTest(GenericTest):
         """
         Overriding GenericTest execute tests to not auto run all of the tests.
         Produces dict of test names and descriptions
-        """        
+        """
         for test in test_names:
             method = getattr(self, test)
             if callable(method):
-                JTNMTest.test_list[test] = inspect.getdoc(method)
+                t = Test(inspect.getdoc(method), test)
+                question, answers = method()
+                json_out = {
+                    'name': test,
+                    'description': inspect.getdoc(method),
+                    'question': question,
+                    'answers': answers,
+                    'time_sent': time.time(),
+                    'url_for_response': request.headers.get('Host'),
+                    'answer_response': '',
+                    'time_answered': ''
+                }
+                # Send questions to jtnm testing API endpoint then wait
+                valid, response = self.do_request("POST", self.apis[JTNM_API_KEY]["url"], json=json_out)
+                time.sleep(20)
+                # Do something to retrieve user response
+                # Validate response and add to results
+                # self.result.append(method(False, t, response.json['answer_response']))
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -300,20 +309,44 @@ class JTNMTest(GenericTest):
             for info in registry_mdns[3:]:
                 self.zc.register_service(info)
 
-    def test_01(self, test):
+    def test_01(self, setup=True, test=None, answer=None):
         """
-        Test setting up registry for testing and leaving test active for a bit to see if registry can be accessed
+        Example test 1
         """
-        print('Registry will be available for 5 minutes at http://' + get_default_ip() + ':' + str(self.primary_registry.get_data().port))
-        time.sleep(300)
-        print('5 minutes up')
-        return test.PASS()
+        test_question = 'What is your name?'
+        test_answers = ['Sir Robin of Camelot', 'Sir Galahad of Camelot', 'Arthur, King of the Britons']
+        if setup:
+            return test_question, test_answers
+        else:
+            if answer == 'Arthur, King of the Britons':
+                return test.PASS('I didn\'t vote for him')
+            else:
+                return test.FAIL('Knight of the round table')
 
-    def test_02(self, test):
+    def test_02(self, setup=True, test=None, answer=None):
         """
-        Set up registry, add node and leave test active for 5 minutes to see if node can be found
+        Example test 2
         """
-        print('Registry will be available for 5 minutes at http://' + get_default_ip() + ':' + str(self.primary_registry.get_data().port))
-        time.sleep(300)
-        print('5 minutes up')
-        return test.PASS(len(self.primary_registry.get_data().heartbeats))
+        test_question = 'What is your Quest?'
+        test_answers = ['To find a shrubbery', 'To seek the Holy Grail']
+        if setup:
+            return test_question, test_answers
+        else:
+            if answer == 'To seek the Holy Grail':
+                return test.PASS('The Grail awaits')
+            else:
+                return test.FAIL('Ni')
+
+    def test_03(self, setup=True, test=None, answer=None):
+        """
+        Example test 3
+        """
+        test_question = 'What is your favourite colour?'
+        test_answers = ['Blue', 'Yellow']
+        if setup:
+            return test_question, test_answers
+        else:
+            if answer == 'Yellow':
+                return test.PASS('Off you go then')
+            else:
+                return test.FAIL('Ahhhhhhhhh')

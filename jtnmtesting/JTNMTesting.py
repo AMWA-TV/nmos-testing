@@ -1,7 +1,9 @@
 import random
 import requests
-from flask import Flask, render_template, make_response, abort, request
-from wtforms import Form, validators, StringField, IntegerField
+import json
+from flask import Flask, render_template, make_response, abort, request, Response
+from .DataStore import data
+
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -9,36 +11,19 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-
-    form = EndpointForm(request.form)
-    test_selection = {}
-    test_url = ''
-
-    if request.method == 'POST':
-        if form.validate():
-            test_url = "http://{}:{}".format(request.form['host'], str(request.form['port']))
-
-            valid, response = do_request("GET", test_url)
-            if not valid:
-                raise NMOSInitException("No API found at {}".format(test_url))
-            elif response.status_code != 200:
-                raise NMOSInitException("No API found or unexpected error at {} ({})".format(test_url, response.status_code))
-            else:
-                valid, test_list = do_request("GET", test_url + '/test_selection')
-
-                test_selection = test_list.json()
-    else:
-        host = ''
-        port = ''
-
-    r = make_response(render_template("index.html", form=form, test_url=test_url, 
-                                      tests=test_selection, 
-                                      cachebuster=CACHEBUSTER))
+    r = make_response(render_template("index.html", cachebuster=CACHEBUSTER))
     r.headers['Cache-Control'] = 'no-cache, no-store'
-
     return r
 
+@app.route('/x-nmos/client-testing/', methods=['GET', 'POST'], strict_slashes=False)
+def jtnm_tests():
+    if request.method == 'POST':
+        # Should be json from Test Suite with questions
+        data.setJson(request.json)
+        return 'Request received'
 
+    elif request.method == 'GET':
+        return Response(json.dumps(data.getJson()), mimetype='application/json')
 
 def do_request(method, url, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
@@ -68,12 +53,3 @@ def do_request(method, url, **kwargs):
         return False, str(e)
     except requests.exceptions.RequestException as e:
         return False, str(e)
-
-
-class EndpointForm(Form):
-    host = StringField(label="Test Suite IP/Hostname:", validators=[validators.optional()])
-    port = IntegerField(label="Port:", validators=[validators.NumberRange(min=0, max=65535,
-                                                                          message="Please enter a valid port number "
-                                                                                  "(0-65535)."),
-                                                   validators.optional()])
-                                            
