@@ -271,3 +271,68 @@ def heartbeat(version, node_id):
         return jsonify({"health": int(time.time())})
     else:
         abort(404)
+
+
+@REGISTRY_API.route('/x-nmos/query/<version>', methods=["GET"], strict_slashes=False)
+def query(version):
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
+        abort(503)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
+
+    resources = ['devices', 'flows', 'nodes', 'receivers', 'senders', 'sources', 'subscriptions']
+    base_data = []
+    for resource in resources:
+        base_data.append(flask.url_for('.query_resource', version=version, resource=resource))
+
+    return Response(json.dumps(base_data), mimetype='application/json')
+
+
+@REGISTRY_API.route('/x-nmos/query/<version>/<resource>', methods=["GET"], strict_slashes=False)
+def query_resource(version, resource):
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
+        abort(503)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
+
+    resource_type = resource.rstrip("s")
+    base_data = []
+    try:
+        # Type may not be in the list, so this could throw an exception
+        data = registry.get_resources()[resource_type]
+        for key, value in data.items():
+            base_data.append(value)
+    except Exception:
+        pass
+
+    return Response(json.dumps(base_data), mimetype='application/json')
+
+
+@REGISTRY_API.route('/x-nmos/query/<version>/<resource>/<resource_id>', methods=['GET'], strict_slashes=False)
+def get_resource(version, resource, resource_id):
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
+        abort(503)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
+
+    resource_type = resource.rstrip("s")
+    base_data = []
+    try:
+        # Type may not be in the list, so this could throw an exception
+        data = registry.get_resources()[resource_type][resource_id]
+    except Exception:
+        pass
+
+    return Response(json.dumps(base_data), mimetype='application/json')
+
+
+@REGISTRY_API.route('/', methods=["GET"], strict_slashes=False)
+def base():
+    base_data = ["I'm a mock registry"]
+    return Response(json.dumps(base_data), mimetype='application/json')

@@ -92,6 +92,7 @@ core_app.config['TEST_ACTIVE'] = False
 core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
+core_app.register_blueprint(JTNMTest.TEST_API)
 FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
@@ -285,7 +286,7 @@ TEST_DEFINITIONS = {
             "api_key": "client-testing"
         }],
         "class": JTNMTest.JTNMTest
-    }
+    },
 }
 
 
@@ -521,6 +522,9 @@ def run_tests(test, endpoints, test_selection=["all"]):
         elif test == "IS-09-02":
             # This test has an unusual constructor as it requires a system api instance
             test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
+        elif test == "JT-NM-Tested":
+            # This test has an unusual constructor as it requires a registry instance
+            test_obj = test_def["class"](apis, REGISTRIES, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)
 

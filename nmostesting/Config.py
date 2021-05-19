@@ -266,7 +266,7 @@ SPECIFICATIONS = {
         }
     },
     "jt-nm-tested": {
-        "repo": "",
+        "repo": None,
         "versions": [],
         "default_version": "v1.0",
         "apis": {
