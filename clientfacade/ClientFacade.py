@@ -1,9 +1,10 @@
 import random
 import requests
 import json
-from flask import Flask, render_template, make_response, abort, request, Response
-from .DataStore import data
 
+from flask import Flask, render_template, make_response, abort, request, Response
+
+from DataStore import data
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -53,3 +54,7 @@ def do_request(method, url, **kwargs):
         return False, str(e)
     except requests.exceptions.RequestException as e:
         return False, str(e)
+
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5001)
