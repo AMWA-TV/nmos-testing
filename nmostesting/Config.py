@@ -239,6 +239,17 @@ SPECIFICATIONS = {
             }
         }
     },
+    "is-11": {
+        "repo": "nmos-sink-metadata-processing",
+        "versions": ["v1.0-dev"],
+        "default_version": "v1.0-dev",
+        "apis": {
+            "sink-mp": {
+                "name": "Sink Metadata Processing API",
+                "raml": "SinkMetadataProcessingAPI.raml"
+            }
+        }
+    },
     "bcp-003-01": {
         "repo": "nmos-secure-communication",
         "versions": ["v1.0"],
