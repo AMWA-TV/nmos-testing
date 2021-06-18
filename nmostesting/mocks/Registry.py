@@ -61,6 +61,7 @@ class Registry(object):
         self.add_event.clear()
         self.delete_event.clear()
         self.auth_clients = {}
+        self.query_api_called = False
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
@@ -178,6 +179,10 @@ REGISTRIES = [Registry(REGISTRY_COMMON, i + 1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
 
+def createCORSResponse(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
+
 # IS-04 resources
 @REGISTRY_API.route('/x-nmos/registration/<version>', methods=["GET"], strict_slashes=False)
 def base_resource(version):
@@ -189,7 +194,8 @@ def base_resource(version):
         abort(authorized)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
-    return Response(json.dumps(base_data), mimetype='application/json')
+    
+    return createCORSResponse(Response(json.dumps(base_data), mimetype='application/json'))
 
 
 @REGISTRY_API.route('/x-nmos/registration/<version>/resource', methods=["POST"])
@@ -214,7 +220,7 @@ def post_resource(version):
         registry.add(request.headers, request.json, version)
     except BCP00302Exception:
         abort(403)
-    location = "/x-nmos/registration/{}/resource/{}/{}".format(version, request.json["type"],
+    location = "/x-nmos/registration/{}/resource/{}s/{}".format(version, request.json["type"],
                                                                request.json["data"]["id"])
     if registered:
         return jsonify(request.json["data"]), 200, {"Location": location}
@@ -282,12 +288,14 @@ def query(version):
     if authorized is not True:
         abort(authorized)
 
+    registry.query_api_called = True
+
     resources = ['devices', 'flows', 'nodes', 'receivers', 'senders', 'sources', 'subscriptions']
     base_data = []
     for resource in resources:
         base_data.append(flask.url_for('.query_resource', version=version, resource=resource))
 
-    return Response(json.dumps(base_data), mimetype='application/json')
+    return createCORSResponse(Response(json.dumps(base_data), mimetype='application/json'))
 
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>', methods=["GET"], strict_slashes=False)
@@ -299,18 +307,25 @@ def query_resource(version, resource):
     if authorized is not True:
         abort(authorized)
 
+    registry.query_api_called = True
+
     resource_type = resource.rstrip("s")
     base_data = []
+
     try:
-        # Type may not be in the list, so this could throw an exception
-        data = registry.get_resources()[resource_type]
-        for key, value in data.items():
-            base_data.append(value)
+        # Check to see if resource is being requested as a query
+        if request.args.get('id'):
+    
+            resource_id = request.args.get('id')
+            base_data.append(registry.get_resources()[resource_type][resource_id])
+        else:
+            data = registry.get_resources()[resource_type]
+            for key, value in data.items():
+                base_data.append(value)
     except Exception:
         pass
 
-    return Response(json.dumps(base_data), mimetype='application/json')
-
+    return createCORSResponse(Response(json.dumps(base_data), mimetype='application/json'))
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>/<resource_id>', methods=['GET'], strict_slashes=False)
 def get_resource(version, resource, resource_id):
@@ -321,18 +336,22 @@ def get_resource(version, resource, resource_id):
     if authorized is not True:
         abort(authorized)
 
+    registry.query_api_called = True
+
     resource_type = resource.rstrip("s")
-    base_data = []
+    data = []
     try:
         # Type may not be in the list, so this could throw an exception
         data = registry.get_resources()[resource_type][resource_id]
     except Exception:
         pass
 
-    return Response(json.dumps(base_data), mimetype='application/json')
+    return createCORSResponse(Response(json.dumps(data), mimetype='application/json'))
+
 
 
 @REGISTRY_API.route('/', methods=["GET"], strict_slashes=False)
 def base():
     base_data = ["I'm a mock registry"]
-    return Response(json.dumps(base_data), mimetype='application/json')
+    return createCORSResponse(Response(json.dumps(base_data), mimetype='application/json'))
+

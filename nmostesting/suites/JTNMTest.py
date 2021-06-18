@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Advanced Media Workflow Association
+# Copyright (C) 2021 Advanced Media Workflow Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,82 +15,76 @@
 import time
 import json
 import socket
-import requests
+import uuid
 import inspect
-from time import sleep
-from urllib.parse import parse_qs
+import threading
+import random
+from copy import deepcopy
+from urllib.parse import urlparse
 from dnslib import QTYPE
-from OpenSSL import crypto
+from git.objects.base import IndexObject
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
-from ..IS04Utils import IS04Utils
 from .. import Config as CONFIG
-from zeroconf_monkey import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
-from ..TestHelper import get_default_ip, load_resolved_schema
+from ..TestHelper import get_default_ip
 from ..TestResult import Test
 
-from flask import Flask, render_template, make_response, abort, Blueprint, flash, request, Response
-import random
+from flask import Flask, render_template, make_response, abort, Blueprint, flash, request, Response, session
 
 JTNM_API_KEY = "client-testing"
-
+REG_API_KEY = "registration"
+CALLBACK_ENDPOINT = "/clientfacade_response"
 CACHEBUSTER = random.randint(1, 10000)
+
+answer_available = threading.Event()
+
+
 app = Flask(__name__)
 TEST_API = Blueprint('test_api', __name__)
-TESTS_COMPLETE = False
-TESTS_CANCELLED = False
 
-@TEST_API.route('/testing', methods=['POST'])
-def index():
-    """
-    Testing cancel/complete buttons to end test suite execution
-    """
-    global TESTS_COMPLETE, TESTS_CANCELLED
+class ClientFacadeException(Exception):
+    """Provides a way to exit a single test, by providing the TestResult return statement as the first exception
+       parameter"""
+    pass
 
-    form = request.form.to_dict()
-    if 'button_type' in form:
-        if form['button_type'] == 'Cancel':
-            TESTS_CANCELLED = True
-            print('Tests cancelled')
-            return 'Tests cancelled'
-        elif form['button_type'] == 'Finish':
-            TESTS_COMPLETE = True
-            print("Tests completed")
-            return 'Tests completed'
+@TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
+def retrieve_answer():
+    # Hmmmm, there must be a more elegant way to pass data between threads in a Flask application
+    global clientfacade_answer_json
 
+    if request.method == 'POST':
+        clientfacade_answer_json = request.json
+        if 'name' not in clientfacade_answer_json:
+            return 'Invalid JSON received'
+        answer_available.set()
+
+    return 'OK'
 
 class JTNMTest(GenericTest):
     """
     Testing initial set up of new test suite for controller testing
     """
-    test_list = {}
-    
     def __init__(self, apis, registries, dns_server):
-        # JRT: overwrite the spec_path parameter to prevent GenericTest from attempting to download RAML from repo
-        apis["client-testing"]["spec_path"] = None
+        # JRT: remove the spec_path parameter to prevent GenericTest from attempting to download RAML from repo
+        apis[JTNM_API_KEY].pop("spec_path", None)
         GenericTest.__init__(self, apis)
         self.authorization = False  # System API doesn't use auth, so don't send tokens in every request
         self.primary_registry = registries[1]
-        self.registries = registries[1:]
         self.dns_server = dns_server
-        self.jtnm_url = self.apis[JTNM_API_KEY]["url"]
-        self.registry_basics_done = False
-        self.registry_basics_data = []
-        self.registry_primary_data = None
-        self.registry_invalid_data = None
-        self.node_basics_data = {
-            "self": None, "devices": None, "sources": None,
-            "flows": None, "senders": None, "receivers": None
-        }
+        self.registry_mdns = []
         self.zc = None
         self.zc_listener = None
-        self.is04_utils = IS04Utils(self.jtnm_url)
         self.registry_location = ''
+        self.question_timeout = 600 # seconds
+        self.test_data = self.load_resource_data()
+        self.sender_possible_answers = [] # Reference for all possible senders
+        self.sender_expected_answers = [] # Actual senders registered to mock registry
+        self.receiver_possible_answers = [] # Reference for all possible receivers
+        self.receiver_expected_answers = [] # Actual receivers registered to mock registry
 
     def set_up_tests(self):
-        print('Setting up tests')
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
@@ -109,63 +103,39 @@ class JTNMTest(GenericTest):
             # Wait for a short time to allow the device to react after performing the query
             time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
-        if self.registry_basics_done:
-            return
-
         if CONFIG.DNS_SD_MODE == "multicast":
-            registry_mdns = []
-            priority = 100
+            priority = 0
 
-            # Add advertisement for primary and failover registries
-            for registry in self.registries[0:-1]:
-                info = self._registry_mdns_info(registry.get_data().port, priority)
-                registry_mdns.append(info)
-                priority += 10
+            # Add advertisement for primary registry
+            info = self._registry_mdns_info(self.primary_registry.get_data().port, priority)
+            self.registry_mdns.append(info)
 
-            # Add the final real registry advertisement
-            info = self._registry_mdns_info(self.registries[-1].get_data().port, priority)
-            registry_mdns.append(info)
-
-        # Reset all registries to clear previous heartbeats, etc.
-        for registry in self.registries:
-            registry.reset()
-
+        # Reset registry to clear previous heartbeats, etc.
+        self.primary_registry.reset()
         self.primary_registry.enable()
-        self.registry_location = get_default_ip() + ':' + str(self.primary_registry.get_data().port)
+        self.registry_location = 'http://' + get_default_ip() + ':' + str(self.primary_registry.get_data().port) + '/'
 
         if CONFIG.DNS_SD_MODE == "multicast":
-            self.zc.register_service(registry_mdns[0])
-            self.zc.register_service(registry_mdns[1])
-            self.zc.register_service(registry_mdns[2])
+            self.zc.register_service(self.registry_mdns[0])
 
-        # Once registered, advertise all other registries at different (ascending) priorities
-        for index, registry in enumerate(self.registries[1:]):
-            registry.enable()
+        # Populate mock registry with senders and receivers and store the results
+        MAX_SENDERS = 3
+        MAX_RECEIVERS = 3
 
-        if CONFIG.DNS_SD_MODE == "multicast":
-            for info in registry_mdns[3:]:
-                self.zc.register_service(info)
+        self._populate_registry(MAX_SENDERS, MAX_RECEIVERS)
 
-        print('Registry should be available at http://' + get_default_ip() + ':' + str(self.primary_registry.get_data().port))
+        print('Registry should be available at ' + self.registry_location)
+
 
     def tear_down_tests(self):
-        print('Tearing down tests')
         # Clean up mDNS advertisements and disable registries
-        # if CONFIG.DNS_SD_MODE == "multicast":
-        #     for info in registry_mdns:
-        #         self.zc.unregister_service(info)
-        global TESTS_COMPLETE, TESTS_CANCELLED
-        TESTS_CANCELLED = False
-        TESTS_COMPLETE = False
-
-        for index, registry in enumerate(self.registries):
-            registry.disable()
-
-        self.registry_basics_done = True
-        for registry in self.registries:
-            self.registry_basics_data.append(registry.get_data())
-
-        self.registry_primary_data = self.registry_basics_data[0]
+        if CONFIG.DNS_SD_MODE == "multicast":
+            for info in self.registry_mdns:
+                self.zc.unregister_service(info)
+        self.primary_registry.disable()
+        
+        # Reset the state of the client testing façade
+        self.do_request("POST", self.apis[JTNM_API_KEY]["url"], json={"clear": "True"})
 
         if self.zc:
             self.zc.close()
@@ -174,89 +144,107 @@ class JTNMTest(GenericTest):
             self.dns_server.reset()
 
         self.registry_location = ''
-        JTNMTest.test_list = {}
+        self.registry_mdns = []
     
-    def run_tests(self, test_name=["all"]):
-        """
-        Perform tests and return the results as a list
-        Overriding GenericTest run_tests to stop after set up since this test suite is user-driven
-        """
-        # Set up
-        global TESTS_COMPLETE, TESTS_CANCELLED
-        print('Running')
-        test = Test("Test setup", "set_up_tests")
-        CONFIG.AUTH_TOKEN = None
-        if self.authorization:
-            # We write to config here as this needs to be available outside this class
-            scopes = []
-            for api in self.apis:
-                scopes.append(api)
-            # Add 'query' permission when mock registry is disabled and existing network registry is used
-            if not CONFIG.ENABLE_DNS_SD and "query" not in scopes:
-                scopes.append("query")
-            CONFIG.AUTH_TOKEN = self.generate_token(scopes, True)
-        if CONFIG.PREVALIDATE_API:
-            for api in self.apis:
-                if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
-                    continue
-                valid, response = self.do_request("GET", self.apis[api]["url"])
-                if not valid:
-                    raise NMOSInitException("No API found at {}".format(self.apis[api]["url"]))
-                elif response.status_code != 200:
-                    raise NMOSInitException("No API found or unexpected error at {} ({})".format(self.apis[api]["url"],
-                                                                                                 response.status_code))
-
-        self.set_up_tests()
-        self.result.append(test.NA(""))
-
-        # Run tests
-        self.execute_tests(test_name)
-
-        while not TESTS_CANCELLED and not TESTS_COMPLETE:
-            print('waiting')
-            time.sleep(20)
-
-        # TODO move return_results to somewhere else, triggered by user completing tests
-        self.return_results()
-        return self.result
-
-    def return_results(self):
-        """
-        Tear down section from GenericTest run_tests to be called once the user has completed the tests
-        """
-        # Tear down
-        test = Test("Test teardown", "tear_down_tests")
-        self.tear_down_tests()
-        self.result.append(test.NA(""))
-
-        return self.result
+    def set_up_test(self):
+        """Setup performed before EACH test"""
+        self.primary_registry.query_api_called = False
 
     def execute_tests(self, test_names):
-        """
-        Overriding GenericTest execute tests to not auto run all of the tests.
-        Produces dict of test names and descriptions
-        """
-        for test in test_names:
-            method = getattr(self, test)
+        """Perform tests defined within this class"""
+        self.pre_tests_message()
+
+        for test_name in test_names:
+            self.execute_test(test_name)
+
+        self.post_tests_message()
+
+    def execute_test(self, test_name):
+        """Perform a test defined within this class"""
+        self.test_individual = (test_name != "all")
+
+        # Run manually defined tests
+        if test_name == "all":
+            for method_name in dir(self):
+                if method_name.startswith("test_"):
+                    method = getattr(self, method_name)
+                    if callable(method):
+                        print(" * Running " + method_name)
+                        test = Test(inspect.getdoc(method), method_name)
+                        try:
+                            self.set_up_test()
+                            self.result.append(method(test))
+                        except NMOSTestException as e:
+                            self.result.append(e.args[0])
+                        except Exception as e:
+                            self.result.append(self.uncaught_exception(method_name, e))
+
+        # Run a single test
+        if test_name != "auto" and test_name != "all":
+            method = getattr(self, test_name)
             if callable(method):
-                t = Test(inspect.getdoc(method), test)
-                question, answers = method()
-                json_out = {
-                    'name': test,
-                    'description': inspect.getdoc(method),
-                    'question': question,
-                    'answers': answers,
-                    'time_sent': time.time(),
-                    'url_for_response': request.headers.get('Host'),
-                    'answer_response': '',
-                    'time_answered': ''
-                }
-                # Send questions to jtnm testing API endpoint then wait
-                valid, response = self.do_request("POST", self.apis[JTNM_API_KEY]["url"], json=json_out)
-                time.sleep(20)
-                # Do something to retrieve user response
-                # Validate response and add to results
-                # self.result.append(method(False, t, response.json['answer_response']))
+                print(" * Running " + test_name)
+                test = Test(inspect.getdoc(method), test_name)
+                try:
+                    self.set_up_test()
+                    self.result.append(method(test))
+                except NMOSTestException as e:
+                    self.result.append(e.args[0])
+                except Exception as e:
+                    self.result.append(self.uncaught_exception(test_name, e))
+
+    def _invoke_client_facade(self, question, answers, test_type, timeout=None):
+        """ 
+        Send question and answers to Client Façade
+        question:   text to be presented to Test User
+        answers:    list of all possible answers
+        test_type:  "radio" - one and only one answer
+                    "checkbox" - multiple answers
+                    "action" - Test User asked to click button, defaults to self.question_timeout
+        timeout:    number of seconds before Client Façade times out test
+        """
+        global clientfacade_answer_json
+
+        # Get the name of the calling test method to use as an identifier
+        test_method_name = inspect.currentframe().f_back.f_code.co_name
+        method = getattr(self, test_method_name)
+
+        question_timeout = timeout if timeout else self.question_timeout
+
+        json_out = {
+            "test_type": test_type,
+            "name": test_method_name,
+            "description": inspect.getdoc(method),
+            "question": question,
+            "answers": answers,
+            "time_sent": time.time(),
+            "timeout": question_timeout,
+            "url_for_response": "http://" + request.headers.get("Host") + CALLBACK_ENDPOINT,
+            "answer_response": "",
+            "time_answered": ""
+        }
+        # Send questions to Client Façade API endpoint then wait
+        valid, response = self.do_request("POST", self.apis[JTNM_API_KEY]["url"], json=json_out)
+
+        if not valid:
+            raise ClientFacadeException("Problem contacting Client Façade: " + response)
+
+        # Wait for answer available signal or question timeout in seconds
+        # JSON reponse to question is set in in clientfacade_answer_json global variable (Hmmm)        
+        answer_available.clear()
+        get_json = answer_available.wait(timeout=question_timeout)
+
+        if get_json == False:
+            raise ClientFacadeException("Test timed out")
+
+        # Basic integrity check for response json
+        if clientfacade_answer_json['name'] is None:
+            raise ClientFacadeException("Integrity check failed: result format error: " +json.dump(clientfacade_answer_json))
+
+        if clientfacade_answer_json['name'] != json_out['name']:
+            raise ClientFacadeException("Integrity check failed: cannot compare result of " + json_out['name'] + " with expected result for " + clientfacade_answer_json['name'])
+            
+        return clientfacade_answer_json['answer_response']
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -273,7 +261,6 @@ class JTNMTest(GenericTest):
         else:
             hostname = ip.replace(".", "-") + ".local."
 
-        # TODO: Add another test which checks support for parsing CSV string in api_ver
         txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': str(api_auth).lower()}
 
         service_type = "_nmos-register._tcp.local."
@@ -283,84 +270,336 @@ class JTNMTest(GenericTest):
                            addresses=[socket.inet_aton(ip)], port=port,
                            properties=txt, server=hostname)
         return info
+
+    def _randomise_indices(self, answer_count, max_choices=1):
+        """
+        answer_count: number of possible answers
+        max_choices: Maximum number of list indices to be returned. Default 1 for radio button answers. 
+        max_choices > 1 will return list containing a random number of list indices up to the value given
+        """
+        answer_indices = []
+        if max_choices == 1:
+            answer_indices = [random.randint(0, answer_count-1)]
+        elif max_choices > 1:
+            choices = random.randint(1, max_choices)
+            answer_indices = random.sample(list(range(0, answer_count)), k=choices)
+
+        return answer_indices
+
+    def _format_device_metadata(self, label, description, id):
+        """ Used to format answers based on device metadata """
+        return label + ' (' + description + ', ' + id + ')'
     
-    def do_registry_basics_prereqs(self):
-        """Advertise a registry and collect data from any Nodes which discover it"""
-
-        if self.registry_basics_done:
-            return
-
-        if CONFIG.DNS_SD_MODE == "multicast":
-            registry_mdns = []
-            priority = 100
-
-            # Add advertisement for primary and failover registries
-            for registry in self.registries[0:-1]:
-                info = self._registry_mdns_info(registry.get_data().port, priority)
-                registry_mdns.append(info)
-                priority += 10
-
-            # Add the final real registry advertisement
-            info = self._registry_mdns_info(self.registries[-1].get_data().port, priority)
-            registry_mdns.append(info)
-
-        # Reset all registries to clear previous heartbeats, etc.
-        for registry in self.registries:
-            registry.reset()
-
-        self.primary_registry.enable()
-
-        if CONFIG.DNS_SD_MODE == "multicast":
-            self.zc.register_service(registry_mdns[0])
-            self.zc.register_service(registry_mdns[1])
-            self.zc.register_service(registry_mdns[2])
-
-        # Once registered, advertise all other registries at different (ascending) priorities
-        for index, registry in enumerate(self.registries[1:]):
-            registry.enable()
-
-        if CONFIG.DNS_SD_MODE == "multicast":
-            for info in registry_mdns[3:]:
-                self.zc.register_service(info)
-
-    def test_01(self, setup=True, test=None, answer=None):
+    def _generate_answers(self, labels, descriptions, resource_ids, indices):
+        """ 
+        labels: list of labels
+        descriptions: list of descriptions
+        resource_ids: list of ids
+        indices: list of the indices of labels/descriptions/resource_ids
         """
-        Example test 1
+        answers = []
+        
+        for i in indices:
+            answers.append(self._format_device_metadata(labels[i], descriptions[i], resource_ids[i]))
+
+        return answers
+
+    def _register_resources(self, type, labels, descriptions, resource_ids, indices):
         """
-        test_question = 'What is your name?'
-        test_answers = ['Sir Robin of Camelot', 'Sir Galahad of Camelot', 'Arthur, King of the Britons']
-        if setup:
-            return test_question, test_answers
-        else:
-            if answer == 'Arthur, King of the Britons':
-                return test.PASS('I didn\'t vote for him')
+        type: of the resource e.g. sender, reciever
+        labels: a list of resource labels
+        descriptions: a list of resource descriptions
+        resource_ids: a list of uuids - note that this will be modified by the function
+        indices: list of the indices of the resources to be registered
+        """
+        # Post resources to registry
+        for i in indices:
+            device_data = self.post_super_resources_and_resource(self, type, descriptions[i])
+            device_data['label'] = labels[i]
+            resource_ids[i] = device_data['id'] # overwrite default UUID with actual one from the Registry
+            self.post_resource(self, type, device_data, codes=[200])
+
+        return resource_ids # resource_ids have been modified
+
+    def _populate_registry(self, max_sender_count, max_receiver_count):
+        """This data is baseline data for all tests in the test suite"""
+        
+        # Potential senders to be added to registry
+        sender_labels = ['Test-node-1/sender/gilmour', 'Test-node-1/sender/waters', 'Test-node-1/sender/wright', 'Test-node-1/sender/mason', 'Test-node-1/sender/barrett']
+        sender_descriptions = ['Mock sender 1', 'Mock sender 2', 'Mock sender 3', 'Mock sender 4', 'Mock sender 5']
+        sender_ids = [str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())]
+        
+        # Pick indices of up to max_sender_count senders to register
+        random_indices = self._randomise_indices(len(sender_labels), max_sender_count)
+        sender_ids = self._register_resources("sender", sender_labels, sender_descriptions, sender_ids, random_indices)
+
+        self.sender_expected_answers = self._generate_answers(sender_labels, sender_descriptions, sender_ids, random_indices);
+        self.sender_possible_answers = self._generate_answers(sender_labels, sender_descriptions, sender_ids, range(len(sender_labels)))
+
+        # Pick up to max_sender_count to register
+        receiver_labels = ['Test-node-2/receiver/palin', 'Test-node-2/receiver/cleese', 'Test-node-2/receiver/jones', 'Test-node-2/receiver/chapman', 'Test-node-2/receiver/idle', 'Test-node-2/receiver/gilliam']
+        receiver_descriptions = ['Mock receiver 1', 'Mock receiver 2', 'Mock receiver 3', 'Mock receiver 4', 'Mock receiver 5', 'Mock receiver 6']
+        receiver_ids = [str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())]
+
+        # Pick up to max_receiver_count receivers to register
+        random_indices = self._randomise_indices(len(receiver_labels), max_receiver_count)
+        receiver_ids = self._register_resources("receiver", receiver_labels, receiver_descriptions, receiver_ids, random_indices)
+
+        self.receiver_expected_answers = self._generate_answers(receiver_labels, receiver_descriptions, receiver_ids, random_indices)
+        self.receiver_possible_answers = self._generate_answers(receiver_labels, receiver_descriptions, receiver_ids, range(len(receiver_labels)))
+
+    def load_resource_data(self):
+        """Loads test data from files"""
+        api = self.apis[JTNM_API_KEY]
+        result_data = dict()
+        resources = ["node", "device", "source", "flow", "sender", "receiver"]
+        for resource in resources:
+            with open("test_data/JTNM/v1.3_{}.json".format(resource)) as resource_data:
+                resource_json = json.load(resource_data)
+                result_data[resource] = resource_json
+
+        return result_data
+
+    def post_resource(self, test, type, data=None, reg_url=None, codes=None, fail=Test.FAIL, headers=None):
+        """
+        Perform a POST request on the Registration API to create or update a resource registration.
+        Raises an NMOSTestException when the response is not as expected.
+        Otherwise, on success, returns values of the Location header and X-Paging-Timestamp debugging header.
+        """
+        if not data:
+            data = self.test_data[type]
+
+        if not reg_url:
+            reg_url = self.registry_location + 'x-nmos/registration/v1.3/'
+
+        if not codes:
+            codes = [200, 201]
+
+        valid, r = self.do_request("POST", reg_url + "resource", json={"type": type, "data": data}, headers=headers)
+        if not valid:
+            # Hmm - do we need these exceptions as the registry is our own mock registry?
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
+
+        location = None
+        timestamp = None
+
+        wrong_codes = [_ for _ in [200, 201] if _ not in codes]
+
+        if r.status_code in wrong_codes:
+            raise NMOSTestException(fail(test, "Registration API returned wrong HTTP code: {}".format(r.status_code)))
+        elif r.status_code not in codes:
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: "
+                                               "{} {}".format(r.status_code, r.text)))
+        elif r.status_code in [200, 201]:
+            # X-Paging-Timestamp is a response header that implementations may include to aid debugging
+            if "X-Paging-Timestamp" in r.headers:
+                timestamp = r.headers["X-Paging-Timestamp"]
+            if "Location" not in r.headers:
+                raise NMOSTestException(fail(test, "Registration API failed to return a 'Location' response header"))
+            path = "{}resource/{}s/{}".format(urlparse(reg_url).path, type, data["id"])
+            location = r.headers["Location"]
+            if path not in location:
+                raise NMOSTestException(fail(test, "Registration API 'Location' response header is incorrect: "
+                                             "Location: {}".format(location)))
+            if not location.startswith("/") and not location.startswith(self.protocol + "://"):
+                raise NMOSTestException(fail(test, "Registration API 'Location' response header is invalid for the "
+                                             "current protocol: Location: {}".format(location)))
+
+        return location, timestamp
+
+    def post_super_resources_and_resource(self, test, type, description, sender_id=None, receiver_id=None, fail=Test.FAIL):
+        """
+        Perform POST requests on the Registration API to create the super-resource registrations
+        for the requested type, before performing a POST request to create that resource registration
+        """
+        # use the test data as a template for creating new resources
+        data = deepcopy(self.test_data[type])
+        data["id"] = str(uuid.uuid4())
+        data["description"] = description
+
+        if type == "node":
+            pass
+        elif type == "device":
+            node = self.post_super_resources_and_resource(test, "node", description, sender_id, receiver_id, fail=Test.UNCLEAR)
+            data["node_id"] = node["id"]
+            data["senders"] = [ sender_id ] if sender_id else [] 
+            data["receivers"] = [ receiver_id ] if receiver_id else [] 
+        elif type == "source":
+            device = self.post_super_resources_and_resource(test, "device", description, sender_id, receiver_id, fail=Test.UNCLEAR)
+            data["device_id"] = device["id"]
+        elif type == "flow":
+            source = self.post_super_resources_and_resource(test, "source", description, sender_id, receiver_id, fail=Test.UNCLEAR)
+            data["device_id"] = source["device_id"]
+            data["source_id"] = source["id"]
+            # since device_id is v1.1, downgrade
+            data = self.downgrade_resource(type, data, self.apis[REG_API_KEY]["version"])
+        elif type == "sender":
+            sender_id = str(uuid.uuid4())
+            data["id"] = sender_id
+            device = self.post_super_resources_and_resource(test, "device", description, sender_id, receiver_id, fail=Test.UNCLEAR)
+            data["device_id"] = device["id"]
+            data["flow_id"] = str(uuid.uuid4())  # or post a flow first and use its id here?
+        elif type == "receiver":
+            receiver_id = str(uuid.uuid4())
+            data["id"] = receiver_id
+            device = self.post_super_resources_and_resource(test, "device", description, sender_id, receiver_id, fail=Test.UNCLEAR)
+            data["device_id"] = device["id"]
+
+        self.post_resource(test, type, data, codes=[201], fail=fail)
+
+        return data
+
+    def pre_tests_message(self):
+        """
+        Introduction to JT-NM Tested Test Suite
+        """
+        question =  'These tests validate a Broadcast Controller under Test’s (BCuT) ability to query an IS-04 ' \
+        'Registry with the IS-04 Query API and to control a Media Node using the IS-05 Connection ' \
+        'Management API.\n\nA Test AMWA IS-04 v1.2/1.3 reference Registry is available on the network, ' \
+        'and advertised in the DNS server via unicast DNS-SD\n\n' \
+        'Although the test AMWA IS-04 Registry should be discoverable via DNS-SD, for the purposes of developing this testing framework ' \
+        'it is also possible to reach the Registry via the following URL:\n\n' + self.registry_location + 'x-nmos/query/v1.3\n\n' \
+        'Once the BCuT has located the test AMWA IS-04 Registry, please click \'Next\''
+        possible_answers=[]
+
+        try:
+            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="action", timeout=600)
+
+        except ClientFacadeException as e:
+            # pre_test_introducton timed out
+            pass
+
+    def post_tests_message(self):
+        """
+        JT-NM Tested Test Suite testing complete!
+        """
+        question =  'JT-NM Tested Test Suite testing complete!\r\n\r\nPlease press \'Next\' to exit the tests'
+        possible_answers=[]
+
+        try:
+            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="action", timeout=10)
+
+        except ClientFacadeException as e:
+            # post_test_introducton timed out
+            pass
+    
+    def test_01(self, test):
+        """
+        Ensure BCuT uses DNS-SD to find registry
+        """
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "multicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'multicast'")
+
+        return test.DISABLED("Test not yet implemented")
+
+
+    def test_02(self, test):
+        """
+        Ensure BCuT can access the IS-04 Query API
+        """
+        # Mock registry already populated with data, see _populate_registry
+            
+        try:
+            # Question 1 connection
+            question = 'Use the BCuT to browse the Senders and Receivers on the discovered Registry via the selected IS-04 Query API.\n' \
+            'Once you have finished browsing click \'Next\'. Successful browsing of the Registry will be automatically logged by the test framework.\n'
+            possible_answers = []
+
+            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="action")
+
+            # The registry will log calls to the Query API endpoints
+            if not self.primary_registry.query_api_called:
+                return test.FAIL('IS-04 Query API not reached')
+            
+            return test.PASS('IS-04 Query API reached successfully')
+
+        except ClientFacadeException as e:
+            return test.UNCLEAR(e.args[0])
+
+    def test_03(self, test):
+        """
+        Query API should be able to discover all the senders that are registered in the Registry
+        """
+        # Mock registry populated, sender_possible_answers and sender_actual_answers initialized in  _populate_registry
+
+        try:
+            # Check senders 
+            question = 'The Query API should be able to discover all the Senders that are registered in the Registry.\n' \
+            'Refresh the BCuT\'s view of the Registry and carefully select the Senders that are available from the following list.' 
+            possible_answers = self.sender_possible_answers
+
+            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")
+
+            if len(actual_answers) != len(self.sender_expected_answers):
+                return test.FAIL('Incorrect sender identified')
             else:
-                return test.FAIL('Knight of the round table')
+                for answer in actual_answers:
+                    if answer not in self.sender_expected_answers:
+                        return test.FAIL('Incorrect sender identified')
 
-    def test_02(self, setup=True, test=None, answer=None):
-        """
-        Example test 2
-        """
-        test_question = 'What is your Quest?'
-        test_answers = ['To find a shrubbery', 'To seek the Holy Grail']
-        if setup:
-            return test_question, test_answers
-        else:
-            if answer == 'To seek the Holy Grail':
-                return test.PASS('The Grail awaits')
-            else:
-                return test.FAIL('Ni')
+            return test.PASS('All devices correctly identified')
+        except ClientFacadeException as e:
+            return test.UNCLEAR(e.args[0])
 
-    def test_03(self, setup=True, test=None, answer=None):
+
+    def test_04(self, test):
         """
-        Example test 3
+        Query API should be able to discover all the receivers that are registered in the Registry
         """
-        test_question = 'What is your favourite colour?'
-        test_answers = ['Blue', 'Yellow']
-        if setup:
-            return test_question, test_answers
-        else:
-            if answer == 'Yellow':
-                return test.PASS('Off you go then')
+        # Mock registry populated, receiver_possible_answers and receiver_actual_answers initialized in  _populate_registry
+
+        try:
+            # Check receivers 
+            question = 'The Query API should be able to discover all the Receivers that are registered in the Registry.\n' \
+            'Refresh the BCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.'
+            possible_answers = self.receiver_possible_answers
+
+            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")
+
+            if len(actual_answers) != len(self.receiver_expected_answers):
+                return test.FAIL('Incorrect receiver identified')
             else:
-                return test.FAIL('Ahhhhhhhhh')
+                for answer in actual_answers:
+                    if answer not in self.receiver_expected_answers:
+                        return test.FAIL('Incorrect receiver identified')
+
+            return test.PASS('All devices correctly identified')
+        except ClientFacadeException as e:
+            return test.UNCLEAR(e.args[0])
+
+    def test_05(self, test):
+        """
+        Reference Sender is put offline; Reference Sender is put back online
+        """
+
+        return test.DISABLED("Test not yet implemented")
+
+    def test_06(self, test):
+        """
+        Identify which Receiver devices are controllable via IS-05
+        """
+
+        return test.DISABLED("Test not yet implemented")
+
+    def test_07(self, test):
+        """
+        Instruct Receiver to subscribe to a Sender’s Flow via IS-05
+        """
+
+        return test.DISABLED("Test not yet implemented")
+
+    def test_08(self, test):
+        """
+        Disconnecting a Receiver from a connected Flow via IS-05
+        """
+
+        return test.DISABLED("Test not yet implemented")
+
+    def test_09(self, test):
+        """
+        Indicating the state of connections via updates received from the IS-04 Query API
+        """
+
+        return test.DISABLED("Test not yet implemented")
+  

@@ -280,7 +280,7 @@ TEST_DEFINITIONS = {
         "class": BCP00301Test.BCP00301Test
     },
     "JT-NM-Tested": {
-        "name": "JT-NM Tested Client Tests",
+        "name": "JT-NM Client Tests",
         "specs": [{
             "spec_key": "jt-nm-tested",
             "api_key": "client-testing"

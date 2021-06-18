@@ -102,3 +102,33 @@ h1, h2, h3, h4, h5 {
     font-size: 12px;
     margin: 25px;
 }
+
+.refresh_button {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.test_details {
+    font-size: large;
+}
+
+.countdown {
+    margin: auto;
+    border: 1px solid black;
+    border-radius: 5px;
+    width: 60px;
+    height: 30px;
+    text-align: center;
+    font-size: large;
+}
+
+.card-header {
+    white-space: pre-line;
+    text-align: left;
+}
+
+.list-group-item {
+    text-align: left;
+    margin-left: 20px;
+}

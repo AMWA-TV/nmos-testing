@@ -1,10 +1,23 @@
+# Copyright (C) 2021 Advanced Media Workflow Association
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import random
 import requests
 import json
-
-from flask import Flask, render_template, make_response, abort, request, Response
-
+from flask import Flask, render_template, make_response, abort, request, Response, url_for
 from DataStore import data
+
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -12,19 +25,77 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    r = make_response(render_template("index.html", cachebuster=CACHEBUSTER))
-    r.headers['Cache-Control'] = 'no-cache, no-store'
-    return r
+    if request.method == 'GET':
+        if data.getStatus() == 'Test':
+            r = make_response(render_template("index.html", test_type=data.getTest(), question=data.getQuestion(), 
+                                              answers=data.getAnswers(), name=data.getName(), 
+                                              description=data.getDescription(), response_url=data.getUrl(),
+                                              time_sent=data.getTime(), timeout=data.getTimeout(),
+                                              all_data=data.getJson(), cachebuster=CACHEBUSTER))
+        else:
+            r = make_response(render_template("index.html", question=None, answers=None, 
+                                              name=None, description=None, cachebuster=CACHEBUSTER))
+        r.headers['Cache-Control'] = 'no-cache, no-store'
+        return r
 
-@app.route('/x-nmos/client-testing/', methods=['GET', 'POST'], strict_slashes=False)
-def jtnm_tests():
-    if request.method == 'POST':
-        # Should be json from Test Suite with questions
+    else:
+        form = request.form.to_dict()
+
+        if 'answer' in form:
+            json_data = json.loads(form['all_data'])
+
+            if json_data['test_type'] == 'checkbox':
+                json_data['answer_response'] = request.form.getlist('answer')
+            else:    
+                json_data['answer_response'] = form['answer']
+
+            # POST to x-nmos/client-testing/ with new data
+            #valid, response = do_request('POST', "http://" + request.headers.get("Host") + url_for('.jtnm_tests'), json=json_data)
+            # POST to test suite to confirm answer available
+            valid, response = do_request('POST', form['response_url'], json=json_data)
+        elif 'Next' in form:
+            # Test question was instuctions to be confirmed
+            json_data = json.loads(form['all_data'])
+            json_data['answer_response'] = 'Next'
+            # POST to test suite to confirm answer available
+            valid, response = do_request('POST', form['response_url'], json=json_data)
+        else:
+            return False, "No answer submitted"
+
+        return 'Answer set'
+
+@app.route('/x-nmos/client-testing/<version>', methods=['POST'], strict_slashes=False)
+def jtnm_tests_post(version):
+    # Should be json from Test Suite with questions
+    json_list = ['test_type', 'name', 'description', 'question', 'answers', 'time_sent', 'url_for_response']
+
+    if 'clear' in request.json and request.json['clear'] == 'True':
+        # End of current tests, clear data store
+        data.clear()
+    elif 'answer_response' in request.json and request.json['answer_response'] != "":
+        # Answer was given, check details compared to question POST to verify answering correct question
+        for entry in json_list:
+            method = getattr(data, 'get' + entry.split('_')[0].capitalize())
+            current = method()
+            if current != request.json[entry]:
+                return False, "{} : {} doesn't match current question details".format(entry, request.json[entry])
+        # All details are consistent so update the data store to contain the answer
+        data.setAnswer(request.json['answer_response'])
+        # POST to test suite to indicate answer has been set
+        valid, response = do_request('POST', request.json['url_for_response'], json={})
+    else:
+        # Should be a new question
+        for entry in json_list:
+            if entry not in request.json:
+                return False, "Missing {}".format(entry)
+        # All required entries are present so update data
         data.setJson(request.json)
-        return 'Request received'
+    return 'OK'
 
-    elif request.method == 'GET':
-        return Response(json.dumps(data.getJson()), mimetype='application/json')
+@app.route('/x-nmos/client-testing/', methods=['GET'], strict_slashes=False)
+def jtnm_tests_get():
+    return Response(data.getJson(), mimetype='application/json')
+
 
 def do_request(method, url, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
@@ -54,7 +125,6 @@ def do_request(method, url, **kwargs):
         return False, str(e)
     except requests.exceptions.RequestException as e:
         return False, str(e)
-
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001)
