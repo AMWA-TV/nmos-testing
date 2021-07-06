@@ -27,11 +27,10 @@
         // Target for countdown is time question was sent plus timeout converted to milliseconds
         var target=(parseInt("{{ time_sent }}") + parseInt("{{ timeout }}")) * 1000;
 
-        if (isNaN(target)) {
-        // No question data, should check periodically and refresh once found
-            setInterval(checkForQuestion, 5000);
+        setInterval(checkForNewQuestion, 5000);
 
-        } else {
+        if (!isNaN(target)) {
+            // target time exists so set countdown
             var x = setInterval(function() {
             // current time
             var now = new Date().getTime();
@@ -53,21 +52,24 @@
             // If expired show message
             if (difference < 0) {
                 clearInterval(x);
-                window.location.reload();
+                var button = document.getElementById("submitbtn");
+                button.value = 'Test expired';
+                button.disabled = true;
             }
         }, 1000);
         } 
 
-        function checkForQuestion() {
+        function checkForNewQuestion() {
             $.ajax({
                 url: "{{ url_for('jtnm_tests_get') }}",
                 success: function(data) {
-                    if (data['name']) {
+                    var current_test = "{{ name }}";
+                    if (data['name'] != current_test) {
                         window.location.reload();
                     }
                 }
             });
-        } 
+        }
     </script>
 </head>
 

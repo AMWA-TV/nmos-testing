@@ -524,7 +524,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
         elif test == "JT-NM-Tested":
             # This test has an unusual constructor as it requires a registry instance
-            test_obj = test_def["class"](apis, REGISTRIES, DNS_SERVER)
+            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)
 

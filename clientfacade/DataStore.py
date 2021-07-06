@@ -17,7 +17,7 @@ import json
 
 class DataStore:
     """
-    Store json with test question details
+    Store json with test question details for use with JTNM test suite and Client Facade
     """
 
     def __init__(self):
@@ -50,17 +50,17 @@ class DataStore:
         return self.status
 
     def setJson(self, json_str):
-            self.status = "Test"
-            self.test_type = json_str["test_type"]
-            self.name = json_str["name"]
-            self.description = json_str["description"]
-            self.question = json_str["question"]
-            self.answers = json_str["answers"]
-            self.time_sent = json_str["time_sent"]
-            self.timeout = json_str['timeout']
-            self.url_for_response = json_str["url_for_response"]
-            self.answer_response = json_str["answer_response"]
-            self.time_answered = json_str["time_answered"]
+        self.status = "Test"
+        self.test_type = json_str["test_type"]
+        self.name = json_str["name"]
+        self.description = json_str["description"]
+        self.question = json_str["question"]
+        self.answers = json_str["answers"]
+        self.time_sent = json_str["time_sent"]
+        self.timeout = json_str['timeout']
+        self.url_for_response = json_str["url_for_response"]
+        self.answer_response = json_str["answer_response"]
+        self.time_answered = json_str["time_answered"]
 
     def getJson(self):
         json_data = {

@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import uuid
+import json
 
-from flask import Blueprint, make_response, abort
+from flask import Blueprint, make_response, abort, Response
 from ..Config import ENABLE_HTTPS, DNS_DOMAIN, PORT_BASE, DNS_SD_MODE
 from ..TestHelper import get_default_ip
 
@@ -53,8 +54,14 @@ class Node(object):
         return sender
 
 
+
+
 NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
+
+def createCORSResponse(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 
 @NODE_API.route('/<stream_type>.sdp', methods=["GET"])
@@ -78,3 +85,29 @@ def node_video_sdp(stream_type):
 
     response.headers["Content-Type"] = "application/sdp"
     return response
+
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>', methods=["GET"], strict_slashes=False)
+def connection(version, resource, resource_id):
+    base_data = [ "constraints/", "staged/", "active/" ]
+
+    return make_response(createCORSResponse(Response(json.dumps(base_data), mimetype='application/json')))
+
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/constraints', methods=["GET"], strict_slashes=False)
+def constraints(version, resource, resource_id):
+    base_data = []
+
+    return make_response(createCORSResponse(Response(json.dumps(base_data), mimetype='application/json')))
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/staged', methods=["GET"], strict_slashes=False)
+def staged(version, resource, resource_id):
+    base_data = []
+
+    return make_response(createCORSResponse(Response(json.dumps(base_data), mimetype='application/json')))
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/active', methods=["GET"], strict_slashes=False)
+def active(version, resource, resource_id):
+    base_data = []
+
+    return make_response(createCORSResponse(Response(json.dumps(base_data), mimetype='application/json')))
