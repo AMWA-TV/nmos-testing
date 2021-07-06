@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import time
 import json
 import socket
 import uuid
 import inspect
-import threading
 import random
 from copy import deepcopy
 from urllib.parse import urlparse
@@ -38,8 +38,10 @@ REG_API_KEY = "registration"
 CALLBACK_ENDPOINT = "/clientfacade_response"
 CACHEBUSTER = random.randint(1, 10000)
 
-answer_available = threading.Event()
-
+# asyncio queue for passing client façade answer responses back to tests
+_event_loop = asyncio.new_event_loop()
+asyncio.set_event_loop(_event_loop)
+_answer_response_queue = asyncio.Queue()
 
 app = Flask(__name__)
 TEST_API = Blueprint('test_api', __name__)
@@ -51,14 +53,13 @@ class ClientFacadeException(Exception):
 
 @TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
 def retrieve_answer():
-    # Hmmmm, there must be a more elegant way to pass data between threads in a Flask application
-    global clientfacade_answer_json
 
     if request.method == 'POST':
         clientfacade_answer_json = request.json
-        if 'name' not in clientfacade_answer_json:
+        if 'name' not in request.json:
             return 'Invalid JSON received'
-        answer_available.set()
+
+        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, request.json)
 
     return 'OK'
 
@@ -79,7 +80,7 @@ class JTNMTest(GenericTest):
         self.zc_listener = None
         self.mock_registry_base_url = ''
         self.mock_node_base_url = ''
-        self.question_timeout = 600 # seconds
+        self.question_timeout = 600 # default timeout in seconds
         self.test_data = self.load_resource_data()
         self.senders = [] # sender list containing: {'label': '', 'description': '', 'id': '', 'registered': True/False, 'answer_str': ''}
         self.receivers = [] # receiver list containing: {'label': '', 'description': '', 'id': '', 'registered': True/False, 'connectable': True/False, 'answer_str': ''}
@@ -191,6 +192,9 @@ class JTNMTest(GenericTest):
                 except Exception as e:
                     self.result.append(self.uncaught_exception(test_name, e))
 
+    async def getAnswerResponse(self, timeout):
+        return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
+        
     def _invoke_client_facade(self, question, answers, test_type, timeout=None, multipart_test=None):
         """ 
         Send question and answers to Client Façade
@@ -203,8 +207,6 @@ class JTNMTest(GenericTest):
         multipart_test: indicates test uses multiple questions. Default None, should be increasing
                     integers with each subsequent call within the same test
         """
-        global clientfacade_answer_json
-        answer_available.clear()
 
         # Get the name of the calling test method to use as an identifier
         test_method_name = inspect.currentframe().f_back.f_code.co_name
@@ -231,21 +233,20 @@ class JTNMTest(GenericTest):
         if not valid:
             raise ClientFacadeException("Problem contacting Client Façade: " + response)
 
-        # Wait for answer available signal or question timeout in seconds
-        # JSON response to question is set in in clientfacade_answer_json global variable (Hmmm)        
-        get_json = answer_available.wait(timeout=question_timeout)
-
-        if get_json == False:
+        # Wait for answer response or question timeout in seconds
+        try:
+            answer_response = _event_loop.run_until_complete(self.getAnswerResponse(timeout=question_timeout))
+        except asyncio.TimeoutError:
             raise ClientFacadeException("Test timed out")
 
         # Basic integrity check for response json
-        if clientfacade_answer_json['name'] is None:
-            raise ClientFacadeException("Integrity check failed: result format error: " +json.dump(clientfacade_answer_json))
+        if answer_response['name'] is None:
+            raise ClientFacadeException("Integrity check failed: result format error: " +json.dump(answer_response))
 
-        if clientfacade_answer_json['name'] != json_out['name']:
-            raise ClientFacadeException("Integrity check failed: cannot compare result of " + json_out['name'] + " with expected result for " + clientfacade_answer_json['name'])
+        if answer_response['name'] != json_out['name']:
+            raise ClientFacadeException("Integrity check failed: cannot compare result of " + json_out['name'] + " with expected result for " + answer_response['name'])
             
-        return clientfacade_answer_json['answer_response']
+        return answer_response['answer_response']
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
