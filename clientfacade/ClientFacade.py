@@ -15,6 +15,7 @@
 import random
 import requests
 import json
+import time
 from flask import Flask, render_template, make_response, abort, request, Response, url_for
 from DataStore import data
 
@@ -49,6 +50,8 @@ def index():
             else:    
                 json_data['answer_response'] = form['answer']
 
+            json_data['time_answered'] = time.time()
+
             # POST to x-nmos/client-testing/ with new data
             #valid, response = do_request('POST', "http://" + request.headers.get("Host") + url_for('.jtnm_tests'), json=json_data)
             # POST to test suite to confirm answer available
@@ -57,6 +60,7 @@ def index():
             # Test question was instuctions to be confirmed
             json_data = json.loads(form['all_data'])
             json_data['answer_response'] = 'Next'
+            json_data['time_answered'] = time.time()
             # POST to test suite to confirm answer available
             valid, response = do_request('POST', form['response_url'], json=json_data)
         else:
