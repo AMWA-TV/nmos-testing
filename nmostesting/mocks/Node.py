@@ -23,6 +23,7 @@ from ..TestHelper import get_default_ip
 class Node(object):
     def __init__(self, port_increment):
         self.port = PORT_BASE + 200 + port_increment
+        self.id = str(uuid.uuid4())
 
     def get_sender(self, stream_type="video"):
         protocol = "http"

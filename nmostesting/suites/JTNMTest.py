@@ -314,6 +314,9 @@ class JTNMTest(GenericTest):
 
     def _populate_registry(self):
         """This data is baseline data for all tests in the test suite"""
+        # Register node
+        node = self._register_resource("node", "AMWA Test Suite Node", "AMWA Test Suite Node")
+
         # Sender initial details
         self.senders = [{'label': 'Test-node-1/sender/gilmour', 'description': 'Mock sender 1', 'id': str(uuid.uuid4()), 'registered': False, 'answer_str': ''},
                         {'label': 'Test-node-1/sender/waters', 'description': 'Mock sender 2', 'id': str(uuid.uuid4()), 'registered': False, 'answer_str': ''},
@@ -363,7 +366,7 @@ class JTNMTest(GenericTest):
             with open("test_data/JTNM/v1.3_{}.json".format(resource)) as resource_data:
                 resource_json = json.load(resource_data)
                 result_data[resource] = resource_json
-
+        result_data['node']['id'] = self.node.id
         return result_data
 
     def post_resource(self, test, type, data=None, reg_url=None, codes=None, fail=Test.FAIL, headers=None):
@@ -424,10 +427,10 @@ class JTNMTest(GenericTest):
         data["description"] = description
 
         if type == "node":
+            data['id'] = self.node.id
             pass
         elif type == "device":
-            node = self.post_super_resources_and_resource(test, "node", description, include_connection_api, sender_id, receiver_id, fail=Test.UNCLEAR)
-            data["node_id"] = node["id"]
+            data["node_id"] = self.node.id
             if include_connection_api:
                 # Update the controls data with the URL of the mock node
                 controls = data["controls"][0]["href"] = self.mock_node_base_url + '/x-nmos/connection/v1.0/'
