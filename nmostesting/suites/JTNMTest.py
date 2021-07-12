@@ -194,8 +194,8 @@ class JTNMTest(GenericTest):
 
     async def getAnswerResponse(self, timeout):
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
-        
-    def _invoke_client_facade(self, question, answers, test_type, timeout=None, multipart_test=None):
+
+    def _send_client_facade_questions(self, question, answers, test_type, timeout=None, multipart_test=None):
         """ 
         Send question and answers to Client Façade
         question:   text to be presented to Test User
@@ -233,6 +233,12 @@ class JTNMTest(GenericTest):
         if not valid:
             raise ClientFacadeException("Problem contacting Client Façade: " + response)
 
+        return json_out
+
+    def _wait_for_client_facade(self, test_name, timeout=None):
+
+        question_timeout = timeout if timeout else self.question_timeout
+
         # Wait for answer response or question timeout in seconds
         try:
             answer_response = _event_loop.run_until_complete(self.getAnswerResponse(timeout=question_timeout))
@@ -243,10 +249,16 @@ class JTNMTest(GenericTest):
         if answer_response['name'] is None:
             raise ClientFacadeException("Integrity check failed: result format error: " +json.dump(answer_response))
 
-        if answer_response['name'] != json_out['name']:
-            raise ClientFacadeException("Integrity check failed: cannot compare result of " + json_out['name'] + " with expected result for " + answer_response['name'])
+        if answer_response['name'] != test_name:
+            raise ClientFacadeException("Integrity check failed: cannot compare result of " + test_name + " with expected result for " + answer_response['name'])
             
         return answer_response
+
+    def _invoke_client_facade(self, question, answers, test_type, timeout=None, multipart_test=None):
+        
+        json_out = self._send_client_facade_questions(question, answers, test_type, timeout, multipart_test)
+
+        return self._wait_for_client_facade(json_out['name'], timeout)    
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -563,9 +575,9 @@ class JTNMTest(GenericTest):
         except ClientFacadeException as e:
             return test.UNCLEAR(e.args[0])
 
-    def test_05a(self, test):
+    def test_05(self, test):
         """
-        Reference Sender is put offline
+        Reference Sender is put offline and then back online
         """
         try:
             # Check senders 
@@ -578,64 +590,50 @@ class JTNMTest(GenericTest):
             # Take one of the senders offline
             possible_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
             answer_indices = [index for index, s in enumerate(self.senders) if s['registered'] == True]
-            offline_sender = random.choice(answer_indices)
-            expected_answer = self.senders[offline_sender]['answer_str']
+            offline_sender_index = random.choice(answer_indices)
+            expected_answer = self.senders[offline_sender_index]['answer_str']
 
-            del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + self.senders[offline_sender]['id']
+            del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + self.senders[offline_sender_index]['id']
             valid, r = self.do_request("DELETE", del_url)
 
             # Set the offline sender to registered false for future tests
-            self.senders[offline_sender]['registered'] = False
+            self.senders[offline_sender_index]['registered'] = False
 
             # Recheck senders
             question = "When your BCuT updates, select which sender has gone offline"
 
-            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio", multipart_test="1")['answer_response']
+            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio")['answer_response']
 
             if actual_answer != expected_answer:
-                return test.FAIL('Incorrect sender identified')
+                return test.FAIL('Offline/online sender not handled: Incorrect sender identified')
 
-            return test.PASS('Sender correctly identified')
-        except ClientFacadeException as e:
-            return test.UNCLEAR(e.args[0])
+            max_time_until_online = 60
+            max_time_to_answer = 30
 
-    def test_05b(self, test):
-        """
-        Reference Sender is put online
-        """
-        try:
-            # Check senders
-            question = 'The Query API should be able to discover and dynamically update all the Senders that are registered in the Registry.\n' \
-            'Use the BCuT to browse and take note of the Senders that are available.'
+            question = 'The sender which went offline will come back online within the next ' + str(max_time_until_online) + ' seconds. Press \'Next\' as soon as the BCuT detects the sender.\n' 
             possible_answers = []
 
-            self._invoke_client_facade(question, possible_answers, test_type="action")
+            # Send the question to the Client Façade and then put sender online before waiting for the Client Facade response
+            sent_json = self._send_client_facade_questions(question, possible_answers, test_type="action")
 
-            # Put an extra sender online
-            # Get list of currently offline senders
-            answer_indices = [index for index, s in enumerate(self.senders) if s['registered'] == False]
-            online_sender = random.choice(answer_indices)
+            # Wait a random amount of time before bringing sender back online
+            time.sleep(random.randint(10, max_time_until_online))
+
+            time_online = time.time()
 
             # Register new sender and update data
-            self.senders[online_sender]['id'] = self._register_resource('sender', self.senders[online_sender]['label'], self.senders[online_sender]['description'])
-            self.senders[online_sender]['answer_str'] = self._format_device_metadata(self.senders[online_sender]['label'], self.senders[online_sender]['description'], self.senders[online_sender]['id'])
+            # Hmmm, this will register a new sender with new ID - we really need the 'same' sender to come back online
+            self.senders[offline_sender_index]['id'] = self._register_resource('sender', self.senders[offline_sender_index]['label'], self.senders[offline_sender_index]['description'])
+            self.senders[offline_sender_index]['answer_str'] = self._format_device_metadata(self.senders[offline_sender_index]['label'], self.senders[offline_sender_index]['description'], self.senders[offline_sender_index]['id'])
 
-            possible_answers = [s['answer_str'] for s in self.senders if s['registered'] == False]
+            response = self._wait_for_client_facade(sent_json['name'])    
 
-            # Set sender registered True for future tests
-            self.senders[online_sender]['registered'] = True
-
-            expected_answer = self.senders[online_sender]['answer_str']
-
-            # Recheck senders
-            question = "When your BCuT updates, select which sender has come online"
-
-            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio", multipart_test="1")['answer_response']
-
-            if actual_answer != expected_answer:
-                return test.FAIL('Incorrect sender identified')
-
-            return test.PASS('Sender correctly identified')
+            if response['time_answered'] < time_online: # Answered before sender put online
+                return test.FAIL('Offline/online sender not handled: Sender not yet online')
+            elif response['time_answered'] > time_online + max_time_to_answer:
+                return test.FAIL('Offline/online sender not handled: Sender online '  + str(int(response['time_answered'] - time_online)) + ' seconds ago')
+            else:
+                return test.PASS('Offline/online sender handled correctly')                
         except ClientFacadeException as e:
             return test.UNCLEAR(e.args[0])
 
