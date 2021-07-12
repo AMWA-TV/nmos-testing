@@ -246,7 +246,7 @@ class JTNMTest(GenericTest):
         if answer_response['name'] != json_out['name']:
             raise ClientFacadeException("Integrity check failed: cannot compare result of " + json_out['name'] + " with expected result for " + answer_response['name'])
             
-        return answer_response['answer_response']
+        return answer_response
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -461,10 +461,9 @@ class JTNMTest(GenericTest):
         'Although the test AMWA IS-04 Registry should be discoverable via DNS-SD, for the purposes of developing this testing framework ' \
         'it is also possible to reach the Registry via the following URL:\n\n' + self.mock_registry_base_url + 'x-nmos/query/v1.3\n\n' \
         'Once the BCuT has located the test AMWA IS-04 Registry, please click \'Next\''
-        possible_answers=[]
 
         try:
-            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="action", timeout=600)
+            self._invoke_client_facade(question, [], test_type="action", timeout=600)
 
         except ClientFacadeException as e:
             # pre_test_introducton timed out
@@ -475,10 +474,9 @@ class JTNMTest(GenericTest):
         JT-NM Tested Test Suite testing complete!
         """
         question =  'JT-NM Tested Test Suite testing complete!\r\n\r\nPlease press \'Next\' to exit the tests'
-        possible_answers=[]
 
         try:
-            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="action", timeout=10)
+            self._invoke_client_facade(question, [], test_type="action", timeout=10)
 
         except ClientFacadeException as e:
             # post_test_introducton timed out
@@ -503,9 +501,8 @@ class JTNMTest(GenericTest):
             # Question 1 connection
             question = 'Use the BCuT to browse the Senders and Receivers on the discovered Registry via the selected IS-04 Query API.\n' \
             'Once you have finished browsing click \'Next\'. Successful browsing of the Registry will be automatically logged by the test framework.\n'
-            possible_answers = []
 
-            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="action")
+            self._invoke_client_facade(question, [], test_type="action")
 
             # Fail if the REST Query API was not called, and no query subscriptions were made
             # The registry will log calls to the Query API endpoints
@@ -528,7 +525,7 @@ class JTNMTest(GenericTest):
             possible_answers = [s['answer_str'] for s in self.senders]
             expected_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
 
-            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")
+            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect sender identified')
@@ -553,7 +550,7 @@ class JTNMTest(GenericTest):
             possible_answers = [r['answer_str'] for r in self.receivers]
             expected_answers = [r['answer_str'] for r in self.receivers if r['registered'] == True]
 
-            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")
+            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect receiver identified')
@@ -593,7 +590,7 @@ class JTNMTest(GenericTest):
             # Recheck senders
             question = "When your BCuT updates, select which sender has gone offline"
 
-            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio", multipart_test="1")
+            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio", multipart_test="1")['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
@@ -633,7 +630,7 @@ class JTNMTest(GenericTest):
             # Recheck senders
             question = "When your BCuT updates, select which sender has come online"
 
-            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio", multipart_test="1")
+            actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio", multipart_test="1")['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
@@ -653,7 +650,7 @@ class JTNMTest(GenericTest):
             possible_answers = [r['answer_str'] for r in self.receivers]
             expected_answers = [r['answer_str'] for r in self.receivers if r['registered'] == True and r['connectable'] == True]
 
-            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")
+            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect Receiver identified')
