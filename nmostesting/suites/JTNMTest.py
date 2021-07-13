@@ -195,7 +195,7 @@ class JTNMTest(GenericTest):
     async def getAnswerResponse(self, timeout):
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
 
-    def _send_client_facade_questions(self, question, answers, test_type, timeout=None, multipart_test=None):
+    def _send_client_facade_questions(self, test_method_name, question, answers, test_type, timeout=None, multipart_test=None):
         """ 
         Send question and answers to Client Façade
         question:   text to be presented to Test User
@@ -208,8 +208,6 @@ class JTNMTest(GenericTest):
                     integers with each subsequent call within the same test
         """
 
-        # Get the name of the calling test method to use as an identifier
-        test_method_name = inspect.currentframe().f_back.f_code.co_name
         method = getattr(self, test_method_name)
 
         question_timeout = timeout if timeout else self.question_timeout
@@ -256,7 +254,10 @@ class JTNMTest(GenericTest):
 
     def _invoke_client_facade(self, question, answers, test_type, timeout=None, multipart_test=None):
         
-        json_out = self._send_client_facade_questions(question, answers, test_type, timeout, multipart_test)
+        # Get the name of the calling test method to use as an identifier
+        test_method_name = inspect.currentframe().f_back.f_code.co_name
+
+        json_out = self._send_client_facade_questions(test_method_name, question, answers, test_type, timeout, multipart_test)
 
         return self._wait_for_client_facade(json_out['name'], timeout)    
 
@@ -508,6 +509,22 @@ class JTNMTest(GenericTest):
         receiver_data["device_id"] = receiver["device_id"]
         self.post_resource(self, "receiver", receiver_data, codes=codes, fail=fail)
 
+    def _delete_receiver(self, receiver):
+        
+        del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/receivers/' + receiver['id']
+        
+        valid, r = self.do_request("DELETE", del_url)
+        if not valid:
+            # Hmm - do we need these exceptions as the registry is our own mock registry?
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
+
+        del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/devices/' + receiver['device_id']
+        
+        valid, r = self.do_request("DELETE", del_url)
+        if not valid:
+            # Hmm - do we need these exceptions as the registry is our own mock registry?
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
+
     def pre_tests_message(self):
         """
         Introduction to JT-NM Tested Test Suite
@@ -658,8 +675,11 @@ class JTNMTest(GenericTest):
             question = 'The sender which went offline will come back online within the next ' + str(max_time_until_online) + ' seconds. Press \'Next\' as soon as the BCuT detects the sender.\n' 
             possible_answers = []
 
+            # Get the name of the calling test method to use as an identifier
+            test_method_name = inspect.currentframe().f_code.co_name
+
             # Send the question to the Client Façade and then put sender online before waiting for the Client Facade response
-            sent_json = self._send_client_facade_questions(question, possible_answers, test_type="action")
+            sent_json = self._send_client_facade_questions(test_method_name, question, possible_answers, test_type="action")
 
             # Wait a random amount of time before bringing sender back online
             time.sleep(random.randint(10, max_time_until_online))
@@ -685,13 +705,30 @@ class JTNMTest(GenericTest):
         Identify which Receiver devices are controllable via IS-05
         """
         try:
+            # Register receivers, some of which are non connectable
+                    # Receiver initial details
+            test_06_receivers = [{'label': 'Test-node-2/receiver/partridge', 'description': 'Mock receiver 7'},
+                              {'label': 'Test-node-2/receiver/moulding', 'description': 'Mock receiver 8'},
+                              {'label': 'Test-node-2/receiver/gregory', 'description': 'Mock receiver 9'},
+                              {'label': 'Test-node-2/receiver/chambers', 'description': 'Mock receiver 10'},
+                              {'label': 'Test-node-2/receiver/andrews', 'description': 'Mock receiver 11'}]
+
+            for receiver in test_06_receivers:
+                receiver["id"] = str(uuid.uuid4())
+                receiver["device_id"] = str(uuid.uuid4())
+                receiver["controls_href"] = self.mock_node_base_url + "/x-nmos/connection/v1.0/"
+                receiver["registered"] = True
+                receiver["connectable"] = random.choice([True, False])
+                receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
+                self._register_receiver(receiver)
+
             # Check receivers 
             question = 'Some of the discovered Receivers are controllable via IS-05, for instance, allowing Senders to be connected.\n' \
-            'Carefully select the Receivers that have connection APIs from the following list.'
-            possible_answers = [r['answer_str'] for r in self.receivers]
-            expected_answers = [r['answer_str'] for r in self.receivers if r['registered'] == True and r['connectable'] == True]
+            'Please refresh the BCuT and carefully select which of the following Receivers have connection APIs.'
+            possible_answers = [r['answer_str'] for r in test_06_receivers]
+            expected_answers = [r['answer_str'] for r in test_06_receivers if r['connectable'] == True]
 
-            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox")['answer_response']
+            actual_answers = self._invoke_client_facade(question, possible_answers, test_type="checkbox", timeout=30)['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect Receiver identified')
@@ -703,6 +740,10 @@ class JTNMTest(GenericTest):
             return test.PASS('All Receivers correctly identified')
         except ClientFacadeException as e:
             return test.UNCLEAR(e.args[0])
+        finally:
+            #Delete receivers
+            for receiver in test_06_receivers:
+                self._delete_receiver(receiver)
 
     def test_07(self, test):
         """
