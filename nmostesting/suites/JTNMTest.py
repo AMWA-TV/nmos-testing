@@ -299,47 +299,50 @@ class JTNMTest(GenericTest):
         """ Used to format answers based on device metadata """
         return label + ' (' + description + ', ' + id + ')'
 
-    def _register_resource(self, type, label, description, include_connection_api=True):
-        """
-        type: of the resource e.g. sender, receiver
-        label: resource label
-        description: resource descriptions
-        returns new id from actual registered resource to use
-        """
-        device_data = self.post_super_resources_and_resource(self, type, description, include_connection_api)
-        device_data['label'] = label
-        self.post_resource(self, type, device_data, codes=[200])
-
-        return device_data['id']
-
     def _populate_registry(self):
         """This data is baseline data for all tests in the test suite"""
         # Register node
-        node = self._register_resource("node", "AMWA Test Suite Node", "AMWA Test Suite Node")
+        self._register_node(self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
 
         # Sender initial details
-        self.senders = [{'label': 'Test-node-1/sender/gilmour', 'description': 'Mock sender 1', 'id': str(uuid.uuid4()), 'registered': False, 'answer_str': ''},
-                        {'label': 'Test-node-1/sender/waters', 'description': 'Mock sender 2', 'id': str(uuid.uuid4()), 'registered': False, 'answer_str': ''},
-                        {'label': 'Test-node-1/sender/wright', 'description': 'Mock sender 3', 'id': str(uuid.uuid4()), 'registered': False, 'answer_str': ''},
-                        {'label': 'Test-node-1/sender/mason', 'description': 'Mock sender 4', 'id': str(uuid.uuid4()), 'registered': False, 'answer_str': ''},
-                        {'label': 'Test-node-1/sender/barrett', 'description': 'Mock sender 5', 'id': str(uuid.uuid4()), 'registered': False, 'answer_str': ''}]
+        self.senders = [{'label': 'Test-node-1/sender/gilmour', 'description': 'Mock sender 1'},
+                        {'label': 'Test-node-1/sender/waters', 'description': 'Mock sender 2'},
+                        {'label': 'Test-node-1/sender/wright', 'description': 'Mock sender 3'},
+                        {'label': 'Test-node-1/sender/mason', 'description': 'Mock sender 4'},
+                        {'label': 'Test-node-1/sender/barrett', 'description': 'Mock sender 5'}]
+
+        for sender in self.senders:
+            sender["id"] = str(uuid.uuid4())
+            sender["device_id"] = str(uuid.uuid4())
+            sender["flow_id"] = str(uuid.uuid4())
+            sender["source_id"] = str(uuid.uuid4())
+            sender["manifest_href"] = self.mock_node_base_url + "/video.sdp"
+            sender["registered"] = False
+            sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
 
         sender_indices = self._generate_random_indices(len(self.senders))
 
         # Register randomly chosen senders and generate answer strings
         for i, sender in enumerate(self.senders):
             if i in sender_indices:
-                sender['id'] = self._register_resource("sender", sender['label'], sender['description'])
+                self._register_sender(sender)
                 sender['registered'] = True
-            sender['answer_str'] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
 
         # Receiver initial details
-        self.receivers = [{'label': 'Test-node-2/receiver/palin', 'description': 'Mock receiver 1', 'id': str(uuid.uuid4()), 'registered': False, 'connectable': True, 'answer_str': ''},
-                          {'label': 'Test-node-2/receiver/cleese', 'description': 'Mock receiver 2', 'id': str(uuid.uuid4()), 'registered': False, 'connectable': True, 'answer_str': ''},
-                          {'label': 'Test-node-2/receiver/jones', 'description': 'Mock receiver 3', 'id': str(uuid.uuid4()), 'registered': False, 'connectable': True, 'answer_str': ''},
-                          {'label': 'Test-node-2/receiver/chapman', 'description': 'Mock receiver 4', 'id': str(uuid.uuid4()), 'registered': False, 'connectable': True, 'answer_str': ''},
-                          {'label': 'Test-node-2/receiver/idle', 'description': 'Mock receiver 5', 'id': str(uuid.uuid4()), 'registered': False, 'connectable': True, 'answer_str': ''},
-                          {'label': 'Test-node-2/receiver/gilliam', 'description': 'Mock receiver 6', 'id': str(uuid.uuid4()), 'registered': False, 'connectable': True, 'answer_str': ''}]
+        self.receivers = [{'label': 'Test-node-2/receiver/palin', 'description': 'Mock receiver 1'},
+                          {'label': 'Test-node-2/receiver/cleese', 'description': 'Mock receiver 2'},
+                          {'label': 'Test-node-2/receiver/jones', 'description': 'Mock receiver 3'},
+                          {'label': 'Test-node-2/receiver/chapman', 'description': 'Mock receiver 4'},
+                          {'label': 'Test-node-2/receiver/idle', 'description': 'Mock receiver 5'},
+                          {'label': 'Test-node-2/receiver/gilliam', 'description': 'Mock receiver 6'}]
+
+        for receiver in self.receivers:
+            receiver["id"] = str(uuid.uuid4())
+            receiver["device_id"] = str(uuid.uuid4())
+            receiver["controls_href"] = self.mock_node_base_url + "/x-nmos/connection/v1.0/"
+            receiver["registered"] = False
+            receiver["connectable"] = True
+            receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
 
         # Generate indices of self.receivers to be registered and some of those to be non connectable
         receiver_indices = self._generate_random_indices(len(self.receivers))
@@ -350,12 +353,11 @@ class JTNMTest(GenericTest):
         for i, receiver in enumerate(self.receivers):
             if i in receiver_indices:
                 if i in non_connectable_receiver_indices:
-                    receiver['id'] = self._register_resource("receiver", receiver['label'], receiver['description'], include_connection_api=False)
                     receiver['connectable'] = False
+                    self._register_receiver(receiver)
                 else:
-                    receiver['id'] = self._register_resource("receiver", receiver['label'], receiver['description'])
+                    self._register_receiver(receiver)
                 receiver['registered'] = True
-            receiver['answer_str'] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
 
     def load_resource_data(self):
         """Loads test data from files"""
@@ -416,54 +418,102 @@ class JTNMTest(GenericTest):
 
         return location, timestamp
 
-    def post_super_resources_and_resource(self, test, type, description, include_connection_api=True, sender_id=None, receiver_id=None, fail=Test.FAIL):
+    def _register_node(self, node_id, label, description):
         """
-        Perform POST requests on the Registration API to create the super-resource registrations
-        for the requested type, before performing a POST request to create that resource registration
+        Perform POST requests on the Registration API to create node registration
+        Assume that Node has already been registered        
+        """
+        node_data = deepcopy(self.test_data["node"])
+        node_data["id"] = node_id
+        node_data['label'] = label
+        node_data["description"] = description
+        self.post_resource(self, "node", node_data, codes=[201])
+
+    def _register_sender(self, sender, codes=[201], fail=Test.FAIL):
+        """
+        Perform POST requests on the Registration API to create sender registration
+        Assume that Node has already been registered
+        Use to create sender [code=201] or to update existing sender [code=200]
         """
         # use the test data as a template for creating new resources
-        data = deepcopy(self.test_data[type])
-        data["id"] = str(uuid.uuid4())
-        data["description"] = description
 
-        if type == "node":
-            data['id'] = self.node.id
-            pass
-        elif type == "device":
-            data["node_id"] = self.node.id
-            if include_connection_api:
-                # Update the controls data with the URL of the mock node
-                controls = data["controls"][0]["href"] = self.mock_node_base_url + '/x-nmos/connection/v1.0/'
-            else:
-                data["controls"] = [] # Remove controls data
-            data["senders"] = [ sender_id ] if sender_id else [] 
-            data["receivers"] = [ receiver_id ] if receiver_id else [] 
-        elif type == "source":
-            device = self.post_super_resources_and_resource(test, "device", description, include_connection_api, sender_id, receiver_id, fail=Test.UNCLEAR)
-            data["device_id"] = device["id"]
-        elif type == "flow":
-            source = self.post_super_resources_and_resource(test, "source", description, include_connection_api, sender_id, receiver_id, fail=Test.UNCLEAR)
-            data["device_id"] = source["device_id"]
-            data["source_id"] = source["id"]
-            # since device_id is v1.1, downgrade
-            # Hmm We need to specify the registry version to ensure we downgrade to the right version
-            #data = NMOSUtils.downgrade_resource(type, data, self.apis[REG_API_KEY]["version"])
-        elif type == "sender":
-            sender_id = str(uuid.uuid4())
-            data["id"] = sender_id
-            flow = self.post_super_resources_and_resource(test, "flow", description, include_connection_api, sender_id, receiver_id, fail=Test.UNCLEAR)
-            data["device_id"] = flow["device_id"]
-            data["flow_id"] = flow["id"]  # or post a flow first and use its id here?
-            data["manifest_href"] = self.mock_node_base_url + "/video.sdp"
-        elif type == "receiver":
-            receiver_id = str(uuid.uuid4())
-            data["id"] = receiver_id
-            device = self.post_super_resources_and_resource(test, "device", description, include_connection_api, sender_id, receiver_id, fail=Test.UNCLEAR)
-            data["device_id"] = device["id"]
+        # Register device
+        device_data = deepcopy(self.test_data["device"])
+        device_data["id"] = sender["device_id"]
+        device_data["label"] = "AMWA Test Device"
+        device_data["description"] = "AMWA Test Device"
+        device_data["node_id"] = self.node.id
+        device_data["controls"] = [] # Remove controls data
+        device_data["senders"] = [ sender["id"] ] 
+        device_data["receivers"] = [] 
+        self.post_resource(self, "device", device_data, codes=codes, fail=fail)
 
-        self.post_resource(test, type, data, codes=[201], fail=fail)
+        # Register source
+        source_data = deepcopy(self.test_data["source"])
+        source_data["id"] = sender["source_id"]
+        source_data["label"] = "AMWA Test Source"
+        source_data["description"] = "AMWA Test Source"
+        source_data["device_id"] = sender["device_id"]
+        self.post_resource(self, "source", source_data, codes=codes, fail=fail)
 
-        return data
+        # Register flow
+        flow_data = deepcopy(self.test_data["flow"])
+        flow_data["id"] = sender["flow_id"]
+        flow_data["label"] = "AMWA Test Flow"
+        flow_data["description"] = "AMWA Test Flow"
+        flow_data["device_id"] = sender["device_id"]
+        flow_data["source_id"] = sender["source_id"]
+        self.post_resource(self, "flow", flow_data, codes=codes, fail=fail)
+
+        # Register sender
+        sender_data = deepcopy(self.test_data["sender"])
+        sender_data["id"] = sender["id"]
+        sender_data["label"] = sender["label"]
+        sender_data["description"] = sender["description"]
+        sender_data["device_id"] = sender["device_id"]
+        sender_data["flow_id"] = sender["flow_id"]  
+        sender_data["manifest_href"] = sender["manifest_href"]
+        self.post_resource(self, "sender", sender_data, codes=codes, fail=fail)
+
+    def _delete_sender(self, sender):
+        
+        del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + sender['id']
+        
+        valid, r = self.do_request("DELETE", del_url)
+        if not valid:
+            # Hmm - do we need these exceptions as the registry is our own mock registry?
+            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
+
+    def _register_receiver(self, receiver, fail=Test.FAIL):
+        """
+        Perform POST requests on the Registration API to create receiver registration
+        Assume that Node has already been registered
+        Use to create receiver [code=201] or to update existing receiver [code=200]
+        """
+        # use the test data as a template for creating new resources
+
+        # Register device
+        device_data = deepcopy(self.test_data["device"])
+        device_data["id"] = receiver["device_id"]
+        device_data["label"] = "AMWA Test Device"
+        device_data["description"] = "AMWA Test Device"
+        device_data["node_id"] = self.node.id
+        if receiver["connectable"]:
+            # Update the controls data with the URL of the mock node
+            device_data["controls"][0]["href"] = receiver['controls_href']
+        else:
+            device_data["controls"] = [] # Remove controls data
+        device_data["senders"] = [] 
+        device_data["receivers"] = [ receiver["id"] ] 
+        self.post_resource(self, "device", device_data, codes=[201], fail=fail)
+
+        # Register receiver
+        receiver_data = deepcopy(self.test_data["receiver"])
+        receiver_data["id"] = receiver["id"]
+        receiver_data["label"] = receiver["label"]
+        receiver_data["description"] = receiver["description"]
+        receiver_data["device_id"] = receiver["device_id"]
+        self.post_resource(self, "receiver", receiver_data, codes=[201], fail=fail)
 
     def pre_tests_message(self):
         """
@@ -596,8 +646,7 @@ class JTNMTest(GenericTest):
             offline_sender_index = random.choice(answer_indices)
             expected_answer = self.senders[offline_sender_index]['answer_str']
 
-            del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + self.senders[offline_sender_index]['id']
-            valid, r = self.do_request("DELETE", del_url)
+            self._delete_sender(self.senders[offline_sender_index])
 
             # Set the offline sender to registered false for future tests
             self.senders[offline_sender_index]['registered'] = False
@@ -624,10 +673,8 @@ class JTNMTest(GenericTest):
 
             time_online = time.time()
 
-            # Register new sender and update data
-            # Hmmm, this will register a new sender with new ID - we really need the 'same' sender to come back online
-            self.senders[offline_sender_index]['id'] = self._register_resource('sender', self.senders[offline_sender_index]['label'], self.senders[offline_sender_index]['description'])
-            self.senders[offline_sender_index]['answer_str'] = self._format_device_metadata(self.senders[offline_sender_index]['label'], self.senders[offline_sender_index]['description'], self.senders[offline_sender_index]['id'])
+            # Re-register sender
+            self._register_sender(self.senders[offline_sender_index], codes=[200, 201])
 
             response = self._wait_for_client_facade(sent_json['name'])    
 
