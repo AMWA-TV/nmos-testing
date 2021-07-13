@@ -346,18 +346,11 @@ class JTNMTest(GenericTest):
 
         # Generate indices of self.receivers to be registered and some of those to be non connectable
         receiver_indices = self._generate_random_indices(len(self.receivers))
-        receiver_indices_subset = self._generate_random_indices(len(receiver_indices), min_index_count=1, max_index_count=len(receiver_indices)-1)
-        non_connectable_receiver_indices = [r for index, r in enumerate(receiver_indices) if index in receiver_indices_subset]
 
         # Register randomly chosen resources, with some excluding connection api and generate answer strings
-        for i, receiver in enumerate(self.receivers):
-            if i in receiver_indices:
-                if i in non_connectable_receiver_indices:
-                    receiver['connectable'] = False
-                    self._register_receiver(receiver)
-                else:
-                    self._register_receiver(receiver)
-                receiver['registered'] = True
+        for i in receiver_indices:
+            self._register_receiver(self.receivers[i])
+            self.receivers[i]['registered'] = True
 
     def load_resource_data(self):
         """Loads test data from files"""
@@ -484,7 +477,7 @@ class JTNMTest(GenericTest):
             # Hmm - do we need these exceptions as the registry is our own mock registry?
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
 
-    def _register_receiver(self, receiver, fail=Test.FAIL):
+    def _register_receiver(self, receiver, codes=[201], fail=Test.FAIL):
         """
         Perform POST requests on the Registration API to create receiver registration
         Assume that Node has already been registered
@@ -505,7 +498,7 @@ class JTNMTest(GenericTest):
             device_data["controls"] = [] # Remove controls data
         device_data["senders"] = [] 
         device_data["receivers"] = [ receiver["id"] ] 
-        self.post_resource(self, "device", device_data, codes=[201], fail=fail)
+        self.post_resource(self, "device", device_data, codes=codes, fail=fail)
 
         # Register receiver
         receiver_data = deepcopy(self.test_data["receiver"])
@@ -513,7 +506,7 @@ class JTNMTest(GenericTest):
         receiver_data["label"] = receiver["label"]
         receiver_data["description"] = receiver["description"]
         receiver_data["device_id"] = receiver["device_id"]
-        self.post_resource(self, "receiver", receiver_data, codes=[201], fail=fail)
+        self.post_resource(self, "receiver", receiver_data, codes=codes, fail=fail)
 
     def pre_tests_message(self):
         """
