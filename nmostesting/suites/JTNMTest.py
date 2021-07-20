@@ -675,7 +675,7 @@ class JTNMTest(GenericTest):
             max_time_to_answer = 30
 
             question = 'The sender which was put \'offline\' will come back online at a random moment within the next ' + str(max_time_until_online) + ' seconds. ' \
-                'As soon as the BCut detects the sender has come back online please press the \'Next\' button.\n\n' \
+                'As soon as the BCuT detects the sender has come back online please press the \'Next\' button.\n\n' \
                 'The button must be pressed within ' + str(max_time_to_answer) + ' seconds of the Sender being put back \'online\'. ' \
                 'This includes any latency between the Sender being put \'online\' and the BCuT updating.'
             possible_answers = []
