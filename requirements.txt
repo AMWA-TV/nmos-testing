@@ -16,3 +16,4 @@ pyopenssl
 paho-mqtt
 authlib
 websockets
+Flask-Cors

@@ -317,7 +317,7 @@ class JTNMTest(GenericTest):
             sender["device_id"] = str(uuid.uuid4())
             sender["flow_id"] = str(uuid.uuid4())
             sender["source_id"] = str(uuid.uuid4())
-            sender["manifest_href"] = self.mock_node_base_url + "/video.sdp"
+            sender["manifest_href"] = self.mock_node_base_url + "video.sdp"
             sender["registered"] = False
             sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
 
@@ -340,7 +340,7 @@ class JTNMTest(GenericTest):
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
             receiver["device_id"] = str(uuid.uuid4())
-            receiver["controls_href"] = self.mock_node_base_url + "/x-nmos/connection/v1.0/"
+            receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
             receiver["registered"] = False
             receiver["connectable"] = True
             receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
@@ -353,9 +353,12 @@ class JTNMTest(GenericTest):
             self._register_receiver(self.receivers[i])
             self.receivers[i]['registered'] = True
 
+        # Send registered sender and receiver details over to mock node
+        self.node.add_senders(self.senders, self.test_data['sender'])
+        self.node.add_receivers(self.receivers, self.test_data['receiver'])
+
     def load_resource_data(self):
         """Loads test data from files"""
-        api = self.apis[JTNM_API_KEY]
         result_data = dict()
         resources = ["node", "device", "source", "flow", "sender", "receiver"]
         for resource in resources:
@@ -422,6 +425,7 @@ class JTNMTest(GenericTest):
         node_data['label'] = label
         node_data["description"] = description
         self.post_resource(self, "node", node_data, codes=[201])
+        self.node.registry_url = self.mock_registry_base_url
 
     def _register_sender(self, sender, codes=[201], fail=Test.FAIL):
         """
@@ -437,7 +441,7 @@ class JTNMTest(GenericTest):
         device_data["label"] = "AMWA Test Device"
         device_data["description"] = "AMWA Test Device"
         device_data["node_id"] = self.node.id
-        device_data["controls"] = [] # Remove controls data
+        device_data["controls"][0]["href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
         device_data["senders"] = [ sender["id"] ] 
         device_data["receivers"] = [] 
         self.post_resource(self, "device", device_data, codes=codes, fail=fail)
@@ -720,7 +724,7 @@ class JTNMTest(GenericTest):
             for receiver in test_06_receivers:
                 receiver["id"] = str(uuid.uuid4())
                 receiver["device_id"] = str(uuid.uuid4())
-                receiver["controls_href"] = self.mock_node_base_url + "/x-nmos/connection/v1.0/"
+                receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
                 receiver["registered"] = True
                 receiver["connectable"] = random.choice([True, False])
                 receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
