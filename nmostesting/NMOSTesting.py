@@ -34,6 +34,7 @@ import pkgutil
 import shlex
 
 from flask import Flask, render_template, flash, request, make_response, jsonify
+from flask_cors import CORS
 from wtforms import Form, validators, StringField, SelectField, SelectMultipleField, IntegerField, HiddenField
 from wtforms import FormField, FieldList
 from werkzeug.serving import WSGIRequestHandler
@@ -86,6 +87,7 @@ CMD_ARGS = None
 CACHEBUSTER = random.randint(1, 10000)
 
 core_app = Flask(__name__)
+CORS(core_app)
 core_app.debug = False
 core_app.config['SECRET_KEY'] = 'nmos-interop-testing-jtnm'
 core_app.config['TEST_ACTIVE'] = False
@@ -97,6 +99,7 @@ FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
     reg_app = Flask(__name__)
+    CORS(reg_app)
     reg_app.debug = False
     reg_app.config['REGISTRY_INSTANCE'] = instance
     reg_app.config['PORT'] = REGISTRIES[instance].port
@@ -114,6 +117,7 @@ for instance in range(NUM_SYSTEMS):
     FLASK_APPS.append(sys_app)
 
 sender_app = Flask(__name__)
+CORS(sender_app)
 sender_app.debug = False
 sender_app.config['PORT'] = NODE.port
 sender_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
@@ -875,7 +879,7 @@ def run_noninteractive_tests(args):
 
 
 def check_internal_requirements():
-    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket", "paho-mqtt": "paho"}
+    corrections = {"gitpython": "git", "pyopenssl": "OpenSSL", "websocket-client": "websocket", "paho-mqtt": "paho", "Flask-Cors": "flask_cors"}
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
