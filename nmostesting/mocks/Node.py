@@ -139,11 +139,6 @@ class Node(object):
 
             self.receivers.append(receiver)
 
-    def stage_receiver(self, receiver):
-        return receiver
-
-    def activate_receiver(self, receiver):
-        return receiver
 
 NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
