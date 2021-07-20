@@ -16,24 +16,26 @@ import uuid
 import json
 
 from flask import Blueprint, make_response, abort, Response
-from ..Config import ENABLE_HTTPS, DNS_DOMAIN, PORT_BASE, DNS_SD_MODE
+from random import randint
+from jinja2 import Template
+from .. import Config as CONFIG
 from ..TestHelper import get_default_ip
 
 
 class Node(object):
     def __init__(self, port_increment):
-        self.port = PORT_BASE + 200 + port_increment
+        self.port = CONFIG.PORT_BASE + 200 + port_increment
         self.id = str(uuid.uuid4())
 
     def get_sender(self, stream_type="video"):
         protocol = "http"
         host = get_default_ip()
-        if ENABLE_HTTPS:
+        if CONFIG.ENABLE_HTTPS:
             protocol = "https"
-            if DNS_SD_MODE == "multicast":
+            if CONFIG.DNS_SD_MODE == "multicast":
                 host = "nmos-mocks.local"
             else:
-                host = "mocks.{}".format(DNS_DOMAIN)
+                host = "mocks.{}".format(CONFIG.DNS_DOMAIN)
         # TODO: Provide the means to downgrade this to a <v1.2 JSON representation
         sender = {
             "id": str(uuid.uuid4()),
@@ -55,8 +57,6 @@ class Node(object):
         return sender
 
 
-
-
 NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
 
@@ -66,24 +66,47 @@ def createCORSResponse(response):
 
 
 @NODE_API.route('/<stream_type>.sdp', methods=["GET"])
-def node_video_sdp(stream_type):
+def node_sdp(stream_type):
     # TODO: Should we check for an auth token here? May depend on the URL?
-    response = None
     if stream_type == "video":
-        with open("test_data/IS0401/video.sdp") as f:
-            response = make_response(f.read())
+        template_path = "test_data/IS0401/video.sdp"
     elif stream_type == "audio":
-        with open("test_data/IS0401/audio.sdp") as f:
-            response = make_response(f.read())
+        template_path = "test_data/IS0401/audio.sdp"
     elif stream_type == "data":
-        with open("test_data/IS0401/data.sdp") as f:
-            response = make_response(f.read())
+        template_path = "test_data/IS0401/data.sdp"
     elif stream_type == "mux":
-        with open("test_data/IS0401/mux.sdp") as f:
-            response = make_response(f.read())
+        template_path = "test_data/IS0401/mux.sdp"
     else:
         abort(404)
 
+    template_file = open(template_path).read()
+    template = Template(template_file, keep_trailing_newline=True)
+
+    src_ip = get_default_ip()
+    dst_ip = "232.40.50.{}".format(randint(1, 254))
+    dst_port = randint(5000, 5999)
+
+    if stream_type == "video":
+        interlace = ""
+        if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
+            interlace = "interlace; "
+        # TODO: The SDP_PREFERENCES doesn't include video media type
+        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
+                                   width=CONFIG.SDP_PREFERENCES["video_width"],
+                                   height=CONFIG.SDP_PREFERENCES["video_height"],
+                                   interlace=interlace,
+                                   exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"])
+    elif stream_type == "audio":
+        # TODO: The SDP_PREFERENCES doesn't include audio media type or sample depth
+        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
+                                   channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                                   sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"])
+    elif stream_type == "data":
+        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
+    elif stream_type == "mux":
+        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
+
+    response = make_response(sdp_file)
     response.headers["Content-Type"] = "application/sdp"
     return response
 
