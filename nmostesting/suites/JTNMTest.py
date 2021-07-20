@@ -574,8 +574,8 @@ class JTNMTest(GenericTest):
         """
         try:
             # Question 1 connection
-            question = 'Use the BCuT to browse the Senders and Receivers on the discovered Registry via the selected IS-04 Query API.\n' \
-            'Once you have finished browsing click \'Next\'. Successful browsing of the Registry will be automatically logged by the test framework.\n'
+            question = 'Use the BCuT to browse the Senders and Receivers on the discovered Registry via the selected IS-04 Query API.\n\n' \
+            'Once you have finished browsing click the \'Next\' button. Successful browsing of the Registry will be automatically logged by the test framework.\n'
 
             self._invoke_client_facade(question, [], test_type="action")
 
@@ -595,7 +595,7 @@ class JTNMTest(GenericTest):
         """
         try:
             # Check senders 
-            question = 'The Query API should be able to discover all the Senders that are registered in the Registry.\n' \
+            question = 'The BCuT should be able to discover all the Senders that are registered in the Registry.\n\n' \
             'Refresh the BCuT\'s view of the Registry and carefully select the Senders that are available from the following list.' 
             possible_answers = [s['answer_str'] for s in self.senders]
             expected_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
@@ -620,7 +620,7 @@ class JTNMTest(GenericTest):
         """
         try:
             # Check receivers 
-            question = 'The Query API should be able to discover all the Receivers that are registered in the Registry.\n' \
+            question = 'The BCuT should be able to discover all the Receivers that are registered in the Registry.\n\n' \
             'Refresh the BCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.'
             possible_answers = [r['answer_str'] for r in self.receivers]
             expected_answers = [r['answer_str'] for r in self.receivers if r['registered'] == True]
@@ -644,8 +644,10 @@ class JTNMTest(GenericTest):
         """
         try:
             # Check senders 
-            question = 'The Query API should be able to discover and dynamically update all the Senders that are registered in the Registry.\n' \
-            'Use the BCuT to browse and take note of the Senders that are available.'
+
+            question = 'The BCuT should be able to discover and dynamically update all the Senders that are registered in the Registry.\n\n' \
+                'Use the BCuT to browse and take note of the Senders that are available.\n\n' \
+                'After the \'Next\' button has been clicked one of those senders will be put \'offline\'.'
             possible_answers = []
 
             self._invoke_client_facade(question, possible_answers, test_type="action")
@@ -662,7 +664,7 @@ class JTNMTest(GenericTest):
             self.senders[offline_sender_index]['registered'] = False
 
             # Recheck senders
-            question = "When your BCuT updates, select which sender has gone offline"
+            question = 'Please refresh your BCuT and select the sender which has been put \'offline\''
 
             actual_answer = self._invoke_client_facade(question, possible_answers, test_type="radio")['answer_response']
 
@@ -672,7 +674,10 @@ class JTNMTest(GenericTest):
             max_time_until_online = 60
             max_time_to_answer = 30
 
-            question = 'The sender which went offline will come back online within the next ' + str(max_time_until_online) + ' seconds. Press \'Next\' as soon as the BCuT detects the sender.\n' 
+            question = 'The sender which was put \'offline\' will come back online at a random moment within the next ' + str(max_time_until_online) + ' seconds. ' \
+                'As soon as the BCut detects the sender has come back online please press the \'Next\' button.\n\n' \
+                'The button must be pressed within ' + str(max_time_to_answer) + ' seconds of the Sender being put back \'online\'. ' \
+                'This includes any latency between the Sender being put \'online\' and the BCuT updating.'
             possible_answers = []
 
             # Get the name of the calling test method to use as an identifier
@@ -722,8 +727,10 @@ class JTNMTest(GenericTest):
                 self._register_receiver(receiver)
 
             # Check receivers 
-            question = 'Some of the discovered Receivers are controllable via IS-05, for instance, allowing Senders to be connected.\n' \
-            'Please refresh the BCuT and carefully select which of the following Receivers have connection APIs.'
+            question = 'Some of the discovered Receivers are controllable via IS-05, for instance, allowing Senders to be connected. ' \
+                'Additional Receivers have just been registered with the Registry, a subset of which have a connection API.\n\n' \
+                'Please refresh your BCuT and select the Receivers that have a connection API from the list below.\n\n' \
+                'Be aware that if your BCuT only displays Receivers which have a connection API, some of the Receivers in the following list may not be visible.'
             possible_answers = [r['answer_str'] for r in test_06_receivers]
             expected_answers = [r['answer_str'] for r in test_06_receivers if r['connectable'] == True]
 
