@@ -272,7 +272,7 @@ class WebsocketWorker(threading.Thread):
     def on_message(self, ws, message):
         self.messages.append(message)
 
-    def on_close(self, ws, close_status, close_message):
+    def on_close(self, ws):
         self.connected = False
 
     def on_error(self, ws, error):

@@ -1,6 +1,6 @@
 ## Installation & Usage
 
-`python3 ClientFacade.py`
+`python3 TestingFacade.py`
 
 Should be available on 127.0.0.1:5001
 
@@ -8,11 +8,11 @@ Should be available on 127.0.0.1:5001
 
 ### Semi-automated tests:
 
-1. Run nmos-test.py and choose JTNM Client Tests 
-3. Run ClientFacade.py to launch Client Façade. Client Façade will periodically check for new test questions/answers
-4. On NMOS Testing Tool enter IP address and Port where Client Façade is running
+1. Run nmos-test.py and choose the NMOS Controller tests 
+3. Run TestingFacade.py to launch Testing Façade. Testing Façade will periodically check for new test questions/answers
+4. On NMOS Testing Tool enter IP address and Port where Testing Façade is running
 5. Choose tests and click Run
-6. Test suite POSTs json with test details to Client Façade API endpoint '/x-nmos/client-testing'
+6. Test suite POSTs json with test details to Testing Façade API endpoint '/x-nmos/testing-facade'
 
 ```
 {
@@ -30,20 +30,20 @@ Should be available on 127.0.0.1:5001
 ```
     Then waits for period of timeout to receive a POST to the url_for_response API endpoint 
 
-7. Client Façade saves the json in a data store and presents question, answers and timer to Test User.
-8. Client Façade will POST to url_for_response with updated json including chosen answer(s) in answer_response
+7. Testing Façade saves the json in a data store and presents question, answers and timer to Test User.
+8. Testing Façade will POST to url_for_response with updated json including chosen answer(s) in answer_response
 9. Test suite url_for_response endpoint saves json and signals to NMOS Testing Tool that answer has been received. Answer is verified and result registered.
 10. Test suite moves on to next test and repeats 6-9 until all chosen tests are completed.
-11. After last test, test suite will POST a clear request to the client testing API to empty the data store
+11. After last test, test suite will POST a clear request to the Testing Façade to empty the data store
 12. Results are displayed on NMOS Testing Tool
 
 ### Fully automated tests:
-Will need to have endpoint for 'x-nmos/client-testing' to receive questions and some method of storing the json. Then add the answer_response and POST back to url_for_response
+Will need to have endpoint for 'x-nmos/testing-facade' to receive questions and some method of storing the json. Then add the answer_response and POST back to url_for_response
 
 ## Notes
 
 ### NMOS Testing Tool Test Selection
-Note that the "auto" test selection, although present, doesn't do anything presently as there is no RAML associated with the client tests.
+Note that the "auto" test selection, although present, doesn't do anything presently as there is no RAML associated with the NMOS Contoller tests.
 
 ### Known Issues
 

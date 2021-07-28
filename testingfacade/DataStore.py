@@ -17,7 +17,7 @@ import json
 
 class DataStore:
     """
-    Store json with test question details for use with JTNM test suite and Client Facade
+    Store json with test question details for use with NMOS Controller test suite and Testing Facade
     """
 
     def __init__(self):

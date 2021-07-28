@@ -52,8 +52,6 @@ def index():
 
             json_data['time_answered'] = time.time()
 
-            # POST to x-nmos/client-testing/ with new data
-            #valid, response = do_request('POST', "http://" + request.headers.get("Host") + url_for('.jtnm_tests'), json=json_data)
             # POST to test suite to confirm answer available
             valid, response = do_request('POST', form['response_url'], json=json_data)
         elif 'Next' in form:
@@ -71,8 +69,8 @@ def index():
 
         return 'Answer set'
 
-@app.route('/x-nmos/client-testing/<version>', methods=['POST'], strict_slashes=False)
-def jtnm_tests_post(version):
+@app.route('/x-nmos/testing-facade/<version>', methods=['POST'], strict_slashes=False)
+def testing_facade_post(version):
     # Should be json from Test Suite with questions
     json_list = ['test_type', 'name', 'description', 'question', 'answers', 'time_sent', 'url_for_response']
 
@@ -99,8 +97,8 @@ def jtnm_tests_post(version):
         data.setJson(request.json)
     return 'OK'
 
-@app.route('/x-nmos/client-testing/', methods=['GET'], strict_slashes=False)
-def jtnm_tests_get():
+@app.route('/controller_questions/', methods=['GET'], strict_slashes=False)
+def controller_questions_get():
     return Response(data.getJson(), mimetype='application/json')
 
 
