@@ -1,0 +1,24 @@
+; These lines give the fully qualified DNS names to the IP addresses of the hosts which we'd like to discover
+mocks.{{ domain }}.	IN	A	{{ ip_address }}
+
+{% for api, srv in [('reg', 'registration'), ('reg', 'register'), ('qry', 'query')] %}
+
+{% set registries = [
+	('2',		port_base + 2,	'mocks',	api_ver,	api_proto,	api_auth, 0)
+] %}
+
+{% for inst, port, host, ver, proto, auth, pri in registries %}
+
+; There should be one PTR record for each instance of the service you wish to advertise.
+_nmos-{{ srv }}._tcp	PTR	{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp
+
+; Next we have a SRV and a TXT record corresponding to the PTR above
+; The SRV links the PTR name to a resolvable DNS name (see the A records above) and identifies the port which the API runs on
+; The TXT records indicate additional metadata relevant to the IS-04 spec
+
+{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	SRV	0 0 {{ port }} {{ host }}.{{ domain }}.
+{{ api }}-api-{{ inst }}._nmos-{{ srv }}._tcp	TXT	"api_ver={{ ver }}" "api_proto={{ proto }}" "pri={{ pri }}" "api_auth={{ auth }}"
+
+{% endfor %}
+
+{% endfor %}

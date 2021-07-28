@@ -25,6 +25,7 @@ class WatchingResolver(ZoneResolver):
     def __init__(self, zone, glob=False):
         ZoneResolver.__init__(self, zone, glob)
         self.watching = {}
+        self.expected_queries = {}
 
     def wait_for_query(self, record_type, record_names, timeout):
         wait_event = Event()
@@ -36,9 +37,28 @@ class WatchingResolver(ZoneResolver):
         for record_name in record_names:
             self.watching[record_type][record_name] = None
 
+    def set_expected_query(self, record_type, record_names):
+        if record_type not in self.expected_queries:
+            self.expected_queries[record_type] = {}
+        for record_name in record_names:
+            self.expected_queries[record_type][record_name] = 0
+
+    def is_query_received(self):
+        for record_type in self.expected_queries:
+            for record_name in self.expected_queries[record_type]:
+                if self.expected_queries[record_type][record_name]:
+                    return True
+        return False
+
     def resolve(self, request, handler):
         qtype = request.q.qtype
         qname = str(request.q.qname)
+        
+        try:
+            self.expected_queries[qtype][qname] += 1
+        except (KeyError, AttributeError):
+            pass
+
         try:
             self.watching[qtype][qname].set()
         except (KeyError, AttributeError):
@@ -56,6 +76,12 @@ class DNS(object):
 
     def wait_for_query(self, record_type, record_name, timeout):
         self.resolver.wait_for_query(record_type, record_name, timeout)
+
+    def set_expected_query(self, record_type, record_names):
+        self.resolver.set_expected_query(record_type, record_names)
+
+    def is_query_received(self):
+        return self.resolver.is_query_received()
 
     def load_zone(self, api_version, api_protocol, api_authorization, zone_name, port_base):
         zone_file = open(zone_name).read()

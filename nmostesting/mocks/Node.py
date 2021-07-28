@@ -27,11 +27,10 @@ class Node(object):
     def __init__(self, port_increment):
         self.port = CONFIG.PORT_BASE + 200 + port_increment
         self.id = str(uuid.uuid4())
-        self.senders = []
-        self.receivers = []
-        self.sender_base_data = ''
-        self.receiver_base_data = ''
         self.registry_url = ''
+        self.staged_requests = []
+        self.receivers = {}
+        self.sender = {}
 
     def get_sender(self, stream_type="video"):
         protocol = "http"
@@ -62,22 +61,25 @@ class Node(object):
         }
         return sender
 
-    def add_senders(self, senders, sender_base_data):
+    def add_sender(self, sender):
         """
         Takes self.senders from mock registry and adds connection details
         """
-        self.sender_base_data = sender_base_data
-        for sender in senders:
-            sender['transport_file'] = sender['manifest_href']
-            sender['transport_params'] = [{"destination_ip": "auto",
-                                           "destination_port": "auto",
-                                           "rtp_enabled": True,
-                                           "source_ip": {
-                                               "enum": [get_default_ip()]
-                                            },
-                                           "source_port": "auto"
-                                        }]
-            sender['staged'] = { 
+        
+        transport_params = [{
+            "destination_ip": "auto",
+            "destination_port": "auto",
+            "rtp_enabled": True,
+            "source_ip": {
+                "enum": [get_default_ip()]
+                },
+                "source_port": "auto"
+        }]
+
+        sender_update = { 
+            'transport_file': sender['manifest_href'],
+            'transport_params': transport_params,
+            'staged': { 
                 "activation": {
                     "activation_time": None,
                     "mode": None,
@@ -85,63 +87,78 @@ class Node(object):
                 },
                 "master_enable": True,
                 "receiver_id": None,
+                'transport_params': transport_params
+            },
+            'active': {
+                "activation": {
+                    "activation_time": None,
+                    "mode": None,
+                    "requested_time": None
+                },
+                "master_enable": True,
+                "receiver_id": None,
+                'transport_params': transport_params
             }
-            sender['staged']['transport_params'] = sender['transport_params']
-            sender['active'] = {
-                                "activation": {
-                                    "activation_time": None,
-                                    "mode": None,
-                                    "requested_time": None
-                                },
-                                "master_enable": True,
-                                "receiver_id": None
-                                }
-            sender['active']['transport_params'] = sender['transport_params']
+        }
 
-            self.senders.append(sender)
-
-    def add_receivers(self, receivers, receiver_base_data):
-        """
-        Takes self.receivers from mock registry and adds connection details
-        """
-        self.receiver_base_data = receiver_base_data
-        for receiver in receivers:
-            receiver['transport_params'] = [{"destination_port": "auto",
-                                            "interface_ip": "auto",
-                                            "multicast_ip": None,
-                                            "rtp_enabled": True,
-                                            "source_ip": None
-                                            }]
-            receiver['staged'] = {"activation": {
-                                      "activation_time": None,
-                                      "mode": None,
-                                      "requested_time": None
-                                  },
-                                  "master_enable": False,
-                                  "sender_id": None,
-                                  "transport_file": {
-                                      "data": None,
-                                      "type": None
-                                      }
-                                 }
-            receiver['staged']['transport_params'] = receiver['transport_params']
-            receiver['active'] = {"activation": {
-                                      "activation_time": None,
-                                      "mode": None,
-                                      "requested_time": None
-                                      },
-                                  "master_enable": False,
-                                  "sender_id": None,
-                                  "transport_file": {
-                                      "data": None,
-                                      "type": None
-                                      }
-                                 }
-            receiver['active']['transport_params'] = receiver['transport_params']
-
-            self.receivers.append(receiver)
+        self.sender[sender['id']] = {
+            'sender': sender,
+            'activations': sender_update
+        }
 
 
+    def add_receiver(self, receiver):
+
+        transport_params = [{
+            "destination_port": "auto",
+            "interface_ip": "auto",
+            "multicast_ip": None,
+            "rtp_enabled": True,
+            "source_ip": None
+        }]
+
+        activations = {
+            'transport_params':transport_params,
+            'staged': {
+                "activation": {
+                    "activation_time": None,
+                    "mode": None,
+                    "requested_time": None
+                },
+                "master_enable": False,
+                "sender_id": None,
+                "transport_file": {
+                    "data": None,
+                    "type": None
+                },
+                'transport_params': transport_params
+            },
+            'active': {
+                "activation": {
+                    "activation_time": None,
+                    "mode": None,
+                    "requested_time": None
+                },
+                "master_enable": False,
+                "sender_id": None,
+                "transport_file": {
+                    "data": None,
+                    "type": None
+                },
+                'transport_params': transport_params
+            }
+        }            
+
+        self.receivers[receiver['id']] = {
+            'activations': activations,
+            'receiver': receiver
+        }
+
+    def remove_receiver(self, receiver_id):
+        self.receivers.pop(receiver_id)
+
+    def clear_staged_requests(self):
+        self.staged_requests = []
 
 NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
@@ -195,16 +212,15 @@ def node_sdp(stream_type):
 @NODE_API.route('/x-nmos/connection/<version>/single', methods=['GET'], strict_slashes=False)
 def single(version):
     base_data = ['senders/', 'receivers/']
+
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/', methods=["GET"], strict_slashes=False)
 def resources(version, resource):
     if resource == 'senders':
-        resource_list = NODE.senders
+        base_data = [r + '/' for r in [*NODE.sender]]
     elif resource == 'receivers':
-        resource_list = NODE.receivers
-
-    base_data = [r['id'] + '/' for r in resource_list]
+        base_data = [r + '/' for r in [*NODE.receivers]]
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -232,6 +248,40 @@ def constraints(version, resource, resource_id):
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
+
+def _create_activation_update(receiver, master_enable, set_transport_params, activation=None):
+
+    transport_params_update = {
+        'connection_authorisation': False,
+        'connection_uri': 'events API on device?' if set_transport_params and receiver else None,
+        'ext_is_07_rest_api_url': 'events API on sources?' if set_transport_params and receiver else None,
+        'ext_is_07_source_id': 'source id?' if set_transport_params and receiver else None
+    }
+
+    transport_params = dict(receiver['transport_params'][0], **transport_params_update) if receiver else transport_params_update
+
+    activation_update = {
+        "activation": {
+            "activation_time": time.time() if activation else "", 
+            "mode": activation['mode'] if activation else "", 
+            "requested_time": None
+        },
+        'master_enable': master_enable,
+        'sender_id': receiver['sender_id'] if receiver else None,
+        'transport_file': receiver['transport_file'] if receiver else {'data': None, 'type': None},
+        'transport_params': [ transport_params ]
+    }
+
+    return activation_update
+
+def _update_receiver_subscription(receiver, active, sender_id):
+
+    receiver_update = {
+        'subscription': {'active': active, 'sender_id': sender_id}
+    }
+
+    return dict(receiver, **receiver_update)
+
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/staged', methods=["GET", "PATCH"], strict_slashes=False)
 def staged(version, resource, resource_id):
     """
@@ -240,164 +290,90 @@ def staged(version, resource, resource_id):
     activating a connection without staging or deactivating an active connection
     Updates data then POSTs updated receiver to registry
     """
-    if resource == 'senders':
-        resource_list = NODE.senders
-    elif resource == 'receivers':
-        resource_list = NODE.receivers
+    NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id, 'data': request.json})
 
-    try: 
-        resource_index = [i for i, r in enumerate(resource_list) if r['id'] == resource_id][0]
-    except IndexError:
-        # Requested a resource that doesn't exist
-        abort(404)
-    
-    if request.method == 'PATCH':
-        resource_details = resource_list.pop(resource_index)
-        base_data = {"activation": {"activation_time": "", "mode": "", "requested_time": None}}
+    try:
+        # Hmmmm, patching of Senders currently results in a 404 error
+        if resource == 'senders':
+            resources = NODE.sender
+        elif resource == 'receivers':
+            resources = NODE.receivers
+
+        if request.method == 'PATCH':
         
-        if "sender_id" in request.json:
-            # Either patching to staged or directly to activated
-            sender = [s for s in NODE.senders if s['id'] == request.json['sender_id']][0]
-            # Data for response
-            base_data['master_enable'] = request.json['master_enable']
-            base_data['sender_id'] = request.json['sender_id']
-            base_data['transport_file'] = sender['transport_file']
-            base_data['transport_params'] = request.json['transport_params']
-            base_data['transport_params'][0]['connection_authorisation'] = False
+            activations = resources[resource_id]['activations']
+            receiver = resources[resource_id]['receiver']
+        
+            if "sender_id" in request.json:
+                # Either patching to staged or directly to activated
+                # Data for response
+                activation_update = _create_activation_update(request.json, True, True, request.json.get('activation'))
 
-            if "activation" in request.json:
-                # Activating without staging first
-                # Base data for response
-                base_data["activation"]["activation_time"] = time.time()
-                base_data['activation']['mode'] = request.json['activation']['mode']
-                # Update resource data 
-                resource_details['active']['activation'] = base_data['activation']
-                resource_details['active']['master_enable'] = True
-                resource_details['active']['sender_id'] = request.json['sender_id']
-                resource_details['active']['transport_file'] = sender['transport_file']
-                resource_details['active']['transport_params'] = request.json['transport_params']
-                resource_details['active']['transport_params'][0]['connection_authorisation'] = False
-                resource_details['active']['transport_params'][0]['connection_uri'] = 'events API on device?'
-                resource_details['active']['transport_params'][0]['ext_is_07_rest_api_url'] = 'events API on sources?'
-                resource_details['active']['transport_params'][0]['ext_is_07_source_id'] = 'source id?'
-                # Set up receiver details to be sent to registry
-                request_data = NODE.receiver_base_data
-                request_data['description'] = resource_details['description']
-                request_data['label'] = resource_details['label']
-                request_data['id'] = resource_details['id']
-                request_data['device_id'] = resource_details['device_id']
-                request_data['subscription'] = {'active': True, 'sender_id': request.json['sender_id']}
-                # POST updated receiver to registry
-                do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": request_data})
-            else:
-                # Staging
-                # Update resource data but nothing should change in registry
-                resource_details['staged']['master_enable'] = request.json['master_enable']
-                resource_details['staged']['sender_id'] = request.json['sender_id']
-                resource_details['staged']['transport_file'] = sender['transport_file']
-                resource_details['staged']['transport_params'] = request.json['transport_params']
-                resource_details['staged']['transport_params'][0]['connection_authorisation'] = False
-                resource_details['staged']['transport_params'][0]['connection_uri'] = 'events API on device?'
-                resource_details['staged']['transport_params'][0]['ext_is_07_rest_api_url'] = 'events API on sources?'
-                resource_details['staged']['transport_params'][0]['ext_is_07_source_id'] = 'source id?'
+                if "activation" in request.json:
+                    # Activating without staging first
+                    activations['active'] = activation_update
 
-        elif "activation" in request.json:
-            # Either patching to activate after staging or deactivating
-            if 'mode' in request.json['activation'] and request.json['activation'] ['mode']== 'activate_immediate':
-                if resource_details['staged']['master_enable'] == True:
-                    # Activating after staging
-                    # Base data for response
-                    base_data["activation"]["activation_time"] = time.time()
-                    base_data['activation']['mode'] = request.json['activation']['mode']
-                    base_data['master_enable'] = True
-                    base_data['sender_id'] = resource_details['staged']['sender_id']
-                    base_data['transport_file'] = resource_details['staged']['transport_file']
-                    base_data['transport_params'] = resource_details['staged']['transport_params']
-                    base_data['transport_params'][0]['connection_authorisation'] = False
-                    # Update resource data to add active info
-                    resource_details['active']['master_enable'] = True
-                    resource_details['active']["activation"]["activation_time"] = time.time()
-                    resource_details['active']["activation"]['mode'] = request.json['activation']['mode']
-                    resource_details['active']['sender_id'] = resource_details['staged']['sender_id']
-                    resource_details['active']['transport_file'] = resource_details['staged']['transport_file']
-                    resource_details['active']['transport_params'] = resource_details['staged']['transport_params']
-                    resource_details['active']['transport_params'][0]['connection_authorisation'] = False
-                    # Remove staged info
-                    resource_details['staged']['master_enable'] = False
-                    resource_details['staged']['sender_id'] = None
-                    resource_details['staged']['transport_file'] = {'data': None, 'type': None}
-                    resource_details['staged']['transport_params'][0]['connection_authorisation'] = False
-                    resource_details['staged']['transport_params'][0]['connection_uri'] = None
-                    resource_details['staged']['transport_params'][0]['ext_is_07_rest_api_url'] = None
-                    resource_details['staged']['transport_params'][0]['ext_is_07_source_id'] = None
-                    # Set up receiver details to be sent to registry
-                    request_data = NODE.receiver_base_data
-                    request_data['description'] = resource_details['description']
-                    request_data['label'] = resource_details['label']
-                    request_data['id'] = resource_details['id']
-                    request_data['device_id'] = resource_details['device_id']
-                    request_data['subscription'] = {'active': True, 'sender_id': resource_details['active']['sender_id']}
+                    # Add subscription details to receiver
+                    receiver = _update_receiver_subscription(receiver, True, request.json['sender_id'])
+
                     # POST updated receiver to registry
-                    do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": request_data})
-        
+                    do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
                 else:
-                    # Deactivating
-                    # Data for response
-                    base_data["activation"]["activation_time"] = time.time()
-                    base_data['activation']['mode'] = request.json['activation']['mode']
-                    base_data['master_enable'] = False
-                    base_data['sender_id'] = resource_details['active']['sender_id']
-                    base_data['transport_file'] = resource_details['active']['transport_file']
-                    base_data['transport_params'] = resource_details['active']['transport_params']
-                    # Update resource data to reset active details
-                    resource_details['active']['master_enable'] = False
-                    resource_details['active']["activation"]["activation_time"] = None
-                    resource_details['active']["activation"]['mode'] = None
-                    resource_details['active']['transport_params'] = resource_details['active']['transport_params']
-                    resource_details['active']['sender_id'] = None
-                    resource_details['active']['transport_file'] = {'data': None, 'type': None}
-                    resource_details['active']['transport_params'][0]['connection_authorisation'] = False
-                    resource_details['active']['transport_params'][0]['connection_uri'] = None
-                    resource_details['active']['transport_params'][0]['ext_is_07_rest_api_url'] = None
-                    resource_details['active']['transport_params'][0]['ext_is_07_source_id'] = None
-                    # Set up receiver details to be sent to registry
-                    request_data = NODE.receiver_base_data
-                    request_data['description'] = resource_details['description']
-                    request_data['label'] = resource_details['label']
-                    request_data['id'] = resource_details['id']
-                    request_data['device_id'] = resource_details['device_id']
-                    request_data['subscription'] = {'active': False, 'sender_id': None}
-                    # POST updated receiver to registry
-                    do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": request_data})
+                    # Staging
+                    # Update activations but nothing should change in registry
+                    activations['staged'] = activation_update
 
-            else:
-                print("!!!!!!!!!!!!!! I don't know how we got here")
-                print(request.json)
-        # Add resource back to list after changes have been made
-        resource_list.append(resource_details)
-    
-    elif request.method == 'GET':
-        # Need to fetch json of actual current 'staged' info
-            base_data = resource_list[resource_index]['staged']
+            elif "activation" in request.json:
+                # Either patching to activate after staging or deactivating
+                if 'mode' in request.json['activation'] and request.json['activation'] ['mode']== 'activate_immediate':
+                    if activations['staged']['master_enable'] == True:
+                        # Activating after staging
+                        activation_update = _create_activation_update(activations['staged'], True, False, request.json.get('activation'))
 
-    return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+                        activations['active'] = activation_update
+                        activations['staged'] = _create_activation_update(None, False, False)
+
+                        # Add subscription details to receiver
+                        receiver = _update_receiver_subscription(receiver, True, activations['active']['sender_id'])
+
+                        # POST updated receiver to registry
+                        do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
+        
+                    else:
+                        # Deactivating
+                        activation_update = _create_activation_update(activations['active'], False, False, request.json.get('activation'))
+
+                        activations['active'] = activation_update
+
+                        # Add subscription details to receiver
+                        receiver = _update_receiver_subscription(receiver, False, None)
+                    
+                        # POST updated receiver to registry
+                        do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
+
+                else:
+                    # shouldn't have got here
+                    abort(500)
+
+        elif request.method == 'GET':
+            # Need to fetch json of actual current 'staged' info
+            activation_update = resources[resource_id]['activations']['staged']
+    except KeyError:
+        abort(404)
+
+    return make_response(Response(json.dumps(activation_update), mimetype='application/json'))
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/active', methods=["GET"], strict_slashes=False)
 def active(version, resource, resource_id):
-    if resource == 'senders':
-        resource_list = NODE.senders
-    elif resource == 'receivers':
-        resource_list = NODE.receivers
-
     try: 
-        resource_index = [i for i, r in enumerate(resource_list) if r['id'] == resource_id][0]
-    except IndexError:
-        # Requested a resource that doesn't exist
-        abort(404)
-    
-    base_data = resource_list[resource_index]['active']
+        if resource == 'senders':
+            base_data = NODE.sender[resource_id]['activations']['active']
+        elif resource == 'receivers':
+            base_data = NODE.receivers[resource_id]['activations']['active']
 
-    return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+        return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+    except KeyError:
+        abort(404)
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transporttype', methods=["GET"], strict_slashes=False)
 def transport_type(version, resource, resource_id):
@@ -411,11 +387,12 @@ def transport_type(version, resource, resource_id):
 def transport_file(version, resource, resource_id):
     # GET should either redirect to the location of the transport file or return it directly (easy-nmos requests to this endpoint return 404)
     try: 
-        resource_index = [i for i, s in enumerate(NODE.senders) if s['id'] == resource_id][0]
-    except IndexError:
+        if resource == 'senders':
+            file = NODE.sender[resource_id]['activations']['transport_file']
+        elif resource == 'receivers':
+            file = NODE.receivers[resource_id]['activations']['transport_file']
+
+        return make_response(Response(json.dumps(file), mimetype='application/json'))
+    except KeyError:
         # Requested a resource that doesn't exist
         abort(404)
-    
-    file = NODE.senders[resource_index]['transport_file']
-    # return redirect(file, code=307)
-    return make_response(Response(json.dumps(file), mimetype='application/json'))
