@@ -730,19 +730,23 @@ class NC01Test(GenericTest):
         Identify which Receiver devices are controllable via IS-05
         """
         try:
-            # Register receivers, some of which are non connectable
-                    # Receiver initial details
-            test_06_receivers = [{'label': 'Test-node-2/receiver/byrne', 'description': 'Mock receiver 7'},
-                              {'label': 'Test-node-2/receiver/frantz', 'description': 'Mock receiver 8'},
-                              {'label': 'Test-node-2/receiver/weymouth', 'description': 'Mock receiver 9'},
-                              {'label': 'Test-node-2/receiver/harrison', 'description': 'Mock receiver 10'}]
+            # Receiver initial details
+            test_06_receivers = [{'label': 'Test-node-2/receiver/byrne', 'description': 'Mock receiver 7', 'connectable': False},
+                              {'label': 'Test-node-2/receiver/frantz', 'description': 'Mock receiver 8', 'connectable': False},
+                              {'label': 'Test-node-2/receiver/weymouth', 'description': 'Mock receiver 9', 'connectable': False},
+                              {'label': 'Test-node-2/receiver/harrison', 'description': 'Mock receiver 10', 'connectable': False}]
 
+            # Make at least one receiver connectable
+            connectable_receiver_indices = self._generate_random_indices(len(test_06_receivers), 1, len(test_06_receivers) - 1)
+            for i in connectable_receiver_indices:
+                test_06_receivers[i]['connectable'] = True
+
+            # Register receivers (some of which are non connectable)
             for receiver in test_06_receivers:
                 receiver["id"] = str(uuid.uuid4())
                 receiver["device_id"] = str(uuid.uuid4())
                 receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
                 receiver["registered"] = True
-                receiver["connectable"] = random.choice([True, False])
                 receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
                 self._register_receiver(receiver)
                 self.node.add_receiver(receiver)
