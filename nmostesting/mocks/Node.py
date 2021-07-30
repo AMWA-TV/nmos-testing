@@ -28,7 +28,7 @@ class Node(object):
         self.registry_url = ''
         self.staged_requests = []
         self.receivers = {}
-        self.sender = {}
+        self.senders = {}
 
     def get_sender(self, stream_type="video"):
         protocol = "http"
@@ -59,19 +59,19 @@ class Node(object):
         }
         return sender
 
-    def add_sender(self, sender):
+    def add_sender(self, sender, sender_ip_address):
         """
         Takes self.senders from mock registry and adds connection details
         """
         
         transport_params = [{
-            "destination_ip": "auto",
-            "destination_port": "auto",
+            "destination_ip": sender_ip_address,
+            "destination_port": "5004",
             "rtp_enabled": True,
             "source_ip": {
                 "enum": [get_default_ip()]
                 },
-                "source_port": "auto"
+                "source_port": "5004"
         }]
 
         sender_update = { 
@@ -99,7 +99,7 @@ class Node(object):
             }
         }
 
-        self.sender[sender['id']] = {
+        self.senders[sender['id']] = {
             'sender': sender,
             'activations': sender_update
         }
@@ -193,7 +193,7 @@ def single(version):
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/', methods=["GET"], strict_slashes=False)
 def resources(version, resource):
     if resource == 'senders':
-        base_data = [r + '/' for r in [*NODE.sender]]
+        base_data = [r + '/' for r in [*NODE.senders]]
     elif resource == 'receivers':
         base_data = [r + '/' for r in [*NODE.receivers]]
 
@@ -226,11 +226,15 @@ def constraints(version, resource, resource_id):
 
 def _create_activation_update(receiver, master_enable, set_transport_params, activation=None):
 
+    sender = NODE.senders[receiver['sender_id']] if receiver else None
+
     transport_params_update = {
         'connection_authorisation': False,
         'connection_uri': 'events API on device?' if set_transport_params and receiver else None,
         'ext_is_07_rest_api_url': 'events API on sources?' if set_transport_params and receiver else None,
-        'ext_is_07_source_id': 'source id?' if set_transport_params and receiver else None
+        'ext_is_07_source_id': 'source id?' if set_transport_params and receiver else None,
+        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if set_transport_params and sender else None,
+        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if set_transport_params and sender else None
     }
 
     transport_params = receiver.get('transport_params') if receiver else None
@@ -274,7 +278,7 @@ def staged(version, resource, resource_id):
     try:
         # Hmmmm, patching of Senders currently results in a 404 error
         if resource == 'senders':
-            resources = NODE.sender
+            resources = NODE.senders
         elif resource == 'receivers':
             resources = NODE.receivers
 
@@ -347,7 +351,7 @@ def staged(version, resource, resource_id):
 def active(version, resource, resource_id):
     try: 
         if resource == 'senders':
-            base_data = NODE.sender[resource_id]['activations']['active']
+            base_data = NODE.senders[resource_id]['activations']['active']
         elif resource == 'receivers':
             base_data = NODE.receivers[resource_id]['activations']['active']
 
@@ -368,7 +372,7 @@ def transport_file(version, resource, resource_id):
     # GET should either redirect to the location of the transport file or return it directly (easy-nmos requests to this endpoint return 404)
     try: 
         if resource == 'senders':
-            file = NODE.sender[resource_id]['activations']['transport_file']
+            file = NODE.senders[resource_id]['activations']['transport_file']
         elif resource == 'receivers':
             file = NODE.receivers[resource_id]['activations']['transport_file']
 
