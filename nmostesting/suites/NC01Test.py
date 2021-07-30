@@ -82,6 +82,7 @@ class NC01Test(GenericTest):
         self.test_data = self.load_resource_data()
         self.senders = [] # sender list containing: {'label': '', 'description': '', 'id': '', 'registered': True/False, 'answer_str': ''}
         self.receivers = [] # receiver list containing: {'label': '', 'description': '', 'id': '', 'registered': True/False, 'connectable': True/False, 'answer_str': ''}
+        self.senders_ip_base = '239.3.14.' # Random multicast IP to assign to senders
 
     def set_up_tests(self):
         self.zc = Zeroconf()
@@ -341,9 +342,11 @@ class NC01Test(GenericTest):
         registered_senders = [s for s in self.senders if s['registered'] == True]
         registered_receivers = [r for r in self.receivers if r['registered'] == True]
 
+        sender_ip = 159
         for sender in registered_senders:
             nmos_sender = self._create_sender_json(sender)
-            self.node.add_sender(nmos_sender)
+            self.node.add_sender(nmos_sender, self.senders_ip_base + str(sender_ip))
+            sender_ip += 1
 
         for receiver in registered_receivers:
             nmos_receiver = self._create_receiver_json(receiver)
