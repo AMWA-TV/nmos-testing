@@ -311,7 +311,7 @@ def staged(version, resource, resource_id):
                 if request.json['activation'].get('mode') == 'activate_immediate':
                     if activations['staged']['master_enable'] == True:
                         # Activating after staging
-                        activation_update = _create_activation_update(activations['staged'], True, False, request.json.get('activation'))
+                        activation_update = _create_activation_update(activations['staged'], True, True, request.json.get('activation'))
 
                         activations['active'] = activation_update
                         activations['staged'] = _create_activation_update(None, False, False)
