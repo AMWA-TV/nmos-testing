@@ -308,7 +308,7 @@ def staged(version, resource, resource_id):
             activations = resources[resource_id]['activations']
             receiver = resources[resource_id]['receiver']
         
-            if "sender_id" in request.json:
+            if request.json.get("sender_id"):
                 # Either patching to staged or directly to activated
                 # Data for response
                 activation_update = _create_activation_update(request.json, True, True, request.json.get('activation'))
@@ -327,9 +327,9 @@ def staged(version, resource, resource_id):
                     # Update activations but nothing should change in registry
                     activations['staged'] = activation_update
 
-            elif "activation" in request.json:
+            elif request.json.get("activation"):
                 # Either patching to activate after staging or deactivating
-                if 'mode' in request.json['activation'] and request.json['activation'] ['mode']== 'activate_immediate':
+                if request.json['activation'].get('mode') == 'activate_immediate':
                     if activations['staged']['master_enable'] == True:
                         # Activating after staging
                         activation_update = _create_activation_update(activations['staged'], True, False, request.json.get('activation'))
