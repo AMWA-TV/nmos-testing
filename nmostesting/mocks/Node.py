@@ -258,7 +258,11 @@ def _create_activation_update(receiver, master_enable, set_transport_params, act
         'ext_is_07_source_id': 'source id?' if set_transport_params and receiver else None
     }
 
-    transport_params = dict(receiver['transport_params'][0], **transport_params_update) if receiver else transport_params_update
+    transport_params = receiver.get('transport_params') if receiver else None
+    transport_file = receiver.get('transport_file') if receiver and 'transport_file' in receiver else {'data': None, 'type': None}
+    sender_id = receiver.get('sender_id') if receiver else None
+
+    updated_transport_params = dict(transport_params[0], **transport_params_update) if transport_params else transport_params_update
 
     activation_update = {
         "activation": {
@@ -267,9 +271,9 @@ def _create_activation_update(receiver, master_enable, set_transport_params, act
             "requested_time": None
         },
         'master_enable': master_enable,
-        'sender_id': receiver['sender_id'] if receiver else None,
-        'transport_file': receiver['transport_file'] if receiver else {'data': None, 'type': None},
-        'transport_params': [ transport_params ]
+        'sender_id': sender_id,
+        'transport_file': transport_file,
+        'transport_params': [ updated_transport_params ]
     }
 
     return activation_update
