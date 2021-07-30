@@ -843,7 +843,7 @@ class NC01Test(GenericTest):
         finally:
             #Remove subscription
             deactivate_json = {"transport_params":[{}],"activation":{"mode":"activate_immediate"}}
-            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.1/single/receivers/' + receiver['id'] + '/staged'
+            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', deactivate_url, json=deactivate_json)
 
     def test_08(self, test):
@@ -859,7 +859,7 @@ class NC01Test(GenericTest):
 
             # Send PATCH request to node to set up connection
             activate_json = {"transport_params":[{"rtp_enabled":True}],"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data":sender['manifest_href'],"type":"application/sdp"}}
-            activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.1/single/receivers/' + receiver['id'] + '/staged'
+            activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
 
             # Clear staged requests once connection has been set up
@@ -906,7 +906,7 @@ class NC01Test(GenericTest):
         finally:
             #Remove subscription
             deactivate_json = {"transport_params":[{}],"activation":{"mode":"activate_immediate"}}
-            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.1/single/receivers/' + receiver['id'] + '/staged'
+            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', deactivate_url, json=deactivate_json)
 
     def test_09(self, test):
@@ -922,7 +922,7 @@ class NC01Test(GenericTest):
 
             # Send PATCH request to node to set up connection
             activate_json = {"transport_params":[{"rtp_enabled":True}],"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data":sender['manifest_href'],"type":"application/sdp"}}
-            activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.1/single/receivers/' + receiver['id'] + '/staged'
+            activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
 
             # Identify a connection
@@ -961,7 +961,7 @@ class NC01Test(GenericTest):
 
             # Remove connection
             deactivate_json = {"transport_params":[{}],"activation":{"mode":"activate_immediate"}}
-            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.1/single/receivers/' + receiver['id'] + '/staged'
+            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', deactivate_url, json=deactivate_json)
 
             response = self._wait_for_testing_facade(sent_json['name'])
