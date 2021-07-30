@@ -363,7 +363,8 @@ def staged(version, resource, resource_id):
             # Need to fetch json of actual current 'staged' info
             activation_update = resources[resource_id]['activations']['staged']
     except KeyError:
-        abort(404)
+        # something went wrong
+        abort(500)
 
     return make_response(Response(json.dumps(activation_update), mimetype='application/json'))
 
