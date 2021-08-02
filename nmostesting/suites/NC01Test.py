@@ -342,12 +342,14 @@ class NC01Test(GenericTest):
         registered_senders = [s for s in self.senders if s['registered'] == True]
         registered_receivers = [r for r in self.receivers if r['registered'] == True]
 
+        self.node.remove_senders() # Remove previouly added senders
         sender_ip = 159
         for sender in registered_senders:
             nmos_sender = self._create_sender_json(sender)
             self.node.add_sender(nmos_sender, self.senders_ip_base + str(sender_ip))
             sender_ip += 1
 
+        self.node.remove_receivers() # Remove previouly added receivers
         for receiver in registered_receivers:
             nmos_receiver = self._create_receiver_json(receiver)
             self.node.add_receiver(nmos_receiver)

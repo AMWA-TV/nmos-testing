@@ -104,6 +104,8 @@ class Node(object):
             'activations': sender_update
         }
 
+    def remove_senders(self):
+        self.senders = {}
 
     def add_receiver(self, receiver):
 
@@ -151,6 +153,9 @@ class Node(object):
             'activations': activations,
             'receiver': receiver
         }
+
+    def remove_receivers(self):
+        self.receivers = {}
 
     def remove_receiver(self, receiver_id):
         self.receivers.pop(receiver_id)
