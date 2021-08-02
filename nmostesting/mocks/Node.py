@@ -224,17 +224,17 @@ def constraints(version, resource, resource_id):
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
-def _create_activation_update(receiver, master_enable, set_transport_params, activation=None):
+def _create_activation_update(receiver, master_enable, activation=None):
 
     sender = NODE.senders[receiver['sender_id']] if receiver else None
 
     transport_params_update = {
         'connection_authorisation': False,
-        'connection_uri': 'events API on device?' if set_transport_params and receiver else None,
-        'ext_is_07_rest_api_url': 'events API on sources?' if set_transport_params and receiver else None,
-        'ext_is_07_source_id': 'source id?' if set_transport_params and receiver else None,
-        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if set_transport_params and sender else None,
-        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if set_transport_params and sender else None
+        'connection_uri': 'events API on device?' if master_enable and receiver else None,
+        'ext_is_07_rest_api_url': 'events API on sources?' if master_enable and receiver else None,
+        'ext_is_07_source_id': 'source id?' if master_enable and receiver else None,
+        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if master_enable and sender else None,
+        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else None
     }
 
     transport_params = receiver.get('transport_params') if receiver else None
@@ -290,7 +290,7 @@ def staged(version, resource, resource_id):
             if request.json.get("sender_id"):
                 # Either patching to staged or directly to activated
                 # Data for response
-                activation_update = _create_activation_update(request.json, True, True, request.json.get('activation'))
+                activation_update = _create_activation_update(request.json, True, request.json.get('activation'))
 
                 if "activation" in request.json:
                     # Activating without staging first
@@ -311,10 +311,10 @@ def staged(version, resource, resource_id):
                 if request.json['activation'].get('mode') == 'activate_immediate':
                     if activations['staged']['master_enable'] == True:
                         # Activating after staging
-                        activation_update = _create_activation_update(activations['staged'], True, True, request.json.get('activation'))
+                        activation_update = _create_activation_update(activations['staged'], True, request.json.get('activation'))
 
                         activations['active'] = activation_update
-                        activations['staged'] = _create_activation_update(None, False, False)
+                        activations['staged'] = _create_activation_update(None, False)
 
                         # Add subscription details to receiver
                         receiver = _update_receiver_subscription(receiver, True, activations['active']['sender_id'])
@@ -324,7 +324,7 @@ def staged(version, resource, resource_id):
         
                     else:
                         # Deactivating
-                        activation_update = _create_activation_update(activations['active'], False, False, request.json.get('activation'))
+                        activation_update = _create_activation_update(activations['active'], False, request.json.get('activation'))
 
                         activations['active'] = activation_update
 
