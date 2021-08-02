@@ -177,7 +177,7 @@ class NC01Test(GenericTest):
     async def getAnswerResponse(self, timeout):
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
 
-    def _send_testing_facade_questions(self, test_method_name, question, answers, test_type, timeout=None, multipart_test=None):
+    def _send_testing_facade_questions(self, test_method_name, question, answers, test_type, timeout=None, multipart_test=None, metadata=None):
         """ 
         Send question and answers to Testing Façade
         question:   text to be presented to Test User
@@ -188,6 +188,7 @@ class NC01Test(GenericTest):
         timeout:    number of seconds before Testing Façade times out test
         multipart_test: indicates test uses multiple questions. Default None, should be increasing
                     integers with each subsequent call within the same test
+        metadata: Test details to assist fully automated testing
         """
 
         method = getattr(self, test_method_name)
@@ -205,7 +206,8 @@ class NC01Test(GenericTest):
             "timeout": question_timeout,
             "url_for_response": "http://" + request.headers.get("Host") + CALLBACK_ENDPOINT,
             "answer_response": "",
-            "time_answered": ""
+            "time_answered": "",
+            "metadata": metadata
         }
         # Send questions to Testing Façade API endpoint then wait
         valid, response = self.do_request("POST", self.apis[NC_API_KEY]["url"], json=json_out)
@@ -234,12 +236,12 @@ class NC01Test(GenericTest):
             
         return answer_response
 
-    def _invoke_testing_facade(self, question, answers, test_type, timeout=None, multipart_test=None):
+    def _invoke_testing_facade(self, question, answers, test_type, timeout=None, multipart_test=None, metadata=None):
         
         # Get the name of the calling test method to use as an identifier
         test_method_name = inspect.currentframe().f_back.f_code.co_name
 
-        json_out = self._send_testing_facade_questions(test_method_name, question, answers, test_type, timeout, multipart_test)
+        json_out = self._send_testing_facade_questions(test_method_name, question, answers, test_type, timeout, multipart_test, metadata)
 
         return self._wait_for_testing_facade(json_out['name'], timeout)    
 
@@ -475,8 +477,6 @@ class NC01Test(GenericTest):
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
             raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
-
-
 
     def _create_receiver_json(self, receiver):
         # Register receiver
@@ -797,7 +797,10 @@ class NC01Test(GenericTest):
                 'Click the \'Next\' button once the connection is active.'
             possible_answers = []
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action")
+            metadata = {'sender': {'id': sender['id'], 'label': sender['label'], 'description': sender['description']},
+                'receiver': {'id': receiver['id'], 'label': receiver['label'], 'description': receiver['description']}}
+
+            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received a PATCH request
             patch_requests = [r for r in self.node.staged_requests if r['method'] == 'PATCH']
@@ -873,7 +876,10 @@ class NC01Test(GenericTest):
                 'Click the \'Next\' button once the connection has been removed.'
             possible_answers = []
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action")
+            metadata = {'sender': {'id': sender['id'], 'label': sender['label'], 'description': sender['description']},
+                'receiver': {'id': receiver['id'], 'label': receiver['label'], 'description': receiver['description']}}
+
+            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received a PATCH request
             patch_requests = [r for r in self.node.staged_requests if r['method'] == 'PATCH']
@@ -932,7 +938,9 @@ class NC01Test(GenericTest):
             possible_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
             expected_answer = sender['answer_str']
 
-            actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio")['answer_response']
+            metadata = {'receiver': {'id': receiver['id'], 'label': receiver['label'], 'description': receiver['description']}}
+
+            actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio", metadata=metadata)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
@@ -952,7 +960,7 @@ class NC01Test(GenericTest):
             test_method_name = inspect.currentframe().f_code.co_name
 
             # Send the question to the Testing Façade and then put sender online before waiting for the Testing Façade response
-            sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action")
+            sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", metadata=metadata)
 
             # Wait a random amount of time before disconnecting
             time.sleep(random.randint(10, max_time_until_online))

@@ -32,6 +32,7 @@ class DataStore:
         self.answer_response = None
         self.time_answered = None
         self.status = "Empty"
+        self.metadata = None
 
     def clear(self):
         self.test_type = None
@@ -45,6 +46,7 @@ class DataStore:
         self.answer_response = None
         self.time_answered = None
         self.status = "Empty"
+        self.metadata = None
 
     def getStatus(self):
         return self.status
@@ -61,6 +63,7 @@ class DataStore:
         self.url_for_response = json_str["url_for_response"]
         self.answer_response = json_str["answer_response"]
         self.time_answered = json_str["time_answered"]
+        self.metadata = json_str["metadata"]
 
     def getJson(self):
         json_data = {
@@ -73,7 +76,8 @@ class DataStore:
             "timeout": self.timeout,
             "url_for_response": self.url_for_response,
             "answer_response": self.answer_response,
-            "time_answered": self.time_answered
+            "time_answered": self.time_answered,
+            "metadata": self.metadata
         }
         return json.dumps(json_data)
 
@@ -105,5 +109,7 @@ class DataStore:
     def getUrl(self):
         return self.url_for_response
 
+    def getMetadata(self):
+        return self.metadata
 
 data = DataStore()
