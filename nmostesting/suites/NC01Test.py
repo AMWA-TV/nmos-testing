@@ -30,6 +30,8 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..TestHelper import get_default_ip
 from ..TestResult import Test
+from ..NMOSUtils import NMOSUtils
+
 
 from flask import Flask, render_template, make_response, abort, Blueprint, flash, request, Response, session
 
@@ -302,9 +304,10 @@ class NC01Test(GenericTest):
             sender["device_id"] = str(uuid.uuid4())
             sender["flow_id"] = str(uuid.uuid4())
             sender["source_id"] = str(uuid.uuid4())
-            sender["manifest_href"] = self.mock_node_base_url + "video.sdp"
+            sender["manifest_href"] = self.mock_node_base_url + "transport-file/" + sender["id"] + "/video.sdp"
             sender["registered"] = False
             sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
+            sender["version"] = NMOSUtils.create_resource_version()
 
         sender_indices = self._generate_random_indices(len(self.senders))
 
@@ -328,6 +331,7 @@ class NC01Test(GenericTest):
             receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
             receiver["registered"] = False
             receiver["connectable"] = True
+            receiver["version"] = NMOSUtils.create_resource_version()
             receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
 
         # Generate indices of self.receivers to be registered and some of those to be non connectable
@@ -345,14 +349,14 @@ class NC01Test(GenericTest):
         self.node.remove_senders() # Remove previouly added senders
         sender_ip = 159
         for sender in registered_senders:
-            nmos_sender = self._create_sender_json(sender)
-            self.node.add_sender(nmos_sender, self.senders_ip_base + str(sender_ip))
+            sender_json = self._create_sender_json(sender)
+            self.node.add_sender(sender_json, self.senders_ip_base + str(sender_ip))
             sender_ip += 1
 
         self.node.remove_receivers() # Remove previouly added receivers
         for receiver in registered_receivers:
-            nmos_receiver = self._create_receiver_json(receiver)
-            self.node.add_receiver(nmos_receiver)
+            receiver_json = self._create_receiver_json(receiver)
+            self.node.add_receiver(receiver_json)
 
     def load_resource_data(self):
         """Loads test data from files"""
@@ -431,6 +435,7 @@ class NC01Test(GenericTest):
         sender_data["device_id"] = sender["device_id"]
         sender_data["flow_id"] = sender["flow_id"]  
         sender_data["manifest_href"] = sender["manifest_href"]
+        sender_data["version"] = sender["version"]
 
         return sender_data
 
@@ -490,6 +495,7 @@ class NC01Test(GenericTest):
         receiver_data["label"] = receiver["label"]
         receiver_data["description"] = receiver["description"]
         receiver_data["device_id"] = receiver["device_id"]
+        receiver_data["version"] = receiver["version"]
 
         return receiver_data
 
@@ -753,6 +759,7 @@ class NC01Test(GenericTest):
                 receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
                 receiver["registered"] = True
                 receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
+                receiver["version"] = NMOSUtils.create_resource_version()
                 self._register_receiver(receiver)
                 self.node.add_receiver(receiver)
 

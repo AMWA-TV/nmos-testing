@@ -19,7 +19,7 @@ import time
 from flask import Blueprint, make_response, abort, Response, request, redirect
 from ..Config import ENABLE_HTTPS, DNS_DOMAIN, PORT_BASE, DNS_SD_MODE
 from ..TestHelper import get_default_ip, do_request
-
+from ..NMOSUtils import NMOSUtils
 
 class Node(object):
     def __init__(self, port_increment):
@@ -189,6 +189,28 @@ def node_video_sdp(stream_type):
     response.headers["Content-Type"] = "application/sdp"
     return response
 
+# Endpoint used by NC01 tests for well formed and consistant sender SDP file
+@NODE_API.route('/transport-file/<sender_id>/video.sdp', methods=["GET"])
+def test_video_sdp(sender_id):
+    try:
+        with open("test_data/NC01/video.sdp") as f:
+            
+            sender = NODE.senders[sender_id]
+            destination_ip = sender['activations']['transport_params'][0]['destination_ip']
+            source_ip = sender['activations']['transport_params'][0]['source_ip']['enum'][0]
+
+            # substitute source and destination ips into the video.sdp template
+            sdp_data = f.read()
+            formatted_data = sdp_data.format(source_ip, destination_ip, destination_ip, source_ip)
+
+            response = make_response(formatted_data)
+
+        response.headers["Content-Type"] = "application/sdp"
+
+        return response
+    except KeyError:
+        abort(500)
+
 @NODE_API.route('/x-nmos/connection/<version>/single', methods=['GET'], strict_slashes=False)
 def single(version):
     base_data = ['senders/', 'receivers/']
@@ -265,7 +287,8 @@ def _create_activation_update(receiver, master_enable, activation=None):
 def _update_receiver_subscription(receiver, active, sender_id):
 
     receiver_update = {
-        'subscription': {'active': active, 'sender_id': sender_id}
+        'subscription': {'active': active, 'sender_id': sender_id},
+        'version': NMOSUtils.create_resource_version()
     }
 
     return dict(receiver, **receiver_update)

@@ -171,3 +171,13 @@ class NMOSUtils(object):
     @staticmethod
     def sort_versions(versions_list):
         return sorted(versions_list, key=functools.cmp_to_key(NMOSUtils.compare_api_version))
+
+    @staticmethod
+    def create_resource_version():
+        time_raw = str(time.time_ns())
+
+        time_sec = time_raw[:-9] 
+        time_nano = time_raw[-9:] 
+
+        return time_sec + ":" + time_nano
+        
