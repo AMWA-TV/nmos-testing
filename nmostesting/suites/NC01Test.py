@@ -293,11 +293,11 @@ class NC01Test(GenericTest):
         self._register_node(self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
 
         # Sender initial details
-        self.senders = [{'label': 'Test-node-1/sender/gilmour', 'description': 'Mock sender 1'},
-                        {'label': 'Test-node-1/sender/waters', 'description': 'Mock sender 2'},
-                        {'label': 'Test-node-1/sender/wright', 'description': 'Mock sender 3'},
-                        {'label': 'Test-node-1/sender/mason', 'description': 'Mock sender 4'},
-                        {'label': 'Test-node-1/sender/barrett', 'description': 'Mock sender 5'}]
+        self.senders = [{'label': 's1/gilmour', 'description': 'Mock sender 1'},
+                        {'label': 's2/waters', 'description': 'Mock sender 2'},
+                        {'label': 's3/wright', 'description': 'Mock sender 3'},
+                        {'label': 's4/mason', 'description': 'Mock sender 4'},
+                        {'label': 's5/barrett', 'description': 'Mock sender 5'}]
 
         for sender in self.senders:
             sender["id"] = str(uuid.uuid4())
@@ -318,12 +318,12 @@ class NC01Test(GenericTest):
                 sender['registered'] = True
 
         # Receiver initial details
-        self.receivers = [{'label': 'Test-node-2/receiver/palin', 'description': 'Mock receiver 1'},
-                          {'label': 'Test-node-2/receiver/cleese', 'description': 'Mock receiver 2'},
-                          {'label': 'Test-node-2/receiver/jones', 'description': 'Mock receiver 3'},
-                          {'label': 'Test-node-2/receiver/chapman', 'description': 'Mock receiver 4'},
-                          {'label': 'Test-node-2/receiver/idle', 'description': 'Mock receiver 5'},
-                          {'label': 'Test-node-2/receiver/gilliam', 'description': 'Mock receiver 6'}]
+        self.receivers = [{'label': 'r1/palin', 'description': 'Mock receiver 1'},
+                          {'label': 'r2/cleese', 'description': 'Mock receiver 2'},
+                          {'label': 'r3/jones', 'description': 'Mock receiver 3'},
+                          {'label': 'r4/chapman', 'description': 'Mock receiver 4'},
+                          {'label': 'r5/idle', 'description': 'Mock receiver 5'},
+                          {'label': 'r6/gilliam', 'description': 'Mock receiver 6'}]
 
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
@@ -742,10 +742,10 @@ class NC01Test(GenericTest):
         """
         try:
             # Receiver initial details
-            test_06_receivers = [{'label': 'Test-node-2/receiver/byrne', 'description': 'Mock receiver 7', 'connectable': False},
-                              {'label': 'Test-node-2/receiver/frantz', 'description': 'Mock receiver 8', 'connectable': False},
-                              {'label': 'Test-node-2/receiver/weymouth', 'description': 'Mock receiver 9', 'connectable': False},
-                              {'label': 'Test-node-2/receiver/harrison', 'description': 'Mock receiver 10', 'connectable': False}]
+            test_06_receivers = [{'label': 'r6/byrne', 'description': 'Mock receiver 6', 'connectable': False},
+                              {'label': 'r7/frantz', 'description': 'Mock receiver 7', 'connectable': False},
+                              {'label': 'r8/weymouth', 'description': 'Mock receiver 8', 'connectable': False},
+                              {'label': '9/harrison', 'description': 'Mock receiver 9', 'connectable': False}]
 
             # Make at least one receiver connectable
             connectable_receiver_indices = self._generate_random_indices(len(test_06_receivers), 1, len(test_06_receivers) - 1)
