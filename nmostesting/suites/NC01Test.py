@@ -101,8 +101,7 @@ class NC01Test(GenericTest):
             self.dns_server.set_expected_query(
                 QTYPE.PTR,
                 [
-                    "_nmos-register._tcp.{}.".format(CONFIG.DNS_DOMAIN),
-                    "_nmos-registration._tcp.{}.".format(CONFIG.DNS_DOMAIN)
+                    "_nmos-query._tcp.{}.".format(CONFIG.DNS_DOMAIN)
                 ]
             )
         # Reset registry to clear previous heartbeats, etc.
