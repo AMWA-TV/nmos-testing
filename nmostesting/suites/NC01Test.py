@@ -950,9 +950,19 @@ class NC01Test(GenericTest):
             activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
 
-            # Identify a connection
+            # Identify which Receiver has been activated
             question = 'The NCuT should be able to monitor and update the connection status of all registered Devices. \n\n' \
-                'Use the NCuT to identify the sender currently connected to receiver: \n\n' \
+                'Use the NCuT to identify the receiver that has just been activated.'
+            possible_answers = [r['answer_str'] for r in self.receivers if r['registered'] == True]
+            expected_answer = receiver['answer_str']
+
+            actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio")['answer_response']
+
+            if actual_answer != expected_answer:
+                return test.FAIL('Incorrect receiver identified')
+
+            # Identify a connection
+            question = 'Use the NCuT to identify the sender currently connected to receiver: \n\n' \
                 + receiver['answer_str']
             possible_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
             expected_answer = sender['answer_str']
