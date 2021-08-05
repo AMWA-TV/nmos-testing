@@ -23,6 +23,7 @@ from copy import deepcopy
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from git.objects.base import IndexObject
+from threading import Event
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
@@ -31,7 +32,6 @@ from ..MdnsListener import MdnsListener
 from ..TestHelper import get_default_ip
 from ..TestResult import Test
 from ..NMOSUtils import NMOSUtils
-
 
 from flask import Flask, render_template, make_response, abort, Blueprint, flash, request, Response, session
 
@@ -44,6 +44,9 @@ CACHEBUSTER = random.randint(1, 10000)
 _event_loop = asyncio.new_event_loop()
 asyncio.set_event_loop(_event_loop)
 _answer_response_queue = asyncio.Queue()
+
+# use exit Event to quit tests early that involve waiting for senders/connections 
+exit = Event()
 
 app = Flask(__name__)
 TEST_API = Blueprint('test_api', __name__)
@@ -60,6 +63,9 @@ def retrieve_answer():
             return 'Invalid JSON received'
 
         _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, request.json)
+
+        # Interupt any 'sleeps' that are still active 
+        exit.set()
 
     return 'OK'
 
@@ -715,22 +721,24 @@ class NC01Test(GenericTest):
 
             # Send the question to the Testing Façade and then put sender online before waiting for the Testing Façade response
             sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", multipart_test=2)
-
+            
             # Wait a random amount of time before bringing sender back online
-            time.sleep(random.randint(10, max_time_until_online))
-
-            time_online = time.time()
+            exit.clear()
+            time_delay = random.randint(10, max_time_until_online)
+            expected_time_online = time.time() + time_delay
+            exit.wait(time_delay)
 
             # Re-register sender
             self._register_sender(self.senders[offline_sender_index], codes=[200, 201])
             self.senders[offline_sender_index]['registered'] = True
 
+            # Await/get testing façade response
             response = self._wait_for_testing_facade(sent_json['name'])    
 
-            if response['time_answered'] < time_online: # Answered before sender put online
+            if response['time_answered'] < expected_time_online: # Answered before sender put online
                 return test.FAIL('Offline/online sender not handled: Sender not yet online')
-            elif response['time_answered'] > time_online + max_time_to_answer:
-                return test.FAIL('Offline/online sender not handled: Sender online '  + str(int(response['time_answered'] - time_online)) + ' seconds ago')
+            elif response['time_answered'] > expected_time_online + max_time_to_answer:
+                return test.FAIL('Offline/online sender not handled: Sender online '  + str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
             else:
                 return test.PASS('Offline/online sender handled correctly')                
         except TestingFacadeException as e:
@@ -971,13 +979,14 @@ class NC01Test(GenericTest):
             # Get the name of the calling test method to use as an identifier
             test_method_name = inspect.currentframe().f_code.co_name
 
-            # Send the question to the Testing Façade and then put sender online before waiting for the Testing Façade response
+            # Send the question to the Testing Façade 
             sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", metadata=metadata)
 
             # Wait a random amount of time before disconnecting
-            time.sleep(random.randint(10, max_time_until_online))
-
-            time_online = time.time()
+            exit.clear()
+            time_delay = random.randint(10, max_time_until_online)
+            expected_time_online = time.time() + time_delay
+            exit.wait(time_delay)
 
             # Remove connection
             deactivate_json = {"transport_params":[{}],"activation":{"mode":"activate_immediate"}}
@@ -986,10 +995,10 @@ class NC01Test(GenericTest):
 
             response = self._wait_for_testing_facade(sent_json['name'])
 
-            if response['time_answered'] < time_online: # Answered before connection was removed
+            if response['time_answered'] < expected_time_online: # Answered before connection was removed
                 return test.FAIL('Connection not handled: Connection still active')
-            elif response['time_answered'] > time_online + max_time_to_answer:
-                return test.FAIL('Connection not handled: Connection removed '  + str(int(response['time_answered'] - time_online)) + ' seconds ago')
+            elif response['time_answered'] > expected_time_online + max_time_to_answer:
+                return test.FAIL('Connection not handled: Connection removed '  + str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
             else:
                 return test.PASS('Connection handled correctly')
         except TestingFacadeException as e:
