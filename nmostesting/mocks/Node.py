@@ -70,10 +70,8 @@ class Node(object):
             "destination_ip": sender_ip_address,
             "destination_port": "5004",
             "rtp_enabled": True,
-            "source_ip": {
-                "enum": [get_default_ip()]
-                },
-                "source_port": "5004"
+            "source_ip": get_default_ip(),
+            "source_port": "5004"
         }]
 
         sender_update = { 
@@ -406,7 +404,7 @@ def transport_file(version, resource, resource_id):
             with open("test_data/NC01/video.sdp") as f:
                 sender = NODE.senders[resource_id]
                 destination_ip = sender['activations']['transport_params'][0]['destination_ip']
-                source_ip = sender['activations']['transport_params'][0]['source_ip']['enum'][0]
+                source_ip = sender['activations']['transport_params'][0]['source_ip']
 
                 # substitute source and destination ips into the video.sdp template
                 sdp_data = f.read()
