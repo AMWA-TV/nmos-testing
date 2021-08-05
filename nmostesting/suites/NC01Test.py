@@ -552,14 +552,27 @@ class NC01Test(GenericTest):
         """
         Introduction to NMOS Controller Test Suite
         """
-        question =  'These tests validate a NMOS Controller under Test’s (NCuT) ability to query an IS-04 ' \
-        'Registry with the IS-04 Query API and to control a Media Node using the IS-05 Connection ' \
-        'Management API.\n\nA Test AMWA IS-04 v1.2/1.3 reference Registry is available on the network, ' \
-        'and advertised in the DNS server via unicast DNS-SD\n\n' \
-        'Although the test AMWA IS-04 Registry should be discoverable via DNS-SD, for the purposes of developing this testing framework ' \
-        'it is also possible to reach the Registry via the following URL:\n\n' + self.mock_registry_base_url + 'x-nmos/query/v1.3\n\n' \
-        'Once the NCuT has located the test AMWA IS-04 Registry, please click the \'Next\' button.'
+        dns_sd_enabled = CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast"
 
+        paragraphs = []
+        paragraphs.append('These tests validate a NMOS Controller under Test’s (NCuT) ability to query an IS-04 ' \
+            'Registry with the IS-04 Query API and to control a Media Node using the IS-05 Connection ' \
+            'Management API.\n\n')
+
+        paragraphs.append('A Test AMWA IS-04 reference Registry is available on the network')
+
+        paragraphs.append(' and is being advertised via unicast DNS-SD.\n\n' if dns_sd_enabled else '.\n\n')
+
+        paragraphs.append('Please ensure that the following configuration has been set on the NCuT machine.\n\n ' \
+            '* Ensure that the primary DNS of the NCuT machine has been set to \"' + get_default_ip() + '\". \n' \
+            '* Ensure that the NCuT unicast search domain is set to \"' + CONFIG.DNS_DOMAIN + '\". \n\n' \
+            'Alternatively it '  if dns_sd_enabled else 'It ')
+        
+        paragraphs.append('is possible to reach the Registry via the following URL:\n\n' + self.mock_registry_base_url + 'x-nmos/query/v1.3\n\n'\
+            'Please ensure the NCuT has located the test AMWA IS-04 Registry before clicking the \'Next\' button.')
+
+        question = ''.join(paragraphs)
+                
         try:
             self._invoke_testing_facade(question, [], test_type="action", timeout=600)
 
@@ -587,14 +600,6 @@ class NC01Test(GenericTest):
         if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
                                  "'unicast'")
-
-        question = 'Use unicast DNS to discovery the mock registry.\n\n ' \
-        'Ensure that the following configuration has been set on the NCuT machine. \n' \
-        '* Ensure that the primary DNS of the NCuT machine has been set to \"' + get_default_ip() + '\". \n' \
-        '* Ensure that the NCuT unicast search domain is set to \"' + CONFIG.DNS_DOMAIN + '\". \n\n' \
-        'Once you have configured the NCuT please click the \'Next\' button. Successful querying of the DNS will be automatically logged by the test framework.\n'
-
-        self._invoke_testing_facade(question, [], test_type="action")
 
         # The DNS server will log queries that have been specified in set_up_tests()
         if not self.dns_server.is_query_received():
