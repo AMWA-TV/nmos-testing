@@ -304,7 +304,7 @@ class NC01Test(GenericTest):
             sender["device_id"] = str(uuid.uuid4())
             sender["flow_id"] = str(uuid.uuid4())
             sender["source_id"] = str(uuid.uuid4())
-            sender["manifest_href"] = self.mock_node_base_url + "transport-file/" + sender["id"] + "/video.sdp"
+            sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/single/senders/" + sender["id"] + "/transportfile"
             sender["registered"] = False
             sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
             sender["version"] = NMOSUtils.create_resource_version()
