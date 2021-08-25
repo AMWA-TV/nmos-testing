@@ -105,8 +105,8 @@
                             <ul class="list-group list-group-flush">
                                 {% for answer in answers %}
                                     <li class="list-group-item">
-                                        <input class="form-check-input" type="{{ test_type }}" name="answer" id="answer_{{ loop.index0 }}" value="{{ answer }}">
-                                        <label class="form-check-label" for="answer_{{ loop.index0 }}">{{ answer }}</label>
+                                        <input class="form-check-input" type="{{ test_type }}" name="answer" id="{{ answer.answer_id }}" value="{{ answer.answer_id }}">
+                                        <label class="form-check-label" for="{{ answer.answer_id }}">{{ answer.answer_str }}</label>
                                     </li>
                                 {% endfor %}
                             </ul>

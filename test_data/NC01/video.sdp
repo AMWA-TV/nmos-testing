@@ -2,7 +2,7 @@ v=0
 o=- 1543226715 1543226715 IN IP4 {}
 s=Demo Video Stream
 t=0 0
-m=video 27346 RTP/AVP 97
+m=video {} RTP/AVP 97
 c=IN IP4 {}/32
 a=source-filter: incl IN IP4 {} {}
 a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0

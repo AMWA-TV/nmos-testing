@@ -202,11 +202,12 @@ class NC01Test(GenericTest):
         method = getattr(self, test_method_name)
 
         question_timeout = timeout if timeout else self.question_timeout
-        test_name = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
+        question_id = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
 
         json_out = {
             "test_type": test_type,
-            "name": test_name,
+            "question_id": question_id,
+            "name": test_method_name,
             "description": inspect.getdoc(method),
             "question": question,
             "answers": answers,
@@ -637,8 +638,8 @@ class NC01Test(GenericTest):
             # Check senders 
             question = 'The NCuT should be able to discover all the Senders that are registered in the Registry.\n\n' \
             'Refresh the NCuT\'s view of the Registry and carefully select the Senders that are available from the following list.' 
-            possible_answers = [s['answer_str'] for s in self.senders]
-            expected_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(self.senders)]
+            expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered'] == True]
 
             actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
 
@@ -662,8 +663,8 @@ class NC01Test(GenericTest):
             # Check receivers 
             question = 'The NCuT should be able to discover all the Receivers that are registered in the Registry.\n\n' \
             'Refresh the NCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.'
-            possible_answers = [r['answer_str'] for r in self.receivers]
-            expected_answers = [r['answer_str'] for r in self.receivers if r['registered'] == True]
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(self.receivers)]
+            expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered'] == True]
 
             actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
 
@@ -693,10 +694,10 @@ class NC01Test(GenericTest):
             self._invoke_testing_facade(question, possible_answers, test_type="action")
 
             # Take one of the senders offline
-            possible_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(self.senders) if s['registered'] == True]
             answer_indices = [index for index, s in enumerate(self.senders) if s['registered'] == True]
             offline_sender_index = random.choice(answer_indices)
-            expected_answer = self.senders[offline_sender_index]['answer_str']
+            expected_answer = 'answer_' + str(offline_sender_index)
 
             self._delete_sender(self.senders[offline_sender_index])
 
@@ -757,7 +758,7 @@ class NC01Test(GenericTest):
             test_06_receivers = [{'label': 'r6/byrne', 'description': 'Mock receiver 6', 'connectable': False},
                               {'label': 'r7/frantz', 'description': 'Mock receiver 7', 'connectable': False},
                               {'label': 'r8/weymouth', 'description': 'Mock receiver 8', 'connectable': False},
-                              {'label': '9/harrison', 'description': 'Mock receiver 9', 'connectable': False}]
+                              {'label': 'r9/harrison', 'description': 'Mock receiver 9', 'connectable': False}]
 
             # Make at least one receiver connectable
             connectable_receiver_indices = self._generate_random_indices(len(test_06_receivers), 1, len(test_06_receivers) - 1)
@@ -780,8 +781,8 @@ class NC01Test(GenericTest):
                 'Additional Receivers have just been registered with the Registry, a subset of which have a connection API.\n\n' \
                 'Please refresh your NCuT and select the Receivers that have a connection API from the list below.\n\n' \
                 'Be aware that if your NCuT only displays Receivers which have a connection API, some of the Receivers in the following list may not be visible.'
-            possible_answers = [r['answer_str'] for r in test_06_receivers]
-            expected_answers = [r['answer_str'] for r in test_06_receivers if r['connectable'] == True]
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(test_06_receivers)]
+            expected_answers = ['answer_'+str(i) for i, r in enumerate(test_06_receivers) if r['connectable'] == True]
 
             actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
 
@@ -951,15 +952,18 @@ class NC01Test(GenericTest):
             receiver = random.choice(registered_receivers)
 
             # Send PATCH request to node to set up connection
-            activate_json = {"transport_params":[{"rtp_enabled":True}],"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data":sender['manifest_href'],"type":"application/sdp"}}
+            valid, response = self.do_request('GET', self.mock_node_base_url + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
+            transport_file = response.content.decode()
+            transport_params = self.node.receivers[receiver['id']]['activations']['transport_params']
+            activate_json = {"transport_params": transport_params,"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data": transport_file,"type":"application/sdp"}}
             activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
 
             # Identify which Receiver has been activated
             question = 'The NCuT should be able to monitor and update the connection status of all registered Devices. \n\n' \
                 'Use the NCuT to identify the receiver that has just been activated.'
-            possible_answers = [r['answer_str'] for r in self.receivers if r['registered'] == True]
-            expected_answer = receiver['answer_str']
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(registered_receivers) if r['registered'] == True]
+            expected_answer = ['answer_'+str(i) for i, r in enumerate(registered_receivers) if r['answer_str'] == receiver['answer_str']][0]
 
             actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio")['answer_response']
 
@@ -969,12 +973,12 @@ class NC01Test(GenericTest):
             # Identify a connection
             question = 'Use the NCuT to identify the sender currently connected to receiver: \n\n' \
                 + receiver['answer_str']
-            possible_answers = [s['answer_str'] for s in self.senders if s['registered'] == True]
-            expected_answer = sender['answer_str']
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(registered_senders) if s['registered'] == True]
+            expected_answer = ['answer_'+str(i) for i, s in enumerate(registered_senders) if s['answer_str'] == sender['answer_str']][0]
 
             metadata = {'receiver': {'id': receiver['id'], 'label': receiver['label'], 'description': receiver['description']}}
 
-            actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio", metadata=metadata)['answer_response']
+            actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio", multipart_test=1, metadata=metadata)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
@@ -994,7 +998,7 @@ class NC01Test(GenericTest):
             test_method_name = inspect.currentframe().f_code.co_name
 
             # Send the question to the Testing Façade 
-            sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", metadata=metadata)
+            sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", multipart_test=2, metadata=metadata)
 
             # Wait a random amount of time before disconnecting
             exit.clear()
