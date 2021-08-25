@@ -109,7 +109,7 @@ class Node(object):
 
         transport_params = [{
             "destination_port": "auto",
-            "interface_ip": "auto",
+            "interface_ip": get_default_ip(),
             "multicast_ip": None,
             "rtp_enabled": True,
             "source_ip": None
@@ -187,6 +187,13 @@ def node_video_sdp(stream_type):
     response.headers["Content-Type"] = "application/sdp"
     return response
 
+@NODE_API.route('/x-nmos/connection/<version>', methods=['GET'], strict_slashes=False)
+def version(version):
+    base_data = ['bulk/', 'single/']
+
+    return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+
+
 @NODE_API.route('/x-nmos/connection/<version>/single', methods=['GET'], strict_slashes=False)
 def single(version):
     base_data = ['senders/', 'receivers/']
@@ -232,24 +239,22 @@ def _create_activation_update(receiver, master_enable, activation=None):
     sender = NODE.senders[receiver['sender_id']] if receiver else None
 
     transport_params_update = {
-        'connection_authorisation': False,
-        'connection_uri': 'events API on device?' if master_enable and receiver else None,
-        'ext_is_07_rest_api_url': 'events API on sources?' if master_enable and receiver else None,
-        'ext_is_07_source_id': 'source id?' if master_enable and receiver else None,
         'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if master_enable and sender else None,
-        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else None
+        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else None,
+        'source_ip': None if master_enable and sender else get_default_ip(),
+        'interface_ip': get_default_ip() if master_enable and sender else None
     }
 
-    transport_params = receiver.get('transport_params') if receiver else None
-    transport_file = receiver.get('transport_file') if receiver and 'transport_file' in receiver else {'data': None, 'type': None}
-    sender_id = receiver.get('sender_id') if receiver else None
+    transport_params = receiver.get('transport_params') if master_enable and receiver else None
+    transport_file = receiver.get('transport_file') if master_enable and receiver and 'transport_file' in receiver else {'data': None, 'type': None}
+    sender_id = receiver.get('sender_id') if master_enable and receiver else None
 
     updated_transport_params = dict(transport_params[0], **transport_params_update) if transport_params else transport_params_update
 
     activation_update = {
         "activation": {
-            "activation_time": time.time() if activation else "", 
-            "mode": activation['mode'] if activation else "", 
+            "activation_time": str(time.time()).replace('.', ':') if master_enable and activation else "", 
+            "mode": activation['mode'] if master_enable and activation else "", 
             "requested_time": None
         },
         'master_enable': master_enable,
@@ -366,8 +371,8 @@ def active(version, resource, resource_id):
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transporttype', methods=["GET"], strict_slashes=False)
 def transport_type(version, resource, resource_id):
     # TODO fetch from resource info
-    base_data = "urn:x-nmos:transport:websocket"
-    # alternatively "urn:x-nmos:transport:rtp.mcast"
+    # base_data = "urn:x-nmos:transport:websocket"
+    base_data = "urn:x-nmos:transport:rtp"
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -380,10 +385,11 @@ def transport_file(version, resource, resource_id):
                 sender = NODE.senders[resource_id]
                 destination_ip = sender['activations']['transport_params'][0]['destination_ip']
                 source_ip = sender['activations']['transport_params'][0]['source_ip']
+                source_port = sender['activations']['transport_params'][0]['source_port']
 
                 # substitute source and destination ips into the video.sdp template
                 sdp_data = f.read()
-                formatted_data = sdp_data.format(source_ip, destination_ip, destination_ip, source_ip)
+                formatted_data = sdp_data.format(source_ip, source_port, destination_ip, destination_ip, source_ip)
 
             response = make_response(formatted_data, 200)
             response.headers["Content-Type"] = "application/sdp"
