@@ -401,10 +401,19 @@ def query_resource(version, resource):
     if authorized is not True:
         abort(authorized)
 
-    registry.query_api_called = True
-
+    valid_resource_types = ['device', 'flow', 'node', 'receiver', 'sender', 'source', 'subscription']
+    
     resource_type = resource.rstrip("s")
+
+    if resource_type not in valid_resource_types:
+        error_message = { "code": 404,
+                          "error": "Invalid resource",
+                          "debug": resource_type  }
+        return Response(json.dumps(error_message), status=404, mimetype='application/json')
+
     base_data = []
+
+    registry.query_api_called = True
 
     try:
         # Check to see if resource is being requested as a query
