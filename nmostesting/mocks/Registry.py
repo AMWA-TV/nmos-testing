@@ -279,6 +279,35 @@ REGISTRY_COMMON = RegistryCommon()
 REGISTRIES = [Registry(REGISTRY_COMMON, i + 1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
 
+@REGISTRY_API.route('/x-nmos', methods=["GET"], strict_slashes=False)
+def x_nmos():
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
+        abort(503)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
+
+    registry.query_api_called = True
+
+    base_data = ['query/', 'registration/']
+
+    return Response(json.dumps(base_data), mimetype='application/json')
+
+@REGISTRY_API.route('/x-nmos/registration', methods=["GET"], strict_slashes=False)
+def registration_root():
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
+        abort(503)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
+
+    registry.query_api_called = True
+
+    base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
+
+    return Response(json.dumps(base_data), mimetype='application/json')
 
 # IS-04 resources
 @REGISTRY_API.route('/x-nmos/registration/<version>', methods=["GET"], strict_slashes=False)
@@ -375,6 +404,20 @@ def heartbeat(version, node_id):
     else:
         abort(404)
 
+@REGISTRY_API.route('/x-nmos/query', methods=["GET"], strict_slashes=False)
+def query_root():
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
+        abort(503)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
+
+    registry.query_api_called = True
+
+    base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
+
+    return Response(json.dumps(base_data), mimetype='application/json')
 
 @REGISTRY_API.route('/x-nmos/query/<version>', methods=["GET"], strict_slashes=False)
 def query(version):
