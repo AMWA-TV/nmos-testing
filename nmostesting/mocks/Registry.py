@@ -471,7 +471,17 @@ def query_resource(version, resource):
     except Exception:
         pass
 
-    return Response(json.dumps(base_data), mimetype='application/json')
+    response = Response(json.dumps(base_data), mimetype='application/json')
+
+    # Hard coded pagination parameters
+    response.headers["Link"] = "<http://api.example.com/x-nmos/query/v1.3/nodes/?paging.since=1441716120:318744030&paging.limit=20>; rel=\"next\", <http://api.example.com/x-nmos/query/v1.3/nodes/?paging.until=1441716353:6839634&paging.limit=20>; rel=\"prev\""
+    response.headers["X-Paging-Limit"] = 20
+    response.headers["X-Paging-Since"] = "1441716353:6839634"
+    response.headers["X-Paging-Until"] = "1441716120:318744030"
+    response.headers["X-Ancestry-Generations"] = 1
+
+    return response
+
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>/<resource_id>', methods=['GET'], strict_slashes=False)
 def get_resource(version, resource, resource_id):
