@@ -208,7 +208,8 @@ class Registry(object):
             'resource_path': resource_path,
             'websocket': websocket_server,
             'query_api_id': self.query_api_id,
-            'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port) +'/x-nmos/query/' + version + '/subscriptions/' + subscription_id }
+            'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port) +'/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
+            'location': '/x-nmos/query/' + version + '/subscriptions/' + subscription_id }
         self.subscriptions[resource_type] = subscription
 
         return subscription, True # subscription_created=True
@@ -380,6 +381,8 @@ def delete_resource(version, resource_type, resource_id):
         registry.delete(request.headers, request.data, version, resource_type, resource_id)
     except BCP00302Exception:
         abort(403)
+    except KeyError:
+        abort(404)
     if registered:
         return "", 204
     else:
@@ -522,20 +525,23 @@ def post_subscription(version):
     try:
         subscription, created = registry.subscribe_to_query_api(version, subscription_request["resource_path"])
 
+        # Note: 'secure' not required in request, but is required in response
+        secure = subscription_request['secure'] if 'secure' in subscription_request else False
+
         subscription_response = {'id': subscription["id"],
             'max_update_rate_ms': subscription_request['max_update_rate_ms'],
             'params': subscription_request['params'],
             'persist': subscription_request['persist'],
             'resource_path': subscription['resource_path'],
-            'secure': subscription_request['secure'],
+            'secure': secure, 
             'ws_href': subscription['ws_href'] }
+
     except SubscriptionException as e:
         print('Subscription failed: ' + e.args[0])
 
-    if created:
-        return jsonify(subscription_response), 201 
-    else:
-        return jsonify(subscription_response), 200 
+    status_code = 200 if created else 201
+
+    return jsonify(subscription_response), status_code, {"Location": subscription.get('location')}
 
 @REGISTRY_API.route('/', methods=["GET"], strict_slashes=False)    
 def base():
