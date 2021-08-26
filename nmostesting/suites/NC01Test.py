@@ -429,7 +429,7 @@ class NC01Test(GenericTest):
         """
         node_data = deepcopy(self.test_data["node"])
         node_data["id"] = node_id
-        node_data['label'] = label
+        node_data["label"] = label
         node_data["description"] = description
         self.post_resource(self, "node", node_data, codes=[201])
 
