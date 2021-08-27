@@ -251,9 +251,9 @@ def _create_activation_update(receiver, master_enable, activation=None):
 
     transport_params_update = {
         'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if master_enable and sender else None,
-        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else None,
+        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else "auto",
         'source_ip': None if master_enable and sender else get_default_ip(),
-        'interface_ip': get_default_ip() if master_enable and sender else None
+        'interface_ip': get_default_ip() if master_enable and sender else "auto"
     }
 
     transport_params = receiver.get('transport_params') if master_enable and receiver else None
