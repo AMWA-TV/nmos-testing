@@ -247,7 +247,7 @@ def constraints(version, resource, resource_id):
 
 def _create_activation_update(receiver, master_enable, activation=None):
 
-    sender = NODE.senders[receiver['sender_id']] if receiver else None
+    sender = NODE.senders[receiver['sender_id']] if receiver and receiver.get('sender_id') else None
 
     transport_params_update = {
         'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if master_enable and sender else None,
@@ -264,8 +264,8 @@ def _create_activation_update(receiver, master_enable, activation=None):
 
     activation_update = {
         "activation": {
-            "activation_time": str(time.time()).replace('.', ':') if master_enable and activation else "", 
-            "mode": activation['mode'] if master_enable and activation else "", 
+            "activation_time": str(time.time()).replace('.', ':') if master_enable and activation else None, 
+            "mode": activation['mode'] if master_enable and activation else None, 
             "requested_time": None
         },
         'master_enable': master_enable,
