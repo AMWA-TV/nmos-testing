@@ -66,10 +66,10 @@ class Node(object):
         
         transport_params = [{
             "destination_ip": sender_ip_address,
-            "destination_port": "5004",
+            "destination_port": 5004,
             "rtp_enabled": True,
             "source_ip": get_default_ip(),
-            "source_port": "5004"
+            "source_port": 5004
         }]
 
         sender_update = { 
@@ -187,12 +187,23 @@ def node_video_sdp(stream_type):
     response.headers["Content-Type"] = "application/sdp"
     return response
 
+@NODE_API.route('/x-nmos', methods=['GET'], strict_slashes=False)
+def x_nmos_root():
+    base_data = ['connection/']
+
+    return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+
+@NODE_API.route('/x-nmos/connection', methods=['GET'], strict_slashes=False)
+def connection_root():
+    base_data = ['v1.0/', 'v1.1/']
+
+    return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+
 @NODE_API.route('/x-nmos/connection/<version>', methods=['GET'], strict_slashes=False)
 def version(version):
     base_data = ['bulk/', 'single/']
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
-
 
 @NODE_API.route('/x-nmos/connection/<version>/single', methods=['GET'], strict_slashes=False)
 def single(version):
