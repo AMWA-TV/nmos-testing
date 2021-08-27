@@ -285,6 +285,15 @@ def _update_receiver_subscription(receiver, active, sender_id):
 
     return dict(receiver, **receiver_update)
 
+def _update_sender_subscription(sender, active):
+
+    sender_update = {
+        'subscription': {'active': active, 'receiver_id': None},
+        'version': NMOSUtils.create_resource_version()
+    }
+
+    return dict(sender, **sender_update)
+
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/staged', methods=["GET", "PATCH"], strict_slashes=False)
 def staged(version, resource, resource_id):
     """
@@ -296,71 +305,90 @@ def staged(version, resource, resource_id):
     NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id, 'data': request.json})
 
     try:
-        # Hmmmm, patching of Senders currently results in a 404 error
         if resource == 'senders':
             resources = NODE.senders
+        
+            if request.method == 'PATCH':
+
+                activations = resources[resource_id]['activations']
+                sender = resources[resource_id]['sender']
+
+                activations['active']['master_enable'] = request.json.get("master_enable", True)
+                activations['active']['activation']['activation_time'] = str(time.time()).replace('.', ':')
+                activations['active']['activation']['mode'] = 'activate_immediate'
+
+                sender = _update_sender_subscription(sender, request.json.get("master_enable", True))
+
+                # POST updated sender to registry
+                do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "sender", "data": sender})
+                activation_update = activations['active']
+
+            elif request.method == 'GET':
+                # Need to fetch json of actual current 'staged' info
+                activation_update = resources[resource_id]['activations']['staged']
+
         elif resource == 'receivers':
             resources = NODE.receivers
 
-        if request.method == 'PATCH':
-        
-            activations = resources[resource_id]['activations']
-            receiver = resources[resource_id]['receiver']
-        
-            if request.json.get("sender_id"):
-                # Either patching to staged or directly to activated
-                # Data for response
-                activation_update = _create_activation_update(request.json, True, request.json.get('activation'))
+            if request.method == 'PATCH':
+            
+                activations = resources[resource_id]['activations']
+                receiver = resources[resource_id]['receiver']
+            
+                if request.json.get("sender_id"):
+                    # Either patching to staged or directly to activated
+                    # Data for response
+                    activation_update = _create_activation_update(request.json, True, request.json.get('activation'))
 
-                if "activation" in request.json:
-                    # Activating without staging first
-                    activations['active'] = activation_update
-
-                    # Add subscription details to receiver
-                    receiver = _update_receiver_subscription(receiver, True, request.json['sender_id'])
-
-                    # POST updated receiver to registry
-                    do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
-                else:
-                    # Staging
-                    # Update activations but nothing should change in registry
-                    activations['staged'] = activation_update
-
-            elif request.json.get("activation"):
-                # Either patching to activate after staging or deactivating
-                if request.json['activation'].get('mode') == 'activate_immediate':
-                    if activations['staged']['master_enable'] == True:
-                        # Activating after staging
-                        activation_update = _create_activation_update(activations['staged'], True, request.json.get('activation'))
-
+                    if "activation" in request.json:
+                        # Activating without staging first
                         activations['active'] = activation_update
-                        activations['staged'] = _create_activation_update(None, False)
 
                         # Add subscription details to receiver
-                        receiver = _update_receiver_subscription(receiver, True, activations['active']['sender_id'])
+                        receiver = _update_receiver_subscription(receiver, True, request.json['sender_id'])
 
                         # POST updated receiver to registry
                         do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
-        
                     else:
-                        # Deactivating
-                        activation_update = _create_activation_update(activations['active'], False, request.json.get('activation'))
+                        # Staging
+                        # Update activations but nothing should change in registry
+                        activations['staged'] = activation_update
 
-                        activations['active'] = activation_update
+                elif request.json.get("activation"):
+                    # Either patching to activate after staging or deactivating
+                    if request.json['activation'].get('mode') == 'activate_immediate':
+                        if activations['staged']['master_enable'] == True:
+                            # Activating after staging
+                            activation_update = _create_activation_update(activations['staged'], True, request.json.get('activation'))
 
-                        # Add subscription details to receiver
-                        receiver = _update_receiver_subscription(receiver, False, None)
-                    
-                        # POST updated receiver to registry
-                        do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
+                            activations['active'] = activation_update
+                            activations['staged'] = _create_activation_update(None, False)
 
-                else:
-                    # shouldn't have got here
-                    abort(500)
+                            # Add subscription details to receiver
+                            receiver = _update_receiver_subscription(receiver, True, activations['active']['sender_id'])
 
-        elif request.method == 'GET':
-            # Need to fetch json of actual current 'staged' info
-            activation_update = resources[resource_id]['activations']['staged']
+                            # POST updated receiver to registry
+                            do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
+            
+                        else:
+                            # Deactivating
+                            activation_update = _create_activation_update(activations['active'], False, request.json.get('activation'))
+
+                            activations['active'] = activation_update
+
+                            # Add subscription details to receiver
+                            receiver = _update_receiver_subscription(receiver, False, None)
+                        
+                            # POST updated receiver to registry
+                            do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
+
+                    else:
+                        # shouldn't have got here
+                        abort(500)
+
+            elif request.method == 'GET':
+                # Need to fetch json of actual current 'staged' info
+                activation_update = resources[resource_id]['activations']['staged']
     except KeyError:
         # something went wrong
         abort(500)
