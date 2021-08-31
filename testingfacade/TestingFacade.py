@@ -80,19 +80,6 @@ def testing_facade_post(version):
     if 'clear' in request.json and request.json['clear'] == 'True':
         # End of current tests, clear data store
         data.clear()
-    # TODO I don't think this is used any more
-    # elif 'answer_response' in request.json and request.json['answer_response'] != "":
-    #     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    #     # Answer was given, check details compared to question POST to verify answering correct question
-    #     for entry in json_list:
-    #         method = getattr(data, 'get' + entry.split('_')[0].capitalize())
-    #         current = method()
-    #         if current != request.json[entry]:
-    #             return False, "{} : {} doesn't match current question details".format(entry, request.json[entry])
-    #     # All details are consistent so update the data store to contain the answer
-    #     data.setAnswer(request.json['answer_response'])
-    #     # POST to test suite to indicate answer has been set
-    #     valid, response = do_request('POST', request.json['url_for_response'], json={})
     else:
         # Should be a new question
         for entry in json_list:
