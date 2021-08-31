@@ -485,14 +485,14 @@ class NC01Test(GenericTest):
         sender_data = self._create_sender_json(sender)
         self.post_resource(self, "sender", sender_data, codes=codes, fail=fail)
 
-    def _delete_sender(self, sender):
+    def _delete_sender(self, test, sender):
         
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + sender['id']
         
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
-            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
+            raise NMOSTestException(test.FAIL(test, "Registration API returned an unexpected response: {}".format(r)))
 
     def _create_receiver_json(self, receiver):
         # Register receiver
@@ -533,21 +533,21 @@ class NC01Test(GenericTest):
 
         self.post_resource(self, "receiver", receiver_data, codes=codes, fail=fail)
 
-    def _delete_receiver(self, receiver):
+    def _delete_receiver(self, test, receiver):
         
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/receivers/' + receiver['id']
         
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
-            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
+            raise NMOSTestException(test.FAIL(test, "Registration API returned an unexpected response: {}".format(r)))
 
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/devices/' + receiver['device_id']
         
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
-            raise NMOSTestException(fail(test, "Registration API returned an unexpected response: {}".format(r)))
+            raise NMOSTestException(test.FAIL(test, "Registration API returned an unexpected response: {}".format(r)))
 
     def pre_tests_message(self):
         """
@@ -699,7 +699,7 @@ class NC01Test(GenericTest):
             offline_sender_index = random.choice(answer_indices)
             expected_answer = 'answer_' + str(offline_sender_index)
 
-            self._delete_sender(self.senders[offline_sender_index])
+            self._delete_sender(test, self.senders[offline_sender_index])
 
             # Set the offline sender to registered false for future tests
             self.senders[offline_sender_index]['registered'] = False
@@ -799,7 +799,7 @@ class NC01Test(GenericTest):
         finally:
             #Delete receivers
             for receiver in test_06_receivers:
-                self._delete_receiver(receiver)
+                self._delete_receiver(test, receiver)
                 self.node.remove_receiver(receiver['id'])
 
     def test_07(self, test):
