@@ -8,8 +8,8 @@
     "frame_width": 1920,
     "label": "",
     "grain_rate": {
-        "denominator": 1000,
-        "numerator": 25000
+        "denominator": 1,
+        "numerator": 25
     },
     "version": "1539094460:257325706",
     "parents": [],
