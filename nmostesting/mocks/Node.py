@@ -107,7 +107,7 @@ class Node(object):
 
     def add_receiver(self, receiver):
 
-        transport_params = [{
+        staged_transport_params = [{
             "destination_port": "auto",
             "interface_ip": get_default_ip(),
             "multicast_ip": None,
@@ -115,8 +115,15 @@ class Node(object):
             "source_ip": None
         }]
 
+        active_transport_params = [{
+            "destination_port": 5004,
+            "interface_ip": get_default_ip(),
+            "multicast_ip": None,
+            "rtp_enabled": True,
+            "source_ip": None
+        }]
+
         activations = {
-            'transport_params':transport_params,
             'staged': {
                 "activation": {
                     "activation_time": None,
@@ -129,7 +136,7 @@ class Node(object):
                     "data": None,
                     "type": None
                 },
-                'transport_params': transport_params
+                'transport_params': staged_transport_params
             },
             'active': {
                 "activation": {
@@ -143,9 +150,9 @@ class Node(object):
                     "data": None,
                     "type": None
                 },
-                'transport_params': transport_params
+                'transport_params': active_transport_params
             }
-        }            
+        }     
 
         self.receivers[receiver['id']] = {
             'activations': activations,
@@ -373,7 +380,10 @@ def staged(version, resource, resource_id):
                         else:
                             # Deactivating
                             activation_update = _create_activation_update(activations['active'], False, request.json.get('activation'))
-
+                            
+                            # change destination port from auto to a resolved value
+                            activation_update['transport_params'][0]['destination_port'] = 5004
+                            
                             activations['active'] = activation_update
 
                             # Add subscription details to receiver
