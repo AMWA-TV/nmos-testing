@@ -17,12 +17,15 @@ import requests
 import json
 import time
 from flask import Flask, render_template, make_response, abort, request, Response, url_for
+from flask_socketio import SocketIO, emit
 from DataStore import data
 
+app = Flask(__name__)
 
 CACHEBUSTER = random.randint(1, 10000)
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -97,6 +100,9 @@ def testing_facade_post(version):
                 return False, "Missing {}".format(entry)
         # All required entries are present so update data
         data.setJson(request.json)
+
+    socketio.emit('update', request.json)
+
     return 'OK'
 
 @app.route('/controller_questions/', methods=['GET'], strict_slashes=False)
@@ -135,3 +141,4 @@ def do_request(method, url, **kwargs):
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001)
+    socketio.run(app)
