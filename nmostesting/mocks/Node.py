@@ -383,6 +383,7 @@ def staged(version, resource, resource_id):
                             
                             # change destination port from auto to a resolved value
                             activation_update['transport_params'][0]['destination_port'] = 5004
+                            activation_update['transport_params'][0]['interface_ip'] = get_default_ip()
                             
                             activations['active'] = activation_update
 
