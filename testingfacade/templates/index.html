@@ -6,9 +6,15 @@
     <link rel="stylesheet" href="static/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/css/style.css?nocache-{{ cachebuster }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    
-    <script>
+    <script type="text/javascript" charset="utf-8">
+        var socket = io();
+        socket.on('update', function (json) {
+            console.log('update UI...');
+            window.location.reload();
+        });
+
         $(function () {
             $('#submitAnswer').submit(function(e) {
                 var form = $(this);
@@ -20,14 +26,11 @@
                 e.preventDefault();
                 $('#submitbtn').val('Submitting...');
                 $('#submitbtn').attr("disabled", true);
-                setTimeout("window.location.reload()", 2000);
             });
         });
 
         // Target for countdown is time question was sent plus timeout converted to milliseconds
         var target=(parseInt("{{ time_sent }}") + parseInt("{{ timeout }}")) * 1000;
-
-        setInterval(checkForNewQuestion, 5000);
 
         if (!isNaN(target)) {
             // target time exists so set countdown
@@ -48,7 +51,7 @@
             } else {
                 document.getElementById("countdown").innerHTML = minutes + ':' + seconds;
             }
-            
+
             // If expired show message
             if (difference < 0) {
                 clearInterval(x);
@@ -57,19 +60,8 @@
                 button.disabled = true;
             }
         }, 1000);
-        } 
-
-        function checkForNewQuestion() {
-            $.ajax({
-                url: "{{ url_for('controller_questions_get') }}",
-                success: function(data) {
-                    var current_test = "{{ name }}";
-                    if (data['name'] != current_test) {
-                        window.location.reload();
-                    }
-                }
-            });
         }
+
     </script>
 </head>
 
