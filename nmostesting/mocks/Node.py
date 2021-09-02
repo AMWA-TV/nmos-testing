@@ -252,15 +252,19 @@ def constraints(version, resource, resource_id):
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
-def _create_activation_update(receiver, master_enable, activation=None):
+def _create_activation_update(receiver, master_enable, staged=False, activation=None):
 
     sender = NODE.senders[receiver['sender_id']] if receiver and receiver.get('sender_id') else None
 
+    # use resolved defaults if not a staged activation
+    default_destination_port = "auto" if staged else 5004
+    default_interface_ip = "auto" if staged else get_default_ip()
+
     transport_params_update = {
         'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if master_enable and sender else None,
-        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else "auto",
+        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else default_destination_port,
         'source_ip': None if master_enable and sender else get_default_ip(),
-        'interface_ip': get_default_ip() if master_enable and sender else "auto"
+        'interface_ip': get_default_ip() if master_enable and sender else default_interface_ip
     }
 
     transport_params = receiver.get('transport_params') if master_enable and receiver else None
@@ -345,7 +349,7 @@ def staged(version, resource, resource_id):
                 if request.json.get("sender_id"):
                     # Either patching to staged or directly to activated
                     # Data for response
-                    activation_update = _create_activation_update(request.json, True, request.json.get('activation'))
+                    activation_update = _create_activation_update(request.json, True, activation=request.json.get('activation'))
 
                     if "activation" in request.json:
                         # Activating without staging first
@@ -366,10 +370,10 @@ def staged(version, resource, resource_id):
                     if request.json['activation'].get('mode') == 'activate_immediate':
                         if activations['staged']['master_enable'] == True:
                             # Activating after staging
-                            activation_update = _create_activation_update(activations['staged'], True, request.json.get('activation'))
+                            activation_update = _create_activation_update(activations['staged'], True, activation=request.json.get('activation'))
 
                             activations['active'] = activation_update
-                            activations['staged'] = _create_activation_update(None, False)
+                            activations['staged'] = _create_activation_update(None, False, staged=True)
 
                             # Add subscription details to receiver
                             receiver = _update_receiver_subscription(receiver, True, activations['active']['sender_id'])
@@ -379,11 +383,7 @@ def staged(version, resource, resource_id):
             
                         else:
                             # Deactivating
-                            activation_update = _create_activation_update(activations['active'], False, request.json.get('activation'))
-                            
-                            # change destination port from auto to a resolved value
-                            activation_update['transport_params'][0]['destination_port'] = 5004
-                            activation_update['transport_params'][0]['interface_ip'] = get_default_ip()
+                            activation_update = _create_activation_update(activations['active'], False, activation=request.json.get('activation'))
                             
                             activations['active'] = activation_update
 
