@@ -961,7 +961,7 @@ class NC01Test(GenericTest):
 
             # Identify which Receiver has been activated
             question = 'The NCuT should be able to monitor and update the connection status of all registered Devices. \n\n' \
-                'Use the NCuT to identify the receiver that has just been activated.'
+                'Use the NCuT to identify the receiver that has just been connected.'
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(registered_receivers) if r['registered'] == True]
             expected_answer = ['answer_'+str(i) for i, r in enumerate(registered_receivers) if r['answer_str'] == receiver['answer_str']][0]
 
