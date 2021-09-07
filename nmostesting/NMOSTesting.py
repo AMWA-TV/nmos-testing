@@ -99,7 +99,7 @@ FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
     reg_app = Flask(__name__)
-    CORS(reg_app)
+    CORS(reg_app, origins=['*'], allow_headers=['*'], expose_headers=['Content-Length', 'Link', 'Server-Timing', 'Timing-Allow-Origin', 'Vary', 'X-Paging-Limit', 'X-Paging-Since', 'X-Paging-Until'])
     reg_app.debug = False
     reg_app.config['REGISTRY_INSTANCE'] = instance
     reg_app.config['PORT'] = REGISTRIES[instance].port
