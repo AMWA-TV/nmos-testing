@@ -18,6 +18,7 @@ import json
 import re
 import threading
 import uuid
+import functools
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
@@ -67,6 +68,8 @@ class Registry(object):
         self.delete_event.clear()
         self.auth_clients = {}
         self.query_api_called = False
+        self.paging_limit = 100
+        self.pagination_used = False
 
     def add(self, headers, payload, version):
         self.last_time = time.time()
@@ -289,8 +292,6 @@ def x_nmos():
     if authorized is not True:
         abort(authorized)
 
-    registry.query_api_called = True
-
     base_data = ['query/', 'registration/']
 
     return Response(json.dumps(base_data), mimetype='application/json')
@@ -303,8 +304,6 @@ def registration_root():
     authorized = registry.check_authorized(request.headers, request.path)
     if authorized is not True:
         abort(authorized)
-
-    registry.query_api_called = True
 
     base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
 
@@ -416,8 +415,6 @@ def query_root():
     if authorized is not True:
         abort(authorized)
 
-    registry.query_api_called = True
-
     base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
 
     return Response(json.dumps(base_data), mimetype='application/json')
@@ -431,12 +428,16 @@ def query(version):
     if authorized is not True:
         abort(authorized)
 
-    registry.query_api_called = True
-
     base_data = ['devices/', 'flows/', 'nodes/', 'receivers/', 'senders/', 'sources/', 'subscriptions/']
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
+def compare_resources(resource1, resource2):
+    try:
+        return NMOSUtils.compare_resource_version(resource1['version'], resource2['version'])
+    except Exception as e:
+        print(e)
+        return 0
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>', methods=["GET"], strict_slashes=False)
 def query_resource(version, resource):
@@ -447,34 +448,78 @@ def query_resource(version, resource):
     if authorized is not True:
         abort(authorized)
 
-    valid_resource_types = ['device', 'flow', 'node', 'receiver', 'sender', 'source', 'subscription']
-    
-    resource_type = resource.rstrip("s")
-
-    if resource_type not in valid_resource_types:
-        error_message = { "code": 404,
-                          "error": "Invalid resource",
-                          "debug": resource_type  }
-        return Response(json.dumps(error_message), status=404, mimetype='application/json')
+    MIN_SINCE = "0:0"
+    MAX_UNTIL = "9999999999:9999999"
 
     base_data = []
 
-    registry.query_api_called = True
+    if request.args.get('paging.since') or request.args.get('paging.until'):
+        registry.pagination_used = True
+
+    since = request.args.get('paging.since') if request.args.get('paging.since') else MIN_SINCE
+    until = request.args.get('paging.until') if request.args.get('paging.until') else MAX_UNTIL
+    new_until = until
 
     try:
+        valid_resource_types = ['device', 'flow', 'node', 'receiver', 'sender', 'source', 'subscription']
+    
+        resource_type = resource.rstrip("s")
+
+        if resource_type not in valid_resource_types:
+            error_message = { "code": 404,
+                              "error": "Invalid resource",
+                              "debug": resource_type  }
+            return Response(json.dumps(error_message), status=404, mimetype='application/json')
+
+        registry.query_api_called = True
+
         # Check to see if resource is being requested as a query
         if request.args.get('id'):
-    
             resource_id = request.args.get('id')
             base_data.append(registry.get_resources()[resource_type][resource_id])
         else:
             data = registry.get_resources()[resource_type]
-            for key, value in data.items():
-                base_data.append(value)
+
+            # only paginate for verison v1.3 and up 
+            if NMOSUtils.compare_api_version("v1.3", version) < 0:
+                for key, value in data.items():
+                    base_data.append(value)
+            else:
+                data_list = [d for k, d in data.items()]
+                sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
+
+                result_count = 0
+                for value in sorted_list:
+                    if NMOSUtils.compare_resource_version(value['version'], since) >= 0 and NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                        if result_count < registry.paging_limit:
+                            base_data.append(value)
+                            result_count += 1
+                        else:
+                            new_until = value['version']
+                            break
+
     except Exception:
         pass
 
     response = Response(json.dumps(base_data), mimetype='application/json')
+
+    # add pagination headers for v1.3 and up
+    if NMOSUtils.compare_api_version("v1.3", version) >= 0:
+        link = ""
+        if new_until != MAX_UNTIL:
+            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=" + new_until + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
+        
+        if since != MIN_SINCE:
+            if link != "":
+                link += ","
+            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=0:0&paging.limit=" + str(registry.paging_limit) + ">; rel=\"first\""
+
+        if link != "": 
+            response.headers["Link"] = link
+        response.headers["X-Paging-Limit"] = registry.paging_limit 
+        response.headers["X-Paging-Since"] = since
+        response.headers["X-Paging-Until"] = new_until
+        response.headers["X-Ancestry-Generations"] = 1
 
     return response
 

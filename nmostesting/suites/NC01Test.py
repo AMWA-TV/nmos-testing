@@ -304,7 +304,6 @@ class NC01Test(GenericTest):
                         {'label': 's3/wright', 'description': 'Mock sender 3'},
                         {'label': 's4/mason', 'description': 'Mock sender 4'},
                         {'label': 's5/barrett', 'description': 'Mock sender 5'}]
-
         for sender in self.senders:
             sender["id"] = str(uuid.uuid4())
             sender["device_id"] = str(uuid.uuid4())
@@ -312,10 +311,12 @@ class NC01Test(GenericTest):
             sender["source_id"] = str(uuid.uuid4())
             sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/single/senders/" + sender["id"] + "/transportfile"
             sender["registered"] = False
+            sender["version"] = NMOSUtils.get_TAI_time()
             sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
-            sender["version"] = NMOSUtils.create_resource_version()
+            # Introduce a short delay to ensure unique version numbers. Version number is used by pagination in lieu of creation or update time
+            time.sleep(0.1) 
 
-        sender_indices = self._generate_random_indices(len(self.senders))
+        sender_indices = self._generate_random_indices(len(self.senders), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
 
         # Register randomly chosen senders and generate answer strings
         for i, sender in enumerate(self.senders):
@@ -337,11 +338,14 @@ class NC01Test(GenericTest):
             receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
             receiver["registered"] = False
             receiver["connectable"] = True
-            receiver["version"] = NMOSUtils.create_resource_version()
+            receiver["version"] = NMOSUtils.get_TAI_time()
             receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
+            # Introduce a short delay to ensure unique version numbers. Version number is used by pagination in lieu of creation or update time
+            time.sleep(0.1) 
+
 
         # Generate indices of self.receivers to be registered and some of those to be non connectable
-        receiver_indices = self._generate_random_indices(len(self.receivers))
+        receiver_indices = self._generate_random_indices(len(self.receivers), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
 
         # Register randomly chosen resources, with some excluding connection api and generate answer strings
         for i in receiver_indices:
@@ -431,6 +435,7 @@ class NC01Test(GenericTest):
         node_data["id"] = node_id
         node_data["label"] = label
         node_data["description"] = description
+        node_data["version"] = NMOSUtils.get_TAI_time()
         self.post_resource(self, "node", node_data, codes=[201])
 
     def _create_sender_json(self, sender):
@@ -462,6 +467,7 @@ class NC01Test(GenericTest):
         device_data["controls"][0]["href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
         device_data["senders"] = [ sender["id"] ] 
         device_data["receivers"] = [] 
+        device_data["version"] = sender["version"]
         self.post_resource(self, "device", device_data, codes=codes, fail=fail)
 
         # Register source
@@ -470,6 +476,7 @@ class NC01Test(GenericTest):
         source_data["label"] = "AMWA Test Source"
         source_data["description"] = "AMWA Test Source"
         source_data["device_id"] = sender["device_id"]
+        source_data["version"] = sender["version"]
         self.post_resource(self, "source", source_data, codes=codes, fail=fail)
 
         # Register flow
@@ -479,6 +486,7 @@ class NC01Test(GenericTest):
         flow_data["description"] = "AMWA Test Flow"
         flow_data["device_id"] = sender["device_id"]
         flow_data["source_id"] = sender["source_id"]
+        flow_data["version"] = sender["version"]
         self.post_resource(self, "flow", flow_data, codes=codes, fail=fail)
 
         # Register sender
@@ -524,6 +532,7 @@ class NC01Test(GenericTest):
             device_data["controls"][0]["href"] = receiver['controls_href']
         else:
             device_data["controls"] = [] # Remove controls data
+        device_data["version"] = receiver["version"] 
         device_data["senders"] = [] 
         device_data["receivers"] = [ receiver["id"] ] 
         self.post_resource(self, "device", device_data, codes=codes, fail=fail)
@@ -635,6 +644,8 @@ class NC01Test(GenericTest):
         Query API should be able to discover all the senders that are registered in the Registry
         """
         try:
+            # reduce paging limit to force pagination on REST API
+            self.primary_registry.paging_limit = 2
             # Check senders 
             question = 'The NCuT should be able to discover all the Senders that are registered in the Registry.\n\n' \
             'Refresh the NCuT\'s view of the Registry and carefully select the Senders that are available from the following list.' 
@@ -650,16 +661,22 @@ class NC01Test(GenericTest):
                     if answer not in expected_answers:
                         return test.FAIL('Incorrect sender identified')
 
+            if not self.primary_registry.pagination_used and len(self.primary_registry.subscriptions) == 0:
+                return test.FAIL('Pagination not exercised')
             return test.PASS('All devices correctly identified')
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
-
+        finally:
+            self.primary_registry.paging_limit = 100
 
     def test_04(self, test):
         """
         Query API should be able to discover all the receivers that are registered in the Registry
         """
         try:
+            # reduce paging limit to force pagination on REST API
+            self.primary_registry.paging_limit = 2
+
             # Check receivers 
             question = 'The NCuT should be able to discover all the Receivers that are registered in the Registry.\n\n' \
             'Refresh the NCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.'
@@ -674,10 +691,14 @@ class NC01Test(GenericTest):
                 for answer in actual_answers:
                     if answer not in expected_answers:
                         return test.FAIL('Incorrect receiver identified')
+            if not self.primary_registry.pagination_used and len(self.primary_registry.subscriptions) == 0:
+                return test.FAIL('Pagination not exercised')
 
             return test.PASS('All devices correctly identified')
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
+        finally:
+            self.primary_registry.paging_limit = 100
 
     def test_05(self, test):
         """

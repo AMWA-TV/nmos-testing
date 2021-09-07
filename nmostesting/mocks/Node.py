@@ -446,10 +446,10 @@ def transport_file(version, resource, resource_id):
 
             return response
 
-        elif resource == 'receivers':
-            file_name = NODE.receivers[resource_id]['activations']['transport_file']
+        #elif resource == 'receivers':
+        #    file_name = NODE.receivers[resource_id]['activations']['transport_file']
         
-            return make_response(Response(json.dumps(sdp_data), mimetype='application/json'))
+        #    return make_response(Response(json.dumps(sdp_data), mimetype='application/json'))
 
         #unknown resource type
         abort(404)
