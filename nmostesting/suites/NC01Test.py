@@ -648,7 +648,9 @@ class NC01Test(GenericTest):
             self.primary_registry.paging_limit = 2
             # Check senders 
             question = 'The NCuT should be able to discover all the Senders that are registered in the Registry.\n\n' \
-            'Refresh the NCuT\'s view of the Registry and carefully select the Senders that are available from the following list.' 
+            'Refresh the NCuT\'s view of the Registry and carefully select the Senders that are available from the following list.\n\n' \
+            'For this test the registry paging limit has been set to 2. If your NCuT implements pagination, you must ensure you view ' \
+            'every available page to complete this test.' 
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(self.senders)]
             expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered'] == True]
 
@@ -679,7 +681,9 @@ class NC01Test(GenericTest):
 
             # Check receivers 
             question = 'The NCuT should be able to discover all the Receivers that are registered in the Registry.\n\n' \
-            'Refresh the NCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.'
+            'Refresh the NCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.\n\n' \
+            'For this test the registry paging limit has been set to 2. If your NCuT implements pagination, you must ensure you view ' \
+            'every available page to complete this test.' 
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(self.receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered'] == True]
 
