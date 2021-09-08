@@ -914,7 +914,6 @@ class NC01Test(GenericTest):
             valid, response = self.do_request('GET', self.mock_node_base_url + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
             transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
-            transport_params[0]['rtp_enabled'] = True
             activate_json = {"transport_params": transport_params,"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data": transport_file,"type":"application/sdp"}}
             activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
@@ -984,7 +983,6 @@ class NC01Test(GenericTest):
             valid, response = self.do_request('GET', self.mock_node_base_url + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
             transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
-            transport_params[0]['rtp_enabled'] = True
             activate_json = {"transport_params": transport_params,"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data": transport_file,"type":"application/sdp"}}
             activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
