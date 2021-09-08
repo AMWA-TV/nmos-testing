@@ -422,7 +422,6 @@ def active(version, resource, resource_id):
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transporttype', methods=["GET"], strict_slashes=False)
 def transport_type(version, resource, resource_id):
     # TODO fetch from resource info
-    # base_data = "urn:x-nmos:transport:websocket"
     base_data = "urn:x-nmos:transport:rtp"
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
@@ -446,11 +445,6 @@ def transport_file(version, resource, resource_id):
             response.headers["Content-Type"] = "application/sdp"
 
             return response
-
-        #elif resource == 'receivers':
-        #    file_name = NODE.receivers[resource_id]['activations']['transport_file']
-        
-        #    return make_response(Response(json.dumps(sdp_data), mimetype='application/json'))
 
         #unknown resource type
         abort(404)
