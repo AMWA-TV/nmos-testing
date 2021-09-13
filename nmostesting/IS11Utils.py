@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from .NMOSUtils import NMOSUtils
 from . import TestHelper
 
@@ -35,6 +36,35 @@ class IS11Utils(NMOSUtils):
             except ValueError:
                 pass
         return toReturn
+
+    # TODO(prince-chrism): Move to NMOSUtils since I copied the implementation from IS-05
+    def check_for_api_control(self, node_url, current_api_url, expected_control_type):
+        valid, devices = TestHelper.do_request("GET", node_url + "devices")
+        if not valid:
+            return False, "Node API did not respond as expected: {}".format(devices)
+
+        devices_with_api = []
+        found_api_match = False
+        try:
+            for device in devices.json():
+                for control in device["controls"]:
+                    if control["type"] == expected_control_type:
+                        devices_with_api.append(control["href"])
+                        if NMOSUtils.compare_urls(current_api_url, control["href"]) and \
+                                self.authorization is control.get("authorization", False):
+                            found_api_match = True
+        except json.JSONDecodeError:
+            return False, "Non-JSON response returned from Node API"
+        except KeyError:
+            return False, "One or more Devices were missing the 'controls' attribute"
+
+        if len(devices_with_api) > 0 and found_api_match:
+            return True, ""
+        elif len(devices_with_api) > 0:
+            return False, "Found one or more Device controls, but no href and/or authorization mode" \
+                          " matched the API under test"
+        else:
+            return False, "Unable to find any Devices which expose the control type '{}'".format(expected_control_type)
 
     def get_senders(self):
         """Gets a list of the available senders from the API"""
