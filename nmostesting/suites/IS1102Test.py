@@ -119,6 +119,11 @@ class IS1102Test(GenericTest):
 
         return test.MANUAL()
 
+    def test_07(self, test):
+        """External deactivation of a sender updates the IS-05 master_enabled"""
+
+        return test.MANUAL()
+
     def test_99(self, test):
         """IS-11 Sink's EDID parameters match IS-04 Source, Flow, and Sender"""
 
