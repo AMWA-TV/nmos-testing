@@ -503,9 +503,9 @@ class GenericTest(object):
         # Test URLs which include a {resourceId} or similar parameter
         if resource[1]['params'] and len(resource[1]['params']) == 1:
             path = resource[0].split("{")[0].rstrip("/")
-            if path in self.saved_entities:
+            if path in self.saved_entities[api]:
                 # Pick the first relevant saved entity and construct a test
-                entity = self.saved_entities[path][0]
+                entity = self.saved_entities[api][path][0]
                 params = {resource[1]['params'][0].name: entity}
                 url_param = resource[0].format(**params)
                 url = "{}{}".format(self.apis[api]["url"].rstrip("/"), url_param)
@@ -549,7 +549,7 @@ class GenericTest(object):
             return test.FAIL("Incorrect response code: {}".format(response.status_code))
 
         # Gather IDs of sub-resources for testing of parameterised URLs...
-        self.save_subresources(resource[0], response)
+        self.save_subresources(api, resource[0], response)
 
         cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers,
                                                    cors_methods, cors_headers)
@@ -576,7 +576,7 @@ class GenericTest(object):
         else:
             return test.FAIL(message)
 
-    def save_subresources(self, path, response):
+    def save_subresources(self, api, path, response):
         """Get IDs contained within an array JSON response such that they can be interrogated individually"""
         subresources = list()
         try:
@@ -598,10 +598,13 @@ class GenericTest(object):
             pass
 
         if len(subresources) > 0:
-            if path not in self.saved_entities:
-                self.saved_entities[path] = subresources
+            if api not in self.saved_entities:
+                self.saved_entities[api] = dict()
+
+            if path not in self.saved_entities[api]:
+                self.saved_entities[api][path] = subresources
             else:
-                self.saved_entities[path] += subresources
+                self.saved_entities[api][path] += subresources
 
     def get_schema(self, api_name, method, path, status_code):
         try:
