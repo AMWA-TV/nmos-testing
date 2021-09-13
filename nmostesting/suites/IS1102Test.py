@@ -72,34 +72,12 @@ class IS1102Test(GenericTest):
     def test_02(self, test):
         """At least one Device is showing an IS-05 control advertisement matching the API under test"""
 
-        valid, devices = self.do_request("GET", self.node_url + "devices")
+        valid, fail_message = self.is11_utils.check_for_api_control(
+            self.node_url, self.connection_url, "urn:x-nmos:control:sr-ctrl/{}".format(self.apis[CONN_API_KEY]["version"]), self.authorization)
         if not valid:
-            return test.FAIL("Node API did not respond as expected: {}".format(devices))
+            return test.FAIL(fail_message)
 
-        devices_with_api = []
-        found_api_match = False
-        try:
-            expected_control_type = "urn:x-nmos:control:sr-ctrl/" + self.apis[CONN_API_KEY]["version"]
-            for device in devices.json():
-                for control in device["controls"]:
-                    if control["type"] == expected_control_type:
-                        devices_with_api.append(control["href"])
-                        if self.is05_utils.compare_urls(self.connection_url, control["href"]) and \
-                                self.authorization is control.get("authorization", False):
-                            found_api_match = True
-        except json.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned from Node API")
-        except KeyError:
-            return test.FAIL("One or more Devices were missing the 'controls' attribute")
-
-        if len(devices_with_api) > 0 and found_api_match:
-            return test.PASS()
-        elif len(devices_with_api) > 0:
-            return test.FAIL("Found one or more Device controls, but no href and authorization mode matched the "
-                             "API under test")
-        else:
-            return test.FAIL("Unable to find any Devices which expose the control type '{}'"
-                             .format(expected_control_type))
+        return test.PASS()
 
     def test_03(self, test):
         """At least one Device is showing an IS-11 control advertisement matching the API under test"""
@@ -109,12 +87,27 @@ class IS1102Test(GenericTest):
         if not valid:
             return test.FAIL(fail_message)
 
-        return test.NA("To be implemented")
+        return test.PASS()
 
     def test_04(self, test):
         """Senders shown in Sink Metadata Processing API have corresponding resource in Node and Connection APIs"""
 
-        return test.NA("To be implemented")
+        if len(self.is11_senders) <= 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+        missing_is04_resouce = []
+        missing_is05_resouce = []
+
+        for sender in self.is11_senders:
+            if sender not in self.is04_senders:
+                missing_is04_resouce.append(sender)
+            if sender not in self.is05_senders:
+                missing_is05_resouce.append(sender)
+
+        if len(missing_is04_resouce) > 0 or len(missing_is05_resouce) > 0:
+            return test.FAIL("Unable to find all resources in IS-04 and IS-05") # TODO(prince-chrismc): Print missing guids?
+
+        return test.PASS()
 
     def test_05(self, test):
         """Applying Media Profiles on a sender increments the IS-04 version timestamp"""
@@ -127,6 +120,6 @@ class IS1102Test(GenericTest):
         return test.MANUAL()
 
     def test_99(self, test):
-        """IS-11 Sink's EDID parameters match IS-04 Source and Flow"""
+        """IS-11 Sink's EDID parameters match IS-04 Source, Flow, and Sender"""
 
         return test.NA("To be implemented")
