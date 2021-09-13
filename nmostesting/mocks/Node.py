@@ -16,7 +16,7 @@ import uuid
 import json
 import time
 
-from flask import Blueprint, make_response, abort, Response
+from flask import Blueprint, make_response, abort, Response, request
 from random import randint
 from jinja2 import Template
 from .. import Config as CONFIG

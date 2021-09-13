@@ -16,8 +16,8 @@ import random
 import requests
 import json
 import time
-from flask import Flask, render_template, make_response, abort, request, Response, url_for
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template, make_response, request, Response
+from flask_socketio import SocketIO
 from DataStore import data
 
 app = Flask(__name__)
