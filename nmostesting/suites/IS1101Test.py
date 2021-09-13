@@ -72,7 +72,14 @@ class IS1101Test(GenericTest):
             valid, response = self.is11_utils.put_media_profiles(sender, data=[media_profile])
             if not valid:
                 return test.FAIL("Sender {} rejected Media Profile: {}".format(sender, response))
-            # TODO(prince-chrismc): Verify response and GET content
+
+        # Requires https://github.com/AMWA-TV/nmos-sink-metadata-processing/pull/25
+        # schema = self.get_schema(SINIK_MP_API_KEY, "PUT", "/senders/{senderId}/media-profiles", response.status_code)
+        # valid, message = self.check_response(schema, "PUT", response)
+        # if not valid:
+        #     return test.FAIL(message)
+        # elif message:
+        #     return test.WARNING(message)
 
         return test.PASS()
 
