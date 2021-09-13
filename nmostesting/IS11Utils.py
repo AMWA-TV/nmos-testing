@@ -96,7 +96,7 @@ class IS11Utils(NMOSUtils):
     def delete_media_profiles(self, sender_id):
         """Delete the Media Profiles of a given Sender"""
         valid, r = TestHelper.do_request("DELETE", f"{self.url}senders/{sender_id}/media-profiles")
-        if valid and r.status_code == 200:
+        if valid and r.status_code == 204:
             try:
                 return True, r.json()
             except Exception:
