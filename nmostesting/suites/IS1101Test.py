@@ -39,7 +39,7 @@ class IS1101Test(GenericTest):
     def test_01(self, test):
         """Senders Media Profile's SHOULD initial be empty"""
 
-        if len(self.is11_senders) <= 0:
+        if len(self.senders) <= 0:
             return test.UNCLEAR("Not tested. No resources found.")
 
         senders_not_empty = []
