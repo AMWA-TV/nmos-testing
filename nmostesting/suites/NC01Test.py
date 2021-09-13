@@ -15,25 +15,23 @@
 import asyncio
 import time
 import json
-import socket
 import uuid
 import inspect
 import random
 from copy import deepcopy
 from urllib.parse import urlparse
 from dnslib import QTYPE
-from git.objects.base import IndexObject
 from threading import Event
-from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
+from zeroconf_monkey import Zeroconf
 
-from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
+from ..GenericTest import GenericTest, NMOSTestException
 from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..TestHelper import get_default_ip
 from ..TestResult import Test
 from ..NMOSUtils import NMOSUtils
 
-from flask import Flask, render_template, make_response, abort, Blueprint, flash, request, Response, session
+from flask import Flask, Blueprint, request
 
 NC_API_KEY = "testing-facade"
 REG_API_KEY = "registration"
@@ -254,31 +252,6 @@ class NC01Test(GenericTest):
 
         return self._wait_for_testing_facade(json_out['name'], timeout)    
 
-    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
-        """Get an mDNS ServiceInfo object in order to create an advertisement"""
-        if api_ver is None:
-            api_ver = self.apis[NC_API_KEY]["version"]
-        if api_proto is None:
-            api_proto = self.protocol
-        if api_auth is None:
-            api_auth = self.authorization
-
-        if ip is None:
-            ip = get_default_ip()
-            hostname = "nmos-mocks.local."
-        else:
-            hostname = ip.replace(".", "-") + ".local."
-
-        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': str(api_auth).lower()}
-
-        service_type = "_nmos-register._tcp.local."
-
-        info = ServiceInfo(service_type,
-                           "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
-                           addresses=[socket.inet_aton(ip)], port=port,
-                           properties=txt, server=hostname)
-        return info
-
     def _generate_random_indices(self, index_range, min_index_count=2, max_index_count=4):
         """
         index_range: number of possible indices
@@ -342,7 +315,6 @@ class NC01Test(GenericTest):
             receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
             # Introduce a short delay to ensure unique version numbers. Version number is used by pagination in lieu of creation or update time
             time.sleep(0.1) 
-
 
         # Generate indices of self.receivers to be registered and some of those to be non connectable
         receiver_indices = self._generate_random_indices(len(self.receivers), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2

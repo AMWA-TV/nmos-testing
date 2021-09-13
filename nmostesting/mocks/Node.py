@@ -16,7 +16,7 @@ import uuid
 import json
 import time
 
-from flask import Blueprint, make_response, abort, Response, request, redirect
+from flask import Blueprint, make_response, abort, Response, request
 from ..Config import ENABLE_HTTPS, DNS_DOMAIN, PORT_BASE, DNS_SD_MODE
 from ..TestHelper import get_default_ip, do_request
 from ..NMOSUtils import NMOSUtils
