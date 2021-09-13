@@ -352,8 +352,8 @@ class GenericTest(object):
 
         try:
             self.validate_schema(response.json(), schema)
-        except jsonschema.ValidationError:
-            return False, "Response schema validation error"
+        except jsonschema.ValidationError as e:
+            return False, f"Response schema validation error. Hint: {e.message}"
         except json.JSONDecodeError:
             return False, "Invalid JSON received"
 
