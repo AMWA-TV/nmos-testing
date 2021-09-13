@@ -39,7 +39,22 @@ class IS1101Test(GenericTest):
     def test_01(self, test):
         """Senders Media Profile's SHOULD initial be empty"""
 
-        return test.NA("To be implemented")
+        if len(self.is11_senders) <= 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+        senders_not_empty = []
+        for sender in self.senders:
+            valid, media_profiles = self.is11_utils.get_media_profiles(sender)
+            if not valid:
+                return test.FAIL(media_profiles)
+
+            if media_profiles != []:
+                senders_not_empty.append(sender)
+
+        if len(senders_not_empty) > 0:
+            return test.FAIL("Some Senders presented a non-empty Media Profiles.")
+
+        return test.PASS()
 
     def test_02(self, test):
         """Senders accept valid Media Profile"""

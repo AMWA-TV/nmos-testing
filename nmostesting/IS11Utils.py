@@ -71,6 +71,17 @@ class IS11Utils(NMOSUtils):
         """Gets a list of the available senders from the API"""
         return self._get_resource("senders/")
 
+    def get_media_profiles(self, sender_id):
+        """Get the Media Profiles for a given Sender"""
+        valid, r = TestHelper.do_request("GET", self.url + "senders/" + sender_id + "/media-profiles")
+        if valid and r.status_code == 200:
+            try:
+                return True, r.json()
+            except Exception:
+                # Failed parsing JSON
+                return False, "Invalid JSON received"
+        return False, "Sink-MP API did not respond as expected: {}".format(r)
+
     def get_receivers(self):
         """Gets a list of the available receivers from the API"""
         return self._get_resource("receivers/")
