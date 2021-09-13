@@ -98,7 +98,7 @@ class IS11Utils(NMOSUtils):
         valid, r = TestHelper.do_request("DELETE", f"{self.url}senders/{sender_id}/media-profiles")
         if valid and r.status_code == 204:
             try:
-                return True, r.json()
+                return True, r.content
             except Exception:
                 # Failed parsing JSON
                 return False, "Invalid JSON received"
