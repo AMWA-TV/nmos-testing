@@ -73,7 +73,29 @@ class IS11Utils(NMOSUtils):
 
     def get_media_profiles(self, sender_id):
         """Get the Media Profiles for a given Sender"""
-        valid, r = TestHelper.do_request("GET", self.url + "senders/" + sender_id + "/media-profiles")
+        valid, r = TestHelper.do_request("GET", f"{self.url}senders/{sender_id}/media-profiles")
+        if valid and r.status_code == 200:
+            try:
+                return True, r.json()
+            except Exception:
+                # Failed parsing JSON
+                return False, "Invalid JSON received"
+        return False, "Sink-MP API did not respond as expected: {}".format(r)
+
+    def put_media_profiles(self, sender_id, data):
+        """Put some Media Profiles on a given Sender"""
+        valid, r = TestHelper.do_request("GET", f"{self.url}senders/{sender_id}/media-profiles", json=data)
+        if valid and r.status_code == 200:
+            try:
+                return True, r.json()
+            except Exception:
+                # Failed parsing JSON
+                return False, "Invalid JSON received"
+        return False, "Sink-MP API did not respond as expected: {}".format(r)
+
+    def delete_media_profiles(self, sender_id):
+        """Delete the Media Profiles of a given Sender"""
+        valid, r = TestHelper.do_request("DELETE", f"{self.url}senders/{sender_id}/media-profiles")
         if valid and r.status_code == 200:
             try:
                 return True, r.json()
