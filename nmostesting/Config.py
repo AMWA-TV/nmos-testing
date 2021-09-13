@@ -241,8 +241,8 @@ SPECIFICATIONS = {
     },
     "is-11": {
         "repo": "nmos-sink-metadata-processing",
-        "versions": ["v1.0-dev"],
-        "default_version": "v1.0-dev",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
         "apis": {
             "sink-mp": {
                 "name": "Sink Metadata Processing API",

@@ -282,7 +282,7 @@ TEST_DEFINITIONS = {
         "name": "IS-11 Sink Metadata Processing API",
         "specs": [{
             "spec_key": "is-11",
-            "api_key": "netctrl"
+            "api_key": "sink-mp"
         }],
         "class": IS1101Test.IS1101Test
     }
