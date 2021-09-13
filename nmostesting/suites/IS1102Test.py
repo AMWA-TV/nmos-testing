@@ -53,6 +53,8 @@ class IS1102Test(GenericTest):
 
         for smp_sender in self.is11_senders:
             for node_sender in self.is04_senders:
+                print(smp_sender.__dict__)
+                print(node_sender.__dict__)
                 if smp_sender["id"] == node_sender["id"]:
                     self.senders_to_test[smp_sender] = self.is04_senders[smp_sender]
 
