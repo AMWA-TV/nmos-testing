@@ -28,9 +28,9 @@ class IS1102Test(GenericTest):
     Runs IS-11-02-Test
     """
     def __init__(self, apis):
-        # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
-            "/single/senders/{senderId}/transportfile"
+            "/single/senders/{senderId}/transportfile", # permitted to generate a 404 when master_enable is false
+            "/sinks/{sinkId}/edid" # Does not have a schema
         ]
         GenericTest.__init__(self, apis, omit_paths)
         self.url = self.apis[SINIK_MP_API_KEY]["url"]
@@ -60,7 +60,7 @@ class IS1102Test(GenericTest):
         """Check that version 1.2 or greater of the Node API is available"""
 
         api = self.apis[NODE_API_KEY]
-        if self.is05_utils.compare_api_version(api["version"], "v1.2") >= 0:
+        if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
             valid, result = self.do_request("GET", self.node_url)
             if valid:
                 return test.PASS()
@@ -105,7 +105,7 @@ class IS1102Test(GenericTest):
         """At least one Device is showing an IS-11 control advertisement matching the API under test"""
 
         valid, fail_message = self.is11_utils.check_for_api_control(
-            self.node_url, self.url, "urn:x-nmos:control:sink-mp/" + self.apis[SINIK_MP_API_KEY]["version"])
+            self.node_url, self.url, "urn:x-nmos:control:sink-mp/{}".format(self.apis[SINIK_MP_API_KEY]["version"]), self.authorization)
         if not valid:
             return test.FAIL(fail_message)
 

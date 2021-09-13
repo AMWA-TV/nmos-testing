@@ -38,7 +38,8 @@ class IS11Utils(NMOSUtils):
         return toReturn
 
     # TODO(prince-chrism): Move to NMOSUtils since I copied the implementation from IS-05
-    def check_for_api_control(self, node_url, current_api_url, expected_control_type):
+    @staticmethod
+    def check_for_api_control(node_url, current_api_url, expected_control_type, authorization):
         valid, devices = TestHelper.do_request("GET", node_url + "devices")
         if not valid:
             return False, "Node API did not respond as expected: {}".format(devices)
@@ -51,7 +52,7 @@ class IS11Utils(NMOSUtils):
                     if control["type"] == expected_control_type:
                         devices_with_api.append(control["href"])
                         if NMOSUtils.compare_urls(current_api_url, control["href"]) and \
-                                self.authorization is control.get("authorization", False):
+                                authorization is control.get("authorization", False):
                             found_api_match = True
         except json.JSONDecodeError:
             return False, "Non-JSON response returned from Node API"

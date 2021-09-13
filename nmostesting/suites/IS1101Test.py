@@ -24,7 +24,10 @@ class IS1101Test(GenericTest):
     """
 
     def __init__(self, apis):
-        GenericTest.__init__(self, apis)
+        omit_paths = [
+            "/sinks/{sinkId}/edid" # Does not have a schema
+        ]
+        GenericTest.__init__(self, apis, omit_paths)
         self.url = self.apis[SINIK_MP_API_KEY]["url"]
         self.is11_utils = IS11Utils(self.url)
 
