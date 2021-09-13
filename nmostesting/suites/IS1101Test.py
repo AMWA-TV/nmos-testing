@@ -93,8 +93,6 @@ class IS1101Test(GenericTest):
             valid, response = self.is11_utils.delete_media_profiles(sender)
             if not valid:
                 return test.FAIL("Sender {} failed to delete Media Profile: {}".format(sender, response))
-            if response != "":
-                return test.FAIL("Sender {} did not return an empty response: {}".format(sender, response))
 
             valid, media_profiles = self.is11_utils.get_media_profiles(sender)
             if not valid:
