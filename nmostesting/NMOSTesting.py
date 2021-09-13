@@ -75,6 +75,8 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1101Test
+from .suites import IS1102Test
 from .suites import BCP00301Test
 
 FLASK_APPS = []
@@ -276,6 +278,28 @@ TEST_DEFINITIONS = {
             "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
+    },
+    "IS-11-01": {
+        "name": "IS-11 Sink Metadata Processing API",
+        "specs": [{
+            "spec_key": "is-11",
+            "api_key": "sink-mp"
+        }],
+        "class": IS1101Test.IS1101Test
+    },
+    "IS-11-02": {
+        "name": "IS-11 Interaction with IS-04 and IS-05",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }, {
+            "spec_key": "is-11",
+            "api_key": "sink-mp"
+        }],
+        "class": IS1102Test.IS1102Test
     }
 }
 

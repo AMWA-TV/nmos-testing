@@ -137,6 +137,20 @@ SDP_PREFERENCES = {
     "video_exactframerate": "25"
 }
 
+# IS-11 Media Profiles parameters which can be modified for devices which do not support the defaults
+# IS-11 Media Profiles testing is not concerned with support for specific media parameters, but must include them in the file
+MEDIA_PROFILES_PREFERENCES = {
+    "audio_channels": 2,
+    "audio_sample_rate": 48000,
+    "video_width": 1920,
+    "video_height": 1080,
+    "video_interlace": True,
+    "video_exactframerate": { # EDID with ID `DMT ID: 45h; Std. 2 Byte Code: (D1, 00)h; CVT 3 Byte Code: (57, 28, 28)h`
+        "numerator": 2403125,
+        "denominator": 40338
+    }
+}
+
 # Test with an MQTT Broker as per AMWA IS-07
 ENABLE_MQTT_BROKER = True
 
@@ -236,6 +250,17 @@ SPECIFICATIONS = {
             "auth": {
                 "name": "Authorization API",
                 "raml": "AuthorizationAPI.raml"
+            }
+        }
+    },
+    "is-11": {
+        "repo": "nmos-sink-metadata-processing",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "sink-mp": {
+                "name": "Sink Metadata Processing API",
+                "raml": "SinkMetadataProcessingAPI.raml"
             }
         }
     },
