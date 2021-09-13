@@ -86,6 +86,17 @@ class IS11Utils(NMOSUtils):
         """Gets a list of the available receivers from the API"""
         return self._get_resource("receivers/")
 
+    def get_associated_sinks(self, receiver_id):
+        """Get the accosicated Sinks for a given receiver"""
+        valid, r = TestHelper.do_request("GET", self.url + "receivers/" + receiver_id + "/sinks")
+        if valid and r.status_code == 200:
+            try:
+                return True, r.json()
+            except Exception:
+                # Failed parsing JSON
+                return False, "Invalid JSON received"
+        return False, "Sink-MP API did not respond as expected: {}".format(r)
+
     def get_sinks(self):
         """Gets a list of the available sink from the API"""
         return self._get_resource("sinks/")

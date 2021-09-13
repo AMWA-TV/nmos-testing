@@ -37,7 +37,7 @@ class IS1101Test(GenericTest):
         self.sinks = self.is11_utils.get_sinks()
 
     def test_01(self, test):
-        """Senders Media Profile's SHOULD initial be empty"""
+        """Senders Media Profile's SHOULD initially be empty"""
 
         if len(self.senders) <= 0:
             return test.UNCLEAR("Not tested. No resources found.")
@@ -47,12 +47,11 @@ class IS1101Test(GenericTest):
             valid, media_profiles = self.is11_utils.get_media_profiles(sender)
             if not valid:
                 return test.FAIL(media_profiles)
-
             if media_profiles != []:
                 senders_not_empty.append(sender)
 
         if len(senders_not_empty) > 0:
-            return test.FAIL("Some Senders presented a non-empty Media Profiles.")
+            return test.WARNING("Some Senders presented a non-empty Media Profiles.")
 
         return test.PASS()
 
@@ -69,7 +68,22 @@ class IS1101Test(GenericTest):
     def test_04(self, test):
         """Receivers are associated to known Sinks"""
 
-        return test.NA("To be implemented")
+        if len(self.receivers) <= 0:
+            return test.UNCLEAR("Not tested. No resources found.")
+
+        missink_sink_resources = []
+        for receiver in self.receivers:
+            valid, sinks = self.is11_utils.get_associated_sinks(receiver)
+            if not valid:
+                return test.FAIL(sinks)
+            for sink in sinks:
+                if sink.rstrip("/") not in self.sinks:
+                    missink_sink_resources.append(sink)
+
+        if len(missink_sink_resources) > 0:
+            return test.FAIL("Some associated Sinks were not present.")
+
+        return test.PASS()
 
     def test_05(self, test):
         """Sinks expose a valid EDID"""
