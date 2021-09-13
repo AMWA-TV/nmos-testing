@@ -108,16 +108,19 @@ class IS1101Test(GenericTest):
         if len(self.receivers) <= 0:
             return test.UNCLEAR("Not tested. No resources found.")
 
-        missink_sink_resources = []
+        missing_sink_resources = []
+
         for receiver in self.receivers:
             valid, sinks = self.is11_utils.get_associated_sinks(receiver)
             if not valid:
                 return test.FAIL(sinks)
             for sink in sinks:
                 if sink.rstrip("/") not in self.sinks:
-                    missink_sink_resources.append(sink)
+                    missing_sink_resources.append(sink)
 
-        if len(missink_sink_resources) > 0:
+
+        if len(missing_sink_resources) > 0:
+
             return test.FAIL("Some associated Sinks were not present.")
 
         return test.PASS()

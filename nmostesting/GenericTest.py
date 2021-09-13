@@ -503,7 +503,7 @@ class GenericTest(object):
         # Test URLs which include a {resourceId} or similar parameter
         if resource[1]['params'] and len(resource[1]['params']) == 1:
             path = resource[0].split("{")[0].rstrip("/")
-            if path in self.saved_entities[api]:
+            if api in self.saved_entities and path in self.saved_entities[api]:
                 # Pick the first relevant saved entity and construct a test
                 entity = self.saved_entities[api][path][0]
                 params = {resource[1]['params'][0].name: entity}

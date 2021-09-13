@@ -146,7 +146,7 @@ MEDIA_PROFILES_PREFERENCES = {
     "video_height": 1080,
     "video_interlace": True,
     "video_exactframerate": { # EDID with ID `DMT ID: 45h; Std. 2 Byte Code: (D1, 00)h; CVT 3 Byte Code: (57, 28, 28)h`
-        "numberator": 2403125,
+        "numerator": 2403125,
         "denominator": 40338
     }
 }

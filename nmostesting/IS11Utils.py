@@ -80,7 +80,8 @@ class IS11Utils(NMOSUtils):
             except Exception:
                 # Failed parsing JSON
                 return False, "Invalid JSON received"
-        return False, "Sink-MP API did not respond as expected: {}".format(r)
+        return False, "Sink Metadata Processing API did not respond as expected: {}".format(r)
+
 
     def put_media_profiles(self, sender_id, data):
         """Put some Media Profiles on a given Sender"""
@@ -91,7 +92,8 @@ class IS11Utils(NMOSUtils):
             except Exception:
                 # Failed parsing JSON
                 return False, "Invalid JSON received"
-        return False, "Sink-MP API did not respond as expected: {}".format(r)
+        return False, "Sink Metadata Processing API did not respond as expected: {}".format(r)
+
 
     def delete_media_profiles(self, sender_id):
         """Delete the Media Profiles of a given Sender"""
@@ -102,7 +104,8 @@ class IS11Utils(NMOSUtils):
             except Exception:
                 # Failed parsing JSON
                 return False, "Invalid JSON received"
-        return False, "Sink-MP API did not respond as expected: {}".format(r)
+        return False, "Sink Metadata Processing API did not respond as expected: {}".format(r)
+
 
     def get_receivers(self):
         """Gets a list of the available receivers from the API"""
@@ -117,7 +120,8 @@ class IS11Utils(NMOSUtils):
             except Exception:
                 # Failed parsing JSON
                 return False, "Invalid JSON received"
-        return False, "Sink-MP API did not respond as expected: {}".format(r)
+        return False, "Sink Metadata Processing API did not respond as expected: {}".format(r)
+
 
     def get_sinks(self):
         """Gets a list of the available sink from the API"""
