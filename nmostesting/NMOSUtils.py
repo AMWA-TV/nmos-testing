@@ -171,4 +171,3 @@ class NMOSUtils(object):
     @staticmethod
     def sort_versions(versions_list):
         return sorted(versions_list, key=functools.cmp_to_key(NMOSUtils.compare_api_version))
-        
