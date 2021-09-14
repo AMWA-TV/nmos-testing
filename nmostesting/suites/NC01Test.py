@@ -211,7 +211,7 @@ class NC01Test(GenericTest):
             "answers": answers,
             "time_sent": time.time(),
             "timeout": question_timeout,
-            "url_for_response": "http://" + request.headers.get("Host") + CALLBACK_ENDPOINT,
+            "url_for_response": "http://" + get_default_ip() + ":5000" + CALLBACK_ENDPOINT,
             "answer_response": "",
             "time_answered": "",
             "metadata": metadata
