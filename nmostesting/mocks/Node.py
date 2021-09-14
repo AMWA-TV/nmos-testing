@@ -317,7 +317,7 @@ def _update_receiver_subscription(receiver, active, sender_id):
 
     receiver_update = {
         'subscription': {'active': active, 'sender_id': sender_id},
-        'version': NMOSUtils.create_resource_version()
+        'version': NMOSUtils.get_TAI_time()
     }
 
     return dict(receiver, **receiver_update)
@@ -326,7 +326,7 @@ def _update_sender_subscription(sender, active):
 
     sender_update = {
         'subscription': {'active': active, 'receiver_id': None},
-        'version': NMOSUtils.create_resource_version()
+        'version': NMOSUtils.get_TAI_time()
     }
 
     return dict(sender, **sender_update)

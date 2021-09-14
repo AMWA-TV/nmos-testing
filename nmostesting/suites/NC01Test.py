@@ -769,7 +769,7 @@ class NC01Test(GenericTest):
                 receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
                 receiver["registered"] = True
                 receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
-                receiver["version"] = NMOSUtils.create_resource_version()
+                receiver["version"] = NMOSUtils.get_TAI_time()
                 self._register_receiver(receiver)
                 self.node.add_receiver(receiver)
 
