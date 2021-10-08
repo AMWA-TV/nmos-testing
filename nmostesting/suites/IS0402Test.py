@@ -1904,6 +1904,11 @@ class IS0402Test(GenericTest):
                 websockets[resource].start()
             sleep(CONFIG.WS_MESSAGE_TIMEOUT)
 
+            # Heartbeat node after sleep to prevent expiry
+            valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, self.test_data["node"]["id"]))
+            if not valid:
+                return test.FAIL("Unable to heartbeat node: {}".format(r))
+
             for resource, resource_data in test_data.items():
                 if websockets[resource].did_error_occur():
                     return test.FAIL("Error opening websocket: {}"
@@ -1948,6 +1953,11 @@ class IS0402Test(GenericTest):
                 self.post_resource(test, resource, resource_data, codes=[200])
 
             sleep(CONFIG.WS_MESSAGE_TIMEOUT)
+
+            # Heartbeat node after sleep to prevent expiry
+            valid, r = self.do_request("POST", "{}health/nodes/{}".format(self.reg_url, self.test_data["node"]["id"]))
+            if not valid:
+                return test.FAIL("Unable to heartbeat node: {}".format(r))
 
             for resource, resource_data in test_data.items():
                 received_messages = websockets[resource].get_messages()
