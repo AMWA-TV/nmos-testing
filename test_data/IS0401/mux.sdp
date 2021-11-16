@@ -1,8 +1,8 @@
 v=0
-o=- 198403 11 IN IP4 172.29.80.65
+o=- 198403 11 IN IP4 {{ src_ip }}
 s=Demo Mux Stream
 t=0 0
-m=video 5000 RTP/AVP 98
-c=IN IP4 232.0.16.1/32
-a=source-filter: incl IN IP4 232.0.16.1 172.29.80.65
+m=video {{ dst_port }} RTP/AVP 98
+c=IN IP4 {{ dst_ip }}/32
+a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=rtpmap:98 SMPTE2022-6/27000000
