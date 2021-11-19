@@ -72,8 +72,6 @@ class ControllerTest(GenericTest):
     Testing initial set up of new test suite for controller testing
     """
     def __init__(self, apis, registries, node, dns_server):
-        # Remove the spec_path parameter to prevent attempt to download RAML from repo
-        apis[NC_API_KEY].pop("spec_path", None)
         GenericTest.__init__(self, apis)
         self.authorization = False  # System API doesn't use auth, so don't send tokens in every request
         self.primary_registry = registries[1]
