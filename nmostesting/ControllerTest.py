@@ -33,7 +33,7 @@ from .NMOSUtils import NMOSUtils
 
 from flask import Flask, Blueprint, request
 
-NC_API_KEY = "testing-facade"
+CONTROLLER_TEST_API_KEY = "controller-tests"
 REG_API_KEY = "registration"
 CALLBACK_ENDPOINT = "/testingfacade_response"
 CACHEBUSTER = random.randint(1, 10000)
@@ -92,7 +92,7 @@ class ControllerTest(GenericTest):
         self.zc = Zeroconf()
         self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[NC_API_KEY]["version"], self.protocol, self.authorization,
+            self.dns_server.load_zone(self.apis[CONTROLLER_TEST_API_KEY]["version"], self.protocol, self.authorization,
                                       "test_data/controller/dns_records.zone", CONFIG.PORT_BASE+100)
             self.dns_server.set_expected_query(
                 QTYPE.PTR,
@@ -120,7 +120,7 @@ class ControllerTest(GenericTest):
         self.primary_registry.disable()
         
         # Reset the state of the Testing Façade
-        self.do_request("POST", self.apis[NC_API_KEY]["url"], json={"clear": "True"})
+        self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json={"clear": "True"})
 
         if self.zc:
             self.zc.close()
@@ -215,7 +215,7 @@ class ControllerTest(GenericTest):
             "metadata": metadata
         }
         # Send questions to Testing Façade API endpoint then wait
-        valid, response = self.do_request("POST", self.apis[NC_API_KEY]["url"], json=json_out)
+        valid, response = self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json=json_out)
 
         if not valid:
             raise TestingFacadeException("Problem contacting Testing Façade: " + response)
