@@ -47,6 +47,7 @@ from requests.compat import json
 from . import Config as CONFIG
 from .DNS import DNS
 from .GenericTest import NMOSInitException
+from . import ControllerTest
 from .TestResult import TestStates
 from .TestHelper import get_default_ip
 from .NMOSUtils import DEFAULT_ARGS
@@ -66,8 +67,10 @@ except ImportError:
 from .suites import IS0401Test
 from .suites import IS0402Test
 from .suites import IS0403Test
+from .suites import IS0404Test
 from .suites import IS0501Test
 from .suites import IS0502Test
+from .suites import IS0503Test
 from .suites import IS0601Test
 from .suites import IS0701Test
 from .suites import IS0702Test
@@ -77,7 +80,7 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import BCP00301Test
-from .suites import NC01Test
+
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -94,7 +97,7 @@ core_app.config['TEST_ACTIVE'] = False
 core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
-core_app.register_blueprint(NC01Test.TEST_API)
+core_app.register_blueprint(ControllerTest.TEST_API)
 FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
@@ -174,6 +177,14 @@ TEST_DEFINITIONS = {
         }],
         "class": IS0403Test.IS0403Test
     },
+    "IS-04-04": {
+        "name": "IS-04 NMOS Controller",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "testing-facade"
+        }],
+        "class": IS0404Test.IS0404Test
+    },
     "IS-05-01": {
         "name": "IS-05 Connection Management API",
         "specs": [{
@@ -192,6 +203,14 @@ TEST_DEFINITIONS = {
             "api_key": "connection"
         }],
         "class": IS0502Test.IS0502Test
+    },
+    "IS-05-03": {
+        "name": "IS-05 NMOS Controller",
+        "specs": [{
+            "spec_key": "is-05",
+            "api_key": "testing-facade"
+        }],
+        "class": IS0503Test.IS0503Test
     },
     "IS-06-01": {
         "name": "IS-06 Network Control API",
@@ -282,14 +301,6 @@ TEST_DEFINITIONS = {
             "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
-    },
-    "NC-01": {
-        "name": "NMOS Controller",
-        "specs": [{
-            "spec_key": "nc-01",
-            "api_key": "testing-facade"
-        }],
-        "class": NC01Test.NC01Test
     },
 }
 
@@ -526,8 +537,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
         elif test == "IS-09-02":
             # This test has an unusual constructor as it requires a system api instance
             test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
-        elif test == "NC-01":
-            # This test has an unusual constructor as it requires a registry instance
+        elif test == "IS-04-04" or test == "IS-05-03":
+            # NMOS Controller tests require a registry instance, mock Node and DNS server
             test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)

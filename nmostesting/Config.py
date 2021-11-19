@@ -174,6 +174,9 @@ SPECIFICATIONS = {
             "registration": {
                 "name": "Registration API",
                 "raml": "RegistrationAPI.raml"
+            },
+            "testing-facade": {
+                "name": "Testing Façade"
             }
         }
     },
@@ -185,6 +188,9 @@ SPECIFICATIONS = {
             "connection": {
                 "name": "Connection API",
                 "raml": "ConnectionAPI.raml"
+            },
+            "testing-facade": {
+                "name": "Testing Façade"
             }
         }
     },

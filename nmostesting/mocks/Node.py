@@ -431,7 +431,7 @@ def transport_file(version, resource, resource_id):
     # GET should either redirect to the location of the transport file or return it directly (easy-nmos requests to this endpoint return 404)
     try: 
         if resource == 'senders':
-            with open("test_data/NC01/video.sdp") as f:
+            with open("test_data/controller/video.sdp") as f:
                 sender = NODE.senders[resource_id]
                 destination_ip = sender['activations']['transport_params'][0]['destination_ip']
                 source_ip = sender['activations']['transport_params'][0]['source_ip']
