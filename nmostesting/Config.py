@@ -175,7 +175,7 @@ SPECIFICATIONS = {
                 "name": "Registration API",
                 "raml": "RegistrationAPI.raml"
             },
-            "testing-facade": {
+            "controller-tests": {
                 "name": "Testing Façade"
             }
         }
@@ -189,7 +189,7 @@ SPECIFICATIONS = {
                 "name": "Connection API",
                 "raml": "ConnectionAPI.raml"
             },
-            "testing-facade": {
+            "controller-tests": {
                 "name": "Testing Façade"
             }
         }
@@ -272,16 +272,6 @@ SPECIFICATIONS = {
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
-            }
-        }
-    },
-    "nc-01": {
-        "repo": None,
-        "versions": ["v1.3"],
-        "default_version": "v1.3",
-        "apis": {
-            "testing-facade": {
-                "name": "Testing Façade"
             }
         }
     }

@@ -181,7 +181,7 @@ TEST_DEFINITIONS = {
         "name": "IS-04 NMOS Controller",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "testing-facade"
+            "api_key": "controller-tests"
         }],
         "class": IS0404Test.IS0404Test
     },
@@ -208,7 +208,7 @@ TEST_DEFINITIONS = {
         "name": "IS-05 NMOS Controller",
         "specs": [{
             "spec_key": "is-05",
-            "api_key": "testing-facade"
+            "api_key": "controller-tests"
         }],
         "class": IS0503Test.IS0503Test
     },
