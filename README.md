@@ -16,8 +16,10 @@ The following test suites are currently supported:
 *   IS-04 Node API
 *   IS-04 Registry APIs
 *   IS-04 Node API (Peer to Peer)
+*   IS-04 NMOS Controller (for usage see [Testing NMOS Controllers documentation](docs/2.8.%20Usage%20-%20Testing%20NMOS%20Controllers.md))
 *   IS-05 Connection Management API
 *   IS-05 Interaction with IS-04
+*   IS-05 NMOS Controller (for usage see [Testing NMOS Controllers documentation](docs/2.8.%20Usage%20-%20Testing%20NMOS%20Controllers.md))
 *   IS-06 Network Control API
 *   IS-07 Event & Tally API
 *   IS-07 Interaction with IS-04 and IS-05
@@ -29,7 +31,7 @@ The following test suites are currently supported:
 *   BCP-002-01 Natural Grouping (see IS-04 Node API)
 *   BCP-003-01 Secure API Communications
 *   BCP-003-02 Authorization (see IS-10 Authorization API)
-*   NC-01 NMOS Controller (for usage see [Testing NMOS Controllers documentation](docs/2.8.%20Usage%20-%20Testing%20NMOS%20Controllers.md))
+
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if devices support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
