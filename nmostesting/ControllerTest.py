@@ -22,11 +22,9 @@ from copy import deepcopy
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from threading import Event
-from zeroconf_monkey import Zeroconf
 
 from .GenericTest import GenericTest, NMOSTestException
 from . import Config as CONFIG
-from .MdnsListener import MdnsListener
 from .TestHelper import get_default_ip
 from .TestResult import Test
 from .NMOSUtils import NMOSUtils
@@ -34,9 +32,7 @@ from .NMOSUtils import NMOSUtils
 from flask import Flask, Blueprint, request
 
 CONTROLLER_TEST_API_KEY = "controller-tests"
-REG_API_KEY = "registration"
 CALLBACK_ENDPOINT = "/testingfacade_response"
-CACHEBUSTER = random.randint(1, 10000)
 
 # asyncio queue for passing Testing Façade answer responses back to tests
 _event_loop = asyncio.new_event_loop()
@@ -77,20 +73,15 @@ class ControllerTest(GenericTest):
         self.primary_registry = registries[1]
         self.node = node
         self.dns_server = dns_server
-        self.registry_mdns = []
-        self.zc = None
-        self.zc_listener = None
         self.mock_registry_base_url = ''
         self.mock_node_base_url = ''
         self.question_timeout = 600 # default timeout in seconds
         self.test_data = self.load_resource_data()
-        self.senders = [] # sender list containing: {'label': '', 'description': '', 'id': '', 'registered': True/False, 'answer_str': ''}
+        self.senders = [] 
         self.receivers = [] # receiver list containing: {'label': '', 'description': '', 'id': '', 'registered': True/False, 'connectable': True/False, 'answer_str': ''}
         self.senders_ip_base = '239.3.14.' # Random multicast IP to assign to senders
 
     def set_up_tests(self):
-        self.zc = Zeroconf()
-        self.zc_listener = MdnsListener(self.zc)
         if self.dns_server:
             self.dns_server.load_zone(self.apis[CONTROLLER_TEST_API_KEY]["version"], self.protocol, self.authorization,
                                       "test_data/controller/dns_records.zone", CONFIG.PORT_BASE+100)
@@ -122,14 +113,10 @@ class ControllerTest(GenericTest):
         # Reset the state of the Testing Façade
         self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json={"clear": "True"})
 
-        if self.zc:
-            self.zc.close()
-            self.zc = None
         if self.dns_server:
             self.dns_server.reset()
 
         self.mock_registry_base_url = ''
-        self.registry_mdns = []
     
     def set_up_test(self):
         """Setup performed before EACH test"""
@@ -178,7 +165,7 @@ class ControllerTest(GenericTest):
                 except Exception as e:
                     self.result.append(self.uncaught_exception(test_name, e))
 
-    async def getAnswerResponse(self, timeout):
+    async def get_answer_response(self, timeout):
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
 
     def _send_testing_facade_questions(self, test_method_name, question, answers, test_type, timeout=None, multipart_test=None, metadata=None):
@@ -228,7 +215,7 @@ class ControllerTest(GenericTest):
 
         # Wait for answer response or question timeout in seconds
         try:
-            answer_response = _event_loop.run_until_complete(self.getAnswerResponse(timeout=question_timeout))
+            answer_response = _event_loop.run_until_complete(self.get_answer_response(timeout=question_timeout))
         except asyncio.TimeoutError:
             raise TestingFacadeException("Test timed out")
 
@@ -265,78 +252,48 @@ class ControllerTest(GenericTest):
         return label + ' (' + description + ', ' + id + ')'
 
     def _populate_registry(self):
-        """This data is baseline data for all tests in the test suite"""
+        """Populate registry and mock node with mock senders and receivers"""
+        self.node.remove_senders() # Remove previouly added senders
+        self.node.remove_receivers() # Remove previouly added receivers
+        sender_ip = 159
+
         # Register node
         self._register_node(self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
 
-        # Sender initial details
-        self.senders = [{'label': 's1/gilmour', 'description': 'Mock sender 1'},
-                        {'label': 's2/waters', 'description': 'Mock sender 2'},
-                        {'label': 's3/wright', 'description': 'Mock sender 3'},
-                        {'label': 's4/mason', 'description': 'Mock sender 4'},
-                        {'label': 's5/barrett', 'description': 'Mock sender 5'}]
+        # self.senders should be initialized in the set_up_tests() override of derived test 
+        # each mock sender defined as: {'label': <unique label>, 'description': '', 'registered': <is registered with mock Registry>}
         for sender in self.senders:
             sender["id"] = str(uuid.uuid4())
             sender["device_id"] = str(uuid.uuid4())
             sender["flow_id"] = str(uuid.uuid4())
             sender["source_id"] = str(uuid.uuid4())
             sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/single/senders/" + sender["id"] + "/transportfile"
-            sender["registered"] = False
             sender["version"] = NMOSUtils.get_TAI_time()
             sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
             # Introduce a short delay to ensure unique version numbers. Version number is used by pagination in lieu of creation or update time
             time.sleep(0.1) 
-
-        sender_indices = self._generate_random_indices(len(self.senders), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
-
-        # Register randomly chosen senders and generate answer strings
-        for i, sender in enumerate(self.senders):
-            if i in sender_indices:
+            if sender["registered"]:
                 self._register_sender(sender)
-                sender['registered'] = True
+                # Add sender to mock node
+                sender_json = self._create_sender_json(sender)
+                self.node.add_sender(sender_json, self.senders_ip_base + str(sender_ip))
+                sender_ip += 1
 
-        # Receiver initial details
-        self.receivers = [{'label': 'r1/palin', 'description': 'Mock receiver 1'},
-                          {'label': 'r2/cleese', 'description': 'Mock receiver 2'},
-                          {'label': 'r3/jones', 'description': 'Mock receiver 3'},
-                          {'label': 'r4/chapman', 'description': 'Mock receiver 4'},
-                          {'label': 'r5/idle', 'description': 'Mock receiver 5'},
-                          {'label': 'r6/gilliam', 'description': 'Mock receiver 6'}]
-
+        # self.receivers should be initialized in the set_up_tests() override of derived test 
+        # each mock receiver defined as: {'label': <unique label>, 'description': '', 'connectable': <has IS-05 connection API>, 'registered': <is registered with mock Registry>}
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
             receiver["device_id"] = str(uuid.uuid4())
             receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
-            receiver["registered"] = False
-            receiver["connectable"] = True
             receiver["version"] = NMOSUtils.get_TAI_time()
             receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
             # Introduce a short delay to ensure unique version numbers. Version number is used by pagination in lieu of creation or update time
             time.sleep(0.1) 
-
-        # Generate indices of self.receivers to be registered and some of those to be non connectable
-        receiver_indices = self._generate_random_indices(len(self.receivers), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
-
-        # Register randomly chosen resources, with some excluding connection api and generate answer strings
-        for i in receiver_indices:
-            self._register_receiver(self.receivers[i])
-            self.receivers[i]['registered'] = True
-
-        # Add registered senders and receivers to mock node
-        registered_senders = [s for s in self.senders if s['registered'] == True]
-        registered_receivers = [r for r in self.receivers if r['registered'] == True]
-
-        self.node.remove_senders() # Remove previouly added senders
-        sender_ip = 159
-        for sender in registered_senders:
-            sender_json = self._create_sender_json(sender)
-            self.node.add_sender(sender_json, self.senders_ip_base + str(sender_ip))
-            sender_ip += 1
-
-        self.node.remove_receivers() # Remove previouly added receivers
-        for receiver in registered_receivers:
-            receiver_json = self._create_receiver_json(receiver)
-            self.node.add_receiver(receiver_json)
+            if receiver["registered"]:
+                self._register_receiver(receiver)
+                # Add receiver to mock node
+                receiver_json = self._create_receiver_json(receiver)
+                self.node.add_receiver(receiver_json)
 
     def load_resource_data(self):
         """Loads test data from files"""
@@ -535,9 +492,7 @@ class ControllerTest(GenericTest):
         dns_sd_enabled = CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast"
 
         paragraphs = []
-        paragraphs.append('These tests validate a NMOS Controller under Test’s (NCuT) ability to query an IS-04 ' \
-            'Registry with the IS-04 Query API and to control a Media Node using the IS-05 Connection ' \
-            'Management API.\n\n')
+        paragraphs.append('These tests validate an NMOS Controller under Test (NCuT).\n\n')
 
         paragraphs.append('A Test AMWA IS-04 reference Registry is available on the network')
 
@@ -573,449 +528,3 @@ class ControllerTest(GenericTest):
             # post_test_introducton timed out
             pass
     
-    #def test_01(self, test):
-    #    """
-    #    Ensure NCuT uses DNS-SD to find registry
-    #    """
-    #    if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
-    #        return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
-    #                             "'unicast'")
-
-    #    # The DNS server will log queries that have been specified in set_up_tests()
-    #    if not self.dns_server.is_query_received():
-    #        return test.FAIL('DNS was not queried by the NCuT')
-            
-    #    return test.PASS('DNS successfully queried by NCuT')
-
-    #def test_02(self, test):
-    #    """
-    #    Ensure NCuT can access the IS-04 Query API
-    #    """
-    #    try:
-    #        # Question 1 connection
-    #        question = 'Use the NCuT to browse the Senders and Receivers on the discovered Registry via the selected IS-04 Query API.\n\n' \
-    #        'Once you have finished browsing click the \'Next\' button. \n\n' \
-    #        'Successful browsing of the Registry will be automatically logged by the test framework.\n'
-
-    #        self._invoke_testing_facade(question, [], test_type="action")
-
-    #        # Fail if the REST Query API was not called, and no query subscriptions were made
-    #        # The registry will log calls to the Query API endpoints
-    #        if not self.primary_registry.query_api_called and len(self.primary_registry.subscriptions) == 0:
-    #            return test.FAIL('IS-04 Query API not reached')
-            
-    #        return test.PASS('IS-04 Query API reached successfully')
-
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])
-
-    #def test_03(self, test):
-    #    """
-    #    Query API should be able to discover all the senders that are registered in the Registry
-    #    """
-    #    try:
-    #        # reduce paging limit to force pagination on REST API
-    #        self.primary_registry.paging_limit = 2
-    #        # Check senders 
-    #        question = 'The NCuT should be able to discover all the Senders that are registered in the Registry.\n\n' \
-    #        'Refresh the NCuT\'s view of the Registry and carefully select the Senders that are available from the following list.\n\n' \
-    #        'For this test the registry paging limit has been set to 2. If your NCuT implements pagination, you must ensure you view ' \
-    #        'every available page to complete this test.' 
-    #        possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(self.senders)]
-    #        expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered'] == True]
-
-    #        actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
-
-    #        if len(actual_answers) != len(expected_answers):
-    #            return test.FAIL('Incorrect sender identified')
-    #        else:
-    #            for answer in actual_answers:
-    #                if answer not in expected_answers:
-    #                    return test.FAIL('Incorrect sender identified')
-
-    #        if not self.primary_registry.pagination_used and len(self.primary_registry.subscriptions) == 0:
-    #            return test.FAIL('Pagination not exercised')
-    #        return test.PASS('All devices correctly identified')
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])
-    #    finally:
-    #        self.primary_registry.paging_limit = 100
-
-    #def test_04(self, test):
-    #    """
-    #    Query API should be able to discover all the receivers that are registered in the Registry
-    #    """
-    #    try:
-    #        # reduce paging limit to force pagination on REST API
-    #        self.primary_registry.paging_limit = 2
-
-    #        # Check receivers 
-    #        question = 'The NCuT should be able to discover all the Receivers that are registered in the Registry.\n\n' \
-    #        'Refresh the NCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.\n\n' \
-    #        'For this test the registry paging limit has been set to 2. If your NCuT implements pagination, you must ensure you view ' \
-    #        'every available page to complete this test.' 
-    #        possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(self.receivers)]
-    #        expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered'] == True]
-
-    #        actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
-
-    #        if len(actual_answers) != len(expected_answers):
-    #            return test.FAIL('Incorrect receiver identified')
-    #        else:
-    #            for answer in actual_answers:
-    #                if answer not in expected_answers:
-    #                    return test.FAIL('Incorrect receiver identified')
-    #        if not self.primary_registry.pagination_used and len(self.primary_registry.subscriptions) == 0:
-    #            return test.FAIL('Pagination not exercised')
-
-    #        return test.PASS('All devices correctly identified')
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])
-    #    finally:
-    #        self.primary_registry.paging_limit = 100
-
-    #def test_05(self, test):
-    #    """
-    #    Reference Sender is put offline and then back online
-    #    """
-    #    try:
-    #        # Check senders 
-
-    #        question = 'The NCuT should be able to discover and dynamically update all the Senders that are registered in the Registry.\n\n' \
-    #            'Use the NCuT to browse and take note of the Senders that are available.\n\n' \
-    #            'After the \'Next\' button has been clicked one of those senders will be put \'offline\'.'
-    #        possible_answers = []
-
-    #        self._invoke_testing_facade(question, possible_answers, test_type="action")
-
-    #        # Take one of the senders offline
-    #        possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(self.senders) if s['registered'] == True]
-    #        answer_indices = [index for index, s in enumerate(self.senders) if s['registered'] == True]
-    #        offline_sender_index = random.choice(answer_indices)
-    #        expected_answer = 'answer_' + str(offline_sender_index)
-
-    #        self._delete_sender(test, self.senders[offline_sender_index])
-
-    #        # Set the offline sender to registered false for future tests
-    #        self.senders[offline_sender_index]['registered'] = False
-
-    #        # Recheck senders
-    #        question = 'Please refresh your NCuT and select the sender which has been put \'offline\''
-
-    #        actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio", multipart_test=1)['answer_response']
-
-    #        if actual_answer != expected_answer:
-    #            return test.FAIL('Offline/online sender not handled: Incorrect sender identified')
-
-    #        max_time_until_online = 60
-    #        max_time_to_answer = 30
-
-    #        question = 'The sender which was put \'offline\' will come back online at a random moment within the next ' + str(max_time_until_online) + ' seconds. ' \
-    #            'As soon as the NCuT detects the sender has come back online please press the \'Next\' button.\n\n' \
-    #            'The button must be pressed within ' + str(max_time_to_answer) + ' seconds of the Sender being put back \'online\'. \n\n' \
-    #            'This includes any latency between the Sender being put \'online\' and the NCuT updating.'
-    #        possible_answers = []
-
-    #        # Get the name of the calling test method to use as an identifier
-    #        test_method_name = inspect.currentframe().f_code.co_name
-
-    #        # Send the question to the Testing Façade and then put sender online before waiting for the Testing Façade response
-    #        sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", multipart_test=2)
-            
-    #        # Wait a random amount of time before bringing sender back online
-    #        exit.clear()
-    #        time_delay = random.randint(10, max_time_until_online)
-    #        expected_time_online = time.time() + time_delay
-    #        exit.wait(time_delay)
-
-    #        # Re-register sender
-    #        self._register_sender(self.senders[offline_sender_index], codes=[200, 201])
-    #        self.senders[offline_sender_index]['registered'] = True
-
-    #        # Await/get testing façade response
-    #        response = self._wait_for_testing_facade(sent_json['name'])    
-
-    #        if response['time_answered'] < expected_time_online: # Answered before sender put online
-    #            return test.FAIL('Offline/online sender not handled: Sender not yet online')
-    #        elif response['time_answered'] > expected_time_online + max_time_to_answer:
-    #            return test.FAIL('Offline/online sender not handled: Sender online '  + str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
-    #        else:
-    #            return test.PASS('Offline/online sender handled correctly')                
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])
-
-    #def test_06(self, test):
-    #    """
-    #    Identify which Receiver devices are controllable via IS-05
-    #    """
-    #    try:
-    #        # Receiver initial details
-    #        test_06_receivers = [{'label': 'r6/byrne', 'description': 'Mock receiver 6', 'connectable': False},
-    #                          {'label': 'r7/frantz', 'description': 'Mock receiver 7', 'connectable': False},
-    #                          {'label': 'r8/weymouth', 'description': 'Mock receiver 8', 'connectable': False},
-    #                          {'label': 'r9/harrison', 'description': 'Mock receiver 9', 'connectable': False}]
-
-    #        # Make at least one receiver connectable
-    #        connectable_receiver_indices = self._generate_random_indices(len(test_06_receivers), 1, len(test_06_receivers) - 1)
-    #        for i in connectable_receiver_indices:
-    #            test_06_receivers[i]['connectable'] = True
-
-    #        # Register receivers (some of which are non connectable)
-    #        for receiver in test_06_receivers:
-    #            receiver["id"] = str(uuid.uuid4())
-    #            receiver["device_id"] = str(uuid.uuid4())
-    #            receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
-    #            receiver["registered"] = True
-    #            receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
-    #            receiver["version"] = NMOSUtils.get_TAI_time()
-    #            self._register_receiver(receiver)
-    #            self.node.add_receiver(receiver)
-
-    #        # Check receivers 
-    #        question = 'Some of the discovered Receivers are controllable via IS-05, for instance, allowing Senders to be connected. ' \
-    #            'Additional Receivers have just been registered with the Registry, a subset of which have a connection API.\n\n' \
-    #            'Please refresh your NCuT and select the Receivers that have a connection API from the list below.\n\n' \
-    #            'Be aware that if your NCuT only displays Receivers which have a connection API, some of the Receivers in the following list may not be visible.'
-    #        possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(test_06_receivers)]
-    #        expected_answers = ['answer_'+str(i) for i, r in enumerate(test_06_receivers) if r['connectable'] == True]
-
-    #        actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
-
-    #        if len(actual_answers) != len(expected_answers):
-    #            return test.FAIL('Incorrect Receiver identified')
-    #        else:
-    #            for answer in actual_answers:
-    #                if answer not in expected_answers:
-    #                    return test.FAIL('Incorrect Receiver identified')
-
-    #        return test.PASS('All Receivers correctly identified')
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])
-    #    finally:
-    #        #Delete receivers
-    #        for receiver in test_06_receivers:
-    #            self._delete_receiver(test, receiver)
-    #            self.node.remove_receiver(receiver['id'])
-
-    #def test_07(self, test):
-    #    """
-    #    Instruct Receiver to subscribe to a Sender’s Flow via IS-05
-    #    """
-    #    try:
-    #        self.node.clear_staged_requests()
-    #        # Choose random sender and receiver to be connected
-    #        registered_senders = [s for s in self.senders if s['registered'] == True]
-    #        sender = random.choice(registered_senders)
-    #        registered_receivers = [r for r in self.receivers if r['registered'] == True]
-    #        receiver = random.choice(registered_receivers)
-
-    #        question = 'All flows that are available in a Sender should be able to be connected to a Receiver. \n\n' \
-    #            'Use the NCuT to perform an \'immediate\' activation between sender: \n\n' \
-    #             + sender['answer_str'] + ' \n\n' \
-    #            'and receiver: \n\n' \
-    #             + receiver['answer_str'] + ' \n\n' \
-    #            'Click the \'Next\' button once the connection is active.'
-    #        possible_answers = []
-
-    #        metadata = {'sender': {'id': sender['id'], 'label': sender['label'], 'description': sender['description']},
-    #            'receiver': {'id': receiver['id'], 'label': receiver['label'], 'description': receiver['description']}}
-
-    #        self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
-
-    #        # Check the staged API endpoint received a PATCH request
-    #        patch_requests = [r for r in self.node.staged_requests if r['method'] == 'PATCH']
-    #        if len(patch_requests) < 1:
-    #            return test.FAIL('No PATCH request was received by the node')
-    #        elif len(patch_requests) == 1:
-    #            # One request should be direct activation, two if staged first
-    #            # First request should contain sender id and master enable
-    #            if patch_requests[0]['resource_id'] != receiver['id']:
-    #                return test.FAIL('Connection request sent to incorrect receiver')
-
-    #            if 'master_enable' not in patch_requests[0]['data'] or 'sender_id' not in patch_requests[0]['data']:
-    #                return test.FAIL('Sender id or master enable not found in PATCH request')
-    #            else:
-    #                if patch_requests[0]['data']['master_enable'] != True:
-    #                    return test.FAIL('Master_enable not set to True in PATCH request')
-
-    #                if patch_requests[0]['data']['sender_id'] != sender['id']:
-    #                    return test.FAIL('Incorrect sender found in PATCH request')
-
-    #            # Activation details may be in either request. If not in first must have staged first so should be in second to activate
-    #            if 'activation' not in patch_requests[0]['data']:
-    #                return test.FAIL('No activation details in PATCH request')
-
-    #            if patch_requests[0]['data']['activation'].get('mode') != 'activate_immediate':
-    #                return test.FAIL('Immediate activation not requested in PATCH request')
-    #        else:
-    #            return test.FAIL('Multiple PATCH requests were found')
-
-    #        # Check the receiver now has subscription details
-    #        if receiver['id'] in self.primary_registry.get_resources()["receiver"]:
-    #            receiver_details = self.primary_registry.get_resources()["receiver"][receiver['id']]
-
-    #            if receiver_details['subscription']['active'] != True:
-    #                return test.FAIL('Receiver does not have active subscription')
-
-    #            if receiver_details['subscription']['sender_id'] != sender['id']:
-    #                return test.FAIL('Receiver did not connect to correct sender')
-
-    #        return test.PASS("Connection successfully established")
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])
-    #    finally:
-    #        #Remove subscription
-    #        deactivate_json = {"transport_params":[{}],"activation":{"mode":"activate_immediate"}}
-    #        deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
-    #        self.do_request('PATCH', deactivate_url, json=deactivate_json)
-
-    #def test_08(self, test):
-    #    """
-    #    Disconnecting a Receiver from a connected Flow via IS-05
-    #    """
-    #    try:
-    #        # Choose random sender and receiver to be connected
-    #        registered_senders = [s for s in self.senders if s['registered'] == True]
-    #        sender = random.choice(registered_senders)
-    #        registered_receivers = [r for r in self.receivers if r['registered'] == True]
-    #        receiver = random.choice(registered_receivers)
-
-    #        # Send PATCH request to node to set up connection
-    #        valid, response = self.do_request('GET', self.mock_node_base_url + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
-    #        transport_file = response.content.decode()
-    #        transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
-    #        activate_json = {"transport_params": transport_params,"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data": transport_file,"type":"application/sdp"}}
-    #        activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
-    #        self.do_request('PATCH', activate_url, json=activate_json)
-
-    #        # Clear staged requests once connection has been set up
-    #        self.node.clear_staged_requests()
-
-    #        question =  'IS-05 provides a mechanism for removing an active connection through its API. \n\n' \
-    #            'Use the NCuT to remove the connection between sender: \n\n'\
-    #            + sender['answer_str'] + ' \n\n'\
-    #            'and receiver: \n\n' + \
-    #            receiver['answer_str'] + ' \n\n'\
-    #            'Click the \'Next\' button once the connection has been removed.'
-    #        possible_answers = []
-
-    #        metadata = {'sender': {'id': sender['id'], 'label': sender['label'], 'description': sender['description']},
-    #            'receiver': {'id': receiver['id'], 'label': receiver['label'], 'description': receiver['description']}}
-
-    #        self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
-
-    #        # Check the staged API endpoint received a PATCH request
-    #        patch_requests = [r for r in self.node.staged_requests if r['method'] == 'PATCH']
-    #        if len(patch_requests) < 1:
-    #            return test.FAIL('No PATCH request was received by the node')
-    #        elif len(patch_requests) > 1:
-    #            return test.FAIL('Multiple PATCH requests were received by the node')
-    #        else:
-    #            # Should be one PATCH request for disconnection
-    #            if patch_requests[0]['resource_id'] != receiver['id']:
-    #                return test.FAIL('Disconnection request sent to incorrect receiver')
-
-    #            if 'activation' not in patch_requests[0]['data']:
-    #                return test.FAIL('No activation details in PATCH request')
-    #            elif 'mode' not in patch_requests[0]['data']['activation']:
-    #                return test.FAIL('No activation mode found in PATCH request')
-    #            elif patch_requests[0]['data']['activation']['mode'] != 'activate_immediate':
-    #                return test.FAIL('Activation mode in PATCH request was not activate_immediate')
-
-    #            # Check the receiver has empty subscription details
-    #            if receiver['id'] in self.primary_registry.get_resources()["receiver"]:
-    #                receiver_details = self.primary_registry.get_resources()["receiver"][receiver['id']]
-
-    #                if receiver_details['subscription']['active'] == True or receiver_details['subscription']['sender_id'] == sender['id']:
-    #                    return test.FAIL('Receiver still has subscription')
-            
-    #        return test.PASS('Receiver successfully disconnected from sender')
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])
-    #    finally:
-    #        #Remove subscription
-    #        deactivate_json = {"transport_params":[{}],"activation":{"mode":"activate_immediate"}}
-    #        deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
-    #        self.do_request('PATCH', deactivate_url, json=deactivate_json)
-
-    #def test_09(self, test):
-    #    """
-    #    Indicating the state of connections via updates received from the IS-04 Query API
-    #    """
-    #    try:
-    #        # Choose random sender and receiver to be connected
-    #        registered_senders = [s for s in self.senders if s['registered'] == True]
-    #        sender = random.choice(registered_senders)
-    #        registered_receivers = [r for r in self.receivers if r['registered'] == True]
-    #        receiver = random.choice(registered_receivers)
-
-    #        # Send PATCH request to node to set up connection
-    #        valid, response = self.do_request('GET', self.mock_node_base_url + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
-    #        transport_file = response.content.decode()
-    #        transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
-    #        activate_json = {"transport_params": transport_params,"activation":{"mode":"activate_immediate"},"master_enable":True,"sender_id":sender['id'],"transport_file":{"data": transport_file,"type":"application/sdp"}}
-    #        activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
-    #        self.do_request('PATCH', activate_url, json=activate_json)
-
-    #        # Identify which Receiver has been activated
-    #        question = 'The NCuT should be able to monitor and update the connection status of all registered Devices. \n\n' \
-    #            'Use the NCuT to identify the receiver that has just been connected.'
-    #        possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(registered_receivers) if r['registered'] == True]
-    #        expected_answer = ['answer_'+str(i) for i, r in enumerate(registered_receivers) if r['answer_str'] == receiver['answer_str']][0]
-
-    #        actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio")['answer_response']
-
-    #        if actual_answer != expected_answer:
-    #            return test.FAIL('Incorrect receiver identified')
-
-    #        # Identify a connection
-    #        question = 'Use the NCuT to identify the sender currently connected to receiver: \n\n' \
-    #            + receiver['answer_str']
-    #        possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(registered_senders) if s['registered'] == True]
-    #        expected_answer = ['answer_'+str(i) for i, s in enumerate(registered_senders) if s['answer_str'] == sender['answer_str']][0]
-
-    #        metadata = {'receiver': {'id': receiver['id'], 'label': receiver['label'], 'description': receiver['description']}}
-
-    #        actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio", multipart_test=1, metadata=metadata)['answer_response']
-
-    #        if actual_answer != expected_answer:
-    #            return test.FAIL('Incorrect sender identified')
-
-    #        max_time_until_online = 60
-    #        max_time_to_answer = 30
-
-    #        # Indicate when connection has gone offline
-    #        question = 'The connection on the following receiver will be disconnected at a random moment within the next ' + str(max_time_until_online) + ' seconds.\n\n' \
-    #            + receiver['answer_str'] + ' \n\n' \
-    #            'As soon as the NCuT detects the connection is inactive please press the \'Next\' button. \n\n' \
-    #            'The button must be pressed within ' + str(max_time_to_answer)  + ' seconds of the connection being removed. \n\n' \
-    #            'This includes any latency between the connection being removed and the NCuT updating.'
-    #        possible_answers = []
-
-    #        # Get the name of the calling test method to use as an identifier
-    #        test_method_name = inspect.currentframe().f_code.co_name
-
-    #        # Send the question to the Testing Façade 
-    #        sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", multipart_test=2, metadata=metadata)
-
-    #        # Wait a random amount of time before disconnecting
-    #        exit.clear()
-    #        time_delay = random.randint(10, max_time_until_online)
-    #        expected_time_online = time.time() + time_delay
-    #        exit.wait(time_delay)
-
-    #        # Remove connection
-    #        deactivate_json = {"transport_params":[{}],"activation":{"mode":"activate_immediate"}}
-    #        deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
-    #        self.do_request('PATCH', deactivate_url, json=deactivate_json)
-
-    #        response = self._wait_for_testing_facade(sent_json['name'])
-
-    #        if response['time_answered'] < expected_time_online: # Answered before connection was removed
-    #            return test.FAIL('Connection not handled: Connection still active')
-    #        elif response['time_answered'] > expected_time_online + max_time_to_answer:
-    #            return test.FAIL('Connection not handled: Connection removed '  + str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
-    #        else:
-    #            return test.PASS('Connection handled correctly')
-    #    except TestingFacadeException as e:
-    #        return test.UNCLEAR(e.args[0])

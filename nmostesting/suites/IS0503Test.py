@@ -12,61 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import time
-import json
 import uuid
 import inspect
 import random
-from copy import deepcopy
-from urllib.parse import urlparse
-from dnslib import QTYPE
-from threading import Event
-from zeroconf_monkey import Zeroconf
 
-from ..GenericTest import GenericTest, NMOSTestException
-from .. import Config as CONFIG
-from ..MdnsListener import MdnsListener
-from ..TestHelper import get_default_ip
-from ..TestResult import Test
 from ..NMOSUtils import NMOSUtils
 from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
-
-#from flask import Flask, Blueprint, request
-
-#TF_API_KEY = "controller"
-#REG_API_KEY = "registration"
-#CALLBACK_ENDPOINT = "/testingfacade_response"
-#CACHEBUSTER = random.randint(1, 10000)
-
-## asyncio queue for passing Testing Façade answer responses back to tests
-#_event_loop = asyncio.new_event_loop()
-#asyncio.set_event_loop(_event_loop)
-#_answer_response_queue = asyncio.Queue()
-
-## use exit Event to quit tests early that involve waiting for senders/connections 
-#exit = Event()
-
-#app = Flask(__name__)
-#TEST_API = Blueprint('test_api', __name__)
-
-#class TestingFacadeException(Exception):
-#    """Exception thrown due to comms or data errors between NMOS Testing and Testing Façade"""
-#    pass
-
-#@TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
-#def retrieve_answer():
-
-#    if request.method == 'POST':
-#        if 'name' not in request.json:
-#            return 'Invalid JSON received'
-
-#        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, request.json)
-
-#        # Interupt any 'sleeps' that are still active 
-#        exit.set()
-
-#    return 'OK'
 
 class IS0503Test(ControllerTest):
     """
@@ -75,40 +27,47 @@ class IS0503Test(ControllerTest):
     def __init__(self, apis, registries, node, dns_server):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
 
+    def set_up_tests(self):
+        # Sender initial details
+        self.senders = [{'label': 's1/partridge', 'description': 'Mock sender 1', 'registered': False},
+                        {'label': 's2/moulding', 'description': 'Mock sender 2', 'registered': False},
+                        {'label': 's3/gregory', 'description': 'Mock sender 3', 'registered': False},
+                        {'label': 's4/chambers', 'description': 'Mock sender 4', 'registered': False},
+                        {'label': 's5/andrews', 'description': 'Mock sender 5', 'registered': False}]
+
+        # Randomly select some senders to register
+        register_senders = self._generate_random_indices(len(self.senders))
+
+        for i in register_senders:
+            self.senders[i]['registered'] = True
+
+        # Receiver initial details
+        self.receivers =  [{'label': 'r1/byrne', 'description': 'Mock receiver 1', 'connectable': False, 'registered': True},
+                            {'label': 'r2/frantz', 'description': 'Mock receiver 2', 'connectable': False, 'registered': True},
+                            {'label': 'r3/weymouth', 'description': 'Mock receiver 3', 'connectable': False, 'registered': True},
+                            {'label': 'r4/harrison', 'description': 'Mock receiver 4', 'connectable': False, 'registered': True},
+                            {'label': 'r5/belew', 'description': 'Mock receiver 5', 'connectable': False, 'registered': True}]
+
+        # Randomly select some receivers to be connectable
+        connectable_receivers = self._generate_random_indices(len(self.receivers), min_index_count=2, max_index_count=4)
+
+        for i in connectable_receivers:
+            self.receivers[i]['connectable'] = True
+
+        ControllerTest.set_up_tests(self)
+
     def test_01(self, test):
         """
         Identify which Receiver devices are controllable via IS-05
         """
         try:
-            # Receiver initial details
-            test_06_receivers = [{'label': 'r6/byrne', 'description': 'Mock receiver 6', 'connectable': False},
-                              {'label': 'r7/frantz', 'description': 'Mock receiver 7', 'connectable': False},
-                              {'label': 'r8/weymouth', 'description': 'Mock receiver 8', 'connectable': False},
-                              {'label': 'r9/harrison', 'description': 'Mock receiver 9', 'connectable': False}]
-
-            # Make at least one receiver connectable
-            connectable_receiver_indices = self._generate_random_indices(len(test_06_receivers), 1, len(test_06_receivers) - 1)
-            for i in connectable_receiver_indices:
-                test_06_receivers[i]['connectable'] = True
-
-            # Register receivers (some of which are non connectable)
-            for receiver in test_06_receivers:
-                receiver["id"] = str(uuid.uuid4())
-                receiver["device_id"] = str(uuid.uuid4())
-                receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
-                receiver["registered"] = True
-                receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
-                receiver["version"] = NMOSUtils.get_TAI_time()
-                self._register_receiver(receiver)
-                self.node.add_receiver(receiver)
-
             # Check receivers 
             question = 'Some of the discovered Receivers are controllable via IS-05, for instance, allowing Senders to be connected. ' \
                 'Additional Receivers have just been registered with the Registry, a subset of which have a connection API.\n\n' \
                 'Please refresh your NCuT and select the Receivers that have a connection API from the list below.\n\n' \
                 'Be aware that if your NCuT only displays Receivers which have a connection API, some of the Receivers in the following list may not be visible.'
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(test_06_receivers)]
-            expected_answers = ['answer_'+str(i) for i, r in enumerate(test_06_receivers) if r['connectable'] == True]
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(self.receivers)]
+            expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered'] == True and r['connectable'] == True]
 
             actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
 
@@ -122,11 +81,6 @@ class IS0503Test(ControllerTest):
             return test.PASS('All Receivers correctly identified')
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
-        finally:
-            #Delete receivers
-            for receiver in test_06_receivers:
-                self._delete_receiver(test, receiver)
-                self.node.remove_receiver(receiver['id'])
 
     def test_02(self, test):
         """
@@ -137,7 +91,7 @@ class IS0503Test(ControllerTest):
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered'] == True]
             sender = random.choice(registered_senders)
-            registered_receivers = [r for r in self.receivers if r['registered'] == True]
+            registered_receivers = [r for r in self.receivers if r['registered'] == True and r['connectable'] == True]
             receiver = random.choice(registered_receivers)
 
             question = 'All flows that are available in a Sender should be able to be connected to a Receiver. \n\n' \
@@ -208,7 +162,7 @@ class IS0503Test(ControllerTest):
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered'] == True]
             sender = random.choice(registered_senders)
-            registered_receivers = [r for r in self.receivers if r['registered'] == True]
+            registered_receivers = [r for r in self.receivers if r['registered'] == True and r['connectable'] == True]
             receiver = random.choice(registered_receivers)
 
             # Send PATCH request to node to set up connection
@@ -277,7 +231,7 @@ class IS0503Test(ControllerTest):
             # Choose random sender and receiver to be connected
             registered_senders = [s for s in self.senders if s['registered'] == True]
             sender = random.choice(registered_senders)
-            registered_receivers = [r for r in self.receivers if r['registered'] == True]
+            registered_receivers = [r for r in self.receivers if r['registered'] == True and r['connectable'] == True]
             receiver = random.choice(registered_receivers)
 
             # Send PATCH request to node to set up connection

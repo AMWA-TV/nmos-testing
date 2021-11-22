@@ -12,61 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import time
-import json
-import uuid
 import inspect
 import random
-from copy import deepcopy
-from urllib.parse import urlparse
-from dnslib import QTYPE
-from threading import Event
-from zeroconf_monkey import Zeroconf
 
-from ..GenericTest import GenericTest, NMOSTestException
 from .. import Config as CONFIG
-from ..MdnsListener import MdnsListener
-from ..TestHelper import get_default_ip
-from ..TestResult import Test
-from ..NMOSUtils import NMOSUtils
 from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
-
-#from flask import Flask, Blueprint, request
-
-#TF_API_KEY = "controller"
-#REG_API_KEY = "registration"
-#CALLBACK_ENDPOINT = "/testingfacade_response"
-#CACHEBUSTER = random.randint(1, 10000)
-
-## asyncio queue for passing Testing Façade answer responses back to tests
-#_event_loop = asyncio.new_event_loop()
-#asyncio.set_event_loop(_event_loop)
-#_answer_response_queue = asyncio.Queue()
-
-## use exit Event to quit tests early that involve waiting for senders/connections 
-#exit = Event()
-
-#app = Flask(__name__)
-#TEST_API = Blueprint('test_api', __name__)
-
-#class TestingFacadeException(Exception):
-#    """Exception thrown due to comms or data errors between NMOS Testing and Testing Façade"""
-#    pass
-
-#@TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
-#def retrieve_answer():
-
-#    if request.method == 'POST':
-#        if 'name' not in request.json:
-#            return 'Invalid JSON received'
-
-#        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, request.json)
-
-#        # Interupt any 'sleeps' that are still active 
-#        exit.set()
-
-#    return 'OK'
 
 class IS0404Test(ControllerTest):
     """
@@ -75,6 +26,36 @@ class IS0404Test(ControllerTest):
     def __init__(self, apis, registries, node, dns_server):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
     
+    def set_up_tests(self):
+        # Sender initial details
+        self.senders = [{'label': 's1/gilmour', 'description': 'Mock sender 1', 'registered': False},
+                        {'label': 's2/waters', 'description': 'Mock sender 2', 'registered': False},
+                        {'label': 's3/wright', 'description': 'Mock sender 3', 'registered': False},
+                        {'label': 's4/mason', 'description': 'Mock sender 4', 'registered': False},
+                        {'label': 's5/barrett', 'description': 'Mock sender 5', 'registered': False}]
+
+        # Randomly select some senders to register
+        register_senders = self._generate_random_indices(len(self.senders), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
+
+        for i in register_senders:
+            self.senders[i]['registered'] = True
+
+        # Receiver initial details
+        self.receivers = [{'label': 'r1/palin', 'description': 'Mock receiver 1', 'connectable': True, 'registered': False},
+                          {'label': 'r2/cleese', 'description': 'Mock receiver 2', 'connectable': True, 'registered': False},
+                          {'label': 'r3/jones', 'description': 'Mock receiver 3', 'connectable': True, 'registered': False},
+                          {'label': 'r4/chapman', 'description': 'Mock receiver 4', 'connectable': True, 'registered': False},
+                          {'label': 'r5/idle', 'description': 'Mock receiver 5', 'connectable': True, 'registered': False},
+                          {'label': 'r6/gilliam', 'description': 'Mock receiver 6', 'connectable': True, 'registered': False}]
+
+        # Randomly select some receivers to register
+        register_receivers = self._generate_random_indices(len(self.receivers), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
+
+        for i in register_receivers:
+            self.receivers[i]['registered'] = True
+
+        ControllerTest.set_up_tests(self)
+
     def test_01(self, test):
         """
         Ensure NCuT uses DNS-SD to find registry
