@@ -23,6 +23,7 @@ import time
 from authlib.jose import jwt
 
 from . import TestHelper
+from .NMOSUtils import NMOSUtils
 from .Specification import Specification
 from .TestResult import Test
 from . import Config as CONFIG
@@ -500,37 +501,47 @@ class GenericTest(object):
                                  "is True")
 
     def do_test_api_resource(self, resource, response_code, api):
+        test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
+                                                api,
+                                                self.apis[api]["version"],
+                                                resource[0].rstrip("/")), self.auto_test_name(api))
+
         # Test URLs which include a {resourceId} or similar parameter
         if resource[1]['params'] and len(resource[1]['params']) == 1:
             path = resource[0].split("{")[0].rstrip("/")
             if path in self.saved_entities:
-                # Pick the first relevant saved entity and construct a test
-                entity = self.saved_entities[path][0]
-                params = {resource[1]['params'][0].name: entity}
-                url_param = resource[0].format(**params)
-                url = "{}{}".format(self.apis[api]["url"].rstrip("/"), url_param)
-                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
-                                                        api,
-                                                        self.apis[api]["version"],
-                                                        url_param), self.auto_test_name(api))
+                entity_warn = ""
+                for entity in NMOSUtils.sampled_list(self.saved_entities[path]):
+                    params = {resource[1]['params'][0].name: entity}
+                    entity_path = resource[0].rstrip("/").format(**params)
+                    entity_valid, entity_message = self.check_api_resource(test, resource, response_code, api, entity_path)
+                    if not entity_valid:
+                        return test.FAIL("Error for {}: {}".format(params, entity_message))
+                    elif entity_message and not entity_warn:
+                        entity_warn = entity_message
+                if entity_warn:
+                    return test.WARNING("Warning for {}: {}".format(params, entity_warn))
+                else:
+                    return test.PASS()
             else:
                 # There were no saved entities found, so we can't test this parameterised URL
-                test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
-                                                        api,
-                                                        self.apis[api]["version"],
-                                                        resource[0].rstrip("/")), self.auto_test_name(api))
                 return test.UNCLEAR("No resources found to perform this test")
 
         # Test general URLs with no parameters
         elif not resource[1]['params']:
-            url = "{}{}".format(self.apis[api]["url"].rstrip("/"), resource[0].rstrip("/"))
-            test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
-                                                    api,
-                                                    self.apis[api]["version"],
-                                                    resource[0].rstrip("/")), self.auto_test_name(api))
+            valid, message = self.check_api_resource(test, resource, response_code, api, resource[0].rstrip("/"))
+            if valid:
+                if message:
+                    return test.WARNING(message)
+                else:
+                    return test.PASS()
+            else:
+                return test.FAIL(message)
         else:
             return None
 
+    def check_api_resource(self, test, resource, response_code, api, path):
+        url = "{}{}".format(self.apis[api]["url"].rstrip("/"), path)
         headers = None
         cors_methods = None
         cors_headers = None
@@ -543,38 +554,30 @@ class GenericTest(object):
 
         valid, response = self.do_request(resource[1]['method'], url, headers=headers)
         if not valid:
-            return test.FAIL(response)
+            return False, response
 
         if response.status_code != response_code:
-            return test.FAIL("Incorrect response code: {}".format(response.status_code))
+            return False, "Incorrect response code: {}".format(response.status_code)
 
         # Gather IDs of sub-resources for testing of parameterised URLs...
-        self.save_subresources(resource[0], response)
+        self.save_subresources(path, response)
 
         cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers,
                                                    cors_methods, cors_headers)
         if not cors_valid:
             # Fail immediately for CORS errors affecting any method
-            return test.FAIL(cors_message)
+            return False, cors_message
         elif resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
             # For methods which don't return a payload, return immediately after the CORS header check
-            return test.PASS()
+            return True, ""
 
         # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
 
         if not schema:
-            return test.MANUAL("Test suite unable to locate schema")
+            raise NMOSTestException(test.MANUAL("Test suite unable to locate schema"))
 
-        valid, message = self.check_response(schema, resource[1]["method"], response)
-
-        if valid:
-            if message:
-                return test.WARNING(message)
-            else:
-                return test.PASS()
-        else:
-            return test.FAIL(message)
+        return self.check_response(schema, resource[1]["method"], response)
 
     def save_subresources(self, path, response):
         """Get IDs contained within an array JSON response such that they can be interrogated individually"""
