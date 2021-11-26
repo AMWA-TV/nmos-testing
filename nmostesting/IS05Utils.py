@@ -42,7 +42,7 @@ class IS05Utils(NMOSUtils):
             valid_transports.append("urn:x-nmos:transport:mqtt")
         return valid_transports
 
-    def check_num_legs(self, url, type, uuid):
+    def check_num_legs(self, url, res_type, uuid):
         """Checks the number of legs present on a given sender/receiver"""
         min = 1
         constraintsUrl = url + "constraints/"
@@ -76,17 +76,17 @@ class IS05Utils(NMOSUtils):
                     if len(constraints) >= min:
                         pass
                     else:
-                        return False, "{} {} has too few legs".format(type, uuid)
+                        return False, "{} {} has too few legs".format(res_type, uuid)
                     if len(constraints) == len(stagedParams):
                         pass
                     else:
-                        return False, "Number of legs in constraints and staged is different for {} {}".format(type,
+                        return False, "Number of legs in constraints and staged is different for {} {}".format(res_type,
                                                                                                                uuid)
 
                     if len(constraints) == len(activeParams):
                         pass
                     else:
-                        return False, "Number of legs in constraints and active is different for {} {}".format(type,
+                        return False, "Number of legs in constraints and active is different for {} {}".format(res_type,
                                                                                                                uuid)
 
                     return True, ""
