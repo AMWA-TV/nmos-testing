@@ -506,7 +506,7 @@ class GenericTest(object):
                                                 self.apis[api]["version"],
                                                 resource[0].rstrip("/")), self.auto_test_name(api))
 
-        # Test URLs which include a {resourceId} or similar parameter
+        # Test URLs which include a single {resourceId} or similar parameter
         if resource[1]['params'] and len(resource[1]['params']) == 1:
             path = resource[0].split("{")[0].rstrip("/")
             if path in self.saved_entities:
@@ -537,6 +537,8 @@ class GenericTest(object):
                     return test.PASS()
             else:
                 return test.FAIL(message)
+
+        # URLs with more than one parameter are currently not tested by the automatically defined tests
         else:
             return None
 
@@ -560,7 +562,8 @@ class GenericTest(object):
             return False, "Incorrect response code: {}".format(response.status_code)
 
         # Gather IDs of sub-resources for testing of parameterised URLs...
-        self.save_subresources(path, response)
+        if resource[1].get('child_resources', False):
+            self.save_subresources(path, response)
 
         cors_valid, cors_message = self.check_CORS(resource[1]['method'], response.headers,
                                                    cors_methods, cors_headers)
