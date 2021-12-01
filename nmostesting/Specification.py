@@ -55,6 +55,14 @@ class Specification(object):
             # Register the collected data in the Specification object
             self.data[resource.path].append(resource_data)
 
+            # Record if parent resource GET method should provide a "child resources" response
+            path_components = resource.path.split("/")
+            if path_components[-1].startswith('{'):
+                parent_path = "/".join(path_components[0:-1])
+                for method_def in self.data[parent_path]:
+                    if method_def['method'] == 'get':
+                        method_def['child_resources'] = True
+
     def _fix_schemas(self, file_path):
         """Fixes RAML files to match ramlfications expectations (bugs)"""
         lines = []
