@@ -57,11 +57,15 @@ class Specification(object):
 
             # Record if parent resource GET method should provide a "child resources" response
             path_components = resource.path.split("/")
+            # only need the parent "child resources" response if the last path segment is a parameter
             if path_components[-1].startswith('{'):
                 parent_path = "/".join(path_components[0:-1])
-                for method_def in self.data[parent_path]:
-                    if method_def['method'] == 'get':
-                        method_def['child_resources'] = True
+                # if the API doesn't support the parent path, won't be able to determine parameter values
+                if parent_path in self.data:
+                    for method_def in self.data[parent_path]:
+                        # if the parent doesn't support GET, won't be able to determine parameter values
+                        if method_def['method'] == 'get':
+                            method_def['child_resources'] = True
 
     def _fix_schemas(self, file_path):
         """Fixes RAML files to match ramlfications expectations (bugs)"""
