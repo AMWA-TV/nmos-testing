@@ -338,9 +338,8 @@ class IS05Utils(NMOSUtils):
                             max = 49151
                         toReturn.append(randint(min, max))
                 return True, toReturn
-            except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
-                                                                                            constraints)
+            except (TypeError, ValueError):
+                return False, "Invalid response from {}, got: {}".format(url, constraints)
             except KeyError as e:
                 return False, "Expected key '{}' not found in response from {}".format(str(e), url)
         else:
@@ -363,9 +362,8 @@ class IS05Utils(NMOSUtils):
                             scheme = "wss"
                         toReturn.append("{}://{}:{}".format(scheme, TestHelper.get_default_ip(), CONFIG.PORT_BASE))
                 return True, toReturn
-            except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
-                                                                                            constraints)
+            except (TypeError, ValueError):
+                return False, "Invalid response from {}, got: {}".format(url, constraints)
             except KeyError as e:
                 return False, "Expected key '{}' not found in response from {}".format(str(e), url)
         else:
@@ -385,9 +383,8 @@ class IS05Utils(NMOSUtils):
                     else:
                         toReturn.append("test_broker_topic")
                 return True, toReturn
-            except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(constraints),
-                                                                                            constraints)
+            except (TypeError, ValueError):
+                return False, "Invalid response from {}, got: {}".format(url, constraints)
             except KeyError as e:
                 return False, "Expected key '{}' not found in response from {}".format(str(e), url)
         else:
