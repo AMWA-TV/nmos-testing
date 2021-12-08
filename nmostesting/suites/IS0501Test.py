@@ -919,8 +919,8 @@ class IS0501Test(GenericTest):
                         if len(response["transport_params"]) == 2:
                             dup_senders.append(sender)
                     except (KeyError, TypeError):
-                        return test.FAIL("Unable to identify 'transport_params' from IS-05 active resource for Sender {}"
-                                         .format(sender))
+                        return test.FAIL("Unable to identify 'transport_params' from IS-05 active resource for Sender "
+                                         "{}".format(sender))
                 else:
                     return test.FAIL("Unable to identify 'transport_params' from IS-05 active resource for Sender {}"
                                      .format(sender))
