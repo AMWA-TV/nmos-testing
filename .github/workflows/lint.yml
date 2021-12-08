@@ -10,10 +10,10 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: '12.x'
+      - name: Setup for python lint
+        run: pip install flake8
       - name: Lint python
-        run: |
-          pip install flake8
-          flake8 .
+        run: flake8 .
       - name: Setup for documentation lint
         run: make -C .lint distclean build-tools
       - name: Lint documentation
