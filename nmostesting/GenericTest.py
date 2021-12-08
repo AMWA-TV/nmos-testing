@@ -514,7 +514,8 @@ class GenericTest(object):
                 for entity in NMOSUtils.sampled_list(self.saved_entities[path]):
                     params = {resource[1]['params'][0].name: entity}
                     entity_path = resource[0].rstrip("/").format(**params)
-                    entity_valid, entity_message = self.check_api_resource(test, resource, response_code, api, entity_path)
+                    entity_valid, entity_message = self.check_api_resource(test, resource, response_code, api,
+                                                                           entity_path)
                     if not entity_valid:
                         return test.FAIL("Error for {}: {}".format(params, entity_message))
                     elif entity_message and not entity_warn:
