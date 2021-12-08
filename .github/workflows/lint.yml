@@ -13,7 +13,7 @@ jobs:
       - name: Setup for python lint
         run: pip install flake8
       - name: Lint python
-        run: flake8 .
+        run: flake8 -v . 
       - name: Setup for documentation lint
         run: make -C .lint distclean build-tools
       - name: Lint documentation
