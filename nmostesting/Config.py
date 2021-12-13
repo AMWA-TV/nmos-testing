@@ -119,7 +119,7 @@ DNS_DOMAIN = "testsuite.nmos.tv"
 PORT_BASE = 5000
 
 # As part of the NMOS Controller tests the Mock Registry will create Subscription WebSockets on subscription requests
-# This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5 
+# This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
 WEBSOCKET_PORT_BASE = 6000
 
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed

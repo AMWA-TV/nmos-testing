@@ -23,6 +23,7 @@ from .. import Config as CONFIG
 from ..TestHelper import get_default_ip, do_request
 from ..NMOSUtils import NMOSUtils
 
+
 class Node(object):
     def __init__(self, port_increment):
         self.port = CONFIG.PORT_BASE + 200 + port_increment
@@ -65,7 +66,7 @@ class Node(object):
         """
         Takes self.senders from mock registry and adds connection details
         """
-        
+
         transport_params = [{
             "destination_ip": sender_ip_address,
             "destination_port": 5004,
@@ -74,10 +75,10 @@ class Node(object):
             "source_port": 5004
         }]
 
-        sender_update = { 
+        sender_update = {
             'transport_file': sender['manifest_href'],
             'transport_params': transport_params,
-            'staged': { 
+            'staged': {
                 "activation": {
                     "activation_time": None,
                     "mode": None,
@@ -154,7 +155,7 @@ class Node(object):
                 },
                 'transport_params': active_transport_params
             }
-        }     
+        }
 
         self.receivers[receiver['id']] = {
             'activations': activations,
@@ -169,6 +170,7 @@ class Node(object):
 
     def clear_staged_requests(self):
         self.staged_requests = []
+
 
 NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
@@ -219,11 +221,13 @@ def node_sdp(stream_type):
     response.headers["Content-Type"] = "application/sdp"
     return response
 
+
 @NODE_API.route('/x-nmos', methods=['GET'], strict_slashes=False)
 def x_nmos_root():
     base_data = ['connection/']
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+
 
 @NODE_API.route('/x-nmos/connection', methods=['GET'], strict_slashes=False)
 def connection_root():
@@ -231,17 +235,20 @@ def connection_root():
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
+
 @NODE_API.route('/x-nmos/connection/<version>', methods=['GET'], strict_slashes=False)
 def version(version):
     base_data = ['bulk/', 'single/']
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
+
 @NODE_API.route('/x-nmos/connection/<version>/single', methods=['GET'], strict_slashes=False)
 def single(version):
     base_data = ['senders/', 'receivers/']
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
+
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/', methods=["GET"], strict_slashes=False)
 def resources(version, resource):
@@ -252,6 +259,7 @@ def resources(version, resource):
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
+
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>', methods=["GET"], strict_slashes=False)
 def connection(version, resource, resource_id):
     if resource == 'senders':
@@ -261,7 +269,9 @@ def connection(version, resource, resource_id):
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
-@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/constraints', methods=["GET"], strict_slashes=False)
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/constraints',
+                methods=["GET"], strict_slashes=False)
 def constraints(version, resource, resource_id):
     base_data = [{
         "destination_ip": {},
@@ -286,35 +296,39 @@ def _create_activation_update(receiver, master_enable, staged=False, activation=
     default_interface_ip = "auto" if staged else get_default_ip()
 
     transport_params_update = {
-        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] if master_enable and sender else None,
-        'destination_port': sender['activations']['transport_params'][0]['destination_port'] if master_enable and sender else default_destination_port,
+        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] \
+            if master_enable and sender else None,
+        'destination_port': sender['activations']['transport_params'][0]['destination_port'] \
+            if master_enable and sender else default_destination_port,
         'source_ip': sender['activations']['transport_params'][0]['source_ip'] if master_enable and sender else None,
         'interface_ip': get_default_ip() if master_enable and sender else default_interface_ip,
         'rtp_enabled': True
     }
 
     transport_params = receiver.get('transport_params') if master_enable and receiver else None
-    transport_file = receiver.get('transport_file') if master_enable and receiver and 'transport_file' in receiver else {'data': None, 'type': None}
+    transport_file = receiver.get('transport_file') if master_enable and receiver and 'transport_file' \
+        in receiver else {'data': None, 'type': None}
     sender_id = receiver.get('sender_id') if master_enable and receiver else None
 
-    updated_transport_params = dict(transport_params[0], **transport_params_update) if transport_params else transport_params_update
+    updated_transport_params = dict(transport_params[0], **transport_params_update) \
+        if transport_params else transport_params_update
 
     activation_update = {
         "activation": {
-            "activation_time": str(time.time()).replace('.', ':') if master_enable and activation else None, 
-            "mode": activation['mode'] if master_enable and activation else None, 
+            "activation_time": str(time.time()).replace('.', ':') if master_enable and activation else None,
+            "mode": activation['mode'] if master_enable and activation else None,
             "requested_time": None
         },
         'master_enable': master_enable,
         'sender_id': sender_id,
         'transport_file': transport_file,
-        'transport_params': [ updated_transport_params ]
+        'transport_params': [updated_transport_params]
     }
 
     return activation_update
 
-def _update_receiver_subscription(receiver, active, sender_id):
 
+def _update_receiver_subscription(receiver, active, sender_id):
     receiver_update = {
         'subscription': {'active': active, 'sender_id': sender_id},
         'version': NMOSUtils.get_TAI_time()
@@ -322,8 +336,8 @@ def _update_receiver_subscription(receiver, active, sender_id):
 
     return dict(receiver, **receiver_update)
 
-def _update_sender_subscription(sender, active):
 
+def _update_sender_subscription(sender, active):
     sender_update = {
         'subscription': {'active': active, 'receiver_id': None},
         'version': NMOSUtils.get_TAI_time()
@@ -331,22 +345,24 @@ def _update_sender_subscription(sender, active):
 
     return dict(sender, **sender_update)
 
-@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/staged', methods=["GET", "PATCH"], strict_slashes=False)
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/staged',
+                methods=["GET", "PATCH"], strict_slashes=False)
 def staged(version, resource, resource_id):
     """
     GET returns current staged data for given resource
-    PATCH updates data for given resource, either staging a connection, activating a staged connection, 
+    PATCH updates data for given resource, either staging a connection, activating a staged connection,
     activating a connection without staging or deactivating an active connection
     Updates data then POSTs updated receiver to registry
     """
-    NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id, 'data': request.json})
+    NODE.staged_requests.append(
+        {'method': request.method, 'resource': resource, 'resource_id': resource_id, 'data': request.json})
 
     try:
         if resource == 'senders':
             resources = NODE.senders
-        
-            if request.method == 'PATCH':
 
+            if request.method == 'PATCH':
                 activations = resources[resource_id]['activations']
                 sender = resources[resource_id]['sender']
 
@@ -357,7 +373,8 @@ def staged(version, resource, resource_id):
                 sender = _update_sender_subscription(sender, request.json.get("master_enable", True))
 
                 # POST updated sender to registry
-                do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "sender", "data": sender})
+                do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource',
+                           json={"type": "sender", "data": sender})
                 activation_update = activations['active']
 
             elif request.method == 'GET':
@@ -368,14 +385,14 @@ def staged(version, resource, resource_id):
             resources = NODE.receivers
 
             if request.method == 'PATCH':
-            
                 activations = resources[resource_id]['activations']
                 receiver = resources[resource_id]['receiver']
-            
+
                 if request.json.get("sender_id"):
                     # Either patching to staged or directly to activated
                     # Data for response
-                    activation_update = _create_activation_update(request.json, True, activation=request.json.get('activation'))
+                    activation_update = _create_activation_update(
+                        request.json, True, activation=request.json.get('activation'))
 
                     if "activation" in request.json:
                         # Activating without staging first
@@ -385,7 +402,8 @@ def staged(version, resource, resource_id):
                         receiver = _update_receiver_subscription(receiver, True, request.json['sender_id'])
 
                         # POST updated receiver to registry
-                        do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
+                        do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource',
+                                   json={"type": "receiver", "data": receiver})
                     else:
                         # Staging
                         # Update activations but nothing should change in registry
@@ -394,9 +412,10 @@ def staged(version, resource, resource_id):
                 elif request.json.get("activation"):
                     # Either patching to activate after staging or deactivating
                     if request.json['activation'].get('mode') == 'activate_immediate':
-                        if activations['staged']['master_enable'] == True:
+                        if activations['staged']['master_enable']:
                             # Activating after staging
-                            activation_update = _create_activation_update(activations['staged'], True, activation=request.json.get('activation'))
+                            activation_update = _create_activation_update(
+                                activations['staged'], True, activation=request.json.get('activation'))
 
                             activations['active'] = activation_update
                             activations['staged'] = _create_activation_update(None, False, staged=True)
@@ -405,19 +424,22 @@ def staged(version, resource, resource_id):
                             receiver = _update_receiver_subscription(receiver, True, activations['active']['sender_id'])
 
                             # POST updated receiver to registry
-                            do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
-            
+                            do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource',
+                                       json={"type": "receiver", "data": receiver})
+
                         else:
                             # Deactivating
-                            activation_update = _create_activation_update(activations['active'], False, activation=request.json.get('activation'))
-                            
+                            activation_update = _create_activation_update(
+                                activations['active'], False, activation=request.json.get('activation'))
+
                             activations['active'] = activation_update
 
                             # Add subscription details to receiver
                             receiver = _update_receiver_subscription(receiver, False, None)
-                        
+
                             # POST updated receiver to registry
-                            do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource', json={"type": "receiver", "data": receiver})
+                            do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource',
+                                       json={"type": "receiver", "data": receiver})
 
                     else:
                         # shouldn't have got here
@@ -432,9 +454,11 @@ def staged(version, resource, resource_id):
 
     return make_response(Response(json.dumps(activation_update), mimetype='application/json'))
 
-@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/active', methods=["GET"], strict_slashes=False)
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/active',
+                methods=["GET"], strict_slashes=False)
 def active(version, resource, resource_id):
-    try: 
+    try:
         if resource == 'senders':
             base_data = NODE.senders[resource_id]['activations']['active']
         elif resource == 'receivers':
@@ -444,17 +468,22 @@ def active(version, resource, resource_id):
     except KeyError:
         abort(404)
 
-@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transporttype', methods=["GET"], strict_slashes=False)
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transporttype',
+                methods=["GET"], strict_slashes=False)
 def transport_type(version, resource, resource_id):
     # TODO fetch from resource info
     base_data = "urn:x-nmos:transport:rtp"
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
-@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transportfile', methods=["GET"], strict_slashes=False)
+
+@NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transportfile',
+                methods=["GET"], strict_slashes=False)
 def transport_file(version, resource, resource_id):
-    # GET should either redirect to the location of the transport file or return it directly (easy-nmos requests to this endpoint return 404)
-    try: 
+    # GET should either redirect to the location of the transport file or return it directly
+    # (easy-nmos requests to this endpoint return 404)
+    try:
         if resource == 'senders':
             with open("test_data/controller/video.sdp") as f:
                 sender = NODE.senders[resource_id]
@@ -471,7 +500,7 @@ def transport_file(version, resource, resource_id):
 
             return response
 
-        #unknown resource type
+        # Unknown resource type
         abort(404)
     except KeyError:
         # Requested a resource that doesn't exist

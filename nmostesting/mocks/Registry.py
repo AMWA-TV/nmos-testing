@@ -26,12 +26,14 @@ from authlib.jose import jwt
 from ..NMOSUtils import NMOSUtils
 from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip
 
+
 class RegistryCommon(object):
     def __init__(self):
         self.reset()
 
     def reset(self):
         self.resources = {"node": {}}
+
 
 class RegistryData(object):
     def __init__(self, port):
@@ -40,11 +42,14 @@ class RegistryData(object):
         self.deletes = []
         self.heartbeats = []
 
+
 class SubscriptionException(Exception):
     pass
 
+
 class BCP00302Exception(Exception):
     pass
+
 
 class Registry(object):
     def __init__(self, data_store, port_increment):
@@ -54,7 +59,8 @@ class Registry(object):
         self.delete_event = Event()
         self.reset()
         self.subscriptions = {}
-        self.query_api_id = str(uuid.uuid4()) # Query API Id for subscritions. Hmm is this not defined somewhere already?
+        # Query API Id for subscritions. Hmm is this not defined somewhere already?
+        self.query_api_id = str(uuid.uuid4()) 
 
     def reset(self):
         self.last_time = time.time()
@@ -88,7 +94,8 @@ class Registry(object):
 
                 self.common.resources[payload["type"]][payload["data"]["id"]] = payload["data"]
 
-                self._queue_single_data_grain(payload["type"], payload["data"]["id"], existing_resource, payload["data"] )
+                self._queue_single_data_grain(
+                    payload["type"], payload["data"]["id"], existing_resource, payload["data"])
 
     def delete(self, headers, payload, version, resource_type, resource_id):
         self.last_time = time.time()
@@ -99,7 +106,8 @@ class Registry(object):
             client_id = self._get_client_id(headers)
             if resource_id in self.auth_clients and self.auth_clients[resource_id] != client_id:
                 raise BCP00302Exception
-            self._queue_single_data_grain(resource_type, resource_id, self.common.resources[resource_type][resource_id], None )
+            self._queue_single_data_grain(
+                resource_type, resource_id, self.common.resources[resource_type][resource_id], None)
             self.common.resources[resource_type].pop(resource_id, None)
 
     def heartbeat(self, headers, payload, version, node_id):
@@ -194,45 +202,48 @@ class Registry(object):
         resource_types = ['node', 'device', 'source', 'flow', 'sender', 'receiver']
 
         if resource_type not in resource_types:
-            raise SubscriptionException("Unknown resource type:" + resource_type + " from resource path:" + resource_path)
+            raise SubscriptionException("Unknown resource type:" + resource_type \
+                + " from resource path:" + resource_path)
 
         # return existing subscription for this resource type if it already exists
         if resource_type in self.subscriptions:
-            return self.subscriptions[resource_type], False # subscription_created=False
+            return self.subscriptions[resource_type], False  # subscription_created=False
 
         websocket_port = WEBSOCKET_PORT_BASE + resource_types.index(resource_type)
         websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type)
         websocket_server.set_queue_sync_data_grain_callback(self.queue_sync_data_grain)
         websocket_server.start()
-        
+
         subscription_id = str(uuid.uuid4())
-        subscription = { 'id': subscription_id,
-            'resource_path': resource_path,
-            'websocket': websocket_server,
-            'query_api_id': self.query_api_id,
-            'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port) +'/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
-            'location': '/x-nmos/query/' + version + '/subscriptions/' + subscription_id }
+        subscription = {'id': subscription_id,
+                        'resource_path': resource_path,
+                        'websocket': websocket_server,
+                        'query_api_id': self.query_api_id,
+                        'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port) \
+                            + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
+                        'location': '/x-nmos/query/' + version + '/subscriptions/' + subscription_id}
         self.subscriptions[resource_type] = subscription
 
-        return subscription, True # subscription_created=True
+        return subscription, True  # subscription_created=True
 
     def _get_resource_type(self, resource_path):
         """ Extract Resource Type from Resource Path """
-        remove_query = resource_path.split('?')[0] # remove query parameters
-        remove_slashes = remove_query.strip('/') # strip leading and trailing slashes
-        return remove_slashes.rstrip('s') # remove trailing 's'
+        remove_query = resource_path.split('?')[0]  # remove query parameters
+        remove_slashes = remove_query.strip('/')  # strip leading and trailing slashes
+        return remove_slashes.rstrip('s')  # remove trailing 's'
 
     def queue_sync_data_grain(self, resource_type):
         """ queues sync data grain to be sent by subscription websocket for resource_type"""
-        
+
         resource_data = self.get_resources()[resource_type]
 
         self._create_and_queue_data_grains(resource_type, resource_data.keys(), resource_data, resource_data)
 
     def _queue_single_data_grain(self, resource_type, resource_id, pre_resource, post_resource):
         """ queues data grain to be sent by subscription websocket for resource_type """
-        
-        self._create_and_queue_data_grains(resource_type, [resource_id], {resource_id: pre_resource}, {resource_id: post_resource})
+
+        self._create_and_queue_data_grains(
+            resource_type, [resource_id], {resource_id: pre_resource}, {resource_id: post_resource})
 
     def _create_and_queue_data_grains(self, resource_type, resource_ids, pre_resources, post_resources):
         """ creates a data grain and queues on subscription websocket for resource_type"""
@@ -240,20 +251,21 @@ class Registry(object):
         try:
             subscription = self.subscriptions[resource_type]
 
-            timestamp = NMOSUtils.get_TAI_time();
+            timestamp = NMOSUtils.get_TAI_time()
 
-            data_grain =  { 'grain_type': 'event', 
-                'source_id': subscription['query_api_id'],
-                'flow_id': subscription["id"],
-                'origin_timestamp': timestamp,
-                'sync_timestamp': timestamp,
-                'creation_timestamp': timestamp,
-                'rate': {'denominator': 1, 'numerator': 0 },
-                'duration': {'denominator': 1, 'numerator': 0 },
-                'grain': {  'type': 'urn:x-nmos:format:data.event', 'topic': '/' + resource_type + 's/', 'data': [] } }
+            data_grain =  {'grain_type': 'event',
+                           'source_id': subscription['query_api_id'],
+                           'flow_id': subscription["id"],
+                           'origin_timestamp': timestamp,
+                           'sync_timestamp': timestamp,
+                           'creation_timestamp': timestamp,
+                           'rate': {'denominator': 1, 'numerator': 0 },
+                           'duration': {'denominator': 1, 'numerator': 0 },
+                           'grain': {'type': 'urn:x-nmos:format:data.event',
+                                     'topic': '/' + resource_type + 's/', 'data': []}}
 
             for resource_id in resource_ids:
-                data = { 'path': resource_id }
+                data = {'path': resource_id}
                 if pre_resources.get(resource_id):
                     data['pre'] = pre_resources[resource_id]
                 if post_resources.get(resource_id):
@@ -263,7 +275,7 @@ class Registry(object):
             subscription['websocket'].queue_message(json.dumps(data_grain))
 
         except KeyError as err:
-            print('No subscription for resource type: {0}'.format(err) )
+            print('No subscription for resource type: {0}'.format(err))
 
     def _close_subscription_websockets(self):
         """ closing websockets will automatically disconnect clients and stop websockets """
@@ -274,6 +286,7 @@ class Registry(object):
 
         self.subscriptions = {}
 
+
 # 0 = Invalid request testing registry
 # 1 = Primary testing registry
 # 2+ = Failover testing registries
@@ -281,6 +294,7 @@ NUM_REGISTRIES = 6
 REGISTRY_COMMON = RegistryCommon()
 REGISTRIES = [Registry(REGISTRY_COMMON, i + 1) for i in range(NUM_REGISTRIES)]
 REGISTRY_API = Blueprint('registry_api', __name__)
+
 
 @REGISTRY_API.route('/x-nmos', methods=["GET"], strict_slashes=False)
 def x_nmos():
@@ -294,6 +308,7 @@ def x_nmos():
     base_data = ['query/', 'registration/']
 
     return Response(json.dumps(base_data), mimetype='application/json')
+
 
 @REGISTRY_API.route('/x-nmos/registration', methods=["GET"], strict_slashes=False)
 def registration_root():
@@ -309,6 +324,7 @@ def registration_root():
     return Response(json.dumps(base_data), mimetype='application/json')
 
 # IS-04 resources
+
 @REGISTRY_API.route('/x-nmos/registration/<version>', methods=["GET"], strict_slashes=False)
 def base_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
@@ -319,7 +335,7 @@ def base_resource(version):
         abort(authorized)
     base_data = ["resource/", "health/"]
     # Using json.dumps to support older Flask versions http://flask.pocoo.org/docs/1.0/security/#json-security
-    
+
     return Response(json.dumps(base_data), mimetype='application/json')
 
 
@@ -346,7 +362,7 @@ def post_resource(version):
     except BCP00302Exception:
         abort(403)
     location = "/x-nmos/registration/{}/resource/{}s/{}".format(version, request.json["type"],
-                                                               request.json["data"]["id"])
+                                                                request.json["data"]["id"])
     if registered:
         return jsonify(request.json["data"]), 200, {"Location": location}
     else:
@@ -405,6 +421,7 @@ def heartbeat(version, node_id):
     else:
         abort(404)
 
+
 @REGISTRY_API.route('/x-nmos/query', methods=["GET"], strict_slashes=False)
 def query_root():
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
@@ -417,6 +434,7 @@ def query_root():
     base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
 
     return Response(json.dumps(base_data), mimetype='application/json')
+
 
 @REGISTRY_API.route('/x-nmos/query/<version>', methods=["GET"], strict_slashes=False)
 def query(version):
@@ -431,12 +449,14 @@ def query(version):
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
+
 def compare_resources(resource1, resource2):
     try:
         return NMOSUtils.compare_resource_version(resource1['version'], resource2['version'])
     except Exception as e:
         print(e)
         return 0
+
 
 @REGISTRY_API.route('/x-nmos/query/<version>/<resource>', methods=["GET"], strict_slashes=False)
 def query_resource(version, resource):
@@ -461,13 +481,13 @@ def query_resource(version, resource):
 
     try:
         valid_resource_types = ['device', 'flow', 'node', 'receiver', 'sender', 'source', 'subscription']
-    
+
         resource_type = resource.rstrip("s")
 
         if resource_type not in valid_resource_types:
-            error_message = { "code": 404,
-                              "error": "Invalid resource",
-                              "debug": resource_type  }
+            error_message = {"code": 404,
+                             "error": "Invalid resource",
+                             "debug": resource_type}
             return Response(json.dumps(error_message), status=404, mimetype='application/json')
 
         registry.query_api_called = True
@@ -479,7 +499,7 @@ def query_resource(version, resource):
         else:
             data = registry.get_resources()[resource_type]
 
-            # only paginate for verison v1.3 and up 
+            # only paginate for verison v1.3 and up
             if NMOSUtils.compare_api_version("v1.3", version) < 0:
                 for key, value in data.items():
                     base_data.append(value)
@@ -489,7 +509,8 @@ def query_resource(version, resource):
 
                 result_count = 0
                 for value in sorted_list:
-                    if NMOSUtils.compare_resource_version(value['version'], since) >= 0 and NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                    if NMOSUtils.compare_resource_version(value['version'], since) >= 0 \
+                        and NMOSUtils.compare_resource_version(until, value['version']) > 0:
                         if result_count < registry.paging_limit:
                             base_data.append(value)
                             result_count += 1
@@ -506,16 +527,18 @@ def query_resource(version, resource):
     if NMOSUtils.compare_api_version("v1.3", version) >= 0:
         link = ""
         if new_until != MAX_UNTIL:
-            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=" + new_until + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
-        
+            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=" + new_until \
+                + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
+
         if since != MIN_SINCE:
             if link != "":
                 link += ","
-            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=0:0&paging.limit=" + str(registry.paging_limit) + ">; rel=\"first\""
+            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
+                + str(registry.paging_limit) + ">; rel=\"first\""
 
-        if link != "": 
+        if link != "":
             response.headers["Link"] = link
-        response.headers["X-Paging-Limit"] = registry.paging_limit 
+        response.headers["X-Paging-Limit"] = registry.paging_limit
         response.headers["X-Paging-Since"] = since
         response.headers["X-Paging-Until"] = new_until
         response.headers["X-Ancestry-Generations"] = 1
@@ -544,9 +567,10 @@ def get_resource(version, resource, resource_id):
 
     return Response(json.dumps(data), mimetype='application/json')
 
+
 @REGISTRY_API.route('/x-nmos/query/<version>/subscriptions', methods=["POST"])
 def post_subscription(version):
-    
+
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
@@ -558,7 +582,7 @@ def post_subscription(version):
 
     subscription_response = {}
     created = False
-    
+
     try:
         subscription, created = registry.subscribe_to_query_api(version, subscription_request["resource_path"])
 
@@ -566,12 +590,12 @@ def post_subscription(version):
         secure = subscription_request['secure'] if 'secure' in subscription_request else False
 
         subscription_response = {'id': subscription["id"],
-            'max_update_rate_ms': subscription_request['max_update_rate_ms'],
-            'params': subscription_request['params'],
-            'persist': subscription_request['persist'],
-            'resource_path': subscription['resource_path'],
-            'secure': secure, 
-            'ws_href': subscription['ws_href'] }
+                                 'max_update_rate_ms': subscription_request['max_update_rate_ms'],
+                                 'params': subscription_request['params'],
+                                 'persist': subscription_request['persist'],
+                                 'resource_path': subscription['resource_path'],
+                                 'secure': secure,
+                                 'ws_href': subscription['ws_href']}
 
     except SubscriptionException as e:
         print('Subscription failed: ' + e.args[0])
@@ -580,8 +604,8 @@ def post_subscription(version):
 
     return jsonify(subscription_response), status_code, {"Location": subscription.get('location')}
 
-@REGISTRY_API.route('/', methods=["GET"], strict_slashes=False)    
+
+@REGISTRY_API.route('/', methods=["GET"], strict_slashes=False)
 def base():
     base_data = ["I'm a mock registry"]
     return Response(json.dumps(base_data), mimetype='application/json')
-

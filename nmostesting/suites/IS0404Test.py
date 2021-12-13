@@ -19,13 +19,14 @@ import random
 from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
 
+
 class IS0404Test(ControllerTest):
     """
     Testing initial set up of new test suite for controller testing
     """
     def __init__(self, apis, registries, node, dns_server):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
-    
+
     def set_up_tests(self):
         # Sender initial details
         self.senders = [{'label': 's1/gilmour', 'description': 'Mock sender 1', 'registered': False},
@@ -35,21 +36,29 @@ class IS0404Test(ControllerTest):
                         {'label': 's5/barrett', 'description': 'Mock sender 5', 'registered': False}]
 
         # Randomly select some senders to register
-        register_senders = self._generate_random_indices(len(self.senders), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
+        # minumum 3 to force pagination when paging_limit is set to 2
+        register_senders = self._generate_random_indices(len(self.senders), min_index_count=3)
 
         for i in register_senders:
             self.senders[i]['registered'] = True
 
         # Receiver initial details
-        self.receivers = [{'label': 'r1/palin', 'description': 'Mock receiver 1', 'connectable': True, 'registered': False},
-                          {'label': 'r2/cleese', 'description': 'Mock receiver 2', 'connectable': True, 'registered': False},
-                          {'label': 'r3/jones', 'description': 'Mock receiver 3', 'connectable': True, 'registered': False},
-                          {'label': 'r4/chapman', 'description': 'Mock receiver 4', 'connectable': True, 'registered': False},
-                          {'label': 'r5/idle', 'description': 'Mock receiver 5', 'connectable': True, 'registered': False},
-                          {'label': 'r6/gilliam', 'description': 'Mock receiver 6', 'connectable': True, 'registered': False}]
+        self.receivers = [{'label': 'r1/palin', 'description': 'Mock receiver 1',
+                           'connectable': True, 'registered': False},
+                          {'label': 'r2/cleese', 'description': 'Mock receiver 2',
+                           'connectable': True, 'registered': False},
+                          {'label': 'r3/jones', 'description': 'Mock receiver 3',
+                           'connectable': True, 'registered': False},
+                          {'label': 'r4/chapman', 'description': 'Mock receiver 4',
+                           'connectable': True, 'registered': False},
+                          {'label': 'r5/idle', 'description': 'Mock receiver 5',
+                           'connectable': True, 'registered': False},
+                          {'label': 'r6/gilliam', 'description': 'Mock receiver 6',
+                           'connectable': True, 'registered': False}]
 
         # Randomly select some receivers to register
-        register_receivers = self._generate_random_indices(len(self.receivers), min_index_count=3) # minumum 3 to force pagination when paging_limit is set to 2
+        # minumum 3 to force pagination when paging_limit is set to 2
+        register_receivers = self._generate_random_indices(len(self.receivers), min_index_count=3)
 
         for i in register_receivers:
             self.receivers[i]['registered'] = True
@@ -67,7 +76,7 @@ class IS0404Test(ControllerTest):
         # The DNS server will log queries that have been specified in set_up_tests()
         if not self.dns_server.is_query_received():
             return test.FAIL('DNS was not queried by the NCuT')
-            
+
         return test.PASS('DNS successfully queried by NCuT')
 
     def test_02(self, test):
@@ -76,9 +85,10 @@ class IS0404Test(ControllerTest):
         """
         try:
             # Question 1 connection
-            question = 'Use the NCuT to browse the Senders and Receivers on the discovered Registry via the selected IS-04 Query API.\n\n' \
-            'Once you have finished browsing click the \'Next\' button. \n\n' \
-            'Successful browsing of the Registry will be automatically logged by the test framework.\n'
+            question = 'Use the NCuT to browse the Senders and Receivers ' \
+                'on the discovered Registry via the selected IS-04 Query API.\n\n' \
+                'Once you have finished browsing click the \'Next\' button. \n\n' \
+                'Successful browsing of the Registry will be automatically logged by the test framework.\n'
 
             self._invoke_testing_facade(question, [], test_type="action")
 
@@ -86,7 +96,7 @@ class IS0404Test(ControllerTest):
             # The registry will log calls to the Query API endpoints
             if not self.primary_registry.query_api_called and len(self.primary_registry.subscriptions) == 0:
                 return test.FAIL('IS-04 Query API not reached')
-            
+
             return test.PASS('IS-04 Query API reached successfully')
 
         except TestingFacadeException as e:
@@ -99,15 +109,21 @@ class IS0404Test(ControllerTest):
         try:
             # reduce paging limit to force pagination on REST API
             self.primary_registry.paging_limit = 2
-            # Check senders 
-            question = 'The NCuT should be able to discover all the Senders that are registered in the Registry.\n\n' \
-            'Refresh the NCuT\'s view of the Registry and carefully select the Senders that are available from the following list.\n\n' \
-            'For this test the registry paging limit has been set to 2. If your NCuT implements pagination, you must ensure you view ' \
-            'every available page to complete this test.' 
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(self.senders)]
-            expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered'] == True]
+            # Check senders
+            question = 'The NCuT should be able to discover all the Senders ' \
+                'that are registered in the Registry.\n\n' \
+                'Refresh the NCuT\'s view of the Registry and carefully select the Senders ' \
+                'that are available from the following list.\n\n' \
+                'For this test the registry paging limit has been set to 2. ' \
+                'If your NCuT implements pagination, you must ensure you view ' \
+                'every available page to complete this test.'
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
+                                 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
+                                for i, s in enumerate(self.senders)]
+            expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered']]
 
-            actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
+            actual_answers = self._invoke_testing_facade(
+                question, possible_answers, test_type="checkbox")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect sender identified')
@@ -132,15 +148,21 @@ class IS0404Test(ControllerTest):
             # reduce paging limit to force pagination on REST API
             self.primary_registry.paging_limit = 2
 
-            # Check receivers 
-            question = 'The NCuT should be able to discover all the Receivers that are registered in the Registry.\n\n' \
-            'Refresh the NCuT\'s view of the Registry and carefully select the Receivers that are available from the following list.\n\n' \
-            'For this test the registry paging limit has been set to 2. If your NCuT implements pagination, you must ensure you view ' \
-            'every available page to complete this test.' 
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'], 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} for i, r in enumerate(self.receivers)]
-            expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered'] == True]
+            # Check receivers
+            question = 'The NCuT should be able to discover all the Receivers ' \
+                'that are registered in the Registry.\n\n' \
+                'Refresh the NCuT\'s view of the Registry and carefully select the Receivers ' \
+                'that are available from the following list.\n\n' \
+                'For this test the registry paging limit has been set to 2. ' \
+                'If your NCuT implements pagination, you must ensure you view ' \
+                'every available page to complete this test.'
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
+                                 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
+                                for i, r in enumerate(self.receivers)]
+            expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered']]
 
-            actual_answers = self._invoke_testing_facade(question, possible_answers, test_type="checkbox")['answer_response']
+            actual_answers = self._invoke_testing_facade(
+                question, possible_answers, test_type="checkbox")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect receiver identified')
@@ -162,9 +184,10 @@ class IS0404Test(ControllerTest):
         Reference Sender is put offline and then back online
         """
         try:
-            # Check senders 
+            # Check senders
 
-            question = 'The NCuT should be able to discover and dynamically update all the Senders that are registered in the Registry.\n\n' \
+            question = 'The NCuT should be able to discover and dynamically update all the Senders ' \
+                'that are registered in the Registry.\n\n' \
                 'Use the NCuT to browse and take note of the Senders that are available.\n\n' \
                 'After the \'Next\' button has been clicked one of those senders will be put \'offline\'.'
             possible_answers = []
@@ -172,8 +195,10 @@ class IS0404Test(ControllerTest):
             self._invoke_testing_facade(question, possible_answers, test_type="action")
 
             # Take one of the senders offline
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'], 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']} for i, s in enumerate(self.senders) if s['registered'] == True]
-            answer_indices = [index for index, s in enumerate(self.senders) if s['registered'] == True]
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
+                                 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
+                                for i, s in enumerate(self.senders) if s['registered']]
+            answer_indices = [index for index, s in enumerate(self.senders) if s['registered']]
             offline_sender_index = random.choice(answer_indices)
             expected_answer = 'answer_' + str(offline_sender_index)
 
@@ -185,7 +210,8 @@ class IS0404Test(ControllerTest):
             # Recheck senders
             question = 'Please refresh your NCuT and select the sender which has been put \'offline\''
 
-            actual_answer = self._invoke_testing_facade(question, possible_answers, test_type="radio", multipart_test=1)['answer_response']
+            actual_answer = self._invoke_testing_facade(
+                question, possible_answers, test_type="radio", multipart_test=1)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Offline/online sender not handled: Incorrect sender identified')
@@ -193,18 +219,22 @@ class IS0404Test(ControllerTest):
             max_time_until_online = 60
             max_time_to_answer = 30
 
-            question = 'The sender which was put \'offline\' will come back online at a random moment within the next ' + str(max_time_until_online) + ' seconds. ' \
+            question = 'The sender which was put \'offline\' will come back online at a random moment ' \
+                'within the next ' + str(max_time_until_online) + ' seconds. ' \
                 'As soon as the NCuT detects the sender has come back online please press the \'Next\' button.\n\n' \
-                'The button must be pressed within ' + str(max_time_to_answer) + ' seconds of the Sender being put back \'online\'. \n\n' \
+                'The button must be pressed within ' + str(max_time_to_answer) + \
+                ' seconds of the Sender being put back \'online\'. \n\n' \
                 'This includes any latency between the Sender being put \'online\' and the NCuT updating.'
             possible_answers = []
 
             # Get the name of the calling test method to use as an identifier
             test_method_name = inspect.currentframe().f_code.co_name
 
-            # Send the question to the Testing Façade and then put sender online before waiting for the Testing Façade response
-            sent_json = self._send_testing_facade_questions(test_method_name, question, possible_answers, test_type="action", multipart_test=2)
-            
+            # Send the question to the Testing Façade 
+            # and then put sender online before waiting for the Testing Façade response
+            sent_json = self._send_testing_facade_questions(
+                test_method_name, question, possible_answers, test_type="action", multipart_test=2)
+
             # Wait a random amount of time before bringing sender back online
             exitTestEvent.clear()
             time_delay = random.randint(10, max_time_until_online)
@@ -216,14 +246,16 @@ class IS0404Test(ControllerTest):
             self.senders[offline_sender_index]['registered'] = True
 
             # Await/get testing façade response
-            response = self._wait_for_testing_facade(sent_json['name'])    
+            response = self._wait_for_testing_facade(sent_json['name'])
 
-            if response['time_answered'] < expected_time_online: # Answered before sender put online
+            if response['time_answered'] < expected_time_online:  # Answered before sender put online
                 return test.FAIL('Offline/online sender not handled: Sender not yet online')
             elif response['time_answered'] > expected_time_online + max_time_to_answer:
-                return test.FAIL('Offline/online sender not handled: Sender online '  + str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
+                return test.FAIL('Offline/online sender not handled: Sender online ' + 
+                                 str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
             else:
-                return test.PASS('Offline/online sender handled correctly')                
+                return test.PASS('Offline/online sender handled correctly')
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
+
          

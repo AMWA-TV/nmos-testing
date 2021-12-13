@@ -53,7 +53,7 @@ class WatchingResolver(ZoneResolver):
     def resolve(self, request, handler):
         qtype = request.q.qtype
         qname = str(request.q.qname)
-        
+
         try:
             self.expected_queries[qtype][qname] += 1
         except (KeyError, AttributeError):

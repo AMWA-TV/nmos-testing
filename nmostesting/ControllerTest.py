@@ -39,15 +39,17 @@ _event_loop = asyncio.new_event_loop()
 asyncio.set_event_loop(_event_loop)
 _answer_response_queue = asyncio.Queue()
 
-# use exit Event to quit tests early that involve waiting for senders/connections 
+# use exit Event to quit tests early that involve waiting for senders/connections
 exitTestEvent = Event()
 
 app = Flask(__name__)
 TEST_API = Blueprint('test_api', __name__)
 
+
 class TestingFacadeException(Exception):
     """Exception thrown due to comms or data errors between NMOS Testing and Testing Façade"""
     pass
+
 
 @TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
 def retrieve_answer():
@@ -58,10 +60,11 @@ def retrieve_answer():
 
         _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, request.json)
 
-        # Interupt any 'sleeps' that are still active 
+        # Interupt any 'sleeps' that are still active
         exitTestEvent.set()
 
     return 'OK'
+
 
 class ControllerTest(GenericTest):
     """
@@ -75,11 +78,13 @@ class ControllerTest(GenericTest):
         self.dns_server = dns_server
         self.mock_registry_base_url = ''
         self.mock_node_base_url = ''
-        self.question_timeout = 600 # default timeout in seconds
+        self.question_timeout = 600  # default timeout in seconds
         self.test_data = self.load_resource_data()
-        self.senders = [] 
-        self.receivers = [] # receiver list containing: {'label': '', 'description': '', 'id': '', 'registered': True/False, 'connectable': True/False, 'answer_str': ''}
-        self.senders_ip_base = '239.3.14.' # Random multicast IP to assign to senders
+        self.senders = []
+        self.receivers = []
+        # receiver list containing: {'label': '', 'description': '', 'id': '',
+        #   'registered': True/False, 'connectable': True/False, 'answer_str': ''}
+        self.senders_ip_base = '239.3.14.'  # Random multicast IP to assign to senders
 
     def set_up_tests(self):
         if self.dns_server:
@@ -94,7 +99,8 @@ class ControllerTest(GenericTest):
         # Reset registry to clear previous heartbeats, etc.
         self.primary_registry.reset()
         self.primary_registry.enable()
-        self.mock_registry_base_url = 'http://' + get_default_ip() + ':' + str(self.primary_registry.get_data().port) + '/'
+        self.mock_registry_base_url = 'http://' + get_default_ip() + ':' + \
+            str(self.primary_registry.get_data().port) + '/'
         self.mock_node_base_url = 'http://' + get_default_ip() + ':' + str(self.node.port) + '/'
 
         # Populate mock registry with senders and receivers and store the results
@@ -105,11 +111,9 @@ class ControllerTest(GenericTest):
 
         print('Registry should be available at ' + self.mock_registry_base_url)
 
-
     def tear_down_tests(self):
-
         self.primary_registry.disable()
-        
+
         # Reset the state of the Testing Façade
         self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json={"clear": "True"})
 
@@ -117,7 +121,7 @@ class ControllerTest(GenericTest):
             self.dns_server.reset()
 
         self.mock_registry_base_url = ''
-    
+
     def set_up_test(self):
         """Setup performed before EACH test"""
         self.primary_registry.query_api_called = False
@@ -168,8 +172,16 @@ class ControllerTest(GenericTest):
     async def get_answer_response(self, timeout):
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
 
-    def _send_testing_facade_questions(self, test_method_name, question, answers, test_type, timeout=None, multipart_test=None, metadata=None):
-        """ 
+    def _send_testing_facade_questions(
+            self,
+            test_method_name,
+            question,
+            answers,
+            test_type,
+            timeout=None,
+            multipart_test=None,
+            metadata=None):
+        """
         Send question and answers to Testing Façade
         question:   text to be presented to Test User
         answers:    list of all possible answers
@@ -221,26 +233,28 @@ class ControllerTest(GenericTest):
 
         # Basic integrity check for response json
         if answer_response['name'] is None:
-            raise TestingFacadeException("Integrity check failed: result format error: " +json.dump(answer_response))
+            raise TestingFacadeException(                "Integrity check failed: result format error: " + json.dump(answer_response))
 
         if answer_response['name'] != test_name:
-            raise TestingFacadeException("Integrity check failed: cannot compare result of " + test_name + " with expected result for " + answer_response['name'])
-            
+            raise TestingFacadeException(
+                "Integrity check failed: cannot compare result of " + test_name +
+                " with expected result for " + answer_response['name'])
+
         return answer_response
 
     def _invoke_testing_facade(self, question, answers, test_type, timeout=None, multipart_test=None, metadata=None):
-        
         # Get the name of the calling test method to use as an identifier
         test_method_name = inspect.currentframe().f_back.f_code.co_name
 
-        json_out = self._send_testing_facade_questions(test_method_name, question, answers, test_type, timeout, multipart_test, metadata)
+        json_out = self._send_testing_facade_questions(
+            test_method_name, question, answers, test_type, timeout, multipart_test, metadata)
 
-        return self._wait_for_testing_facade(json_out['name'], timeout)    
+        return self._wait_for_testing_facade(json_out['name'], timeout)
 
     def _generate_random_indices(self, index_range, min_index_count=2, max_index_count=4):
         """
         index_range: number of possible indices
-        min_index_count, max_index_count: Minimum, maximum number of indices to be returned. 
+        min_index_count, max_index_count: Minimum, maximum number of indices to be returned.
         """
         indices = list(range(index_range))
         index_count = random.randint(min_index_count, max_index_count)
@@ -253,25 +267,28 @@ class ControllerTest(GenericTest):
 
     def _populate_registry(self):
         """Populate registry and mock node with mock senders and receivers"""
-        self.node.remove_senders() # Remove previouly added senders
-        self.node.remove_receivers() # Remove previouly added receivers
+        self.node.remove_senders()  # Remove previouly added senders
+        self.node.remove_receivers()  # Remove previouly added receivers
         sender_ip = 159
 
         # Register node
         self._register_node(self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
 
-        # self.senders should be initialized in the set_up_tests() override of derived test 
-        # each mock sender defined as: {'label': <unique label>, 'description': '', 'registered': <is registered with mock Registry>}
+        # self.senders should be initialized in the set_up_tests() override of derived test
+        # each mock sender defined as: {'label': <unique label>, 'description': '',
+        #   'registered': <is registered with mock Registry>}
         for sender in self.senders:
             sender["id"] = str(uuid.uuid4())
             sender["device_id"] = str(uuid.uuid4())
             sender["flow_id"] = str(uuid.uuid4())
             sender["source_id"] = str(uuid.uuid4())
-            sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/single/senders/" + sender["id"] + "/transportfile"
+            sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/single/senders/" \
+                + sender["id"] + "/transportfile"
             sender["version"] = NMOSUtils.get_TAI_time()
             sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
-            # Introduce a short delay to ensure unique version numbers. Version number is used by pagination in lieu of creation or update time
-            time.sleep(0.1) 
+            # Introduce a short delay to ensure unique version numbers.
+            # Version number is used by pagination in lieu of creation or update time
+            time.sleep(0.1)
             if sender["registered"]:
                 self._register_sender(sender)
                 # Add sender to mock node
@@ -279,16 +296,19 @@ class ControllerTest(GenericTest):
                 self.node.add_sender(sender_json, self.senders_ip_base + str(sender_ip))
                 sender_ip += 1
 
-        # self.receivers should be initialized in the set_up_tests() override of derived test 
-        # each mock receiver defined as: {'label': <unique label>, 'description': '', 'connectable': <has IS-05 connection API>, 'registered': <is registered with mock Registry>}
+        # self.receivers should be initialized in the set_up_tests() override of derived test
+        # each mock receiver defined as: {'label': <unique label>, 'description': '', 
+        #   'connectable': <has IS-05 connection API>, 'registered': <is registered with mock Registry>}
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
             receiver["device_id"] = str(uuid.uuid4())
             receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
             receiver["version"] = NMOSUtils.get_TAI_time()
-            receiver["answer_str"] = self._format_device_metadata(receiver['label'], receiver['description'], receiver['id'])
-            # Introduce a short delay to ensure unique version numbers. Version number is used by pagination in lieu of creation or update time
-            time.sleep(0.1) 
+            receiver["answer_str"] = self._format_device_metadata(
+                    receiver['label'], receiver['description'], receiver['id'])
+            # Introduce a short delay to ensure unique version numbers.
+            # Version number is used by pagination in lieu of creation or update time
+            time.sleep(0.1)
             if receiver["registered"]:
                 self._register_receiver(receiver)
                 # Add receiver to mock node
@@ -356,7 +376,7 @@ class ControllerTest(GenericTest):
     def _register_node(self, node_id, label, description):
         """
         Perform POST requests on the Registration API to create node registration
-        Assume that Node has already been registered        
+        Assume that Node has already been registered
         """
         node_data = deepcopy(self.test_data["node"])
         node_data["id"] = node_id
@@ -371,7 +391,7 @@ class ControllerTest(GenericTest):
         sender_data["label"] = sender["label"]
         sender_data["description"] = sender["description"]
         sender_data["device_id"] = sender["device_id"]
-        sender_data["flow_id"] = sender["flow_id"]  
+        sender_data["flow_id"] = sender["flow_id"]
         sender_data["manifest_href"] = sender["manifest_href"]
         sender_data["version"] = sender["version"]
 
@@ -392,8 +412,8 @@ class ControllerTest(GenericTest):
         device_data["description"] = "AMWA Test Device"
         device_data["node_id"] = self.node.id
         device_data["controls"][0]["href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
-        device_data["senders"] = [ sender["id"] ] 
-        device_data["receivers"] = [] 
+        device_data["senders"] = [sender["id"]]
+        device_data["receivers"] = []
         device_data["version"] = sender["version"]
         self.post_resource(self, "device", device_data, codes=codes, fail=fail)
 
@@ -421,9 +441,8 @@ class ControllerTest(GenericTest):
         self.post_resource(self, "sender", sender_data, codes=codes, fail=fail)
 
     def _delete_sender(self, test, sender):
-        
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + sender['id']
-        
+
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
@@ -458,10 +477,11 @@ class ControllerTest(GenericTest):
             # Update the controls data with the URL of the mock node
             device_data["controls"][0]["href"] = receiver['controls_href']
         else:
-            device_data["controls"] = [] # Remove controls data
-        device_data["version"] = receiver["version"] 
-        device_data["senders"] = [] 
-        device_data["receivers"] = [ receiver["id"] ] 
+            # Remove controls data
+            device_data["controls"] = []
+        device_data["version"] = receiver["version"]
+        device_data["senders"] = []
+        device_data["receivers"] = [receiver["id"]]
         self.post_resource(self, "device", device_data, codes=codes, fail=fail)
 
         # Register receiver
@@ -470,16 +490,16 @@ class ControllerTest(GenericTest):
         self.post_resource(self, "receiver", receiver_data, codes=codes, fail=fail)
 
     def _delete_receiver(self, test, receiver):
-        
+
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/receivers/' + receiver['id']
-        
+
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
             raise NMOSTestException(test.FAIL(test, "Registration API returned an unexpected response: {}".format(r)))
 
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/devices/' + receiver['device_id']
-        
+
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
@@ -498,20 +518,23 @@ class ControllerTest(GenericTest):
 
         paragraphs.append(' and is being advertised via unicast DNS-SD.\n\n' if dns_sd_enabled else '.\n\n')
 
-        paragraphs.append('Please ensure that the following configuration has been set on the NCuT machine.\n\n ' \
-            '* Ensure that the primary DNS of the NCuT machine has been set to \"' + get_default_ip() + '\". \n' \
-            '* Ensure that the NCuT unicast search domain is set to \"' + CONFIG.DNS_DOMAIN + '\". \n\n' \
-            'Alternatively it '  if dns_sd_enabled else 'It ')
-        
-        paragraphs.append('is possible to reach the Registry via the following URL:\n\n' + self.mock_registry_base_url + 'x-nmos/query/v1.3\n\n'\
+        paragraphs.append(
+            'Please ensure that the following configuration has been set on the NCuT machine.\n\n '
+            '* Ensure that the primary DNS of the NCuT machine has been set to \"' + get_default_ip() + '\". \n'
+            '* Ensure that the NCuT unicast search domain is set to \"' + CONFIG.DNS_DOMAIN + '\". \n\n'
+            'Alternatively it ' if dns_sd_enabled else 'It ')
+
+        paragraphs.append(
+            'is possible to reach the Registry via the following URL:\n\n' + self.mock_registry_base_url +
+            'x-nmos/query/v1.3\n\n'
             'Please ensure the NCuT has located the test AMWA IS-04 Registry before clicking the \'Next\' button.')
 
         question = ''.join(paragraphs)
-                
+
         try:
             self._invoke_testing_facade(question, [], test_type="action", timeout=600)
 
-        except TestingFacadeException as e:
+        except TestingFacadeException:
             # pre_test_introducton timed out
             pass
 
@@ -519,12 +542,11 @@ class ControllerTest(GenericTest):
         """
         NMOS Controller Test Suite complete!
         """
-        question =  'NMOS Controller Test Suite complete!\r\n\r\nPlease press the \'Next\' button to exit the tests'
+        question = 'NMOS Controller Test Suite complete!\r\n\r\nPlease press the \'Next\' button to exit the tests'
 
         try:
             self._invoke_testing_facade(question, [], test_type="action", timeout=10)
 
-        except TestingFacadeException as e:
+        except TestingFacadeException:
             # post_test_introducton timed out
             pass
-    
