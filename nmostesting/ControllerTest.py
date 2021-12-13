@@ -233,7 +233,7 @@ class ControllerTest(GenericTest):
 
         # Basic integrity check for response json
         if answer_response['name'] is None:
-            raise TestingFacadeException("Integrity check failed: result format error: " 
+            raise TestingFacadeException("Integrity check failed: result format error: "
                                          + json.dump(answer_response))
 
         if answer_response['name'] != test_name:

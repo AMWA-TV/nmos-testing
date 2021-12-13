@@ -262,7 +262,7 @@ class Registry(object):
                           'rate': {'denominator': 1, 'numerator': 0 ,
                           'duration': {'denominator': 1, 'numerator': 0},
                           'grain': {'type': 'urn:x-nmos:format:data.event',
-                                    'topic': '/' + resource_type + 's/', 'data': []}}
+                                    'topic': '/' + resource_type + 's/', 'data': []}}}
 
             for resource_id in resource_ids:
                 data = {'path': resource_id}

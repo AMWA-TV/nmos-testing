@@ -273,7 +273,8 @@ class IS0503Test(ControllerTest):
 
             # Send PATCH request to node to set up connection
             valid, response = self.do_request('GET', self.mock_node_base_url
-                                              + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
+                                              + 'x-nmos/connection/v1.0/single/senders/'
+                                              + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
             transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
             activate_json = {"transport_params": transport_params,
@@ -292,8 +293,8 @@ class IS0503Test(ControllerTest):
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
                                  'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
                                 for i, r in enumerate(registered_receivers) if r['registered']]
-            expected_answer = ['answer_'+str(i) for i, r in enumerate(registered_receivers) \
-                if r['answer_str'] == receiver['answer_str']][0]
+            expected_answer = ['answer_' + str(i) for i, r in enumerate(registered_receivers)
+                               if r['answer_str'] == receiver['answer_str']][0]
 
             actual_answer = self._invoke_testing_facade(
                 question, possible_answers, test_type="radio")['answer_response']
