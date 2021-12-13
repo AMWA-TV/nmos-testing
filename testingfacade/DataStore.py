@@ -15,6 +15,7 @@
 import time
 import json
 
+
 class DataStore:
     """
     Store json with test question details for use with NMOS Controller test suite and Testing Facade
@@ -91,10 +92,10 @@ class DataStore:
 
     def getTest(self):
         return self.test_type
-    
+
     def getQuestionID(self):
         return self.question_id
-    
+
     def getName(self):
         return self.name
 
@@ -109,7 +110,7 @@ class DataStore:
 
     def getTime(self):
         return self.time_sent
-    
+
     def getTimeout(self):
         return self.timeout
 
@@ -118,5 +119,6 @@ class DataStore:
 
     def getMetadata(self):
         return self.metadata
+
 
 data = DataStore()

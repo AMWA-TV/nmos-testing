@@ -27,17 +27,18 @@ CACHEBUSTER = random.randint(1, 10000)
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'GET':
         if data.getStatus() == 'Test':
-            r = make_response(render_template("index.html", test_type=data.getTest(), question=data.getQuestion(), 
-                                              answers=data.getAnswers(), name=data.getName(), 
+            r = make_response(render_template("index.html", test_type=data.getTest(), question=data.getQuestion(),
+                                              answers=data.getAnswers(), name=data.getName(),
                                               description=data.getDescription(), response_url=data.getUrl(),
                                               time_sent=data.getTime(), timeout=data.getTimeout(),
                                               all_data=data.getJson(), cachebuster=CACHEBUSTER))
         else:
-            r = make_response(render_template("index.html", question=None, answers=None, 
+            r = make_response(render_template("index.html", question=None, answers=None,
                                               name=None, description=None, cachebuster=CACHEBUSTER))
         r.headers['Cache-Control'] = 'no-cache, no-store'
         return r
@@ -50,7 +51,7 @@ def index():
 
             if json_data['test_type'] == 'checkbox':
                 json_data['answer_response'] = request.form.getlist('answer')
-            else:    
+            else:
                 json_data['answer_response'] = form['answer']
 
             json_data['time_answered'] = time.time()
@@ -72,10 +73,12 @@ def index():
 
         return 'Answer set'
 
+
 @app.route('/x-nmos/controller-tests/<version>', methods=['POST'], strict_slashes=False)
 def testing_facade_post(version):
     # Should be json from Test Suite with questions
-    json_list = ['test_type', 'question_id', 'name', 'description', 'question', 'answers', 'time_sent', 'url_for_response']
+    json_list = ['test_type', 'question_id', 'name', 'description', 'question', 'answers', 'time_sent',
+                 'url_for_response']
 
     if 'clear' in request.json and request.json['clear'] == 'True':
         # End of current tests, clear data store
@@ -91,6 +94,7 @@ def testing_facade_post(version):
     socketio.emit('update', request.json)
 
     return 'OK'
+
 
 @app.route('/controller_questions/', methods=['GET'], strict_slashes=False)
 def controller_questions_get():
@@ -125,6 +129,7 @@ def do_request(method, url, **kwargs):
         return False, str(e)
     except requests.exceptions.RequestException as e:
         return False, str(e)
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001)
