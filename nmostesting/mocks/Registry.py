@@ -203,7 +203,7 @@ class Registry(object):
 
         if resource_type not in resource_types:
             raise SubscriptionException("Unknown resource type:" + resource_type
-                + " from resource path:" + resource_path)
+                                        + " from resource path:" + resource_path)
 
         # return existing subscription for this resource type if it already exists
         if resource_type in self.subscriptions:
@@ -219,8 +219,8 @@ class Registry(object):
                         'resource_path': resource_path,
                         'websocket': websocket_server,
                         'query_api_id': self.query_api_id,
-                        'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port) \
-                            + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
+                        'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port)
+                        + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
                         'location': '/x-nmos/query/' + version + '/subscriptions/' + subscription_id}
         self.subscriptions[resource_type] = subscription
 
@@ -259,10 +259,10 @@ class Registry(object):
                           'origin_timestamp': timestamp,
                           'sync_timestamp': timestamp,
                           'creation_timestamp': timestamp,
-                          'rate': {'denominator': 1, 'numerator': 0 ,
+                          'rate': {'denominator': 1, 'numerator': 0},
                           'duration': {'denominator': 1, 'numerator': 0},
                           'grain': {'type': 'urn:x-nmos:format:data.event',
-                                    'topic': '/' + resource_type + 's/', 'data': []}}}
+                                    'topic': '/' + resource_type + 's/', 'data': []}}
 
             for resource_id in resource_ids:
                 data = {'path': resource_id}
