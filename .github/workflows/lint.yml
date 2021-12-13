@@ -1,5 +1,14 @@
 name: Lint
-on: [push, workflow_dispatch]
+on:
+  workflow_dispatch:
+
+  pull_request:
+
+  push:
+    branches:
+      - main
+      - master
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,7 +19,11 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: '12.x'
-      - name: Setup
+      - name: Setup for python lint
+        run: pip install flake8
+      - name: Lint python
+        run: flake8 . 
+      - name: Setup for documentation lint
         run: make -C .lint distclean build-tools
-      - name: Lint
+      - name: Lint documentation
         run: make -C .lint lint

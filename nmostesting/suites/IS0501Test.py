@@ -915,8 +915,12 @@ class IS0501Test(GenericTest):
                 url = "single/senders/{}/active".format(sender)
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
                 if valid:
-                    if len(response["transport_params"]) == 2:
-                        dup_senders.append(sender)
+                    try:
+                        if len(response["transport_params"]) == 2:
+                            dup_senders.append(sender)
+                    except (KeyError, TypeError):
+                        return test.FAIL("Unable to identify 'transport_params' from IS-05 active resource for Sender "
+                                         "{}".format(sender))
                 else:
                     return test.FAIL("Unable to identify 'transport_params' from IS-05 active resource for Sender {}"
                                      .format(sender))
