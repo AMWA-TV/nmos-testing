@@ -32,7 +32,6 @@ The following test suites are currently supported:
 *   BCP-003-01 Secure API Communications
 *   BCP-003-02 Authorization (see IS-10 Authorization API)
 
-
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if devices support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
 <!-- INTRO-END -->
