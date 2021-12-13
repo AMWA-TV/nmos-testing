@@ -60,7 +60,7 @@ class Registry(object):
         self.reset()
         self.subscriptions = {}
         # Query API Id for subscritions. Hmm is this not defined somewhere already?
-        self.query_api_id = str(uuid.uuid4()) 
+        self.query_api_id = str(uuid.uuid4())
 
     def reset(self):
         self.last_time = time.time()
@@ -202,7 +202,7 @@ class Registry(object):
         resource_types = ['node', 'device', 'source', 'flow', 'sender', 'receiver']
 
         if resource_type not in resource_types:
-            raise SubscriptionException("Unknown resource type:" + resource_type \
+            raise SubscriptionException("Unknown resource type:" + resource_type
                 + " from resource path:" + resource_path)
 
         # return existing subscription for this resource type if it already exists
@@ -253,16 +253,16 @@ class Registry(object):
 
             timestamp = NMOSUtils.get_TAI_time()
 
-            data_grain =  {'grain_type': 'event',
-                           'source_id': subscription['query_api_id'],
-                           'flow_id': subscription["id"],
-                           'origin_timestamp': timestamp,
-                           'sync_timestamp': timestamp,
-                           'creation_timestamp': timestamp,
-                           'rate': {'denominator': 1, 'numerator': 0 },
-                           'duration': {'denominator': 1, 'numerator': 0 },
-                           'grain': {'type': 'urn:x-nmos:format:data.event',
-                                     'topic': '/' + resource_type + 's/', 'data': []}}
+            data_grain = {'grain_type': 'event',
+                          'source_id': subscription['query_api_id'],
+                          'flow_id': subscription["id"],
+                          'origin_timestamp': timestamp,
+                          'sync_timestamp': timestamp,
+                          'creation_timestamp': timestamp,
+                          'rate': {'denominator': 1, 'numerator': 0 ,
+                          'duration': {'denominator': 1, 'numerator': 0},
+                          'grain': {'type': 'urn:x-nmos:format:data.event',
+                                    'topic': '/' + resource_type + 's/', 'data': []}}
 
             for resource_id in resource_ids:
                 data = {'path': resource_id}
@@ -323,8 +323,8 @@ def registration_root():
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
-# IS-04 resources
 
+# IS-04 resources
 @REGISTRY_API.route('/x-nmos/registration/<version>', methods=["GET"], strict_slashes=False)
 def base_resource(version):
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
@@ -510,7 +510,7 @@ def query_resource(version, resource):
                 result_count = 0
                 for value in sorted_list:
                     if NMOSUtils.compare_resource_version(value['version'], since) >= 0 \
-                        and NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                            and NMOSUtils.compare_resource_version(until, value['version']) > 0:
                         if result_count < registry.paging_limit:
                             base_data.append(value)
                             result_count += 1

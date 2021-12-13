@@ -296,10 +296,10 @@ def _create_activation_update(receiver, master_enable, staged=False, activation=
     default_interface_ip = "auto" if staged else get_default_ip()
 
     transport_params_update = {
-        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip'] \
-            if master_enable and sender else None,
-        'destination_port': sender['activations']['transport_params'][0]['destination_port'] \
-            if master_enable and sender else default_destination_port,
+        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip']
+                if master_enable and sender else None,
+        'destination_port': sender['activations']['transport_params'][0]['destination_port']
+                if master_enable and sender else default_destination_port,
         'source_ip': sender['activations']['transport_params'][0]['source_ip'] if master_enable and sender else None,
         'interface_ip': get_default_ip() if master_enable and sender else default_interface_ip,
         'rtp_enabled': True

@@ -106,13 +106,13 @@ for instance in range(NUM_REGISTRIES):
         reg_app, origins=['*'],
         allow_headers=['*'],
         expose_headers=['Content-Length',
-                            'Link',
-                            'Server-Timing',
-                            'Timing-Allow-Origin',
-                            'Vary',
-                            'X-Paging-Limit',
-                            'X-Paging-Since',
-                            'X-Paging-Until'])
+                        'Link',
+                        'Server-Timing',
+                        'Timing-Allow-Origin',
+                        'Vary',
+                        'X-Paging-Limit',
+                        'X-Paging-Since',
+                        'X-Paging-Until'])
     reg_app.debug = False
     reg_app.config['REGISTRY_INSTANCE'] = instance
     reg_app.config['PORT'] = REGISTRIES[instance].port
@@ -900,10 +900,10 @@ def run_noninteractive_tests(args):
 
 
 def check_internal_requirements():
-    corrections = {"gitpython": "git", 
-                   "pyopenssl": "OpenSSL", 
-                   "websocket-client": "websocket", 
-                   "paho-mqtt": "paho", 
+    corrections = {"gitpython": "git",
+                   "pyopenssl": "OpenSSL",
+                   "websocket-client": "websocket",
+                   "paho-mqtt": "paho",
                    "Flask-Cors": "flask_cors"}
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:

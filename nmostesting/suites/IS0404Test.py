@@ -230,7 +230,7 @@ class IS0404Test(ControllerTest):
             # Get the name of the calling test method to use as an identifier
             test_method_name = inspect.currentframe().f_code.co_name
 
-            # Send the question to the Testing Façade 
+            # Send the question to the Testing Façade
             # and then put sender online before waiting for the Testing Façade response
             sent_json = self._send_testing_facade_questions(
                 test_method_name, question, possible_answers, test_type="action", multipart_test=2)
@@ -251,11 +251,9 @@ class IS0404Test(ControllerTest):
             if response['time_answered'] < expected_time_online:  # Answered before sender put online
                 return test.FAIL('Offline/online sender not handled: Sender not yet online')
             elif response['time_answered'] > expected_time_online + max_time_to_answer:
-                return test.FAIL('Offline/online sender not handled: Sender online ' + 
+                return test.FAIL('Offline/online sender not handled: Sender online ' +
                                  str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
             else:
                 return test.PASS('Offline/online sender handled correctly')
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
-
-         

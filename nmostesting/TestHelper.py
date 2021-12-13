@@ -442,7 +442,7 @@ class SubscriptionWebsocketWorker(threading.Thread):
         self._connected_clients = set()
 
         self._ws_server = self._loop.run_until_complete(websockets.serve(self.handler, host, port))
-        
+
     def run(self):
         self._loop.run_forever()
 

@@ -41,16 +41,16 @@ class IS0503Test(ControllerTest):
             self.senders[i]['registered'] = True
 
         # Receiver initial details
-        self.receivers =  [{'label': 'r1/byrne', 'description': 'Mock receiver 1',
-                            'connectable': False, 'registered': True},
-                           {'label': 'r2/frantz', 'description': 'Mock receiver 2',
-                            'connectable': False, 'registered': True},
-                           {'label': 'r3/weymouth', 'description': 'Mock receiver 3',
-                            'connectable': False, 'registered': True},
-                           {'label': 'r4/harrison', 'description': 'Mock receiver 4',
-                            'connectable': False, 'registered': True},
-                           {'label': 'r5/belew', 'description': 'Mock receiver 5',
-                            'connectable': False, 'registered': True}]
+        self.receivers = [{'label': 'r1/byrne', 'description': 'Mock receiver 1',
+                           'connectable': False, 'registered': True},
+                          {'label': 'r2/frantz', 'description': 'Mock receiver 2',
+                           'connectable': False, 'registered': True},
+                          {'label': 'r3/weymouth', 'description': 'Mock receiver 3',
+                           'connectable': False, 'registered': True},
+                          {'label': 'r4/harrison', 'description': 'Mock receiver 4',
+                           'connectable': False, 'registered': True},
+                          {'label': 'r5/belew', 'description': 'Mock receiver 5',
+                           'connectable': False, 'registered': True}]
 
         # Randomly select some receivers to be connectable
         connectable_receivers = self._generate_random_indices(len(self.receivers), min_index_count=2, max_index_count=4)
@@ -112,7 +112,7 @@ class IS0503Test(ControllerTest):
                 'and receiver: \n\n' \
                 + receiver['answer_str'] + ' \n\n' \
                 'Click the \'Next\' button once the connection is active.'
-            
+
             possible_answers = []
 
             metadata = {'sender':
@@ -189,14 +189,15 @@ class IS0503Test(ControllerTest):
 
             # Send PATCH request to node to set up connection
             valid, response = self.do_request('GET', self.mock_node_base_url
-                                              + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
+                                              + 'x-nmos/connection/v1.0/single/senders/'
+                                              + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
             transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
             activate_json = {"transport_params": transport_params,
                              "activation": {"mode": "activate_immediate"},
                              "master_enable": True,
                              "sender_id": sender['id'],
-                             "transport_file": {"data": transport_file,"type":"application/sdp"}}
+                             "transport_file": {"data": transport_file, "type": "application/sdp"}}
             activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' \
                 + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
@@ -204,7 +205,7 @@ class IS0503Test(ControllerTest):
             # Clear staged requests once connection has been set up
             self.node.clear_staged_requests()
 
-            question =  'IS-05 provides a mechanism for removing an active connection through its API. \n\n' \
+            question = 'IS-05 provides a mechanism for removing an active connection through its API. \n\n' \
                 'Use the NCuT to remove the connection between sender: \n\n'\
                 + sender['answer_str'] + ' \n\n'\
                 'and receiver: \n\n' \
@@ -246,7 +247,7 @@ class IS0503Test(ControllerTest):
                     receiver_details = self.primary_registry.get_resources()["receiver"][receiver['id']]
 
                     if receiver_details['subscription']['active'] \
-                        or receiver_details['subscription']['sender_id'] == sender['id']:
+                            or receiver_details['subscription']['sender_id'] == sender['id']:
                         return test.FAIL('Receiver still has subscription')
 
             return test.PASS('Receiver successfully disconnected from sender')
@@ -271,8 +272,8 @@ class IS0503Test(ControllerTest):
             receiver = random.choice(registered_receivers)
 
             # Send PATCH request to node to set up connection
-            valid, response = self.do_request('GET', self.mock_node_base_url \
-                + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
+            valid, response = self.do_request('GET', self.mock_node_base_url
+                                              + 'x-nmos/connection/v1.0/single/senders/' + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
             transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
             activate_json = {"transport_params": transport_params,
@@ -289,9 +290,10 @@ class IS0503Test(ControllerTest):
                 'and update the connection status of all registered Devices. \n\n' \
                 'Use the NCuT to identify the receiver that has just been connected.'
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
-                                 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']} 
+                                 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
                                 for i, r in enumerate(registered_receivers) if r['registered']]
-            expected_answer = ['answer_'+str(i) for i, r in enumerate(registered_receivers) if r['answer_str'] == receiver['answer_str']][0]
+            expected_answer = ['answer_'+str(i) for i, r in enumerate(registered_receivers) \
+                if r['answer_str'] == receiver['answer_str']][0]
 
             actual_answer = self._invoke_testing_facade(
                 question, possible_answers, test_type="radio")['answer_response']
@@ -305,8 +307,8 @@ class IS0503Test(ControllerTest):
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
                                  'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
                                 for i, s in enumerate(registered_senders) if s['registered']]
-            expected_answer = ['answer_'+str(i) for i, s in enumerate(registered_senders) 
-                if s['answer_str'] == sender['answer_str']][0]
+            expected_answer = ['answer_'+str(i) for i, s in enumerate(registered_senders)
+                               if s['answer_str'] == sender['answer_str']][0]
 
             metadata = {'receiver':
                         {'id': receiver['id'],

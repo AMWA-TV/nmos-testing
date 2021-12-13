@@ -233,7 +233,8 @@ class ControllerTest(GenericTest):
 
         # Basic integrity check for response json
         if answer_response['name'] is None:
-            raise TestingFacadeException(                "Integrity check failed: result format error: " + json.dump(answer_response))
+            raise TestingFacadeException("Integrity check failed: result format error: " 
+                                         + json.dump(answer_response))
 
         if answer_response['name'] != test_name:
             raise TestingFacadeException(
@@ -297,7 +298,7 @@ class ControllerTest(GenericTest):
                 sender_ip += 1
 
         # self.receivers should be initialized in the set_up_tests() override of derived test
-        # each mock receiver defined as: {'label': <unique label>, 'description': '', 
+        # each mock receiver defined as: {'label': <unique label>, 'description': '',
         #   'connectable': <has IS-05 connection API>, 'registered': <is registered with mock Registry>}
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
