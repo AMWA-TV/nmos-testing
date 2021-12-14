@@ -188,7 +188,7 @@ TEST_DEFINITIONS = {
         "class": IS0403Test.IS0403Test
     },
     "IS-04-04": {
-        "name": "IS-04 NMOS Controller",
+        "name": "IS-04 Controller",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "controller-tests"
@@ -215,7 +215,7 @@ TEST_DEFINITIONS = {
         "class": IS0502Test.IS0502Test
     },
     "IS-05-03": {
-        "name": "IS-05 NMOS Controller",
+        "name": "IS-05 Controller",
         "specs": [{
             "spec_key": "is-05",
             "api_key": "controller-tests"
@@ -548,7 +548,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             # This test has an unusual constructor as it requires a system api instance
             test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
         elif test == "IS-04-04" or test == "IS-05-03":
-            # NMOS Controller tests require a registry instance, mock Node and DNS server
+            # Controller tests require a registry instance, mock Node and DNS server
             test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
         else:
             test_obj = test_def["class"](apis)

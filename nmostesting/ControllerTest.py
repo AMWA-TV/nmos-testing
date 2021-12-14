@@ -508,7 +508,7 @@ class ControllerTest(GenericTest):
 
     def pre_tests_message(self):
         """
-        Introduction to NMOS Controller Test Suite
+        Introduction to Controller Test Suite
         """
         dns_sd_enabled = CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast"
 
@@ -541,7 +541,7 @@ class ControllerTest(GenericTest):
 
     def post_tests_message(self):
         """
-        NMOS Controller Test Suite complete!
+        Controller Test Suite complete!
         """
         question = 'NMOS Controller Test Suite complete!\r\n\r\nPlease press the \'Next\' button to exit the tests'
 

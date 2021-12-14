@@ -118,7 +118,7 @@ DNS_DOMAIN = "testsuite.nmos.tv"
 # The mock DNS server port cannot be modified from the default of 53.
 PORT_BASE = 5000
 
-# As part of the NMOS Controller tests the Mock Registry will create Subscription WebSockets on subscription requests
+# As part of the Controller tests the Mock Registry will create Subscription WebSockets on subscription requests
 # This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
 WEBSOCKET_PORT_BASE = 6000
 
