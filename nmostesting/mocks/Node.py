@@ -481,7 +481,6 @@ def transport_type(version, resource, resource_id):
                 methods=["GET"], strict_slashes=False)
 def transport_file(version, resource, resource_id):
     # GET should either redirect to the location of the transport file or return it directly
-    # (easy-nmos requests to this endpoint return 404)
     try:
         if resource == 'senders':
             with open("test_data/controller/video.sdp") as f:
