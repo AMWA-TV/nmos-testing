@@ -67,7 +67,7 @@ class IS0404Test(ControllerTest):
 
     def test_01(self, test):
         """
-        Ensure NCuT uses DNS-SD to find registry
+        Ensure NCuT uses unicast DNS-SD to find registry
         """
         if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
