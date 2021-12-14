@@ -557,9 +557,9 @@ def get_resource(version, resource, resource_id):
     resource_type = resource.rstrip("s")
     data = []
     try:
-        # Type may not be in the list, so this could throw an exception
         data = registry.get_resources()[resource_type][resource_id]
     except Exception:
+        abort(404)
         pass
 
     return Response(json.dumps(data), mimetype='application/json')
