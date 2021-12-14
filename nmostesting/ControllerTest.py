@@ -72,7 +72,7 @@ class ControllerTest(GenericTest):
     """
     def __init__(self, apis, registries, node, dns_server):
         GenericTest.__init__(self, apis)
-        self.authorization = False  # System API doesn't use auth, so don't send tokens in every request
+        self.authorization = False
         self.primary_registry = registries[1]
         self.node = node
         self.dns_server = dns_server
