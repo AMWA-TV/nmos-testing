@@ -96,7 +96,7 @@ class IS0503Test(ControllerTest):
 
     def test_02(self, test):
         """
-        Instruct Receiver to subscribe to a Sender’s Flow via IS-05
+        Instruct Receiver to subscribe to a Sender's Flow via IS-05
         """
         try:
             self.node.clear_staged_requests()
