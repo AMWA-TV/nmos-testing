@@ -14,7 +14,6 @@
 
 import uuid
 import json
-import time
 
 from flask import Blueprint, make_response, abort, Response, request
 from random import randint
