@@ -508,7 +508,10 @@ class ControllerTest(GenericTest):
 
     def pre_tests_message(self):
         """
-        Introduction to Controller Test Suite
+        In order to give the tests some context, a pre tests message is displayed
+        on the Testing Façade prior to the tests starting. This communicates any
+        pre-requisites or setup required by the Test User. The pre tests message
+        will vary depending on whether or not unicast DNS-SD is being used to discover the mock Registry.
         """
         dns_sd_enabled = CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast"
 
@@ -541,7 +544,7 @@ class ControllerTest(GenericTest):
 
     def post_tests_message(self):
         """
-        Controller Test Suite complete!
+        Once the tests are complete this post tests message is displayed.
         """
         question = 'NMOS Controller Test Suite complete!\r\n\r\nPlease press the \'Next\' button to exit the tests'
 

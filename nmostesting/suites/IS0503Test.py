@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The IS-05 Controller (IS-05-03) test suites map the tests described in Sections 8 of
+# the JT-NM Tested March 2020 AMWA NMOS / JT-NM TR-1001-1 Media Nodes, Registries, Controllers Results Catalog
+# https://static.jt-nm.org/documents/JT-NM_Tested_Catalog_NMOS-TR-1001_Full-Online-2020-05-12.pdf.
+
 import time
 import inspect
 import random
@@ -62,7 +66,14 @@ class IS0503Test(ControllerTest):
 
     def test_01(self, test):
         """
-        Identify which Receiver devices are controllable via IS-05
+        The NCuT shall identify which of the discovered Receivers are controllable via IS-05, for instance,
+        allowing Senders to be connected.
+        * The Testing Tool registers additional Receivers with the mock Registry, 
+          a subset of which have a connection API.
+        * The Test User refreshes the NCuT and selects the Receivers that have a 
+          connection API from the provided list.
+        * Some NCuTs only display those Receivers which have a connection API,
+          therefore some of the Receivers in the provided list may not be visible.
         """
         try:
             # Check receivers
@@ -96,7 +107,8 @@ class IS0503Test(ControllerTest):
 
     def test_02(self, test):
         """
-        Instruct Receiver to subscribe to a Sender's Flow via IS-05
+        The NCuT shall allow all flows that are available in a Sender to be connected to a Receiver.
+        * The Test User is prompted to perform an immediate activation between a specified Sender and Receiver.
         """
         try:
             self.node.clear_staged_requests()
@@ -178,7 +190,9 @@ class IS0503Test(ControllerTest):
 
     def test_03(self, test):
         """
-        Disconnecting a Receiver from a connected Flow via IS-05
+        The NCuT shall allow removal of active connections via the IS-05 API.
+        * The Testing Tool activates a connection between a Sender and a Receiver.
+        * The Test User is asked to perform an immediate deactivation on this connection.
         """
         try:
             # Choose random sender and receiver to be connected
@@ -262,7 +276,16 @@ class IS0503Test(ControllerTest):
 
     def test_04(self, test):
         """
-        Indicating the state of connections via updates received from the IS-04 Query API
+        The NCuT shall monitor and update the connection status of all registered Devices.
+        This test seeks to validate the NCuT's ability to monitor connections that are made between
+        Senders and Receivers outside of the NCuT's control.
+        * A connection to a Receiver is activated.
+        * The Test User is asked to identify this Receiver.
+        * The Test User is asked to identify the Sender connected to the Receiver.
+        * The Receiver connection is deactivated in the background by the Testing Tool within the following 60 seconds.
+        * As soon as the NCuT detects the Receiver has been deactivated the Test User must press the 'Next' button.
+        * The button must be pressed within 30 seconds of the Receiver connection being deactivated.
+          This includes any latency between the Receiver connection being deactivated and the NCuT updating.
         """
         try:
             # Choose random sender and receiver to be connected

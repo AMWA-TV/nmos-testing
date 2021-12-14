@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The IS-04 Controller (IS-04-04) test suites map the tests described in Sections 7 of
+# the JT-NM Tested March 2020 AMWA NMOS / JT-NM TR-1001-1 Media Nodes, Registries, Controllers Results Catalog
+# https://static.jt-nm.org/documents/JT-NM_Tested_Catalog_NMOS-TR-1001_Full-Online-2020-05-12.pdf.
+
 import time
 import inspect
 import random
@@ -67,7 +71,8 @@ class IS0404Test(ControllerTest):
 
     def test_01(self, test):
         """
-        Ensure NCuT uses unicast DNS-SD to find registry
+        The NCuT shall use unicast DNS Service Discovery (DNS-SD) to locate the mock Registry.
+        A DHCP server will provide all the connection details to discover the mock Registry.
         """
         if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
@@ -81,7 +86,8 @@ class IS0404Test(ControllerTest):
 
     def test_02(self, test):
         """
-        Ensure NCuT can access the IS-04 Query API
+        The NCuT shall use the mock Registry's IS-04 Query API either via the REST API or by
+        requesting websocket subscriptions.
         """
         try:
             # Question 1 connection
@@ -104,7 +110,9 @@ class IS0404Test(ControllerTest):
 
     def test_03(self, test):
         """
-        Query API should be able to discover all the senders that are registered in the Registry
+        The NCuT shall use the mock Registry's IS-04 Query API to discover all the Senders that are
+        registered in the mock Registry. If using the RESTful API rather than WebSockets, Pagination must
+        be implemented.
         """
         try:
             # reduce paging limit to force pagination on REST API
@@ -142,7 +150,9 @@ class IS0404Test(ControllerTest):
 
     def test_04(self, test):
         """
-        Query API should be able to discover all the receivers that are registered in the Registry
+        The NCuT shall use the mock Registry's IS-04 Query API to discover all the Receivers that
+        are registered in the mock Registry. If using the RESTful API rather than WebSockets,
+        Pagination must be implemented.
         """
         try:
             # reduce paging limit to force pagination on REST API
@@ -181,7 +191,16 @@ class IS0404Test(ControllerTest):
 
     def test_05(self, test):
         """
-        Reference Sender is put offline and then back online
+        The NCuT shall discover and dynamically update all the Senders that are registered
+        in the Registry.
+        * Use the NCuT to browse and take note of the Senders that are available.
+        * After the 'Next' button has been clicked one of those Senders will be put 'offline'.
+        * The Sender which was put 'offline' will then come back online at a random moment within
+          the following 60 seconds.
+        * As soon as the NCuT detects the Sender has come back online the user must press the
+          'Next' button on the Testing Façade.
+        * The button must be pressed within 30 seconds of the Sender being put back 'online'.
+          This includes any latency between the Sender being put 'online' and the NCuT updating.
         """
         try:
             # Check senders
