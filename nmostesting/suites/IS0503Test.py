@@ -68,9 +68,9 @@ class IS0503Test(ControllerTest):
         """
         The NCuT shall identify which of the discovered Receivers are controllable via IS-05, for instance,
         allowing Senders to be connected.
-        * The Testing Tool registers additional Receivers with the mock Registry, 
+        * The Testing Tool registers additional Receivers with the mock Registry,
           a subset of which have a connection API.
-        * The Test User refreshes the NCuT and selects the Receivers that have a 
+        * The Test User refreshes the NCuT and selects the Receivers that have a
           connection API from the provided list.
         * Some NCuTs only display those Receivers which have a connection API,
           therefore some of the Receivers in the provided list may not be visible.
