@@ -406,7 +406,7 @@ class SubscriptionWebsocketWorker(threading.Thread):
         # handle multiple client connections per socket
         self._connected_clients.add(websocket)
 
-        # when websocket client first connects we immediatley queue a 'sync' data grain message to be sent
+        # when websocket client first connects we immediately queue a 'sync' data grain message to be sent
         self._loop.call_soon_threadsafe(self.queue_sync_data_grain_callback, self._resource_type)
 
         # will automatically exit loop when websocket client disconnects or server closed

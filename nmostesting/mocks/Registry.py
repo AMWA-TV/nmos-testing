@@ -59,7 +59,7 @@ class Registry(object):
         self.delete_event = Event()
         self.reset()
         self.subscriptions = {}
-        # Query API Id for subscritions. Hmm is this not defined somewhere already?
+        # Query API Id for subscriptions. Hmm is this not defined somewhere already?
         self.query_api_id = str(uuid.uuid4())
 
     def reset(self):
@@ -496,7 +496,7 @@ def query_resource(version, resource):
         else:
             data = registry.get_resources()[resource_type]
 
-            # only paginate for verison v1.3 and up
+            # only paginate for version v1.3 and up
             if NMOSUtils.compare_api_version("v1.1", version) < 0:
                 for key, value in data.items():
                     base_data.append(value)
