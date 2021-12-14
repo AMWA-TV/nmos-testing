@@ -301,9 +301,6 @@ def x_nmos():
     registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
     if not registry.enabled:
         abort(503)
-    authorized = registry.check_authorized(request.headers, request.path)
-    if authorized is not True:
-        abort(authorized)
 
     base_data = ['query/', 'registration/']
 
