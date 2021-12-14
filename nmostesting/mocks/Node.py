@@ -315,7 +315,7 @@ def _create_activation_update(receiver, master_enable, staged=False, activation=
 
     activation_update = {
         "activation": {
-            "activation_time": str(time.time()).replace('.', ':') if master_enable and activation else None,
+            "activation_time": NMOSUtils.get_TAI_time() if master_enable and activation else None,
             "mode": activation['mode'] if master_enable and activation else None,
             "requested_time": None
         },
@@ -367,7 +367,7 @@ def staged(version, resource, resource_id):
                 sender = resources[resource_id]['sender']
 
                 activations['active']['master_enable'] = request.json.get("master_enable", True)
-                activations['active']['activation']['activation_time'] = str(time.time()).replace('.', ':')
+                activations['active']['activation']['activation_time'] = NMOSUtils.get_TAI_time()
                 activations['active']['activation']['mode'] = 'activate_immediate'
 
                 sender = _update_sender_subscription(sender, request.json.get("master_enable", True))
