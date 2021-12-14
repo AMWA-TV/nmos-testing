@@ -497,7 +497,7 @@ def query_resource(version, resource):
             data = registry.get_resources()[resource_type]
 
             # only paginate for verison v1.3 and up
-            if NMOSUtils.compare_api_version("v1.3", version) < 0:
+            if NMOSUtils.compare_api_version("v1.1", version) < 0:
                 for key, value in data.items():
                     base_data.append(value)
             else:
@@ -520,8 +520,8 @@ def query_resource(version, resource):
 
     response = Response(json.dumps(base_data), mimetype='application/json')
 
-    # add pagination headers for v1.3 and up
-    if NMOSUtils.compare_api_version("v1.3", version) >= 0:
+    # add pagination headers for v1.1 and up
+    if NMOSUtils.compare_api_version("v1.1", version) >= 0:
         link = ""
         if new_until != MAX_UNTIL:
             link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=" + new_until \
