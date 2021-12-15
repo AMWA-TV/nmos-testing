@@ -483,17 +483,30 @@ def transport_file(version, resource, resource_id):
     # GET should either redirect to the location of the transport file or return it directly
     try:
         if resource == 'senders':
-            with open("test_data/controller/video.sdp") as f:
-                sender = NODE.senders[resource_id]
-                destination_ip = sender['activations']['transport_params'][0]['destination_ip']
-                source_ip = sender['activations']['transport_params'][0]['source_ip']
-                source_port = sender['activations']['transport_params'][0]['source_port']
+            template_path = "test_data/controller/video.sdp"
 
-                # substitute source and destination ips into the video.sdp template
-                sdp_data = f.read()
-                formatted_data = sdp_data.format(source_ip, source_port, destination_ip, destination_ip, source_ip)
+            template_file = open(template_path).read()
+            template = Template(template_file, keep_trailing_newline=True)
 
-            response = make_response(formatted_data, 200)
+            sender = NODE.senders[resource_id]
+            destination_ip = sender['activations']['transport_params'][0]['destination_ip']
+            destination_port = sender['activations']['transport_params'][0]['destination_port']
+            source_ip = sender['activations']['transport_params'][0]['source_ip']
+
+            interlace = ""
+            if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
+                interlace = "interlace; "
+            # TODO: The SDP_PREFERENCES doesn't include video media type
+            sdp_file = template.render(dst_ip=destination_ip,
+                                       dst_port=destination_port,
+                                       src_ip=source_ip,
+                                       media_type="raw",
+                                       width=CONFIG.SDP_PREFERENCES["video_width"],
+                                       height=CONFIG.SDP_PREFERENCES["video_height"],
+                                       interlace=interlace,
+                                       exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"])
+
+            response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"
 
             return response
