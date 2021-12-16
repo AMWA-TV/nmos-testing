@@ -1,0 +1,25 @@
+{
+    "test_type": "action", 
+    "question_id": "test_03", 
+    "name": "test_03", 
+    "description": "Disconnecting a Receiver from a connected Flow via IS-05", 
+    "question": "Use the NCuT to remove the connection between sender: \n\ns5/andrews (Mock sender 5, f03fb351-bb39-470e-8150-dbea75170eee) \n\nand receiver: \n\nr4/harrison (Mock receiver 4, 6364c8b8-0595-40d9-93fa-4619431b3b84) \n\nClick the 'Next' button once the connection has been removed.", 
+    "answers": [], 
+    "time_sent": 1639669247.8017023, 
+    "timeout": 600, 
+    "url_for_response": "http://43.195.121.29:5000/testingfacade_response", 
+    "answer_response": "", 
+    "time_answered": "", 
+    "metadata": {
+        "sender": {
+            "id": "f03fb351-bb39-470e-8150-dbea75170eee", 
+            "label": "s5/andrews", 
+            "description": "Mock sender 5"
+        }, 
+        "receiver": {
+            "id": "6364c8b8-0595-40d9-93fa-4619431b3b84", 
+            "label": "r4/harrison", 
+            "description": "Mock receiver 4"
+        }
+    }
+}

@@ -1,0 +1,177 @@
+{
+    "title": "Controller Testing - Question",
+    "description": "Contains all details necessary for NMOS Controller Testing",
+    "$schema": "http://json-schema.org/draft-04/schema",
+    "required": [
+        "test_type",
+        "question_id",
+        "name",
+        "description",
+        "question",
+        "answers",
+        "time_sent",
+        "timeout",
+        "url_for_response",
+        "answer_response",
+        "time_answered",
+        "metadata"
+    ],
+    "properties": {
+        "test_type": {
+            "description": "String indicating the type of question being sent. ",
+            "anyOf": [
+                {
+                    "radio": {
+                        "description": "A single answer_id is expected and should be used to return a string"
+                    },
+                    "checkbox": {
+                        "description": "Multiple answer_id's are expected and should be used to return a list of strings"
+                    },
+                    "action": {
+                        "description": "Instructions to be carried out by the user, no answer to return"
+                    }
+                }
+
+            ]
+        },
+        "question_id": {
+            "description": "A unique string for each individual question"
+        },
+        "name": {
+            "description": "The test name, identical to the question_id unless a test contains multiple questions"
+        },
+        "description": {
+            "description": "String, a brief description of the test"
+        },
+        "question": {
+            "description": "String, human readable question text containing instructions to carry out the test"
+        },
+        "answers": {
+            "type": "array",
+            "description": "Array containing answer objects to be used to select the correct answer_id to be returned.",
+            "examples": [
+                [
+                    {
+                        "answer_id": "answer_2",
+                        "label": "s3/wright",
+                        "description": "Mock sender 3",
+                        "id": "71ce775c-cdc5-479a-bd29-87c081905ecf",
+                        "answer_str": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
+                    }
+                ]
+            ],
+            "additionalItems": true,
+            "items": {
+                "anyOf": [
+                    {
+                        "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
+                        "required": [
+                            "answer_id",
+                            "label",
+                            "description",
+                            "id",
+                            "answer_str"
+                        ],
+                        "properties": {
+                            "answer_id": {
+                                "description": "String, unique to each answer within a question. This is the value to be returned for validation."
+                            },
+                            "label": {
+                                "description": "Resource label as might be displayed on the NCuT"
+                            },
+                            "description": {
+                                "description": "Resource description as might be displayed on the NCuT"
+                            },
+                            "id": {
+                                "description": "Resource ID as might be displayed on the NCuT"
+                            },
+                            "answer_str": {
+                                "description": "String combining all the resource details for display on the testing facade"
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                ]
+            }
+        },
+        "time_sent": {
+            "description": "Float, time the question was sent"
+        },
+        "timeout": {
+            "description": "Float, time in seconds the test suite will wait to receive an answer to a particular question",
+            "default": 600
+        },
+        "url_for_response": {
+            "description": "URL of the test suite API endpoint to send the POST request with answers"
+        },
+        "answer_response": {
+            "description": "Null when received. Should be filled with answer_ids according to question type when POSTed back to url_for_response",
+            "default": "",
+            "anyOf": [
+                {
+                    "type": "null",
+                    "description": "Null entry when sent from test suite"
+                },
+                {
+                    "description": "A single answer string, for 'radio' type questions",
+                    "examples": [
+                        "answer_1"
+                    ]
+                },
+                {
+                    "description": "Multiple answer strings, for 'checkbox' type questions",
+                    "examples": [
+                        ["answer_1", "answer_5"]
+                    ]
+                }
+            ]
+        },
+        "time_answered": {
+            "description": "Null when received. Should be filled with float string of time answered when returned",
+            "default": ""
+        },
+        "metadata": {
+            "description": "Details of Sender and Receiver where specified in the question text for IS05 tests",
+            "properties": {
+                "sender": {
+                    "description": "Details of sender chosen to be part of IS05 connection management test",
+                    "required": [
+                        "id",
+                        "label",
+                        "description"
+                    ],
+                    "properties": {
+                        "id": {
+                            "description": "ID of sender as might be shown on NCut"
+                        },
+                        "label": {
+                            "description": "Label of sender as might be shown on NCuT"
+                        },
+                        "description": {
+                            "description": "Description of sender as might be shown on NCuT"
+                        }
+                    }
+                },
+                "receiver": {
+                    "description": "Details of receiver chosen to be part of IS05 connection maagement test",
+                    "required": [
+                        "id",
+                        "label",
+                        "description"
+                    ],
+                    "properties": {
+                        "id": {
+                            "description": "ID of receiver as might be shown on NCuT"
+                        },
+                        "label": {
+                            "description": "Label of receiver as might be shown on NCuT"
+                        },
+                        "description": {
+                            "description": "Description of receiver as might be shown on NCuT"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

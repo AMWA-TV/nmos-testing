@@ -1,0 +1,46 @@
+{
+    "title": "Controller Testing - POST request to testing tool",
+    "description": "Contains answers to be verified by the test suite",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "required": [
+      "name",
+      "answer_response",
+      "time_answered"
+    ],
+    "properties": {
+      "name": {
+        "description": "Question_id sent to Question API",
+        "type": "string"
+      },
+      "answer_response": {
+        "description": "Answer or answers to be verified",
+        "anyOf": [
+          {
+            "description": "Multi answer response",
+            "type": "array",
+            "items": [
+              {
+                "type": "string"
+              }
+            ],
+            "examples": [
+              ["answer_1", "answer_3"]
+            ]
+          },
+          {
+            "description": "Single answer response",
+            "type": "string"
+          },
+          {
+            "description": "Action response",
+            "type": "null"
+          }
+        ]
+      },
+      "time_answered": {
+        "description": "Currently time in s from unix epoch that answer was sent",
+        "type": "number"
+      }
+    }
+  }
+  

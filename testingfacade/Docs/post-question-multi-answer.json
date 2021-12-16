@@ -1,0 +1,36 @@
+{
+    "test_type": "checkbox", 
+    "question_id": "test_03", 
+    "name": "test_03", 
+    "description": "Query API should be able to discover all the senders that are registered in the Registry", 
+    "question": "Refresh the NCuT's view of the Registry and carefully select the Senders that are available from the following list.", 
+    "answers": [
+        {
+            "answer_id": "answer_0", 
+            "label": "s1/gilmour", 
+            "description": "Mock sender 1", 
+            "id": "b2ceb3af-87db-4006-9f7e-0055faa16eda", 
+            "answer_str": "s1/gilmour (Mock sender 1, b2ceb3af-87db-4006-9f7e-0055faa16eda)"
+        }, 
+        {
+            "answer_id": "answer_1", 
+            "label": "s2/waters", 
+            "description": "Mock sender 2", 
+            "id": "4f92a9ed-e2c2-4353-9cd3-6eb60a7f4aff", 
+            "answer_str": "s2/waters (Mock sender 2, 4f92a9ed-e2c2-4353-9cd3-6eb60a7f4aff)"
+        }, 
+        {
+            "answer_id": "answer_2", 
+            "label": "s3/wright", 
+            "description": "Mock sender 3", 
+            "id": "e811042d-572d-4e4c-9ee8-c62043cbc61b", 
+            "answer_str": "s3/wright (Mock sender 3, e811042d-572d-4e4c-9ee8-c62043cbc61b)"
+        } 
+    ], 
+    "time_sent": 1639667989.6699414, 
+    "timeout": 600, 
+    "url_for_response": "http://43.195.121.29:5000/testingfacade_response", 
+    "answer_response": "", 
+    "time_answered": "", 
+    "metadata": null
+}
