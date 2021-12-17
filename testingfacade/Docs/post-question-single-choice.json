@@ -1,5 +1,5 @@
 {
-    "test_type": "radio",
+    "test_type": "single_choice",
     "question_id": "test_05_1",
     "name": "test_05",
     "description": "Reference Sender is put offline and then back online",

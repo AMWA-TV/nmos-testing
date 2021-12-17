@@ -1,5 +1,5 @@
 {
-    "test_type": "checkbox", 
+    "test_type": "multi_choice", 
     "question_id": "test_03", 
     "name": "test_03", 
     "description": "Query API should be able to discover all the senders that are registered in the Registry", 

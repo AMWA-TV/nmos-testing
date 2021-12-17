@@ -185,8 +185,8 @@ class ControllerTest(GenericTest):
         Send question and answers to Testing Façade
         question:   text to be presented to Test User
         answers:    list of all possible answers
-        test_type:  "radio" - one and only one answer
-                    "checkbox" - multiple answers
+        test_type:  "single_choice" - one and only one answer
+                    "multi_choice" - multiple answers
                     "action" - Test User asked to click button, defaults to self.question_timeout
         timeout:    number of seconds before Testing Façade times out test
         multipart_test: indicates test uses multiple questions. Default None, should be increasing

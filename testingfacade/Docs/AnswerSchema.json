@@ -16,7 +16,7 @@
         "description": "Answer or answers to be verified",
         "anyOf": [
           {
-            "description": "Multi answer response",
+            "description": "Multi choice response",
             "type": "array",
             "items": [
               {
@@ -28,7 +28,7 @@
             ]
           },
           {
-            "description": "Single answer response",
+            "description": "Single choice response",
             "type": "string"
           },
           {

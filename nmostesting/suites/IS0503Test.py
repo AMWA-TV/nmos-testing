@@ -94,7 +94,7 @@ class IS0503Test(ControllerTest):
                                 if r['registered'] and r['connectable']]
 
             actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="checkbox")['answer_response']
+                question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect Receiver identified')
@@ -329,7 +329,7 @@ class IS0503Test(ControllerTest):
                                if r['answer_str'] == receiver['answer_str']][0]
 
             actual_answer = self._invoke_testing_facade(
-                question, possible_answers, test_type="radio")['answer_response']
+                question, possible_answers, test_type="single_choice")['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect receiver identified')
@@ -349,7 +349,7 @@ class IS0503Test(ControllerTest):
                          'description': receiver['description']}}
 
             actual_answer = self._invoke_testing_facade(
-                question, possible_answers, test_type="radio", multipart_test=1, metadata=metadata)['answer_response']
+                question, possible_answers, test_type="single_choice", multipart_test=1, metadata=metadata)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')

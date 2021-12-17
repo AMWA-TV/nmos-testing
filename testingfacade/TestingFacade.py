@@ -49,7 +49,7 @@ def index():
         if 'answer' in form:
             json_data = json.loads(form['all_data'])
 
-            if json_data['test_type'] == 'checkbox':
+            if json_data['test_type'] == 'multi_choice':
                 json_data['answer_response'] = request.form.getlist('answer')
             else:
                 json_data['answer_response'] = form['answer']

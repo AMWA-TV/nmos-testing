@@ -21,10 +21,10 @@
             "description": "String indicating the type of question being sent. ",
             "anyOf": [
                 {
-                    "radio": {
+                    "single_choice": {
                         "description": "A single answer_id is expected and should be used to return a string"
                     },
-                    "checkbox": {
+                    "multi_choice": {
                         "description": "Multiple answer_id's are expected and should be used to return a list of strings"
                     },
                     "action": {
@@ -113,13 +113,13 @@
                     "description": "Null entry when sent from test suite"
                 },
                 {
-                    "description": "A single answer string, for 'radio' type questions",
+                    "description": "A single answer string, for 'single_choice' type questions",
                     "examples": [
                         "answer_1"
                     ]
                 },
                 {
-                    "description": "Multiple answer strings, for 'checkbox' type questions",
+                    "description": "Multiple answer strings, for 'multi_choice' type questions",
                     "examples": [
                         ["answer_1", "answer_5"]
                     ]

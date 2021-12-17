@@ -97,8 +97,12 @@
                             <ul class="list-group list-group-flush">
                                 {% for answer in answers %}
                                     <li class="list-group-item">
-                                        <input class="form-check-input" type="{{ test_type }}" name="answer" id="{{ answer.answer_id }}" value="{{ answer.answer_id }}">
-                                        <label class="form-check-label" for="{{ answer.answer_id }}">{{ answer.answer_str }}</label>
+                                        {% if test_type == "single_choice" %}
+                                            <input class="form-check-input" type="radio" name="answer" id="{{ answer.answer_id }}" value="{{ answer.answer_id }}">
+                                        {% elif test_type == "multi_choice" %}
+                                            <input class="form-check-input" type="checkbox" name="answer" id="{{ answer.answer_id }}" value="{{ answer.answer_id }}">
+                                        {% endif %}
+                                            <label class="form-check-label" for="{{ answer.answer_id }}">{{ answer.answer_str }}</label>
                                     </li>
                                 {% endfor %}
                             </ul>

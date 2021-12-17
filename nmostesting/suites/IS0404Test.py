@@ -137,7 +137,7 @@ class IS0404Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered']]
 
             actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="checkbox")['answer_response']
+                question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect sender identified')
@@ -180,7 +180,7 @@ class IS0404Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered']]
 
             actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="checkbox")['answer_response']
+                question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect receiver identified')
@@ -240,7 +240,7 @@ class IS0404Test(ControllerTest):
             question = 'Please refresh your NCuT and select the sender which has been put \'offline\''
 
             actual_answer = self._invoke_testing_facade(
-                question, possible_answers, test_type="radio", multipart_test=1)['answer_response']
+                question, possible_answers, test_type="single_choice", multipart_test=1)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Offline/online sender not handled: Incorrect sender identified')
