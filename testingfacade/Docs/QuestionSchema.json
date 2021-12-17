@@ -22,12 +22,15 @@
             "anyOf": [
                 {
                     "single_choice": {
+                        "type": "string",
                         "description": "A single answer_id is expected and should be used to return a string"
                     },
                     "multi_choice": {
+                        "type": "string",
                         "description": "Multiple answer_id's are expected and should be used to return a list of strings"
                     },
                     "action": {
+                        "type": "null",
                         "description": "Instructions to be carried out by the user, no answer to return"
                     }
                 }
@@ -35,20 +38,20 @@
             ]
         },
         "question_id": {
-            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id.",
-            "type": "string"
+            "type": "string",
+            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id."
         },
         "name": {
-            "description": "The test name, indicating the test that sent the question.",
-            "type": "string"
+            "type": "string",
+            "description": "The test name, indicating the test that sent the question."
         },
         "description": {
-            "description": "A brief description of the test",
-            "type": "string"
+            "type": "string",
+            "description": "A brief description of the test"
         },
         "question": {
-            "description": "Human readable question text containing instructions to carry out the test",
-            "type": "string"
+            "type": "string",
+            "description": "Human readable question text containing instructions to carry out the test"
         },
         "answers": {
             "type": "array",
@@ -66,6 +69,7 @@
             ],
             "items": {
                 "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
+                "type": "array",
                 "required": [
                     "answer_id",
                     "label",
@@ -75,40 +79,40 @@
                 ],
                 "properties": {
                     "answer_id": {
-                        "description": "String, unique to each answer within a question. This is the value to be returned for validation.",
-                        "type": "string"
+                        "type": "string",
+                        "description": "String, unique to each answer within a question. This is the value to be returned for validation."
                     },
                     "label": {
-                        "description": "Resource label as might be displayed on the NCuT",
-                        "type": "string"
+                        "type": "string",
+                        "description": "Resource label as might be displayed on the NCuT"
                     },
                     "description": {
-                        "description": "Resource description as might be displayed on the NCuT",
-                        "type": "string"
+                        "type": "string",
+                        "description": "Resource description as might be displayed on the NCuT"
                     },
                     "id": {
-                        "description": "Resource ID as might be displayed on the NCuT",
-                        "type": "string"
+                        "type": "string",
+                        "description": "Resource ID as might be displayed on the NCuT"
                     },
                     "answer_str": {
-                        "description": "String combining all the resource details for display on the testing facade",
-                        "type": "string"
+                        "type": "string",
+                        "description": "String combining all the resource details for display on the testing facade"
                     }
                 }
             }
         },
         "time_sent": {
-            "description": "Time the question was sent",
-            "type": "number"
+            "type": "string",
+            "description": "Time the question was sent"
         },
         "timeout": {
+            "type": "string",
             "description": "Time in seconds the test suite will wait to receive an answer to a particular question",
-            "type": "number",
             "default": 600
         },
         "url_for_response": {
-            "description": "URL of the test suite API endpoint to send the POST request with answers",
-            "type": "string"
+            "type": "string",
+            "description": "URL of the test suite API endpoint to send the POST request with answers"
         },
         "answer_response": {
             "description": "Null when received. Should be filled with answer_ids according to question type when POSTed back to url_for_response",
@@ -135,13 +139,16 @@
             ]
         },
         "time_answered": {
+            "type": "string",
             "description": "Null when received. Should be filled with float string of time answered when returned",
             "default": ""
         },
         "metadata": {
+            "type": "array",
             "description": "Details of Sender and Receiver where specified in the question text for IS-05 tests",
             "properties": {
                 "sender": {
+                    "type": "array",
                     "description": "Details of sender chosen to be part of IS-05 connection management test",
                     "required": [
                         "id",
@@ -150,17 +157,21 @@
                     ],
                     "properties": {
                         "id": {
+                            "type": "string",
                             "description": "ID of sender as might be shown on NCut"
                         },
                         "label": {
+                            "type": "string",
                             "description": "Label of sender as might be shown on NCuT"
                         },
                         "description": {
+                            "type": "string",
                             "description": "Description of sender as might be shown on NCuT"
                         }
                     }
                 },
                 "receiver": {
+                    "type": "array",
                     "description": "Details of receiver chosen to be part of IS-05 connection maagement test",
                     "required": [
                         "id",
@@ -169,12 +180,15 @@
                     ],
                     "properties": {
                         "id": {
+                            "type": "string",
                             "description": "ID of receiver as might be shown on NCuT"
                         },
                         "label": {
+                            "type": "string",
                             "description": "Label of receiver as might be shown on NCuT"
                         },
                         "description": {
+                            "type": "string",
                             "description": "Description of receiver as might be shown on NCuT"
                         }
                     }
