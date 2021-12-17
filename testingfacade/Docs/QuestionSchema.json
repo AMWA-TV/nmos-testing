@@ -18,7 +18,7 @@
     ],
     "properties": {
         "test_type": {
-            "description": "String indicating the type of question being sent. ",
+            "description": "String indicating the type of question being sent.",
             "anyOf": [
                 {
                     "single_choice": {
@@ -35,16 +35,20 @@
             ]
         },
         "question_id": {
-            "description": "A unique string for each individual question"
+            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id.",
+            "type": "string"
         },
         "name": {
-            "description": "The test name, identical to the question_id unless a test contains multiple questions"
+            "description": "The test name, indicating the test that sent the question.",
+            "type": "string"
         },
         "description": {
-            "description": "String, a brief description of the test"
+            "description": "A brief description of the test",
+            "type": "string"
         },
         "question": {
-            "description": "String, human readable question text containing instructions to carry out the test"
+            "description": "Human readable question text containing instructions to carry out the test",
+            "type": "string"
         },
         "answers": {
             "type": "array",
@@ -60,49 +64,51 @@
                     }
                 ]
             ],
-            "additionalItems": true,
             "items": {
-                "anyOf": [
-                    {
-                        "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
-                        "required": [
-                            "answer_id",
-                            "label",
-                            "description",
-                            "id",
-                            "answer_str"
-                        ],
-                        "properties": {
-                            "answer_id": {
-                                "description": "String, unique to each answer within a question. This is the value to be returned for validation."
-                            },
-                            "label": {
-                                "description": "Resource label as might be displayed on the NCuT"
-                            },
-                            "description": {
-                                "description": "Resource description as might be displayed on the NCuT"
-                            },
-                            "id": {
-                                "description": "Resource ID as might be displayed on the NCuT"
-                            },
-                            "answer_str": {
-                                "description": "String combining all the resource details for display on the testing facade"
-                            }
-                        },
-                        "additionalProperties": true
+                "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
+                "required": [
+                    "answer_id",
+                    "label",
+                    "description",
+                    "id",
+                    "answer_str"
+                ],
+                "properties": {
+                    "answer_id": {
+                        "description": "String, unique to each answer within a question. This is the value to be returned for validation.",
+                        "type": "string"
+                    },
+                    "label": {
+                        "description": "Resource label as might be displayed on the NCuT",
+                        "type": "string"
+                    },
+                    "description": {
+                        "description": "Resource description as might be displayed on the NCuT",
+                        "type": "string"
+                    },
+                    "id": {
+                        "description": "Resource ID as might be displayed on the NCuT",
+                        "type": "string"
+                    },
+                    "answer_str": {
+                        "description": "String combining all the resource details for display on the testing facade",
+                        "type": "string"
                     }
-                ]
+                }
             }
         },
         "time_sent": {
-            "description": "Float, time the question was sent"
+            "description": "Time the question was sent",
+            "type": "number"
         },
         "timeout": {
-            "description": "Float, time in seconds the test suite will wait to receive an answer to a particular question",
+            "description": "Time in seconds the test suite will wait to receive an answer to a particular question",
+            "type": "number",
             "default": 600
         },
         "url_for_response": {
-            "description": "URL of the test suite API endpoint to send the POST request with answers"
+            "description": "URL of the test suite API endpoint to send the POST request with answers",
+            "type": "string"
         },
         "answer_response": {
             "description": "Null when received. Should be filled with answer_ids according to question type when POSTed back to url_for_response",
@@ -113,12 +119,14 @@
                     "description": "Null entry when sent from test suite"
                 },
                 {
+                    "type": "string",
                     "description": "A single answer string, for 'single_choice' type questions",
                     "examples": [
                         "answer_1"
                     ]
                 },
                 {
+                    "type": "string",
                     "description": "Multiple answer strings, for 'multi_choice' type questions",
                     "examples": [
                         ["answer_1", "answer_5"]
@@ -131,10 +139,10 @@
             "default": ""
         },
         "metadata": {
-            "description": "Details of Sender and Receiver where specified in the question text for IS05 tests",
+            "description": "Details of Sender and Receiver where specified in the question text for IS-05 tests",
             "properties": {
                 "sender": {
-                    "description": "Details of sender chosen to be part of IS05 connection management test",
+                    "description": "Details of sender chosen to be part of IS-05 connection management test",
                     "required": [
                         "id",
                         "label",
@@ -153,7 +161,7 @@
                     }
                 },
                 "receiver": {
-                    "description": "Details of receiver chosen to be part of IS05 connection maagement test",
+                    "description": "Details of receiver chosen to be part of IS-05 connection maagement test",
                     "required": [
                         "id",
                         "label",

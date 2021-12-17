@@ -1,6 +1,6 @@
 {
     "title": "Controller Testing - POST request to testing tool",
-    "description": "Contains answers to be verified by the test suite",
+    "description": "Contains answers to a question to be verified by the test suite",
     "$schema": "http://json-schema.org/draft-04/schema#",
     "required": [
       "name",
@@ -18,11 +18,10 @@
           {
             "description": "Multi choice response",
             "type": "array",
-            "items": [
+            "items": 
               {
                 "type": "string"
-              }
-            ],
+              },
             "examples": [
               ["answer_1", "answer_3"]
             ]
