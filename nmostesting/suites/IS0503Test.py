@@ -134,13 +134,13 @@ class IS0503Test(ControllerTest):
                        """\
                        + sender['answer_str'] + \
                        """
-                       
+
                        and receiver:
 
                        """\
                        + receiver['answer_str'] + \
                        """
-                       
+
                        Click the 'Next' button once the connection is active.
                        """
 
@@ -380,7 +380,8 @@ class IS0503Test(ControllerTest):
                          'description': receiver['description']}}
 
             actual_answer = self._invoke_testing_facade(
-                question, possible_answers, test_type="single_choice", multipart_test=1, metadata=metadata)['answer_response']
+                question, possible_answers, test_type="single_choice",
+                multipart_test=1, metadata=metadata)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
