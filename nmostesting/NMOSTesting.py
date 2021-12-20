@@ -190,8 +190,12 @@ TEST_DEFINITIONS = {
     "IS-04-04": {
         "name": "IS-04 Controller",
         "specs": [{
+            "spec_key": "controller-tests",
+            "api_key": "testingfacade"
+        }, {
             "spec_key": "is-04",
-            "api_key": "controller-tests"
+            "api_key": "node",
+            "disable_fields": ["host", "port", "version"]
         }],
         "class": IS0404Test.IS0404Test
     },
@@ -217,8 +221,16 @@ TEST_DEFINITIONS = {
     "IS-05-03": {
         "name": "IS-05 Controller",
         "specs": [{
+            "spec_key": "controller-tests",
+            "api_key": "testingfacade"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["host", "port"]
+        }, {
             "spec_key": "is-05",
-            "api_key": "controller-tests"
+            "api_key": "connection",
+            "disable_fields": ["host", "port", "version"]
         }],
         "class": IS0503Test.IS0503Test
     },

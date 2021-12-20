@@ -31,7 +31,7 @@ from .NMOSUtils import NMOSUtils
 
 from flask import Flask, Blueprint, request
 
-CONTROLLER_TEST_API_KEY = "controller-tests"
+CONTROLLER_TEST_API_KEY = "testingfacade"
 CALLBACK_ENDPOINT = "/testingfacade_response"
 
 # asyncio queue for passing Testing Façade answer responses back to tests
@@ -71,6 +71,8 @@ class ControllerTest(GenericTest):
     Testing initial set up of new test suite for controller testing
     """
     def __init__(self, apis, registries, node, dns_server, disable_auto=True):
+        # Remove the spec_path as there are no corresponding GitHib repos for Controller Tests
+        apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
         GenericTest.__init__(self, apis, disable_auto=disable_auto)
         self.authorization = False
         self.primary_registry = registries[1]
@@ -182,8 +184,8 @@ class ControllerTest(GenericTest):
         # Send questions to Testing Façade API endpoint then wait
         valid, response = self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json=json_out)
 
-        if not valid:
-            raise TestingFacadeException("Problem contacting Testing Façade: " + response)
+        if not valid or response.status_code != 200:
+            raise TestingFacadeException("Problem contacting Testing Façade: " + response.text)
 
         return json_out
 
