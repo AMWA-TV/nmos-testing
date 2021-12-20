@@ -79,14 +79,18 @@ class IS0503Test(ControllerTest):
 
         try:
             # Check receivers
-            question = 'Some of the discovered Receivers are controllable via IS-05, for instance, ' \
-                'allowing Senders to be connected. ' \
-                'Additional Receivers have just been registered with the Registry, ' \
-                'a subset of which have a connection API.\n\n' \
-                'Please refresh your NCuT and select the Receivers ' \
-                'that have a connection API from the list below.\n\n' \
-                'Be aware that if your NCuT only displays Receivers which have a connection API, ' \
-                'some of the Receivers in the following list may not be visible.'
+            question = """\
+                       Some of the discovered Receivers are controllable via IS-05, for instance, \
+                       allowing Senders to be connected. \
+                       Additional Receivers have just been registered with the Registry, \
+                       a subset of which have a connection API.
+
+                       Please refresh your NCuT and select the Receivers \
+                       that have a connection API from the list below.
+
+                       Be aware that if your NCuT only displays Receivers which have a connection API, \
+                       some of the Receivers in the following list may not be visible.
+                       """
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
                                  'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
                                 for i, r in enumerate(self.receivers)]
@@ -122,12 +126,23 @@ class IS0503Test(ControllerTest):
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
             receiver = random.choice(registered_receivers)
 
-            question = 'All flows that are available in a Sender should be able to be connected to a Receiver. \n\n' \
-                'Use the NCuT to perform an \'immediate\' activation between sender: \n\n' \
-                + sender['answer_str'] + ' \n\n' \
-                'and receiver: \n\n' \
-                + receiver['answer_str'] + ' \n\n' \
-                'Click the \'Next\' button once the connection is active.'
+            question = """\
+                       All flows that are available in a Sender should be able to be connected to a Receiver.
+
+                       Use the NCuT to perform an 'immediate' activation between sender:
+
+                       """\
+                       + sender['answer_str'] + \
+                       """
+                       
+                       and receiver:
+
+                       """\
+                       + receiver['answer_str'] + \
+                       """
+                       
+                       Click the 'Next' button once the connection is active.
+                       """
 
             possible_answers = []
 
@@ -225,12 +240,24 @@ class IS0503Test(ControllerTest):
             # Clear staged requests once connection has been set up
             self.node.clear_staged_requests()
 
-            question = 'IS-05 provides a mechanism for removing an active connection through its API. \n\n' \
-                'Use the NCuT to remove the connection between sender: \n\n'\
-                + sender['answer_str'] + ' \n\n'\
-                'and receiver: \n\n' \
-                + receiver['answer_str'] + ' \n\n'\
-                'Click the \'Next\' button once the connection has been removed.'
+            question = """\
+                       IS-05 provides a mechanism for removing an active connection through its API.
+
+                       Use the NCuT to remove the connection between sender:
+
+                       """\
+                       + sender['answer_str'] + \
+                       """
+
+                       and receiver:
+
+                       """\
+                       + receiver['answer_str'] + \
+                       """
+
+                       Click the 'Next' button once the connection has been removed.
+                       """
+
             possible_answers = []
 
             metadata = {'sender':
@@ -319,9 +346,13 @@ class IS0503Test(ControllerTest):
             self.do_request('PATCH', activate_url, json=activate_json)
 
             # Identify which Receiver has been activated
-            question = 'The NCuT should be able to monitor ' \
-                'and update the connection status of all registered Devices. \n\n' \
-                'Use the NCuT to identify the receiver that has just been connected.'
+            question = """\
+                       The NCuT should be able to monitor \
+                       and update the connection status of all registered Devices.
+
+                       Use the NCuT to identify the receiver that has just been connected.
+                       """
+
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
                                  'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
                                 for i, r in enumerate(registered_receivers) if r['registered']]
@@ -358,8 +389,11 @@ class IS0503Test(ControllerTest):
             max_time_to_answer = 30
 
             # Indicate when connection has gone offline
-            question = 'The connection on the following receiver will be disconnected ' \
-                'at a random moment within the next ' + str(max_time_until_online) + ' seconds.\n\n' \
+            question = """\
+                       The connection on the following receiver will be disconnected ' \
+                       at a random moment within the next \
+                       """\
+                       + str(max_time_until_online) + ' seconds.\n\n' \
                 + receiver['answer_str'] + ' \n\n' \
                 'As soon as the NCuT detects the connection is inactive please press the \'Next\' button. \n\n' \
                 'The button must be pressed within ' + str(max_time_to_answer) + ' seconds ' \

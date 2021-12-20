@@ -518,22 +518,42 @@ class ControllerTest(GenericTest):
         dns_sd_enabled = CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast"
 
         paragraphs = []
-        paragraphs.append('These tests validate an NMOS Controller under Test (NCuT).\n\n')
+        paragraphs.append("""\
+                          These tests validate an NMOS Controller under Test (NCuT).
 
+                          """)
         paragraphs.append('A Test AMWA IS-04 reference Registry is available on the network')
+        paragraphs.append("""\
+                           and is being advertised via unicast DNS-SD.
 
-        paragraphs.append(' and is being advertised via unicast DNS-SD.\n\n' if dns_sd_enabled else '.\n\n')
+                          """
+                          if dns_sd_enabled else
+                          """\
+                          .
+
+                          """)
+        paragraphs.append(
+            """\
+            Please ensure that the following configuration has been set on the NCuT machine.
+
+            * Ensure that the primary DNS of the NCuT machine has been set to \"""" + get_default_ip() + """\".
+            * Ensure that the NCuT unicast search domain is set to \"""" + CONFIG.DNS_DOMAIN + """\".
+
+            Alternatively it """
+            if dns_sd_enabled else
+            "It ")
 
         paragraphs.append(
-            'Please ensure that the following configuration has been set on the NCuT machine.\n\n '
-            '* Ensure that the primary DNS of the NCuT machine has been set to \"' + get_default_ip() + '\". \n'
-            '* Ensure that the NCuT unicast search domain is set to \"' + CONFIG.DNS_DOMAIN + '\". \n\n'
-            'Alternatively it ' if dns_sd_enabled else 'It ')
+            """\
+            is possible to reach the Registry via the following URL:
 
-        paragraphs.append(
-            'is possible to reach the Registry via the following URL:\n\n' + self.mock_registry_base_url +
-            'x-nmos/query/v1.3\n\n'
-            'Please ensure the NCuT has located the test AMWA IS-04 Registry before clicking the \'Next\' button.')
+            """
+            + self.mock_registry_base_url +
+            """\
+            x-nmos/query/v1.3
+
+            Please ensure the NCuT has located the test AMWA IS-04 Registry before clicking the 'Next' button.
+            """)
 
         question = ''.join(paragraphs)
 
@@ -550,7 +570,11 @@ class ControllerTest(GenericTest):
         """
         # Once the tests are complete this post tests message is displayed.
 
-        question = 'NMOS Controller Test Suite complete!\r\n\r\nPlease press the \'Next\' button to exit the tests'
+        question = """\
+                   NMOS Controller Test Suite complete!
+
+                   Please press the 'Next' button to exit the tests.
+                   """
 
         try:
             self._invoke_testing_facade(question, [], test_type="action", timeout=10)

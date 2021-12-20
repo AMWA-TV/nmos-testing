@@ -81,10 +81,10 @@ class IS0404Test(ControllerTest):
                                  "'unicast'")
 
         # The DNS server will log queries that have been specified in set_up_tests()
-        if not self.dns_server.is_query_received():
-            return test.FAIL('DNS was not queried by the NCuT')
+        if self.dns_server.is_query_received():
+            return test.PASS('DNS successfully queried by NCuT')
 
-        return test.PASS('DNS successfully queried by NCuT')
+        return test.FAIL('DNS was not queried by the NCuT')
 
     def test_02(self, test):
         """
@@ -95,11 +95,14 @@ class IS0404Test(ControllerTest):
 
         try:
             # Question 1 connection
-            question = 'Use the NCuT to browse the Senders and Receivers ' \
-                'on the discovered Registry via the selected IS-04 Query API.\n\n' \
-                'Once you have finished browsing click the \'Next\' button. \n\n' \
-                'Successful browsing of the Registry will be automatically logged by the test framework.\n'
+            question = """\
+                       Use the NCuT to browse the Senders and Receivers \
+                       on the discovered Registry via the selected IS-04 Query API.
 
+                       Once you have finished browsing click the 'Next' button.
+
+                       Successful browsing of the Registry will be automatically logged by the test framework.
+                       """
             self._invoke_testing_facade(question, [], test_type="action")
 
             # Fail if the REST Query API was not called, and no query subscriptions were made
@@ -124,13 +127,17 @@ class IS0404Test(ControllerTest):
             # reduce paging limit to force pagination on REST API
             self.primary_registry.paging_limit = 2
             # Check senders
-            question = 'The NCuT should be able to discover all the Senders ' \
-                'that are registered in the Registry.\n\n' \
-                'Refresh the NCuT\'s view of the Registry and carefully select the Senders ' \
-                'that are available from the following list.\n\n' \
-                'For this test the registry paging limit has been set to 2. ' \
-                'If your NCuT implements pagination, you must ensure you view ' \
-                'every available page to complete this test.'
+            question = """\
+                       The NCuT should be able to discover all the Senders \
+                       that are registered in the Registry.
+
+                       Refresh the NCuT\'s view of the Registry and carefully select the Senders \
+                       that are available from the following list.
+
+                       For this test the registry paging limit has been set to 2. \
+                       If your NCuT implements pagination, you must ensure you view \
+                       every available page to complete this test.
+                       """
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
                                  'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
                                 for i, s in enumerate(self.senders)]
@@ -167,13 +174,17 @@ class IS0404Test(ControllerTest):
             self.primary_registry.paging_limit = 2
 
             # Check receivers
-            question = 'The NCuT should be able to discover all the Receivers ' \
-                'that are registered in the Registry.\n\n' \
-                'Refresh the NCuT\'s view of the Registry and carefully select the Receivers ' \
-                'that are available from the following list.\n\n' \
-                'For this test the registry paging limit has been set to 2. ' \
-                'If your NCuT implements pagination, you must ensure you view ' \
-                'every available page to complete this test.'
+            question = """\
+                       The NCuT should be able to discover all the Receivers \
+                       that are registered in the Registry.
+
+                       Refresh the NCuT\'s view of the Registry and carefully select the Receivers \
+                       that are available from the following list.
+
+                       For this test the registry paging limit has been set to 2. \
+                       If your NCuT implements pagination, you must ensure you view \
+                       every available page to complete this test.
+                       """
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
                                  'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
                                 for i, r in enumerate(self.receivers)]
@@ -215,10 +226,14 @@ class IS0404Test(ControllerTest):
         try:
             # Check senders
 
-            question = 'The NCuT should be able to discover and dynamically update all the Senders ' \
-                'that are registered in the Registry.\n\n' \
-                'Use the NCuT to browse and take note of the Senders that are available.\n\n' \
-                'After the \'Next\' button has been clicked one of those senders will be put \'offline\'.'
+            question = """\
+                       The NCuT should be able to discover and dynamically update all the Senders \
+                       that are registered in the Registry.
+
+                       Use the NCuT to browse and take note of the Senders that are available.
+
+                       After the 'Next' button has been clicked one of those senders will be put 'offline'.
+                       """
             possible_answers = []
 
             self._invoke_testing_facade(question, possible_answers, test_type="action")
@@ -237,7 +252,7 @@ class IS0404Test(ControllerTest):
             self.senders[offline_sender_index]['registered'] = False
 
             # Recheck senders
-            question = 'Please refresh your NCuT and select the sender which has been put \'offline\''
+            question = 'Please refresh your NCuT and select the sender which has been put \'offline\'.'
 
             actual_answer = self._invoke_testing_facade(
                 question, possible_answers, test_type="single_choice", multipart_test=1)['answer_response']
@@ -248,12 +263,23 @@ class IS0404Test(ControllerTest):
             max_time_until_online = 60
             max_time_to_answer = 30
 
-            question = 'The sender which was put \'offline\' will come back online at a random moment ' \
-                'within the next ' + str(max_time_until_online) + ' seconds. ' \
-                'As soon as the NCuT detects the sender has come back online please press the \'Next\' button.\n\n' \
-                'The button must be pressed within ' + str(max_time_to_answer) + \
-                ' seconds of the Sender being put back \'online\'. \n\n' \
-                'This includes any latency between the Sender being put \'online\' and the NCuT updating.'
+            question = """\
+                       The sender which was put 'offline' will come back online at a random moment \
+                       within the next \
+                       """\
+                       + str(max_time_until_online) + \
+                       """\
+                        seconds. \
+                       As soon as the NCuT detects the sender has come back online please press the 'Next' button.
+
+                       The button must be pressed within \
+                       """\
+                       + str(max_time_to_answer) + \
+                       """\
+                        seconds of the Sender being put back 'online'.
+
+                       This includes any latency between the Sender being put 'online' and the NCuT updating.
+                       """
             possible_answers = []
 
             # Get the name of the calling test method to use as an identifier
