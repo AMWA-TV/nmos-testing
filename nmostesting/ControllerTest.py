@@ -18,6 +18,7 @@ import json
 import uuid
 import inspect
 import random
+import textwrap
 from copy import deepcopy
 from urllib.parse import urlparse
 from dnslib import QTYPE
@@ -483,47 +484,34 @@ class ControllerTest(GenericTest):
         # pre-requisites or setup required by the Test User. The pre tests message
         # will vary depending on whether or not unicast DNS-SD is being used to discover the mock Registry.
 
-        dns_sd_enabled = CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast"
+        if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
+            registry_text = "A Test AMWA IS-04 reference Registry is available on the network"\
+                            "and is being advertised via unicast DNS-SD."
 
-        paragraphs = []
-        paragraphs.append("""\
-                          These tests validate an NMOS Controller under Test (NCuT).
+            config_text = textwrap.dedent(f"""\
+                          Please ensure that the following configuration has been set on the NCuT machine.
 
+                          * Ensure that the primary DNS of the NCuT machine has been set to \"{get_default_ip()}\".
+                          * Ensure that the NCuT unicast search domain is set to \"{CONFIG.DNS_DOMAIN}\".
+
+                          Alternatively it\
                           """)
-        paragraphs.append('A Test AMWA IS-04 reference Registry is available on the network')
-        paragraphs.append("""\
-                           and is being advertised via unicast DNS-SD.
+        else:
+            registry_text = "A Test AMWA IS-04 reference Registry is available on the network."\
 
-                          """
-                          if dns_sd_enabled else
-                          """\
-                          .
+            config_text = "It"
 
-                          """)
-        paragraphs.append(
-            """\
-            Please ensure that the following configuration has been set on the NCuT machine.
+        question = textwrap.dedent(f"""\
+                   These tests validate an NMOS Controller under Test (NCuT).
 
-            * Ensure that the primary DNS of the NCuT machine has been set to \"""" + get_default_ip() + """\".
-            * Ensure that the NCuT unicast search domain is set to \"""" + CONFIG.DNS_DOMAIN + """\".
+                   {registry_text}
 
-            Alternatively it """
-            if dns_sd_enabled else
-            "It ")
+                   {config_text} is possible to reach the Registry via the following URL:
 
-        paragraphs.append(
-            """\
-            is possible to reach the Registry via the following URL:
+                   {self.mock_registry_base_url}x-nmos/query/v1.3
 
-            """
-            + self.mock_registry_base_url +
-            """\
-            x-nmos/query/v1.3
-
-            Please ensure the NCuT has located the test AMWA IS-04 Registry before clicking the 'Next' button.
-            """)
-
-        question = ''.join(paragraphs)
+                   Please ensure the NCuT has located the test AMWA IS-04 Registry before clicking the 'Next' button.
+                   """)
 
         try:
             self._invoke_testing_facade(question, [], test_type="action", timeout=600)

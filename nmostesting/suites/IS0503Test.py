@@ -19,6 +19,7 @@
 import time
 import inspect
 import random
+import textwrap
 
 from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
 
@@ -126,23 +127,19 @@ class IS0503Test(ControllerTest):
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
             receiver = random.choice(registered_receivers)
 
-            question = """\
+            question = textwrap.dedent(f"""\
                        All flows that are available in a Sender should be able to be connected to a Receiver.
 
                        Use the NCuT to perform an 'immediate' activation between sender:
 
-                       """\
-                       + sender['answer_str'] + \
-                       """
+                       {sender['answer_str']}
 
                        and receiver:
 
-                       """\
-                       + receiver['answer_str'] + \
-                       """
+                       {receiver['answer_str']}
 
                        Click the 'Next' button once the connection is active.
-                       """
+                       """)
 
             possible_answers = []
 
@@ -240,23 +237,19 @@ class IS0503Test(ControllerTest):
             # Clear staged requests once connection has been set up
             self.node.clear_staged_requests()
 
-            question = """\
+            question = textwrap.dedent(f"""\
                        IS-05 provides a mechanism for removing an active connection through its API.
 
                        Use the NCuT to remove the connection between sender:
 
-                       """\
-                       + sender['answer_str'] + \
-                       """
+                       {sender['answer_str']}
 
                        and receiver:
 
-                       """\
-                       + receiver['answer_str'] + \
-                       """
+                       {receiver['answer_str']}
 
                        Click the 'Next' button once the connection has been removed.
-                       """
+                       """)
 
             possible_answers = []
 
@@ -366,8 +359,12 @@ class IS0503Test(ControllerTest):
                 return test.FAIL('Incorrect receiver identified')
 
             # Identify a connection
-            question = 'Use the NCuT to identify the sender currently connected to receiver: \n\n' \
-                + receiver['answer_str']
+            question = textwrap.dedent(f"""\
+                       Use the NCuT to identify the sender currently connected to receiver:
+
+                       {receiver['answer_str']}
+                       """)
+
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
                                  'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
                                 for i, s in enumerate(registered_senders) if s['registered']]
@@ -390,16 +387,18 @@ class IS0503Test(ControllerTest):
             max_time_to_answer = 30
 
             # Indicate when connection has gone offline
-            question = """\
-                       The connection on the following receiver will be disconnected ' \
-                       at a random moment within the next \
-                       """\
-                       + str(max_time_until_online) + ' seconds.\n\n' \
-                + receiver['answer_str'] + ' \n\n' \
-                'As soon as the NCuT detects the connection is inactive please press the \'Next\' button. \n\n' \
-                'The button must be pressed within ' + str(max_time_to_answer) + ' seconds ' \
-                'of the connection being removed. \n\n' \
-                'This includes any latency between the connection being removed and the NCuT updating.'
+            question = textwrap.dedent(f"""\
+                       The connection on the following receiver will be disconnected \
+                       at a random moment within the next {max_time_until_online} seconds.
+
+                       {receiver['answer_str']}
+
+                       As soon as the NCuT detects the connection is inactive please press the 'Next' button.\
+                       The button must be pressed within {max_time_to_answer} seconds \
+                       of the connection being removed.
+
+                       This includes any latency between the connection being removed and the NCuT updating.
+                       """)
             possible_answers = []
 
             # Get the name of the calling test method to use as an identifier

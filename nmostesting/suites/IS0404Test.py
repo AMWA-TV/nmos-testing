@@ -19,6 +19,7 @@
 import time
 import inspect
 import random
+import textwrap
 
 from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
@@ -131,7 +132,7 @@ class IS0404Test(ControllerTest):
                        The NCuT should be able to discover all the Senders \
                        that are registered in the Registry.
 
-                       Refresh the NCuT\'s view of the Registry and carefully select the Senders \
+                       Refresh the NCuT's view of the Registry and carefully select the Senders \
                        that are available from the following list.
 
                        For this test the registry paging limit has been set to 2. \
@@ -178,7 +179,7 @@ class IS0404Test(ControllerTest):
                        The NCuT should be able to discover all the Receivers \
                        that are registered in the Registry.
 
-                       Refresh the NCuT\'s view of the Registry and carefully select the Receivers \
+                       Refresh the NCuT's view of the Registry and carefully select the Receivers \
                        that are available from the following list.
 
                        For this test the registry paging limit has been set to 2. \
@@ -263,23 +264,16 @@ class IS0404Test(ControllerTest):
             max_time_until_online = 60
             max_time_to_answer = 30
 
-            question = """\
+            question = textwrap.dedent(f"""\
                        The sender which was put 'offline' will come back online at a random moment \
-                       within the next \
-                       """\
-                       + str(max_time_until_online) + \
-                       """\
-                        seconds. \
+                       within the next {max_time_until_online} seconds. \
                        As soon as the NCuT detects the sender has come back online please press the 'Next' button.
 
-                       The button must be pressed within \
-                       """\
-                       + str(max_time_to_answer) + \
-                       """\
-                        seconds of the Sender being put back 'online'.
+                       The button must be pressed within {max_time_to_answer} seconds of the \
+                       Sender being put back 'online'.
 
                        This includes any latency between the Sender being put 'online' and the NCuT updating.
-                       """
+                       """)
             possible_answers = []
 
             # Get the name of the calling test method to use as an identifier
