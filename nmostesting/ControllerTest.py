@@ -70,8 +70,8 @@ class ControllerTest(GenericTest):
     """
     Testing initial set up of new test suite for controller testing
     """
-    def __init__(self, apis, registries, node, dns_server):
-        GenericTest.__init__(self, apis)
+    def __init__(self, apis, registries, node, dns_server, disable_auto=True):
+        GenericTest.__init__(self, apis, disable_auto=disable_auto)
         self.authorization = False
         self.primary_registry = registries[1]
         self.node = node
@@ -120,52 +120,20 @@ class ControllerTest(GenericTest):
 
         self.mock_registry_base_url = ''
 
-    def set_up_test(self):
-        """Setup performed before EACH test"""
-        self.primary_registry.query_api_called = False
-
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
+
+        # If auto tests the only test and auto tests disabled then return immediately
+        if len(test_names) == 1 and test_names[0] == "auto" and self.disable_auto:
+            return
+
         self.pre_tests_message()
 
         for test_name in test_names:
+            self.primary_registry.query_api_called = False
             self.execute_test(test_name)
 
         self.post_tests_message()
-
-    def execute_test(self, test_name):
-        """Perform a test defined within this class"""
-        self.test_individual = (test_name != "all")
-
-        # Run manually defined tests
-        if test_name == "all":
-            for method_name in dir(self):
-                if method_name.startswith("test_"):
-                    method = getattr(self, method_name)
-                    if callable(method):
-                        print(" * Running " + method_name)
-                        test = Test(inspect.getdoc(method), method_name)
-                        try:
-                            self.set_up_test()
-                            self.result.append(method(test))
-                        except NMOSTestException as e:
-                            self.result.append(e.args[0])
-                        except Exception as e:
-                            self.result.append(self.uncaught_exception(method_name, e))
-
-        # Run a single test
-        if test_name != "auto" and test_name != "all":
-            method = getattr(self, test_name)
-            if callable(method):
-                print(" * Running " + test_name)
-                test = Test(inspect.getdoc(method), test_name)
-                try:
-                    self.set_up_test()
-                    self.result.append(method(test))
-                except NMOSTestException as e:
-                    self.result.append(e.args[0])
-                except Exception as e:
-                    self.result.append(self.uncaught_exception(test_name, e))
 
     async def get_answer_response(self, timeout):
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
