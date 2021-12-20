@@ -109,8 +109,6 @@ class ControllerTest(GenericTest):
         # Set up mock node
         self.node.registry_url = self.mock_registry_base_url
 
-        print('Registry should be available at ' + self.mock_registry_base_url)
-
     def tear_down_tests(self):
         self.primary_registry.disable()
 
