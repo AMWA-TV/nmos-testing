@@ -237,8 +237,8 @@ class ControllerTest(GenericTest):
 
     def _populate_registry(self):
         """Populate registry and mock node with mock senders and receivers"""
-        self.node.remove_senders()  # Remove previouly added senders
-        self.node.remove_receivers()  # Remove previouly added receivers
+        self.node.reset()  # Ensure previouly added senders and receivers are removed
+        self.primary_registry.common.reset()  # Ensure any previouly registered senders and receivers are removed
         sender_ip = 159
 
         # Register node

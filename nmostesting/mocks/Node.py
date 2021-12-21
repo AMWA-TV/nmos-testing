@@ -28,6 +28,9 @@ class Node(object):
         self.port = CONFIG.PORT_BASE + 200 + port_increment
         self.id = str(uuid.uuid4())
         self.registry_url = ''
+        self.reset()
+
+    def reset(self):
         self.staged_requests = []
         self.receivers = {}
         self.senders = {}
@@ -104,9 +107,6 @@ class Node(object):
             'activations': sender_update
         }
 
-    def remove_senders(self):
-        self.senders = {}
-
     def add_receiver(self, receiver):
 
         staged_transport_params = [{
@@ -160,12 +160,6 @@ class Node(object):
             'activations': activations,
             'receiver': receiver
         }
-
-    def remove_receivers(self):
-        self.receivers = {}
-
-    def remove_receiver(self, receiver_id):
-        self.receivers.pop(receiver_id)
 
     def clear_staged_requests(self):
         self.staged_requests = []
