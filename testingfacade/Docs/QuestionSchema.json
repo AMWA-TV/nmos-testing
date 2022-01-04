@@ -18,24 +18,9 @@
     ],
     "properties": {
         "test_type": {
-            "description": "String indicating the type of question being sent.",
-            "anyOf": [
-                {
-                    "single_choice": {
-                        "type": "string",
-                        "description": "A single answer_id is expected and should be used to return a string"
-                    },
-                    "multi_choice": {
-                        "type": "string",
-                        "description": "Multiple answer_id's are expected and should be used to return a list of strings"
-                    },
-                    "action": {
-                        "type": "null",
-                        "description": "Instructions to be carried out by the user, no answer to return"
-                    }
-                }
-
-            ]
+            "type": "string",
+            "description": "The type of question being sent indicating the type of answer that needs to be returned.",
+            "enum": ["single_choice", "multi_choice", "action"]
         },
         "question_id": {
             "type": "string",
@@ -69,7 +54,7 @@
             ],
             "items": {
                 "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
-                "type": "array",
+                "type": "object",
                 "required": [
                     "answer_id",
                     "label",
@@ -80,7 +65,7 @@
                 "properties": {
                     "answer_id": {
                         "type": "string",
-                        "description": "String, unique to each answer within a question. This is the value to be returned for validation."
+                        "description": "ID unique to each answer within a question. This is the value to be returned for validation."
                     },
                     "label": {
                         "type": "string",
@@ -148,7 +133,7 @@
             "description": "Details of Sender and Receiver where specified in the question text for IS-05 tests",
             "properties": {
                 "sender": {
-                    "type": "array",
+                    "type": "object",
                     "description": "Details of sender chosen to be part of IS-05 connection management test",
                     "required": [
                         "id",
@@ -171,8 +156,8 @@
                     }
                 },
                 "receiver": {
-                    "type": "array",
-                    "description": "Details of receiver chosen to be part of IS-05 connection maagement test",
+                    "type": "object",
+                    "description": "Details of receiver chosen to be part of IS-05 connection management test",
                     "required": [
                         "id",
                         "label",
