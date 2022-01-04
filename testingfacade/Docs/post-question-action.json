@@ -8,7 +8,5 @@
     "time_sent": 1639667975.632288, 
     "timeout": 600, 
     "url_for_response": "http://43.195.121.29:5000/testingfacade_response", 
-    "answer_response": "", 
-    "time_answered": "", 
     "metadata": null
 }

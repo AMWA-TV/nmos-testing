@@ -12,8 +12,6 @@
         "time_sent",
         "timeout",
         "url_for_response",
-        "answer_response",
-        "time_answered",
         "metadata"
     ],
     "properties": {
@@ -98,35 +96,6 @@
         "url_for_response": {
             "type": "string",
             "description": "URL of the test suite API endpoint to send the POST request with answers"
-        },
-        "answer_response": {
-            "description": "Null when received. Should be filled with answer_ids according to question type when POSTed back to url_for_response",
-            "default": "",
-            "anyOf": [
-                {
-                    "type": "null",
-                    "description": "Null entry when sent from test suite"
-                },
-                {
-                    "type": "string",
-                    "description": "A single answer string, for 'single_choice' type questions",
-                    "examples": [
-                        "answer_1"
-                    ]
-                },
-                {
-                    "type": "string",
-                    "description": "Multiple answer strings, for 'multi_choice' type questions",
-                    "examples": [
-                        ["answer_1", "answer_5"]
-                    ]
-                }
-            ]
-        },
-        "time_answered": {
-            "type": "string",
-            "description": "Null when received. Should be filled with float string of time answered when returned",
-            "default": ""
         },
         "metadata": {
             "type": "array",
