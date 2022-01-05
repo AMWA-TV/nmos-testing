@@ -21,7 +21,7 @@ import functools
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
-from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER, WEBSOCKET_PORT_BASE
+from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER, WEBSOCKET_PORT_BASE, ENABLE_HTTPS
 from authlib.jose import jwt
 from ..NMOSUtils import NMOSUtils
 from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip
@@ -465,7 +465,7 @@ def query_resource(version, resource):
         abort(authorized)
 
     MIN_SINCE = "0:0"
-    MAX_UNTIL = "9999999999:9999999"
+    MAX_UNTIL = NMOSUtils.get_TAI_time()
 
     base_data = []
 
@@ -522,23 +522,29 @@ def query_resource(version, resource):
 
     # add pagination headers for v1.1 and up
     if NMOSUtils.compare_api_version("v1.1", version) <= 0:
+        protocol = "http"
+        host = get_default_ip()
+        port = str(registry.get_data().port)
+        if ENABLE_HTTPS:
+            protocol = "https"
         link = ""
         if new_until != MAX_UNTIL:
-            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=" + new_until \
+            link += "<" + protocol + "://" + host + ":" + port \
+                + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + new_until \
                 + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
 
         if since != MIN_SINCE:
             if link != "":
                 link += ","
-            link += "<http://localhost:5102/x-nmos/query/v1.3/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
-                + str(registry.paging_limit) + ">; rel=\"first\""
+            link += "<" + protocol + "://" + host + ":" + port \
+                + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
+                + str(registry.paging_limit) + ">; rel=\"prev\""
 
         if link != "":
             response.headers["Link"] = link
         response.headers["X-Paging-Limit"] = registry.paging_limit
         response.headers["X-Paging-Since"] = since
         response.headers["X-Paging-Until"] = new_until
-        response.headers["X-Ancestry-Generations"] = 1
 
     return response
 
