@@ -177,7 +177,7 @@ class ControllerTest(GenericTest):
             "answers": answers,
             "time_sent": time.time(),
             "timeout": question_timeout,
-            "url_for_response": "http://" + get_default_ip() + ":5000" + CALLBACK_ENDPOINT,
+            "answer_uri": "http://" + get_default_ip() + ":5000" + CALLBACK_ENDPOINT,
             "metadata": metadata
         }
         # Send questions to Testing Façade API endpoint then wait

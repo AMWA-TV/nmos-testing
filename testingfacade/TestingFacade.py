@@ -69,7 +69,7 @@ def index():
 def testing_facade_post(version):
     # Should be json from Test Suite with questions
     json_list = ['test_type', 'question_id', 'name', 'description', 'question', 'answers', 'time_sent',
-                 'url_for_response']
+                 'answer_uri']
 
     if 'clear' in request.json and request.json['clear'] == 'True':
         # End of current tests, clear data store

@@ -29,6 +29,6 @@
     ],
     "time_sent": 1630580530.0981488,
     "timeout": 600,
-    "url_for_response": "http://127.0.0.1:5000/testingfacade_response",
+    "answer_uri": "http://127.0.0.1:5000/testingfacade_response",
     "metadata": null
 }

@@ -11,7 +11,7 @@
         "answers",
         "time_sent",
         "timeout",
-        "url_for_response",
+        "answer_uri",
         "metadata"
     ],
     "properties": {
@@ -93,7 +93,7 @@
             "description": "Time in seconds the test suite will wait to receive an answer to a particular question",
             "default": 600
         },
-        "url_for_response": {
+        "answer_uri": {
             "type": "string",
             "description": "URL of the test suite API endpoint to send the POST request with answers"
         },
