@@ -295,7 +295,7 @@ class IS0404Test(ControllerTest):
             self.senders[offline_sender_index]['registered'] = True
 
             # Await/get testing façade response
-            response = self._wait_for_testing_facade(sent_json['name'])
+            response = self._wait_for_testing_facade(sent_json['question_id'])
 
             if response['time_answered'] < expected_time_online:  # Answered before sender put online
                 return test.FAIL('Offline/online sender not handled: Sender not yet online')

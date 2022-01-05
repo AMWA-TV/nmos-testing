@@ -45,30 +45,21 @@ def index():
 
     else:
         form = request.form.to_dict()
+        json_data = json.loads(form['all_data'])
+        answer_json = {'question_id': json_data['question_id'], 'answer_response': None, 'time_answered': time.time()}
 
-        if 'answer' in form:
-            json_data = json.loads(form['all_data'])
-
+        if 'answer' in form or 'Next' in form:
             if json_data['test_type'] == 'multi_choice':
-                json_data['answer_response'] = request.form.getlist('answer')
-            else:
-                json_data['answer_response'] = form['answer']
-
-            json_data['time_answered'] = time.time()
+                answer_json['answer_response'] = request.form.getlist('answer')
+            elif json_data['test_type'] == 'single_choice':
+                answer_json['answer_response'] = form['answer']
 
             # POST to test suite to confirm answer available
-            valid, response = do_request('POST', form['response_url'], json=json_data)
-        elif 'Next' in form:
-            # Test question was instuctions to be confirmed
-            json_data = json.loads(form['all_data'])
-            json_data['answer_response'] = 'Next'
-            json_data['time_answered'] = time.time()
-            # POST to test suite to confirm answer available
-            valid, response = do_request('POST', form['response_url'], json=json_data)
+            valid, response = do_request('POST', form['response_url'], json=answer_json)
         else:
             if 'all_data' in form:
                 # Form was submitted but no answer(s) chosen
-                valid, response = do_request('POST', form['response_url'], json=json.loads(form['all_data']))
+                valid, response = do_request('POST', form['response_url'], json=answer_json)
             return False, "No answer submitted"
 
         return 'Answer set'

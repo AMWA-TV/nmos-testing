@@ -3,13 +3,13 @@
     "description": "Contains answers to a question to be verified by the test suite",
     "$schema": "http://json-schema.org/draft-04/schema#",
     "required": [
-      "name",
+      "question_id",
       "answer_response",
       "time_answered"
     ],
     "properties": {
-      "name": {
-        "description": "Question_id sent to Question API",
+      "question_id": {
+        "description": "Question_id as received on Question API",
         "type": "string"
       },
       "answer_response": {

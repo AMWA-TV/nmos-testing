@@ -56,7 +56,7 @@ class TestingFacadeException(Exception):
 def retrieve_answer():
 
     if request.method == 'POST':
-        if 'name' not in request.json:
+        if 'question_id' not in request.json:
             return 'Invalid JSON received'
 
         _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, request.json)
@@ -188,7 +188,7 @@ class ControllerTest(GenericTest):
 
         return json_out
 
-    def _wait_for_testing_facade(self, test_name, timeout=None):
+    def _wait_for_testing_facade(self, question_id, timeout=None):
 
         question_timeout = timeout if timeout else self.question_timeout
 
@@ -199,14 +199,14 @@ class ControllerTest(GenericTest):
             raise TestingFacadeException("Test timed out")
 
         # Basic integrity check for response json
-        if answer_response['name'] is None:
+        if answer_response['question_id'] is None:
             raise TestingFacadeException("Integrity check failed: result format error: "
                                          + json.dump(answer_response))
 
-        if answer_response['name'] != test_name:
+        if answer_response['question_id'] != question_id:
             raise TestingFacadeException(
-                "Integrity check failed: cannot compare result of " + test_name +
-                " with expected result for " + answer_response['name'])
+                "Integrity check failed: cannot compare result of " + question_id +
+                " with expected result for " + answer_response['question_id'])
 
         return answer_response
 
@@ -217,7 +217,7 @@ class ControllerTest(GenericTest):
         json_out = self._send_testing_facade_questions(
             test_method_name, question, answers, test_type, timeout, multipart_test, metadata)
 
-        return self._wait_for_testing_facade(json_out['name'], timeout)
+        return self._wait_for_testing_facade(json_out['question_id'], timeout)
 
     def _generate_random_indices(self, index_range, min_index_count=2, max_index_count=4):
         """
