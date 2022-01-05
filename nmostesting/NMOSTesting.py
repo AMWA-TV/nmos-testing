@@ -194,7 +194,7 @@ TEST_DEFINITIONS = {
             "api_key": "testingfacade"
         }, {
             "spec_key": "is-04",
-            "api_key": "node",
+            "api_key": "query",
             "disable_fields": ["host", "port", "version"]
         }],
         "class": IS0404Test.IS0404Test
@@ -225,7 +225,7 @@ TEST_DEFINITIONS = {
             "api_key": "testingfacade"
         }, {
             "spec_key": "is-04",
-            "api_key": "node",
+            "api_key": "query",
             "disable_fields": ["host", "port"]
         }, {
             "spec_key": "is-05",
