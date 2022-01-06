@@ -33,6 +33,9 @@ from .NMOSUtils import NMOSUtils
 from flask import Flask, Blueprint, request
 
 CONTROLLER_TEST_API_KEY = "testingfacade"
+QUERY_API_KEY = "query"
+CONN_API_KEY = "connection"
+
 CALLBACK_ENDPOINT = "/testingfacade_response"
 
 # asyncio queue for passing Testing Façade answer responses back to tests
@@ -88,6 +91,11 @@ class ControllerTest(GenericTest):
         # receiver list containing: {'label': '', 'description': '', 'id': '',
         #   'registered': True/False, 'connectable': True/False, 'answer_str': ''}
         self.senders_ip_base = '239.3.14.'  # Random multicast IP to assign to senders
+        self.query_api_version = self.apis[QUERY_API_KEY]["version"] \
+            if QUERY_API_KEY in apis and "version" in self.apis[QUERY_API_KEY] else "v1.3"
+        self.connection_api_version = self.apis[CONN_API_KEY]["version"] \
+            if CONN_API_KEY in apis and "version" in self.apis[CONN_API_KEY] else "v1.1"
+        self.primary_registry.query_api_version = self.query_api_version
 
     def set_up_tests(self):
         if self.dns_server:
@@ -250,8 +258,8 @@ class ControllerTest(GenericTest):
             sender["device_id"] = str(uuid.uuid4())
             sender["flow_id"] = str(uuid.uuid4())
             sender["source_id"] = str(uuid.uuid4())
-            sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/single/senders/" \
-                + sender["id"] + "/transportfile"
+            sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/" + self.connection_api_version \
+                + "/single/senders/" + sender["id"] + "/transportfile"
             sender["version"] = NMOSUtils.get_TAI_time()
             sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
             # Introduce a short delay to ensure unique version numbers.
@@ -270,7 +278,9 @@ class ControllerTest(GenericTest):
         for receiver in self.receivers:
             receiver["id"] = str(uuid.uuid4())
             receiver["device_id"] = str(uuid.uuid4())
-            receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
+            receiver["controls_href"] = self.mock_node_base_url + "x-nmos/connection/" \
+                + self.connection_api_version + "/"
+            receiver["controls_type"] = "urn:x-nmos:control:sr-ctrl/" + self.connection_api_version
             receiver["version"] = NMOSUtils.get_TAI_time()
             receiver["answer_str"] = self._format_device_metadata(
                     receiver['label'], receiver['description'], receiver['id'])
@@ -379,7 +389,9 @@ class ControllerTest(GenericTest):
         device_data["label"] = "AMWA Test Device"
         device_data["description"] = "AMWA Test Device"
         device_data["node_id"] = self.node.id
-        device_data["controls"][0]["href"] = self.mock_node_base_url + "x-nmos/connection/v1.0/"
+        device_data["controls"][0]["href"] = self.mock_node_base_url + "x-nmos/connection/" \
+            + self.connection_api_version + "/"
+        device_data["controls"][0]["type"] = "urn:x-nmos:control:sr-ctrl/" + self.connection_api_version
         device_data["senders"] = [sender["id"]]
         device_data["receivers"] = []
         device_data["version"] = sender["version"]
@@ -444,6 +456,7 @@ class ControllerTest(GenericTest):
         if receiver["connectable"]:
             # Update the controls data with the URL of the mock node
             device_data["controls"][0]["href"] = receiver['controls_href']
+            device_data["controls"][0]["type"] = receiver['controls_type']
         else:
             # Remove controls data
             device_data["controls"] = []
@@ -506,7 +519,7 @@ class ControllerTest(GenericTest):
 
                    {config_text} is possible to reach the Registry via the following URL:
 
-                   {self.mock_registry_base_url}x-nmos/query/v1.3
+                   {self.mock_registry_base_url}x-nmos/query/{self.query_api_version}
 
                    Please ensure the NCuT has located the test AMWA IS-04 Registry before clicking the 'Next' button.
                    """)

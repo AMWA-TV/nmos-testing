@@ -59,8 +59,8 @@ class Registry(object):
         self.delete_event = Event()
         self.reset()
         self.subscriptions = {}
-        # Query API Id for subscriptions. Hmm is this not defined somewhere already?
         self.query_api_id = str(uuid.uuid4())
+        self.query_api_version = "v1.3"  # to limit advertised API versions
 
     def reset(self):
         self.last_time = time.time()
@@ -428,7 +428,9 @@ def query_root():
     if authorized is not True:
         abort(authorized)
 
-    base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
+    query_api_versions = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
+    max_api_index = query_api_versions.index(str(registry.query_api_version + '/'))
+    base_data = query_api_versions[0:max_api_index + 1]
 
     return Response(json.dumps(base_data), mimetype='application/json')
 

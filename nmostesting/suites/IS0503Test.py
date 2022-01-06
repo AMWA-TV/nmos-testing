@@ -201,7 +201,8 @@ class IS0503Test(ControllerTest):
             deactivate_json = {"transport_params": [{}],
                                "activation": {"mode": "activate_immediate"}}
             deactivate_url = self.mock_node_base_url \
-                + 'x-nmos/connection/v1.0/single/receivers/' + receiver['id'] + '/staged'
+                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
+                + receiver['id'] + '/staged'
             self.do_request('PATCH', deactivate_url, json=deactivate_json)
 
     def test_03(self, test):
@@ -221,7 +222,7 @@ class IS0503Test(ControllerTest):
 
             # Send PATCH request to node to set up connection
             valid, response = self.do_request('GET', self.mock_node_base_url
-                                              + 'x-nmos/connection/v1.0/single/senders/'
+                                              + 'x-nmos/connection/' + self.connection_api_version + '/single/senders/'
                                               + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
             transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
@@ -230,7 +231,8 @@ class IS0503Test(ControllerTest):
                              "master_enable": True,
                              "sender_id": sender['id'],
                              "transport_file": {"data": transport_file, "type": "application/sdp"}}
-            activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' \
+            activate_url = self.mock_node_base_url \
+                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
                 + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
 
@@ -296,7 +298,8 @@ class IS0503Test(ControllerTest):
         finally:
             # Remove subscription
             deactivate_json = {"transport_params": [{}], "activation": {"mode": "activate_immediate"}}
-            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' \
+            deactivate_url = self.mock_node_base_url \
+                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
                 + receiver['id'] + '/staged'
             self.do_request('PATCH', deactivate_url, json=deactivate_json)
 
@@ -325,7 +328,7 @@ class IS0503Test(ControllerTest):
 
             # Send PATCH request to node to set up connection
             valid, response = self.do_request('GET', self.mock_node_base_url
-                                              + 'x-nmos/connection/v1.0/single/senders/'
+                                              + 'x-nmos/connection/' + self.connection_api_version + '/single/senders/'
                                               + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
             transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
@@ -334,7 +337,8 @@ class IS0503Test(ControllerTest):
                              "master_enable": True,
                              "sender_id": sender['id'],
                              "transport_file": {"data": transport_file, "type": "application/sdp"}}
-            activate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' \
+            activate_url = self.mock_node_base_url \
+                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
                 + receiver['id'] + '/staged'
             self.do_request('PATCH', activate_url, json=activate_json)
 
@@ -416,7 +420,8 @@ class IS0503Test(ControllerTest):
 
             # Remove connection
             deactivate_json = {"transport_params": [{}], "activation": {"mode": "activate_immediate"}}
-            deactivate_url = self.mock_node_base_url + 'x-nmos/connection/v1.0/single/receivers/' \
+            deactivate_url = self.mock_node_base_url \
+                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
                 + receiver['id'] + '/staged'
             self.do_request('PATCH', deactivate_url, json=deactivate_json)
 
