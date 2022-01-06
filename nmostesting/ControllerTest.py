@@ -192,7 +192,7 @@ class ControllerTest(GenericTest):
         valid, response = self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json=json_out)
 
         if not valid or response.status_code != 200:
-            raise TestingFacadeException("Problem contacting Testing Façade: " + response)
+            raise TestingFacadeException("Problem contacting Testing Façade: " + response.text)
 
         return json_out
 
