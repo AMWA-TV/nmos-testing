@@ -607,7 +607,7 @@ def post_subscription(version):
                                  'ws_href': subscription['ws_href']}
 
     except SubscriptionException as e:
-        print('Subscription failed: ' + e.args[0])
+        abort(400)
 
     status_code = 201 if created else 200
 
