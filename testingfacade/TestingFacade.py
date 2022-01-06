@@ -87,11 +87,6 @@ def testing_facade_post(version):
     return 'OK'
 
 
-@app.route('/controller_questions/', methods=['GET'], strict_slashes=False)
-def controller_questions_get():
-    return Response(data.getJson(), mimetype='application/json')
-
-
 def do_request(method, url, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
