@@ -422,11 +422,11 @@ class IS0503Test(ControllerTest):
 
             response = self._wait_for_testing_facade(sent_json['question_id'])
 
-            if response['time_answered'] < expected_time_online:  # Answered before connection was removed
+            if response['time_received'] < expected_time_online:  # Answered before connection was removed
                 return test.FAIL('Connection not handled: Connection still active')
-            elif response['time_answered'] > expected_time_online + max_time_to_answer:
+            elif response['time_received'] > expected_time_online + max_time_to_answer:
                 return test.FAIL('Connection not handled: Connection removed ' +
-                                 str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
+                                 str(int(response['time_received'] - expected_time_online)) + ' seconds ago')
             else:
                 return test.PASS('Connection handled correctly')
         except TestingFacadeException as e:

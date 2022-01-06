@@ -32,7 +32,6 @@ class DataStore:
         self.timeout = None
         self.answer_uri = None
         self.answer_response = None
-        self.time_answered = None
         self.status = "Empty"
         self.metadata = None
 
@@ -47,7 +46,6 @@ class DataStore:
         self.timeout = None
         self.answer_uri = None
         self.answer_response = None
-        self.time_answered = None
         self.status = "Empty"
         self.metadata = None
 
@@ -84,7 +82,6 @@ class DataStore:
 
     def setAnswer(self, answer):
         self.answer_response = answer
-        self.time_answered = time.time()
 
     def getTest(self):
         return self.test_type

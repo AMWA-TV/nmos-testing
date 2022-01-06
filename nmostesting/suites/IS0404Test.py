@@ -297,11 +297,11 @@ class IS0404Test(ControllerTest):
             # Await/get testing façade response
             response = self._wait_for_testing_facade(sent_json['question_id'])
 
-            if response['time_answered'] < expected_time_online:  # Answered before sender put online
+            if response['time_received'] < expected_time_online:  # Answered before sender put online
                 return test.FAIL('Offline/online sender not handled: Sender not yet online')
-            elif response['time_answered'] > expected_time_online + max_time_to_answer:
+            elif response['time_received'] > expected_time_online + max_time_to_answer:
                 return test.FAIL('Offline/online sender not handled: Sender online ' +
-                                 str(int(response['time_answered'] - expected_time_online)) + ' seconds ago')
+                                 str(int(response['time_received'] - expected_time_online)) + ' seconds ago')
             else:
                 return test.PASS('Offline/online sender handled correctly')
         except TestingFacadeException as e:

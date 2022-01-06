@@ -46,7 +46,7 @@ def index():
     else:
         form = request.form.to_dict()
         json_data = json.loads(form['all_data'])
-        answer_json = {'question_id': json_data['question_id'], 'answer_response': None, 'time_answered': time.time()}
+        answer_json = {'question_id': json_data['question_id'], 'answer_response': None}
 
         if 'answer' in form or 'Next' in form:
             if json_data['test_type'] == 'multi_choice':

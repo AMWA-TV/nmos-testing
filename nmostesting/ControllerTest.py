@@ -59,9 +59,11 @@ def retrieve_answer():
         if 'question_id' not in request.json:
             return 'Invalid JSON received'
 
-        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, request.json)
+        answer_json = request.json
+        answer_json['time_received'] = time.time()
+        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, answer_json)
 
-        # Interupt any 'sleeps' that are still active
+        # Interrupt any 'sleeps' that are still active
         exitTestEvent.set()
 
     return 'OK'

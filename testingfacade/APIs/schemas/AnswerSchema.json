@@ -4,8 +4,7 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "required": [
       "question_id",
-      "answer_response",
-      "time_answered"
+      "answer_response"
     ],
     "properties": {
       "question_id": {
@@ -35,10 +34,6 @@
             "type": "null"
           }
         ]
-      },
-      "time_answered": {
-        "description": "Currently time in s from unix epoch that answer was sent",
-        "type": "number"
       }
     }
   }
