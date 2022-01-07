@@ -59,8 +59,8 @@ class Registry(object):
         self.delete_event = Event()
         self.reset()
         self.subscriptions = {}
-        # Query API Id for subscriptions. Hmm is this not defined somewhere already?
         self.query_api_id = str(uuid.uuid4())
+        self.query_api_version = "v1.3"  # to limit advertised API versions
 
     def reset(self):
         self.last_time = time.time()
@@ -428,7 +428,9 @@ def query_root():
     if authorized is not True:
         abort(authorized)
 
-    base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
+    query_api_versions = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
+    max_api_index = query_api_versions.index(str(registry.query_api_version + '/'))
+    base_data = query_api_versions[0:max_api_index + 1]
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
@@ -587,10 +589,14 @@ def post_subscription(version):
     created = False
 
     try:
-        subscription, created = registry.subscribe_to_query_api(version, subscription_request["resource_path"])
-
         # Note: 'secure' not required in request, but is required in response
-        secure = subscription_request['secure'] if 'secure' in subscription_request else False
+        secure = subscription_request['secure'] if 'secure' in subscription_request else ENABLE_HTTPS
+
+        # Validate that this mock can satisfy the subscription request
+        if secure or subscription_request['max_update_rate_ms'] > 100 or len(subscription_request['params']) > 0:
+            abort(501)
+
+        subscription, created = registry.subscribe_to_query_api(version, subscription_request["resource_path"])
 
         subscription_response = {'id': subscription["id"],
                                  'max_update_rate_ms': subscription_request['max_update_rate_ms'],

@@ -195,7 +195,7 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "is-04",
             "api_key": "query",
-            "disable_fields": ["host", "port", "version"]
+            "disable_fields": ["host", "port"]
         }],
         "class": IS0404Test.IS0404Test
     },
@@ -230,7 +230,7 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "is-05",
             "api_key": "connection",
-            "disable_fields": ["host", "port", "version"]
+            "disable_fields": ["host", "port"]
         }],
         "class": IS0503Test.IS0503Test
     },
