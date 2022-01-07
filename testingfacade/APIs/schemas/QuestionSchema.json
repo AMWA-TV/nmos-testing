@@ -37,59 +37,67 @@
             "description": "Human readable question text containing instructions to carry out the test"
         },
         "answers": {
-            "type": "array",
-            "description": "Array containing answer objects to be used to select the correct answer_id to be returned.",
-            "examples": [
-                [
-                    {
-                        "answer_id": "answer_2",
-                        "label": "s3/wright",
-                        "description": "Mock sender 3",
-                        "id": "71ce775c-cdc5-479a-bd29-87c081905ecf",
-                        "answer_str": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
-                    }
-                ]
-            ],
-            "items": {
-                "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
-                "type": "object",
-                "required": [
-                    "answer_id",
-                    "label",
-                    "description",
-                    "id",
-                    "answer_str"
-                ],
-                "properties": {
-                    "answer_id": {
-                        "type": "string",
-                        "description": "ID unique to each answer within a question. This is the value to be returned for validation."
-                    },
-                    "label": {
-                        "type": "string",
-                        "description": "Resource label as might be displayed on the NCuT"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Resource description as might be displayed on the NCuT"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Resource ID as might be displayed on the NCuT"
-                    },
-                    "answer_str": {
-                        "type": "string",
-                        "description": "String combining all the resource details for display on the testing facade"
+            "oneOf": [
+                {
+                    "type": "null",
+                    "description": "Action type questions"
+                },
+                {
+                    "type": "array",
+                    "description": "Array containing answer objects to be used to select the correct answer_id to be returned.",
+                    "examples": [
+                        [
+                            {
+                                "answer_id": "answer_2",
+                                "label": "s3/wright",
+                                "description": "Mock sender 3",
+                                "id": "71ce775c-cdc5-479a-bd29-87c081905ecf",
+                                "answer_str": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
+                            }
+                        ]
+                    ],
+                    "items": {
+                        "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
+                        "type": "object",
+                        "required": [
+                            "answer_id",
+                            "label",
+                            "description",
+                            "id",
+                            "answer_str"
+                        ],
+                        "properties": {
+                            "answer_id": {
+                                "type": "string",
+                                "description": "ID unique to each answer within a question. This is the value to be returned for validation."
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "Resource label as might be displayed on the NCuT"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Resource description as might be displayed on the NCuT"
+                            },
+                            "id": {
+                                "type": "string",
+                                "description": "Resource ID as might be displayed on the NCuT"
+                            },
+                            "answer_str": {
+                                "type": "string",
+                                "description": "String combining all the resource details for display on the testing facade"
+                            }
+                        }
                     }
                 }
-            }
+            ]
         },
         "time_sent": {
-            "type": "string",
-            "description": "Time the question was sent"
+            "type": "number",
+            "description": "Time the question was sent, unix timestamp in seconds"
         },
         "timeout": {
-            "type": "string",
+            "type": "number",
             "description": "Time in seconds the test suite will wait to receive an answer to a particular question",
             "default": 600
         },
@@ -98,56 +106,62 @@
             "description": "URL of the test suite API endpoint to send the POST request with answers"
         },
         "metadata": {
-            "type": "array",
-            "description": "Details of Sender and Receiver where specified in the question text for IS-05 tests",
-            "properties": {
-                "sender": {
-                    "type": "object",
-                    "description": "Details of sender chosen to be part of IS-05 connection management test",
-                    "required": [
-                        "id",
-                        "label",
-                        "description"
-                    ],
-                    "properties": {
-                        "id": {
-                            "type": "string",
-                            "description": "ID of sender as might be shown on NCut"
-                        },
-                        "label": {
-                            "type": "string",
-                            "description": "Label of sender as might be shown on NCuT"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Description of sender as might be shown on NCuT"
+            "anyOf": [
+                {
+                    "type": "null"
+                },
+                {
+                    "sender": {
+                        "type": "object",
+                        "description": "Details of sender chosen to be part of IS-05 connection management test",
+                        "required": [
+                            "id",
+                            "label",
+                            "description"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "ID of sender as might be shown on NCuT"
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "Label of sender as might be shown on NCuT"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Description of sender as might be shown on NCuT"
+                            }
                         }
                     }
                 },
-                "receiver": {
-                    "type": "object",
-                    "description": "Details of receiver chosen to be part of IS-05 connection management test",
-                    "required": [
-                        "id",
-                        "label",
-                        "description"
-                    ],
-                    "properties": {
-                        "id": {
-                            "type": "string",
-                            "description": "ID of receiver as might be shown on NCuT"
-                        },
-                        "label": {
-                            "type": "string",
-                            "description": "Label of receiver as might be shown on NCuT"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Description of receiver as might be shown on NCuT"
+                {
+                    "receiver": {
+                        "type": "object",
+                        "description": "Details of receiver chosen to be part of IS-05 connection management test",
+                        "required": [
+                            "id",
+                            "label",
+                            "description"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "ID of receiver as might be shown on NCuT"
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "Label of receiver as might be shown on NCuT"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Description of receiver as might be shown on NCuT"
+                            }
                         }
                     }
                 }
-            }
+            ]
+            
         }
     }
 }
