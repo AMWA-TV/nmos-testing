@@ -508,8 +508,8 @@ def query_resource(version, resource):
 
                 result_count = 0
                 for value in sorted_list:
-                    if NMOSUtils.compare_resource_version(value['version'], since) >= 0 \
-                            and NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                    if NMOSUtils.compare_resource_version(value['version'], since) > 0 \
+                            and NMOSUtils.compare_resource_version(until, value['version']) >= 0:
                         if result_count < registry.paging_limit:
                             base_data.append(value)
                             result_count += 1
