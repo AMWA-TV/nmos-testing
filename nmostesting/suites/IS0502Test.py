@@ -783,7 +783,7 @@ class IS0502Test(GenericTest):
                                 if components in ["YCbCr", "ICtCp", "RGB"]:
                                     if len(flow["components"]) != 3:
                                         return test.FAIL("Video Flow {} components do not match those found in SDP for "
-                                                         "Sender {}", flow["id"], resource["id"])
+                                                         "Sender {}".format(flow["id"], resource["id"]))
                                     if len(sampling_format) > 1:
                                         sampling = sampling_format[1]
                                     else:
