@@ -58,7 +58,7 @@ class Registry(object):
         self.add_event = Event()
         self.delete_event = Event()
         self.reset()
-        self.subscriptions = {}
+        self.subscription_websockets = {}
         self.query_api_id = str(uuid.uuid4())
         self.query_api_version = "v1.3"  # to limit advertised API versions
 
@@ -194,20 +194,24 @@ class Registry(object):
 
     # Query API subscription support methods
 
-    def subscribe_to_query_api(self, version, resource_path):
+    def subscribe_to_query_api(self, version, subscription_request, secure=False):
         """creates a subscription and starts a Subscription WebSocket"""
+        if 'subscription' not in self.get_resources():
+            self.get_resources()['subscription'] = {}
 
-        resource_type = self._get_resource_type(resource_path)
+        resource_type = self._get_resource_type(subscription_request["resource_path"])
 
         resource_types = ['node', 'device', 'source', 'flow', 'sender', 'receiver']
 
         if resource_type not in resource_types:
             raise SubscriptionException("Unknown resource type:" + resource_type
-                                        + " from resource path:" + resource_path)
+                                        + " from resource path:" + subscription_request["resource_path"])
 
-        # return existing subscription for this resource type if it already exists
-        if resource_type in self.subscriptions:
-            return self.subscriptions[resource_type], False  # subscription_created=False
+        subscription = next(iter([subscription for id, subscription in self.get_resources()['subscription'].items()
+                                  if self._get_resource_type(subscription['resource_path']) == resource_type]), None)
+
+        if subscription:
+            return subscription, False
 
         websocket_port = WEBSOCKET_PORT_BASE + resource_types.index(resource_type)
         websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type)
@@ -216,13 +220,18 @@ class Registry(object):
 
         subscription_id = str(uuid.uuid4())
         subscription = {'id': subscription_id,
-                        'resource_path': resource_path,
-                        'websocket': websocket_server,
-                        'query_api_id': self.query_api_id,
+                        'max_update_rate_ms': subscription_request['max_update_rate_ms'],
+                        'params': subscription_request['params'],
+                        'persist': subscription_request['persist'],
+                        'resource_path': subscription_request['resource_path'],
+                        'secure': secure,
                         'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port)
                         + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
-                        'location': '/x-nmos/query/' + version + '/subscriptions/' + subscription_id}
-        self.subscriptions[resource_type] = subscription
+                        'version': NMOSUtils.get_TAI_time()}
+
+        self.subscription_websockets[subscription_id] = websocket_server
+
+        self.get_resources()['subscription'][subscription_id] = subscription
 
         return subscription, True  # subscription_created=True
 
@@ -249,13 +258,14 @@ class Registry(object):
         """ creates a data grain and queues on subscription websocket for resource_type"""
 
         try:
-            subscription = self.subscriptions[resource_type]
+            subscription_id = next(iter([id for id, subscription in self.get_resources()['subscription'].items()
+                                   if self._get_resource_type(subscription['resource_path']) == resource_type]), None)
 
             timestamp = NMOSUtils.get_TAI_time()
 
             data_grain = {'grain_type': 'event',
-                          'source_id': subscription['query_api_id'],
-                          'flow_id': subscription["id"],
+                          'source_id': self.query_api_id,
+                          'flow_id': subscription_id,
                           'origin_timestamp': timestamp,
                           'sync_timestamp': timestamp,
                           'creation_timestamp': timestamp,
@@ -272,7 +282,7 @@ class Registry(object):
                     data['post'] = post_resources[resource_id]
                 data_grain["grain"]["data"].append(data)
 
-            subscription['websocket'].queue_message(json.dumps(data_grain))
+            self.subscription_websockets[subscription_id].queue_message(json.dumps(data_grain))
 
         except KeyError as err:
             print('No subscription for resource type: {0}'.format(err))
@@ -280,11 +290,8 @@ class Registry(object):
     def _close_subscription_websockets(self):
         """ closing websockets will automatically disconnect clients and stop websockets """
 
-        print('Closing registry subscription websockets')
-        for subscription in self.subscriptions.values():
-            subscription['websocket'].close()
-
-        self.subscriptions = {}
+        for id, subscription_websocket in self.subscription_websockets.items():
+            subscription_websocket.close()
 
 
 # 0 = Invalid request testing registry
@@ -474,8 +481,10 @@ def query_resource(version, resource):
     if request.args.get('paging.since') or request.args.get('paging.until'):
         registry.pagination_used = True
 
-    since = request.args.get('paging.since') if request.args.get('paging.since') else MIN_SINCE
-    until = request.args.get('paging.until') if request.args.get('paging.until') else MAX_UNTIL
+    since = request.args.get('paging.since') or MIN_SINCE
+    until = request.args.get('paging.until') or MAX_UNTIL
+    limit = request.args.get('paging.limit') or registry.paging_limit
+
     new_until = until
 
     try:
@@ -506,13 +515,11 @@ def query_resource(version, resource):
                 data_list = [d for k, d in data.items()]
                 sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
 
-                result_count = 0
                 for value in sorted_list:
-                    if NMOSUtils.compare_resource_version(value['version'], since) > 0 \
-                            and NMOSUtils.compare_resource_version(until, value['version']) >= 0:
-                        if result_count < registry.paging_limit:
+                    if NMOSUtils.compare_resource_version(value['version'], since) >= 0 \
+                            and NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                        if len(base_data) < limit:
                             base_data.append(value)
-                            result_count += 1
                         else:
                             new_until = value['version']
                             break
@@ -596,7 +603,7 @@ def post_subscription(version):
         if secure or subscription_request['max_update_rate_ms'] > 100 or len(subscription_request['params']) > 0:
             abort(501)
 
-        subscription, created = registry.subscribe_to_query_api(version, subscription_request["resource_path"])
+        subscription, created = registry.subscribe_to_query_api(version, subscription_request, secure)
 
         subscription_response = {'id': subscription["id"],
                                  'max_update_rate_ms': subscription_request['max_update_rate_ms'],
@@ -606,12 +613,14 @@ def post_subscription(version):
                                  'secure': secure,
                                  'ws_href': subscription['ws_href']}
 
-    except SubscriptionException as e:
+    except SubscriptionException:
         abort(400)
 
     status_code = 201 if created else 200
 
-    return jsonify(subscription_response), status_code, {"Location": subscription.get('location')}
+    location = '/x-nmos/query/' + version + '/subscriptions/' + subscription["id"]
+
+    return jsonify(subscription_response), status_code, {"Location": location}
 
 
 @REGISTRY_API.route('/', methods=["GET"], strict_slashes=False)

@@ -108,7 +108,7 @@ class IS0404Test(ControllerTest):
 
             # Fail if the REST Query API was not called, and no query subscriptions were made
             # The registry will log calls to the Query API endpoints
-            if not self.primary_registry.query_api_called and len(self.primary_registry.subscriptions) == 0:
+            if not self.primary_registry.query_api_called and len(self.primary_registry.subscription_websockets) == 0:
                 return test.FAIL('IS-04 Query API not reached')
 
             return test.PASS('IS-04 Query API reached successfully')
@@ -154,7 +154,7 @@ class IS0404Test(ControllerTest):
                     if answer not in expected_answers:
                         return test.FAIL('Incorrect sender identified')
 
-            if not self.primary_registry.pagination_used and len(self.primary_registry.subscriptions) == 0:
+            if not self.primary_registry.pagination_used and len(self.primary_registry.subscription_websockets) == 0:
                 return test.FAIL('Pagination not exercised')
             return test.PASS('All devices correctly identified')
         except TestingFacadeException as e:
@@ -200,7 +200,7 @@ class IS0404Test(ControllerTest):
                 for answer in actual_answers:
                     if answer not in expected_answers:
                         return test.FAIL('Incorrect receiver identified')
-            if not self.primary_registry.pagination_used and len(self.primary_registry.subscriptions) == 0:
+            if not self.primary_registry.pagination_used and len(self.primary_registry.subscription_websockets) == 0:
                 return test.FAIL('Pagination not exercised')
 
             return test.PASS('All devices correctly identified')
