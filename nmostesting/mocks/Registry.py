@@ -502,11 +502,6 @@ def query_resource(version, resource):
 
     registry.query_api_called = True
 
-    # Check for unsupported Query Syntax
-    for param in request.args:
-        if not param.startswith('paging') and not param == 'id':
-            abort(501)
-
     # Check to see if resource is being requested as a query
     if request.args.get('id'):
         resource_id = request.args.get('id')
