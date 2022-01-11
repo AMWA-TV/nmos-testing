@@ -425,7 +425,7 @@ class IS0503Test(ControllerTest):
                 + receiver['id'] + '/staged'
             self.do_request('PATCH', deactivate_url, json=deactivate_json)
 
-            response = self._wait_for_testing_facade(sent_json['question_id'])
+            response = self._wait_for_testing_facade(sent_json['question_id'], 'action')
 
             if response['time_received'] < expected_time_online:  # Answered before connection was removed
                 return test.FAIL('Connection not handled: Connection still active')
