@@ -219,13 +219,16 @@ class Registry(object):
         websocket_server.start()
 
         subscription_id = str(uuid.uuid4())
+
+        protocol = 'wss' if secure else 'ws'
+
         subscription = {'id': subscription_id,
                         'max_update_rate_ms': subscription_request['max_update_rate_ms'],
                         'params': subscription_request['params'],
                         'persist': subscription_request['persist'],
                         'resource_path': subscription_request['resource_path'],
                         'secure': secure,
-                        'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port)
+                        'ws_href': protocol + '://' + get_default_ip() + ':' + str(websocket_port)
                         + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
                         'version': NMOSUtils.get_TAI_time()}
 
@@ -487,45 +490,46 @@ def query_resource(version, resource):
 
     new_until = until
 
-    try:
-        valid_resource_types = ['device', 'flow', 'node', 'receiver', 'sender', 'source', 'subscription']
+    valid_resource_types = ['device', 'flow', 'node', 'receiver', 'sender', 'source', 'subscription']
 
-        resource_type = resource.rstrip("s")
+    resource_type = resource.rstrip("s")
 
-        if resource_type not in valid_resource_types:
-            error_message = {"code": 404,
-                             "error": "Invalid resource",
-                             "debug": resource_type}
-            return Response(json.dumps(error_message), status=404, mimetype='application/json')
+    if resource_type not in valid_resource_types:
+        error_message = {"code": 404,
+                         "error": "Invalid resource",
+                         "debug": resource_type}
+        return Response(json.dumps(error_message), status=404, mimetype='application/json')
 
-        registry.query_api_called = True
+    registry.query_api_called = True
 
-        # Check to see if resource is being requested as a query
-        if request.args.get('id'):
-            resource_id = request.args.get('id')
-            base_data.append(registry.get_resources()[resource_type][resource_id])
+    # Check for unsupported Query Syntax
+    for param in request.args:
+        if not param.startswith('paging') and not param == 'id':
+            abort(501)
+
+    # Check to see if resource is being requested as a query
+    if request.args.get('id'):
+        resource_id = request.args.get('id')
+        base_data.append(registry.get_resources()[resource_type][resource_id])
+    else:
+        data = registry.get_resources()[resource_type]
+
+        # only paginate for version v1.1 and up
+        if NMOSUtils.compare_api_version("v1.1", version) > 0:
+            for key, value in data.items():
+                base_data.append(value)
         else:
-            data = registry.get_resources()[resource_type]
+            data_list = [d for k, d in data.items()]
+            sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
 
-            # only paginate for version v1.1 and up
-            if NMOSUtils.compare_api_version("v1.1", version) > 0:
-                for key, value in data.items():
-                    base_data.append(value)
-            else:
-                data_list = [d for k, d in data.items()]
-                sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
-
-                for value in sorted_list:
-                    if NMOSUtils.compare_resource_version(value['version'], since) >= 0 \
-                            and NMOSUtils.compare_resource_version(until, value['version']) > 0:
-                        if len(base_data) < limit:
-                            base_data.append(value)
-                        else:
-                            new_until = value['version']
-                            break
-
-    except Exception:
-        pass
+            for value in sorted_list:
+                if NMOSUtils.compare_resource_version(value['version'], since) >= 0 \
+                        and NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                    if len(base_data) < limit:
+                        base_data.append(value)
+                    else:
+                        new_until = value['version']
+                        break
 
     response = Response(json.dumps(base_data), mimetype='application/json')
 
@@ -600,7 +604,7 @@ def post_subscription(version):
         secure = subscription_request['secure'] if 'secure' in subscription_request else ENABLE_HTTPS
 
         # Validate that this mock can satisfy the subscription request
-        if secure or subscription_request['max_update_rate_ms'] > 100 or len(subscription_request['params']) > 0:
+        if secure or subscription_request['max_update_rate_ms'] != 100 or len(subscription_request['params']) > 0:
             abort(501)
 
         subscription, created = registry.subscribe_to_query_api(version, subscription_request, secure)
