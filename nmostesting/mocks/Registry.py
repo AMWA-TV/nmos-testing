@@ -600,7 +600,7 @@ def post_subscription(version):
         secure = subscription_request['secure'] if 'secure' in subscription_request else ENABLE_HTTPS
 
         # Validate that this mock can satisfy the subscription request
-        if secure or subscription_request['max_update_rate_ms'] > 100 or len(subscription_request['params']) > 0:
+        if secure or subscription_request['max_update_rate_ms'] != 100 or len(subscription_request['params']) > 0:
             abort(501)
 
         subscription, created = registry.subscribe_to_query_api(version, subscription_request, secure)
