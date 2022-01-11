@@ -22,9 +22,11 @@ documentation:
     post:
       description: Receive a single answer set for a question
       body:
-        example: ../examples/post-answer-action.json
-        example: ../examples/post-answer-single-choice.json
-        example: ../examples/post-answer-multi-choice.json
+        example: !include ../examples/post-answer-action.json
+        example: !include ../examples/post-answer-single-choice.json
+        example: !include ../examples/post-answer-multi-choice.json
         type: !include schemas/AnswerSchema.json
       responses:
-        200:
+        202:
+        400:
+          description: Returned when question_id is missing from request

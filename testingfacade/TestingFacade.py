@@ -60,7 +60,7 @@ def index():
             if 'all_data' in form:
                 # Form was submitted but no answer(s) chosen
                 valid, response = do_request('POST', form['response_url'], json=answer_json)
-            return False, "No answer submitted"
+            return "No answer submitted", 400
 
         return 'Answer set'
 
@@ -78,13 +78,13 @@ def testing_facade_post(version):
         # Should be a new question
         for entry in json_list:
             if entry not in request.json:
-                return False, "Missing {}".format(entry)
+                return "Missing {}".format(entry), 400
         # All required entries are present so update data
         data.setJson(request.json)
 
     socketio.emit('update', request.json)
 
-    return 'OK'
+    return '', 202
 
 
 def do_request(method, url, **kwargs):

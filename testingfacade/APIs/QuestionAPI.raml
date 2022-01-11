@@ -30,4 +30,6 @@ documentation:
         example: ../examples/post-question-metadata.json
         type: !include schemas/QuestionSchema.json
       responses:
-        200:
+        202:
+        400:
+          description: Returned when a required parameter is missing from request

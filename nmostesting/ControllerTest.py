@@ -60,7 +60,7 @@ def retrieve_answer():
 
     if request.method == 'POST':
         if 'question_id' not in request.json:
-            return 'Invalid JSON received'
+            return 'Invalid JSON received', 400
 
         answer_json = request.json
         answer_json['time_received'] = time.time()
@@ -69,7 +69,7 @@ def retrieve_answer():
         # Interrupt any 'sleeps' that are still active
         exitTestEvent.set()
 
-    return 'OK'
+    return '', 202
 
 
 class ControllerTest(GenericTest):
@@ -193,7 +193,7 @@ class ControllerTest(GenericTest):
         # Send questions to Testing Façade API endpoint then wait
         valid, response = self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json=json_out)
 
-        if not valid or response.status_code != 200:
+        if not valid or response.status_code != 202:
             raise TestingFacadeException("Problem contacting Testing Façade: " + response.text if valid else response)
 
         return json_out
