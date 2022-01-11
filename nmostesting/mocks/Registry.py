@@ -219,13 +219,16 @@ class Registry(object):
         websocket_server.start()
 
         subscription_id = str(uuid.uuid4())
+
+        protocol = 'wss' if secure else 'ws'
+
         subscription = {'id': subscription_id,
                         'max_update_rate_ms': subscription_request['max_update_rate_ms'],
                         'params': subscription_request['params'],
                         'persist': subscription_request['persist'],
                         'resource_path': subscription_request['resource_path'],
                         'secure': secure,
-                        'ws_href': 'ws://' + get_default_ip() + ':' + str(websocket_port)
+                        'ws_href': protocol + '://' + get_default_ip() + ':' + str(websocket_port)
                         + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
                         'version': NMOSUtils.get_TAI_time()}
 
