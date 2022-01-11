@@ -540,21 +540,18 @@ def query_resource(version, resource):
         port = str(registry.get_data().port)
         if ENABLE_HTTPS:
             protocol = "https"
-        link = ""
-        if new_until != MAX_UNTIL:
-            link += "<" + protocol + "://" + host + ":" + port \
-                + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + new_until \
-                + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
+
+        # Always add a next for any resources that are added/modified after "now"
+        link = "<" + protocol + "://" + host + ":" + port \
+            + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + new_until \
+            + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
 
         if since != MIN_SINCE:
-            if link != "":
-                link += ","
-            link += "<" + protocol + "://" + host + ":" + port \
+            link += ",<" + protocol + "://" + host + ":" + port \
                 + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
-                + str(registry.paging_limit) + ">; rel=\"prev\""
+                + str(registry.paging_limit) + ">; rel=\"first\""
 
-        if link != "":
-            response.headers["Link"] = link
+        response.headers["Link"] = link
         response.headers["X-Paging-Limit"] = registry.paging_limit
         response.headers["X-Paging-Since"] = since
         response.headers["X-Paging-Until"] = new_until
