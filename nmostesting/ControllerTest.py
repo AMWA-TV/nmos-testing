@@ -24,8 +24,6 @@ from urllib.parse import urlparse
 from dnslib import QTYPE
 from threading import Event
 
-from dnslib.dns import A
-
 from .GenericTest import GenericTest, NMOSTestException
 from . import Config as CONFIG
 from .TestHelper import get_default_ip
@@ -221,7 +219,7 @@ class ControllerTest(GenericTest):
                 " with expected result for " + answer_response['question_id'])
 
         # Multi_choice question submitted without any answers should be an empty list
-        if test_type == 'multi_choice' and answer_response['answer_response'] == None:
+        if test_type == 'multi_choice' and answer_response['answer_response'] is None:
             answer_response['answer_response'] = []
 
         return answer_response
