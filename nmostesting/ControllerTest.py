@@ -97,7 +97,6 @@ class ControllerTest(GenericTest):
             if QUERY_API_KEY in apis and "version" in self.apis[QUERY_API_KEY] else "v1.3"
         self.connection_api_version = self.apis[CONN_API_KEY]["version"] \
             if CONN_API_KEY in apis and "version" in self.apis[CONN_API_KEY] else "v1.1"
-        self.primary_registry.query_api_version = self.query_api_version
 
     def set_up_tests(self):
         if self.dns_server:
