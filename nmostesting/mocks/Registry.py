@@ -32,7 +32,7 @@ class RegistryCommon(object):
         self.reset()
 
     def reset(self):
-        self.resources = {"node": {}}
+        self.resources = {"node": {}, "subscription": {}}
 
 
 class RegistryData(object):
@@ -196,9 +196,6 @@ class Registry(object):
 
     def subscribe_to_query_api(self, version, subscription_request, secure=False):
         """creates a subscription and starts a Subscription WebSocket"""
-        if 'subscription' not in self.get_resources():
-            self.get_resources()['subscription'] = {}
-
         resource_type = self._get_resource_type(subscription_request["resource_path"])
 
         resource_types = ['node', 'device', 'source', 'flow', 'sender', 'receiver']
@@ -293,9 +290,9 @@ class Registry(object):
     def _close_subscription_websockets(self):
         """ closing websockets will automatically disconnect clients and stop websockets """
 
-        for id, subscription_websocket in self.subscription_websockets.items():
+        for id, subscription_websocket in list(self.subscription_websockets.items()):
             subscription_websocket.close()
-
+            del self.subscription_websockets[id]
 
 # 0 = Invalid request testing registry
 # 1 = Primary testing registry
