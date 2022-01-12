@@ -484,7 +484,7 @@ def query_resource(version, resource):
 
     since = request.args.get('paging.since') or MIN_SINCE
     until = request.args.get('paging.until') or MAX_UNTIL
-    limit = min(int(request.args.get('paging.limit') or '100'), registry.paging_limit)
+    limit = min(int(request.args.get('paging.limit') or registry.paging_limit), registry.paging_limit)
 
     new_until = until
 
