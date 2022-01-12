@@ -294,6 +294,7 @@ class Registry(object):
             subscription_websocket.close()
             del self.subscription_websockets[id]
 
+
 # 0 = Invalid request testing registry
 # 1 = Primary testing registry
 # 2+ = Failover testing registries
