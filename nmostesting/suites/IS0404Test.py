@@ -41,7 +41,7 @@ class IS0404Test(ControllerTest):
                         {'label': 's5/barrett', 'description': 'Mock sender 5', 'registered': False}]
 
         # Randomly select some senders to register
-        # minumum 3 to force pagination when paging_limit is set to 2
+        # minimum 3 to force pagination when paging_limit is set to 2
         register_senders = self._generate_random_indices(len(self.senders), min_index_count=3)
 
         for i in register_senders:
