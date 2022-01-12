@@ -62,7 +62,7 @@ class IS0404Test(ControllerTest):
                            'connectable': True, 'registered': False}]
 
         # Randomly select some receivers to register
-        # minumum 3 to force pagination when paging_limit is set to 2
+        # minimum 3 to force pagination when paging_limit is set to 2
         register_receivers = self._generate_random_indices(len(self.receivers), min_index_count=3)
 
         for i in register_receivers:
