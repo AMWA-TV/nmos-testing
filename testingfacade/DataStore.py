@@ -51,18 +51,18 @@ class DataStore:
     def getStatus(self):
         return self.status
 
-    def setJson(self, json_str):
+    def setJson(self, json):
         self.status = "Test"
-        self.test_type = json_str["test_type"]
-        self.question_id = json_str["question_id"]
-        self.name = json_str["name"]
-        self.description = json_str["description"]
-        self.question = json_str["question"]
-        self.answers = json_str["answers"]
-        self.time_sent = json_str["time_sent"]
-        self.timeout = json_str['timeout']
-        self.answer_uri = json_str["answer_uri"]
-        self.metadata = json_str["metadata"]
+        self.test_type = json["test_type"]
+        self.question_id = json["question_id"]
+        self.name = json["name"]
+        self.description = json["description"]
+        self.question = json["question"]
+        self.answers = json["answers"]
+        self.time_sent = json["time_sent"]
+        self.timeout = json['timeout']
+        self.answer_uri = json["answer_uri"]
+        self.metadata = json["metadata"]
 
     def getJson(self):
         json_data = {
