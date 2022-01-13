@@ -110,6 +110,9 @@ class IS0404Test(ControllerTest):
             # The registry will log calls to the Query API endpoints
             if not self.primary_registry.query_api_called and len(self.primary_registry.subscription_websockets) == 0:
                 return test.FAIL('IS-04 Query API not reached')
+            if not self.query_api_version == self.primary_registry.requested_query_api_version:
+                return test.FAIL('IS-04 Query API version error: expected=' + self.query_api_version
+                                 + ', actual=' + self.primary_registry.requested_query_api_version)
 
             return test.PASS('IS-04 Query API reached successfully')
 

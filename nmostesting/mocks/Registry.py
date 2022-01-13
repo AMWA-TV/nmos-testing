@@ -21,7 +21,8 @@ import functools
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event
-from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER, WEBSOCKET_PORT_BASE, ENABLE_HTTPS
+from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER, \
+    WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
 from ..NMOSUtils import NMOSUtils
 from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip
@@ -60,7 +61,7 @@ class Registry(object):
         self.reset()
         self.subscription_websockets = {}
         self.query_api_id = str(uuid.uuid4())
-        self.query_api_version = "v1.3"  # to limit advertised API versions
+        self.requested_query_api_version = "v1.3"
 
     def reset(self):
         self.last_time = time.time()
@@ -324,7 +325,7 @@ def registration_root():
     if authorized is not True:
         abort(authorized)
 
-    base_data = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
+    base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
@@ -436,9 +437,7 @@ def query_root():
     if authorized is not True:
         abort(authorized)
 
-    query_api_versions = ['v1.0/', 'v1.1/', 'v1.2/', 'v1.3/']
-    max_api_index = query_api_versions.index(str(registry.query_api_version + '/'))
-    base_data = query_api_versions[0:max_api_index + 1]
+    base_data = [version + '/' for version in SPECIFICATIONS["is-04"]["versions"]]
 
     return Response(json.dumps(base_data), mimetype='application/json')
 
@@ -451,6 +450,8 @@ def query(version):
     authorized = registry.check_authorized(request.headers, request.path)
     if authorized is not True:
         abort(authorized)
+
+    registry.requested_query_api_version = version
 
     base_data = ['devices/', 'flows/', 'nodes/', 'receivers/', 'senders/', 'sources/', 'subscriptions/']
 
@@ -474,6 +475,8 @@ def query_resource(version, resource):
     if authorized is not True:
         abort(authorized)
 
+    registry.requested_query_api_version = version
+
     MIN_SINCE = "0:0"
     MAX_UNTIL = NMOSUtils.get_TAI_time()
 
@@ -484,7 +487,7 @@ def query_resource(version, resource):
 
     since = request.args.get('paging.since') or MIN_SINCE
     until = request.args.get('paging.until') or MAX_UNTIL
-    limit = min(int(request.args.get('paging.limit') or '100'), registry.paging_limit)
+    limit = min(int(request.args.get('paging.limit') or registry.paging_limit), registry.paging_limit)
 
     new_until = until
 
@@ -537,15 +540,15 @@ def query_resource(version, resource):
         # Always add a next for any resources that are added/modified after "now"
         link = "<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + new_until \
-            + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
+            + "&paging.limit=" + str(limit) + ">; rel=\"next\""
 
         if since != MIN_SINCE:
             link += ",<" + protocol + "://" + host + ":" + port \
                 + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
-                + str(registry.paging_limit) + ">; rel=\"first\""
+                + str(limit) + ">; rel=\"first\""
 
         response.headers["Link"] = link
-        response.headers["X-Paging-Limit"] = registry.paging_limit
+        response.headers["X-Paging-Limit"] = limit
         response.headers["X-Paging-Since"] = since
         response.headers["X-Paging-Until"] = new_until
 
@@ -561,6 +564,7 @@ def get_resource(version, resource, resource_id):
     if authorized is not True:
         abort(authorized)
 
+    registry.requested_query_api_version = version
     registry.query_api_called = True
 
     resource_type = resource.rstrip("s")
@@ -584,6 +588,7 @@ def post_subscription(version):
     if authorized is not True:
         abort(authorized)
 
+    registry.requested_query_api_version = version
     subscription_request = request.json
 
     subscription_response = {}
