@@ -540,15 +540,15 @@ def query_resource(version, resource):
         # Always add a next for any resources that are added/modified after "now"
         link = "<" + protocol + "://" + host + ":" + port \
             + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + new_until \
-            + "&paging.limit=" + str(registry.paging_limit) + ">; rel=\"next\""
+            + "&paging.limit=" + str(limit) + ">; rel=\"next\""
 
         if since != MIN_SINCE:
             link += ",<" + protocol + "://" + host + ":" + port \
                 + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
-                + str(registry.paging_limit) + ">; rel=\"first\""
+                + str(limit) + ">; rel=\"first\""
 
         response.headers["Link"] = link
-        response.headers["X-Paging-Limit"] = registry.paging_limit
+        response.headers["X-Paging-Limit"] = limit
         response.headers["X-Paging-Since"] = since
         response.headers["X-Paging-Until"] = new_until
 
