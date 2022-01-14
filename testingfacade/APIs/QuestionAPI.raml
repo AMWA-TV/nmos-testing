@@ -8,7 +8,7 @@ baseUri: http://api.example.com/x-nmos/testingfacade/{version}
 version: v1.0
 mediaType: application/json
 types:
-  Question: !include schemas/QuestionSchema.json
+  Question: !include schemas/question-schema.json
 documentation:
   - title: Overview
     content: |
@@ -28,7 +28,7 @@ documentation:
         example: ../examples/post-question-single-choice.json
         example: ../examples/post-question-multi-choice.json
         example: ../examples/post-question-metadata.json
-        type: !include schemas/QuestionSchema.json
+        type: !include schemas/question-schema.json
       responses:
         202:
         400:

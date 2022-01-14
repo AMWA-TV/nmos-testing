@@ -7,7 +7,7 @@ title: Answer
 baseUri: http://api.example.com/testingfacade_response
 mediaType: application/json
 types:
-  Answer: !include schemas/AnswerSchema.json
+  Answer: !include schemas/answer-schema.json
 documentation:
   - title: Overview
     content: |
@@ -25,7 +25,7 @@ documentation:
         example: !include ../examples/post-answer-action.json
         example: !include ../examples/post-answer-single-choice.json
         example: !include ../examples/post-answer-multi-choice.json
-        type: !include schemas/AnswerSchema.json
+        type: !include schemas/answer-schema.json
       responses:
         202:
         400:
