@@ -56,7 +56,7 @@ class TestingFacadeException(Exception):
 
 
 @TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
-def retrieve_answer():
+def receive_answer():
 
     if request.method == 'POST':
         if 'question_id' not in request.json:
