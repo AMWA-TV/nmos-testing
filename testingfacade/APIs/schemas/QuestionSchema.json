@@ -106,58 +106,21 @@
             "description": "URL of the test suite API endpoint to send the POST request with answers"
         },
         "metadata": {
+            "type": ["object", "null"],
+            "description": "Extra information to assist fully automated testing where an action is required on a specific resource",
+            "default": null,
             "anyOf": [
                 {
                     "type": "null"
                 },
                 {
                     "sender": {
-                        "type": "object",
-                        "description": "Details of sender chosen to be part of IS-05 connection management test",
-                        "required": [
-                            "id",
-                            "label",
-                            "description"
-                        ],
-                        "properties": {
-                            "id": {
-                                "type": "string",
-                                "description": "ID of sender as might be shown on NCuT"
-                            },
-                            "label": {
-                                "type": "string",
-                                "description": "Label of sender as might be shown on NCuT"
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "Description of sender as might be shown on NCuT"
-                            }
-                        }
+                        "$ref": "resource-details-schema.json"
                     }
                 },
                 {
                     "receiver": {
-                        "type": "object",
-                        "description": "Details of receiver chosen to be part of IS-05 connection management test",
-                        "required": [
-                            "id",
-                            "label",
-                            "description"
-                        ],
-                        "properties": {
-                            "id": {
-                                "type": "string",
-                                "description": "ID of receiver as might be shown on NCuT"
-                            },
-                            "label": {
-                                "type": "string",
-                                "description": "Label of receiver as might be shown on NCuT"
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "Description of receiver as might be shown on NCuT"
-                            }
-                        }
+                        "$ref": "resource-details-schema.json"
                     }
                 }
             ]

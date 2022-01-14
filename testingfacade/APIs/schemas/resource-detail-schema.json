@@ -1,0 +1,25 @@
+{
+    "title": "Controller Testing - Resource Details",
+    "description": "Resource details for senders and receivers used in IS05 Connection Management tests",
+    "$schema": "http://json-schema.org/draft-04/schema",
+    "type": "object",
+    "required": [
+        "id",
+        "label",
+        "description"
+    ],
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "ID of resource as might be shown on NCuT"
+        },
+        "label": {
+            "type": "string",
+            "description": "Label of resource as might be shown on NCuT"
+        },
+        "description": {
+            "type": "string",
+            "description": "Description of resource as might be shown on NCuT"
+        }
+    }
+}
