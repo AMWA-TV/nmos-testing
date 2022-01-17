@@ -13,7 +13,7 @@
       },
       "answer_response": {
         "description": "Answer or answers to be verified",
-        "anyOf": [
+        "oneOf": [
           {
             "description": "Multi choice response",
             "type": "array",
