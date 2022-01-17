@@ -36,7 +36,7 @@ CONTROLLER_TEST_API_KEY = "testingfacade"
 QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
 
-CALLBACK_ENDPOINT = "/testingfacade_response"
+CALLBACK_ENDPOINT = "/x-nmos/testanswer/"
 
 # asyncio queue for passing Testing Façade answer responses back to tests
 _event_loop = asyncio.new_event_loop()
