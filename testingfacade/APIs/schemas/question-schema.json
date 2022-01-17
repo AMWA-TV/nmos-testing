@@ -21,8 +21,26 @@
             "enum": ["single_choice", "multi_choice", "action"]
         },
         "question_id": {
-            "type": "string",
-            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id."
+            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id.",
+            "anyOf": [
+                {
+                    "description": "Identifier for messages sent at the beginning and end of every set of tests",
+                    "enum": [
+                        "pre_tests_message",
+                        "post_tests_message"
+                    ]
+                },
+                {
+                    "description": "id for questions within a single part test",
+                    "type": "string",
+                    "pattern": "test_[0-9]+"
+                },
+                {
+                    "description": "id for questions within a multi part test",
+                    "type": "string",
+                    "pattern": "test_[0-9]+_[0-9]+"
+                }
+            ]
         },
         "name": {
             "type": "string",
