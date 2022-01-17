@@ -191,7 +191,7 @@ TEST_DEFINITIONS = {
         "name": "IS-04 Controller",
         "specs": [{
             "spec_key": "controller-tests",
-            "api_key": "testingfacade"
+            "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
             "api_key": "query",
@@ -222,7 +222,7 @@ TEST_DEFINITIONS = {
         "name": "IS-05 Controller",
         "specs": [{
             "spec_key": "controller-tests",
-            "api_key": "testingfacade"
+            "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
             "api_key": "query",

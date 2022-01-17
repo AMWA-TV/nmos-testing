@@ -64,7 +64,7 @@ def index():
         return 'Answer set'
 
 
-@app.route('/x-nmos/testingfacade/<version>', methods=['POST'], strict_slashes=False)
+@app.route('/x-nmos/testquestion/<version>', methods=['POST'], strict_slashes=False)
 def testing_facade_post(version):
     # Should be json from Test Suite with questions
     json_list = ['test_type', 'question_id', 'name', 'description', 'question', 'answers', 'time_sent',

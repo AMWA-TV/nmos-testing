@@ -32,7 +32,7 @@ from .NMOSUtils import NMOSUtils
 
 from flask import Flask, Blueprint, request
 
-CONTROLLER_TEST_API_KEY = "testingfacade"
+CONTROLLER_TEST_API_KEY = "testquestion"
 QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
 

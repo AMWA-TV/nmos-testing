@@ -274,7 +274,7 @@ SPECIFICATIONS = {
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
-            "testingfacade": {
+            "testquestion": {
                 "name": "Testing Façade"
             }
         }
