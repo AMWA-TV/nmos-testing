@@ -52,7 +52,7 @@
                                 "label": "s3/wright",
                                 "description": "Mock sender 3",
                                 "id": "71ce775c-cdc5-479a-bd29-87c081905ecf",
-                                "answer_str": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
+                                "display_answer": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
                             }
                         ]
                     ],
@@ -64,7 +64,7 @@
                             "label",
                             "description",
                             "id",
-                            "answer_str"
+                            "display_answer"
                         ],
                         "properties": {
                             "answer_id": {
@@ -83,7 +83,7 @@
                                 "type": "string",
                                 "description": "Resource ID as might be displayed on the NCuT"
                             },
-                            "answer_str": {
+                            "display_answer": {
                                 "type": "string",
                                 "description": "String combining all the resource details for display on the testing facade"
                             }

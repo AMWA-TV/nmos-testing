@@ -91,7 +91,7 @@ class ControllerTest(GenericTest):
         self.senders = []
         self.receivers = []
         # receiver list containing: {'label': '', 'description': '', 'id': '',
-        #   'registered': True/False, 'connectable': True/False, 'answer_str': ''}
+        #   'registered': True/False, 'connectable': True/False, 'display_answer': ''}
         self.senders_ip_base = '239.3.14.'  # Random multicast IP to assign to senders
         self.query_api_version = self.apis[QUERY_API_KEY]["version"] \
             if QUERY_API_KEY in apis and "version" in self.apis[QUERY_API_KEY] else "v1.3"
@@ -266,7 +266,7 @@ class ControllerTest(GenericTest):
             sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/" + self.connection_api_version \
                 + "/single/senders/" + sender["id"] + "/transportfile"
             sender["version"] = NMOSUtils.get_TAI_time()
-            sender["answer_str"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
+            sender["display_answer"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
             # Introduce a short delay to ensure unique version numbers.
             # Version number is used by pagination in lieu of creation or update time
             time.sleep(0.1)
@@ -287,7 +287,7 @@ class ControllerTest(GenericTest):
                 + self.connection_api_version + "/"
             receiver["controls_type"] = "urn:x-nmos:control:sr-ctrl/" + self.connection_api_version
             receiver["version"] = NMOSUtils.get_TAI_time()
-            receiver["answer_str"] = self._format_device_metadata(
+            receiver["display_answer"] = self._format_device_metadata(
                     receiver['label'], receiver['description'], receiver['id'])
             # Introduce a short delay to ensure unique version numbers.
             # Version number is used by pagination in lieu of creation or update time

@@ -143,7 +143,7 @@ class IS0404Test(ControllerTest):
                        every available page to complete this test.
                        """
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
-                                 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
+                                 'description': s['description'], 'id': s['id'], 'display_answer': s['display_answer']}
                                 for i, s in enumerate(self.senders)]
             expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered']]
 
@@ -190,7 +190,7 @@ class IS0404Test(ControllerTest):
                        every available page to complete this test.
                        """
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
-                                 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
+                                 'description': r['description'], 'id': r['id'], 'display_answer': r['display_answer']}
                                 for i, r in enumerate(self.receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered']]
 
@@ -244,7 +244,7 @@ class IS0404Test(ControllerTest):
 
             # Take one of the senders offline
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
-                                 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
+                                 'description': s['description'], 'id': s['id'], 'display_answer': s['display_answer']}
                                 for i, s in enumerate(self.senders) if s['registered']]
             answer_indices = [index for index, s in enumerate(self.senders) if s['registered']]
             offline_sender_index = random.choice(answer_indices)

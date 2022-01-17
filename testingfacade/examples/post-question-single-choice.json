@@ -10,21 +10,21 @@
             "label": "s3/wright",
             "description": "Mock sender 3",
             "id": "71ce775c-cdc5-479a-bd29-87c081905ecf",
-            "answer_str": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
+            "display_answer": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
         },
         {
             "answer_id": "answer_3",
             "label": "s4/mason",
             "description": "Mock sender 4",
             "id": "14db3fcd-3606-4679-9c2a-252b4af1e611",
-            "answer_str": "s4/mason (Mock sender 4, 14db3fcd-3606-4679-9c2a-252b4af1e611)"
+            "display_answer": "s4/mason (Mock sender 4, 14db3fcd-3606-4679-9c2a-252b4af1e611)"
         },
         {
             "answer_id": "answer_4",
             "label": "s5/barrett",
             "description": "Mock sender 5",
             "id": "b0a5f961-21de-4ec7-951e-58bbea8934f3",
-            "answer_str": "s5/barrett (Mock sender 5, b0a5f961-21de-4ec7-951e-58bbea8934f3)"
+            "display_answer": "s5/barrett (Mock sender 5, b0a5f961-21de-4ec7-951e-58bbea8934f3)"
         }
     ],
     "time_sent": 1630580530.0981488,

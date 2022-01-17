@@ -93,7 +93,7 @@ class IS0503Test(ControllerTest):
                        some of the Receivers in the following list may not be visible.
                        """
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
-                                 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
+                                 'description': r['description'], 'id': r['id'], 'display_answer': r['display_answer']}
                                 for i, r in enumerate(self.receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers)
                                 if r['registered'] and r['connectable']]
@@ -132,11 +132,11 @@ class IS0503Test(ControllerTest):
 
                        Use the NCuT to perform an 'immediate' activation between sender:
 
-                       {sender['answer_str']}
+                       {sender['display_answer']}
 
                        and receiver:
 
-                       {receiver['answer_str']}
+                       {receiver['display_answer']}
 
                        Click the 'Next' button once the connection is active.
                        """)
@@ -244,11 +244,11 @@ class IS0503Test(ControllerTest):
 
                        Use the NCuT to remove the connection between sender:
 
-                       {sender['answer_str']}
+                       {sender['display_answer']}
 
                        and receiver:
 
-                       {receiver['answer_str']}
+                       {receiver['display_answer']}
 
                        Click the 'Next' button once the connection has been removed.
                        """)
@@ -351,10 +351,10 @@ class IS0503Test(ControllerTest):
                        """
 
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
-                                 'description': r['description'], 'id': r['id'], 'answer_str': r['answer_str']}
+                                 'description': r['description'], 'id': r['id'], 'display_answer': r['display_answer']}
                                 for i, r in enumerate(registered_receivers) if r['registered']]
             expected_answer = ['answer_' + str(i) for i, r in enumerate(registered_receivers)
-                               if r['answer_str'] == receiver['answer_str']][0]
+                               if r['display_answer'] == receiver['display_answer']][0]
 
             actual_answer = self._invoke_testing_facade(
                 question, possible_answers, test_type="single_choice")['answer_response']
@@ -366,14 +366,14 @@ class IS0503Test(ControllerTest):
             question = textwrap.dedent(f"""\
                        Use the NCuT to identify the sender currently connected to receiver:
 
-                       {receiver['answer_str']}
+                       {receiver['display_answer']}
                        """)
 
             possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
-                                 'description': s['description'], 'id': s['id'], 'answer_str': s['answer_str']}
+                                 'description': s['description'], 'id': s['id'], 'display_answer': s['display_answer']}
                                 for i, s in enumerate(registered_senders) if s['registered']]
             expected_answer = ['answer_'+str(i) for i, s in enumerate(registered_senders)
-                               if s['answer_str'] == sender['answer_str']][0]
+                               if s['display_answer'] == sender['display_answer']][0]
 
             metadata = {'receiver':
                         {'id': receiver['id'],
@@ -395,7 +395,7 @@ class IS0503Test(ControllerTest):
                        The connection on the following receiver will be disconnected \
                        at a random moment within the next {max_time_until_online} seconds.
 
-                       {receiver['answer_str']}
+                       {receiver['display_answer']}
 
                        As soon as the NCuT detects the connection is inactive please press the 'Next' button.\
                        The button must be pressed within {max_time_to_answer} seconds \
