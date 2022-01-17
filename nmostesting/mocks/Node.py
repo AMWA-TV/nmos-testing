@@ -255,10 +255,16 @@ def resources(version, resource):
 
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>', methods=["GET"], strict_slashes=False)
 def connection(version, resource, resource_id):
+    if resource != 'senders' and resource != 'receivers':
+        abort(404)
+
+    base_data = ["constraints/", "staged/", "active/"]
+
     if resource == 'senders':
-        base_data = ["constraints/", "staged/", "active/", "transportfile/", "transporttype/"]
-    elif resource == 'receivers':
-        base_data = ["constraints/", "staged/", "active/", "transporttype/"]
+        base_data.append("transportfile/")
+
+    if NMOSUtils.compare_api_version("v1.1", version) <= 0:
+        base_data.append("transporttype/")
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
