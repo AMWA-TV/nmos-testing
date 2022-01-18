@@ -142,8 +142,8 @@ class IS0404Test(ControllerTest):
                        If your NCuT implements pagination, you must ensure you view \
                        every available page to complete this test.
                        """
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
-                                 'description': s['description'], 'id': s['id'], 'display_answer': s['display_answer']}
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'],
+                                'resource': {'id': s['id'], 'label': s['label'], 'description': s['description']}}
                                 for i, s in enumerate(self.senders)]
             expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered']]
 
@@ -189,8 +189,8 @@ class IS0404Test(ControllerTest):
                        If your NCuT implements pagination, you must ensure you view \
                        every available page to complete this test.
                        """
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
-                                 'description': r['description'], 'id': r['id'], 'display_answer': r['display_answer']}
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
+                                'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(self.receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered']]
 
@@ -243,8 +243,8 @@ class IS0404Test(ControllerTest):
             self._invoke_testing_facade(question, possible_answers, test_type="action")
 
             # Take one of the senders offline
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
-                                 'description': s['description'], 'id': s['id'], 'display_answer': s['display_answer']}
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'], 
+                                'resource': {'id': s['id'], 'label': s['label'], 'description': s['description']}}
                                 for i, s in enumerate(self.senders) if s['registered']]
             answer_indices = [index for index, s in enumerate(self.senders) if s['registered']]
             offline_sender_index = random.choice(answer_indices)

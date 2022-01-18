@@ -69,10 +69,12 @@
                         [
                             {
                                 "answer_id": "answer_2",
-                                "label": "s3/wright",
-                                "description": "Mock sender 3",
-                                "id": "71ce775c-cdc5-479a-bd29-87c081905ecf",
-                                "display_answer": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)"
+                                "display_answer": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)",
+                                "resource": {
+                                    "id": "71ce775c-cdc5-479a-bd29-87c081905ecf", 
+                                    "label": "s3/wright", 
+                                    "description": "Mock sender 3"
+                                }
                             }
                         ]
                     ],
@@ -81,10 +83,8 @@
                         "type": "object",
                         "required": [
                             "answer_id",
-                            "label",
-                            "description",
-                            "id",
-                            "display_answer"
+                            "display_answer",
+                            "resource"
                         ],
                         "properties": {
                             "answer_id": {
@@ -96,18 +96,12 @@
                                 "type": "string",
                                 "description": "Resource label as might be displayed on the NCuT"
                             },
-                            "description": {
-                                "type": "string",
-                                "description": "Resource description as might be displayed on the NCuT"
-                            },
-                            "id": {
-                                "type": "string",
-                                "description": "Resource ID as might be displayed on the NCuT",
-                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-                            },
                             "display_answer": {
                                 "type": "string",
                                 "description": "String combining all the resource details for display on the testing facade"
+                            },
+                            "resource": {
+                                "$ref": "resource-details-schema.json"
                             }
                         }
                     }

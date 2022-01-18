@@ -92,8 +92,8 @@ class IS0503Test(ControllerTest):
                        Be aware that if your NCuT only displays Receivers which have a connection API, \
                        some of the Receivers in the following list may not be visible.
                        """
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
-                                 'description': r['description'], 'id': r['id'], 'display_answer': r['display_answer']}
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'], 
+                                'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(self.receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers)
                                 if r['registered'] and r['connectable']]
@@ -350,8 +350,8 @@ class IS0503Test(ControllerTest):
                        Use the NCuT to identify the receiver that has just been connected.
                        """
 
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': r['label'],
-                                 'description': r['description'], 'id': r['id'], 'display_answer': r['display_answer']}
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
+                                'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(registered_receivers) if r['registered']]
             expected_answer = ['answer_' + str(i) for i, r in enumerate(registered_receivers)
                                if r['display_answer'] == receiver['display_answer']][0]
@@ -369,8 +369,8 @@ class IS0503Test(ControllerTest):
                        {receiver['display_answer']}
                        """)
 
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'label': s['label'],
-                                 'description': s['description'], 'id': s['id'], 'display_answer': s['display_answer']}
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'],
+                                'resource': {'id': s['id'], 'label': s['label'], 'description': s['description']}}
                                 for i, s in enumerate(registered_senders) if s['registered']]
             expected_answer = ['answer_'+str(i) for i, s in enumerate(registered_senders)
                                if s['display_answer'] == sender['display_answer']][0]
