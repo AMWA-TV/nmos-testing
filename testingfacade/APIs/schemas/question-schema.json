@@ -2,6 +2,7 @@
     "title": "Controller Testing - Question",
     "description": "Contains all details necessary for NMOS Controller Testing",
     "$schema": "http://json-schema.org/draft-04/schema",
+    "type": "object",
     "required": [
         "test_type",
         "question_id",
@@ -17,34 +18,35 @@
     "properties": {
         "test_type": {
             "type": "string",
-            "description": "The type of question being sent indicating the type of answer that needs to be returned.",
-            "enum": ["single_choice", "multi_choice", "action"]
+            "description": "The type of question being sent indicating the type of answer that needs to be returned",
+            "enum": [
+                "single_choice", 
+                "multi_choice", 
+                "action"
+            ]
         },
         "question_id": {
             "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id.",
             "anyOf": [
                 {
                     "description": "Identifier for messages sent at the beginning and end of every set of tests",
+                    "type": "string",
                     "enum": [
                         "pre_tests_message",
                         "post_tests_message"
                     ]
                 },
                 {
-                    "description": "id for questions within a single part test",
+                    "description": "Identifier for questions within a test",
                     "type": "string",
-                    "pattern": "test_[0-9]+"
-                },
-                {
-                    "description": "id for questions within a multi part test",
-                    "type": "string",
-                    "pattern": "test_[0-9]+_[0-9]+"
+                    "pattern": "test_[0-9a-z_]+"
                 }
             ]
         },
         "name": {
             "type": "string",
-            "description": "The test name, indicating the test that sent the question."
+            "description": "The test name, indicating the test that sent the question",
+            "pattern": "test_[0-9a-z_]+"
         },
         "description": {
             "type": "string",
@@ -87,7 +89,8 @@
                         "properties": {
                             "answer_id": {
                                 "type": "string",
-                                "description": "ID unique to each answer within a question. This is the value to be returned for validation."
+                                "description": "ID unique to each answer within a question. This is the value to be returned for validation.",
+                                "pattern": "answer_[0-9]+"
                             },
                             "label": {
                                 "type": "string",
@@ -99,7 +102,8 @@
                             },
                             "id": {
                                 "type": "string",
-                                "description": "Resource ID as might be displayed on the NCuT"
+                                "description": "Resource ID as might be displayed on the NCuT",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                             },
                             "display_answer": {
                                 "type": "string",
@@ -121,10 +125,10 @@
         },
         "answer_uri": {
             "type": "string",
+            "format": "uri",
             "description": "URL of the test suite API endpoint to send the POST request with answers"
         },
         "metadata": {
-            "type": ["object", "null"],
             "description": "Extra information to assist fully automated testing where an action is required on a specific resource",
             "default": null,
             "anyOf": [
@@ -132,17 +136,19 @@
                     "type": "null"
                 },
                 {
-                    "sender": {
-                        "$ref": "resource-details-schema.json"
-                    }
-                },
-                {
-                    "receiver": {
-                        "$ref": "resource-details-schema.json"
-                    }
+                    "type": "object",
+                    "properties": {
+                        "sender": {
+                            "$ref": "resource-details-schema.json"
+                        },
+                        "receiver": {
+                            "$ref": "resource-details-schema.json"
+                        }
+                    },
+                    "additionalProperties": false,
+                    "minProperties": 1 
                 }
             ]
-            
         }
     }
 }
