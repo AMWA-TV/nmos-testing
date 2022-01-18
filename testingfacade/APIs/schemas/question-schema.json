@@ -10,7 +10,6 @@
         "description",
         "question",
         "answers",
-        "time_sent",
         "timeout",
         "answer_uri",
         "metadata"
@@ -107,10 +106,6 @@
                     }
                 }
             ]
-        },
-        "time_sent": {
-            "type": "number",
-            "description": "Time the question was sent, unix timestamp in seconds"
         },
         "timeout": {
             "type": "number",

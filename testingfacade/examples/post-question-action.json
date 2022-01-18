@@ -5,7 +5,6 @@
     "description": "Ensure NCuT can access the IS-04 Query API", 
     "question": "Use the NCuT to browse the Senders and Receivers on the discovered Registry via the selected IS-04 Query API.\n\nOnce you have finished browsing click the 'Next' button.", 
     "answers": [], 
-    "time_sent": 1639667975.632288, 
     "timeout": 600, 
     "answer_uri": "http://192.0.2.1:5000/x-nmos/testanswer", 
     "metadata": null

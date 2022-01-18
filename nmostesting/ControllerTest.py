@@ -87,6 +87,7 @@ class ControllerTest(GenericTest):
         self.mock_registry_base_url = ''
         self.mock_node_base_url = ''
         self.question_timeout = 600  # default timeout in seconds
+        self.extra_time = 2 * CONFIG.API_PROCESSING_TIMEOUT  # API processing time to add to test timeout
         self.test_data = self.load_resource_data()
         self.senders = []
         self.receivers = []
@@ -184,7 +185,6 @@ class ControllerTest(GenericTest):
             "description": inspect.getdoc(method),
             "question": question,
             "answers": answers,
-            "time_sent": time.time(),
             "timeout": question_timeout,
             "answer_uri": "http://" + get_default_ip() + ":5000" + CALLBACK_ENDPOINT,
             "metadata": metadata
@@ -199,7 +199,7 @@ class ControllerTest(GenericTest):
 
     def _wait_for_testing_facade(self, question_id, test_type, timeout=None):
 
-        question_timeout = timeout if timeout else self.question_timeout
+        question_timeout = (timeout or self.question_timeout) + self.extra_time
 
         # Wait for answer response or question timeout in seconds
         try:
@@ -530,7 +530,7 @@ class ControllerTest(GenericTest):
                    """)
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action", timeout=600)
+            self._invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # pre_test_introducton timed out

@@ -30,7 +30,7 @@
         });
 
         // Target for countdown is time question was sent plus timeout converted to milliseconds
-        var target=(parseInt("{{ time_sent }}") + parseInt("{{ timeout }}")) * 1000;
+        var target=(parseInt("{{ time_received }}") + parseInt("{{ timeout }}")) * 1000;
 
         if (!isNaN(target)) {
             // target time exists so set countdown

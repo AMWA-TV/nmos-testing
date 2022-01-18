@@ -15,6 +15,7 @@
 import random
 import requests
 import json
+import time
 from flask import Flask, render_template, make_response, request
 from flask_socketio import SocketIO
 from DataStore import data
@@ -34,7 +35,7 @@ def index():
             r = make_response(render_template("index.html", test_type=data.getTest(), question=data.getQuestion(),
                                               answers=data.getAnswers(), name=data.getName(),
                                               description=data.getDescription(), response_url=data.getUrl(),
-                                              time_sent=data.getTime(), timeout=data.getTimeout(),
+                                              time_received=data.getTime(), timeout=data.getTimeout(),
                                               all_data=data.getJson(), cachebuster=CACHEBUSTER))
         else:
             r = make_response(render_template("index.html", question=None, answers=None,
@@ -67,10 +68,11 @@ def index():
 @app.route('/x-nmos/testquestion/<version>', methods=['POST'], strict_slashes=False)
 def testing_facade_post(version):
     # Should be json from Test Suite with questions
-    json_list = ['test_type', 'question_id', 'name', 'description', 'question', 'answers', 'time_sent',
-                 'answer_uri']
+    json_list = ['test_type', 'question_id', 'name', 'description', 'question', 'answers', 'answer_uri']
+    json_data = request.json
+    json_data['time_received'] = time.time()
 
-    if 'clear' in request.json and request.json['clear'] == 'True':
+    if 'clear' in json_data and json_data['clear'] == 'True':
         # End of current tests, clear data store
         data.clear()
     else:
@@ -79,9 +81,9 @@ def testing_facade_post(version):
             if entry not in request.json:
                 return "Missing {}".format(entry), 400
         # All required entries are present so update data
-        data.setJson(request.json)
+        data.setJson(json_data)
 
-    socketio.emit('update', request.json)
+    socketio.emit('update', json_data)
 
     return '', 202
 
