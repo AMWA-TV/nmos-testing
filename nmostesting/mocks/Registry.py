@@ -206,12 +206,15 @@ class Registry(object):
                                         + " from resource path:" + subscription_request["resource_path"])
 
         subscription = next(iter([subscription for id, subscription in self.get_resources()['subscription'].items()
-                                  if self._get_resource_type(subscription['resource_path']) == resource_type]), None)
+                            if self._get_resource_type(subscription['resource_path']) == resource_type
+                            and subscription['max_update_rate_ms'] == subscription_request['max_update_rate_ms']
+                            and subscription['persist'] == subscription_request['persist']
+                            and subscription['secure'] == subscription_request['secure']]), None)
 
         if subscription:
             return subscription, False
 
-        websocket_port = WEBSOCKET_PORT_BASE + resource_types.index(resource_type)
+        websocket_port = WEBSOCKET_PORT_BASE + len(self.subscription_websockets)
         websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type)
         websocket_server.set_queue_sync_data_grain_callback(self.queue_sync_data_grain)
         websocket_server.start()
@@ -598,18 +601,19 @@ def post_subscription(version):
         # Note: 'secure' not required in request, but is required in response
         secure = subscription_request['secure'] if 'secure' in subscription_request else ENABLE_HTTPS
 
-        # Validate that this mock can satisfy the subscription request
-        if secure or subscription_request['max_update_rate_ms'] != 100 or len(subscription_request['params']) > 0:
+        # The current implementation of WebSocketss in this mock Registry does not implement secure
+        # sockets, and does not support query parameters in the request
+        if secure or len(subscription_request['params']) > 0:
             abort(501)
 
         subscription, created = registry.subscribe_to_query_api(version, subscription_request, secure)
 
         subscription_response = {'id': subscription["id"],
-                                 'max_update_rate_ms': subscription_request['max_update_rate_ms'],
-                                 'params': subscription_request['params'],
-                                 'persist': subscription_request['persist'],
+                                 'max_update_rate_ms': subscription['max_update_rate_ms'],
+                                 'params': subscription['params'],
+                                 'persist': subscription['persist'],
                                  'resource_path': subscription['resource_path'],
-                                 'secure': secure,
+                                 'secure': subscription['secure'],
                                  'ws_href': subscription['ws_href']}
 
     except SubscriptionException:
@@ -620,6 +624,41 @@ def post_subscription(version):
     location = '/x-nmos/query/' + version + '/subscriptions/' + subscription["id"]
 
     return jsonify(subscription_response), status_code, {"Location": location}
+
+
+@REGISTRY_API.route('/x-nmos/query/<version>/subscriptions/<subscription_id>', methods=["DELETE"])
+def delete_subscription(version, subscription_id):
+
+    registry = REGISTRIES[flask.current_app.config["REGISTRY_INSTANCE"]]
+    if not registry.enabled:
+        abort(503)
+    authorized = registry.check_authorized(request.headers, request.path)
+    if authorized is not True:
+        abort(authorized)
+
+    registry.requested_query_api_version = version
+
+    try:
+        subscription = next(iter([subscription for id, subscription in registry.get_resources()['subscription'].items()
+                            if subscription['id'] == subscription_id]), None)
+
+        # Error - Subscription does not exist
+        if not subscription:
+            abort(404)
+
+        # Error - Attempting to delete a subscription that is managed by the Registry
+        if not subscription['persist']:
+            abort(403)
+
+        # Close subscription WebSocket server and remove from resources
+        registry.subscription_websockets[subscription_id].close()
+        del registry.subscription_websockets[subscription_id]
+        del registry.get_resources()['subscription'][subscription_id]
+
+    except SubscriptionException:
+        abort(400)
+
+    return "", 204
 
 
 @REGISTRY_API.route('/', methods=["GET"], strict_slashes=False)
