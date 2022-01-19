@@ -601,7 +601,7 @@ def post_subscription(version):
         # Note: 'secure' not required in request, but is required in response
         secure = subscription_request['secure'] if 'secure' in subscription_request else ENABLE_HTTPS
 
-        # The current implementation of WebSocketss in this mock Registry does not implement secure
+        # The current implementation of WebSockets in this mock Registry does not implement secure
         # sockets, and does not support query parameters in the request
         if secure or len(subscription_request['params']) > 0:
             abort(501)
