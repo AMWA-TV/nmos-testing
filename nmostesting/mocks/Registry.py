@@ -480,6 +480,14 @@ def query_resource(version, resource):
 
     registry.requested_query_api_version = version
 
+    # NOTE: Advanced Query Syntax (RQL) is not currently supported
+    # Only paging and id parameters have been implemented in the Basic Query Syntax
+    # All other Basic Query Syntax parameters will be ignored, such that this endpoint will currently either:
+    # * return all resources of a specified type subject to paging constraints
+    # * e.g. http://<host>:<port>/x-nmos/query/<version>/nodes will return all registered nodes
+    # * or return a specific resource according to the resource id
+    # * e.g. http://<host>:<port>/x-nmos/query/<version>/nodes?id=<resource_id> will return a single registered node
+
     MIN_SINCE = "0:0"
     MAX_UNTIL = NMOSUtils.get_TAI_time()
 
@@ -505,6 +513,11 @@ def query_resource(version, resource):
         return Response(json.dumps(error_message), status=404, mimetype='application/json')
 
     registry.query_api_called = True
+
+    # Reject RQL queries
+    for param in request.args:
+        if param.startswith('query.rql'):
+            abort(501)
 
     # Check to see if resource is being requested as a query
     if request.args.get('id'):
