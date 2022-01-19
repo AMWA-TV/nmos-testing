@@ -639,8 +639,7 @@ def delete_subscription(version, subscription_id):
     registry.requested_query_api_version = version
 
     try:
-        subscription = next(iter([subscription for id, subscription in registry.get_resources()['subscription'].items()
-                            if subscription['id'] == subscription_id]), None)
+        subscription = registry.get_resources()['subscription'].get(subscription_id)
 
         # Error - Subscription does not exist
         if not subscription:
