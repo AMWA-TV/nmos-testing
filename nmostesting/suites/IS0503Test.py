@@ -92,7 +92,7 @@ class IS0503Test(ControllerTest):
                        Be aware that if your NCuT only displays Receivers which have a connection API, \
                        some of the Receivers in the following list may not be visible.
                        """
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'], 
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(self.receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers)

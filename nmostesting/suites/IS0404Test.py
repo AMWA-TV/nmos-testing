@@ -243,7 +243,7 @@ class IS0404Test(ControllerTest):
             self._invoke_testing_facade(question, possible_answers, test_type="action")
 
             # Take one of the senders offline
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'], 
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'],
                                 'resource': {'id': s['id'], 'label': s['label'], 'description': s['description']}}
                                 for i, s in enumerate(self.senders) if s['registered']]
             answer_indices = [index for index, s in enumerate(self.senders) if s['registered']]

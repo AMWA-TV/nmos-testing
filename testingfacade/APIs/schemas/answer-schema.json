@@ -22,7 +22,7 @@
           {
               "description": "Identifier for questions within a test",
               "type": "string",
-              "pattern": "test_[0-9a-z_]+"
+              "pattern": "^test_[0-9a-z_]+$"
           }
       ]
       },

@@ -266,7 +266,8 @@ class ControllerTest(GenericTest):
             sender["manifest_href"] = self.mock_node_base_url + "x-nmos/connection/" + self.connection_api_version \
                 + "/single/senders/" + sender["id"] + "/transportfile"
             sender["version"] = NMOSUtils.get_TAI_time()
-            sender["display_answer"] = self._format_device_metadata(sender['label'], sender['description'], sender['id'])
+            sender["display_answer"] = self._format_device_metadata(sender['label'], sender['description'],
+                                                                    sender['id'])
             # Introduce a short delay to ensure unique version numbers.
             # Version number is used by pagination in lieu of creation or update time
             time.sleep(0.1)

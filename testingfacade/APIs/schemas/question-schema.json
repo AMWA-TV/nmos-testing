@@ -25,7 +25,7 @@
             ]
         },
         "question_id": {
-            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id.",
+            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id",
             "anyOf": [
                 {
                     "description": "Identifier for messages sent at the beginning and end of every set of tests",
@@ -38,14 +38,14 @@
                 {
                     "description": "Identifier for questions within a test",
                     "type": "string",
-                    "pattern": "test_[0-9a-z_]+"
+                    "pattern": "^test_[0-9a-z_]+$"
                 }
             ]
         },
         "name": {
             "type": "string",
             "description": "The test name, indicating the test that sent the question",
-            "pattern": "test_[0-9a-z_]+"
+            "pattern": "^test_[0-9a-z_]+$"
         },
         "description": {
             "type": "string",
@@ -63,7 +63,7 @@
                 },
                 {
                     "type": "array",
-                    "description": "Array containing answer objects to be used to select the correct answer_id to be returned.",
+                    "description": "Array containing answer objects to be used to select the correct answer_id to be returned",
                     "examples": [
                         [
                             {
@@ -88,12 +88,8 @@
                         "properties": {
                             "answer_id": {
                                 "type": "string",
-                                "description": "ID unique to each answer within a question. This is the value to be returned for validation.",
-                                "pattern": "answer_[0-9]+"
-                            },
-                            "label": {
-                                "type": "string",
-                                "description": "Resource label as might be displayed on the NCuT"
+                                "description": "ID unique to each answer within a question. This is the value to be returned for validation",
+                                "pattern": "^answer_[0-9]+$"
                             },
                             "display_answer": {
                                 "type": "string",
