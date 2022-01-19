@@ -6,7 +6,7 @@
     "question": "Use the NCuT to remove the connection between sender: \n\ns5/andrews (Mock sender 5, f03fb351-bb39-470e-8150-dbea75170eee) \n\nand receiver: \n\nr4/harrison (Mock receiver 4, 6364c8b8-0595-40d9-93fa-4619431b3b84) \n\nClick the 'Next' button once the connection has been removed.", 
     "answers": [], 
     "timeout": 600, 
-    "answer_uri": "http://192.0.2.1:5000/x-nmos/testanswer", 
+    "answer_uri": "http://192.0.2.1:5000/x-nmos/testanswer/v1.0", 
     "metadata": {
         "sender": {
             "id": "f03fb351-bb39-470e-8150-dbea75170eee", 

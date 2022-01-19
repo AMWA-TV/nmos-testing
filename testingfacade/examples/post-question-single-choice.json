@@ -34,6 +34,6 @@
         }
     ],
     "timeout": 600,
-    "answer_uri": "http://192.0.2.1:5000/x-nmos/testanswer",
+    "answer_uri": "http://192.0.2.1:5000/x-nmos/testanswer/v1.0",
     "metadata": null
 }

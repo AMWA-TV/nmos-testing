@@ -36,7 +36,7 @@ CONTROLLER_TEST_API_KEY = "testquestion"
 QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
 
-CALLBACK_ENDPOINT = "/x-nmos/testanswer/"
+CALLBACK_ENDPOINT = "/x-nmos/testanswer/<version>"
 
 # asyncio queue for passing Testing Façade answer responses back to tests
 _event_loop = asyncio.new_event_loop()
@@ -56,7 +56,7 @@ class TestingFacadeException(Exception):
 
 
 @TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
-def receive_answer():
+def receive_answer(version):
 
     if request.method == 'POST':
         if 'question_id' not in request.json:
@@ -98,6 +98,10 @@ class ControllerTest(GenericTest):
             if QUERY_API_KEY in apis and "version" in self.apis[QUERY_API_KEY] else "v1.3"
         self.connection_api_version = self.apis[CONN_API_KEY]["version"] \
             if CONN_API_KEY in apis and "version" in self.apis[CONN_API_KEY] else "v1.1"
+        self.qa_api_version = self.apis[CONTROLLER_TEST_API_KEY]["version"] \
+            if CONTROLLER_TEST_API_KEY in apis and "version" in self.apis[CONTROLLER_TEST_API_KEY] else "v1.0"
+        self.answer_uri = "http://" + get_default_ip() + ":5000" + \
+            CALLBACK_ENDPOINT.replace('<version>', self.qa_api_version)
 
     def set_up_tests(self):
         if self.dns_server:
@@ -186,7 +190,7 @@ class ControllerTest(GenericTest):
             "question": question,
             "answers": answers,
             "timeout": question_timeout,
-            "answer_uri": "http://" + get_default_ip() + ":5000" + CALLBACK_ENDPOINT,
+            "answer_uri": self.answer_uri,
             "metadata": metadata
         }
         # Send questions to Testing Façade API endpoint then wait
