@@ -500,7 +500,9 @@ def query_resource(version, resource):
     until = request.args.get('paging.until') or MAX_UNTIL
     limit = min(int(request.args.get('paging.limit') or registry.paging_limit), registry.paging_limit)
 
-    new_until = until
+    if NMOSUtils.compare_resource_version(since, until) > 0:
+        # If since is after until, it's a bad request
+        abort(400)
 
     valid_resource_types = ['device', 'flow', 'node', 'receiver', 'sender', 'source', 'subscription']
 
@@ -534,14 +536,31 @@ def query_resource(version, resource):
             data_list = [d for k, d in data.items()]
             sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
 
-            for value in sorted_list:
-                if NMOSUtils.compare_resource_version(value['version'], since) >= 0 \
-                        and NMOSUtils.compare_resource_version(until, value['version']) > 0:
-                    if len(base_data) < limit:
-                        base_data.append(value)
-                    else:
-                        new_until = value['version']
-                        break
+            # Only if until is after the start of the resource list
+            if NMOSUtils.compare_resource_version(until, sorted_list[0]['version']) > 0:
+                since_index = 0
+                until_index = 0
+
+                # find since index
+                for value in sorted_list:
+                    if NMOSUtils.compare_resource_version(since, value['version']) > 0:
+                        since_index += 1
+
+                # find until index
+                for value in sorted_list:
+                    if NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                        until_index += 1
+
+                if request.args.get('paging.until') and not request.args.get('paging.since'):
+                    since_index = max(since_index, until_index - limit)
+                else:
+                    until_index = min(until_index, since_index + limit)
+
+                base_data = sorted_list[since_index:until_index]
+
+                # Calculate new since and until for inclusion in 'prev' and 'next' links
+                since = sorted_list[since_index]['version'] if since_index < len(sorted_list) else until
+                until = sorted_list[until_index]['version'] if until_index < len(sorted_list) else MAX_UNTIL
 
     response = Response(json.dumps(base_data), mimetype='application/json')
 
@@ -553,20 +572,22 @@ def query_resource(version, resource):
         if ENABLE_HTTPS:
             protocol = "https"
 
-        # Always add a next for any resources that are added/modified after "now"
         link = "<" + protocol + "://" + host + ":" + port \
-            + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + new_until \
+            + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=" + until \
             + "&paging.limit=" + str(limit) + ">; rel=\"next\""
 
-        if since != MIN_SINCE:
-            link += ",<" + protocol + "://" + host + ":" + port \
-                + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
-                + str(limit) + ">; rel=\"first\""
+        link += ",<" + protocol + "://" + host + ":" + port \
+            + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.until=" + since \
+            + "&paging.limit=" + str(limit) + ">; rel=\"prev\""
+
+        link += ",<" + protocol + "://" + host + ":" + port \
+            + "/x-nmos/query/" + version + "/" + resource_type + "s/?paging.since=0:0&paging.limit=" \
+            + str(limit) + ">; rel=\"first\""
 
         response.headers["Link"] = link
         response.headers["X-Paging-Limit"] = limit
         response.headers["X-Paging-Since"] = since
-        response.headers["X-Paging-Until"] = new_until
+        response.headers["X-Paging-Until"] = until
 
     return response
 
