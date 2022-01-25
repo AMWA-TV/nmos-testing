@@ -291,29 +291,32 @@ def constraints(version, resource, resource_id):
 
 def _create_activation_update(receiver, master_enable, staged=False, activation=None):
 
-    sender = NODE.senders[receiver['sender_id']] if receiver and receiver.get('sender_id') else None
+    try:
+        sender = NODE.senders[receiver['sender_id']] if receiver and receiver.get('sender_id') else None
+    except KeyError:
+        sender = None
 
     # use resolved defaults if not a staged activation
     default_destination_port = "auto" if staged else 5004
     default_interface_ip = "auto" if staged else get_default_ip()
 
-    transport_params_update = {
-        'multicast_ip': sender['activations']['transport_params'][0]['destination_ip']
-        if master_enable and sender else None,
-        'destination_port': sender['activations']['transport_params'][0]['destination_port']
-        if master_enable and sender else default_destination_port,
-        'source_ip': sender['activations']['transport_params'][0]['source_ip'] if master_enable and sender else None,
-        'interface_ip': get_default_ip() if master_enable and sender else default_interface_ip,
-        'rtp_enabled': True
-    }
-
-    transport_params = receiver.get('transport_params') if master_enable and receiver else None
     transport_file = receiver.get('transport_file') if master_enable and receiver and 'transport_file' \
         in receiver else {'data': None, 'type': None}
-    sender_id = receiver.get('sender_id') if master_enable and receiver else None
+    sender_id = receiver.get('sender_id') if receiver else None
 
-    updated_transport_params = dict(transport_params[0], **transport_params_update) \
-        if transport_params else transport_params_update
+    staged_transport_params = sender['activations']['transport_params'] if sender else [{}]
+    new_transport_params = receiver['transport_params'] if receiver and receiver.get('transport_params') else [{}]
+    default_params = [{'multicast_ip': None, 'destination_port': default_destination_port,
+                       'source_ip': None, 'interface_ip': default_interface_ip, 'rtp_enabled': True}]
+    updated_transport_params = [{}]
+
+    for param, value in default_params[0].items():
+        if param in new_transport_params[0] and new_transport_params[0][param] != 'auto':
+            updated_transport_params[0][param] = new_transport_params[0][param]
+        elif param in staged_transport_params[0] and staged_transport_params[0][param] != 'auto':
+            updated_transport_params[0][param] = staged_transport_params[0][param]
+        else:
+            updated_transport_params[0][param] = value
 
     activation_update = {
         "activation": {
@@ -324,7 +327,7 @@ def _create_activation_update(receiver, master_enable, staged=False, activation=
         'master_enable': master_enable,
         'sender_id': sender_id,
         'transport_file': transport_file,
-        'transport_params': [updated_transport_params]
+        'transport_params': updated_transport_params
     }
 
     return activation_update
@@ -339,9 +342,9 @@ def _update_receiver_subscription(receiver, active, sender_id):
     return dict(receiver, **receiver_update)
 
 
-def _update_sender_subscription(sender, active):
+def _update_sender_subscription(sender, active, receiver_id=None):
     sender_update = {
-        'subscription': {'active': active, 'receiver_id': None},
+        'subscription': {'active': active, 'receiver_id': receiver_id},
         'version': NMOSUtils.get_TAI_time()
     }
 
@@ -367,17 +370,19 @@ def staged(version, resource, resource_id):
             if request.method == 'PATCH':
                 activations = resources[resource_id]['activations']
                 sender = resources[resource_id]['sender']
+                receiver_id = request.json.get('receiver_id', None)
 
                 activations['active']['master_enable'] = request.json.get("master_enable", True)
                 activations['active']['activation']['activation_time'] = NMOSUtils.get_TAI_time()
                 activations['active']['activation']['mode'] = 'activate_immediate'
+                activations['active']['receiver_id'] = receiver_id
 
                 if 'transport_params' in request.json:
                     for param, value in request.json['transport_params'][0].items():
                         if value != 'auto':
                             activations['active']['transport_params'][0][param] = value
 
-                sender = _update_sender_subscription(sender, request.json.get("master_enable", True))
+                sender = _update_sender_subscription(sender, request.json.get("master_enable", True), receiver_id)
 
                 # POST updated sender to registry
                 do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource',
@@ -399,7 +404,7 @@ def staged(version, resource, resource_id):
                     # Either patching to staged or directly to activated
                     # Data for response
                     activation_update = _create_activation_update(
-                        request.json, True, activation=request.json.get('activation'))
+                        request.json, True, activation=request.json.get('activation', None))
 
                     if "activation" in request.json:
                         # Activating without staging first
@@ -450,7 +455,8 @@ def staged(version, resource, resource_id):
 
                 else:
                     # empty patch
-                    activation_update = _create_activation_update(request.json, False)
+                    activation_update = _create_activation_update(request.json, True, staged=True)
+                    activations['staged'] = activation_update
 
             elif request.method == 'GET':
                 # Need to fetch json of actual current 'staged' info
