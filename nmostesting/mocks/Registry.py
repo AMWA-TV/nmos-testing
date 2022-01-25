@@ -537,7 +537,7 @@ def query_resource(version, resource):
             sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
 
             # Only if until is after the start of the resource list
-            if NMOSUtils.compare_resource_version(until, sorted_list[0]['version']) > 0:
+            if len(sorted_list) > 0 and NMOSUtils.compare_resource_version(until, sorted_list[0]['version']) > 0:
                 since_index = 0
                 until_index = 0
 
