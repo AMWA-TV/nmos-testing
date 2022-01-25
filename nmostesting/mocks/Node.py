@@ -273,15 +273,18 @@ def connection(version, resource, resource_id):
                 methods=["GET"], strict_slashes=False)
 def constraints(version, resource, resource_id):
     base_data = [{
-        "destination_ip": {},
         "destination_port": {},
-        "multicast_ip": {},
         "rtp_enabled": {},
         "source_ip": {
             "enum": [get_default_ip()]
-        },
-        "source_port": {}
+        }
     }]
+    if resource == 'receivers':
+        base_data[0]["multicast_ip"] = {}
+        base_data[0]["interface_ip"] = {}
+    elif resource == 'senders':
+        base_data[0]["destination_ip"] = {}
+        base_data[0]["source_port"] = {}
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -369,6 +372,11 @@ def staged(version, resource, resource_id):
                 activations['active']['activation']['activation_time'] = NMOSUtils.get_TAI_time()
                 activations['active']['activation']['mode'] = 'activate_immediate'
 
+                if 'transport_params' in request.json:
+                    for param, value in request.json['transport_params'][0].items():
+                        if value != 'auto':
+                            activations['active']['transport_params'][0][param] = value
+
                 sender = _update_sender_subscription(sender, request.json.get("master_enable", True))
 
                 # POST updated sender to registry
@@ -440,9 +448,9 @@ def staged(version, resource, resource_id):
                             do_request("POST", NODE.registry_url + 'x-nmos/registration/v1.3/resource',
                                        json={"type": "receiver", "data": receiver})
 
-                    else:
-                        # shouldn't have got here
-                        abort(500)
+                else:
+                    # empty patch
+                    activation_update = _create_activation_update(request.json, False)
 
             elif request.method == 'GET':
                 # Need to fetch json of actual current 'staged' info
