@@ -367,7 +367,7 @@ def staged(version, resource, resource_id):
             if request.method == 'PATCH':
                 activations = resources[resource_id]['activations']
                 sender = resources[resource_id]['sender']
-                receiver_id = request.json.get('receiver_id', None)
+                receiver_id = request.json.get('receiver_id')
 
                 activations['active']['master_enable'] = request.json.get("master_enable", True)
                 activations['active']['activation']['activation_time'] = NMOSUtils.get_TAI_time()
@@ -401,7 +401,7 @@ def staged(version, resource, resource_id):
                     # Either patching to staged or directly to activated
                     # Data for response
                     activation_update = _create_activation_update(
-                        request.json, True, activation=request.json.get('activation', None))
+                        request.json, True, activation=request.json.get('activation'))
 
                     if "activation" in request.json:
                         # Activating without staging first
