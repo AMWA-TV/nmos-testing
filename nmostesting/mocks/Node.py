@@ -291,10 +291,7 @@ def constraints(version, resource, resource_id):
 
 def _create_activation_update(receiver, master_enable, staged=False, activation=None):
 
-    try:
-        sender = NODE.senders[receiver['sender_id']] if receiver and receiver.get('sender_id') else None
-    except KeyError:
-        sender = None
+    sender = NODE.senders.get(receiver['sender_id']) if receiver and receiver.get('sender_id') else None
 
     # use resolved defaults if not a staged activation
     default_destination_port = "auto" if staged else 5004
