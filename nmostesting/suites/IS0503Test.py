@@ -198,7 +198,7 @@ class IS0503Test(ControllerTest):
             return test.UNCLEAR(e.args[0])
         finally:
             # Remove subscription
-            deactivate_json = {"transport_params": [{}],
+            deactivate_json = {"transport_params": [{}], "master_enable": False,
                                "activation": {"mode": "activate_immediate"}}
             deactivate_url = self.mock_node_base_url \
                 + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
@@ -297,7 +297,8 @@ class IS0503Test(ControllerTest):
             return test.UNCLEAR(e.args[0])
         finally:
             # Remove subscription
-            deactivate_json = {"transport_params": [{}], "activation": {"mode": "activate_immediate"}}
+            deactivate_json = {"transport_params": [{}], "master_enable": False,
+                               "activation": {"mode": "activate_immediate"}}
             deactivate_url = self.mock_node_base_url \
                 + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
                 + receiver['id'] + '/staged'
@@ -419,7 +420,8 @@ class IS0503Test(ControllerTest):
             exitTestEvent.wait(time_delay)
 
             # Remove connection
-            deactivate_json = {"transport_params": [{}], "activation": {"mode": "activate_immediate"}}
+            deactivate_json = {"transport_params": [{}], "master_enable": False,
+                               "activation": {"mode": "activate_immediate"}}
             deactivate_url = self.mock_node_base_url \
                 + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
                 + receiver['id'] + '/staged'
