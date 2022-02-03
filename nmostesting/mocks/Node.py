@@ -301,7 +301,7 @@ def _check_constraint(constraint, transport_param):
     for key, value in constraint.items():
         if key == 'enum' and transport_param not in value:
             constraint_match = False
-        elif key == 'minumum' and transport_param < value:
+        elif key == 'minimum' and transport_param < value:
             constraint_match = False
         elif key == 'maximum' and transport_param > value:
             constraint_match = False
