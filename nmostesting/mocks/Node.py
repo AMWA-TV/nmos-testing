@@ -322,21 +322,24 @@ def staged(version, resource, resource_id):
     NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id,
                                  'data': request.json})
 
-    if resource not in ['senders', 'receivers']:
-        abort(404)
-
     try:
+        if resource == 'senders':
+            resources = NODE.senders
+            allowed_json = ['activation', 'master_enable', 'receiver_id', 'transport_params']
+        elif resource == 'receivers':
+            resources = NODE.receivers
+            allowed_json = ['activation', 'master_enable', 'sender_id', 'transport_file', 'transport_params']
+        else:
+            abort(404)
+
         response_data = {}
         response_code = 200
-        resources = NODE.senders if resource == 'senders' else NODE.receivers
 
         if request.method == 'GET':
             response_data = resources[resource_id]['activations']['staged']
 
         elif request.method == 'PATCH':
             # Check JSON data only contains allowed values
-            allowed_json = ['activation', 'master_enable', 'sender_id', 'receiver_id', 'transport_file',
-                            'transport_params']
             for item in request.json:
                 if item not in allowed_json:
                     return {'code': 400, 'debug': None, 'error': 'Invalid JSON entry ' + item}, 400
@@ -357,7 +360,7 @@ def staged(version, resource, resource_id):
                         # There is a constraint for this param and a value in the request to check
                         check = _check_constraint(value, transport_params[0][key])
                         if not check:
-                            return {'code': 400, 'debug': None, 
+                            return {'code': 400, 'debug': None,
                                     'error': 'Transport param {} does not satisfy constraints.'.format(key)}, 400
 
                         # Save verified non-auto param
@@ -454,8 +457,8 @@ def staged(version, resource, resource_id):
                     response_code = 202
 
                 # POST updated subscription to registry
-                valid, response = do_request('POST', NODE.registry_url + 'x-nmos/registration/' + version +'/resource',
-                                             json={'type': resource_type, 'data': subscription_update})
+                valid, response = do_request('POST', NODE.registry_url + 'x-nmos/registration/' + version +
+                                             '/resource', json={'type': resource_type, 'data': subscription_update})
 
                 # Update active data with new data
                 activations['active'] = response_data
