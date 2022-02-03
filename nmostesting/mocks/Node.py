@@ -15,7 +15,7 @@
 import uuid
 import json
 
-from flask import Blueprint, make_response, abort, Response, request, url_for
+from flask import Blueprint, make_response, abort, Response, request
 from random import randint
 from copy import deepcopy
 from jinja2 import Template
@@ -270,21 +270,29 @@ def connection(version, resource, resource_id):
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
+def _get_constraints(resource):
+    """
+    Returns basic constraint set for senders or receivers
+    """
+    constraints = {"destination_port": {}, "rtp_enabled": {}}
+
+    if resource == 'receivers':
+        constraints["multicast_ip"] = {}
+        constraints["interface_ip"] = {"enum": [get_default_ip()]}
+        constraints["source_ip"] = {}
+
+    elif resource == 'senders':
+        constraints["destination_ip"] = {}
+        constraints["source_port"] = {}
+        constraints["source_ip"] = {"enum": [get_default_ip()]}
+
+    return constraints
+
+
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/constraints',
                 methods=["GET"], strict_slashes=False)
 def constraints(version, resource, resource_id):
-    base_data = [{
-        "destination_port": {},
-        "rtp_enabled": {},
-    }]
-    if resource == 'receivers':
-        base_data[0]["multicast_ip"] = {}
-        base_data[0]["interface_ip"] = {"enum": [get_default_ip()]}
-        base_data[0]["source_ip"] = {}
-    elif resource == 'senders':
-        base_data[0]["destination_ip"] = {}
-        base_data[0]["source_port"] = {}
-        base_data[0]["source_ip"] = {"enum": [get_default_ip()]}
+    base_data = [_get_constraints(resource)]
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
@@ -351,11 +359,9 @@ def staged(version, resource, resource_id):
             if request.json.get('transport_params'):
                 response_data['transport_params'] = [{}]
                 transport_params = request.json['transport_params']
-                constraints_url = 'http://' + get_default_ip() + ':' + str(NODE.port) + \
-                    url_for('.constraints', version=version, resource=resource, resource_id=resource_id)
-                valid, response = do_request('GET', constraints_url)
+                constraints = _get_constraints(resource)
 
-                for key, value in response.json()[0].items():
+                for key, value in constraints.items():
                     if value and key in transport_params[0] and transport_params[0][key] != 'auto':
                         # There is a constraint for this param and a value in the request to check
                         check = _check_constraint(value, transport_params[0][key])
