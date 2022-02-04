@@ -93,8 +93,8 @@ class IS0503Test(ControllerTest):
         try:
             # Check receivers
             question = """\
-                       A subset of the Receivers registered with the Registry are controllable via IS-05, for instance, \
-                       allowing Senders to be connected. \
+                       A subset of the Receivers registered with the Registry are controllable via IS-05, \
+                       for instance, allowing Senders to be connected. \
 
                        Please refresh your NCuT and select the Receivers \
                        that have a Connection API from the list below.
