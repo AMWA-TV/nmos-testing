@@ -93,15 +93,13 @@ class IS0503Test(ControllerTest):
         try:
             # Check receivers
             question = """\
-                       Some of the discovered Receivers are controllable via IS-05, for instance, \
+                       A subset of the Receivers registered with the Registry are controllable via IS-05, for instance, \
                        allowing Senders to be connected. \
-                       Additional Receivers have just been registered with the Registry, \
-                       a subset of which have a connection API.
 
                        Please refresh your NCuT and select the Receivers \
-                       that have a connection API from the list below.
+                       that have a Connection API from the list below.
 
-                       Be aware that if your NCuT only displays Receivers which have a connection API, \
+                       Be aware that if your NCuT only displays Receivers which have a Connection API, \
                        some of the Receivers in the following list may not be visible.
                        """
             possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
