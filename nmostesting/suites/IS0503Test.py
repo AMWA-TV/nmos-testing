@@ -65,6 +65,18 @@ class IS0503Test(ControllerTest):
 
         ControllerTest.set_up_tests(self)
 
+    def _reset_receivers(self):
+        """
+        Send deactivate requests to all receivers
+        """
+        for receiver in self.receivers:
+            deactivate_json = {"transport_params": [{}], "master_enable": False,
+                               "activation": {"mode": "activate_immediate"}}
+            deactivate_url = self.mock_node_base_url \
+                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
+                + receiver['id'] + '/staged'
+            self.do_request('PATCH', deactivate_url, json=deactivate_json)
+
     def test_01(self, test):
         """
         Identify which Receiver devices are controllable via IS-05
@@ -111,6 +123,8 @@ class IS0503Test(ControllerTest):
             return test.PASS('All Receivers correctly identified')
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
+        finally:
+            self._reset_receivers()
 
     def test_02(self, test):
         """
@@ -197,13 +211,7 @@ class IS0503Test(ControllerTest):
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
         finally:
-            # Remove subscription
-            deactivate_json = {"transport_params": [{}], "master_enable": False,
-                               "activation": {"mode": "activate_immediate"}}
-            deactivate_url = self.mock_node_base_url \
-                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
-                + receiver['id'] + '/staged'
-            self.do_request('PATCH', deactivate_url, json=deactivate_json)
+            self._reset_receivers()
 
     def test_03(self, test):
         """
@@ -296,13 +304,7 @@ class IS0503Test(ControllerTest):
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
         finally:
-            # Remove subscription
-            deactivate_json = {"transport_params": [{}], "master_enable": False,
-                               "activation": {"mode": "activate_immediate"}}
-            deactivate_url = self.mock_node_base_url \
-                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
-                + receiver['id'] + '/staged'
-            self.do_request('PATCH', deactivate_url, json=deactivate_json)
+            self._reset_receivers()
 
     def test_04(self, test):
         """
@@ -438,3 +440,5 @@ class IS0503Test(ControllerTest):
                 return test.PASS('Connection handled correctly')
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
+        finally:
+            self._reset_receivers()
