@@ -163,13 +163,11 @@ class IS0503Test(ControllerTest):
 
             self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
 
-            # Check the staged API endpoint received a PATCH request
+            # Check the staged API endpoint received the correct PATCH request
             patch_requests = [r for r in self.node.staged_requests if r['method'] == 'PATCH']
             if len(patch_requests) < 1:
                 return test.FAIL('No PATCH request was received by the node')
             elif len(patch_requests) == 1:
-                # One request should be direct activation, two if staged first
-                # First request should contain sender id and master enable
                 if patch_requests[0]['resource_id'] != receiver['id']:
                     return test.FAIL('Connection request sent to incorrect receiver')
 
@@ -182,8 +180,6 @@ class IS0503Test(ControllerTest):
                     if patch_requests[0]['data']['sender_id'] != sender['id']:
                         return test.FAIL('Incorrect sender found in PATCH request')
 
-                # Activation details may be in either request.
-                # If not in first must have staged first so should be in second to activate
                 if 'activation' not in patch_requests[0]['data']:
                     return test.FAIL('No activation details in PATCH request')
 
@@ -223,7 +219,7 @@ class IS0503Test(ControllerTest):
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
             receiver = random.choice(registered_receivers)
 
-            # Send PATCH request to node to set up connection
+            # Set up connection on the mock node
             valid, response = self.do_request('GET', self.mock_node_base_url
                                               + 'x-nmos/connection/' + self.connection_api_version + '/single/senders/'
                                               + sender['id'] + '/transportfile')
@@ -321,7 +317,7 @@ class IS0503Test(ControllerTest):
             registered_receivers = [r for r in self.receivers if r['registered'] and r['connectable']]
             receiver = random.choice(registered_receivers)
 
-            # Send PATCH request to node to set up connection
+            # Set up connection on the mock node
             valid, response = self.do_request('GET', self.mock_node_base_url
                                               + 'x-nmos/connection/' + self.connection_api_version + '/single/senders/'
                                               + sender['id'] + '/transportfile')
