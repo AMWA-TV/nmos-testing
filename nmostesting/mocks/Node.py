@@ -259,7 +259,7 @@ class Node(object):
             # Just staging so return data
             pass
 
-        elif request_json.get('master_enable') is False:
+        elif response_data['master_enable'] is False:
             # Deactivating
             # POST updated subscription to registry
             valid, response = do_request('POST', self.registry_url + 'x-nmos/registration/' + self.registry_version +
