@@ -234,7 +234,9 @@ class Node(object):
         elif resource == 'receivers':
             resource_type = 'receiver'
             response_data['sender_id'] = request_json.get('sender_id')
-            response_data['transport_file'] = request_json.get('transport_file', {'data': None, 'type': None})
+            response_data['transport_file'] = request_json.get('transport_file', activations['staged']['transport_file'])
+            if not response_data['transport_file']:
+                response_data['transport_file'] = {'data': None, 'type': None}
 
             # Update subscription for POST to mock registry
             subscription_update = resource_data['receiver']
@@ -251,7 +253,7 @@ class Node(object):
         # Get other request data
         response_data['activation'] = request_json.get('activation', {"activation_time": None, "mode": None,
                                                                       "requested_time": None})
-        response_data['master_enable'] = request_json.get('master_enable', True)
+        response_data['master_enable'] = request_json.get('master_enable', activations['staged']['master_enable'])
 
         if not request_json.get('activation'):
             # Just staging so return data
