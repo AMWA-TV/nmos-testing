@@ -72,10 +72,7 @@ class IS0503Test(ControllerTest):
         for receiver in self.receivers:
             deactivate_json = {"transport_params": [{}], "master_enable": False,
                                "activation": {"mode": "activate_immediate"}}
-            deactivate_url = self.mock_node_base_url \
-                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
-                + receiver['id'] + '/staged'
-            self.do_request('PATCH', deactivate_url, json=deactivate_json)
+            self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
     def test_01(self, test):
         """
@@ -237,10 +234,7 @@ class IS0503Test(ControllerTest):
                              "master_enable": True,
                              "sender_id": sender['id'],
                              "transport_file": {"data": transport_file, "type": "application/sdp"}}
-            activate_url = self.mock_node_base_url \
-                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
-                + receiver['id'] + '/staged'
-            self.do_request('PATCH', activate_url, json=activate_json)
+            self.node.patch_staged('receivers', receiver['id'], activate_json)
 
             # Clear staged requests once connection has been set up
             self.node.clear_staged_requests()
@@ -338,10 +332,7 @@ class IS0503Test(ControllerTest):
                              "master_enable": True,
                              "sender_id": sender['id'],
                              "transport_file": {"data": transport_file, "type": "application/sdp"}}
-            activate_url = self.mock_node_base_url \
-                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
-                + receiver['id'] + '/staged'
-            self.do_request('PATCH', activate_url, json=activate_json)
+            self.node.patch_staged('receivers', receiver['id'], activate_json)
 
             # Identify which Receiver has been activated
             question = """\
@@ -422,10 +413,7 @@ class IS0503Test(ControllerTest):
             # Remove connection
             deactivate_json = {"transport_params": [{}], "master_enable": False,
                                "activation": {"mode": "activate_immediate"}}
-            deactivate_url = self.mock_node_base_url \
-                + 'x-nmos/connection/' + self.connection_api_version + '/single/receivers/' \
-                + receiver['id'] + '/staged'
-            self.do_request('PATCH', deactivate_url, json=deactivate_json)
+            self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
             response = self._wait_for_testing_facade(sent_json['question_id'], 'action')
 

@@ -29,6 +29,7 @@ class Node(object):
         self.port = CONFIG.PORT_BASE + 200 + port_increment
         self.id = str(uuid.uuid4())
         self.registry_url = ''
+        self.registry_version = ''
         self.reset()
 
     def reset(self):
@@ -164,6 +165,146 @@ class Node(object):
 
     def clear_staged_requests(self):
         self.staged_requests = []
+
+    def patch_staged(self, resource, resource_id, request_json):
+        """
+        Updates data for given resource to either stage a connection, activate a staged connection,
+        activate a connection without staging or deactivate an active connection
+        resource: 'senders' or 'receivers'
+        resource_id: nmos id for resource
+        request_json: JSON from the PATCH request
+        Returns data and status code to send in response to PATCH request
+        Updates mock Registry subscription in cases of activation/deactivation
+        """
+        response_data = {}
+        response_code = 200
+        # Get current staged and active details for resource
+        resource_data = self.senders[resource_id] if resource == 'senders' else self.receivers[resource_id]
+        activations = resource_data['activations']
+
+        # Check transport params against constraints
+        if request_json.get('transport_params'):
+            response_data['transport_params'] = [{}]
+            transport_params = request_json['transport_params']
+            constraints = _get_constraints(resource)
+
+            for key, value in constraints.items():
+                if value and key in transport_params[0] and transport_params[0][key] != 'auto':
+                    # There is a constraint for this param and a value in the request to check
+                    check = _check_constraint(value, transport_params[0][key])
+                    if not check:
+                        response_data = {'code': 400, 'debug': None,
+                                         'error': 'Transport param {} does not satisfy constraints.'.format(key)}
+                        response_code = 400
+                        return response_data, response_code
+
+                    # Save verified non-auto param
+                    response_data['transport_params'][0][key] = transport_params[0][key]
+                else:
+                    # Save auto or existing staged value
+                    staged_param = activations['staged']['transport_params'][0].get(key)
+                    response_data['transport_params'][0][key] = transport_params[0].get(key, staged_param)
+        else:
+            # No transport params in request. Get existing staged params
+            response_data['transport_params'] = activations['staged']['transport_params']
+
+        # Set up default transport parameters to fill in auto or missing values
+        default_params = {'multicast_ip': None, 'destination_port': 5004, 'source_ip': get_default_ip(),
+                          'interface_ip': get_default_ip(), 'rtp_enabled': True, 'source_port': 5004}
+
+        # Update linked sender or receiver if included and get transport file for receivers
+        if resource == 'senders':
+            resource_type = 'sender'
+            response_data['receiver_id'] = request_json.get('receiver_id')
+
+            # Update subscription for POST to mock registry
+            subscription_update = resource_data['sender']
+            subscription_update['subscription']['active'] = request_json.get('master_enable',
+                                                                             activations['staged']['master_enable'])
+            subscription_update['version'] = NMOSUtils.get_TAI_time()
+
+            if subscription_update['subscription']['active'] is True:
+                receiver_id = request_json.get('receiver_id', activations['staged']['receiver_id'])
+                subscription_update['subscription']['receiver_id'] = receiver_id
+            else:
+                subscription_update['subscription']['receiver_id'] = None
+
+            default_params['destination_ip'] = activations['transport_params'][0]['destination_ip']
+
+        elif resource == 'receivers':
+            resource_type = 'receiver'
+            response_data['sender_id'] = request_json.get('sender_id')
+            response_data['transport_file'] = request_json.get('transport_file', {'data': None, 'type': None})
+
+            # Update subscription for POST to mock registry
+            subscription_update = resource_data['receiver']
+            subscription_update['subscription']['active'] = request_json.get('master_enable',
+                                                                             activations['staged']['master_enable'])
+            subscription_update['version'] = NMOSUtils.get_TAI_time()
+
+            if subscription_update['subscription']['active'] is True:
+                sender_id = request_json.get('sender_id', activations['staged']['sender_id'])
+                subscription_update['subscription']['sender_id'] = sender_id
+            else:
+                subscription_update['subscription']['sender_id'] = None
+
+        # Get other request data
+        response_data['activation'] = request_json.get('activation', {"activation_time": None, "mode": None,
+                                                                      "requested_time": None})
+        response_data['master_enable'] = request_json.get('master_enable', True)
+
+        if not request_json.get('activation'):
+            # Just staging so return data
+            pass
+
+        elif request_json.get('master_enable') is False:
+            # Deactivating
+            # POST updated subscription to registry
+            valid, response = do_request('POST', self.registry_url + 'x-nmos/registration/' + self.registry_version +
+                                         '/resource', json={'type': resource_type, 'data': subscription_update})
+
+            response_data['activation']['activation_time'] = NMOSUtils.get_TAI_time()
+            response_data['activation']['requested_time'] = None
+
+            # Update active data
+            activations['active'] = response_data
+            activations['active']['activation'] = {"activation_time": None, "mode": None, "requested_time": None}
+
+        else:
+            # Activating
+            # Check for empty keys in response_data and fill in from staged
+            for key, value in response_data.items():
+                if value is None:
+                    response_data[key] = activations['staged'][key]
+
+            # Check for auto in params and update from defaults
+            for key, value in response_data['transport_params'][0].items():
+                if value == 'auto':
+                    response_data['transport_params'][0][key] = default_params[key]
+
+            # Add activation time
+            response_data['activation']['activation_time'] = NMOSUtils.get_TAI_time()
+
+            if response_data['activation']['mode'] == 'activate_immediate':
+                response_data['activation']['requested_time'] = None
+            else:
+                # Note: Currently all mock activations are immediate regardless of requested mode
+                response_code = 202
+
+            # POST updated subscription to registry
+            valid, response = do_request('POST', self.registry_url + 'x-nmos/registration/' + self.registry_version +
+                                         '/resource', json={'type': resource_type, 'data': subscription_update})
+
+            # Update active data with new data
+            activations['active'] = response_data
+            activations['transport_params'] = response_data['transport_params']
+
+        # Update staged data with new data
+        staged_data = deepcopy(response_data)
+        staged_data['activation'] = {"activation_time": None, "mode": None, "requested_time": None}
+        activations['staged'] = staged_data
+
+        return response_data, response_code
 
 
 NODE = Node(1)
@@ -340,11 +481,9 @@ def staged(version, resource, resource_id):
         else:
             abort(404)
 
-        response_data = {}
-        response_code = 200
-
         if request.method == 'GET':
             response_data = resources[resource_id]['activations']['staged']
+            response_code = 200
 
         elif request.method == 'PATCH':
             # Check JSON data only contains allowed values
@@ -352,128 +491,8 @@ def staged(version, resource, resource_id):
                 if item not in allowed_json:
                     return {'code': 400, 'debug': None, 'error': 'Invalid JSON entry ' + item}, 400
 
-            # Get current staged and active details for resource
-            activations = resources[resource_id]['activations']
-
-            # Check transport params against constraints
-            if request.json.get('transport_params'):
-                response_data['transport_params'] = [{}]
-                transport_params = request.json['transport_params']
-                constraints = _get_constraints(resource)
-
-                for key, value in constraints.items():
-                    if value and key in transport_params[0] and transport_params[0][key] != 'auto':
-                        # There is a constraint for this param and a value in the request to check
-                        check = _check_constraint(value, transport_params[0][key])
-                        if not check:
-                            return {'code': 400, 'debug': None,
-                                    'error': 'Transport param {} does not satisfy constraints.'.format(key)}, 400
-
-                        # Save verified non-auto param
-                        response_data['transport_params'][0][key] = transport_params[0][key]
-                    else:
-                        # Save auto or existing staged value
-                        staged_param = activations['staged']['transport_params'][0].get(key)
-                        response_data['transport_params'][0][key] = transport_params[0].get(key, staged_param)
-            else:
-                # No transport params in request. Get existing staged params
-                response_data['transport_params'] = activations['staged']['transport_params']
-
-            # Set up default transport parameters to fill in auto or missing values
-            default_params = {'multicast_ip': None, 'destination_port': 5004, 'source_ip': get_default_ip(),
-                              'interface_ip': get_default_ip(), 'rtp_enabled': True, 'source_port': 5004}
-
-            # Update linked sender or receiver if included and get transport file for receivers
-            if resource == 'senders':
-                resource_type = 'sender'
-                response_data['receiver_id'] = request.json.get('receiver_id')
-
-                # Update subscription for POST to mock registry
-                subscription_update = resources[resource_id]['sender']
-                subscription_update['subscription']['active'] = request.json.get('master_enable',
-                                                                                 activations['staged']['master_enable'])
-                subscription_update['version'] = NMOSUtils.get_TAI_time()
-
-                if subscription_update['subscription']['active'] is True:
-                    receiver_id = request.json.get('receiver_id', activations['staged']['receiver_id'])
-                    subscription_update['subscription']['receiver_id'] = receiver_id
-                else:
-                    subscription_update['subscription']['receiver_id'] = None
-
-                default_params['destination_ip'] = activations['transport_params'][0]['destination_ip']
-
-            elif resource == 'receivers':
-                resource_type = 'receiver'
-                response_data['sender_id'] = request.json.get('sender_id')
-                response_data['transport_file'] = request.json.get('transport_file', {'data': None, 'type': None})
-
-                # Update subscription for POST to mock registry
-                subscription_update = resources[resource_id]['receiver']
-                subscription_update['subscription']['active'] = request.json.get('master_enable',
-                                                                                 activations['staged']['master_enable'])
-                subscription_update['version'] = NMOSUtils.get_TAI_time()
-
-                if subscription_update['subscription']['active'] is True:
-                    sender_id = request.json.get('sender_id', activations['staged']['sender_id'])
-                    subscription_update['subscription']['sender_id'] = sender_id
-                else:
-                    subscription_update['subscription']['sender_id'] = None
-
-            # Get other request data
-            response_data['activation'] = request.json.get('activation', {"activation_time": None, "mode": None,
-                                                                          "requested_time": None})
-            response_data['master_enable'] = request.json.get('master_enable', True)
-
-            if not request.json.get('activation'):
-                # Just staging so return data
-                pass
-
-            elif request.json.get('master_enable') is False:
-                # Deactivating
-                # POST updated subscription to registry
-                valid, response = do_request('POST', NODE.registry_url + 'x-nmos/registration/' + version + '/resource',
-                                             json={'type': resource_type, 'data': subscription_update})
-
-                response_data['activation']['activation_time'] = NMOSUtils.get_TAI_time()
-                response_data['activation']['requested_time'] = None
-
-                # Update active data
-                activations['active'] = response_data
-                activations['active']['activation'] = {"activation_time": None, "mode": None, "requested_time": None}
-
-            else:
-                # Activating
-                # Check for empty keys in response_data and fill in from staged
-                for key, value in response_data.items():
-                    if value is None:
-                        response_data[key] = activations['staged'][key]
-
-                # Check for auto in params and update from defaults
-                for key, value in response_data['transport_params'][0].items():
-                    if value == 'auto':
-                        response_data['transport_params'][0][key] = default_params[key]
-
-                # Add activation time
-                response_data['activation']['activation_time'] = NMOSUtils.get_TAI_time()
-
-                if response_data['activation']['mode'] == 'activate_immediate':
-                    response_data['activation']['requested_time'] = None
-                else:
-                    # Note: Currently all mock activations are immediate regardless of requested mode
-                    response_code = 202
-
-                # POST updated subscription to registry
-                valid, response = do_request('POST', NODE.registry_url + 'x-nmos/registration/' + version +
-                                             '/resource', json={'type': resource_type, 'data': subscription_update})
-
-                # Update active data with new data
-                activations['active'] = response_data
-                activations['transport_params'] = response_data['transport_params']
-
-            # Update staged data with new data
-            staged_data = deepcopy(response_data)
-            staged_data['activation'] = {"activation_time": None, "mode": None, "requested_time": None}
-            activations['staged'] = staged_data
+            # Update details for resource
+            response_data, response_code = NODE.patch_staged(resource, resource_id, request.json)
 
     except KeyError:
         abort(404)

@@ -125,6 +125,7 @@ class ControllerTest(GenericTest):
 
         # Set up mock node
         self.node.registry_url = self.mock_registry_base_url
+        self.node.registry_version = self.query_api_version
 
     def tear_down_tests(self):
         self.primary_registry.disable()
