@@ -176,41 +176,34 @@ class Node(object):
         Returns data and status code to send in response to PATCH request
         Updates mock Registry subscription in cases of activation/deactivation
         """
-        response_data = {}
-        response_code = 200
         # Get current staged and active details for resource
         resource_data = self.senders[resource_id] if resource == 'senders' else self.receivers[resource_id]
         activations = resource_data['activations']
+        response_data = deepcopy(activations['staged'])
+        response_code = 200
 
         # Check transport params against constraints
         if request_json.get('transport_params'):
-            response_data['transport_params'] = [{}]
             transport_params = request_json['transport_params']
             constraints = _get_constraints(resource)
 
             for key, value in constraints.items():
-                if value and key in transport_params[0] and transport_params[0][key] != 'auto':
-                    # There is a constraint for this param and a value in the request to check
-                    check = _check_constraint(value, transport_params[0][key])
-                    if not check:
-                        response_data = {'code': 400, 'debug': None,
-                                         'error': 'Transport param {} does not satisfy constraints.'.format(key)}
-                        response_code = 400
-                        return response_data, response_code
-
-                    # Save verified non-auto param
+                if key in transport_params[0]:
+                    if value:
+                        # There is a constraint for this param and a value in the request to check
+                        check = _check_constraint(value, transport_params[0][key])
+                        if not check:
+                            response_data = {'code': 400, 'debug': None,
+                                             'error': 'Transport param {} does not satisfy constraints.'.format(key)}
+                            response_code = 400
+                            return response_data, response_code
+                    # No constraint to check or passed check so save param from request
                     response_data['transport_params'][0][key] = transport_params[0][key]
-                else:
-                    # Save auto or existing staged value
-                    staged_param = activations['staged']['transport_params'][0].get(key)
-                    response_data['transport_params'][0][key] = transport_params[0].get(key, staged_param)
-        else:
-            # No transport params in request. Get existing staged params
-            response_data['transport_params'] = activations['staged']['transport_params']
 
         # Set up default transport parameters to fill in auto or missing values
-        default_params = {'multicast_ip': None, 'destination_port': 5004, 'source_ip': get_default_ip(),
-                          'interface_ip': get_default_ip(), 'rtp_enabled': True, 'source_port': 5004}
+        default_params = {'sender_id': None, 'receiver_id': None, 'multicast_ip': None, 'destination_port': 5004,
+                          'source_ip': get_default_ip(), 'interface_ip': get_default_ip(), 'rtp_enabled': True,
+                          'source_port': 5004}
 
         # Get resource specific data
         if resource == 'senders':
@@ -221,29 +214,20 @@ class Node(object):
         elif resource == 'receivers':
             resource_type = 'receiver'
             connected_resource_id = 'sender_id'
-            response_data['transport_file'] = request_json.get('transport_file',
-                                                               activations['staged']['transport_file'])
-
-            if not response_data['transport_file']:
-                response_data['transport_file'] = {'data': None, 'type': None}
+            if 'transport_file' in request_json:
+                response_data['transport_file'] = request_json['transport_file']
 
         # Get other request data
-        response_data[connected_resource_id] = request_json.get(connected_resource_id,
-                                                                activations['staged'][connected_resource_id])
-        response_data['activation'] = request_json.get('activation', {"activation_time": None, "mode": None,
-                                                                      "requested_time": None})
-        response_data['master_enable'] = request_json.get('master_enable', activations['staged']['master_enable'])
+        request_list = [connected_resource_id, 'activation', 'master_enable']
+        for item in request_list:
+            if item in request_json:
+                response_data[item] = request_json[item]
 
         if not request_json.get('activation'):
             # Just staging so return data
             pass
         else:
             # Activating
-            # Check for empty keys in response_data and fill in from staged
-            for key, value in response_data.items():
-                if value is None:
-                    response_data[key] = activations['staged'][key]
-
             # Check for auto in params and update from defaults
             for key, value in response_data['transport_params'][0].items():
                 if value == 'auto':
@@ -421,6 +405,7 @@ def _check_constraint(constraint, transport_param):
     enum: Must be exact match for one of the items in the list
     minimum: Must be greater than given value
     maximum: Must be smaller than given value
+    auto values will return True
     """
     constraint_match = True
 
@@ -431,6 +416,9 @@ def _check_constraint(constraint, transport_param):
             constraint_match = False
         elif key == 'maximum' and transport_param > value:
             constraint_match = False
+
+    if transport_param == 'auto':
+        constraint_match = True
 
     return constraint_match
 

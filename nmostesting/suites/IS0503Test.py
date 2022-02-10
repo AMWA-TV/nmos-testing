@@ -70,7 +70,7 @@ class IS0503Test(ControllerTest):
         Send deactivate requests to all receivers
         """
         for receiver in self.receivers:
-            deactivate_json = {"transport_params": [{}], "master_enable": False,
+            deactivate_json = {"transport_params": [{}], "master_enable": False, 'sender_id': None,
                                "activation": {"mode": "activate_immediate"}}
             self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
