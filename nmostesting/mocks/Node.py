@@ -228,7 +228,8 @@ class Node(object):
                 response_data['transport_file'] = {'data': None, 'type': None}
 
         # Get other request data
-        response_data[connected_resource_id] = request_json.get(connected_resource_id)
+        response_data[connected_resource_id] = request_json.get(connected_resource_id,
+                                                                activations['staged'][connected_resource_id])
         response_data['activation'] = request_json.get('activation', {"activation_time": None, "mode": None,
                                                                       "requested_time": None})
         response_data['master_enable'] = request_json.get('master_enable', activations['staged']['master_enable'])
@@ -240,7 +241,7 @@ class Node(object):
             # Activating
             # Check for empty keys in response_data and fill in from staged
             for key, value in response_data.items():
-                if value is None and response_data['master_enable']:
+                if value is None:
                     response_data[key] = activations['staged'][key]
 
             # Check for auto in params and update from defaults
@@ -259,14 +260,11 @@ class Node(object):
 
             # Create update for IS-04 subscription
             subscription_update = resource_data[resource_type]
-            subscription_update['subscription']['active'] = request_json.get('master_enable',
-                                                                             activations['staged']['master_enable'])
+            subscription_update['subscription']['active'] = response_data['master_enable']
             subscription_update['version'] = NMOSUtils.get_TAI_time()
 
             if subscription_update['subscription']['active'] is True:
-                connected_resource = request_json.get(connected_resource_id,
-                                                      activations['staged'][connected_resource_id])
-                subscription_update['subscription'][connected_resource_id] = connected_resource
+                subscription_update['subscription'][connected_resource_id] = response_data[connected_resource_id]
             else:
                 subscription_update['subscription'][connected_resource_id] = None
 
