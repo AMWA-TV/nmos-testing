@@ -200,19 +200,20 @@ class Node(object):
                     # No constraint to check or passed check so save param from request
                     response_data['transport_params'][0][key] = transport_params[0][key]
 
-        # Set up default transport parameters to fill in auto or missing values
-        default_params = {'multicast_ip': None, 'destination_port': 5004, 'source_ip': get_default_ip(),
-                          'interface_ip': get_default_ip(), 'rtp_enabled': True, 'source_port': 5004}
-
         # Get resource specific data
         if resource == 'senders':
             resource_type = 'sender'
             connected_resource_id = 'receiver_id'
-            default_params['destination_ip'] = activations['transport_params'][0]['destination_ip']
+            # Set up default transport parameters to fill in autos
+            default_params = {'destination_port': 5004, 'source_ip': get_default_ip(), 'source_port': 5004,
+                              'destination_ip': activations['transport_params'][0]['destination_ip']}
 
         elif resource == 'receivers':
             resource_type = 'receiver'
             connected_resource_id = 'sender_id'
+            # Set up default transport parameters to fill in auto or missing values
+            default_params = {'destination_port': 5004, 'interface_ip': get_default_ip()}
+
             if 'transport_file' in request_json:
                 response_data['transport_file'] = request_json['transport_file']
 
