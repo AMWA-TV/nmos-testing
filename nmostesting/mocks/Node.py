@@ -201,9 +201,8 @@ class Node(object):
                     response_data['transport_params'][0][key] = transport_params[0][key]
 
         # Set up default transport parameters to fill in auto or missing values
-        default_params = {'sender_id': None, 'receiver_id': None, 'multicast_ip': None, 'destination_port': 5004,
-                          'source_ip': get_default_ip(), 'interface_ip': get_default_ip(), 'rtp_enabled': True,
-                          'source_port': 5004}
+        default_params = {'multicast_ip': None, 'destination_port': 5004, 'source_ip': get_default_ip(),
+                          'interface_ip': get_default_ip(), 'rtp_enabled': True, 'source_port': 5004}
 
         # Get resource specific data
         if resource == 'senders':
