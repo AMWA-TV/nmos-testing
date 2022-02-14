@@ -54,6 +54,10 @@ API_PROCESSING_TIMEOUT = 1
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80
 
+# Set a hostname/port for the Testing Façade for use with the Controller Testing suites
+TESTING_FACADE_HOST = '0.0.0.0'
+TESTING_FACADE_PORT = 5001
+
 # Path to store the specification file cache in. Relative to the base of the testing repository.
 CACHE_PATH = 'cache'
 

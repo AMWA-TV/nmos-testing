@@ -12,20 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import random
 import requests
 import json
 import time
 from flask import Flask, render_template, make_response, request
 from flask_socketio import SocketIO
-from DataStore import data
+from testingfacade.DataStore import data
+from nmostesting import Config as CONFIG
 
-app = Flask(__name__)
+base_dir = os.path.abspath('testingfacade')
+app = Flask(__name__, static_folder=base_dir+"/static", template_folder=base_dir+"/templates")
+
+socketio = SocketIO(app)
 
 CACHEBUSTER = random.randint(1, 10000)
-
-app = Flask(__name__)
-socketio = SocketIO(app)
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -119,5 +121,5 @@ def do_request(method, url, **kwargs):
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host=CONFIG.TESTING_FACADE_HOST, port=CONFIG.TESTING_FACADE_PORT)
     socketio.run(app)
