@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import random
 import requests
 import json
@@ -22,9 +21,7 @@ from flask_socketio import SocketIO
 from testingfacade.DataStore import data
 from nmostesting import Config as CONFIG
 
-base_dir = os.path.abspath('testingfacade')
-app = Flask(__name__, static_folder=base_dir+"/static", template_folder=base_dir+"/templates")
-
+app = Flask(__name__, static_folder="testingfacade/static", template_folder="testingfacade/templates")
 socketio = SocketIO(app)
 
 CACHEBUSTER = random.randint(1, 10000)
@@ -121,5 +118,5 @@ def do_request(method, url, **kwargs):
 
 
 if __name__ == "__main__":
-    app.run(host=CONFIG.TESTING_FACADE_HOST, port=CONFIG.TESTING_FACADE_PORT)
+    app.run(host='0.0.0.0', port=CONFIG.TESTING_FACADE_PORT)
     socketio.run(app)
