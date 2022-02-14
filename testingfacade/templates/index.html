@@ -35,31 +35,31 @@
         if (!isNaN(target)) {
             // target time exists so set countdown
             var x = setInterval(function() {
-            // current time
-            var now = new Date().getTime();
+                // current time
+                var now = new Date().getTime();
 
-            var difference = target - now;
+                var difference = target - now;
 
-            var minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-            var seconds = Math.floor((difference % (1000 * 60)) / 1000);
+                var minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+                var seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
-            // update the countdown
-            if (minutes < 1 && seconds < 1 ) {
-                document.getElementById("countdown").innerHTML = '';
-            } else if (seconds < 10) {
-                document.getElementById("countdown").innerHTML = minutes + ':0' + seconds;
-            } else {
-                document.getElementById("countdown").innerHTML = minutes + ':' + seconds;
-            }
+                // update the countdown
+                if (minutes < 1 && seconds < 1 ) {
+                    document.getElementById("countdown").innerHTML = '';
+                } else if (seconds < 10) {
+                    document.getElementById("countdown").innerHTML = minutes + ':0' + seconds;
+                } else {
+                    document.getElementById("countdown").innerHTML = minutes + ':' + seconds;
+                }
 
-            // If expired show message
-            if (difference < 0) {
-                clearInterval(x);
-                var button = document.getElementById("submitbtn");
-                button.value = 'Test expired';
-                button.disabled = true;
-            }
-        }, 1000);
+                // If expired show message
+                if (difference < 0) {
+                    clearInterval(x);
+                    var button = document.getElementById("submitbtn");
+                    button.value = 'Test expired';
+                    button.disabled = true;
+                }
+            }, 1000);
         }
 
     </script>
@@ -120,7 +120,7 @@
                 {% endif %}
             </form>
 
-        {% endif%}
+        {% endif %}
     </div>
     <br/>
     <br>
