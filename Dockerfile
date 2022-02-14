@@ -34,5 +34,4 @@ RUN apt-get update \
 
 VOLUME /config
 
-ENTRYPOINT ["python3"]
-CMD ["nmos-test.py"]
+CMD ./run_nmos_testing.sh
