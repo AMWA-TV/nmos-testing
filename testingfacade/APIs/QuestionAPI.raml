@@ -1,0 +1,35 @@
+#%RAML 1.0
+
+# AMWA NMOS Controller Testing: Question API
+# (c) AMWA 2021
+
+title: Question
+baseUri: http://api.example.com/x-nmos/testquestion/{version}
+version: v1.0
+mediaType: application/json
+types:
+  Question: !include schemas/question-schema.json
+documentation:
+  - title: Overview
+    content: |
+      The Question API is the endpoint to receive question data from the NMOS Controller Testing test suites. 
+      It is built into the bundled Testing Facade app and can be used for creating fully automated testing solutions. 
+      Data sent to this API should include all of the information necessary to operate the controller test suites 
+      either manually with the Testing Facade app or in a fully automated way. 
+  - title: Further Documentation
+    content: |
+      Further documentation covering the behaviour and usage of this API is contained in the [docs](../../docs) and [schemas](schemas) folders of this repository.
+/:
+  displayName: Base
+    post: 
+      description: Send a single question
+      body:
+        example: ../examples/post-question-action.json
+        example: ../examples/post-question-single-choice.json
+        example: ../examples/post-question-multi-choice.json
+        example: ../examples/post-question-metadata.json
+        type: !include schemas/question-schema.json
+      responses:
+        202:
+        400:
+          description: Returned when a required parameter is missing from request

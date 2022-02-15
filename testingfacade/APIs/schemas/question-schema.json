@@ -1,0 +1,139 @@
+{
+    "title": "Controller Testing - Question",
+    "description": "Contains all details necessary for NMOS Controller Testing",
+    "$schema": "http://json-schema.org/draft-04/schema",
+    "type": "object",
+    "required": [
+        "test_type",
+        "question_id",
+        "name",
+        "description",
+        "question",
+        "answers",
+        "timeout",
+        "answer_uri",
+        "metadata"
+    ],
+    "properties": {
+        "test_type": {
+            "type": "string",
+            "description": "The type of question being sent indicating the type of answer that needs to be returned",
+            "enum": [
+                "single_choice", 
+                "multi_choice", 
+                "action"
+            ]
+        },
+        "question_id": {
+            "description": "A unique string for each individual question sent. Where a test contains multiple questions they will share a name attribute but have a unique id",
+            "anyOf": [
+                {
+                    "description": "Identifier for messages sent at the beginning and end of every set of tests",
+                    "type": "string",
+                    "enum": [
+                        "pre_tests_message",
+                        "post_tests_message"
+                    ]
+                },
+                {
+                    "description": "Identifier for questions within a test",
+                    "type": "string",
+                    "pattern": "^test_[0-9a-z_]+$"
+                }
+            ]
+        },
+        "name": {
+            "type": "string",
+            "description": "The test name, indicating the test that sent the question",
+            "pattern": "^test_[0-9a-z_]+$"
+        },
+        "description": {
+            "type": "string",
+            "description": "A brief description of the test"
+        },
+        "question": {
+            "type": "string",
+            "description": "Human readable question text containing instructions to carry out the test"
+        },
+        "answers": {
+            "oneOf": [
+                {
+                    "type": "null",
+                    "description": "Action type questions"
+                },
+                {
+                    "type": "array",
+                    "description": "Array containing answer objects to be used to select the correct answer_id to be returned",
+                    "examples": [
+                        [
+                            {
+                                "answer_id": "answer_2",
+                                "display_answer": "s3/wright (Mock sender 3, 71ce775c-cdc5-479a-bd29-87c081905ecf)",
+                                "resource": {
+                                    "id": "71ce775c-cdc5-479a-bd29-87c081905ecf", 
+                                    "label": "s3/wright", 
+                                    "description": "Mock sender 3"
+                                }
+                            }
+                        ]
+                    ],
+                    "items": {
+                        "description": "Individual answer details, the label, description and id of the relevant resource and an associated answer_id",
+                        "type": "object",
+                        "required": [
+                            "answer_id",
+                            "display_answer",
+                            "resource"
+                        ],
+                        "properties": {
+                            "answer_id": {
+                                "type": "string",
+                                "description": "ID unique to each answer within a question. This is the value to be returned for validation",
+                                "pattern": "^answer_[0-9]+$"
+                            },
+                            "display_answer": {
+                                "type": "string",
+                                "description": "String combining all the resource details for display on the testing facade"
+                            },
+                            "resource": {
+                                "$ref": "resource-details-schema.json"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "timeout": {
+            "type": "number",
+            "description": "Time in seconds the test suite will wait to receive an answer to a particular question",
+            "default": 600
+        },
+        "answer_uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL of the test suite API endpoint to send the POST request with answers"
+        },
+        "metadata": {
+            "description": "Extra information to assist fully automated testing where an action is required on a specific resource",
+            "default": null,
+            "anyOf": [
+                {
+                    "type": "null"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "sender": {
+                            "$ref": "resource-details-schema.json"
+                        },
+                        "receiver": {
+                            "$ref": "resource-details-schema.json"
+                        }
+                    },
+                    "additionalProperties": false,
+                    "minProperties": 1 
+                }
+            ]
+        }
+    }
+}

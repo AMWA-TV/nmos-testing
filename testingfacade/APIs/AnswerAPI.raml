@@ -1,0 +1,33 @@
+#%RAML 1.0
+
+# AMWA NMOS Controller Testing: Answer API
+# (c) AMWA 2021
+
+title: Answer
+baseUri: http://api.example.com/x-nmos/testanswer/{version}
+version: v1.0
+mediaType: application/json
+types:
+  Answer: !include schemas/answer-schema.json
+documentation:
+  - title: Overview
+    content: |
+      The Answer API is the endpoint on the NMOS Testing tool that receives answer data from the user side of the Controller Test suites. 
+      This could be either from the bundled Testing Facade app or from a fully automated testing app and contains all the information 
+      necessary to determine the outcome of the test within the Test Suite.
+  - title: Further Documentation
+    content: |
+      Further documentation covering the usage of this API is contained in the [docs](../../docs/) and [schemas](schemas) folders of this repository.
+/:
+  displayName: Base
+    post:
+      description: Receive a single answer set for a question
+      body:
+        example: !include ../examples/post-answer-action.json
+        example: !include ../examples/post-answer-single-choice.json
+        example: !include ../examples/post-answer-multi-choice.json
+        type: !include schemas/answer-schema.json
+      responses:
+        202:
+        400:
+          description: Returned when question_id is missing from request

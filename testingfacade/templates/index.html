@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NMOS Controller Testing Façade</title>
+    <link rel="stylesheet" href="static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/css/style.css?nocache-{{ cachebuster }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="static/js/socket.io.min.js"></script>
+    <script src="static/js/jquery.min.js"></script>
+    <script type="text/javascript" charset="utf-8">
+        var socket = io();
+        socket.on('update', function (json) {
+            console.log('update UI...');
+            window.location.reload();
+        });
+
+        $(function () {
+            $('#submitAnswer').submit(function(e) {
+                var form = $(this);
+                $.ajax({
+                    type: form.attr('method'),
+                    url: form.attr('action'),
+                    data: form.serialize(),
+                });
+                e.preventDefault();
+                $('#submitbtn').val('Submitting...');
+                $('#submitbtn').attr("disabled", true);
+            });
+        });
+
+        // Target for countdown is time question was sent plus timeout converted to milliseconds
+        var target=(parseInt("{{ time_received }}") + parseInt("{{ timeout }}")) * 1000;
+
+        if (!isNaN(target)) {
+            // target time exists so set countdown
+            var x = setInterval(function() {
+                // current time
+                var now = new Date().getTime();
+
+                var difference = target - now;
+
+                var minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+                var seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+                // update the countdown
+                if (minutes < 1 && seconds < 1 ) {
+                    document.getElementById("countdown").innerHTML = '';
+                } else if (seconds < 10) {
+                    document.getElementById("countdown").innerHTML = minutes + ':0' + seconds;
+                } else {
+                    document.getElementById("countdown").innerHTML = minutes + ':' + seconds;
+                }
+
+                // If expired show message
+                if (difference < 0) {
+                    clearInterval(x);
+                    var button = document.getElementById("submitbtn");
+                    button.value = 'Test expired';
+                    button.disabled = true;
+                }
+            }, 1000);
+        }
+
+    </script>
+</head>
+
+<body>
+    <div id="page">
+        <h1>NMOS Controller Testing Façade</h1>
+        <noscript>
+          <div class="alert alert-danger top_alert" role="alert">
+              This web application requires JavaScript. Please enable it to ensure accurate results.
+          </div>
+        </noscript>
+        <div class="alert alert-primary top_alert" role="alert">
+            This test suite is under active development and does not yet provide 100% coverage of specifications.<br />
+            We recommend regularly re-testing implementations as new tests are developed.
+        </div>
+        {% if question == None %}
+            <div class="text">
+                No tests found. Run the NMOS Controller Test suite on your NMOS testing instance
+            </div><br/>
+        {% else %}
+            <div class="text test_details">
+                {{ name }} - {{ description }}
+            </div><br/>
+
+            <div id="countdown" class="countdown"></div><br/>
+
+            <form id="submitAnswer" method="POST" action='/'>
+                <div class="col-md-6 mx-auto">
+                    <div class="card">
+                        <div class="card-header">{{ question }}</div>
+                        {% if test_type == "action" %}
+                        {% else %}
+                            <ul class="list-group list-group-flush">
+                                {% for answer in answers %}
+                                    <li class="list-group-item">
+                                        {% if test_type == "single_choice" %}
+                                            <input class="form-check-input" type="radio" name="answer" id="{{ answer.answer_id }}" value="{{ answer.answer_id }}">
+                                        {% elif test_type == "multi_choice" %}
+                                            <input class="form-check-input" type="checkbox" name="answer" id="{{ answer.answer_id }}" value="{{ answer.answer_id }}">
+                                        {% endif %}
+                                        <label class="form-check-label" for="{{ answer.answer_id }}">{{ answer.display_answer }}</label>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+                <input type="hidden" id="all_data" name="all_data" value="{{ all_data }}">
+                <input type="hidden" id="response_url" name="response_url" value="{{ response_url }}">
+                <br/>
+                {% if test_type == "action" %}
+                    <input type="hidden" name="Next" value="Next">
+                    <input type="submit" id="submitbtn" value="Next"/>
+                {% else %}
+                    <input type="submit" id="submitbtn" value="Submit"/>
+                {% endif %}
+            </form>
+
+        {% endif %}
+    </div>
+    <br/>
+    <br>
+    </body>
+</html>

@@ -16,8 +16,10 @@ The following test suites are currently supported:
 *   IS-04 Node API
 *   IS-04 Registry APIs
 *   IS-04 Node API (Peer to Peer)
+*   IS-04 Controller (for usage see [Testing Controllers documentation](docs/2.8.%20Usage%20-%20Testing%20Controllers.md))
 *   IS-05 Connection Management API
 *   IS-05 Interaction with IS-04
+*   IS-05 Controller (for usage see [Testing Controllers documentation](docs/2.8.%20Usage%20-%20Testing%20Controllers.md))
 *   IS-06 Network Control API
 *   IS-07 Event & Tally API
 *   IS-07 Interaction with IS-04 and IS-05

@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import threading
 import requests
 import websocket
+import websockets
 import os
 import jsonref
 import netifaces
@@ -390,3 +392,67 @@ class MQTTClientWorker:
             self.error_occurred = True
             self.error_message = buf
         print("MQTT log: {}: {}".format(level, buf))
+
+
+class SubscriptionWebsocketWorker(threading.Thread):
+    """Subscription Server Worker Thread"""
+
+    async def consumer_handler(self, websocket, path):
+        async for message in websocket:
+            # ignore incoming websocket messages
+            pass
+
+    async def producer_handler(self, websocket, path):
+        # handle multiple client connections per socket
+        self._connected_clients.add(websocket)
+
+        # when websocket client first connects we immediately queue a 'sync' data grain message to be sent
+        self._loop.call_soon_threadsafe(self.queue_sync_data_grain_callback, self._resource_type)
+
+        # will automatically exit loop when websocket client disconnects or server closed
+        while True:
+            message = await self._message_queue.get()
+            # broadcast to all connected clients
+            await asyncio.wait([ws.send(message) for ws in self._connected_clients])
+
+    async def handler(self, websocket, path):
+        consumer_task = asyncio.ensure_future(self.consumer_handler(websocket, path))
+        producer_task = asyncio.ensure_future(self.producer_handler(websocket, path))
+
+        done, pending = await asyncio.wait([consumer_task, producer_task], return_when=asyncio.FIRST_COMPLETED)
+
+        for task in pending:
+            task.cancel()
+
+    def __init__(self, host, port, resource_type):
+        """
+        Initializer
+        :param resource_type: type of resource to which we are subscribing
+        :param host: host ip for websocket server (string)
+        :param port: port for websocket server (int)
+        """
+        threading.Thread.__init__(self, daemon=True)
+
+        self._resource_type = resource_type
+
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+
+        self._message_queue = asyncio.Queue()
+        self._connected_clients = set()
+
+        self._ws_server = self._loop.run_until_complete(websockets.serve(self.handler, host, port))
+
+    def run(self):
+        self._loop.run_forever()
+
+    def queue_message(self, message):
+        self._loop.call_soon_threadsafe(self._message_queue.put_nowait, message)
+
+    def close(self):
+        print('Closing websocket for ' + self._resource_type)
+        self._ws_server.close()
+
+    def set_queue_sync_data_grain_callback(self, callback):
+        """callback to queue sync data grain message with 1 parameter: resource_type (string) """
+        self.queue_sync_data_grain_callback = callback

@@ -15,3 +15,6 @@ rfc3987
 pyopenssl
 paho-mqtt
 authlib
+websockets
+Flask-Cors
+flask-socketio

@@ -1,0 +1,62 @@
+{
+    "description": "AMWA Test Suite Node",
+    "tags": {},
+    "api": {
+        "endpoints": [
+            {
+                "host": "172.29.80.65",
+                "protocol": "http",
+                "port": 80,
+                "authorization": false
+            }
+        ],
+        "versions": [
+            "v1.0",
+            "v1.1",
+            "v1.2"
+        ]
+    },
+    "interfaces": [
+        {
+            "port_id": "6c-3b-e5-14-48-7f",
+            "name": "eno1",
+            "chassis_id": null
+        },
+        {
+            "port_id": "a0-36-9f-2c-0b-d0",
+            "name": "ens1f0",
+            "chassis_id": "a0-36-9f-2c-0b-d0",
+            "attached_network_device": {
+                "chassis_id": "ab-cd-ef-00-01-02",
+                "port_id": "ab-cd-ef-03-04-05"
+            }
+        }
+    ],
+    "hostname": "amwa-test-node",
+    "label": "AMWA Test Suite Node",
+    "clocks": [
+        {
+            "ref_type": "internal",
+            "name": "clk0"
+        },
+        {
+            "gmid": "ec-46-70-ff-fe-00-ce-de",
+            "locked": true,
+            "name": "clk1",
+            "traceable": true,
+            "version": "IEEE1588-2008",
+            "ref_type": "ptp"
+        }
+    ],
+    "href": "http://172.29.80.65/",
+    "version": "1539092520:12286989",
+    "services": [
+        {
+            "href": "http://172.29.80.65/my-api/",
+            "type": "urn:x-manufacturer:my-api/v1.0",
+            "authorization": false
+        }
+    ],
+    "caps": {},
+    "id": "aad9ed36-bfb9-400a-9890-a85da2e5842b"
+}

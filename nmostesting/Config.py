@@ -54,6 +54,9 @@ API_PROCESSING_TIMEOUT = 1
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80
 
+# Set a port for the Testing Façade for use with the Controller Testing suites
+TESTING_FACADE_PORT = 5001
+
 # Path to store the specification file cache in. Relative to the base of the testing repository.
 CACHE_PATH = 'cache'
 
@@ -117,6 +120,10 @@ DNS_DOMAIN = "testsuite.nmos.tv"
 # test_data/BCP00301/ca/intermediate/openssl.cnf and any generated certificates.
 # The mock DNS server port cannot be modified from the default of 53.
 PORT_BASE = 5000
+
+# As part of the Controller tests the Mock Registry will create Subscription WebSockets on subscription requests
+# This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
+WEBSOCKET_PORT_BASE = 6000
 
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed
 # into Sender configuration when testing IS-05.
@@ -262,6 +269,16 @@ SPECIFICATIONS = {
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
+            }
+        }
+    },
+    "controller-tests": {
+        "repo": None,
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "testquestion": {
+                "name": "Testing Façade"
             }
         }
     }

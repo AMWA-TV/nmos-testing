@@ -1,0 +1,54 @@
+{
+    "title": "Controller Testing - POST request to testing tool",
+    "description": "Contains answers to a question to be verified by the test suite",
+    "type": "object",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "required": [
+      "question_id",
+      "answer_response"
+    ],
+    "properties": {
+      "question_id": {
+        "description": "The question_id as received on Question API",
+        "anyOf": [
+          {
+              "description": "Identifier for messages sent at the beginning and end of every set of tests",
+              "type": "string",
+              "enum": [
+                  "pre_tests_message",
+                  "post_tests_message"
+              ]
+          },
+          {
+              "description": "Identifier for questions within a test",
+              "type": "string",
+              "pattern": "^test_[0-9a-z_]+$"
+          }
+      ]
+      },
+      "answer_response": {
+        "description": "Answer or answers to be verified",
+        "oneOf": [
+          {
+            "description": "Multi choice response",
+            "type": "array",
+            "items": 
+              {
+                "type": "string"
+              },
+            "examples": [
+              ["answer_1", "answer_3"]
+            ]
+          },
+          {
+            "description": "Single choice response",
+            "type": "string"
+          },
+          {
+            "description": "Action response",
+            "type": "null"
+          }
+        ]
+      }
+    }
+  }

@@ -34,5 +34,7 @@ RUN apt-get update \
 
 VOLUME /config
 
-ENTRYPOINT ["python3"]
-CMD ["nmos-test.py"]
+# ensure entrypoint script is executable
+RUN chmod +x /home/nmos-testing/run_nmos_testing.sh
+
+ENTRYPOINT ["/home/nmos-testing/run_nmos_testing.sh"]
