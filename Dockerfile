@@ -34,4 +34,4 @@ RUN apt-get update \
 
 VOLUME /config
 
-CMD ./run_nmos_testing.sh
+ENTRYPOINT ["/home/nmos-testing/run_nmos_testing.sh"]
