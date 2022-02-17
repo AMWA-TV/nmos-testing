@@ -9,8 +9,8 @@
 
 This tool creates a simple web service which tests implementations of the NMOS APIs.
 
-![Testing Tool Launcher](docs/images/initial-launch.png "Testing Tool Launcher") | ![Example Results Window](docs/images/test-results.png "Example Results Window")
---- | ---
+| ![Testing Tool Launcher](docs/images/initial-launch.png "Testing Tool Launcher") | ![Example Results Window](docs/images/test-results.png "Example Results Window") |
+| --- | --- |
 
 The following test suites are currently supported:
 *   IS-04 Node API
