@@ -105,7 +105,7 @@ class ControllerTest(GenericTest):
 
     def set_up_tests(self):
         if self.dns_server:
-            self.dns_server.load_zone(self.apis[CONTROLLER_TEST_API_KEY]["version"], self.protocol, self.authorization,
+            self.dns_server.load_zone(self.apis[QUERY_API_KEY]["version"], self.protocol, self.authorization,
                                       "test_data/controller/dns_records.zone", CONFIG.PORT_BASE+100)
             self.dns_server.set_expected_query(
                 QTYPE.PTR,
