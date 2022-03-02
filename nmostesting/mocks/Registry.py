@@ -207,7 +207,7 @@ class Registry(object):
                                         + " from resource path:" + subscription_request["resource_path"])
 
         try:
-            # Guard against concurent subscription requests
+            # Guard against concurrent subscription creation
             self.subscription_lock.acquire()
 
             subscription = next(iter([subscription for id, subscription in self.get_resources()['subscription'].items()
@@ -269,6 +269,9 @@ class Registry(object):
         """ creates a data grain and queues on subscription websocket for resource_type"""
 
         try:
+            # Guard against concurrent subscription creation
+            self.subscription_lock.acquire()
+
             subscription_id = next(iter([id for id, subscription in self.get_resources()['subscription'].items()
                                    if self._get_resource_type(subscription['resource_path']) == resource_type]), None)
 
@@ -297,13 +300,20 @@ class Registry(object):
 
         except KeyError as err:
             print('No subscription for resource type: {0}'.format(err))
+        finally:
+            self.subscription_lock.release()
 
     def _close_subscription_websockets(self):
         """ closing websockets will automatically disconnect clients and stop websockets """
+        try:
+            # Guard against concurrent subscription creation
+            self.subscription_lock.acquire()
 
-        for id, subscription_websocket in list(self.subscription_websockets.items()):
-            subscription_websocket.close()
-            del self.subscription_websockets[id]
+            for id, subscription_websocket in list(self.subscription_websockets.items()):
+                subscription_websocket.close()
+                del self.subscription_websockets[id]
+        finally:
+            self.subscription_lock.release()
 
 
 # 0 = Invalid request testing registry
