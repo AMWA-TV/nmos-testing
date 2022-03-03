@@ -20,14 +20,14 @@ documentation:
       Further documentation covering the usage of this API is contained in the [docs](../../docs/) and [schemas](schemas) folders of this repository.
 /:
   displayName: Base
-    post:
-      description: Receive a single answer set for a question
-      body:
-        example: !include ../examples/post-answer-action.json
-        example: !include ../examples/post-answer-single-choice.json
-        example: !include ../examples/post-answer-multi-choice.json
-        type: !include schemas/answer-schema.json
-      responses:
-        202:
-        400:
-          description: Returned when question_id is missing from request
+  post:
+    description: Receive a single answer set for a question
+    body:
+      example: !include ../examples/post-answer-action.json
+      example: !include ../examples/post-answer-single-choice.json
+      example: !include ../examples/post-answer-multi-choice.json
+      type: !include schemas/answer-schema.json
+    responses:
+      202:
+      400:
+        description: Returned when question_id is missing from request

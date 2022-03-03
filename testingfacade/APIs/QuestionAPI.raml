@@ -21,15 +21,15 @@ documentation:
       Further documentation covering the behaviour and usage of this API is contained in the [docs](../../docs) and [schemas](schemas) folders of this repository.
 /:
   displayName: Base
-    post: 
-      description: Send a single question
-      body:
-        example: ../examples/post-question-action.json
-        example: ../examples/post-question-single-choice.json
-        example: ../examples/post-question-multi-choice.json
-        example: ../examples/post-question-metadata.json
-        type: !include schemas/question-schema.json
-      responses:
-        202:
-        400:
-          description: Returned when a required parameter is missing from request
+  post: 
+    description: Send a single question
+    body:
+      example: ../examples/post-question-action.json
+      example: ../examples/post-question-single-choice.json
+      example: ../examples/post-question-multi-choice.json
+      example: ../examples/post-question-metadata.json
+      type: !include schemas/question-schema.json
+    responses:
+      202:
+      400:
+        description: Returned when a required parameter is missing from request
