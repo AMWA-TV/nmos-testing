@@ -507,7 +507,7 @@ class ControllerTest(GenericTest):
         # will vary depending on whether or not unicast DNS-SD is being used to discover the mock Registry.
 
         if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
-            registry_text = "A Test AMWA IS-04 reference Registry is available on the network"\
+            registry_text = "A Test AMWA IS-04 reference Registry is available on the network " \
                             "and is being advertised via unicast DNS-SD."
 
             config_text = textwrap.dedent(f"""\
@@ -519,7 +519,7 @@ class ControllerTest(GenericTest):
                           Alternatively it\
                           """)
         else:
-            registry_text = "A Test AMWA IS-04 reference Registry is available on the network."\
+            registry_text = "A Test AMWA IS-04 reference Registry is available on the network."
 
             config_text = "It"
 
