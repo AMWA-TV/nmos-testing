@@ -20,7 +20,7 @@ import uuid
 import functools
 
 from flask import request, jsonify, abort, Blueprint, Response
-from threading import Event
+from threading import Event, Lock
 from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER, \
     WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
@@ -58,6 +58,7 @@ class Registry(object):
         self.port = PORT_BASE + 100 + port_increment  # cf. test_data/IS0401/dns_records.zone
         self.add_event = Event()
         self.delete_event = Event()
+        self.subscription_lock = Lock()
         self.reset()
         self.subscription_websockets = {}
         self.query_api_id = str(uuid.uuid4())
@@ -205,37 +206,43 @@ class Registry(object):
             raise SubscriptionException("Unknown resource type:" + resource_type
                                         + " from resource path:" + subscription_request["resource_path"])
 
-        subscription = next(iter([subscription for id, subscription in self.get_resources()['subscription'].items()
-                            if self._get_resource_type(subscription['resource_path']) == resource_type
-                            and subscription['max_update_rate_ms'] == subscription_request['max_update_rate_ms']
-                            and subscription['persist'] == subscription_request['persist']
-                            and subscription['secure'] == subscription_request['secure']]), None)
+        try:
+            # Guard against concurrent subscription creation
+            self.subscription_lock.acquire()
 
-        if subscription:
-            return subscription, False
+            subscription = next(iter([subscription for id, subscription in self.get_resources()['subscription'].items()
+                                if self._get_resource_type(subscription['resource_path']) == resource_type
+                                and subscription['max_update_rate_ms'] == subscription_request['max_update_rate_ms']
+                                and subscription['persist'] == subscription_request['persist']
+                                and subscription['secure'] == subscription_request['secure']]), None)
 
-        websocket_port = WEBSOCKET_PORT_BASE + len(self.subscription_websockets)
-        websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type)
-        websocket_server.set_queue_sync_data_grain_callback(self.queue_sync_data_grain)
-        websocket_server.start()
+            if subscription:
+                return subscription, False
 
-        subscription_id = str(uuid.uuid4())
+            websocket_port = WEBSOCKET_PORT_BASE + len(self.subscription_websockets)
+            websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type)
+            websocket_server.set_queue_sync_data_grain_callback(self.queue_sync_data_grain)
+            websocket_server.start()
 
-        protocol = 'wss' if secure else 'ws'
+            subscription_id = str(uuid.uuid4())
 
-        subscription = {'id': subscription_id,
-                        'max_update_rate_ms': subscription_request['max_update_rate_ms'],
-                        'params': subscription_request['params'],
-                        'persist': subscription_request['persist'],
-                        'resource_path': subscription_request['resource_path'],
-                        'secure': secure,
-                        'ws_href': protocol + '://' + get_default_ip() + ':' + str(websocket_port)
-                        + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
-                        'version': NMOSUtils.get_TAI_time()}
+            protocol = 'wss' if secure else 'ws'
 
-        self.subscription_websockets[subscription_id] = websocket_server
+            subscription = {'id': subscription_id,
+                            'max_update_rate_ms': subscription_request['max_update_rate_ms'],
+                            'params': subscription_request['params'],
+                            'persist': subscription_request['persist'],
+                            'resource_path': subscription_request['resource_path'],
+                            'secure': secure,
+                            'ws_href': protocol + '://' + get_default_ip() + ':' + str(websocket_port)
+                            + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
+                            'version': NMOSUtils.get_TAI_time()}
 
-        self.get_resources()['subscription'][subscription_id] = subscription
+            self.subscription_websockets[subscription_id] = websocket_server
+
+            self.get_resources()['subscription'][subscription_id] = subscription
+        finally:
+            self.subscription_lock.release()
 
         return subscription, True  # subscription_created=True
 
@@ -262,6 +269,9 @@ class Registry(object):
         """ creates a data grain and queues on subscription websocket for resource_type"""
 
         try:
+            # Guard against concurrent subscription creation
+            self.subscription_lock.acquire()
+
             subscription_id = next(iter([id for id, subscription in self.get_resources()['subscription'].items()
                                    if self._get_resource_type(subscription['resource_path']) == resource_type]), None)
 
@@ -290,13 +300,20 @@ class Registry(object):
 
         except KeyError as err:
             print('No subscription for resource type: {0}'.format(err))
+        finally:
+            self.subscription_lock.release()
 
     def _close_subscription_websockets(self):
         """ closing websockets will automatically disconnect clients and stop websockets """
+        try:
+            # Guard against concurrent subscription creation
+            self.subscription_lock.acquire()
 
-        for id, subscription_websocket in list(self.subscription_websockets.items()):
-            subscription_websocket.close()
-            del self.subscription_websockets[id]
+            for id, subscription_websocket in list(self.subscription_websockets.items()):
+                subscription_websocket.close()
+                del self.subscription_websockets[id]
+        finally:
+            self.subscription_lock.release()
 
 
 # 0 = Invalid request testing registry
