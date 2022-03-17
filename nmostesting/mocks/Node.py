@@ -169,15 +169,15 @@ class Node(object):
         self.staged_requests = []
 
     def parse_sdp(self, transport_file):
-        
+
         sdp_params = []
-        
+
         try:
             sdp_sections = transport_file['data'].split("m=")
             sdp_global = sdp_sections[0]
             sdp_media_sections = sdp_sections[1:]
             sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
-            
+
             media_lines = []
             if sdp_groups_line:
                 sdp_group_names = sdp_groups_line.group(1).split()
@@ -212,7 +212,7 @@ class Node(object):
 
         except KeyError:
             print('SDP error')
-           
+
         return sdp_params
 
     def patch_staged(self, resource, resource_id, request_json):
