@@ -14,6 +14,8 @@
 
 import uuid
 import json
+import ipaddress
+import re
 
 from flask import Blueprint, make_response, abort, Response, request
 from random import randint
@@ -166,6 +168,53 @@ class Node(object):
     def clear_staged_requests(self):
         self.staged_requests = []
 
+    def parse_sdp(self, transport_file):
+        
+        sdp_params = []
+        
+        try:
+            sdp_sections = transport_file['data'].split("m=")
+            sdp_global = sdp_sections[0]
+            sdp_media_sections = sdp_sections[1:]
+            sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
+            
+            media_lines = []
+            if sdp_groups_line:
+                sdp_group_names = sdp_groups_line.group(1).split()
+                for sdp_media in sdp_media_sections:
+                    group_name = re.search(r"a=mid:(\S+)", sdp_media)
+                    if group_name.group(1) in sdp_group_names:
+                        media_lines.append("m=" + sdp_media)
+            elif len(sdp_media_sections) > 0:
+                media_lines.append("m=" + sdp_media_sections[0])
+
+            for index, sdp_data in enumerate(media_lines):
+                sdp_param_leg = {}
+
+                media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
+                sdp_param_leg["destination_port"] = int(media_line.group(2))
+
+                connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
+                destination_ip = connection_line.group(1)
+                if(ipaddress.IPv4Address(destination_ip).is_multicast):
+                    sdp_param_leg["multicast_ip"] = destination_ip
+                    sdp_param_leg["interface_ip"] = "auto"
+                else:
+                    sdp_param_leg["multicast_ip"] = None
+                    sdp_param_leg["interface_ip"] = destination_ip
+
+                filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
+                if filter_line and filter_line.group(2):
+                    sdp_param_leg["source_ip"] = filter_line.group(2)
+                else:
+                    sdp_param_leg["source_ip"] = None
+                sdp_params.append(sdp_param_leg)
+
+        except KeyError:
+            print('SDP error')
+           
+        return sdp_params
+
     def patch_staged(self, resource, resource_id, request_json):
         """
         Updates data for given resource to either stage a connection, activate a staged connection,
@@ -182,23 +231,36 @@ class Node(object):
         response_data = deepcopy(activations['staged'])
         response_code = 200
 
-        # Check transport params against constraints
-        if request_json.get('transport_params'):
-            transport_params = request_json['transport_params']
-            constraints = _get_constraints(resource)
+        # NOTE that this Receiver only has a single leg (no ST 2022-7 redundancy)
+        # Copy SDP parameters into transport_params in response
+        if 'transport_file' in request_json:
+            sdp_params = self.parse_sdp(request_json['transport_file'])
+            
+            for key, value in sdp_params[0].items():
+                response_data['transport_params'][0][key] = value
 
-            for key, value in constraints.items():
-                if key in transport_params[0]:
-                    if value:
-                        # There is a constraint for this param and a value in the request to check
-                        check = _check_constraint(value, transport_params[0][key])
-                        if not check:
-                            response_data = {'code': 400, 'debug': None,
-                                             'error': 'Transport param {} does not satisfy constraints.'.format(key)}
-                            response_code = 400
-                            return response_data, response_code
-                    # No constraint to check or passed check so save param from request
-                    response_data['transport_params'][0][key] = transport_params[0][key]
+            response_data['transport_params'][0]['rtp_enabled'] = True
+
+        # Overwrite with supplied parameters in transport_params
+        if 'transport_params' in request_json:
+            transport_params = request_json['transport_params'][0]
+
+            for key, value in transport_params.items():
+                response_data['transport_params'][0][key] = transport_params[key]
+
+        # Check response transport params against constraints
+        constraints = _get_constraints(resource)
+
+        for key, value in constraints.items():
+            if key in response_data['transport_params'][0]:
+                if value:
+                    # There is a constraint for this param and a value in the request to check
+                    check = _check_constraint(value, response_data['transport_params'][0][key])
+                    if not check:
+                        response_data = {'code': 400, 'debug': None,
+                                         'error': 'Transport param {} does not satisfy constraints.'.format(key)}
+                        response_code = 400
+                        return response_data, response_code
 
         # Get resource specific data
         if resource == 'senders':
