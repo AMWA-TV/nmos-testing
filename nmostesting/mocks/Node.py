@@ -235,7 +235,7 @@ class Node(object):
         # Copy SDP parameters into transport_params in response
         if 'transport_file' in request_json:
             sdp_params = self.parse_sdp(request_json['transport_file'])
-            
+
             for key, value in sdp_params[0].items():
                 response_data['transport_params'][0][key] = value
 
