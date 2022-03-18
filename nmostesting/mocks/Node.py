@@ -168,12 +168,12 @@ class Node(object):
     def clear_staged_requests(self):
         self.staged_requests = []
 
-    def parse_sdp(self, transport_file):
+    def parse_sdp(self, sdp_data):
 
         sdp_params = []
 
         try:
-            sdp_sections = transport_file['data'].split("m=")
+            sdp_sections = sdp_data.split("m=")
             sdp_global = sdp_sections[0]
             sdp_media_sections = sdp_sections[1:]
             sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
@@ -232,14 +232,17 @@ class Node(object):
         response_code = 200
 
         # NOTE that this Receiver only has a single leg (no ST 2022-7 redundancy)
+
         # Copy SDP parameters into transport_params in response
         if 'transport_file' in request_json:
-            sdp_params = self.parse_sdp(request_json['transport_file'])
+            transport_file = request_json['transport_file']
+            if transport_file['type'] == 'application/sdp':
+                sdp_params = self.parse_sdp(transport_file['data'])
 
-            for key, value in sdp_params[0].items():
-                response_data['transport_params'][0][key] = value
+                for key, value in sdp_params[0].items():
+                    response_data['transport_params'][0][key] = value
 
-            response_data['transport_params'][0]['rtp_enabled'] = True
+                response_data['transport_params'][0]['rtp_enabled'] = True
 
         # Overwrite with supplied parameters in transport_params
         if 'transport_params' in request_json:
