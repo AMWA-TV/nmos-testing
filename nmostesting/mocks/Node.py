@@ -172,46 +172,42 @@ class Node(object):
 
         sdp_params = []
 
-        try:
-            sdp_sections = sdp_data.split("m=")
-            sdp_global = sdp_sections[0]
-            sdp_media_sections = sdp_sections[1:]
-            sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
+        sdp_sections = sdp_data.split("m=")
+        sdp_global = sdp_sections[0]
+        sdp_media_sections = sdp_sections[1:]
+        sdp_groups_line = re.search(r"a=group:DUP (.+)", sdp_global)
 
-            media_lines = []
-            if sdp_groups_line:
-                sdp_group_names = sdp_groups_line.group(1).split()
-                for sdp_media in sdp_media_sections:
-                    group_name = re.search(r"a=mid:(\S+)", sdp_media)
-                    if group_name.group(1) in sdp_group_names:
-                        media_lines.append("m=" + sdp_media)
-            elif len(sdp_media_sections) > 0:
-                media_lines.append("m=" + sdp_media_sections[0])
+        media_lines = []
+        if sdp_groups_line:
+            sdp_group_names = sdp_groups_line.group(1).split()
+            for sdp_media in sdp_media_sections:
+                group_name = re.search(r"a=mid:(\S+)", sdp_media)
+                if group_name.group(1) in sdp_group_names:
+                    media_lines.append("m=" + sdp_media)
+        elif len(sdp_media_sections) > 0:
+            media_lines.append("m=" + sdp_media_sections[0])
 
-            for index, sdp_data in enumerate(media_lines):
-                sdp_param_leg = {}
+        for index, sdp_data in enumerate(media_lines):
+            sdp_param_leg = {}
 
-                media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
-                sdp_param_leg["destination_port"] = int(media_line.group(2))
+            media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
+            sdp_param_leg["destination_port"] = int(media_line.group(2))
 
-                connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
-                destination_ip = connection_line.group(1)
-                if(ipaddress.IPv4Address(destination_ip).is_multicast):
-                    sdp_param_leg["multicast_ip"] = destination_ip
-                    sdp_param_leg["interface_ip"] = "auto"
-                else:
-                    sdp_param_leg["multicast_ip"] = None
-                    sdp_param_leg["interface_ip"] = destination_ip
+            connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
+            destination_ip = connection_line.group(1)
+            if ipaddress.IPv4Address(destination_ip).is_multicast:
+                sdp_param_leg["multicast_ip"] = destination_ip
+                sdp_param_leg["interface_ip"] = "auto"
+            else:
+                sdp_param_leg["multicast_ip"] = None
+                sdp_param_leg["interface_ip"] = destination_ip
 
-                filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
-                if filter_line and filter_line.group(2):
-                    sdp_param_leg["source_ip"] = filter_line.group(2)
-                else:
-                    sdp_param_leg["source_ip"] = None
-                sdp_params.append(sdp_param_leg)
-
-        except KeyError:
-            print('SDP error')
+            filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
+            if filter_line and filter_line.group(2):
+                sdp_param_leg["source_ip"] = filter_line.group(2)
+            else:
+                sdp_param_leg["source_ip"] = None
+            sdp_params.append(sdp_param_leg)
 
         return sdp_params
 
