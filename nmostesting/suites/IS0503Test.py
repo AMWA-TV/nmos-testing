@@ -70,7 +70,7 @@ class IS0503Test(ControllerTest):
         Send deactivate requests to all receivers
         """
         for receiver in self.receivers:
-            deactivate_json = {"transport_params": [{}], "master_enable": False, 'sender_id': None,
+            deactivate_json = {"master_enable": False, 'sender_id': None,
                                "activation": {"mode": "activate_immediate"}}
             self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
@@ -224,9 +224,7 @@ class IS0503Test(ControllerTest):
                                               + 'x-nmos/connection/' + self.connection_api_version + '/single/senders/'
                                               + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
-            transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
-            activate_json = {"transport_params": transport_params,
-                             "activation": {"mode": "activate_immediate"},
+            activate_json = {"activation": {"mode": "activate_immediate"},
                              "master_enable": True,
                              "sender_id": sender['id'],
                              "transport_file": {"data": transport_file, "type": "application/sdp"}}
@@ -322,9 +320,7 @@ class IS0503Test(ControllerTest):
                                               + 'x-nmos/connection/' + self.connection_api_version + '/single/senders/'
                                               + sender['id'] + '/transportfile')
             transport_file = response.content.decode()
-            transport_params = self.node.receivers[receiver['id']]['activations']['active']['transport_params']
-            activate_json = {"transport_params": transport_params,
-                             "activation": {"mode": "activate_immediate"},
+            activate_json = {"activation": {"mode": "activate_immediate"},
                              "master_enable": True,
                              "sender_id": sender['id'],
                              "transport_file": {"data": transport_file, "type": "application/sdp"}}
@@ -407,7 +403,7 @@ class IS0503Test(ControllerTest):
             exitTestEvent.wait(time_delay)
 
             # Remove connection
-            deactivate_json = {"transport_params": [{}], "master_enable": False,
+            deactivate_json = {"master_enable": False, 'sender_id': None,
                                "activation": {"mode": "activate_immediate"}}
             self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
