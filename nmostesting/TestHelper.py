@@ -166,6 +166,7 @@ def get_default_ip():
 
 def do_request(method, url, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
+    response = None
     try:
         s = requests.Session()
         # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
@@ -196,6 +197,8 @@ def do_request(method, url, **kwargs):
         return False, str(e)
     except requests.exceptions.RequestException as e:
         return False, str(e)
+    finally:
+        print("{} {} {}".format(method.upper(), url, response.status_code if response is not None else "<no response>"))
 
 
 def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix=True):
