@@ -272,31 +272,32 @@ class Registry(object):
             # Guard against concurrent subscription creation
             self.subscription_lock.acquire()
 
-            subscription_id = next(iter([id for id, subscription in self.get_resources()['subscription'].items()
-                                   if self._get_resource_type(subscription['resource_path']) == resource_type]), None)
+            subscription_ids = [id for id, subscription in self.get_resources()['subscription'].items()
+                                if self._get_resource_type(subscription['resource_path']) == resource_type]
 
             timestamp = NMOSUtils.get_TAI_time()
 
-            data_grain = {'grain_type': 'event',
-                          'source_id': self.query_api_id,
-                          'flow_id': subscription_id,
-                          'origin_timestamp': timestamp,
-                          'sync_timestamp': timestamp,
-                          'creation_timestamp': timestamp,
-                          'rate': {'denominator': 1, 'numerator': 0},
-                          'duration': {'denominator': 1, 'numerator': 0},
-                          'grain': {'type': 'urn:x-nmos:format:data.event',
-                                    'topic': '/' + resource_type + 's/', 'data': []}}
+            for subscription_id in subscription_ids:
+                data_grain = {'grain_type': 'event',
+                              'source_id': self.query_api_id,
+                              'flow_id': subscription_id,
+                              'origin_timestamp': timestamp,
+                              'sync_timestamp': timestamp,
+                              'creation_timestamp': timestamp,
+                              'rate': {'denominator': 1, 'numerator': 0},
+                              'duration': {'denominator': 1, 'numerator': 0},
+                              'grain': {'type': 'urn:x-nmos:format:data.event',
+                                        'topic': '/' + resource_type + 's/', 'data': []}}
 
-            for resource_id in resource_ids:
-                data = {'path': resource_id}
-                if pre_resources.get(resource_id):
-                    data['pre'] = pre_resources[resource_id]
-                if post_resources.get(resource_id):
-                    data['post'] = post_resources[resource_id]
-                data_grain["grain"]["data"].append(data)
+                for resource_id in resource_ids:
+                    data = {'path': resource_id}
+                    if pre_resources.get(resource_id):
+                        data['pre'] = pre_resources[resource_id]
+                    if post_resources.get(resource_id):
+                        data['post'] = post_resources[resource_id]
+                    data_grain["grain"]["data"].append(data)
 
-            self.subscription_websockets[subscription_id].queue_message(json.dumps(data_grain))
+                self.subscription_websockets[subscription_id].queue_message(json.dumps(data_grain))
 
         except KeyError as err:
             print('No subscription for resource type: {0}'.format(err))
