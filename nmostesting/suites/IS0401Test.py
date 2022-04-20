@@ -1531,6 +1531,10 @@ class IS0401Test(GenericTest):
                         if "grain_rate" not in resource:
                             return test.WARNING("Source {} MUST specify a 'grain_rate' if it is periodic"
                                                 .format(resource["id"]))
+                        source_rate = resource["grain_rate"]
+                        if source_rate.get("numerator", 0) == 0 or source_rate.get("denominator", 1) == 0:
+                            return test.FAIL("Source {} 'grain_rate' is invalid: {}"
+                                             .format(resource["id"], source_rate))
                 if len(response.json()) > 0:
                     return test.PASS()
             except json.JSONDecodeError:
@@ -1557,13 +1561,14 @@ class IS0401Test(GenericTest):
                             return test.FAIL("Source {} MUST specify a 'grain_rate' because one or more of its "
                                              "child Flows specify a 'grain_rate'".format(source["id"]))
                         flow_rate = flow["grain_rate"]
-                        if "denominator" not in flow_rate:
-                            flow_rate["denominator"] = 1
+                        if flow_rate.get("numerator", 0) == 0 or flow_rate.get("denominator", 1) == 0:
+                            return test.FAIL("Flow {} 'grain_rate' is invalid: {}".format(flow["id"], flow_rate))
                         source_rate = source["grain_rate"]
-                        if "denominator" not in source_rate:
-                            source_rate["denominator"] = 1
-                        if ((source_rate["numerator"] * flow_rate["denominator"]) %
-                           (flow_rate["numerator"] * source_rate["denominator"])):
+                        if source_rate.get("numerator", 0) == 0 or source_rate.get("denominator", 1) == 0:
+                            return test.FAIL("Source {} 'grain_rate' is invalid: {}"
+                                             .format(source["id"], source_rate))
+                        if ((source_rate["numerator"] * flow_rate.get("denominator", 1)) %
+                           (flow_rate["numerator"] * source_rate.get("denominator", 1))):
                             return test.FAIL("Flow {} 'grain_rate' MUST be integer divisible by the Source "
                                              "'grain_rate'".format(flow["id"]))
                     elif flow["format"] in ["urn:x-nmos:format:video",
