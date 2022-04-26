@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import socket
+
+from dnslib import DNSRecord, RCODE
 from dnslib.server import DNSServer
 from dnslib.zoneresolver import ZoneResolver
 from jinja2 import Template
@@ -21,9 +24,34 @@ from .TestHelper import get_default_ip
 from . import Config as CONFIG
 
 
-class WatchingResolver(ZoneResolver):
+class ForwardingZoneResolver(ZoneResolver):
     def __init__(self, zone, glob=False):
         ZoneResolver.__init__(self, zone, glob)
+        self.upstream = CONFIG.DNS_UPSTREAM_IP
+        self.upstream_port = 53
+        self.timeout = None
+
+    def resolve(self, request, handler):
+        reply = ZoneResolver.resolve(self, request, handler)
+
+        if reply.header.rcode == RCODE.NXDOMAIN and self.upstream:
+            try:
+                if handler.protocol == 'udp':
+                    proxy_r = request.send(self.upstream, self.upstream_port,
+                                           timeout=self.timeout)
+                else:
+                    proxy_r = request.send(self.upstream, self.upstream_port,
+                                           tcp=True, timeout=self.timeout)
+                reply = DNSRecord.parse(proxy_r)
+            except socket.timeout:
+                reply.header.rcode = RCODE.SERVFAIL
+
+        return reply
+
+
+class WatchingResolver(ForwardingZoneResolver):
+    def __init__(self, zone, glob=False):
+        ForwardingZoneResolver.__init__(self, zone, glob)
         self.watching = {}
         self.expected_queries = {}
 
@@ -63,7 +91,7 @@ class WatchingResolver(ZoneResolver):
             self.watching[qtype][qname].set()
         except (KeyError, AttributeError):
             pass
-        return ZoneResolver.resolve(self, request, handler)
+        return ForwardingZoneResolver.resolve(self, request, handler)
 
 
 class DNS(object):
