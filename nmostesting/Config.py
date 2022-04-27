@@ -33,6 +33,10 @@ DNS_SD_ADVERT_TIMEOUT = 30
 # Number of seconds to wait after browsing for a DNS-SD advert before checking the results
 DNS_SD_BROWSE_TIMEOUT = 2
 
+# Provide an upstream DNS server for requests not handled by the mock DNS server, when in 'unicast' DNS-SD mode
+# For example, '127.0.0.53'.
+DNS_UPSTREAM_IP = None
+
 # Number of seconds expected between heartbeats for an IS-04 Node
 # Note: Currently this is only used for testing IS-04 Nodes. Registry behaviour is expected to match the defaults.
 HEARTBEAT_INTERVAL = 5
