@@ -142,12 +142,12 @@ class NMOSUtils(object):
         url1_parsed = urlparse(url1.rstrip("/"))
         url2_parsed = urlparse(url2.rstrip("/"))
 
-        comparisons = ["scheme", "hostname", "path"]
-        for attr in comparisons:
+        for attr in ["scheme", "path"]:
             if attr == "hostname":
-                if getattr(url1_parsed, attr).rstrip('.') != getattr(url2_parsed, attr).rstrip('.'):
+                if getattr(url1_parsed, attr) != getattr(url2_parsed, attr):
                     return False
-            elif getattr(url1_parsed, attr) != getattr(url2_parsed, attr):
+        for attr in ["hostname"]:
+            if getattr(url1_parsed, attr).lower().rstrip('.') != getattr(url2_parsed, attr).lower().rstrip('.'):
                 return False
 
         # Ports can be None if they are the default for the scheme
