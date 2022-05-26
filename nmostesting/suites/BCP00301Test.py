@@ -57,7 +57,7 @@ class BCP00301Test(GenericTest):
                                       str(CONFIG.HTTP_TIMEOUT),
                                       "--add-ca",
                                       CONFIG.CERT_TRUST_ROOT_CA
-                                      ] + args + ["{}:{}".format(self.apis[SECURE_API_KEY]["hostname"],
+                                      ] + args + ["{}:{}".format(self.apis[SECURE_API_KEY]["hostname"].rstrip('.'),
                                                                  self.apis[SECURE_API_KEY]["port"])]
                                      )
                 if ret.returncode == 0:
@@ -265,7 +265,7 @@ class BCP00301Test(GenericTest):
 
         try:
             context = ssl.create_default_context(cafile=CONFIG.CERT_TRUST_ROOT_CA)
-            hostname = self.apis[SECURE_API_KEY]["hostname"]
+            hostname = self.apis[SECURE_API_KEY]["hostname"].rstrip('.')
             sock = context.wrap_socket(socket.socket(), server_hostname=hostname)
             sock.settimeout(CONFIG.HTTP_TIMEOUT)
             # Verification of certificate and CN/SAN matches is performed during connect

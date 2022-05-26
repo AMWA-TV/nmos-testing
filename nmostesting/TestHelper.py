@@ -29,6 +29,7 @@ from enum import IntEnum
 from numbers import Number
 from functools import cmp_to_key
 from collections.abc import KeysView
+from urllib.parse import urlparse
 
 from . import Config as CONFIG
 
@@ -267,7 +268,9 @@ class WebsocketWorker(threading.Thread):
         self.error_message = ""
 
     def run(self):
-        self.ws.run_forever(sslopt={"ca_certs": CONFIG.CERT_TRUST_ROOT_CA})
+        # strip the trailing dot of the hostname to prevent SSL certificate hostname mismatch
+        hostname = urlparse(self.ws.url).hostname.rstrip('.')
+        self.ws.run_forever(sslopt={"ca_certs": CONFIG.CERT_TRUST_ROOT_CA, "server_hostname": hostname})
 
     def on_open(self, ws):
         self.connected = True
