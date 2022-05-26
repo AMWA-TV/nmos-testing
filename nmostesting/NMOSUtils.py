@@ -144,7 +144,10 @@ class NMOSUtils(object):
 
         comparisons = ["scheme", "hostname", "path"]
         for attr in comparisons:
-            if getattr(url1_parsed, attr) != getattr(url2_parsed, attr):
+            if attr == "hostname":
+                if getattr(url1_parsed, attr).rstrip('.') != getattr(url2_parsed, attr).rstrip('.'):
+                    return False
+            elif getattr(url1_parsed, attr) != getattr(url2_parsed, attr):
                 return False
 
         # Ports can be None if they are the default for the scheme
