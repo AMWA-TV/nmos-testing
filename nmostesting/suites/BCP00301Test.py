@@ -266,7 +266,7 @@ class BCP00301Test(GenericTest):
         try:
             context = ssl.create_default_context(cafile=CONFIG.CERT_TRUST_ROOT_CA)
             hostname = self.apis[SECURE_API_KEY]["hostname"]
-            sock = context.wrap_socket(socket.socket(), server_hostname=hostname)
+            sock = context.wrap_socket(socket.socket(), server_hostname=hostname.rstrip('.'))
             sock.settimeout(CONFIG.HTTP_TIMEOUT)
             # Verification of certificate and CN/SAN matches is performed during connect
             sock.connect((hostname, self.apis[SECURE_API_KEY]["port"]))

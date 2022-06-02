@@ -1238,7 +1238,8 @@ class IS0401Test(GenericTest):
                         if self.authorization is not endpoint.get("authorization", False):
                             return test.FAIL("One or more Node 'api.endpoints' do not match the current authorization "
                                              "mode")
-                    if endpoint["host"].lower() == api["hostname"].lower() and endpoint["port"] == api["port"]:
+                    if endpoint["host"].lower().rstrip('.') == api["hostname"].lower().rstrip('.') and \
+                            endpoint["port"] == api["port"]:
                         found_api_endpoint = True
                     if self.is04_utils.compare_urls(node_self["href"], "{}://{}:{}"
                                                     .format(endpoint["protocol"], endpoint["host"], endpoint["port"])):

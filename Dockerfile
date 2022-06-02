@@ -20,8 +20,8 @@ RUN apt-get update \
     && cp nmostesting/UserConfig.example.py /config/UserConfig.py \
     && ln -s /config/UserConfig.py nmostesting/UserConfig.py \
     && cd testssl \
-    && wget https://github.com/drwetter/testssl.sh/archive/3.0.2.tar.gz \
-    && tar -xvzf 3.0.2.tar.gz --strip-components=1 \
+    && wget https://github.com/drwetter/testssl.sh/archive/v3.0.7.tar.gz \
+    && tar -xvzf v3.0.7.tar.gz --strip-components=1 \
     && rm 3.0.2.tar.gz \
     && npm config set unsafe-perm true \
     && npm install -g AMWA-TV/sdpoker#v0.2.0 \
@@ -30,7 +30,7 @@ RUN apt-get update \
     && apt-get clean -y --no-install-recommends \
     && apt-get autoclean -y --no-install-recommends \
     && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* 
+    && rm -rf /var/lib/apt/lists/*
 
 VOLUME /config
 
