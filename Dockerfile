@@ -22,7 +22,7 @@ RUN apt-get update \
     && cd testssl \
     && wget https://github.com/drwetter/testssl.sh/archive/v3.0.7.tar.gz \
     && tar -xvzf v3.0.7.tar.gz --strip-components=1 \
-    && rm 3.0.2.tar.gz \
+    && rm v3.0.7.tar.gz \
     && npm config set unsafe-perm true \
     && npm install -g AMWA-TV/sdpoker#v0.2.0 \
     && rm /home/nmos-testing/setup_14.x \
