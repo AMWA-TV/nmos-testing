@@ -1351,7 +1351,7 @@ class IS0401Test(GenericTest):
                     access_error = True
                     continue
 
-                if self.authorization and  href is not None and urlparse(href).path.startswith("/x-nmos/connection"):
+                if self.authorization and href is not None and urlparse(href).path.startswith("/x-nmos/connection"):
                     token = self.generate_token(["connection"], True)
                     headers = {"Authorization": "Bearer {}".format(token)}
                 else:
