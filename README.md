@@ -13,25 +13,29 @@ This tool creates a simple web service which tests implementations of the NMOS A
 | --- | --- |
 | ![Testing Tool Launcher](docs/images/initial-launch.png "Testing Tool Launcher") | ![Example Results Window](docs/images/test-results.png "Example Results Window") |
 
-The following test suites are currently supported:
-*   IS-04 Node API
-*   IS-04 Registry APIs
-*   IS-04 Node API (Peer to Peer)
-*   IS-04 Controller (for usage see [Testing Controllers documentation](docs/2.8.%20Usage%20-%20Testing%20Controllers.md))
-*   IS-05 Connection Management API
-*   IS-05 Interaction with IS-04
-*   IS-05 Controller (for usage see [Testing Controllers documentation](docs/2.8.%20Usage%20-%20Testing%20Controllers.md))
-*   IS-06 Network Control API
-*   IS-07 Event & Tally API
-*   IS-07 Interaction with IS-04 and IS-05
-*   IS-08 Channel Mapping API
-*   IS-08 Interaction with IS-04
-*   IS-09 System API
-*   IS-09 System API Discovery
-*   IS-10 Authorization API
-*   BCP-002-01 Natural Grouping (see IS-04 Node API)
-*   BCP-003-01 Secure API Communications
-*   BCP-003-02 Authorization (see IS-10 Authorization API)
+The following test suites are currently supported.
+
+| Test Suite ID | Suite | Node | Registry | Controller | Other/Notes |
+| --- | --- | --- | --- | --- | --- |
+| IS-04-01 | IS-04 Node API | X | | | |
+| IS-04-02 | IS-04 Registry APIs | | X | | |
+| IS-04-03 | IS-04 Node API (Peer to Peer) | X | | | |
+| IS-04-04 | IS-04 Controller | | | X | See [Testing Controllers](docs/2.8.%20Usage%20-%20Testing%20Controllers.md) |
+| IS-05-01 | IS-05 Connection Management API | X | | | |
+| IS-05-02 | IS-05 Interaction with IS-04 | X | | | |
+| IS-05-03 | IS-05 Controller | | | X | See [Testing Controllers](docs/2.8.%20Usage%20-%20Testing%20Controllers.md) |
+| IS-06-01 | IS-06 Network Control API | | | | Network Controller |
+| IS-07-01 | IS-07 Event & Tally API | X | | | |
+| IS-07-02 | IS-07 Interaction with IS-04 and IS-05 | X | | | |
+| IS-08-01 | IS-08 Channel Mapping API | X | | | |
+| IS-08-02 | IS-08 Interaction with IS-04 | X | | | |
+| IS-09-01 | IS-09 System API | | (X) | | System Parameters Server |
+| IS-09-02 | IS-09 System API Discovery | X | | | |
+| IS-10-01 | IS-10 Authorization API | | | | Authorization Server |
+| - | BCP-002-01 Natural Grouping | X | | | Included in IS-04 Node API suite |
+| - | BCP-003-01 Secure API Communications | X | X | | See [Testing TLS](docs/2.2.%20Usage%20-%20Testing%20BCP-003-01%20TLS.md) |
+| - | BCP-003-02 Authorization | X | X | | See [Testing Authorization](docs/2.3.%20Usage%20-%20Testing%20IS-10%20Authorization.md) |
+| - | BCP-004-01 Receiver Capabilities | X | | | Included in IS-04 Node API and IS-05 Interaction with IS-04 suites |
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if devices support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
@@ -39,7 +43,7 @@ When testing any of the above APIs it is important that they contain representat
 
 ## Installation & Usage
 
-Detailed instructions can be found in the [documentation](docs/)
+Detailed instructions can be found in the [documentation](docs/).
 
 ## Important Notes
 *   The IS-04 Node and IS-09 Discovery tests create mock mDNS announcements on the network unless the `nmostesting/UserConfig.py` `ENABLE_DNS_SD` parameter is set to `False`, or the `DNS_SD_MODE` parameter is set to `'unicast'`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_DNS_SD` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `nmostesting/UserConfig.py`.
