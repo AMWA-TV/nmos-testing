@@ -33,7 +33,7 @@ The following test suites are currently supported.
 | IS-09-02 | IS-09 System API Discovery | X | | | |
 | IS-10-01 | IS-10 Authorization API | | | | Authorization Server |
 | - | BCP-002-01 Natural Grouping | X | | | Included in IS-04 Node API suite |
-| - | BCP-003-01 Secure API Communications | X | X | | See [Testing TLS](docs/2.2.%20Usage%20-%20Testing%20BCP-003-01%20TLS.md) |
+| BCP-003-01 | BCP-003-01 Secure Communication | X | X | | See [Testing TLS](docs/2.2.%20Usage%20-%20Testing%20BCP-003-01%20TLS.md) |
 | - | BCP-003-02 Authorization | X | X | | See [Testing Authorization](docs/2.3.%20Usage%20-%20Testing%20IS-10%20Authorization.md) |
 | - | BCP-004-01 Receiver Capabilities | X | | | Included in IS-04 Node API and IS-05 Interaction with IS-04 suites |
 
@@ -46,6 +46,7 @@ When testing any of the above APIs it is important that they contain representat
 Detailed instructions can be found in the [documentation](docs/).
 
 ## Important Notes
+
 *   The IS-04 Node and IS-09 Discovery tests create mock mDNS announcements on the network unless the `nmostesting/UserConfig.py` `ENABLE_DNS_SD` parameter is set to `False`, or the `DNS_SD_MODE` parameter is set to `'unicast'`. It is critical that these tests are only run in isolated network segments away from production Nodes and registries. Only one Node can be tested at a single time. If `ENABLE_DNS_SD` is set to `False`, make sure to update the Query API hostname/IP and port via `QUERY_API_HOST` and `QUERY_API_PORT` in the `nmostesting/UserConfig.py`.
 *   For IS-04 Registry tests of Query API pagination, make sure the time of the test device and the time of the device hosting the tests is synchronized.
 *   For IS-05 tests #29 and #30, and IS-08 test #4 (absolute activation), make sure the time of the test device and the time of the device hosting the tests is synchronized.
