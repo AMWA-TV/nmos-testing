@@ -84,7 +84,7 @@ class BCP00301Test(GenericTest):
                 elif report["id"] in ["TLS1_3"] and not report["finding"].startswith("offered"):
                     return test.OPTIONAL("Protocol {} should be offered".format(report["id"].replace("_", ".")),
                                          "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                         "/docs/1.0._Secure_Communication.html#tls-versions"
+                                         "/docs/Secure_Communication.html#tls-versions"
                                          .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             return test.PASS()
 
@@ -135,13 +135,13 @@ class BCP00301Test(GenericTest):
                 return test.OPTIONAL("Implementation of the following TLS 1.2 ciphers is recommended: {}"
                                      .format(",".join(tls1_2_should)),
                                      "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                     "/docs/1.0._Secure_Communication.html#tls-12-cipher-suites"
+                                     "/docs/Secure_Communication.html#tls-12-cipher-suites"
                                      .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             elif tls1_3_supported and len(tls1_3_should) > 0:
                 return test.OPTIONAL("Implementation of the following TLS 1.3 ciphers is recommended: {}"
                                      .format(",".join(tls1_3_should)),
                                      "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                     "/docs/1.0._Secure_Communication.html#tls-13-cipher-suites"
+                                     "/docs/Secure_Communication.html#tls-13-cipher-suites"
                                      .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             else:
                 return test.PASS()
@@ -161,7 +161,7 @@ class BCP00301Test(GenericTest):
                         ipaddress.ip_address(report["finding"])
                         return test.WARNING("CN is an IP address: {}".format(report["finding"]),
                                             "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                            "/docs/1.0._Secure_Communication.html"
+                                            "/docs/Secure_Communication.html"
                                             "#x509-certificates-and-certificate-authority"
                                             .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                     except ValueError:
@@ -170,7 +170,7 @@ class BCP00301Test(GenericTest):
                     if report["finding"].startswith("No SAN"):
                         return test.OPTIONAL("No SAN was found in the certificate",
                                              "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                             "/docs/1.0._Secure_Communication.html"
+                                             "/docs/Secure_Communication.html"
                                              "#x509-certificates-and-certificate-authority"
                                              .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                     else:
@@ -178,7 +178,7 @@ class BCP00301Test(GenericTest):
                         if common_name not in alt_names:
                             return test.OPTIONAL("CN {} was not found in the SANs".format(common_name),
                                                  "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                                 "/docs/1.0._Secure_Communication.html"
+                                                 "/docs/Secure_Communication.html"
                                                  "#x509-certificates-and-certificate-authority"
                                                  .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                         for name in alt_names:
@@ -186,7 +186,7 @@ class BCP00301Test(GenericTest):
                                 ipaddress.ip_address(name)
                                 return test.WARNING("SAN is an IP address: {}".format(name),
                                                     "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                                    "/docs/1.0._Secure_Communication.html"
+                                                    "/docs/Secure_Communication.html"
                                                     "#x509-certificates-and-certificate-authority"
                                                     .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                             except ValueError:
@@ -216,7 +216,7 @@ class BCP00301Test(GenericTest):
             elif hsts_supported is False:
                 return test.OPTIONAL("Strict Transport Security (HSTS) should be supported",
                                      "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                     "/docs/1.0._Secure_Communication.html#http-server"
+                                     "/docs/Secure_Communication.html#http-server"
                                      .format(self.apis[SECURE_API_KEY]["spec_branch"]))
             else:
                 return test.FAIL("Error in HSTS header: {}".format(hsts_supported))
@@ -248,7 +248,7 @@ class BCP00301Test(GenericTest):
                     if report["finding"] == "not offered":
                         return test.OPTIONAL("OCSP stapling is not offered by this server",
                                              "https://specs.amwa.tv/bcp-003-01/branches/{}"
-                                             "/docs/1.0._Secure_Communication.html"
+                                             "/docs/Secure_Communication.html"
                                              "#x509-certificates-and-certificate-authority"
                                              .format(self.apis[SECURE_API_KEY]["spec_branch"]))
                 elif report["id"].split()[0] == "cert_ocspURL":
