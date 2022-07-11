@@ -269,12 +269,13 @@ class GenericTest(object):
             if ctype_params[0] != expected_type:
                 return False, "API signalled a Content-Type of {} rather than {}." \
                               .format(ctype, expected_type)
-            elif len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
-                return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
-                             .format(ctype)
-            elif len(ctype_params) >= 2:
-                return False, "API signalled unexpected additional parameters in its Content-Type: {}" \
-                              .format(ctype)
+            elif ctype_params[0] in ["application/json", "application/sdp"]:
+                if len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
+                    return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
+                                 .format(ctype)
+                elif len(ctype_params) >= 2:
+                    return False, "API signalled unexpected additional parameters in its Content-Type: {}" \
+                                  .format(ctype)
         return True, ""
 
     def check_accept(self, headers):
