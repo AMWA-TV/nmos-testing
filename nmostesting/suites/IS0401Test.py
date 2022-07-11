@@ -493,6 +493,7 @@ class IS0401Test(GenericTest):
         and the recommended order for referential integrity has been adhered to"""
 
         api = self.apis[NODE_API_KEY]
+        api_docs_numbered = self.is04_utils.compare_api_version(api["version"], "v1.2") <= 0
 
         # Look up data in local mock registry
         registry_data = self.registry_primary_data
@@ -526,8 +527,8 @@ class IS0401Test(GenericTest):
             if preceding_warn:
                 return test.WARNING(preceding_warn,
                                     "https://specs.amwa.tv/is-04/branches/{}"
-                                    "/docs/4.1._Behaviour_-_Registration.html#referential-integrity"
-                                    .format(api["spec_branch"]))
+                                    "/docs/{}Behaviour_-_Registration.html#referential-integrity"
+                                    .format(api["spec_branch"], "4.1._" if api_docs_numbered else ""))
             elif found_resource:
                 return test.PASS()
             else:
@@ -550,6 +551,7 @@ class IS0401Test(GenericTest):
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         api = self.apis[NODE_API_KEY]
+        api_docs_numbered = self.is04_utils.compare_api_version(api["version"], "v1.2") <= 0
 
         self.do_registry_basics_prereqs()
 
@@ -581,14 +583,14 @@ class IS0401Test(GenericTest):
             if heartbeat[1]["payload"] is not bytes():
                 return test.WARNING("Heartbeat POST contained a payload body.",
                                     "https://specs.amwa.tv/is-04/branches/{}"
-                                    "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
-                                    .format(api["spec_branch"]))
+                                    "/docs/{}APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
+                                    .format(api["spec_branch"], "2.2._" if api_docs_numbered else ""))
 
             if "Content-Type" in heartbeat[1]["headers"]:
                 return test.WARNING("Heartbeat POST contained a Content-Type header.",
                                     "https://specs.amwa.tv/is-04/branches/{}"
-                                    "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
-                                    .format(api["spec_branch"]))
+                                    "/docs/{}APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
+                                    .format(api["spec_branch"], "2.2._" if api_docs_numbered else ""))
 
             if "Transfer-Encoding" not in heartbeat[1]["headers"]:
                 if "Content-Length" not in heartbeat[1]["headers"] or \
@@ -597,8 +599,8 @@ class IS0401Test(GenericTest):
                     # and omitting it causes problems for commonly deployed HTTP servers
                     return test.WARNING("Heartbeat POST did not contain a valid Content-Length header.",
                                         "https://specs.amwa.tv/is-04/branches/{}"
-                                        "/docs/2.2._APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
-                                        .format(api["spec_branch"]))
+                                        "/docs/{}APIs_-_Client_Side_Implementation_Notes.html#empty-request-bodies"
+                                        .format(api["spec_branch"], "2.2._" if api_docs_numbered else ""))
             else:
                 if "Content-Length" in heartbeat[1]["headers"]:
                     return test.FAIL("API signalled both Transfer-Encoding and Content-Length")
@@ -1522,7 +1524,7 @@ class IS0401Test(GenericTest):
         else:
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
                                  "https://specs.amwa.tv/bcp-002-01/branches/v1.0.x"
-                                 "/docs/1.0._Natural_Grouping.html")
+                                 "/docs/Natural_Grouping.html")
 
     def test_24(self, test):
         """Periodic Sources specify a 'grain_rate'"""
@@ -1594,6 +1596,7 @@ class IS0401Test(GenericTest):
         """Receivers expose expected 'caps' for their API version"""
 
         api = self.apis[NODE_API_KEY]
+        api_docs_numbered = self.is04_utils.compare_api_version(api["version"], "v1.2") <= 0
 
         if self.is04_utils.compare_api_version(api["version"], "v1.1") < 0:
             return test.NA("Capabilities are not used before API v1.1")
@@ -1609,8 +1612,8 @@ class IS0401Test(GenericTest):
                         return test.WARNING("Receiver 'caps' should include a list of accepted 'media_types', unless "
                                             "this Receiver can handle any 'media_type'",
                                             "https://specs.amwa.tv/is-04/branches/{}"
-                                            "/docs/4.3._Behaviour_-_Nodes.html#all-resources"
-                                            .format(api["spec_branch"]))
+                                            "/docs/{}Behaviour_-_Nodes.html#all-resources"
+                                            .format(api["spec_branch"], "4.3._" if api_docs_numbered else ""))
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                         if receiver["format"] == "urn:x-nmos:format:data" and \
                                receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
@@ -1620,8 +1623,8 @@ class IS0401Test(GenericTest):
                                                     "if the Receiver accepts IS-07 events, unless this Receiver can "
                                                     "handle any 'event_type'",
                                                     "https://specs.amwa.tv/is-04/branches/{}"
-                                                    "/docs/4.3._Behaviour_-_Nodes.html#all-resources"
-                                                    .format(api["spec_branch"]))
+                                                    "/docs/{}Behaviour_-_Nodes.html#all-resources"
+                                                    .format(api["spec_branch"], "4.3._" if api_docs_numbered else ""))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
@@ -1686,7 +1689,7 @@ class IS0401Test(GenericTest):
                             return test.FAIL("Receiver {} does not comply with the BCP-004-01 schema: "
                                              "{}".format(receiver["id"], str(e)),
                                              "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                             "/docs/1.0._Receiver_Capabilities.html"
+                                             "/docs/Receiver_Capabilities.html"
                                              "#validating-parameter-constraints-and-constraint-sets"
                                              .format(api["spec_branch"]))
                         for constraint_set in receiver["caps"]["constraint_sets"]:
@@ -1696,7 +1699,7 @@ class IS0401Test(GenericTest):
                                 return test.FAIL("Receiver {} does not comply with the Capabilities register schema: "
                                                  "{}".format(receiver["id"], str(e)),
                                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                                 "/docs/1.0._Receiver_Capabilities.html"
+                                                 "/docs/Receiver_Capabilities.html"
                                                  "#behaviour-receivers"
                                                  .format(api["spec_branch"]))
                             found_param_constraint = False
@@ -1708,7 +1711,7 @@ class IS0401Test(GenericTest):
                                 return test.FAIL("Receiver {} caps includes a constraint set without any "
                                                  "parameter constraints".format(receiver["id"]),
                                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                                 "/docs/1.0._Receiver_Capabilities.html"
+                                                 "/docs/Receiver_Capabilities.html"
                                                  "#constraint-sets"
                                                  .format(api["spec_branch"]))
             except json.JSONDecodeError:
@@ -1721,7 +1724,7 @@ class IS0401Test(GenericTest):
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 "/docs/Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         else:
             return test.PASS()
@@ -1747,7 +1750,7 @@ class IS0401Test(GenericTest):
                             return test.FAIL("Receiver {} caps version is later than resource version"
                                              .format(receiver["id"]),
                                              "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                             "/docs/1.0._Receiver_Capabilities.html#behaviour-receivers"
+                                             "/docs/Receiver_Capabilities.html#behaviour-receivers"
                                              .format(api["spec_branch"]))
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
@@ -1759,7 +1762,7 @@ class IS0401Test(GenericTest):
         elif no_caps_version:
             return test.OPTIONAL("No Receiver caps versions were found",
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html#capabilities-version"
+                                 "/docs/Receiver_Capabilities.html#capabilities-version"
                                  .format(api["spec_branch"]))
         else:
             return test.PASS()
@@ -1803,12 +1806,12 @@ class IS0401Test(GenericTest):
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 "/docs/Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         elif warn_unregistered:
             return test.WARNING(warn_unregistered,
                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                "/docs/1.0._Receiver_Capabilities.html#defining-parameter-constraints"
+                                "/docs/Receiver_Capabilities.html#defining-parameter-constraints"
                                 .format(api["spec_branch"]))
         else:
             return test.PASS()
@@ -1855,17 +1858,17 @@ class IS0401Test(GenericTest):
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 "/docs/Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         elif no_meta:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' have {}".format(description),
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html#constraint-set-{}"
+                                 "/docs/Receiver_Capabilities.html#constraint-set-{}"
                                  .format(api["spec_branch"], meta))
         elif warn_not_all and not all_meta:
             return test.WARNING("Only some BCP-004-01 'constraint_sets' have {}".format(description),
                                 "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                "/docs/1.0._Receiver_Capabilities.html#constraint-set-{}"
+                                "/docs/Receiver_Capabilities.html#constraint-set-{}"
                                 .format(api["spec_branch"], meta))
         else:
             return test.PASS()
@@ -1935,7 +1938,7 @@ class IS0401Test(GenericTest):
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 "/docs/Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         elif warn_format:
             return test.WARNING(warn_format)
@@ -1978,7 +1981,7 @@ class IS0401Test(GenericTest):
         elif no_constraint_sets:
             return test.OPTIONAL("No BCP-004-01 'constraint_sets' were identified in Receiver caps",
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
-                                 "/docs/1.0._Receiver_Capabilities.html#listing-constraint-sets"
+                                 "/docs/Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
         else:
             return test.PASS()
