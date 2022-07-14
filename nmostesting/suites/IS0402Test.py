@@ -28,7 +28,7 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..TestHelper import WebsocketWorker, load_resolved_schema
+from ..TestHelper import is_ip_address, load_resolved_schema, WebsocketWorker
 from ..TestResult import Test
 
 REG_API_KEY = "registration"
@@ -154,7 +154,7 @@ class IS0402Test(GenericTest):
         location, timestamp = self.post_resource(test, "node", data, codes=[201])
 
         # also check an 'https' URL in the Location header has a hostname not an IP address
-        if location is not None and location.startswith("https://") and urlparse(location).hostname[-1].isdigit():
+        if location is not None and location.startswith("https://") and is_ip_address(urlparse(location).hostname):
             return test.WARNING("Registration API Location header has an IP address not a hostname")
 
         return test.PASS()
@@ -966,7 +966,7 @@ class IS0402Test(GenericTest):
             if rel not in link_header:
                 continue
 
-            if link_header[rel].startswith("https://") and urlparse(link_header[rel]).hostname[-1].isdigit():
+            if link_header[rel].startswith("https://") and is_ip_address(urlparse(link_header[rel]).hostname):
                 return test.WARNING("Query API Link header has an IP address not a hostname")
 
         return test.PASS()
@@ -1775,7 +1775,7 @@ class IS0402Test(GenericTest):
 
         # Check IP/hostname
         ws_href_hostname_warn = False
-        if resp_json["ws_href"].startswith("wss://") and urlparse(resp_json["ws_href"]).hostname[-1].isdigit():
+        if resp_json["ws_href"].startswith("wss://") and is_ip_address(urlparse(resp_json["ws_href"]).hostname):
             ws_href_hostname_warn = True
 
         # Test if subscription is available
