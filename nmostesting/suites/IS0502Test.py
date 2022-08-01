@@ -49,7 +49,7 @@ class IS0502Test(GenericTest):
 
     def get_is04_resources(self, resource_type):
         """Retrieve all Senders or Receivers from a Node API, keeping hold of the returned objects"""
-        assert(resource_type in ["senders", "receivers", "sources", "flows"])
+        assert resource_type in ["senders", "receivers", "sources", "flows"]
 
         # Prevent this being executed twice in one test run
         if resource_type in self.is04_resources["_requested"]:
@@ -78,7 +78,7 @@ class IS0502Test(GenericTest):
 
     def get_is05_resources(self, resource_type):
         """Retrieve all Senders or Receivers from a Connection API, keeping hold of the returned IDs"""
-        assert(resource_type in ["senders", "receivers"])
+        assert resource_type in ["senders", "receivers"]
 
         # Prevent this being executed twice in one test run
         if resource_type in self.is05_resources["_requested"]:
@@ -108,7 +108,7 @@ class IS0502Test(GenericTest):
 
     def check_is04_in_is05(self, resource_type):
         """Check that each Sender or Receiver found via IS-04 has a matching entry in IS-05"""
-        assert(resource_type in ["senders", "receivers"])
+        assert resource_type in ["senders", "receivers"]
 
         result = True
         for is04_resource in self.is04_resources[resource_type]:
@@ -121,7 +121,7 @@ class IS0502Test(GenericTest):
 
     def check_is05_in_is04(self, resource_type):
         """Check that each Sender or Receiver found via IS-05 has a matching entry in IS-04"""
-        assert(resource_type in ["senders", "receivers"])
+        assert resource_type in ["senders", "receivers"]
 
         result = True
         for is05_resource in self.is05_resources[resource_type]:

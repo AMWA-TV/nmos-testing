@@ -185,7 +185,7 @@ if __name__ == "__main__":
     with open("dummy-sdp.sdp", "r") as sdp_file:
         dummy_sdp_payload = sdp_file.read()
 
-    while(True):
+    while True:
         print('\nPress \'e\' to set master_enable True')
         print('Press \'d\' to set master_enable False')
         print('Press \'c\' to set Sender or Receiver to valid config')

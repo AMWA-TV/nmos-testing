@@ -134,7 +134,7 @@ class IS0802Test(GenericTest):
 
     def get_is04_resources(self, resource_type):
         """Retrieve all Senders or Receivers from a Node API, keeping hold of the returned objects"""
-        assert(resource_type in ["senders", "receivers", "devices", "sources"])
+        assert resource_type in ["senders", "receivers", "devices", "sources"]
 
         # Prevent this being executed twice in one test run
         if resource_type in self.is04_resources["_requested"]:
