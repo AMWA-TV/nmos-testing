@@ -51,7 +51,7 @@ with the chain file:
 
 ## Hosts Files
 
-As the test suite does not have control over your default DNS server and given that testing with TLS requires the use of
+In mDNS mode, as the test suite does not have control over your default DNS server and given that testing with TLS requires the use of
 hostnames, you will need to add some temporary entries to the hosts file on your machine(s) when performing testing.
 The mechanism to modify hosts files varies by operating system.
 
