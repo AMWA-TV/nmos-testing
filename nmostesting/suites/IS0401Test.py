@@ -29,7 +29,7 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..TestHelper import get_default_ip, load_resolved_schema
+from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -1230,7 +1230,7 @@ class IS0401Test(GenericTest):
             node_self = response.json()
             if not node_self["href"].startswith(self.protocol + "://"):
                 return test.FAIL("Node 'href' does not match the current protocol")
-            if node_self["href"].startswith("https://") and urlparse(node_self["href"]).hostname[-1].isdigit():
+            if node_self["href"].startswith("https://") and is_ip_address(urlparse(node_self["href"]).hostname):
                 href_hostname_warn = True
             if self.is04_utils.compare_api_version(api["version"], "v1.1") >= 0:
                 for endpoint in node_self["api"]["endpoints"]:
@@ -1246,7 +1246,7 @@ class IS0401Test(GenericTest):
                     if self.is04_utils.compare_urls(node_self["href"], "{}://{}:{}"
                                                     .format(endpoint["protocol"], endpoint["host"], endpoint["port"])):
                         found_href = True
-                    if endpoint["protocol"] == "https" and endpoint["host"][-1].isdigit():
+                    if endpoint["protocol"] == "https" and is_ip_address(endpoint["host"]):
                         api_endpoint_host_warn = True
             for service in node_self["services"]:
                 href = service["href"]
@@ -1254,7 +1254,7 @@ class IS0401Test(GenericTest):
                     # Only warn about these at the end so that more major failures are flagged first
                     # Protocols other than HTTP may be used, so don't incorrectly flag those too
                     service_href_scheme_warn = True
-                if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
+                if href.startswith("https://") and is_ip_address(urlparse(href).hostname):
                     service_href_hostname_warn = True
                 if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
                         service["type"].startswith("urn:x-nmos:"):
@@ -1284,7 +1284,7 @@ class IS0401Test(GenericTest):
                             # Only warn about these at the end so that more major failures are flagged first
                             # Protocols other than HTTP may be used, so don't incorrectly flag those too
                             control_href_scheme_warn = True
-                        if href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
+                        if href.startswith("https://") and is_ip_address(urlparse(href).hostname):
                             control_href_hostname_warn = True
                         if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
                                 control["type"].startswith("urn:x-nmos:"):
@@ -1304,7 +1304,7 @@ class IS0401Test(GenericTest):
                 href = sender["manifest_href"]
                 if href is not None and href.startswith("http") and not href.startswith(self.protocol + "://"):
                     manifest_href_scheme_warn = True
-                if href is not None and href.startswith("https://") and urlparse(href).hostname[-1].isdigit():
+                if href is not None and href.startswith("https://") and is_ip_address(urlparse(href).hostname):
                     manifest_href_hostname_warn = True
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")

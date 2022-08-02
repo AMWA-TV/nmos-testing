@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import asyncio
+import ipaddress
 import threading
 import requests
 import websocket
@@ -163,6 +164,15 @@ def get_default_ip():
     else:
         preferred_interface = CONFIG.BIND_INTERFACE
     return netifaces.ifaddresses(preferred_interface)[netifaces.AF_INET][0]['addr']
+
+
+def is_ip_address(arg):
+    """True if arg is an IPv4 or IPv6 address"""
+    try:
+        ipaddress.ip_address(arg)
+        return True
+    except ValueError:
+        return False
 
 
 def do_request(method, url, **kwargs):
