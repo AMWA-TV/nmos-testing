@@ -152,7 +152,7 @@ SDP_PREFERENCES = {
     "video_sampling": "YCbCr-4:2:2",
     "video_colorimetry": "BT709",
     "video_transfer_characteristic": "SDR",
-    "video_type_parameter": "2110TPW"	
+    "video_type_parameter": "2110TPW"
 }
 
 # Test with an MQTT Broker as per AMWA IS-07

@@ -375,7 +375,7 @@ def node_sdp(stream_type):
                                    channels=CONFIG.SDP_PREFERENCES["audio_channels"],
                                    sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
                                    max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                                   packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])								   
+                                   packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
     elif stream_type == "data":
         sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
     elif stream_type == "mux":
@@ -589,7 +589,7 @@ def transport_file(version, resource, resource_id):
                                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
                                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
                                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                                       type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])									   
+                                       type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
 
             response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"

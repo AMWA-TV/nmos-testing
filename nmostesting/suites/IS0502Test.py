@@ -1114,60 +1114,66 @@ class IS0502Test(GenericTest):
                 interlace = ""
                 if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
                     interlace = "interlace; "
-                # TODO: The ST.2110-22 media types don't need some of the fmtp params in the template file
+                # TODO: The media types besides video/raw likely need some different fmtp params
                 if "video/raw" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
-                                               width=CONFIG.SDP_PREFERENCES["video_width"],
-                                               height=CONFIG.SDP_PREFERENCES["video_height"],
-                                               interlace=interlace,
-                                               exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                                               depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                                               sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                                               colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                                               transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                                               type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                    sdp_file = template.render(
+                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
+                        width=CONFIG.SDP_PREFERENCES["video_width"],
+                        height=CONFIG.SDP_PREFERENCES["video_height"],
+                        interlace=interlace,
+                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
                 elif "video/vc2" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="vc2",
-                                               width=CONFIG.SDP_PREFERENCES["video_width"],
-                                               height=CONFIG.SDP_PREFERENCES["video_height"],
-                                               interlace=interlace,
-                                               exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                                               depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                                               sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                                               colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                                               transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                                               type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                    sdp_file = template.render(
+                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="vc2",
+                        width=CONFIG.SDP_PREFERENCES["video_width"],
+                        height=CONFIG.SDP_PREFERENCES["video_height"],
+                        interlace=interlace,
+                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
                 elif "video/H264" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264",
-                                               width=CONFIG.SDP_PREFERENCES["video_width"],
-                                               height=CONFIG.SDP_PREFERENCES["video_height"],
-                                               interlace=interlace,
-                                               exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                                               depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                                               sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                                               colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                                               transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                                               type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                    sdp_file = template.render(
+                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264",
+                        width=CONFIG.SDP_PREFERENCES["video_width"],
+                        height=CONFIG.SDP_PREFERENCES["video_height"],
+                        interlace=interlace,
+                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
             elif receiver["format"] == "urn:x-nmos:format:audio":
                 template = Template(audio_sdp, keep_trailing_newline=True)
                 if "audio/L16" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L16",
-                                               channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                                               sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                                               max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                                               packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+                    sdp_file = template.render(
+                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L16",
+                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
                 elif "audio/L24" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
-                                               channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                                               sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                                               max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                                               packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+                    sdp_file = template.render(
+                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
+                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
                 elif "audio/L32" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L32",
-                                               channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                                               sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                                               max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                                               packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+                    sdp_file = template.render(
+                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L32",
+                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
             elif receiver["format"] == "urn:x-nmos:format:data":
                 template = Template(data_sdp, keep_trailing_newline=True)
                 if "video/smpte291" in receiver["caps"]["media_types"]:
