@@ -51,16 +51,17 @@ with the chain file:
 
 ## Hosts Files
 
-As the test suite does not have control over your default DNS server and given that testing with TLS requires the use of
+In mDNS mode, as the test suite does not have control over your default DNS server and given that testing with TLS requires the use of
 hostnames, you will need to add some temporary entries to the hosts file on your machine(s) when performing testing.
 The mechanism to modify hosts files varies by operating system.
 
 On the host running the test suite, add an entry to the hosts file for 'api.testsuite.nmos.tv' pointing at the IP
 address of the host under test.
 
-On the host under test, add the following entries to the hosts file for 'mocks.testsuite.nmos.tv' and 'crl.testsuite.nmos.tv'
+On the host under test, add the following entries to the hosts file for 'mocks.testsuite.nmos.tv', 'crl.testsuite.nmos.tv' and 'ocsp.testsuite.nmos.tv'
 pointing at the IP address of the host running the test suite. At present this is only required for the IS-04 Node tests which
-require that the unit under test communicate directly with entities which are 'mocked' by the test suite.
+require that the unit under test communicate directly with entities which are 'mocked' by the test suite and for the BCP-003-01 Secure Communication
+tests which require that the unit under test communicate directly with the test suite's OCSP server.
 
 ## Additional Certificates
 

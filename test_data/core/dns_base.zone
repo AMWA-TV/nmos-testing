@@ -23,3 +23,6 @@ _nmos-{{ service_type }}._tcp	PTR	relay._nmos-{{ service_type }}._tcp
 relay._nmos-{{ service_type }}._tcp	SRV	0 0 {{ service_data["port"] }} {{ service_data["host"] }}.{{ domain }}.
 relay._nmos-{{ service_type }}._tcp	TXT	"{{ '" "'.join(service_data["txt"]) }}"
 {% endfor %}
+
+crl.{{ domain }}.  IN  A {{ ip_address }}
+ocsp.{{ domain }}. IN  A {{ ip_address }}
