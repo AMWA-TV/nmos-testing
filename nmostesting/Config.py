@@ -142,10 +142,17 @@ PREVALIDATE_API = True
 SDP_PREFERENCES = {
     "audio_channels": 2,
     "audio_sample_rate": 48000,
+    "audio_packet_time": 1,
+    "audio_max_packet_time": 1,
     "video_width": 1920,
     "video_height": 1080,
     "video_interlace": True,
-    "video_exactframerate": "25"
+    "video_exactframerate": "25",
+    "video_depth": 10,
+    "video_sampling": "YCbCr-4:2:2",
+    "video_colorimetry": "BT709",
+    "video_transfer_characteristic": "SDR",
+    "video_type_parameter": "2110TPW"	
 }
 
 # Test with an MQTT Broker as per AMWA IS-07
