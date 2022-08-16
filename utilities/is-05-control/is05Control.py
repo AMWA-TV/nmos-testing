@@ -86,12 +86,12 @@ def set_master_enable(url, state):
         }
     }
 
-    send_request(url, body)
+    send_patch_request(url, body)
 
 
 def configure_sender(url, config):
     print('Configuring Sender')
-    send_request(url, config)
+    send_patch_request(url, config)
 
 
 def configure_receiver(url, sender_id, sdp_data):
@@ -111,22 +111,42 @@ def configure_receiver(url, sender_id, sdp_data):
         print("Using SDP file")
         body["transport_file"] = {"data": sdp_data, "type": "application/sdp"}
 
-    send_request(url, body)
+    send_patch_request(url, body)
 
+def send_get_request(url):
+    try:
+        response = requests.get(url, timeout=2)
+        if response.status_code in [200]:
+            print("Successful GET request\n")
+            rep=response.headers['content-type']
+            if 'json' in rep:
+                return response.json()
+            elif 'sdp' in rep:
+                return response.text
+            else:
+                print(response)
+                return response
+        else:
+            print("GET Request Failed\n")
+            print(response.status_code)
+            print(response.text)
+    except Exception as e:
+        print(" * ERROR: Unable to get data to {}".format(url))
+        print(e)
 
-def send_request(url, body):
+def send_patch_request(url, body):
     try:
         response = requests.patch(url, timeout=2, json=body)
         if response.status_code in [200]:
-            print("Successful request")
+            print("Successful PATCH request. Response body:\n")
+            print(json.dumps(response.json(), indent=4))
         else:
-            print("Request Failed")
+            print("PATCH Request Failed\n")
             print(response.status_code)
             print(response.text)
     except Exception as e:
         print(" * ERROR: Unable to patch data to {}".format(url))
         print(e)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -136,14 +156,14 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--sender", action="store_true", help="Configure NMOS Sender")
     parser.add_argument("-r", "--receiver", action="store_true", help="Configure NMOS Receiver")
     parser.add_argument("--request", help="JSON data to be sent in the request to configure sender")
-    parser.add_argument("--sdp", help="SDP file to be sent in the request to configure receiver")
+    parser.add_argument("--sdp", help="SDP file to be queried from a Sender (write) or be sent to a Receiver (read)")
     parser.add_argument("-u", "--uuid", required=True, help="UUID of resource to be configured")
     args = parser.parse_args()
 
     # Configure for Sender or Receiver
     if args.sender:
         print("Configuring NMOS Sender using IS-05")
-        url = "http://{}:{}/x-nmos/connection/{}/single/senders/{}/staged".format(
+        url = "http://{}:{}/x-nmos/connection/{}/single/senders/{}".format(
             args.ip,
             args.port,
             args.version,
@@ -151,7 +171,7 @@ if __name__ == "__main__":
         )
     elif args.receiver:
         print("Configuring NMOS Receiver using IS-05")
-        url = "http://{}:{}/x-nmos/connection/{}/single/receivers/{}/staged".format(
+        url = "http://{}:{}/x-nmos/connection/{}/single/receivers/{}".format(
             args.ip,
             args.port,
             args.version,
@@ -162,6 +182,8 @@ if __name__ == "__main__":
         sys.exit()
 
     print(url)
+    url_staged = url + '/staged'
+    url_transport = url + '/transportfile'
 
     # Read PATCH request JSON
     if args.request:
@@ -172,14 +194,8 @@ if __name__ == "__main__":
             print("Request file \"{}\" does not exist".format(args.request))
             sys.exit()
 
-    # Read SDP file
-    if args.sdp:
-        if os.path.exists(args.sdp):
-            with open(args.sdp, "r") as sdp_file:
-                sdp_payload = sdp_file.read()
-        else:
-            print("SDP file \"{}\" does not exist".format(args.sdp))
-            sys.exit()
+    # Check SDP file
+    sdp_filename = args.sdp if args.sdp else "latest.sdp"
 
     # Read dummy SDP file
     with open("dummy-sdp.sdp", "r") as sdp_file:
@@ -188,9 +204,10 @@ if __name__ == "__main__":
     while(True):
         print('\nPress \'e\' to set master_enable True')
         print('Press \'d\' to set master_enable False')
-        print('Press \'c\' to set Sender or Receiver to valid config')
-        print('Press \'u\' to set Sender or Receiver to dummy config')
+        print('Press \'c\' to set a valid config on a Sender or a Receiver')
+        print('Press \'u\' to set a dummy config on a Sender or a Receiver')
         print('Press \'7\' to set 2022-7 Sender to dummy config')
+        print('Press \'s\' to get SDP file (and save to "./{}" from a Sender)'.format(sdp_filename))
 
         print('Waiting for input...\n')
         # Check for escape character
@@ -198,22 +215,39 @@ if __name__ == "__main__":
         if ch in [b'\x03', b'q', '\x03', 'q', 'Q']:
             break
 
+        # Reload
+
         if ch == 'e':
-            set_master_enable(url, True)
+            set_master_enable(url_staged, True)
         elif ch == 'd':
-            set_master_enable(url, False)
+            set_master_enable(url_staged, False)
         elif ch == 'c':
             if args.sender:
-                configure_sender(url, request_payload)
+                configure_sender(url_staged, request_payload)
             else:
-                configure_receiver(url, "1e1c78ae-1dd2-11b2-8044-cc988b8696a2", sdp_payload)
+                if os.path.exists(sdp_filename):
+                    with open(sdp_filename, "r") as sdp_file:
+                        sdp_payload = sdp_file.read()
+                        configure_receiver(url_staged, "1e1c78ae-1dd2-11b2-8044-cc988b8696a2", sdp_payload)
+                else:
+                    print("SDP file not found: {}".format(sdp_filename))
         elif ch == 'u':
             if args.sender:
-                configure_sender(url, dummy_data)
+                configure_sender(url_staged, dummy_data)
             else:
-                configure_receiver(url, "xxxxxxxx-1dd2-xxxx-8044-cc988b8696a2", dummy_sdp_payload)
+                configure_receiver(url_staged, "xxxxxxxx-1dd2-xxxx-8044-cc988b8696a2", dummy_sdp_payload)
         elif ch == '7':
             if args.sender:
-                configure_sender(url, dummy_data_7)
+                configure_sender(url_staged, dummy_data_7)
+        elif ch == 's':
+            if args.sender:
+                sdp = send_get_request(url_transport)
+                print(sdp)
+                with open(sdp_filename, "w") as sdp_file:
+                    sdp_file.write(sdp)
+                print("----------------------> Saved to ./{}".format(sdp_filename))
+            else:
+                rep = send_get_request(url_staged)
+                print(rep ["transport_file"]["data"])
 
     print('Escape character found')
