@@ -45,8 +45,10 @@ openssl req -config intermediate/openssl.cnf -key intermediate/private/rsa.$FQDN
 openssl ca -batch -config intermediate/openssl.cnf -extensions server_cert -days 18250 -notext -md sha256 -in intermediate/csr/ecdsa.$FQDN.csr.pem -out intermediate/certs/ecdsa.$FQDN.cert.pem
 cat intermediate/certs/ecdsa.$FQDN.cert.pem intermediate/certs/ca-chain.cert.pem > intermediate/certs/ecdsa.$FQDN.cert.chain.pem
 openssl pkcs12 -passout pass: -export -out intermediate/certs/ecdsa.$FQDN.cert.pfx -inkey intermediate/private/ecdsa.$FQDN.key.pem -in intermediate/certs/ecdsa.$FQDN.cert.pem
+openssl pkcs12 -passout pass: -export -out intermediate/certs/ecdsa.$FQDN.cert.chain.pfx -inkey intermediate/private/ecdsa.$FQDN.key.pem -in intermediate/certs/ecdsa.$FQDN.cert.pem -certfile intermediate/certs/ca-chain.cert.pem
 
 # Sign RSA CSR
 openssl ca -batch -config intermediate/openssl.cnf -extensions server_cert -days 18250 -notext -md sha256 -in intermediate/csr/rsa.$FQDN.csr.pem -out intermediate/certs/rsa.$FQDN.cert.pem
 cat intermediate/certs/rsa.$FQDN.cert.pem intermediate/certs/ca-chain.cert.pem > intermediate/certs/rsa.$FQDN.cert.chain.pem
 openssl pkcs12 -passout pass: -export -out intermediate/certs/rsa.$FQDN.cert.pfx -inkey intermediate/private/rsa.$FQDN.key.pem -in intermediate/certs/rsa.$FQDN.cert.pem
+openssl pkcs12 -passout pass: -export -out intermediate/certs/rsa.$FQDN.cert.chain.pfx -inkey intermediate/private/rsa.$FQDN.key.pem -in intermediate/certs/rsa.$FQDN.cert.pem -certfile intermediate/certs/ca-chain.cert.pem
