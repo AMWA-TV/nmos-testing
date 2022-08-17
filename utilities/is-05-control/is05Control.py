@@ -235,7 +235,7 @@ if __name__ == "__main__":
             if args.sender:
                 configure_sender(url_staged, dummy_data)
             else:
-                configure_receiver(url_staged, "xxxxxxxx-1dd2-xxxx-8044-cc988b8696a2", dummy_sdp_payload)
+                configure_receiver(url_staged, "aaaaaaaa-1dd2-11b2-8044-cc988b8696a2", dummy_sdp_payload)
         elif ch == '7':
             if args.sender:
                 configure_sender(url_staged, dummy_data_7)
