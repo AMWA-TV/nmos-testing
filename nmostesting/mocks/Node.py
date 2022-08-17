@@ -363,12 +363,19 @@ def node_sdp(stream_type):
                                    width=CONFIG.SDP_PREFERENCES["video_width"],
                                    height=CONFIG.SDP_PREFERENCES["video_height"],
                                    interlace=interlace,
-                                   exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"])
+                                   exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                                   depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                                   sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                                   colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                                   transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                                   type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
     elif stream_type == "audio":
         # TODO: The SDP_PREFERENCES doesn't include audio media type or sample depth
         sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
                                    channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                                   sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"])
+                                   sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                                   max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                                   packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
     elif stream_type == "data":
         sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
     elif stream_type == "mux":
@@ -577,7 +584,12 @@ def transport_file(version, resource, resource_id):
                                        width=CONFIG.SDP_PREFERENCES["video_width"],
                                        height=CONFIG.SDP_PREFERENCES["video_height"],
                                        interlace=interlace,
-                                       exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"])
+                                       exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                                       depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                                       sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                                       colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                                       transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                                       type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
 
             response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"
