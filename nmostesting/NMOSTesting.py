@@ -417,16 +417,18 @@ def index_page():
             try:
                 if test in TEST_DEFINITIONS:
                     test_def = TEST_DEFINITIONS[test]
+                    # selectors must be explicitly enabled on the test suite
+                    selector = "selector" in test_def and test_def["selector"]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
                         # "disable_fields" is optional, none are disabled by default
                         disable_fields = spec["disable_fields"] if "disable_fields" in spec else []
                         endpoint = {}
                         for field in ["host", "port", "version", "selector"]:
-                            if field not in disable_fields:
-                                endpoint[field] = request.form.get("endpoints-{}-{}".format(index, field), None)
-                            else:
+                            if field in disable_fields or (field == "selector" and not selector):
                                 endpoint[field] = None
+                            else:
+                                endpoint[field] = request.form.get("endpoints-{}-{}".format(index, field), None)
                         endpoints.append(endpoint)
 
                     test_selection = request.form.getlist("test_selection")
