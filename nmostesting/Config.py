@@ -131,7 +131,8 @@ WEBSOCKET_PORT_BASE = 6000
 
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed
 # into Sender configuration when testing IS-05.
-# The default values are chosen from the IANA-registered TEST-NET-1 and MCAST-TEST-NET ranges.
+# The default values are from the IANA-registered TEST-NET-1 and MCAST-TEST-NET ranges. To avoid unintended network
+# traffic, override these with values appropriate for your network or set up a black hole route for these addresses.
 UNICAST_STREAM_TARGET = "192.0.2.1"
 MULTICAST_STREAM_TARGET = "233.252.0.1"
 
