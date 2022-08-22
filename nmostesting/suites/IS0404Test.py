@@ -251,6 +251,7 @@ class IS0404Test(ControllerTest):
             expected_answer = 'answer_' + str(offline_sender_index)
 
             self._delete_sender(test, self.senders[offline_sender_index])
+            self.node.delete_sender(self.senders[offline_sender_index]["id"])
 
             # Set the offline sender to registered false for future tests
             self.senders[offline_sender_index]['registered'] = False
@@ -295,6 +296,8 @@ class IS0404Test(ControllerTest):
 
             # Re-register sender
             self._register_sender(self.senders[offline_sender_index], codes=[200, 201])
+            sender_json = self._create_sender_json(self.senders[offline_sender_index])
+            self.node.add_sender(sender_json, self.sender_ip_addresses[sender_json["id"]])
             self.senders[offline_sender_index]['registered'] = True
 
             # Await/get testing façade response
