@@ -173,14 +173,14 @@ class IS0503Test(ControllerTest):
                 if patch_requests[0]['resource_id'] != receiver['id']:
                     return test.FAIL('Connection request sent to incorrect receiver')
 
-                if 'master_enable' not in patch_requests[0]['data'] or 'sender_id' not in patch_requests[0]['data']:
-                    return test.FAIL('Sender id or master enable not found in PATCH request')
+                if 'master_enable' not in patch_requests[0]['data']:
+                    return test.FAIL('Master enable not found in PATCH request')
                 else:
                     if not patch_requests[0]['data']['master_enable']:
                         return test.FAIL('Master_enable not set to True in PATCH request')
 
-                    if patch_requests[0]['data']['sender_id'] != sender['id']:
-                        return test.FAIL('Incorrect sender found in PATCH request')
+                if 'sender_id' in patch_requests[0]['data'] and patch_requests[0]['data']['sender_id'] != sender['id']:
+                    return test.FAIL('Incorrect sender found in PATCH request')
 
                 if 'activation' not in patch_requests[0]['data']:
                     return test.FAIL('No activation details in PATCH request')
