@@ -166,7 +166,8 @@ class IS0503Test(ControllerTest):
             self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received the correct PATCH request
-            patch_requests = [r for r in self.node.staged_requests if r['method'] == 'PATCH']
+            patch_requests = [r for r in self.node.staged_requests
+                              if r['method'] == 'PATCH' and r['resource'] == 'receivers']
             if len(patch_requests) < 1:
                 return test.FAIL('No PATCH request was received by the node')
             elif len(patch_requests) == 1:
@@ -263,7 +264,8 @@ class IS0503Test(ControllerTest):
             self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received a PATCH request
-            patch_requests = [r for r in self.node.staged_requests if r['method'] == 'PATCH']
+            patch_requests = [r for r in self.node.staged_requests
+                              if r['method'] == 'PATCH' and r['resource'] == 'receivers']
             if len(patch_requests) < 1:
                 return test.FAIL('No PATCH request was received by the node')
             elif len(patch_requests) > 1:
