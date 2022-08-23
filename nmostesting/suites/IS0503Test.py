@@ -180,7 +180,8 @@ class IS0503Test(ControllerTest):
                     if not patch_requests[0]['data']['master_enable']:
                         return test.FAIL('Master_enable not set to True in PATCH request')
 
-                if 'sender_id' in patch_requests[0]['data'] and patch_requests[0]['data']['sender_id'] != sender['id']:
+                if 'sender_id' in patch_requests[0]['data'] and patch_requests[0]['data']['sender_id']\
+                        and patch_requests[0]['data']['sender_id'] != sender['id']:
                     return test.FAIL('Incorrect sender found in PATCH request')
 
                 if 'activation' not in patch_requests[0]['data']:
@@ -198,8 +199,12 @@ class IS0503Test(ControllerTest):
                 if not receiver_details['subscription']['active']:
                     return test.FAIL('Receiver does not have active subscription')
 
-                if receiver_details['subscription']['sender_id'] != sender['id']:
+                if 'sender_id' in receiver_details['subscription'] and receiver_details['subscription']['sender_id']\
+                        and receiver_details['subscription']['sender_id'] != sender['id']:
                     return test.FAIL('Receiver did not connect to correct sender')
+
+            if 'sender_id' not in patch_requests[0]['data'] or not patch_requests[0]['data']['sender_id']:
+                return test.WARNING('Sender id SHOULD be set in patch request')
 
             return test.PASS("Connection successfully established")
         except TestingFacadeException as e:
