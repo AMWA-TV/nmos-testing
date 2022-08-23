@@ -303,9 +303,10 @@ class ControllerTest(GenericTest):
             time.sleep(0.1)
             if receiver["registered"]:
                 self._register_receiver(receiver)
-                # Add receiver to mock node
-                receiver_json = self._create_receiver_json(receiver)
-                self.node.add_receiver(receiver_json)
+                if receiver["connectable"]:
+                    # Add receiver to mock node
+                    receiver_json = self._create_receiver_json(receiver)
+                    self.node.add_receiver(receiver_json)
 
     def load_resource_data(self):
         """Loads test data from files"""
