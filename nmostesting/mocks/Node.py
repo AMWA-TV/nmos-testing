@@ -111,6 +111,9 @@ class Node(object):
             'activations': sender_update
         }
 
+    def delete_sender(self, sender_id):
+        self.senders.pop(sender_id)
+
     def add_receiver(self, receiver):
 
         staged_transport_params = [{

@@ -90,6 +90,7 @@ class ControllerTest(GenericTest):
         self.extra_time = 2 * CONFIG.API_PROCESSING_TIMEOUT  # API processing time to add to test timeout
         self.test_data = self.load_resource_data()
         self.senders = []
+        self.sender_ip_addresses = {}
         self.receivers = []
         # receiver list containing: {'label': '', 'description': '', 'id': '',
         #   'registered': True/False, 'connectable': True/False, 'display_answer': ''}
@@ -255,7 +256,7 @@ class ControllerTest(GenericTest):
         """Populate registry and mock node with mock senders and receivers"""
         self.node.reset()  # Ensure previouly added senders and receivers are removed
         self.primary_registry.common.reset()  # Ensure any previouly registered senders and receivers are removed
-        sender_ip = 159
+        sender_ip_final_octet = 159
 
         # Register node
         self._register_node(self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
@@ -280,8 +281,10 @@ class ControllerTest(GenericTest):
                 self._register_sender(sender)
                 # Add sender to mock node
                 sender_json = self._create_sender_json(sender)
-                self.node.add_sender(sender_json, self.senders_ip_base + str(sender_ip))
-                sender_ip += 1
+                sender_ip_address = self.senders_ip_base + str(sender_ip_final_octet)
+                self.node.add_sender(sender_json, sender_ip_address)
+                self.sender_ip_addresses[sender["id"]] = sender_ip_address
+                sender_ip_final_octet += 1
 
         # self.receivers should be initialized in the set_up_tests() override of derived test
         # each mock receiver defined as: {'label': <unique label>, 'description': '',
@@ -301,8 +304,11 @@ class ControllerTest(GenericTest):
             if receiver["registered"]:
                 self._register_receiver(receiver)
                 # Add receiver to mock node
-                receiver_json = self._create_receiver_json(receiver)
-                self.node.add_receiver(receiver_json)
+                # Note: mock node is currently only a mock Connection API
+                # so only add 'connectable' receivers
+                if receiver["connectable"]:
+                    receiver_json = self._create_receiver_json(receiver)
+                    self.node.add_receiver(receiver_json)
 
     def load_resource_data(self):
         """Loads test data from files"""
