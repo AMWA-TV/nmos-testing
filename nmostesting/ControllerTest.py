@@ -303,8 +303,10 @@ class ControllerTest(GenericTest):
             time.sleep(0.1)
             if receiver["registered"]:
                 self._register_receiver(receiver)
+                # Add receiver to mock node
+                # Note: mock node is currently only a mock Connection API
+                # so only add 'connectable' receivers
                 if receiver["connectable"]:
-                    # Add receiver to mock node
                     receiver_json = self._create_receiver_json(receiver)
                     self.node.add_receiver(receiver_json)
 
