@@ -105,8 +105,12 @@ class ControllerTest(GenericTest):
             if CONN_API_KEY in apis and "version" in self.apis[CONN_API_KEY] else "v1.1"
         self.qa_api_version = self.apis[CONTROLLER_TEST_API_KEY]["version"] \
             if CONTROLLER_TEST_API_KEY in apis and "version" in self.apis[CONTROLLER_TEST_API_KEY] else "v1.0"
-        self.answer_uri = "http://" + get_default_ip() + ":5000" + \
-            CALLBACK_ENDPOINT.replace('<version>', self.qa_api_version)
+        if CONFIG.ENABLE_HTTPS:
+            self.answer_uri = "https://mocks.testsuite.nmos.tv:5000" + \
+                CALLBACK_ENDPOINT.replace('<version>', self.qa_api_version)
+        else:
+            self.answer_uri = "http://" + get_default_ip() + ":5000" + \
+                CALLBACK_ENDPOINT.replace('<version>', self.qa_api_version)
 
     def set_up_tests(self):
         if self.dns_server:
@@ -121,9 +125,14 @@ class ControllerTest(GenericTest):
         # Reset registry to clear previous heartbeats, etc.
         self.primary_registry.reset()
         self.primary_registry.enable()
-        self.mock_registry_base_url = 'http://' + get_default_ip() + ':' + \
-            str(self.primary_registry.get_data().port) + '/'
-        self.mock_node_base_url = 'http://' + get_default_ip() + ':' + str(self.node.port) + '/'
+        if CONFIG.ENABLE_HTTPS:
+            self.mock_registry_base_url = 'https://mocks.testsuite.nmos.tv:' + \
+                str(self.primary_registry.get_data().port) + '/'
+            self.mock_node_base_url = 'https://mocks.testsuite.nmos.tv:' + str(self.node.port) + '/'
+        else:
+            self.mock_registry_base_url = 'http://' + get_default_ip() + ':' + \
+                str(self.primary_registry.get_data().port) + '/'
+            self.mock_node_base_url = 'http://' + get_default_ip() + ':' + str(self.node.port) + '/'
 
         # Populate mock registry with senders and receivers and store the results
         self._populate_registry()
