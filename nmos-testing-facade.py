@@ -55,10 +55,16 @@ def index():
 
             # POST to test suite to confirm answer available
             valid, response = do_request('POST', form['response_url'], json=answer_json)
+
+            if not valid:
+                return response
         else:
             if 'all_data' in form:
                 # Form was submitted but no answer(s) chosen
                 valid, response = do_request('POST', form['response_url'], json=answer_json)
+
+                if not valid:
+                    return response
             return "No answer submitted", 400
 
         return 'Answer set'
