@@ -119,6 +119,10 @@ AUTH_TOKEN = None
 # This must match the domain name used for certificates in HTTPS mode
 DNS_DOMAIN = "testsuite.nmos.tv"
 
+# The host name of the mocks used by the Controller tests when they are run securely. This should be consistent
+# with the hosts entries in the host running the test suite and the host running the Controller under test.
+MOCKS_HOSTNAME = "mocks.testsuite.nmos.tv"
+
 # The testing tool uses multiple ports to run mock services. This sets the lowest of these, which also runs the GUI
 # Note that changing this from the default of 5000 also requires changes to supporting files such as
 # test_data/BCP00301/ca/intermediate/openssl.cnf and any generated certificates.
