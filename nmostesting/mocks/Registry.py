@@ -220,7 +220,7 @@ class Registry(object):
                 return subscription, False
 
             websocket_port = WEBSOCKET_PORT_BASE + len(self.subscription_websockets)
-            websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type)
+            websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type, secure)
             websocket_server.set_queue_sync_data_grain_callback(self.queue_sync_data_grain)
             websocket_server.start()
 
@@ -655,7 +655,7 @@ def post_subscription(version):
 
         # The current implementation of WebSockets in this mock Registry does not implement secure
         # sockets, and does not support query parameters in the request
-        if secure or len(subscription_request['params']) > 0:
+        if len(subscription_request['params']) > 0:
             abort(501)
 
         subscription, created = registry.subscribe_to_query_api(version, subscription_request, secure)

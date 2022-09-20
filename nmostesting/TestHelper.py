@@ -20,6 +20,7 @@ import threading
 import requests
 import websocket
 import websockets
+import ssl
 import os
 import jsonref
 import netifaces
@@ -440,7 +441,7 @@ class SubscriptionWebsocketWorker(threading.Thread):
         for task in pending:
             task.cancel()
 
-    def __init__(self, host, port, resource_type):
+    def __init__(self, host, port, resource_type, secure):
         """
         Initializer
         :param resource_type: type of resource to which we are subscribing
@@ -457,7 +458,18 @@ class SubscriptionWebsocketWorker(threading.Thread):
         self._message_queue = asyncio.Queue()
         self._connected_clients = set()
 
-        self._ws_server = self._loop.run_until_complete(websockets.serve(self.handler, host, port))
+        ctx = None
+        if secure:
+            ctx = ssl.create_default_context()
+            for cert, key in zip(CONFIG.CERTS_MOCKS, CONFIG.KEYS_MOCKS):
+                ctx.load_cert_chain(cert, key)
+            # additionally disable TLS v1.0 and v1.1
+            ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+            # BCP-003-01 however doesn't require client certificates, so disable those
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+        self._ws_server = self._loop.run_until_complete(websockets.serve(self.handler, host, port, ssl=ctx))
 
     def run(self):
         self._loop.run_forever()
