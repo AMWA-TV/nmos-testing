@@ -83,7 +83,8 @@ class ControllerTest(GenericTest):
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
         if apis[CONTROLLER_TEST_API_KEY]["base_url"].startswith("https"):
             # Comms with Testing Facade are http only
-            apis[CONTROLLER_TEST_API_KEY]["base_url"] = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
+            apis[CONTROLLER_TEST_API_KEY]["base_url"] \
+                = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
             apis[CONTROLLER_TEST_API_KEY]["url"] = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
         GenericTest.__init__(self, apis, disable_auto=disable_auto)
         self.authorization = False
