@@ -77,7 +77,7 @@ class ControllerTest(GenericTest):
     Testing initial set up of new test suite for controller testing
     """
     def __init__(self, apis, registries, node, dns_server, disable_auto=True):
-        # Remove the spec_path as there are no corresponding GitHib repos for Controller Tests
+        # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
         if apis[CONTROLLER_TEST_API_KEY]["base_url"].startswith("https"):
             # Comms with Testing Facade are http only
