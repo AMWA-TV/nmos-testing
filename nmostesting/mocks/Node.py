@@ -505,7 +505,7 @@ def staged(version, resource, resource_id):
     """
     # Track requests
     NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id,
-                                 'data': request.get_json() if request.is_json else None})
+                                 'data': request.get_json(silent=True)})
 
     try:
         if resource == 'senders':
