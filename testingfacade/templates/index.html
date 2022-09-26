@@ -22,9 +22,16 @@
                     type: form.attr('method'),
                     url: form.attr('action'),
                     data: form.serialize(),
+                    success: function (response) {
+                        console.log(response);
+                        $('#submitbtn').val('Submitting...');
+                    },
+                    error: function (xhr, ajaxOptions, thrownError) {
+                        $('#submitbtn').val('Error!');
+                        alert(thrownError);
+                    }
                 });
                 e.preventDefault();
-                $('#submitbtn').val('Submitting...');
                 $('#submitbtn').attr("disabled", true);
             });
         });

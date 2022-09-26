@@ -56,18 +56,15 @@ def index():
             # POST to test suite to confirm answer available
             valid, response = do_request('POST', form['response_url'], json=answer_json)
 
-            if not valid:
-                return response
+            return response.reason, response.status_code
         else:
             if 'all_data' in form:
                 # Form was submitted but no answer(s) chosen
                 valid, response = do_request('POST', form['response_url'], json=answer_json)
 
-                if not valid:
-                    return response
-            return "No answer submitted", 400
+                return response.reason, response.status_code
 
-        return 'Answer set'
+        return 'Unexpected form data', 400
 
 
 @app.route('/x-nmos/testquestion/<version>', methods=['POST'], strict_slashes=False)
