@@ -80,6 +80,8 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import BCP00301Test
+from .suites import BCP0060101Test
+from .suites import BCP0060102Test
 
 
 FLASK_APPS = []
@@ -324,6 +326,33 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP00301Test.BCP00301Test
     },
+    "BCP-006-01-01": {
+        "name": "BCP-006-01 NMOS With JPEG XS",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "class": BCP0060101Test.BCP0060101Test
+    },
+    "BCP-006-01-02": {
+        "name": "BCP-006-01 Controller",
+        "specs": [{
+            "spec_key": "controller-tests",
+            "api_key": "testquestion"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "query",
+            "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["host", "port"]
+        }],
+        "class": BCP0060102Test.BCP0060102Test
+    },
 }
 
 
@@ -561,7 +590,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         elif test == "IS-09-02":
             # This test has an unusual constructor as it requires a system api instance
             test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
-        elif test == "IS-04-04" or test == "IS-05-03":
+        elif test in ["IS-04-04", "IS-05-03", "BCP-006-01-02"]:
             # Controller tests require a registry instance, mock Node and DNS server
             test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
         else:
