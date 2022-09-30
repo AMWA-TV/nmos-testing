@@ -47,22 +47,17 @@ def index():
         json_data = json.loads(form['all_data'])
         answer_json = {'question_id': json_data['question_id'], 'answer_response': None}
 
-        if 'answer' in form or 'Next' in form:
+        if 'answer' in form:
             if json_data['test_type'] == 'multi_choice':
                 answer_json['answer_response'] = request.form.getlist('answer')
             elif json_data['test_type'] == 'single_choice':
                 answer_json['answer_response'] = form['answer']
 
+        if 'answer' in form or 'Next' in form or 'all_data' in form:
             # POST to test suite to confirm answer available
             valid, response = do_request('POST', form['response_url'], json=answer_json)
 
             return response.reason, response.status_code
-        else:
-            if 'all_data' in form:
-                # Form was submitted but no answer(s) chosen
-                valid, response = do_request('POST', form['response_url'], json=answer_json)
-
-                return response.reason, response.status_code
 
         return 'Unexpected form data', 400
 
