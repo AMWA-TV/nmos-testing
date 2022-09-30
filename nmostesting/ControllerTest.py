@@ -38,6 +38,8 @@ CONN_API_KEY = "connection"
 
 CALLBACK_ENDPOINT = "/x-nmos/testanswer/<version>"
 
+MOCKS_HOSTNAME = "mocks." + CONFIG.DNS_DOMAIN if CONFIG.DNS_SD_MODE == "unicast" else "nmos-mocks.local"
+
 # asyncio queue for passing Testing Façade answer responses back to tests
 _event_loop = asyncio.new_event_loop()
 asyncio.set_event_loop(_event_loop)
@@ -124,14 +126,10 @@ class ControllerTest(GenericTest):
         # Reset registry to clear previous heartbeats, etc.
         self.primary_registry.reset()
         self.primary_registry.enable()
-        if CONFIG.ENABLE_HTTPS:
-            self.mock_registry_base_url = 'https://' + CONFIG.MOCKS_HOSTNAME + ':' + \
-                str(self.primary_registry.get_data().port) + '/'
-            self.mock_node_base_url = 'https://' + CONFIG.MOCKS_HOSTNAME + ':' + str(self.node.port) + '/'
-        else:
-            self.mock_registry_base_url = 'http://' + get_default_ip() + ':' + \
-                str(self.primary_registry.get_data().port) + '/'
-            self.mock_node_base_url = 'http://' + get_default_ip() + ':' + str(self.node.port) + '/'
+
+        host = MOCKS_HOSTNAME if CONFIG.ENABLE_HTTPS else get_default_ip()
+        self.mock_registry_base_url = self.protocol + '://' + host + ':' + str(self.primary_registry.get_data().port) + '/'
+        self.mock_node_base_url = self.protocol + '://'  + host + ':' + str(self.node.port) + '/'
 
         # Populate mock registry with senders and receivers and store the results
         self._populate_registry(test)
