@@ -81,7 +81,7 @@ class ControllerTest(GenericTest):
     def __init__(self, apis, registries, node, dns_server, disable_auto=True):
         # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
-        if apis[CONTROLLER_TEST_API_KEY]["base_url"].startswith("https"):
+        if CONFIG.ENABLE_HTTPS:
             # Comms with Testing Facade are http only
             apis[CONTROLLER_TEST_API_KEY]["base_url"] \
                 = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
