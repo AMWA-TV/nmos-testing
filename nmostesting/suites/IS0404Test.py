@@ -295,7 +295,7 @@ class IS0404Test(ControllerTest):
             exitTestEvent.wait(time_delay)
 
             # Re-register sender
-            self._register_sender(self.senders[offline_sender_index], codes=[200, 201])
+            self._register_sender(test, self.senders[offline_sender_index], codes=[200, 201])
             sender_json = self._create_sender_json(self.senders[offline_sender_index])
             self.node.add_sender(sender_json, self.sender_ip_addresses[sender_json["id"]])
             self.senders[offline_sender_index]['registered'] = True
