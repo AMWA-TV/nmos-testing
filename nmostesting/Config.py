@@ -277,6 +277,17 @@ SPECIFICATIONS = {
             }
         }
     },
+    "is-11": {
+        "repo": "is-11",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "streamcompatibility": {
+                "name": "Stream Compatibility Management API",
+                "raml": "StreamCompatibilityManagementAPI.raml"
+            }
+        }
+    },
     "bcp-002-01": {
         "repo": "bcp-002-01",
         "versions": ["v1.0"],
@@ -312,6 +323,12 @@ SPECIFICATIONS = {
                 "name": "Receiver Capabilities"
             }
         }
+    },
+    "bcp-005-01": {
+        "repo": "bcp-005-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {}
     },
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
