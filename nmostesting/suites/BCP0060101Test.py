@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
 from ..GenericTest import GenericTest
 
 NODE_API_KEY = "node"
@@ -30,3 +32,53 @@ class BCP0060101Test(GenericTest):
         GenericTest.__init__(self, apis, omit_paths)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
+
+    def test_01(self, test):
+        """JPEG XS Flows have the required attributes"""
+
+        url = self.node_url + "flows"
+        valid, response = self.do_request("GET", url)
+
+        if valid and response.status_code == 200:
+            try:
+                flows = response.json()
+
+                found_video_jxsv = False
+                warn_unrestricted = False
+                warn_message = ""
+
+                for flow in flows:
+                    if flow["media_type"] != "video/jxsv":
+                        continue
+                    found_video_jxsv = True
+                    if "components" not in flow:
+                        return test.FAIL("Flow {} MUST indicate the color (sub-)sampling using "
+                                         "the 'components' attribute.".format(flow["id"]))
+                    if "bit_rate" not in flow:
+                        return test.FAIL("Flow {} MUST indicate the target bit rate of the codestream using "
+                                         "the 'bit_rate' attribute.".format(flow["id"]))
+                    if warn_unrestricted:
+                        continue
+                    if "profile" not in flow:
+                        warn_unrestricted = True
+                        warn_message = "Flow {} MUST indicate the JPEG XS profile using " \
+                            "the 'profile' attribute unless it is Unrestricted.".format(flow["id"])
+                    elif "level" not in flow:
+                        warn_unrestricted = True
+                        warn_message = "Flow {} MUST indicate the JPEG XS level using " \
+                            "the 'level' attribute unless it is Unrestricted.".format(flow["id"])
+                    elif "sublevel" not in flow:
+                        warn_unrestricted = True
+                        warn_message = "Flow {} MUST indicate the JPEG XS sublevel using " \
+                            "the 'sublevel' attribute unless it is Unrestricted.".format(flow["id"])
+
+                if warn_unrestricted:
+                    return test.WARNING(warn_message)
+                if found_video_jxsv:
+                    return test.PASS()
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Expected key '{}' not found in response from {}".format(str(e), url))
+
+        return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")
