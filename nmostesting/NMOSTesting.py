@@ -335,6 +335,10 @@ TEST_DEFINITIONS = {
             "spec_key": "is-05",
             "api_key": "connection"
         }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }],
         "class": BCP0060101Test.BCP0060101Test
     },
     "BCP-006-01-02": {
