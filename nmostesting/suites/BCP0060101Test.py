@@ -13,11 +13,14 @@
 # limitations under the License.
 
 import json
+from jsonschema import ValidationError
 
 from ..GenericTest import GenericTest
+from ..TestHelper import load_resolved_schema
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
+FLOW_REGISTER_KEY = "flow-register"
 
 
 class BCP0060101Test(GenericTest):
@@ -36,8 +39,13 @@ class BCP0060101Test(GenericTest):
     def test_01(self, test):
         """JPEG XS Flows have the required attributes"""
 
+        reg_api = self.apis[FLOW_REGISTER_KEY]
+
         url = self.node_url + "flows"
         valid, response = self.do_request("GET", url)
+
+        reg_path = reg_api["spec_path"] + "/flow-attributes"
+        reg_schema = load_resolved_schema(reg_path, "flow_video_register.json", path_prefix=False)
 
         if valid and response.status_code == 200:
             try:
@@ -51,12 +59,27 @@ class BCP0060101Test(GenericTest):
                     if flow["media_type"] != "video/jxsv":
                         continue
                     found_video_jxsv = True
+
+                    # check required attributes are present
                     if "components" not in flow:
                         return test.FAIL("Flow {} MUST indicate the color (sub-)sampling using "
                                          "the 'components' attribute.".format(flow["id"]))
                     if "bit_rate" not in flow:
                         return test.FAIL("Flow {} MUST indicate the target bit rate of the codestream using "
                                          "the 'bit_rate' attribute.".format(flow["id"]))
+
+                    # check values of all additional attributes against the schema
+                    try:
+                        self.validate_schema(flow, reg_schema)
+                    except ValidationError as e:
+                        return test.FAIL("Flow {} does not comply with the schema for Video Flow additional and "
+                                         "extensible attributes defined in the NMOS Parameter Registers: "
+                                         "{}".format(flow["id"], str(e)),
+                                         "https://specs.amwa.tv/nmos-parameter-registers/branches/{}"
+                                         "/flow-attributes/flow_video_register.html"
+                                         .format(reg_api["spec_branch"]))
+
+                    # check recommended attributes are present
                     if warn_unrestricted:
                         continue
                     if "profile" not in flow:

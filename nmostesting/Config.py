@@ -282,6 +282,12 @@ SPECIFICATIONS = {
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
+            },
+            "flow-register": {
+                "name": "Flow Attributes Register"
+            },
+            "sender-register": {
+                "name": "Sender Attributes Register"
             }
         }
     },
