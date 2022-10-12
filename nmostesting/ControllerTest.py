@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 from dnslib import QTYPE
 from threading import Event
 
-from .GenericTest import GenericTest, NMOSTestException
+from .GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from . import Config as CONFIG
 from .TestHelper import get_default_ip, get_mocks_hostname
 from .TestResult import Test
@@ -131,7 +131,10 @@ class ControllerTest(GenericTest):
         self.mock_node_base_url = self.protocol + '://' + host + ':' + str(self.node.port) + '/'
 
         # Populate mock registry with senders and receivers and store the results
-        self._populate_registry(test)
+        try:
+            self._populate_registry(test)
+        except NMOSTestException as e:
+            raise NMOSInitException(e.args[0].output())
 
         # Set up mock node
         self.node.registry_url = self.mock_registry_base_url
