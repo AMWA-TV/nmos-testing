@@ -25,7 +25,7 @@ from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUE
     WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
 from ..NMOSUtils import NMOSUtils
-from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip
+from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip, get_mocks_hostname
 
 
 class RegistryCommon(object):
@@ -220,7 +220,7 @@ class Registry(object):
                 return subscription, False
 
             websocket_port = WEBSOCKET_PORT_BASE + len(self.subscription_websockets)
-            websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type)
+            websocket_server = SubscriptionWebsocketWorker('0.0.0.0', websocket_port, resource_type, secure)
             websocket_server.set_queue_sync_data_grain_callback(self.queue_sync_data_grain)
             websocket_server.start()
 
@@ -228,13 +228,15 @@ class Registry(object):
 
             protocol = 'wss' if secure else 'ws'
 
+            host = get_mocks_hostname() if secure else get_default_ip()
+
             subscription = {'id': subscription_id,
                             'max_update_rate_ms': subscription_request['max_update_rate_ms'],
                             'params': subscription_request['params'],
                             'persist': subscription_request['persist'],
                             'resource_path': subscription_request['resource_path'],
                             'secure': secure,
-                            'ws_href': protocol + '://' + get_default_ip() + ':' + str(websocket_port)
+                            'ws_href': protocol + '://' + host + ':' + str(websocket_port)
                             + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
                             'version': NMOSUtils.get_TAI_time()}
 
@@ -653,9 +655,8 @@ def post_subscription(version):
         # Note: 'secure' not required in request, but is required in response
         secure = subscription_request['secure'] if 'secure' in subscription_request else ENABLE_HTTPS
 
-        # The current implementation of WebSockets in this mock Registry does not implement secure
-        # sockets, and does not support query parameters in the request
-        if secure or len(subscription_request['params']) > 0:
+        # The current implementation of WebSockets in this mock Registry does not support query parameters in request
+        if len(subscription_request['params']) > 0:
             abort(501)
 
         subscription, created = registry.subscribe_to_query_api(version, subscription_request, secure)

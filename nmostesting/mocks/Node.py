@@ -505,7 +505,7 @@ def staged(version, resource, resource_id):
     """
     # Track requests
     NODE.staged_requests.append({'method': request.method, 'resource': resource, 'resource_id': resource_id,
-                                 'data': request.json})
+                                 'data': request.get_json(silent=True)})
 
     try:
         if resource == 'senders':
@@ -523,7 +523,7 @@ def staged(version, resource, resource_id):
 
         elif request.method == 'PATCH':
             # Check JSON data only contains allowed values
-            for item in request.json:
+            for item in request.get_json():
                 if item not in allowed_json:
                     return {'code': 400, 'debug': None, 'error': 'Invalid JSON entry ' + item}, 400
 

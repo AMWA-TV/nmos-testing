@@ -24,9 +24,9 @@ from urllib.parse import urlparse
 from dnslib import QTYPE
 from threading import Event
 
-from .GenericTest import GenericTest, NMOSTestException
+from .GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from . import Config as CONFIG
-from .TestHelper import get_default_ip
+from .TestHelper import get_default_ip, get_mocks_hostname
 from .TestResult import Test
 from .NMOSUtils import NMOSUtils
 
@@ -77,8 +77,13 @@ class ControllerTest(GenericTest):
     Testing initial set up of new test suite for controller testing
     """
     def __init__(self, apis, registries, node, dns_server, disable_auto=True):
-        # Remove the spec_path as there are no corresponding GitHib repos for Controller Tests
+        # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
+        if CONFIG.ENABLE_HTTPS:
+            # Comms with Testing Facade are http only
+            apis[CONTROLLER_TEST_API_KEY]["base_url"] \
+                = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
+            apis[CONTROLLER_TEST_API_KEY]["url"] = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
         GenericTest.__init__(self, apis, disable_auto=disable_auto)
         self.authorization = False
         self.primary_registry = registries[1]
@@ -101,10 +106,12 @@ class ControllerTest(GenericTest):
             if CONN_API_KEY in apis and "version" in self.apis[CONN_API_KEY] else "v1.1"
         self.qa_api_version = self.apis[CONTROLLER_TEST_API_KEY]["version"] \
             if CONTROLLER_TEST_API_KEY in apis and "version" in self.apis[CONTROLLER_TEST_API_KEY] else "v1.0"
-        self.answer_uri = "http://" + get_default_ip() + ":5000" + \
+        self.answer_uri = "http://" + get_default_ip() + ":" + str(CONFIG.PORT_BASE) + \
             CALLBACK_ENDPOINT.replace('<version>', self.qa_api_version)
 
     def set_up_tests(self):
+        test = Test("Test setup", "set_up_tests")
+
         if self.dns_server:
             self.dns_server.load_zone(self.apis[QUERY_API_KEY]["version"], self.protocol, self.authorization,
                                       "test_data/controller/dns_records.zone", CONFIG.PORT_BASE+100)
@@ -117,12 +124,17 @@ class ControllerTest(GenericTest):
         # Reset registry to clear previous heartbeats, etc.
         self.primary_registry.reset()
         self.primary_registry.enable()
-        self.mock_registry_base_url = 'http://' + get_default_ip() + ':' + \
-            str(self.primary_registry.get_data().port) + '/'
-        self.mock_node_base_url = 'http://' + get_default_ip() + ':' + str(self.node.port) + '/'
+
+        host = get_mocks_hostname() if CONFIG.ENABLE_HTTPS else get_default_ip()
+        self.mock_registry_base_url = self.protocol + '://' + host + ':'\
+            + str(self.primary_registry.get_data().port) + '/'
+        self.mock_node_base_url = self.protocol + '://' + host + ':' + str(self.node.port) + '/'
 
         # Populate mock registry with senders and receivers and store the results
-        self._populate_registry()
+        try:
+            self._populate_registry(test)
+        except NMOSTestException as e:
+            raise NMOSInitException(e.args[0].detail)
 
         # Set up mock node
         self.node.registry_url = self.mock_registry_base_url
@@ -252,14 +264,14 @@ class ControllerTest(GenericTest):
         """ Used to format answers based on device metadata """
         return label + ' (' + description + ', ' + id + ')'
 
-    def _populate_registry(self):
+    def _populate_registry(self, test):
         """Populate registry and mock node with mock senders and receivers"""
-        self.node.reset()  # Ensure previouly added senders and receivers are removed
-        self.primary_registry.common.reset()  # Ensure any previouly registered senders and receivers are removed
+        self.node.reset()  # Ensure previously added senders and receivers are removed
+        self.primary_registry.common.reset()  # Ensure any previously registered senders and receivers are removed
         sender_ip_final_octet = 159
 
         # Register node
-        self._register_node(self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
+        self._register_node(test, self.node.id, "AMWA Test Suite Node", "AMWA Test Suite Node")
 
         # self.senders should be initialized in the set_up_tests() override of derived test
         # each mock sender defined as: {'label': <unique label>, 'description': '',
@@ -278,7 +290,7 @@ class ControllerTest(GenericTest):
             # Version number is used by pagination in lieu of creation or update time
             time.sleep(0.1)
             if sender["registered"]:
-                self._register_sender(sender)
+                self._register_sender(test, sender)
                 # Add sender to mock node
                 sender_json = self._create_sender_json(sender)
                 sender_ip_address = self.senders_ip_base + str(sender_ip_final_octet)
@@ -302,7 +314,7 @@ class ControllerTest(GenericTest):
             # Version number is used by pagination in lieu of creation or update time
             time.sleep(0.1)
             if receiver["registered"]:
-                self._register_receiver(receiver)
+                self._register_receiver(test, receiver)
                 # Add receiver to mock node
                 # Note: mock node is currently only a mock Connection API
                 # so only add 'connectable' receivers
@@ -368,17 +380,16 @@ class ControllerTest(GenericTest):
 
         return location, timestamp
 
-    def _register_node(self, node_id, label, description):
+    def _register_node(self, test, node_id, label, description):
         """
         Perform POST requests on the Registration API to create node registration
-        Assume that Node has already been registered
         """
         node_data = deepcopy(self.test_data["node"])
         node_data["id"] = node_id
         node_data["label"] = label
         node_data["description"] = description
         node_data["version"] = NMOSUtils.get_TAI_time()
-        self.post_resource(self, "node", node_data, codes=[201])
+        self.post_resource(test, "node", node_data, codes=[201])
 
     def _create_sender_json(self, sender):
         sender_data = deepcopy(self.test_data["sender"])
@@ -392,7 +403,7 @@ class ControllerTest(GenericTest):
 
         return sender_data
 
-    def _register_sender(self, sender, codes=[201], fail=Test.FAIL):
+    def _register_sender(self, test, sender, codes=[201], fail=Test.FAIL):
         """
         Perform POST requests on the Registration API to create sender registration
         Assume that Node has already been registered
@@ -412,7 +423,7 @@ class ControllerTest(GenericTest):
         device_data["senders"] = [sender["id"]]
         device_data["receivers"] = []
         device_data["version"] = sender["version"]
-        self.post_resource(self, "device", device_data, codes=codes, fail=fail)
+        self.post_resource(test, "device", device_data, codes=codes, fail=fail)
 
         # Register source
         source_data = deepcopy(self.test_data["source"])
@@ -421,7 +432,7 @@ class ControllerTest(GenericTest):
         source_data["description"] = "AMWA Test Source"
         source_data["device_id"] = sender["device_id"]
         source_data["version"] = sender["version"]
-        self.post_resource(self, "source", source_data, codes=codes, fail=fail)
+        self.post_resource(test, "source", source_data, codes=codes, fail=fail)
 
         # Register flow
         flow_data = deepcopy(self.test_data["flow"])
@@ -431,11 +442,11 @@ class ControllerTest(GenericTest):
         flow_data["device_id"] = sender["device_id"]
         flow_data["source_id"] = sender["source_id"]
         flow_data["version"] = sender["version"]
-        self.post_resource(self, "flow", flow_data, codes=codes, fail=fail)
+        self.post_resource(test, "flow", flow_data, codes=codes, fail=fail)
 
         # Register sender
         sender_data = self._create_sender_json(sender)
-        self.post_resource(self, "sender", sender_data, codes=codes, fail=fail)
+        self.post_resource(test, "sender", sender_data, codes=codes, fail=fail)
 
     def _delete_sender(self, test, sender):
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + sender['id']
@@ -443,7 +454,7 @@ class ControllerTest(GenericTest):
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
-            raise NMOSTestException(test.FAIL(test, "Registration API returned an unexpected response: {}".format(r)))
+            raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: {}".format(r)))
 
     def _create_receiver_json(self, receiver):
         # Register receiver
@@ -456,7 +467,7 @@ class ControllerTest(GenericTest):
 
         return receiver_data
 
-    def _register_receiver(self, receiver, codes=[201], fail=Test.FAIL):
+    def _register_receiver(self, test, receiver, codes=[201], fail=Test.FAIL):
         """
         Perform POST requests on the Registration API to create receiver registration
         Assume that Node has already been registered
@@ -480,12 +491,12 @@ class ControllerTest(GenericTest):
         device_data["version"] = receiver["version"]
         device_data["senders"] = []
         device_data["receivers"] = [receiver["id"]]
-        self.post_resource(self, "device", device_data, codes=codes, fail=fail)
+        self.post_resource(test, "device", device_data, codes=codes, fail=fail)
 
         # Register receiver
         receiver_data = self._create_receiver_json(receiver)
 
-        self.post_resource(self, "receiver", receiver_data, codes=codes, fail=fail)
+        self.post_resource(test, "receiver", receiver_data, codes=codes, fail=fail)
 
     def _delete_receiver(self, test, receiver):
 
@@ -494,14 +505,14 @@ class ControllerTest(GenericTest):
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
-            raise NMOSTestException(test.FAIL(test, "Registration API returned an unexpected response: {}".format(r)))
+            raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: {}".format(r)))
 
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/devices/' + receiver['device_id']
 
         valid, r = self.do_request("DELETE", del_url)
         if not valid:
             # Hmm - do we need these exceptions as the registry is our own mock registry?
-            raise NMOSTestException(test.FAIL(test, "Registration API returned an unexpected response: {}".format(r)))
+            raise NMOSTestException(test.FAIL("Registration API returned an unexpected response: {}".format(r)))
 
     def pre_tests_message(self):
         """
