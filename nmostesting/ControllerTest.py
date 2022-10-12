@@ -134,7 +134,7 @@ class ControllerTest(GenericTest):
         try:
             self._populate_registry(test)
         except NMOSTestException as e:
-            raise NMOSInitException(e.args[0].output())
+            raise NMOSInitException(e.args[0].detail)
 
         # Set up mock node
         self.node.registry_url = self.mock_registry_base_url
