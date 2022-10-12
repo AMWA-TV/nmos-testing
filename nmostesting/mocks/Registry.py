@@ -25,7 +25,7 @@ from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUE
     WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
 from ..NMOSUtils import NMOSUtils
-from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip
+from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip, get_mocks_hostname
 
 
 class RegistryCommon(object):
@@ -228,13 +228,15 @@ class Registry(object):
 
             protocol = 'wss' if secure else 'ws'
 
+            host = get_mocks_hostname() if secure else get_default_ip()
+
             subscription = {'id': subscription_id,
                             'max_update_rate_ms': subscription_request['max_update_rate_ms'],
                             'params': subscription_request['params'],
                             'persist': subscription_request['persist'],
                             'resource_path': subscription_request['resource_path'],
                             'secure': secure,
-                            'ws_href': protocol + '://' + get_default_ip() + ':' + str(websocket_port)
+                            'ws_href': protocol + '://' + host + ':' + str(websocket_port)
                             + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
                             'version': NMOSUtils.get_TAI_time()}
 

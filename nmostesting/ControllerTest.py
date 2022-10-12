@@ -26,7 +26,7 @@ from threading import Event
 
 from .GenericTest import GenericTest, NMOSTestException
 from . import Config as CONFIG
-from .TestHelper import get_default_ip
+from .TestHelper import get_default_ip, get_mocks_hostname
 from .TestResult import Test
 from .NMOSUtils import NMOSUtils
 
@@ -37,8 +37,6 @@ QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
 
 CALLBACK_ENDPOINT = "/x-nmos/testanswer/<version>"
-
-MOCKS_HOSTNAME = "mocks." + CONFIG.DNS_DOMAIN if CONFIG.DNS_SD_MODE == "unicast" else "nmos-mocks.local"
 
 # asyncio queue for passing Testing Façade answer responses back to tests
 _event_loop = asyncio.new_event_loop()
@@ -127,7 +125,7 @@ class ControllerTest(GenericTest):
         self.primary_registry.reset()
         self.primary_registry.enable()
 
-        host = MOCKS_HOSTNAME if CONFIG.ENABLE_HTTPS else get_default_ip()
+        host = get_mocks_hostname() if CONFIG.ENABLE_HTTPS else get_default_ip()
         self.mock_registry_base_url = self.protocol + '://' + host + ':'\
             + str(self.primary_registry.get_data().port) + '/'
         self.mock_node_base_url = self.protocol + '://' + host + ':' + str(self.node.port) + '/'
