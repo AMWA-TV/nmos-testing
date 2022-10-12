@@ -166,8 +166,10 @@ def get_default_ip():
         preferred_interface = CONFIG.BIND_INTERFACE
     return netifaces.ifaddresses(preferred_interface)[netifaces.AF_INET][0]['addr']
 
+
 def get_mocks_hostname():
     return "mocks." + CONFIG.DNS_DOMAIN if CONFIG.DNS_SD_MODE == "unicast" else "nmos-mocks.local"
+
 
 def is_ip_address(arg):
     """True if arg is an IPv4 or IPv6 address"""
