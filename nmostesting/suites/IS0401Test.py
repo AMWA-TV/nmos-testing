@@ -817,6 +817,13 @@ class IS0401Test(GenericTest):
                 if stream_type not in ["video", "audio", "data", "mux"]:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
+                # TODO: Add media_type parameter to node.get_sender()
+                if stream_type == "video" and "video/raw" not in receiver["caps"]["media_types"]:
+                    continue
+
+                if stream_type == "audio" and "audio/L24" not in receiver["caps"]["media_types"]:
+                    continue
+
                 request_data = self.node.get_sender(stream_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
@@ -846,7 +853,7 @@ class IS0401Test(GenericTest):
         except KeyError as e:
             return test.FAIL("Unable to find expected key: {}".format(e))
 
-        return test.UNCLEAR("Node API does not expose any RTP Receivers")
+        return test.UNCLEAR("Node API does not expose any RTP Receivers or their media type is unknown")
 
     def test_14(self, test):
         """PUTing to a Receiver target resource with an empty JSON object payload is accepted and
