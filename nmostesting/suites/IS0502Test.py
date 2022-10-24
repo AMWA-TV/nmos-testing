@@ -885,7 +885,7 @@ class IS0502Test(GenericTest):
                         for param in fmtp.group(1).split(";"):
                             param_components = param.strip().split("=")
                             if param_components[0] == "DID_SDID":  # ref: RFC8331
-                                did, sdid = param_components[1].strip("{").rstrip("}").split(",")
+                                did, sdid = param_components[1].lstrip("{").rstrip("}").split(",")
                                 if "DID_SDID" not in flow:
                                     return test.FAIL("No DID_SDID found for Flow {} associated with Sender {}"
                                                      .format(flow["id"], resource["id"]))
@@ -1047,10 +1047,11 @@ class IS0502Test(GenericTest):
                     return test.FAIL("IS-04 Source indicates 'internal' clock but SDP file indicates 'ptp' for Sender "
                                      "{}".format(resource["id"]))
                 elif is04_clock["ref_type"] == "ptp":
-                    if not ts_refclk.group(1).startswith("ptp="):
+                    prefix = "ptp="
+                    if not ts_refclk.group(1).startswith(prefix):
                         return test.FAIL("IS-04 Source indicates 'ptp' clock but SDP file indicates '{}' for Sender "
                                          "{}".format(ts_refclk.group(1), resource["id"]))
-                    ptp_data = ts_refclk.group(1).strip("ptp=").split(":")
+                    ptp_data = ts_refclk.group(1)[len(prefix):].split(":")
                     if is04_clock["version"] != ptp_data[0]:
                         return test.FAIL("IS-04 Source PTP version {} does not match ts-refclk PTP version {} for "
                                          "Sender {}".format(is04_clock["version"], ptp_data[0], resource["id"]))
@@ -1061,12 +1062,13 @@ class IS0502Test(GenericTest):
                         return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for Sender {}"
                                          .format(resource["id"]))
 
-                if ts_refclk.group(1).startswith("localmac="):
+                prefix = "localmac="
+                if ts_refclk.group(1).startswith(prefix):
                     try:
                         # This assumes that ts-refclk isn't specified globally, but this shouldn't be the case when
                         # localmac is used given each RTP sender is likely to use a different interface
                         api_mac = interface_map[interface_bindings[0]]["port_id"]
-                        sdp_mac = ts_refclk.group(1).strip("localmac=").lower()
+                        sdp_mac = ts_refclk.group(1)[len(prefix):].lower()
                         if api_mac != sdp_mac:
                             return test.FAIL("IS-04 interface_binding MAC does not match SDP ts-refclk localmac for "
                                              "Sender {}".format(resource["id"]))
