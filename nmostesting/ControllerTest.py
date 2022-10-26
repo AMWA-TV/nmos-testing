@@ -459,11 +459,12 @@ class ControllerTest(GenericTest):
     def _create_receiver_json(self, receiver):
         # Register receiver
         receiver_data = deepcopy(self.test_data["receiver"])
-        receiver_data["id"] = receiver["id"]
-        receiver_data["label"] = receiver["label"]
-        receiver_data["description"] = receiver["description"]
-        receiver_data["device_id"] = receiver["device_id"]
-        receiver_data["version"] = receiver["version"]
+
+        overriden_properties = ["id", "label", "description", "device_id", "version", "caps"]
+
+        for property in overriden_properties:
+            if property in receiver:
+                receiver_data[property] = receiver[property]
 
         return receiver_data
 
