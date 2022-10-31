@@ -7,7 +7,7 @@ netifaces
 gitpython
 ramlfications
 websocket-client>=1.0.0,!=1.2.2
-jsonref
+jsonref>=1.0.0
 dnslib
 jinja2
 junit-xml
