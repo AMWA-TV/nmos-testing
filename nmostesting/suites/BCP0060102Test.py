@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..NMOSUtils import NMOSUtils
 
@@ -24,23 +25,24 @@ class BCP0060102Test(ControllerTest):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
 
     def _generate_caps(self, media_types):
+        split_exactframerate = CONFIG.SDP_PREFERENCES["video_exactframerate"].split()
         caps = {
             "media_types": media_types,
             "constraint_sets": [
                 {
                     "urn:x-nmos:cap:format:color_sampling": {
-                        "enum": ["YCbCr-4:2:2"]
+                        "enum": [CONFIG.SDP_PREFERENCES["video_sampling"]]
                     },
                     "urn:x-nmos:cap:format:frame_height": {
-                        "enum": [1080]
+                        "enum": [CONFIG.SDP_PREFERENCES["video_height"]]
                     },
                     "urn:x-nmos:cap:format:frame_width": {
-                        "enum": [1920]
+                        "enum": [CONFIG.SDP_PREFERENCES["video_width"]]
                     },
                     "urn:x-nmos:cap:format:grain_rate": {
                         "enum": [{
-                                "denominator": 1,
-                                "numerator": 25
+                                "denominator": int(split_exactframerate[1]) if 1 < len(split_exactframerate) else 1,
+                                "numerator": int(split_exactframerate[0])
                         }]
                     },
                     "urn:x-nmos:cap:format:interlace_mode": {
@@ -48,6 +50,8 @@ class BCP0060102Test(ControllerTest):
                             "interlaced_bff",
                             "interlaced_tff",
                             "interlaced_psf"
+                        ] if CONFIG.SDP_PREFERENCES["video_interlace"] else [
+                            "progressive"
                         ]
                     }
                 }
