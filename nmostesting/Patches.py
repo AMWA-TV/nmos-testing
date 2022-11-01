@@ -33,8 +33,6 @@ def _parse_json(self, jsonfile, base_path):
     else:
         base_uri_path = "file://" + base_path
 
-    loader = jsonref.JsonLoader(cache_results=False)
-
     with open(jsonfile, "r") as f:
-        schema = jsonref.load(f, base_uri=base_uri_path, loader=loader, jsonschema=True)
+        schema = jsonref.load(f, base_uri=base_uri_path, jsonschema=True, lazy_load=False)
     return schema

@@ -236,18 +236,12 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix
     else:
         base_uri_path = "file://" + base_path
 
-    loader = jsonref.JsonLoader(cache_results=False)
-
     if file_name:
         json_file = str(Path(base_path) / file_name)
         with open(json_file, "r") as f:
-            schema = jsonref.load(f, base_uri=base_uri_path, loader=loader, jsonschema=True)
+            schema = jsonref.load(f, base_uri=base_uri_path, jsonschema=True, lazy_load=False)
     elif schema_obj:
-        # Work around an exception when there's nothing to resolve using an object
-        if has_jsonref(schema_obj):
-            schema = jsonref.JsonRef.replace_refs(schema_obj, base_uri=base_uri_path, loader=loader, jsonschema=True)
-        else:
-            schema = schema_obj
+        schema = jsonref.replace_refs(schema_obj, base_uri=base_uri_path, jsonschema=True, lazy_load=False)
 
     return schema
 
@@ -283,9 +277,12 @@ class WebsocketWorker(threading.Thread):
         self.error_message = ""
 
     def run(self):
+        url = urlparse(self.ws.url)
         # strip the trailing dot of the hostname to prevent SSL certificate hostname mismatch
-        hostname = urlparse(self.ws.url).hostname.rstrip('.')
-        self.ws.run_forever(sslopt={"ca_certs": CONFIG.CERT_TRUST_ROOT_CA, "server_hostname": hostname})
+        hostname = url.hostname.rstrip('.')
+        # sslopt needs to be Falsey when not doing Secure WebSocket
+        sslopt = {"ca_certs": CONFIG.CERT_TRUST_ROOT_CA, "server_hostname": hostname} if url.scheme == "wss" else {}
+        self.ws.run_forever(sslopt=sslopt)
 
     def on_open(self, ws):
         self.connected = True
