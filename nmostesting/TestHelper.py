@@ -277,9 +277,12 @@ class WebsocketWorker(threading.Thread):
         self.error_message = ""
 
     def run(self):
+        url = urlparse(self.ws.url)
         # strip the trailing dot of the hostname to prevent SSL certificate hostname mismatch
-        hostname = urlparse(self.ws.url).hostname.rstrip('.')
-        self.ws.run_forever(sslopt={"ca_certs": CONFIG.CERT_TRUST_ROOT_CA, "server_hostname": hostname})
+        hostname = url.hostname.rstrip('.')
+        # sslopt needs to be Falsey when not doing Secure WebSocket
+        sslopt = {"ca_certs": CONFIG.CERT_TRUST_ROOT_CA, "server_hostname": hostname} if url.scheme == "wss" else {}
+        self.ws.run_forever(sslopt=sslopt)
 
     def on_open(self, ws):
         self.connected = True
