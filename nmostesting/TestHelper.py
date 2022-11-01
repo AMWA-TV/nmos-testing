@@ -180,20 +180,24 @@ def is_ip_address(arg):
         return False
 
 
-def do_request(method, url, **kwargs):
+def do_request(method, url, headers=None, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
     response = None
     try:
         s = requests.Session()
-        # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
-        if "headers" in kwargs and kwargs["headers"] is None:
-            del kwargs["headers"]
-        if CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and "headers" not in kwargs:
-            req = requests.Request(method, url, headers={
-                "Authorization": "Bearer " + CONFIG.AUTH_TOKEN,
-            }, **kwargs)
-        else:
-            req = requests.Request(method, url, **kwargs)
+
+        if not headers:
+            headers = {}
+
+        # CORS preflight requests do not use Auth
+        is_CORS_preflight = method.upper() == "OPTIONS" and "Access-Control-Request-Method" in headers
+        if not is_CORS_preflight and "Authorization" not in headers and CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN:
+            headers["Authorization"] = "Bearer " + CONFIG.AUTH_TOKEN
+
+        # all requests must have Origin to qualify as CORS requests
+        headers["Origin"] = "null"
+
+        req = requests.Request(method, url, headers=headers, **kwargs)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CONFIG.CERT_TRUST_ROOT_CA, None)
         response = s.send(prepped, timeout=CONFIG.HTTP_TIMEOUT, **settings)
