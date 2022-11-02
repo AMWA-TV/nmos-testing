@@ -33,6 +33,19 @@ def _parse_json(self, jsonfile, base_path):
     else:
         base_uri_path = "file://" + base_path
 
+    # $id sets the Base URI to be different from the Retrieval URI
+    # but we want to load schema files from the cache where possible
+    # see https://json-schema.org/understanding-json-schema/structuring.html#base-uri
+    def loader(uri):
+        # IS-07 is currently the only spec that uses $id in its schemas
+        is07_base_uri = "https://www.amwa.tv/event_and_tally/"
+        if uri.startswith(is07_base_uri):
+            # rather than recreate the cache path from config, cheat by just using the original base URI
+            uri = base_uri_path + uri[len(is07_base_uri):]
+
+        return jsonref.jsonloader(uri)
+
     with open(jsonfile, "r") as f:
-        schema = jsonref.load(f, base_uri=base_uri_path, jsonschema=True, lazy_load=False)
+        schema = jsonref.load(f, base_uri=base_uri_path, jsonschema=True, lazy_load=False,
+                              loader=loader)
     return schema
