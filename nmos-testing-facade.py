@@ -85,15 +85,18 @@ def testing_facade_post(version):
     return '', 202
 
 
-def do_request(method, url, **kwargs):
+def do_request(method, url, headers=None, **kwargs):
     """Perform a basic HTTP request with appropriate error handling"""
     try:
         s = requests.Session()
-        # The only place we add headers is auto OPTIONS for CORS, which should not check Auth
-        if "headers" in kwargs and kwargs["headers"] is None:
-            del kwargs["headers"]
 
-        req = requests.Request(method, url, **kwargs)
+        if not headers:
+            headers = {}
+
+        # all requests must have Origin to qualify as CORS requests
+        headers["Origin"] = "null"
+
+        req = requests.Request(method, url, headers=headers, **kwargs)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
         response = s.send(prepped, timeout=1, **settings)
