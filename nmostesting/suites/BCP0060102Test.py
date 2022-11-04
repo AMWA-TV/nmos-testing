@@ -62,6 +62,11 @@ class BCP0060102Test(ControllerTest):
         return caps
 
     def set_up_tests(self):
+        self.senders = [{'label': 's1/plant', 'description': 'Mock sender 1', 'registered': True, 'sdp_params': { 'media_type' : 'jxsv' } },
+                        {'label': 's2/page', 'description': 'Mock sender 2', 'registered': True, 'sdp_params': { 'media_type' : 'raw' } },
+                        {'label': 's3/bonham', 'description': 'Mock sender 3', 'registered': True, 'sdp_params': { 'media_type' : 'raw' } },
+                        {'label': 's4/jones', 'description': 'Mock sender 4', 'registered': True, 'sdp_params': { 'media_type' : 'jxsv' } }]
+
         self.receivers = [{'label': 'r1/john', 'description': 'Mock receiver 1',
                            'connectable': True, 'registered': True},
                           {'label': 'r2/paul', 'description': 'Mock receiver 2',
