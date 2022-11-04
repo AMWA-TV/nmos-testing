@@ -576,7 +576,7 @@ def transport_file(version, resource, resource_id):
             destination_ip = sender['activations']['transport_params'][0]['destination_ip']
             destination_port = sender['activations']['transport_params'][0]['destination_port']
             source_ip = sender['activations']['transport_params'][0]['source_ip']
-            sdp_params = sender.sdp_params
+            sdp_params = sender['sdp_params']
 
             interlace = ""
             if sdp_params.get("video_interlace", CONFIG.SDP_PREFERENCES["video_interlace"]) is True:
