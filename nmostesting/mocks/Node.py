@@ -68,7 +68,7 @@ class Node(object):
         }
         return sender
 
-    def add_sender(self, sender, sender_ip_address):
+    def add_sender(self, sender, sender_ip_address, sdp_params):
         """
         Takes self.senders from mock registry and adds connection details
         """
@@ -108,7 +108,8 @@ class Node(object):
 
         self.senders[sender['id']] = {
             'sender': sender,
-            'activations': sender_update
+            'activations': sender_update,
+            'sdp_params': sdp_params
         }
 
     def delete_sender(self, sender_id):
@@ -575,24 +576,34 @@ def transport_file(version, resource, resource_id):
             destination_ip = sender['activations']['transport_params'][0]['destination_ip']
             destination_port = sender['activations']['transport_params'][0]['destination_port']
             source_ip = sender['activations']['transport_params'][0]['source_ip']
+            sdp_params = sender.sdp_params
 
             interlace = ""
-            if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
+            if sdp_params.get("video_interlace", CONFIG.SDP_PREFERENCES["video_interlace"]) is True:
                 interlace = "interlace; "
             # TODO: The SDP_PREFERENCES doesn't include video media type
             sdp_file = template.render(dst_ip=destination_ip,
                                        dst_port=destination_port,
                                        src_ip=source_ip,
-                                       media_type="raw",
-                                       width=CONFIG.SDP_PREFERENCES["video_width"],
-                                       height=CONFIG.SDP_PREFERENCES["video_height"],
+                                       media_type=sdp_params.get("media_type", "raw"),
+                                       width=sdp_params.get("video_width",
+                                                            CONFIG.SDP_PREFERENCES["video_width"]),
+                                       height=sdp_params.get("video_height",
+                                                             CONFIG.SDP_PREFERENCES["video_height"]),
                                        interlace=interlace,
-                                       exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                                       depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                                       sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                                       colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                                       transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                                       type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                                       exactframerate=sdp_params.get("video_exactframerate",
+                                                                     CONFIG.SDP_PREFERENCES["video_exactframerate"]),
+                                       depth=sdp_params.get("video_depth",
+                                                            CONFIG.SDP_PREFERENCES["video_depth"]),
+                                       sampling=sdp_params.get("video_sampling",
+                                                               CONFIG.SDP_PREFERENCES["video_sampling"]),
+                                       colorimetry=sdp_params.get("video_colorimetry",
+                                                                  CONFIG.SDP_PREFERENCES["video_colorimetry"]),
+                                       transfer_characteristic=sdp_params.get("video_transfer_characteristic",
+                                                                              CONFIG.SDP_PREFERENCES[
+                                                                                  "video_transfer_characteristic"]),
+                                       type_parameter=sdp_params.get("video_type_parameter",
+                                                                     CONFIG.SDP_PREFERENCES["video_type_parameter"]))
 
             response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"
