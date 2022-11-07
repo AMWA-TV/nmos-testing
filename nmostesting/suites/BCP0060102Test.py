@@ -62,10 +62,20 @@ class BCP0060102Test(ControllerTest):
         return caps
 
     def set_up_tests(self):
-        self.senders = [{'label': 's1/plant', 'description': 'Mock sender 1', 'registered': True, 'sdp_params': { 'media_type' : 'jxsv', 'profile' : 'High444.12', 'level': '2k-1', 'sublevel': 'Sublev3bpp', 'sampling': 'YCbCr-4:2:2', 'depth': '10', 'colorimetry': 'BT709'} },
-                        {'label': 's2/page', 'description': 'Mock sender 2', 'registered': True, 'sdp_params': { 'media_type' : 'raw' } },
-                        {'label': 's3/bonham', 'description': 'Mock sender 3', 'registered': True, 'sdp_params': { 'media_type' : 'raw' } },
-                        {'label': 's4/jones', 'description': 'Mock sender 4', 'registered': True, 'sdp_params': { 'media_type' : 'jxsv', 'profile' : 'High444.12', 'level': '2k-1', 'sublevel': 'Sublev3bpp', 'sampling': 'YCbCr-4:2:2', 'depth': '10', 'colorimetry': 'BT709'} }]
+        self.senders = [{'label': 's1/plant', 'description': 'Mock sender 1', 'registered': True,
+                         'sdp_params': {'media_type': 'jxsv', 'profile': 'High444.12', 'level': '2k-1',
+                                        'sublevel': 'Sublev3bpp', 'sampling': 'YCbCr-4:2:2', 'depth': '10',
+                                        'colorimetry': 'BT709', 'bit_rate': 109000, 'st2110_21_sender_type': '2110TPN',
+                                        'transmode': 1, 'packetmode': 0}},
+                        {'label': 's2/page', 'description': 'Mock sender 2', 'registered': True,
+                         'sdp_params': {'media_type': 'raw'}},
+                        {'label': 's3/bonham', 'description': 'Mock sender 3', 'registered': True,
+                         'sdp_params': {'media_type': 'raw'}},
+                        {'label': 's4/jones', 'description': 'Mock sender 4', 'registered': True,
+                         'sdp_params': {'media_type': 'jxsv', 'profile': 'High444.12', 'level': '2k-1',
+                                        'sublevel': 'Sublev3bpp', 'sampling': 'YCbCr-4:2:2', 'depth': '10',
+                                        'colorimetry': 'BT709', 'bit_rate': 109000, 'st2110_21_sender_type': '2110TPN',
+                                        'transmode': 1, 'packetmode': 1}}]
 
         self.receivers = [{'label': 'r1/john', 'description': 'Mock receiver 1',
                            'connectable': True, 'registered': True},
