@@ -4,8 +4,9 @@ s=Demo Video Stream
 t=0 0
 m=video {{ dst_port }} RTP/AVP 97
 c=IN IP4 {{ dst_ip }}/32
+b=AS:{{ bit_rate }}
 a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0
 a=rtpmap:96 {{ media_type }}/90000
-a=fmtp:96 packetmode=0; profile={{ profile }}; level={{ level }}; sublevel={{ sublevel }}; depth={{ depth }}; width={{ width }}; height={{ height }}; exactframerate={{ exactframerate }}; {{ interlace }}; sampling={{ sampling }}; colorimetry={{ colorimetry }}; TCS=SDR; SSN=ST2110-22:2022; TP=2110TPN
+a=fmtp:96 packetmode={{ packetmode }}; transmode={{ transmode }}; profile={{ profile }}; level={{ level }}; sublevel={{ sublevel }}; depth={{ depth }}; width={{ width }}; height={{ height }}; exactframerate={{ exactframerate }}; {{ interlace }}; sampling={{ sampling }}; colorimetry={{ colorimetry }}; TCS=SDR; SSN=ST2110-22:2022; TP={{ st2110_21_sender_type }}
 a=mediaclk:direct=0 rate=90000

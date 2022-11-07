@@ -393,13 +393,37 @@ class ControllerTest(GenericTest):
 
     def _create_sender_json(self, sender):
         sender_data = deepcopy(self.test_data["sender"])
-        sender_data["id"] = sender["id"]
-        sender_data["label"] = sender["label"]
-        sender_data["description"] = sender["description"]
-        sender_data["device_id"] = sender["device_id"]
-        sender_data["flow_id"] = sender["flow_id"]
-        sender_data["manifest_href"] = sender["manifest_href"]
-        sender_data["version"] = sender["version"]
+
+        if "sdp_params" in sender:
+            # For JPEG XS pull some sdp_params out to add as Sender properties
+            # For JPEG XS Senders, 'bit_rate' and 'st2110_21_sender_type' MUST be included
+            sdp_properties = ["bit_rate", "st2110_21_sender_type"]
+
+            for property in sdp_properties:
+                if property in sender["sdp_params"]:
+                    sender_data[property] = sender["sdp_params"][property]
+
+            # For JPEG XS 'packet_transmission_mode' MAY be included
+            if "transmode" in sender["sdp_params"] and "packetmode" in sender["sdp_params"]:
+                if sender["sdp_params"]["transmode"] == 1:
+                    if sender["sdp_params"]["packetmode"] == 0:
+                        sender_data["packet_transmission_mode"] = "codestream"
+                    else:
+                        sender_data["packet_transmission_mode"] = "slice_sequential"
+                elif sender["sdp_params"]["packetmode"] == 1:
+                    sender_data["packet_transmission_mode"] = "slice_out_of_order"
+
+        overridden_properties = ["id",
+                                 "label",
+                                 "description",
+                                 "device_id",
+                                 "flow_id",
+                                 "manifest_href",
+                                 "version"]
+
+        for property in overridden_properties:
+            if property in sender:
+                sender_data[property] = sender[property]
 
         return sender_data
 
