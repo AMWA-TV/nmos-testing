@@ -614,7 +614,8 @@ def transport_file(version, resource, resource_id):
                                        sublevel=sdp_params.get("sublevel"),
                                        bit_rate=sdp_params.get("bit_rate"),
                                        st2110_21_sender_type=sdp_params.get("st2110_21_sender_type"),
-                                       packetmode=0 if sdp_params.get("packet_transmission_mode", "codestream") == "codestream" else 1)
+                                       packetmode=0 if sdp_params.get("packet_transmission_mode",
+                                                                      "codestream") == "codestream" else 1)
 
             response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"
