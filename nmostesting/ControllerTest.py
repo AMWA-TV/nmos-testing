@@ -397,21 +397,11 @@ class ControllerTest(GenericTest):
         if "sdp_params" in sender:
             # For JPEG XS pull some sdp_params out to add as Sender properties
             # For JPEG XS Senders, 'bit_rate' and 'st2110_21_sender_type' MUST be included
-            sdp_properties = ["bit_rate", "st2110_21_sender_type"]
+            sdp_properties = ["bit_rate", "st2110_21_sender_type", "packet_transmission_mode"]
 
             for property in sdp_properties:
                 if property in sender["sdp_params"]:
                     sender_data[property] = sender["sdp_params"][property]
-
-            # For JPEG XS 'packet_transmission_mode' MAY be included
-            if "transmode" in sender["sdp_params"] and "packetmode" in sender["sdp_params"]:
-                if sender["sdp_params"]["transmode"] == 1:
-                    if sender["sdp_params"]["packetmode"] == 0:
-                        sender_data["packet_transmission_mode"] = "codestream"
-                    else:
-                        sender_data["packet_transmission_mode"] = "slice_sequential"
-                elif sender["sdp_params"]["packetmode"] == 1:
-                    sender_data["packet_transmission_mode"] = "slice_out_of_order"
 
         overridden_properties = ["id",
                                  "label",
