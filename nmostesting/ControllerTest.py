@@ -456,6 +456,12 @@ class ControllerTest(GenericTest):
         flow_data["device_id"] = sender["device_id"]
         flow_data["source_id"] = sender["source_id"]
         flow_data["version"] = sender["version"]
+
+        # Explicit override of flow parameters - used in JPEG XS testing
+        if "flow_params" in sender:
+            for param in sender["flow_params"]:
+                flow_data[param] = sender["flow_params"][param]
+
         self.post_resource(test, "flow", flow_data, codes=codes, fail=fail)
 
         # Register sender
