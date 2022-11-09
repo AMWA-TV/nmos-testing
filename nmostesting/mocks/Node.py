@@ -612,10 +612,7 @@ def transport_file(version, resource, resource_id):
                                        profile=sdp_params.get("profile"),
                                        level=sdp_params.get("level"),
                                        sublevel=sdp_params.get("sublevel"),
-                                       bit_rate=sdp_params.get("bit_rate"),
-                                       st2110_21_sender_type=sdp_params.get("st2110_21_sender_type"),
-                                       packetmode=0 if sdp_params.get("packet_transmission_mode",
-                                                                      "codestream") == "codestream" else 1)
+                                       bit_rate=sdp_params.get("bit_rate"))
 
             response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"
