@@ -508,7 +508,69 @@ class BCP0060102Test(ControllerTest):
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(candidate_receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_receivers)
-                                if 'video/jxsv' in r['caps']['media_types']]
+                                if r['capability_set'] == 'A' or r['conformance_level'] == 'FHD']
+
+            actual_answers = self._invoke_testing_facade(
+                question, possible_answers, test_type="multi_choice")['answer_response']
+
+            if len(actual_answers) != len(expected_answers):
+                return test.FAIL('Incorrect Receiver identified')
+            else:
+                for answer in actual_answers:
+                    if answer not in expected_answers:
+                        return test.FAIL('Incorrect Receiver identified')
+
+            return test.PASS('All Receivers correctly identified')
+
+        except TestingFacadeException as e:
+            return test.UNCLEAR(e.args[0])
+
+    def test_06(self, test):
+        """
+        Ensure NCuT can identify JPEG XS Senders compatible with Capability Set A, Conformance Level FHD receiver
+        """
+
+        MAX_COMPATIBLE_SENDER_COUNT = 3
+        CANDIDATE_SENDER_COUNT = 6
+
+        try:
+            # Select Capability Set A, Conformance Level FHD Sender
+            set_A_level_FHD_receivers = [r for r in self.receivers
+                                         if r['capability_set'] == 'A' and r['conformance_level'] == 'FHD']
+
+            receiver = random.choice(set_A_level_FHD_receivers)
+
+            # Question 1 connection
+            question = textwrap.dedent(f"""\
+                       The NCuT should be able to discover JPEG XS capable Senders \
+                       that are compatible with Capability Set A, Conformance Level FHD Receivers.
+
+                       Refresh the NCuT's view of the Registry and carefully select the Senders \
+                       that are compatible with the following Receiver:
+
+                       {receiver['display_answer']}
+                       """)
+
+            set_A_level_FHD_senders = [s for s in self.senders
+                                       if s['capability_set'] == 'A' and s['conformance_level'] == 'FHD']
+            other_senders = [s for s in self.senders
+                             if s['capability_set'] != 'A' or s['conformance_level'] != 'FHD']
+
+            candidate_senders = random.sample(set_A_level_FHD_senders,
+                                              random.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT,
+                                                                    len(set_A_level_FHD_senders))))
+            if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
+                candidate_senders.extend(random.sample(other_senders,
+                                                       min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
+                                                           len(other_senders))))
+
+            candidate_senders.sort(key=itemgetter("label"))
+
+            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
+                                'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
+                                for i, r in enumerate(candidate_senders)]
+            expected_answers = ['answer_'+str(i) for i, s in enumerate(candidate_senders)
+                                if s['capability_set'] == 'A' or s['conformance_level'] == 'FHD']
 
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']
