@@ -1100,12 +1100,18 @@ class IS0502Test(GenericTest):
         data_sdp = open("test_data/IS0502/data.sdp").read()
         mux_sdp = open("test_data/IS0502/mux.sdp").read()
 
-        sdp_tested = False
+        found_rtp = False
+        warn_no_media_types = ""
+        warn_sdp_untested = ""
         src_ip = get_default_ip()
         for receiver in self.is04_resources["receivers"]:
             if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
                 continue
-            if "media_types" not in receiver["caps"]:
+            found_rtp = True
+            if "media_types" not in receiver["caps"] or len(receiver["caps"]["media_types"]) == 0:
+                if not warn_no_media_types:
+                    warn_no_media_types = "Could not test Receiver {} because it does not specify any " \
+                        "'caps.media_types'".format(receiver["id"])
                 continue
 
             sdp_file = None
@@ -1186,9 +1192,12 @@ class IS0502Test(GenericTest):
                     sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
 
             if not sdp_file:
+                if not warn_sdp_untested:
+                    warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data for " \
+                        "any of its 'caps.media_types': {}".format(receiver["id"], receiver["caps"]["media_types"])
+
                 continue
 
-            sdp_tested = True
             url = "single/receivers/{}/staged".format(receiver["id"])
             data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
             valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data)
@@ -1221,10 +1230,13 @@ class IS0502Test(GenericTest):
                 return test.FAIL("Receiver {} did not set 'rtp_enabled' to false in second leg of staged response"
                                  .format(receiver["id"]))
 
-        if sdp_tested:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("No RTP Receivers found with an accepted 'media_type' we can currently test")
+        if not found_rtp:
+            return test.UNCLEAR("Could not find any IS-04 RTP Receivers to test")
+        elif warn_no_media_types:
+            return test.OPTIONAL(warn_no_media_types)
+        elif warn_sdp_untested:
+            return test.MANUAL(warn_sdp_untested)
+        return test.PASS()
 
     def exactframerate(self, grain_rate):
         """Format an NMOS grain rate like the SDP video format-specific parameter 'exactframerate'"""
