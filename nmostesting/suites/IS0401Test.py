@@ -810,6 +810,13 @@ class IS0401Test(GenericTest):
                 except TypeError:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver))
 
+                try:
+                    media_types = receiver["caps"]["media_types"][0]
+                except TypeError:
+                    return test.FAIL("Unexpected CAPS Media Type: {}".format(receiver))  
+                
+                print("\nCAPS MEDIA IS", media_types, "\n")  
+
                 # Test each available receiver format once
                 if stream_type in formats_tested:
                     continue
@@ -817,6 +824,7 @@ class IS0401Test(GenericTest):
                 if stream_type not in ["video", "audio", "data", "mux"]:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
+                ####DPB
                 request_data = self.node.get_sender(stream_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
