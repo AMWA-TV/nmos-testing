@@ -340,7 +340,7 @@ NODE_API = Blueprint('node_api', __name__)
 def node_sdp(stream_type):
     # TODO: Should we check for an auth token here? May depend on the URL?
     if stream_type == "video":
-        template_path = "test_data/IS0401/video.sdp"
+        template_path = "test_data/IS0401/video-jxsv.sdp"
     elif stream_type == "audio":
         template_path = "test_data/IS0401/audio.sdp"
     elif stream_type == "data":
