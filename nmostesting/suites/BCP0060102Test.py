@@ -254,7 +254,7 @@ class BCP0060102Test(ControllerTest):
         # Mapping sdp_param names to flow_param names
         param_mapping = [('video_width', 'frame_width'), ('video_height', 'frame_height'),
                          ('profile', 'profile'), ('level', 'level'), ('sublevel', 'sublevel'),
-                         ('video_colorimetry', 'colorspace'), ('bitrate', 'bitrate'),
+                         ('video_colorimetry', 'colorspace'), ('bit_rate', 'bit_rate'),
                          ('video_transfer_characteristic', 'transfer_characteristic')]
 
         flow_params["media_type"] = "video/" + sdp_params.get("media_type", "raw")
