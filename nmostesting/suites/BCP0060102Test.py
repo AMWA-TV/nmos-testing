@@ -263,8 +263,8 @@ class BCP0060102Test(ControllerTest):
             if sdp_param in sdp_params:
                 flow_params[flow_param] = sdp_params[sdp_param]
 
-        flow_params["interlace_mode"] = "progressive" \
-            if sdp_params.get("video_interlace") else "interlaced_tff"
+        flow_params["interlace_mode"] = "interlaced_tff" \
+            if sdp_params.get("video_interlace") else "progressive"
 
         if "video_exactframerate" in sdp_params:
             split_exactframerate = sdp_params["video_exactframerate"].split('/')
@@ -318,13 +318,13 @@ class BCP0060102Test(ControllerTest):
                                  capability_set_map['8b']]
 
         # pad with video raw Senders
-        VIDEO_RAW_SENDER_COUNT = 3
-        sender_interop_points.extend(self._generate_non_JXSV_interop_points(VIDEO_RAW_SENDER_COUNT))
+        #VIDEO_RAW_SENDER_COUNT = 3
+        #sender_interop_points.extend(self._generate_non_JXSV_interop_points(VIDEO_RAW_SENDER_COUNT))
 
         self.senders.clear()
 
         random.shuffle(sender_names)
-        random.shuffle(sender_interop_points)
+        #random.shuffle(sender_interop_points)
         for idx, (sender_name, interop_point) in enumerate(zip(sender_names, sender_interop_points)):
 
             sender = {
