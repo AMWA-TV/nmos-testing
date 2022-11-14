@@ -510,7 +510,7 @@ class BCP0060102Test(ControllerTest):
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(candidate_receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_receivers)
-                                if r['capability_set'] == 'A' or r['conformance_level'] == 'FHD']
+                                if r['capability_set'] == 'A' and r['conformance_level'] == 'FHD']
 
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']
@@ -572,19 +572,19 @@ class BCP0060102Test(ControllerTest):
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(candidate_senders)]
             expected_answers = ['answer_'+str(i) for i, s in enumerate(candidate_senders)
-                                if s['capability_set'] == 'A' or s['conformance_level'] == 'FHD']
+                                if s['capability_set'] == 'A' and s['conformance_level'] == 'FHD']
 
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Incorrect Receiver identified')
+                return test.FAIL('Incorrect Sender identified')
             else:
                 for answer in actual_answers:
                     if answer not in expected_answers:
-                        return test.FAIL('Incorrect Receiver identified')
+                        return test.FAIL('Incorrect Sender identified')
 
-            return test.PASS('All Receivers correctly identified')
+            return test.PASS('All Senders correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
