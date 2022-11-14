@@ -26,6 +26,7 @@ from ..TestHelper import get_default_ip, do_request
 from ..NMOSUtils import NMOSUtils
 
 
+
 class Node(object):
     def __init__(self, port_increment):
         self.port = CONFIG.PORT_BASE + 200 + port_increment
@@ -39,9 +40,10 @@ class Node(object):
         self.receivers = {}
         self.senders = {}
 
-    def get_sender(self, stream_type="video"):
+    def get_sender(self, stream_type="video", media_type="video/raw"):
         protocol = "http"
         host = get_default_ip()
+        #print("\nGET SENDER MEDIA TYPE IS", media_type, "\n")
         if CONFIG.ENABLE_HTTPS:
             protocol = "https"
             if CONFIG.DNS_SD_MODE == "multicast":
@@ -66,6 +68,8 @@ class Node(object):
                 "active": True
             }
         }
+        global gl_media_type
+        gl_media_type = media_type
         return sender
 
     def add_sender(self, sender, sender_ip_address):
@@ -339,9 +343,12 @@ NODE_API = Blueprint('node_api', __name__)
 @NODE_API.route('/<stream_type>.sdp', methods=["GET"])
 def node_sdp(stream_type):
     # TODO: Should we check for an auth token here? May depend on the URL?
-    #print("\nMEDIA TYPE IS", media_type, "\n")
+    # print("\nSDP MEDIA TYPE IS", gl_media_type, "\n")
     if stream_type == "video":
-        template_path = "test_data/IS0401/video-jxsv.sdp"
+        if gl_media_type == "video/jxsv":
+            template_path = "test_data/IS0401/video-jxsv.sdp"
+        else:
+            template_path = "test_data/IS0401/video.sdp"
     elif stream_type == "audio":
         template_path = "test_data/IS0401/audio.sdp"
     elif stream_type == "data":
