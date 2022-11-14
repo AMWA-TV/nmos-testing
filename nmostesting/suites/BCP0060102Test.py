@@ -318,13 +318,13 @@ class BCP0060102Test(ControllerTest):
                                  capability_set_map['8b']]
 
         # pad with video raw Senders
-        #VIDEO_RAW_SENDER_COUNT = 3
-        #sender_interop_points.extend(self._generate_non_JXSV_interop_points(VIDEO_RAW_SENDER_COUNT))
+        VIDEO_RAW_SENDER_COUNT = 3
+        sender_interop_points.extend(self._generate_non_JXSV_interop_points(VIDEO_RAW_SENDER_COUNT))
 
         self.senders.clear()
 
         random.shuffle(sender_names)
-        #random.shuffle(sender_interop_points)
+        random.shuffle(sender_interop_points)
         for idx, (sender_name, interop_point) in enumerate(zip(sender_names, sender_interop_points)):
 
             sender = {
