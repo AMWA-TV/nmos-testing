@@ -360,7 +360,7 @@ def node_sdp(stream_type):
 
     template_file = open(template_path).read()
     template = Template(template_file, keep_trailing_newline=True)
-
+    
     src_ip = get_default_ip()
     dst_ip = "232.40.50.{}".format(randint(1, 254))
     dst_port = randint(5000, 5999)
@@ -370,15 +370,20 @@ def node_sdp(stream_type):
         if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
             interlace = "interlace; "
         # TODO: The SDP_PREFERENCES doesn't include video media type
-        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
+        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type=gl_media_type.split("/")[-1],
                                    width=CONFIG.SDP_PREFERENCES["video_width"],
                                    height=CONFIG.SDP_PREFERENCES["video_height"],
                                    interlace=interlace,
                                    exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
                                    depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                                   packet_mode=CONFIG.SDP_PREFERENCES["video_packet_mode"],
+                                   profile=CONFIG.SDP_PREFERENCES["video_profile"],
+                                   level=CONFIG.SDP_PREFERENCES["video_level"],
+                                   sub_level=CONFIG.SDP_PREFERENCES["video_sub_level"],
                                    sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
                                    colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
                                    transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                                   ssn=CONFIG.SDP_PREFERENCES["video_SSN"],
                                    type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
     elif stream_type == "audio":
         # TODO: The SDP_PREFERENCES doesn't include audio media type or sample depth

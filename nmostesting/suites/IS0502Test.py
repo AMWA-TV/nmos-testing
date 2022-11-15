@@ -1096,6 +1096,7 @@ class IS0502Test(GenericTest):
             return test.UNCLEAR("Could not find any IS-04 Receivers to test")
 
         video_sdp = open("test_data/IS0502/video.sdp").read()
+        video_jxsv_sdp = open("test_data/IS0502/video-jxsv.sdp").read()
         audio_sdp = open("test_data/IS0502/audio.sdp").read()
         data_sdp = open("test_data/IS0502/data.sdp").read()
         mux_sdp = open("test_data/IS0502/mux.sdp").read()
@@ -1108,16 +1109,21 @@ class IS0502Test(GenericTest):
             if "media_types" not in receiver["caps"]:
                 continue
 
+            # DPB
+
+            print("\n RECEIVER CAPS MEDIA: ", receiver["caps"]["media_types"][0], "\n")
+
             sdp_file = None
             dst_ip = "232.40.50.{}".format(randint(1, 254))
             dst_port = randint(5000, 5999)
             if receiver["format"] == "urn:x-nmos:format:video":
-                template = Template(video_sdp, keep_trailing_newline=True)
+                #template = Template(video_sdp, keep_trailing_newline=True)
                 interlace = ""
                 if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
                     interlace = "interlace; "
                 # TODO: The media types besides video/raw likely need some different fmtp params
                 if "video/raw" in receiver["caps"]["media_types"]:
+                    template = Template(video_sdp, keep_trailing_newline=True)
                     sdp_file = template.render(
                         dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
                         width=CONFIG.SDP_PREFERENCES["video_width"],
@@ -1129,7 +1135,28 @@ class IS0502Test(GenericTest):
                         colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
                         transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
                         type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                
+                elif "video/jxsv" in receiver["caps"]["media_types"]:
+                    template = Template(video_jxsv_sdp, keep_trailing_newline=True)
+                    sdp_file = template.render(
+                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="jxsv",
+                        width=CONFIG.SDP_PREFERENCES["video_width"],
+                        height=CONFIG.SDP_PREFERENCES["video_height"],
+                        interlace=interlace,
+                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                        packet_mode=CONFIG.SDP_PREFERENCES["video_packet_mode"],
+                        profile=CONFIG.SDP_PREFERENCES["video_profile"],
+                        level=CONFIG.SDP_PREFERENCES["video_level"],
+                        sub_level=CONFIG.SDP_PREFERENCES["video_sub_level"],
+                        ampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                        ssn=CONFIG.SDP_PREFERENCES["video_SSN"],
+                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                
                 elif "video/vc2" in receiver["caps"]["media_types"]:
+                    template = Template(video_sdp, keep_trailing_newline=True)
                     sdp_file = template.render(
                         dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="vc2",
                         width=CONFIG.SDP_PREFERENCES["video_width"],
@@ -1142,6 +1169,7 @@ class IS0502Test(GenericTest):
                         transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
                         type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
                 elif "video/H264" in receiver["caps"]["media_types"]:
+                    template = Template(video_sdp, keep_trailing_newline=True)
                     sdp_file = template.render(
                         dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264",
                         width=CONFIG.SDP_PREFERENCES["video_width"],
