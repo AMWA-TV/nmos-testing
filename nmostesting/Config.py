@@ -172,6 +172,7 @@ SDP_PREFERENCES = {
     "video_profile": "High444.12",
     "video_level": "2k-1",
     "video_sub_level": "Sublev3bpp",
+    "video_bit_rate": 109000,
     "video_sampling": "YCbCr-4:2:2",
     "video_colorimetry": "BT709",
     "video_SSN": "ST2110-22:2022",

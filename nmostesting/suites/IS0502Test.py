@@ -1155,6 +1155,7 @@ class IS0502Test(GenericTest):
                         profile=CONFIG.SDP_PREFERENCES["video_profile"],
                         level=CONFIG.SDP_PREFERENCES["video_level"],
                         sub_level=CONFIG.SDP_PREFERENCES["video_sub_level"],
+                        bit_rate=CONFIG.SDP_PREFERENCES["video_bit_rate"],
                         sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
                         colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
                         transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],

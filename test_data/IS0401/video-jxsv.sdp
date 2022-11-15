@@ -4,7 +4,7 @@ s=Demo Video JXSV Stream
 t=0 0
 m=video {{ dst_port }} RTP/AVP 96
 c=IN IP4 {{ dst_ip }}/32
-b=AS:109000
+b=AS:{{ bit_rate }}
 a=mediaclk:direct=0
 a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=rtpmap:96 {{ media_type }}/90000
