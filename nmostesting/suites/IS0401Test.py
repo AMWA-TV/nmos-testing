@@ -813,9 +813,9 @@ class IS0401Test(GenericTest):
                 try:
                     media_type = receiver["caps"]["media_types"][0]
                 except TypeError:
-                    return test.FAIL("Unexpected CAPS Media Type: {}".format(receiver))  
-                
-                print("\nCAPS MEDIA IS", media_type, "\n")  
+                    return test.FAIL("Unexpected CAPS Media Type: {}".format(receiver))
+
+                # print("\nCAPS MEDIA IS", media_type, "\n")
 
                 # Test each available receiver format once
                 if stream_type in formats_tested:
@@ -828,9 +828,9 @@ class IS0401Test(GenericTest):
                     if media_type not in ["video/raw", "video/jxsv", "video/SMPTE2022-6", "video/smpte291"]:
                         return test.FAIL("Unexpected Receiver video media format: {}".format(receiver["format"]))
 
-                ####DPB
+                # media_type add for sdp and parameter selection in node_sdp
+                # request_data = self.node.get_sender(stream_type)
                 request_data = self.node.get_sender(stream_type, media_type)
-                #request_data = self.node.get_sender(stream_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)

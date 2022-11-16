@@ -142,7 +142,7 @@ PREVALIDATE_API = True
 # SDP media parameters which can be modified for devices which do not support the defaults
 # SDP testing is not concerned with support for specific media parameters, but must include them in the file
 # VIDEO/RAW
-#SDP_PREFERENCES = {
+# SDP_PREFERENCES = {
 #    "audio_channels": 2,
 #    "audio_sample_rate": 48000,
 #    "audio_packet_time": 1,
@@ -156,7 +156,7 @@ PREVALIDATE_API = True
 #    "video_colorimetry": "BT709",
 #    "video_transfer_characteristic": "SDR",
 #    "video_type_parameter": "2110TPW"
-#}
+# }
 # VIDEO/JXSV
 SDP_PREFERENCES = {
     "audio_channels": 2,

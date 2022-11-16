@@ -1115,15 +1115,13 @@ class IS0502Test(GenericTest):
                         "'caps.media_types'".format(receiver["id"])
                 continue
 
-            # DPB
-
-            print("\n RECEIVER CAPS MEDIA: ", receiver["caps"]["media_types"][0], "\n")
+            # print("\n RECEIVER CAPS MEDIA: ", receiver["caps"]["media_types"][0], "\n")
 
             sdp_file = None
             dst_ip = "232.40.50.{}".format(randint(1, 254))
             dst_port = randint(5000, 5999)
             if receiver["format"] == "urn:x-nmos:format:video":
-                #template = Template(video_sdp, keep_trailing_newline=True)
+                # template = Template(video_sdp, keep_trailing_newline=True)
                 interlace = ""
                 if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
                     interlace = "interlace; "
@@ -1141,7 +1139,6 @@ class IS0502Test(GenericTest):
                         colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
                         transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
                         type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-                
                 elif "video/jxsv" in receiver["caps"]["media_types"]:
                     template = Template(video_jxsv_sdp, keep_trailing_newline=True)
                     sdp_file = template.render(
@@ -1161,7 +1158,6 @@ class IS0502Test(GenericTest):
                         transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
                         ssn=CONFIG.SDP_PREFERENCES["video_SSN"],
                         type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-                
                 elif "video/vc2" in receiver["caps"]["media_types"]:
                     template = Template(video_sdp, keep_trailing_newline=True)
                     sdp_file = template.render(
