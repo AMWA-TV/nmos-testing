@@ -581,10 +581,6 @@ def transport_file(version, resource, resource_id):
             destination_port = sender['activations']['transport_params'][0]['destination_port']
             source_ip = sender['activations']['transport_params'][0]['source_ip']
 
-            interlace = ""
-            if sdp_params.get("video_interlace", CONFIG.SDP_PREFERENCES["video_interlace"]) is True:
-                interlace = "interlace; "
-
             # TODO: The SDP_PREFERENCES doesn't include video media type
             sdp_file = template.render(dst_ip=destination_ip,
                                        dst_port=destination_port,
@@ -594,7 +590,7 @@ def transport_file(version, resource, resource_id):
                                                             CONFIG.SDP_PREFERENCES["video_width"]),
                                        height=sdp_params.get("video_height",
                                                              CONFIG.SDP_PREFERENCES["video_height"]),
-                                       interlace=interlace,
+                                       interlace=sdp_params.get("video_interlace", CONFIG.SDP_PREFERENCES["video_interlace"]),
                                        exactframerate=sdp_params.get("video_exactframerate",
                                                                      CONFIG.SDP_PREFERENCES["video_exactframerate"]),
                                        depth=sdp_params.get("video_depth",
