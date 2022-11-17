@@ -294,7 +294,7 @@ class ControllerTest(GenericTest):
                 # Add sender to mock node
                 sender_json = self._create_sender_json(sender)
                 sender_ip_address = self.senders_ip_base + str(sender_ip_final_octet)
-                self.node.add_sender(sender_json, sender_ip_address, sender.get("sdp_params"))
+                self.node.add_sender(sender_json, sender_ip_address, sender.get("sdp_params", {}))
                 self.sender_ip_addresses[sender["id"]] = sender_ip_address
                 sender_ip_final_octet += 1
 
