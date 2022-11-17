@@ -568,7 +568,7 @@ def transport_file(version, resource, resource_id):
     try:
         if resource == 'senders':
             sender = NODE.senders[resource_id]
-            sdp_params = sender.get('sdp_params', {})
+            sdp_params = {**CONFIG.SDP_PREFERENCES, **sender.get('sdp_params', {})}
 
             sdp_file = "jxsv.sdp" if sdp_params.get("media_type", "raw") == "jxsv" else "video.sdp"
 
@@ -586,24 +586,15 @@ def transport_file(version, resource, resource_id):
                                        dst_port=destination_port,
                                        src_ip=source_ip,
                                        media_type=sdp_params.get("media_type", "raw"),
-                                       width=sdp_params.get("video_width",
-                                                            CONFIG.SDP_PREFERENCES["video_width"]),
-                                       height=sdp_params.get("video_height",
-                                                             CONFIG.SDP_PREFERENCES["video_height"]),
-                                       interlace=sdp_params.get("video_interlace", CONFIG.SDP_PREFERENCES["video_interlace"]),
-                                       exactframerate=sdp_params.get("video_exactframerate",
-                                                                     CONFIG.SDP_PREFERENCES["video_exactframerate"]),
-                                       depth=sdp_params.get("video_depth",
-                                                            CONFIG.SDP_PREFERENCES["video_depth"]),
-                                       sampling=sdp_params.get("video_sampling",
-                                                               CONFIG.SDP_PREFERENCES["video_sampling"]),
-                                       colorimetry=sdp_params.get("video_colorimetry",
-                                                                  CONFIG.SDP_PREFERENCES["video_colorimetry"]),
-                                       transfer_characteristic=sdp_params.get("video_transfer_characteristic",
-                                                                              CONFIG.SDP_PREFERENCES[
-                                                                                   "video_transfer_characteristic"]),
-                                       type_parameter=sdp_params.get("video_type_parameter",
-                                                                     CONFIG.SDP_PREFERENCES["video_type_parameter"]),
+                                       width=sdp_params.get("video_width"),
+                                       height=sdp_params.get("video_height"),
+                                       interlace=sdp_params.get("video_interlace"),
+                                       exactframerate=sdp_params.get("video_exactframerate"),
+                                       depth=sdp_params.get("video_depth"),
+                                       sampling=sdp_params.get("video_sampling"),
+                                       colorimetry=sdp_params.get("video_colorimetry"),
+                                       transfer_characteristic=sdp_params.get("video_transfer_characteristic"),
+                                       type_parameter=sdp_params.get("video_type_parameter"),
                                        # JPEG XS / BCP-006-01 parameters
                                        profile=sdp_params.get("profile"),
                                        level=sdp_params.get("level"),
