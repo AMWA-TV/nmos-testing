@@ -68,7 +68,7 @@ class Node(object):
         }
         return sender
 
-    def add_sender(self, sender, sender_ip_address, sdp_params = {}):
+    def add_sender(self, sender, sender_ip_address, sdp_params={}):
         """
         Takes self.senders from mock registry and adds connection details
         """
