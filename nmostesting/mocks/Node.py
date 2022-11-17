@@ -581,7 +581,7 @@ def transport_file(version, resource, resource_id):
             destination_port = sender['activations']['transport_params'][0]['destination_port']
             source_ip = sender['activations']['transport_params'][0]['source_ip']
 
-            # TODO: The SDP_PREFERENCES doesn't include video media type
+            # TODO: The SDP_PREFERENCES doesn't include video media type, or ST2110 21 Sender Type
             sdp_file = template.render(dst_ip=destination_ip,
                                        dst_port=destination_port,
                                        src_ip=source_ip,
@@ -595,6 +595,7 @@ def transport_file(version, resource, resource_id):
                                        colorimetry=sdp_params.get("video_colorimetry"),
                                        transfer_characteristic=sdp_params.get("video_transfer_characteristic"),
                                        type_parameter=sdp_params.get("video_type_parameter"),
+                                       st2110_21_sender_type=sdp_params.get("st2110_21_sender_type", "2110TPN"),
                                        # JPEG XS / BCP-006-01 parameters
                                        profile=sdp_params.get("profile"),
                                        level=sdp_params.get("level"),
