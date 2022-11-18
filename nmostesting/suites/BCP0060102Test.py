@@ -173,12 +173,12 @@ class BCP0060102Test(ControllerTest):
         # NOTE: Set A & Set B have the same metadata as currently
         # IS-04 doesn't distinguish between ST 2110-21 Type A and Type W Receivers
         ip9a_10c_base = {'media_type': 'jxsv', 'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
-                        'video_exactframerate': '60000/1001', 'bit_rate': 4000000, 'video_depth': '10',
-                        'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT2100', 'profile': 'High444.12',
-                        'level': '8k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
-                        'min_bit_rate': 2983000, 'max_bit_rate': 7955000,
-                        'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
-                        'capability_set': 'AB', 'conformance_level': 'UHD2'}
+                         'video_exactframerate': '60000/1001', 'bit_rate': 4000000, 'video_depth': '10',
+                         'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT2100', 'profile': 'High444.12',
+                         'level': '8k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
+                         'min_bit_rate': 2983000, 'max_bit_rate': 7955000,
+                         'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
+                         'capability_set': 'AB', 'conformance_level': 'UHD2'}
 
         interop_point_9a = self._create_interop_point(ip9a_10c_base, [('video_colorimetry', 'BT2020'),
                                                                       ('interop_point', 'AB_9a')])
@@ -280,7 +280,7 @@ class BCP0060102Test(ControllerTest):
                         'min_bit_rate': 746000, 'max_bit_rate': 1991000,
                         'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'C', 'conformance_level': 'UHD1'}
-       
+
         interop_point_3a = self._create_interop_point(ip3a_4c_base, [('video_depth', '8'),
                                                                      ('video_sampling', 'RGB'),
                                                                      ('video_colorimetry', 'BT709'),
@@ -449,7 +449,7 @@ class BCP0060102Test(ControllerTest):
                                    "urn:x-nmos:cap:transport:packet_transmission_mode": {"enum": ["codestream"]},
                                    "urn:x-nmos:cap:format:bit_rate": {"minimum": sdp_params.get("min_bit_rate"),
                                                                       "maximum": sdp_params.get("max_bit_rate")},
-                                   "urn:x-nmos:cap:transport:st2110_21_sender_type":{
+                                   "urn:x-nmos:cap:transport:st2110_21_sender_type": {
                                        "enum": ['2110TN', '2110TNL', '2110TPW']}})
         return constraint_set
 
