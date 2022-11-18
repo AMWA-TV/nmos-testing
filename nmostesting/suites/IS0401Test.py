@@ -1652,7 +1652,7 @@ class IS0401Test(GenericTest):
                                             .format(api["spec_branch"], "4.3._" if api_docs_numbered else ""))
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                         if receiver["format"] == "urn:x-nmos:format:data" and \
-                                receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
+                               receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
                             # Technically this is a bit IS-07 specific, but it may still be best placed here for now
                             if "event_types" not in receiver["caps"]:
                                 return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
