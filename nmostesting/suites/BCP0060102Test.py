@@ -36,65 +36,65 @@ class BCP0060102Test(ControllerTest):
 
         return interop_point
 
-    def _initialize_capability_set_A_level_FHD(self):
+    def _initialize_capability_set_AB_level_FHD(self):
 
         interoperability_points = []  # 10 interoperability point defined here
 
-        # Interoperability Points Capability Set A, Conformance Level FHD with reference to VSF TR-08:2022
+        # Interoperability Points Capability Set A & Set B, Conformance Level FHD with reference to VSF TR-08:2022
+        # NOTE: Set A & Set B  have the same metadata as currently
+        # IS-04 doesn't distinguish between ST 2110-21 Type A and Type W Receivers
         ip1_6c_base = {'media_type': 'jxsv', 'video_width': 1920, 'video_height': 1080, 'video_interlace': False,
                        'video_exactframerate': '60000/1001', 'bit_rate': 109000, 'video_depth': '10',
                        'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT709', 'profile': 'High444.12',
                        'level': '2k-1', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
-                       'st2110_21_sender_type': '2110TPN', 'packet_transmission_mode': 'codestream',
-                       'capability_set': 'A', 'conformance_level': 'FHD'}
+                       'min_bit_rate': 186000, 'max_bit_rate': 497000,
+                       'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
+                       'capability_set': 'AB', 'conformance_level': 'FHD'}
 
         interop_point_1 = self._create_interop_point(ip1_6c_base, [('video_width', 1280), ('video_height', 720),
                                                                    ('min_bit_rate', 83000), ('max_bit_rate', 221000),
-                                                                   ('interop_point', '1')])
-
+                                                                   ('interop_point', 'AB_1')])
         interoperability_points.append(interop_point_1)
 
         interop_point_2 = self._create_interop_point(ip1_6c_base, [('video_width', 1280), ('video_height', 720),
                                                                    ('video_exactframerate', '50'),
                                                                    ('min_bit_rate', 69000), ('max_bit_rate', 184000),
-                                                                   ('interop_point', '2')])
+                                                                   ('interop_point', 'AB_2')])
         interoperability_points.append(interop_point_2)
 
         interop_point_3 = self._create_interop_point(ip1_6c_base, [('video_exactframerate', '30000/1001'),
                                                                    ('video_interlace', True),
                                                                    ('min_bit_rate', 93000), ('max_bit_rate', 249000),
-                                                                   ('interop_point', '3')])
+                                                                   ('interop_point', 'AB_3')])
         interoperability_points.append(interop_point_3)
 
         interop_point_4 = self._create_interop_point(ip1_6c_base, [('video_exactframerate', '25'),
                                                                    ('video_interlace', True),
                                                                    ('min_bit_rate', 78000), ('max_bit_rate', 207000),
-                                                                   ('interop_point', '4')])
+                                                                   ('interop_point', 'AB_4')])
         interoperability_points.append(interop_point_4)
 
-        interop_point_5a = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000), ('min_bit_rate', 186000),
-                                                                    ('max_bit_rate', 497000),
-                                                                    ('interop_point', '5a')])
+        interop_point_5a = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
+                                                                    ('interop_point', 'AB_5a')])
         interoperability_points.append(interop_point_5a)
 
-        interop_point_5b = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000), ('min_bit_rate', 186000),
-                                                                    ('max_bit_rate', 497000),
+        interop_point_5b = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'PQ'),
-                                                                    ('interop_point', '5b')])
+                                                                    ('interop_point', 'AB_5b')])
         interoperability_points.append(interop_point_5b)
 
-        interop_point_5c = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000), ('min_bit_rate', 186000),
-                                                                    ('max_bit_rate', 497000),
+        interop_point_5c = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'HLG'),
-                                                                    ('interop_point', '5c')])
+                                                                    ('interop_point', 'AB_5c')])
         interoperability_points.append(interop_point_5c)
 
         interop_point_6a = self._create_interop_point(ip1_6c_base, [('video_exactframerate', '50'),
                                                                     ('bit_rate', 250000),
+                                                                    ('video_exactframerate', '50'),
                                                                     ('min_bit_rate', 156000), ('max_bit_rate', 415000),
-                                                                    ('interop_point', '6a')])
+                                                                    ('interop_point', 'AB_6a')])
         interoperability_points.append(interop_point_6a)
 
         interop_point_6b = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
@@ -102,7 +102,7 @@ class BCP0060102Test(ControllerTest):
                                                                     ('video_exactframerate', '50'),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'PQ'),
-                                                                    ('interop_point', '6b')])
+                                                                    ('interop_point', 'AB_6b')])
         interoperability_points.append(interop_point_6b)
 
         interop_point_6c = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000), ('min_bit_rate', 156000),
@@ -110,58 +110,280 @@ class BCP0060102Test(ControllerTest):
                                                                     ('video_exactframerate', '50'),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'HLG'),
-                                                                    ('interop_point', '6c')])
+                                                                    ('interop_point', 'AB_6c')])
         interoperability_points.append(interop_point_6c)
 
         return interoperability_points
 
-    def _initialize_capability_set_A_level_UHD1(self):
+    def _initialize_capability_set_AB_level_UHD1(self):
 
-        interoperability_points = []  # 16 interoperability point defined here
+        interoperability_points = []  # 6 interoperability point defined here
 
-        # Interoperability Points Capability Set A, Conformance Level UHD1 with reference to VSF TR-08:2022
+        # Interoperability Points Capability Set A & Set B, Conformance Level UHD1 with reference to VSF TR-08:2022
+        # NOTE: Set A & Set B  have the same metadata as currently
+        # IS-04 doesn't distinguish between ST 2110-21 Type A and Type W Receivers
         ip7a_8c_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
                         'video_exactframerate': '60000/1001', 'bit_rate': 100000, 'video_depth': '10',
                         'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT2100', 'profile': 'High444.12',
                         'level': '4k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
                         'min_bit_rate': 746000, 'max_bit_rate': 1989000,
-                        'st2110_21_sender_type': '2110TPN', 'packet_transmission_mode': 'codestream',
-                        'capability_set': 'A', 'conformance_level': 'UHD1'}
+                        'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'capability_set': 'AB', 'conformance_level': 'UHD1'}
 
         interop_point_7a = self._create_interop_point(ip7a_8c_base, [('video_colorimetry', 'BT2020'),
-                                                                     ('interop_point', '7a')])
-
+                                                                     ('interop_point', 'AB_7a')])
         interoperability_points.append(interop_point_7a)
 
         interop_point_7b = self._create_interop_point(ip7a_8c_base, [('video_transfer_characteristic', 'PQ'),
-                                                                     ('interop_point', '7b')])
+                                                                     ('interop_point', 'AB_7b')])
         interoperability_points.append(interop_point_7b)
 
         interop_point_7c = self._create_interop_point(ip7a_8c_base, [('video_transfer_characteristic', 'HLG'),
-                                                                     ('interop_point', '7c')])
+                                                                     ('interop_point', 'AB_7c')])
         interoperability_points.append(interop_point_7c)
 
         interop_point_8a = self._create_interop_point(ip7a_8c_base, [('min_bit_rate', 622000),
                                                                      ('max_bit_rate', 1659000),
                                                                      ('video_exactframerate', '50'),
                                                                      ('video_colorimetry', 'BT2020'),
-                                                                     ('interop_point', '8a')])
-
+                                                                     ('interop_point', 'AB_8a')])
         interoperability_points.append(interop_point_8a)
 
         interop_point_8b = self._create_interop_point(ip7a_8c_base, [('min_bit_rate', 622000),
                                                                      ('max_bit_rate', 1659000),
                                                                      ('video_exactframerate', '50'),
                                                                      ('video_transfer_characteristic', 'PQ'),
-                                                                     ('interop_point', '8b')])
+                                                                     ('interop_point', 'AB_8b')])
         interoperability_points.append(interop_point_8b)
 
         interop_point_8c = self._create_interop_point(ip7a_8c_base, [('min_bit_rate', 622000),
                                                                      ('max_bit_rate', 1659000),
                                                                      ('video_exactframerate', '50'),
                                                                      ('video_transfer_characteristic', 'HLG'),
-                                                                     ('interop_point', '8c')])
+                                                                     ('interop_point', 'AB_8c')])
         interoperability_points.append(interop_point_8c)
+
+        return interoperability_points
+
+    def _initialize_capability_set_AB_level_UHD2(self):
+
+        interoperability_points = []  # 6 interoperability point defined here
+
+        # Interoperability Points Capability Set A & Set B, Conformance Level UHD2 with reference to VSF TR-08:2022
+        # NOTE: Set A & Set B have the same metadata as currently
+        # IS-04 doesn't distinguish between ST 2110-21 Type A and Type W Receivers
+        ip9a_10c_base = {'media_type': 'jxsv', 'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
+                        'video_exactframerate': '60000/1001', 'bit_rate': 4000000, 'video_depth': '10',
+                        'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT2100', 'profile': 'High444.12',
+                        'level': '8k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
+                        'min_bit_rate': 2983000, 'max_bit_rate': 7955000,
+                        'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'capability_set': 'AB', 'conformance_level': 'UHD2'}
+
+        interop_point_9a = self._create_interop_point(ip9a_10c_base, [('video_colorimetry', 'BT2020'),
+                                                                      ('interop_point', 'AB_9a')])
+        interoperability_points.append(interop_point_9a)
+
+        interop_point_9b = self._create_interop_point(ip9a_10c_base, [('video_transfer_characteristic', 'PQ'),
+                                                                      ('interop_point', 'AB_9b')])
+        interoperability_points.append(interop_point_9b)
+
+        interop_point_9c = self._create_interop_point(ip9a_10c_base, [('video_transfer_characteristic', 'HLG'),
+                                                                      ('interop_point', 'AB_9c')])
+        interoperability_points.append(interop_point_9c)
+
+        interop_point_10a = self._create_interop_point(ip9a_10c_base, [('min_bit_rate', 2488000),
+                                                                       ('max_bit_rate', 6636000),
+                                                                       ('video_exactframerate', '50'),
+                                                                       ('video_colorimetry', 'BT2020'),
+                                                                       ('interop_point', 'AB_10a')])
+        interoperability_points.append(interop_point_10a)
+
+        interop_point_10b = self._create_interop_point(ip9a_10c_base, [('min_bit_rate', 2488000),
+                                                                       ('max_bit_rate', 6636000),
+                                                                       ('video_exactframerate', '50'),
+                                                                       ('video_transfer_characteristic', 'PQ'),
+                                                                       ('interop_point', 'AB_10b')])
+        interoperability_points.append(interop_point_10b)
+
+        interop_point_10c = self._create_interop_point(ip9a_10c_base, [('min_bit_rate', 2488000),
+                                                                       ('max_bit_rate', 6636000),
+                                                                       ('video_exactframerate', '50'),
+                                                                       ('video_transfer_characteristic', 'HLG'),
+                                                                       ('interop_point', 'AB_10c')])
+        interoperability_points.append(interop_point_10c)
+
+        return interoperability_points
+
+    def _initialize_capability_set_C_level_FHD(self):
+
+        interoperability_points = []  # 6 interoperability point defined here
+
+        # Interoperability Points Capability Set C, Conformance Level FHD with reference to VSF TR-08:2022
+        ip1a_2b_base = {'media_type': 'jxsv', 'video_width': 1920, 'video_height': 1080, 'video_interlace': False,
+                        'video_exactframerate': '60000/1001', 'bit_rate': 250000, 'video_depth': '8',
+                        'video_sampling': 'RGB', 'video_colorimetry': 'BT709', 'profile': 'High444.12',
+                        'level': '2k-1', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
+                        'min_bit_rate': 186000, 'max_bit_rate': 497000,
+                        'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'capability_set': 'C', 'conformance_level': 'FHD'}
+
+        interop_point_1a = self._create_interop_point(ip1a_2b_base, [('interop_point', 'C_1a')])
+        interoperability_points.append(interop_point_1a)
+
+        interop_point_1b = self._create_interop_point(ip1a_2b_base, [('video_exactframerate', '50'),
+                                                                     ('min_bit_rate', 156000),
+                                                                     ('max_bit_rate', 415000),
+                                                                     ('interop_point', 'C_1b')])
+        interoperability_points.append(interop_point_1b)
+
+        interop_point_1c = self._create_interop_point(ip1a_2b_base, [('video_exactframerate', '60'),
+                                                                     ('min_bit_rate', 187000),
+                                                                     ('max_bit_rate', 498000),
+                                                                     ('video_depth', '10'),
+                                                                     ('interop_point', 'C_1c')])
+        interoperability_points.append(interop_point_1c)
+
+        interop_point_1d = self._create_interop_point(ip1a_2b_base, [('video_sampling', 'YCbCr-4:4:4'),
+                                                                     ('interop_point', 'C_1d')])
+        interoperability_points.append(interop_point_1d)
+
+        interop_point_2a = self._create_interop_point(ip1a_2b_base, [('video_height', 1200),
+                                                                     ('video_exactframerate', '60'),
+                                                                     ('level', '4k-1'),
+                                                                     ('min_bit_rate', 207000),
+                                                                     ('max_bit_rate', 552000),
+                                                                     ('fullrange', True),
+                                                                     ('interop_point', 'C_2a')])
+        interoperability_points.append(interop_point_2a)
+
+        interop_point_2b = self._create_interop_point(ip1a_2b_base, [('video_height', 1200),
+                                                                     ('video_exactframerate', '50'),
+                                                                     ('level', '4k-1'),
+                                                                     ('min_bit_rate', 173000),
+                                                                     ('max_bit_rate', 461000),
+                                                                     ('fullrange', True),
+                                                                     ('interop_point', 'C_2b')])
+        interoperability_points.append(interop_point_2b)
+
+        return interoperability_points
+
+    def _initialize_capability_set_C_level_UHD1_UHD2(self):
+
+        interoperability_points = []  # 8 interoperability point defined here
+
+        # Interoperability Points Capability Set C, Conformance Level UHD1 & UHD2 with reference to VSF TR-08:2022
+        ip3a_4c_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
+                        'video_exactframerate': '60000/1001', 'bit_rate': 200000, 'video_depth': '10',
+                        'video_sampling': 'YCbCr-4:4:4', 'video_colorimetry': 'BT2100', 'profile': 'High444.12',
+                        'level': '4k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
+                        'min_bit_rate': 746000, 'max_bit_rate': 1991000,
+                        'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'capability_set': 'C', 'conformance_level': 'UHD1'}
+       
+        interop_point_3a = self._create_interop_point(ip3a_4c_base, [('video_depth', '8'),
+                                                                     ('video_sampling', 'RGB'),
+                                                                     ('video_colorimetry', 'BT709'),
+                                                                     ('interop_point', 'C_3a')])
+        interoperability_points.append(interop_point_3a)
+
+        interop_point_3b = self._create_interop_point(ip3a_4c_base, [('interop_point', 'C_3b')])
+        interoperability_points.append(interop_point_3b)
+
+        interop_point_3c = self._create_interop_point(ip3a_4c_base, [('video_transfer_characteristic', 'PQ'),
+                                                                     ('interop_point', 'C_3c')])
+        interoperability_points.append(interop_point_3c)
+
+        interop_point_3d = self._create_interop_point(ip3a_4c_base, [('video_transfer_characteristic', 'HLG'),
+                                                                     ('interop_point', 'C_3d')])
+        interoperability_points.append(interop_point_3d)
+
+        interop_point_3e = self._create_interop_point(ip3a_4c_base, [('video_sampling', 'RGB'),
+                                                                     ('video_colorimetry', 'BT2020'),
+                                                                     ('interop_point', 'C_3e')])
+        interoperability_points.append(interop_point_3e)
+
+        interop_point_4a = self._create_interop_point(ip3a_4c_base, [('min_bit_rate', 2986000),
+                                                                     ('max_bit_rate', 7963000),
+                                                                     ('level', '8k-2'),
+                                                                     ('conformance_level', 'UHD2'),
+                                                                     ('interop_point', 'C_4a')])
+        interoperability_points.append(interop_point_4a)
+
+        interop_point_4b = self._create_interop_point(ip3a_4c_base, [('min_bit_rate', 2986000),
+                                                                     ('max_bit_rate', 7963000),
+                                                                     ('level', '8k-2'),
+                                                                     ('video_transfer_characteristic', 'PQ'),
+                                                                     ('conformance_level', 'UHD2'),
+                                                                     ('interop_point', 'C_4b')])
+        interoperability_points.append(interop_point_4b)
+
+        interop_point_4c = self._create_interop_point(ip3a_4c_base, [('min_bit_rate', 2986000),
+                                                                     ('max_bit_rate', 7963000),
+                                                                     ('level', '8k-2'),
+                                                                     ('video_transfer_characteristic', 'HLG'),
+                                                                     ('conformance_level', 'UHD2'),
+                                                                     ('interop_point', 'C_4c')])
+        interoperability_points.append(interop_point_4c)
+
+        return interoperability_points
+
+    def _initialize_capability_set_D_level_UHD1_UHD2(self):
+
+        interoperability_points = []  # 7 interoperability point defined here
+
+        # Interoperability Points Capability Set D, Conformance Level UHD1 & UHD2 with reference to VSF TR-08:2022
+        ip1a_2c_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
+                        'video_exactframerate': '60000/1001', 'bit_rate': 200000, 'video_depth': '10',
+                        'video_sampling': 'YCbCr-4:2:0', 'video_colorimetry': 'BT2020', 'profile': 'High444.12',
+                        'level': '4k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
+                        'min_bit_rate': 746000, 'max_bit_rate': 1989000,
+                        'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'capability_set': 'C', 'conformance_level': 'UHD1'}
+
+        interop_point_1a = self._create_interop_point(ip1a_2c_base, [('video_depth', '8'),
+                                                                     ('interop_point', 'D_1a')])
+        interoperability_points.append(interop_point_1a)
+
+        interop_point_1b = self._create_interop_point(ip1a_2c_base, [('video_depth', '8'),
+                                                                     ('video_exactframerate', '50'),
+                                                                     ('min_bit_rate', 622000),
+                                                                     ('max_bit_rate', 1659000),
+                                                                     ('interop_point', 'D_1b')])
+        interoperability_points.append(interop_point_1b)
+
+        interop_point_1c = self._create_interop_point(ip1a_2c_base, [('interop_point', 'D_1c')])
+        interoperability_points.append(interop_point_1c)
+
+        interop_point_1d = self._create_interop_point(ip1a_2c_base, [('video_depth', '12'),
+                                                                     ('interop_point', 'D_1d')])
+        interoperability_points.append(interop_point_1d)
+
+        interop_point_2a = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
+                                                                     ('min_bit_rate', 2983000),
+                                                                     ('max_bit_rate', 7955000),
+                                                                     ('level', '8k-2'),
+                                                                     ('conformance_level', 'UHD2'),
+                                                                     ('interop_point', 'D_2a')])
+        interoperability_points.append(interop_point_2a)
+
+        interop_point_2b = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
+                                                                     ('min_bit_rate', 2983000),
+                                                                     ('max_bit_rate', 7955000),
+                                                                     ('video_transfer_characteristic', 'PQ'),
+                                                                     ('level', '8k-2'),
+                                                                     ('conformance_level', 'UHD2'),
+                                                                     ('interop_point', 'D_2b')])
+        interoperability_points.append(interop_point_2b)
+
+        interop_point_2c = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
+                                                                     ('min_bit_rate', 2983000),
+                                                                     ('max_bit_rate', 7955000),
+                                                                     ('video_transfer_characteristic', 'HLG'),
+                                                                     ('level', '8k-2'),
+                                                                     ('conformance_level', 'UHD2'),
+                                                                     ('interop_point', 'D_2c')])
+        interoperability_points.append(interop_point_2c)
 
         return interoperability_points
 
@@ -226,7 +448,9 @@ class BCP0060102Test(ControllerTest):
                                    "urn:x-nmos:cap:format:sublevel": {"enum": ["Sublev3bpp", "Sublev4bpp"]},
                                    "urn:x-nmos:cap:transport:packet_transmission_mode": {"enum": ["codestream"]},
                                    "urn:x-nmos:cap:format:bit_rate": {"minimum": sdp_params.get("min_bit_rate"),
-                                                                      "maximum": sdp_params.get("max_bit_rate")}})
+                                                                      "maximum": sdp_params.get("max_bit_rate")},
+                                   "urn:x-nmos:cap:transport:st2110_21_sender_type":{
+                                       "enum": ['2110TN', '2110TNL', '2110TPW']}})
         return constraint_set
 
     # convert sdp_params into Receiver caps
@@ -287,6 +511,13 @@ class BCP0060102Test(ControllerTest):
 
     def set_up_tests(self):
 
+        # Notes on TR-08 Compatability of Senders and Receivers
+        # Set A and Set B are not distinguished here and are denoted as Set AB
+        # For a particular conformance level (FHD, UHD1, UHD2):
+        # * AB Senders are compatible with AB, C, D Receivers
+        # * C  Senders are compatible with: C, D Receivers
+        # * D  Senders are compatible with: D Receivers
+
         sender_names = ['rush', 'fly_by_night', 'caress_of_steel', '_2112_',
                         'farewell_to_kings', 'hemispheres', 'permanent_waves', 'moving_pictures',
                         'signals', 'grace_under_pressure', 'power_windows', 'hold_your_fire',
@@ -303,19 +534,26 @@ class BCP0060102Test(ControllerTest):
                           'meddle', 'obscured_by_clouds', 'dark_side', 'wish_you_were_here', 'animals',
                           'the_wall', 'final_cut', 'momentary_lapse', 'division_bell', 'endless_river']
 
-        interoperability_points = self._initialize_capability_set_A_level_FHD()
-        interoperability_points.extend(self._initialize_capability_set_A_level_UHD1())
+        interoperability_points = self._initialize_capability_set_AB_level_FHD()
+        interoperability_points.extend(self._initialize_capability_set_AB_level_UHD1())
+        interoperability_points.extend(self._initialize_capability_set_AB_level_UHD2())
+        interoperability_points.extend(self._initialize_capability_set_C_level_FHD())
+        interoperability_points.extend(self._initialize_capability_set_C_level_UHD1_UHD2())
+        interoperability_points.extend(self._initialize_capability_set_D_level_UHD1_UHD2())
 
         # create a map of the interop points so they can be assigned to Senders
         capability_set_map = {interop_point['interop_point']: interop_point
                               for interop_point in interoperability_points}
 
         # create sub list of representative interoperability points, key is TR-08 Interoperability Point
-        sender_interop_points = [capability_set_map['1'],
-                                 capability_set_map['5b'],
-                                 capability_set_map['6c'],
-                                 capability_set_map['7a'],
-                                 capability_set_map['8b']]
+        sender_interop_points = [capability_set_map['AB_1'],  # FHD
+                                 capability_set_map['AB_7a'],  # UHD1
+                                 capability_set_map['AB_9a'],  # UHD2
+                                 capability_set_map['C_1a'],  # FHD
+                                 capability_set_map['C_3a'],  # UHD1
+                                 capability_set_map['C_4a'],  # UHD2
+                                 capability_set_map['D_1a'],  # UHD1
+                                 capability_set_map['D_2a']]  # UHD2
 
         # pad with video raw Senders
         VIDEO_RAW_SENDER_COUNT = 3
@@ -339,7 +577,10 @@ class BCP0060102Test(ControllerTest):
             self.senders.append(sender)
 
         # pad configurations with some video/raw (None, None) configurations
-        capability_configurations = [('A', 'FHD'), ('A', 'UHD1'), (None, None), (None, None), (None, None)]
+        capability_configurations = [('AB', 'FHD'), ('AB', 'UHD1'), ('AB', 'UHD2'),
+                                     ('C', 'FHD'), ('C', 'UHD1'), ('C', 'UHD2'),
+                                     ('D', 'UHD1'), ('D', 'UHD2'),
+                                     (None, None), (None, None), (None, None)]
 
         self.receivers.clear()
 
@@ -476,7 +717,7 @@ class BCP0060102Test(ControllerTest):
         try:
             # Select Capability Set A, Conformance Level FHD Sender
             set_A_level_FHD_senders = [s for s in self.senders
-                                       if s['capability_set'] == 'A' and s['conformance_level'] == 'FHD']
+                                       if s['capability_set'] == 'AB' and s['conformance_level'] == 'FHD']
 
             sender = random.choice(set_A_level_FHD_senders)
 
@@ -492,9 +733,9 @@ class BCP0060102Test(ControllerTest):
                        """)
 
             set_A_level_FHD_receivers = [r for r in self.receivers
-                                         if r['capability_set'] == 'A' and r['conformance_level'] == 'FHD']
+                                         if r['capability_set'] in ['AB', 'C', 'D'] and r['conformance_level'] == 'FHD']
             other_receivers = [r for r in self.receivers
-                               if r['capability_set'] != 'A' or r['conformance_level'] != 'FHD']
+                               if r['capability_set'] not in ['AB', 'C', 'D'] or r['conformance_level'] != 'FHD']
 
             candidate_receivers = random.sample(set_A_level_FHD_receivers,
                                                 random.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT,
@@ -510,7 +751,7 @@ class BCP0060102Test(ControllerTest):
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(candidate_receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_receivers)
-                                if r['capability_set'] == 'A' and r['conformance_level'] == 'FHD']
+                                if r['capability_set'] in ['AB', 'C', 'D'] and r['conformance_level'] == 'FHD']
 
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']
@@ -538,7 +779,7 @@ class BCP0060102Test(ControllerTest):
         try:
             # Select Capability Set A, Conformance Level FHD Sender
             set_A_level_FHD_receivers = [r for r in self.receivers
-                                         if r['capability_set'] == 'A' and r['conformance_level'] == 'FHD']
+                                         if r['capability_set'] == 'AB' and r['conformance_level'] == 'FHD']
 
             receiver = random.choice(set_A_level_FHD_receivers)
 
@@ -554,9 +795,9 @@ class BCP0060102Test(ControllerTest):
                        """)
 
             set_A_level_FHD_senders = [s for s in self.senders
-                                       if s['capability_set'] == 'A' and s['conformance_level'] == 'FHD']
+                                       if s['capability_set'] in ['AB', 'C', 'D'] and s['conformance_level'] == 'FHD']
             other_senders = [s for s in self.senders
-                             if s['capability_set'] != 'A' or s['conformance_level'] != 'FHD']
+                             if s['capability_set'] not in ['AB', 'C', 'D'] or s['conformance_level'] != 'FHD']
 
             candidate_senders = random.sample(set_A_level_FHD_senders,
                                               random.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT,
@@ -572,7 +813,7 @@ class BCP0060102Test(ControllerTest):
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(candidate_senders)]
             expected_answers = ['answer_'+str(i) for i, s in enumerate(candidate_senders)
-                                if s['capability_set'] == 'A' and s['conformance_level'] == 'FHD']
+                                if s['capability_set'] in ['AB', 'C', 'D'] and s['conformance_level'] == 'FHD']
 
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']
