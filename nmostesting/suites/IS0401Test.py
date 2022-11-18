@@ -41,7 +41,6 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-
     def __init__(self, apis, registries, node, dns_server):
         GenericTest.__init__(self, apis)
         self.invalid_registry = registries[0]
@@ -88,7 +87,7 @@ class IS0401Test(GenericTest):
         if self.dns_server:
             self.dns_server.reset()
 
-    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
+    def _mdns_info(self, port, service_type, txt={}, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         if api_ver is None:
             api_ver = self.apis[NODE_API_KEY]["version"]
@@ -104,42 +103,29 @@ class IS0401Test(GenericTest):
             hostname = ip.replace(".", "-") + ".local."
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': str(api_auth).lower()}
+        txt = {**txt, 'api_ver': api_ver, 'api_proto': api_proto, 'api_auth': str(api_auth).lower()}
+
+        info = ServiceInfo(service_type,
+                           "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
+                           addresses=[socket.inet_aton(ip)], port=port,
+                           properties=txt, server=hostname)
+        return info
+
+    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
+        txt = {'pri': str(priority)}
 
         service_type = "_nmos-registration._tcp.local."
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
             service_type = "_nmos-register._tcp.local."
 
-        info = ServiceInfo(service_type,
-                           "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
-                           addresses=[socket.inet_aton(ip)], port=port,
-                           properties=txt, server=hostname)
-        return info
+        return self._mdns_info(port, service_type, txt, api_ver, api_proto, api_auth, ip)
 
     def _node_mdns_info(self, port, api_ver=None, api_proto=None, api_auth=None, ip=None):
-        """Get an mDNS ServiceInfo object in order to create an advertisement"""
-        if api_ver is None:
-            api_ver = self.apis[NODE_API_KEY]["version"]
-        if api_proto is None:
-            api_proto = self.protocol
-        if api_auth is None:
-            api_auth = self.authorization
-
-        if ip is None:
-            ip = get_default_ip()
-            hostname = "nmos-mocks.local."
-        else:
-            hostname = ip.replace(".", "-") + ".local."
-
-        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'api_auth': str(api_auth).lower(
-        ), 'ver_slf': 0, 'ver_src': 0, 'ver_flw': 0, 'ver_dvc': 0, 'ver_snd': 0, 'ver_rcv': 0}
+        txt = {'ver_slf': 0, 'ver_src': 0, 'ver_flw': 0, 'ver_dvc': 0, 'ver_snd': 0, 'ver_rcv': 0}
 
         service_type = "_nmos-node._tcp.local."
-        info = ServiceInfo(service_type,
-                           "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
-                           addresses=[socket.inet_aton(ip)], port=port,
-                           properties=txt, server=hostname)
-        return info
+
+        return self._mdns_info(port, service_type, txt, api_ver, api_proto, api_auth, ip)
 
     def do_node_basics_prereqs(self):
         """Collect a copy of each of the Node's resources"""
