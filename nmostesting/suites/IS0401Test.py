@@ -30,6 +30,7 @@ from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
+from ..mocks.Node import NODE
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -40,6 +41,7 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
+
     def __init__(self, apis, registries, node, dns_server):
         GenericTest.__init__(self, apis)
         self.invalid_registry = registries[0]
@@ -108,6 +110,31 @@ class IS0401Test(GenericTest):
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
             service_type = "_nmos-register._tcp.local."
 
+        info = ServiceInfo(service_type,
+                           "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
+                           addresses=[socket.inet_aton(ip)], port=port,
+                           properties=txt, server=hostname)
+        return info
+
+    def _node_mdns_info(self, port, api_ver=None, api_proto=None, api_auth=None, ip=None):
+        """Get an mDNS ServiceInfo object in order to create an advertisement"""
+        if api_ver is None:
+            api_ver = self.apis[NODE_API_KEY]["version"]
+        if api_proto is None:
+            api_proto = self.protocol
+        if api_auth is None:
+            api_auth = self.authorization
+
+        if ip is None:
+            ip = get_default_ip()
+            hostname = "nmos-mocks.local."
+        else:
+            hostname = ip.replace(".", "-") + ".local."
+
+        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'api_auth': str(api_auth).lower(
+        ), 'ver_slf': 0, 'ver_src': 0, 'ver_flw': 0, 'ver_dvc': 0, 'ver_snd': 0, 'ver_rcv': 0}
+
+        service_type = "_nmos-node._tcp.local."
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
                            addresses=[socket.inet_aton(ip)], port=port,
@@ -795,6 +822,8 @@ class IS0401Test(GenericTest):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
         and connects the Receiver to a stream"""
 
+        sender_info = self._node_mdns_info(NODE.port)
+
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid or receivers.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
@@ -817,8 +846,15 @@ class IS0401Test(GenericTest):
                 if stream_type not in ["video", "audio", "data", "mux"]:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
+                if CONFIG.DNS_SD_MODE == "multicast":
+                    # Advertise the sender to allow the Node to find it to make connection
+                    self.zc.register_service(sender_info)
+
                 request_data = self.node.get_sender(stream_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
+
+                if CONFIG.DNS_SD_MODE == "multicast":
+                    self.zc.unregister_service(sender_info)
 
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
@@ -1616,7 +1652,7 @@ class IS0401Test(GenericTest):
                                             .format(api["spec_branch"], "4.3._" if api_docs_numbered else ""))
                     if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
                         if receiver["format"] == "urn:x-nmos:format:data" and \
-                               receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
+                                receiver["transport"] in ["urn:x-nmos:transport:websocket", "urn:x-nmos:transport:mqtt"]:
                             # Technically this is a bit IS-07 specific, but it may still be best placed here for now
                             if "event_types" not in receiver["caps"]:
                                 return test.WARNING("Receiver 'caps' should include a list of accepted 'event_types' "
