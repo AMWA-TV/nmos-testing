@@ -597,6 +597,7 @@ def transport_file(version, resource, resource_id):
                                        type_parameter=sdp_params.get("video_type_parameter"),
                                        st2110_21_sender_type=sdp_params.get("st2110_21_sender_type", "2110TPN"),
                                        # JPEG XS / BCP-006-01 parameters
+                                       fullrange=sdp_params.get("fullrange"),
                                        profile=sdp_params.get("profile"),
                                        level=sdp_params.get("level"),
                                        sublevel=sdp_params.get("sublevel"),
