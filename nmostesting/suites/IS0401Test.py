@@ -112,18 +112,18 @@ class IS0401Test(GenericTest):
         return info
 
     def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
-        txt = {'pri': str(priority)}
-
         service_type = "_nmos-registration._tcp.local."
         if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
             service_type = "_nmos-register._tcp.local."
 
+        txt = {'pri': str(priority)}
+
         return self._mdns_info(port, service_type, txt, api_ver, api_proto, api_auth, ip)
 
     def _node_mdns_info(self, port, api_ver=None, api_proto=None, api_auth=None, ip=None):
-        txt = {'ver_slf': 0, 'ver_src': 0, 'ver_flw': 0, 'ver_dvc': 0, 'ver_snd': 0, 'ver_rcv': 0}
-
         service_type = "_nmos-node._tcp.local."
+
+        txt = {'ver_slf': 0, 'ver_src': 0, 'ver_flw': 0, 'ver_dvc': 0, 'ver_snd': 0, 'ver_rcv': 0}
 
         return self._mdns_info(port, service_type, txt, api_ver, api_proto, api_auth, ip)
 
@@ -808,7 +808,8 @@ class IS0401Test(GenericTest):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
         and connects the Receiver to a stream"""
 
-        sender_info = self._node_mdns_info(NODE.port)
+        if CONFIG.DNS_SD_MODE == "multicast":
+            sender_info = self._node_mdns_info(NODE.port)
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid or receivers.status_code != 200:
