@@ -25,6 +25,7 @@ class BCP0060102Test(ControllerTest):
     """
     Runs Controller Tests covering BCP-006-01
     """
+
     def __init__(self, apis, registries, node, dns_server):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
 
@@ -339,7 +340,7 @@ class BCP0060102Test(ControllerTest):
                         'level': '4k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
                         'min_bit_rate': 746000, 'max_bit_rate': 1989000,
                         'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
-                        'capability_set': 'C', 'conformance_level': 'UHD1'}
+                        'capability_set': 'D', 'conformance_level': 'UHD1'}
 
         interop_point_1a = self._create_interop_point(ip1a_2c_base, [('video_depth', '8'),
                                                                      ('interop_point', 'D_1a')])
@@ -438,7 +439,9 @@ class BCP0060102Test(ControllerTest):
             "urn:x-nmos:cap:format:transfer_characteristic": {
                 "enum": [sdp_params.get("video_transfer_characteristic",
                                         CONFIG.SDP_PREFERENCES["video_transfer_characteristic"])]
-            }
+            },
+            "capability_set": sdp_params.get('capability_set'),
+            "conformance_level": sdp_params.get('conformance_level')
         }
 
         # JPEG XS specific caps
@@ -509,14 +512,15 @@ class BCP0060102Test(ControllerTest):
 
         return flow_params
 
-    def set_up_tests(self):
+    def _is_compatible(self, sender, receiver):
+        if sender.get('conformance_level') == receiver.get('conformance_level'):
 
-        # Notes on TR-08 Compatability of Senders and Receivers
-        # Set A and Set B are not distinguished here and are denoted as Set AB
-        # For a particular conformance level (FHD, UHD1, UHD2):
-        # * AB Senders are compatible with AB, C, D Receivers
-        # * C  Senders are compatible with: C, D Receivers
-        # * D  Senders are compatible with: D Receivers
+            if sender.get('capability_set') in receiver['capability_set']:
+                return True
+
+        return False
+
+    def set_up_tests(self):
 
         sender_names = ['rush', 'fly_by_night', 'caress_of_steel', '_2112_',
                         'farewell_to_kings', 'hemispheres', 'permanent_waves', 'moving_pictures',
@@ -572,15 +576,23 @@ class BCP0060102Test(ControllerTest):
                 'sdp_params': interop_point if interop_point else {},
                 'flow_params': self._generate_flow_params(interop_point) if interop_point else {},
                 'capability_set': interop_point.get('capability_set'),
-                'conformance_level': interop_point.get('conformance_level')
+                'conformance_level': interop_point.get('conformance_level'),
+                'interop_point': interop_point.get('interop_point')
             }
             self.senders.append(sender)
 
+        # Notes on TR-08 Compatibility of Senders and Receivers
+        # Set A and Set B are not distinguished here and are denoted as Set AB
+        # For a particular conformance level (FHD, UHD1, UHD2):
+        # * AB Senders are compatible with: [AB, C, D] Receivers
+        # * C  Senders are compatible with: [C, D] Receivers
+        # * D  Senders are compatible with: [D Receivers
+
         # pad configurations with some video/raw (None, None) configurations
-        capability_configurations = [('AB', 'FHD'), ('AB', 'UHD1'), ('AB', 'UHD2'),
-                                     ('C', 'FHD'), ('C', 'UHD1'), ('C', 'UHD2'),
-                                     ('D', 'UHD1'), ('D', 'UHD2'),
-                                     (None, None), (None, None), (None, None)]
+        capability_configurations = [(['AB', 'C', 'D'], 'FHD'), (['AB', 'C', 'D'], 'UHD1'), (['AB', 'C', 'D'], 'UHD2'),
+                                     (['C', 'D'], 'FHD'), (['C', 'D'], 'UHD1'), (['C', 'D'], 'UHD2'),
+                                     (['D'], 'UHD1'), (['D'], 'UHD2'),
+                                     ([], None), ([], None), ([], None)]
 
         self.receivers.clear()
 
@@ -590,7 +602,7 @@ class BCP0060102Test(ControllerTest):
                 enumerate(zip(receiver_names, capability_configurations)):
             # choose a random interop point
             caps = [i for i in interoperability_points
-                    if i["capability_set"] == capability_set and i["conformance_level"] == conformance_level]
+                    if i["capability_set"] in capability_set and i["conformance_level"] == conformance_level]
 
             receiver = {
                 'label': 'r' + str(idx) + '/' + receiver_name,
@@ -599,7 +611,8 @@ class BCP0060102Test(ControllerTest):
                 'registered': True,
                 'caps': self._generate_caps(caps) if caps else {"media_types": ['video/raw']},
                 'capability_set': capability_set,
-                'conformance_level': conformance_level
+                'conformance_level': conformance_level,
+                'interop_point': interop_point.get('interop_point')
             }
             self.receivers.append(receiver)
 
@@ -708,60 +721,62 @@ class BCP0060102Test(ControllerTest):
 
     def test_05(self, test):
         """
-        Ensure NCuT can identify JPEG XS Receivers compatible with Capability Set A, Conformance Level FHD Sender
+        Ensure NCuT can identify JPEG XS Receiver compatibility according to TR-08 Capability Set and Conformance Level
         """
 
         MAX_COMPATIBLE_RECEIVER_COUNT = 4
-        CANDIDATE_RECEIVER_COUNT = 8
+        CANDIDATE_RECEIVER_COUNT = 6
 
         try:
-            # Select Capability Set A, Conformance Level FHD Sender
-            set_A_level_FHD_senders = [s for s in self.senders
-                                       if s['capability_set'] == 'AB' and s['conformance_level'] == 'FHD']
+            jxsv_senders = [s for s in self.senders
+                            if s['capability_set'] is not None and s['conformance_level'] is not None]
 
-            sender = random.choice(set_A_level_FHD_senders)
+            for i, sender in enumerate(jxsv_senders):
 
-            # Question 1 connection
-            question = textwrap.dedent(f"""\
-                       The NCuT should be able to discover JPEG XS capable Receivers \
-                       that are compatible with Capability Set A, Conformance Level FHD Senders.
+                question = textwrap.dedent(f"""\
+                           The NCuT should be able to discover JPEG XS capable Receivers \
+                           that are compatible with JPEG XS Senders according to \
+                           TR-08 Capability Set and Conformance Level.
 
-                       Refresh the NCuT's view of the Registry and carefully select the Receivers \
-                       that are compatible with the following Sender:
+                           Refresh the NCuT's view of the Registry and carefully select the Receivers \
+                           that are compatible with the following Sender:
 
-                       {sender['display_answer']}
-                       """)
+                           {sender['display_answer']}
+                           """)
 
-            set_A_level_FHD_receivers = [r for r in self.receivers
-                                         if r['capability_set'] in ['AB', 'C', 'D'] and r['conformance_level'] == 'FHD']
-            other_receivers = [r for r in self.receivers
-                               if r['capability_set'] not in ['AB', 'C', 'D'] or r['conformance_level'] != 'FHD']
+                compatible_receviers = [r for r in self.receivers if self._is_compatible(sender, r)]
+                other_receivers = [r for r in self.receivers if not self._is_compatible(sender, r)]
 
-            candidate_receivers = random.sample(set_A_level_FHD_receivers,
-                                                random.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT,
-                                                                      len(set_A_level_FHD_receivers))))
-            if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
-                candidate_receivers.extend(random.sample(other_receivers,
-                                                         min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
-                                                             len(other_receivers))))
+                candidate_receivers = random.sample(compatible_receviers,
+                                                    random.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT,
+                                                                          len(compatible_receviers))))
+                if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
+                    candidate_receivers.extend(random.sample(other_receivers,
+                                                             min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
+                                                                 len(other_receivers))))
 
-            candidate_receivers.sort(key=itemgetter("label"))
+                candidate_receivers.sort(key=itemgetter("label"))
 
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
-                                'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
-                                for i, r in enumerate(candidate_receivers)]
-            expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_receivers)
-                                if r['capability_set'] in ['AB', 'C', 'D'] and r['conformance_level'] == 'FHD']
+                possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
+                                    'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
+                                    for i, r in enumerate(candidate_receivers)]
+                expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_receivers)
+                                    if self._is_compatible(sender, r)]
 
-            actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice")['answer_response']
+                actual_answers = self._invoke_testing_facade(
+                    question, possible_answers, test_type="multi_choice", multipart_test=i)['answer_response']
 
-            if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Incorrect Receiver identified')
-            else:
-                for answer in actual_answers:
-                    if answer not in expected_answers:
-                        return test.FAIL('Incorrect Receiver identified')
+                if len(actual_answers) != len(expected_answers):
+                    return test.FAIL('Incorrect Receiver identified for Compatability Set ' + sender['capability_set']
+                                     + ', Conformance Level ' + sender['conformance_level']
+                                     + ' and Interoperability Point ' + sender['interop_point'])
+                else:
+                    for answer in actual_answers:
+                        if answer not in expected_answers:
+                            return test.FAIL('Incorrect Receiver identified for Compatability Set '
+                                             + sender['capability_set']
+                                             + ', Conformance Level ' + sender['conformance_level']
+                                             + ' and Interoperability Point ' + sender['interop_point'])
 
             return test.PASS('All Receivers correctly identified')
 
@@ -770,60 +785,63 @@ class BCP0060102Test(ControllerTest):
 
     def test_06(self, test):
         """
-        Ensure NCuT can identify JPEG XS Senders compatible with Capability Set A, Conformance Level FHD receiver
+        Ensure NCuT can identify JPEG XS Sender compatibility according to TR-08 Capability Set and Conformance Level
         """
 
         MAX_COMPATIBLE_SENDER_COUNT = 3
         CANDIDATE_SENDER_COUNT = 6
 
         try:
-            # Select Capability Set A, Conformance Level FHD Sender
-            set_A_level_FHD_receivers = [r for r in self.receivers
-                                         if r['capability_set'] == 'AB' and r['conformance_level'] == 'FHD']
+            jxsv_receivers = [r for r in self.receivers
+                              if len(r['capability_set']) != 0 and r['conformance_level'] is not None]
 
-            receiver = random.choice(set_A_level_FHD_receivers)
+            for i, receiver in enumerate(jxsv_receivers):
 
-            # Question 1 connection
-            question = textwrap.dedent(f"""\
-                       The NCuT should be able to discover JPEG XS capable Senders \
-                       that are compatible with Capability Set A, Conformance Level FHD Receivers.
+                question = textwrap.dedent(f"""\
+                           The NCuT should be able to discover JPEG XS capable Senders \
+                           that are compatible with JPEG XS Receivers according to \
+                           TR-08 Capability Set and Conformance Level.
 
-                       Refresh the NCuT's view of the Registry and carefully select the Senders \
-                       that are compatible with the following Receiver:
+                           Refresh the NCuT's view of the Registry and carefully select the Senders \
+                           that are compatible with the following Receiver:
 
-                       {receiver['display_answer']}
-                       """)
+                           {receiver['display_answer']}
+                           """)
 
-            set_A_level_FHD_senders = [s for s in self.senders
-                                       if s['capability_set'] in ['AB', 'C', 'D'] and s['conformance_level'] == 'FHD']
-            other_senders = [s for s in self.senders
-                             if s['capability_set'] not in ['AB', 'C', 'D'] or s['conformance_level'] != 'FHD']
+                compatible_senders = [s for s in self.senders if self._is_compatible(s, receiver)]
+                other_senders = [s for s in self.senders if not self._is_compatible(s, receiver)]
 
-            candidate_senders = random.sample(set_A_level_FHD_senders,
-                                              random.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT,
-                                                                    len(set_A_level_FHD_senders))))
-            if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
-                candidate_senders.extend(random.sample(other_senders,
-                                                       min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
-                                                           len(other_senders))))
+                candidate_senders = random.sample(compatible_senders,
+                                                  random.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT,
+                                                                        len(compatible_senders))))
+                if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
+                    candidate_senders.extend(random.sample(other_senders,
+                                                           min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
+                                                               len(other_senders))))
 
-            candidate_senders.sort(key=itemgetter("label"))
+                candidate_senders.sort(key=itemgetter("label"))
 
-            possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
-                                'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
-                                for i, r in enumerate(candidate_senders)]
-            expected_answers = ['answer_'+str(i) for i, s in enumerate(candidate_senders)
-                                if s['capability_set'] in ['AB', 'C', 'D'] and s['conformance_level'] == 'FHD']
+                possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
+                                    'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
+                                    for i, r in enumerate(candidate_senders)]
+                expected_answers = ['answer_'+str(i) for i, s in enumerate(candidate_senders)
+                                    if self._is_compatible(s, receiver)]
 
-            actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice")['answer_response']
+                actual_answers = self._invoke_testing_facade(
+                    question, possible_answers, test_type="multi_choice", multipart_test=i)['answer_response']
 
-            if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Incorrect Sender identified')
-            else:
-                for answer in actual_answers:
-                    if answer not in expected_answers:
-                        return test.FAIL('Incorrect Sender identified')
+                if len(actual_answers) != len(expected_answers):
+                    return test.FAIL('Incorrect Sender identified for Compatability Set ('
+                                     + str(receiver['capability_set'])
+                                     + '), Conformance Level ' + receiver['conformance_level']
+                                     + ' and Interoperability Point ' + receiver['interop_point'])
+                else:
+                    for answer in actual_answers:
+                        if answer not in expected_answers:
+                            return test.FAIL('Incorrect Sender identified for Compatability Set ('
+                                             + str(receiver['capability_set'])
+                                             + '), Conformance Level ' + receiver['conformance_level']
+                                             + ' and Interoperability Point ' + receiver['interop_point'])
 
             return test.PASS('All Senders correctly identified')
 
