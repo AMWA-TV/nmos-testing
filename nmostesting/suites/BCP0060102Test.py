@@ -767,13 +767,13 @@ class BCP0060102Test(ControllerTest):
                     question, possible_answers, test_type="multi_choice", multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Incorrect Receiver identified for Compatability Set ' + sender['capability_set']
+                    return test.FAIL('Incorrect Receiver identified for Compatibility Set ' + sender['capability_set']
                                      + ', Conformance Level ' + sender['conformance_level']
                                      + ' and Interoperability Point ' + sender['interop_point'])
                 else:
                     for answer in actual_answers:
                         if answer not in expected_answers:
-                            return test.FAIL('Incorrect Receiver identified for Compatability Set '
+                            return test.FAIL('Incorrect Receiver identified for Compatibility Set '
                                              + sender['capability_set']
                                              + ', Conformance Level ' + sender['conformance_level']
                                              + ' and Interoperability Point ' + sender['interop_point'])
@@ -831,14 +831,14 @@ class BCP0060102Test(ControllerTest):
                     question, possible_answers, test_type="multi_choice", multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Incorrect Sender identified for Compatability Set ('
+                    return test.FAIL('Incorrect Sender identified for Compatibility Set ('
                                      + str(receiver['capability_set'])
                                      + '), Conformance Level ' + receiver['conformance_level']
                                      + ' and Interoperability Point ' + receiver['interop_point'])
                 else:
                     for answer in actual_answers:
                         if answer not in expected_answers:
-                            return test.FAIL('Incorrect Sender identified for Compatability Set ('
+                            return test.FAIL('Incorrect Sender identified for Compatibility Set ('
                                              + str(receiver['capability_set'])
                                              + '), Conformance Level ' + receiver['conformance_level']
                                              + ' and Interoperability Point ' + receiver['interop_point'])
