@@ -124,7 +124,7 @@ class BCP0060102Test(ControllerTest):
         # NOTE: Set A & Set B  have the same metadata as currently
         # IS-04 doesn't distinguish between ST 2110-21 Type A and Type W Receivers
         ip7a_8c_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
-                        'video_exactframerate': '60000/1001', 'bit_rate': 100000, 'video_depth': '10',
+                        'video_exactframerate': '60000/1001', 'bit_rate': 1000000, 'video_depth': '10',
                         'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT2100', 'profile': 'High444.12',
                         'level': '4k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
                         'min_bit_rate': 746000, 'max_bit_rate': 1989000,
@@ -275,7 +275,7 @@ class BCP0060102Test(ControllerTest):
 
         # Interoperability Points Capability Set C, Conformance Level UHD1 & UHD2 with reference to VSF TR-08:2022
         ip3a_4c_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
-                        'video_exactframerate': '60000/1001', 'bit_rate': 200000, 'video_depth': '10',
+                        'video_exactframerate': '60000/1001', 'bit_rate': 800000, 'video_depth': '10',
                         'video_sampling': 'YCbCr-4:4:4', 'video_colorimetry': 'BT2100', 'profile': 'High444.12',
                         'level': '4k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
                         'min_bit_rate': 746000, 'max_bit_rate': 1991000,
@@ -304,14 +304,16 @@ class BCP0060102Test(ControllerTest):
                                                                      ('interop_point', 'C_3e')])
         interoperability_points.append(interop_point_3e)
 
-        interop_point_4a = self._create_interop_point(ip3a_4c_base, [('min_bit_rate', 2986000),
+        interop_point_4a = self._create_interop_point(ip3a_4c_base, [('bit_rate', 4000000),
+                                                                     ('min_bit_rate', 2986000),
                                                                      ('max_bit_rate', 7963000),
                                                                      ('level', '8k-2'),
                                                                      ('conformance_level', 'UHD2'),
                                                                      ('interop_point', 'C_4a')])
         interoperability_points.append(interop_point_4a)
 
-        interop_point_4b = self._create_interop_point(ip3a_4c_base, [('min_bit_rate', 2986000),
+        interop_point_4b = self._create_interop_point(ip3a_4c_base, [('bit_rate', 4000000),
+                                                                     ('min_bit_rate', 2986000),
                                                                      ('max_bit_rate', 7963000),
                                                                      ('level', '8k-2'),
                                                                      ('video_transfer_characteristic', 'PQ'),
@@ -319,7 +321,8 @@ class BCP0060102Test(ControllerTest):
                                                                      ('interop_point', 'C_4b')])
         interoperability_points.append(interop_point_4b)
 
-        interop_point_4c = self._create_interop_point(ip3a_4c_base, [('min_bit_rate', 2986000),
+        interop_point_4c = self._create_interop_point(ip3a_4c_base, [('bit_rate', 4000000),
+                                                                     ('min_bit_rate', 2986000),
                                                                      ('max_bit_rate', 7963000),
                                                                      ('level', '8k-2'),
                                                                      ('video_transfer_characteristic', 'HLG'),
@@ -335,7 +338,7 @@ class BCP0060102Test(ControllerTest):
 
         # Interoperability Points Capability Set D, Conformance Level UHD1 & UHD2 with reference to VSF TR-08:2022
         ip1a_2c_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
-                        'video_exactframerate': '60000/1001', 'bit_rate': 200000, 'video_depth': '10',
+                        'video_exactframerate': '60000/1001', 'bit_rate': 1000000, 'video_depth': '10',
                         'video_sampling': 'YCbCr-4:2:0', 'video_colorimetry': 'BT2020', 'profile': 'High444.12',
                         'level': '4k-2', 'sublevel': 'Sublev3bpp', 'video_transfer_characteristic': 'SDR',
                         'min_bit_rate': 746000, 'max_bit_rate': 1989000,
@@ -361,6 +364,7 @@ class BCP0060102Test(ControllerTest):
         interoperability_points.append(interop_point_1d)
 
         interop_point_2a = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
+                                                                     ('bit_rate', 4000000),
                                                                      ('min_bit_rate', 2983000),
                                                                      ('max_bit_rate', 7955000),
                                                                      ('level', '8k-2'),
@@ -369,6 +373,7 @@ class BCP0060102Test(ControllerTest):
         interoperability_points.append(interop_point_2a)
 
         interop_point_2b = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
+                                                                     ('bit_rate', 4000000),
                                                                      ('min_bit_rate', 2983000),
                                                                      ('max_bit_rate', 7955000),
                                                                      ('video_transfer_characteristic', 'PQ'),
@@ -378,6 +383,7 @@ class BCP0060102Test(ControllerTest):
         interoperability_points.append(interop_point_2b)
 
         interop_point_2c = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
+                                                                     ('bit_rate', 4000000),
                                                                      ('min_bit_rate', 2983000),
                                                                      ('max_bit_rate', 7955000),
                                                                      ('video_transfer_characteristic', 'HLG'),
