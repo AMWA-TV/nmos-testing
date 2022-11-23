@@ -124,6 +124,8 @@ class BCP0060101Test(GenericTest):
 
                     url = self.node_url + "sources/" + flow["source_id"]
                     source_valid, source_response = self.do_request("GET", url)
+                    if not source_valid or source_response.status_code != 200:
+                        return test.FAIL("Unexpected response from the Node API: {}".format(source_response))
 
                     source = source_response.json()
 
