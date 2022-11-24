@@ -69,6 +69,8 @@ HTTP_TIMEOUT = 1
 
 # Restrict the maximum number of resources that time consuming tests run against.
 # 0 = unlimited for a really thorough test!
+# Conversely for BCP-006-01 testing set MAX_TEST_ITERATIONS to value > 50 to run through all
+# TR-08 Capability set/Conformance level/Interop point combinations.
 MAX_TEST_ITERATIONS = 0
 
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
@@ -129,10 +131,7 @@ PORT_BASE = 5000
 # This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
 WEBSOCKET_PORT_BASE = 6000
 
-# For BCP-006-01 testing set EXHAUSTIVE_TESTING to True to run through all
-# TR-08 Capability set/Conformance level/Interop point combinations.
 # Set a RANDOM_SEED to an integer value to make testing deterministic and repeatable.
-EXHAUSTIVE_TESTING = False
 RANDOM_SEED = None
 
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed

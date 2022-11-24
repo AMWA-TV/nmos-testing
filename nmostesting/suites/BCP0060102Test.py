@@ -15,6 +15,7 @@
 import textwrap
 from copy import deepcopy
 from operator import itemgetter
+from itertools import cycle, islice
 from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..NMOSUtils import NMOSUtils
@@ -523,6 +524,22 @@ class BCP0060102Test(ControllerTest):
 
         return False
 
+    # Adpated from itertools recipes
+    # https://docs.python.org/3/library/itertools.html#recipes
+    def _roundrobin(self, *iterables):
+        "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
+        # Recipe credited to George Sakkis
+        num_active = len(iterables)
+        nexts = cycle(iter(it).__next__ for it in iterables)
+        while num_active:
+            try:
+                for next in nexts:
+                    yield next()
+            except StopIteration:
+                # Remove the iterator we just exhausted from the cycle.
+                num_active -= 1
+                nexts = cycle(islice(nexts, num_active))
+
     def set_up_tests(self):
         NMOSUtils.RANDOM.seed(a=CONFIG.RANDOM_SEED)
 
@@ -548,26 +565,44 @@ class BCP0060102Test(ControllerTest):
                           'meddle', 'obscured_by_clouds', 'dark_side', 'wish_you_were_here', 'animals',
                           'the_wall', 'final_cut', 'momentary_lapse', 'division_bell', 'endless_river']
 
-        interoperability_points = self._initialize_capability_set_AB_level_FHD()
-        interoperability_points.extend(self._initialize_capability_set_AB_level_UHD1())
-        interoperability_points.extend(self._initialize_capability_set_AB_level_UHD2())
-        interoperability_points.extend(self._initialize_capability_set_C_level_FHD())
-        interoperability_points.extend(self._initialize_capability_set_C_level_UHD1_UHD2())
-        interoperability_points.extend(self._initialize_capability_set_D_level_UHD1_UHD2())
+        capability_set_AB_level_FHD = self._initialize_capability_set_AB_level_FHD()
+        capability_set_AB_level_UHD1 = self._initialize_capability_set_AB_level_UHD1()
+        capability_set_AB_level_UHD2 = self._initialize_capability_set_AB_level_UHD2()
+        capability_set_C_level_FHD = self._initialize_capability_set_C_level_FHD()
+        capability_set_C_level_UHD1_UHD2 = self._initialize_capability_set_C_level_UHD1_UHD2()
+        capability_set_C_level_UHD1 = [i for i in capability_set_C_level_UHD1_UHD2 if i["conformance_level"] == "UHD1"]
+        capability_set_C_level_UHD2 = [i for i in capability_set_C_level_UHD1_UHD2 if i["conformance_level"] == "UHD2"]
+        capability_set_D_level_UHD1_UHD2 = self._initialize_capability_set_D_level_UHD1_UHD2()
+        capability_set_D_level_UHD1 = [i for i in capability_set_D_level_UHD1_UHD2 if i["conformance_level"] == "UHD1"]
+        capability_set_D_level_UHD2 = [i for i in capability_set_D_level_UHD1_UHD2 if i["conformance_level"] == "UHD2"]
+
+        NMOSUtils.RANDOM.shuffle(capability_set_AB_level_FHD)
+        NMOSUtils.RANDOM.shuffle(capability_set_AB_level_UHD1)
+        NMOSUtils.RANDOM.shuffle(capability_set_AB_level_UHD2)
+        NMOSUtils.RANDOM.shuffle(capability_set_C_level_FHD)
+        NMOSUtils.RANDOM.shuffle(capability_set_C_level_UHD1)
+        NMOSUtils.RANDOM.shuffle(capability_set_C_level_UHD2)
+        NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD1)
+        NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD2)
+
+        interleaved_interop_points = self._roundrobin(capability_set_AB_level_FHD,
+                                                      capability_set_AB_level_UHD1,
+                                                      capability_set_AB_level_UHD2,
+                                                      capability_set_C_level_FHD,
+                                                      capability_set_C_level_UHD1,
+                                                      capability_set_C_level_UHD2,
+                                                      capability_set_D_level_UHD1,
+                                                      capability_set_D_level_UHD2)
+
+        interoperability_points = [i for i in interleaved_interop_points]
 
         sender_configurations = [('AB', 'FHD'), ('AB', 'UHD1'), ('AB', 'UHD2'),
                                  ('C', 'FHD'), ('C', 'UHD1'), ('C', 'UHD2'),
                                  ('D', 'UHD1'), ('D', 'UHD2')]
 
-        if CONFIG.EXHAUSTIVE_TESTING:
-            sender_interop_points = interoperability_points.copy()
-        else:
-            sender_interop_points = []
-            for (capability_set, conformance_level) in sender_configurations:
-                sender_interop_points.append(NMOSUtils.RANDOM.choice([i for i in interoperability_points
-                                                                      if i['capability_set'] == capability_set
-                                                                      and i['conformance_level'] == conformance_level]
-                                                                     ))
+        sender_count = max(CONFIG.MAX_TEST_ITERATIONS, len(sender_configurations))
+
+        sender_interop_points = interoperability_points[:sender_count].copy()
 
         # pad with video raw Senders
         VIDEO_RAW_SENDER_COUNT = 3
