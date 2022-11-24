@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
 import textwrap
 from copy import deepcopy
 from operator import itemgetter
@@ -525,7 +524,7 @@ class BCP0060102Test(ControllerTest):
         return False
 
     def set_up_tests(self):
-        random.seed(a=CONFIG.RANDOM_SEED)
+        NMOSUtils.RANDOM.seed(a=CONFIG.RANDOM_SEED)
 
         sender_names = ['rush', 'fly_by_night', 'caress_of_steel', '_2112_', 'all_the_worlds_a_stage',
                         'farewell_to_kings', 'hemispheres', 'permanent_waves', 'moving_pictures', 'exit_stage_left',
@@ -565,9 +564,10 @@ class BCP0060102Test(ControllerTest):
         else:
             sender_interop_points = []
             for (capability_set, conformance_level) in sender_configurations:
-                sender_interop_points.append(random.choice([i for i in interoperability_points
-                                                            if i['capability_set'] == capability_set
-                                                            and i['conformance_level'] == conformance_level]))
+                sender_interop_points.append(NMOSUtils.RANDOM.choice([i for i in interoperability_points
+                                                                      if i['capability_set'] == capability_set
+                                                                      and i['conformance_level'] == conformance_level]
+                                                                     ))
 
         # pad with video raw Senders
         VIDEO_RAW_SENDER_COUNT = 3
@@ -575,8 +575,8 @@ class BCP0060102Test(ControllerTest):
 
         self.senders.clear()
 
-        random.shuffle(sender_names)
-        random.shuffle(sender_interop_points)
+        NMOSUtils.RANDOM.shuffle(sender_names)
+        NMOSUtils.RANDOM.shuffle(sender_interop_points)
         for idx, (sender_name, interop_point) in enumerate(zip(sender_names, sender_interop_points)):
 
             sender = {
@@ -606,8 +606,8 @@ class BCP0060102Test(ControllerTest):
 
         self.receivers.clear()
 
-        random.shuffle(receiver_names)
-        random.shuffle(capability_configurations)
+        NMOSUtils.RANDOM.shuffle(receiver_names)
+        NMOSUtils.RANDOM.shuffle(capability_configurations)
         for idx, (receiver_name, (capability_set, conformance_level)) in \
                 enumerate(zip(receiver_names, capability_configurations)):
             # choose a random interop point
@@ -634,8 +634,6 @@ class BCP0060102Test(ControllerTest):
         """
         # Controllers MUST support IS-04 to discover JPEG XS Senders
 
-        random.seed(a=CONFIG.RANDOM_SEED)
-
         CANDIDATE_SENDER_COUNT = 4
 
         try:
@@ -651,12 +649,14 @@ class BCP0060102Test(ControllerTest):
             jpeg_xs_senders = [r for r in self.senders if 'jxsv' == r['sdp_params']['media_type']]
             video_raw_senders = [r for r in self.senders if 'raw' == r['sdp_params']['media_type']]
 
-            candidate_senders = random.sample(jpeg_xs_senders,
-                                              random.randint(1, min(CANDIDATE_SENDER_COUNT, len(jpeg_xs_senders))))
+            candidate_senders = NMOSUtils.RANDOM.sample(jpeg_xs_senders,
+                                                        NMOSUtils.RANDOM.randint(1,
+                                                                                 min(CANDIDATE_SENDER_COUNT,
+                                                                                     len(jpeg_xs_senders))))
             if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
-                candidate_senders.extend(random.sample(video_raw_senders,
-                                                       min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
-                                                           len(video_raw_senders))))
+                candidate_senders.extend(NMOSUtils.RANDOM.sample(video_raw_senders,
+                                                                 min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
+                                                                     len(video_raw_senders))))
 
             candidate_senders.sort(key=itemgetter("label"))
 
@@ -687,8 +687,6 @@ class BCP0060102Test(ControllerTest):
         """
         # Controllers MUST support IS-04 to discover JPEG XS Receivers
 
-        random.seed(a=CONFIG.RANDOM_SEED)
-
         CANDIDATE_RECEIVER_COUNT = 4
 
         try:
@@ -704,13 +702,14 @@ class BCP0060102Test(ControllerTest):
             jpeg_xs_receivers = [r for r in self.receivers if 'video/jxsv' in r['caps']['media_types']]
             video_raw_receivers = [r for r in self.receivers if 'video/raw' in r['caps']['media_types']]
 
-            candidate_receivers = random.sample(jpeg_xs_receivers,
-                                                random.randint(1, min(CANDIDATE_RECEIVER_COUNT,
-                                                                      len(jpeg_xs_receivers))))
+            candidate_receivers = NMOSUtils.RANDOM.sample(jpeg_xs_receivers,
+                                                          NMOSUtils.RANDOM.randint(1, min(CANDIDATE_RECEIVER_COUNT,
+                                                                                   len(jpeg_xs_receivers))))
             if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
-                candidate_receivers.extend(random.sample(video_raw_receivers,
-                                                         min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
-                                                             len(video_raw_receivers))))
+                candidate_receivers.extend(NMOSUtils.RANDOM.sample(video_raw_receivers,
+                                                                   min(CANDIDATE_RECEIVER_COUNT
+                                                                       - len(candidate_receivers),
+                                                                       len(video_raw_receivers))))
 
             candidate_receivers.sort(key=itemgetter("label"))
 
@@ -742,8 +741,6 @@ class BCP0060102Test(ControllerTest):
         # Indentify compatible Receivers given a random Sender.
         # Sender and Recievers have SDP/caps as specifiied in TR-08.
 
-        random.seed(a=CONFIG.RANDOM_SEED)
-
         MAX_COMPATIBLE_RECEIVER_COUNT = 4
         CANDIDATE_RECEIVER_COUNT = 6
 
@@ -767,13 +764,16 @@ class BCP0060102Test(ControllerTest):
                 compatible_receviers = [r for r in self.receivers if self._is_compatible(sender, r)]
                 other_receivers = [r for r in self.receivers if not self._is_compatible(sender, r)]
 
-                candidate_receivers = random.sample(compatible_receviers,
-                                                    random.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT,
-                                                                          len(compatible_receviers))))
+                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receviers,
+                                                              NMOSUtils.RANDOM.randint(
+                                                                  1,
+                                                                  min(MAX_COMPATIBLE_RECEIVER_COUNT,
+                                                                      len(compatible_receviers))))
                 if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
-                    candidate_receivers.extend(random.sample(other_receivers,
-                                                             min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
-                                                                 len(other_receivers))))
+                    candidate_receivers.extend(NMOSUtils.RANDOM.sample(other_receivers,
+                                                                       min(CANDIDATE_RECEIVER_COUNT
+                                                                           - len(candidate_receivers),
+                                                                           len(other_receivers))))
 
                 candidate_receivers.sort(key=itemgetter("label"))
 
@@ -810,8 +810,6 @@ class BCP0060102Test(ControllerTest):
         # Indentify compatible Receivers given a random Sender.
         # Sender and Recievers have SDP/caps as specifiied in TR-08
 
-        random.seed(a=CONFIG.RANDOM_SEED)
-
         MAX_COMPATIBLE_SENDER_COUNT = 3
         CANDIDATE_SENDER_COUNT = 6
 
@@ -835,13 +833,15 @@ class BCP0060102Test(ControllerTest):
                 compatible_senders = [s for s in self.senders if self._is_compatible(s, receiver)]
                 other_senders = [s for s in self.senders if not self._is_compatible(s, receiver)]
 
-                candidate_senders = random.sample(compatible_senders,
-                                                  random.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT,
-                                                                        len(compatible_senders))))
+                candidate_senders = NMOSUtils.RANDOM.sample(compatible_senders,
+                                                            NMOSUtils.RANDOM.randint(
+                                                                1, min(MAX_COMPATIBLE_SENDER_COUNT,
+                                                                       len(compatible_senders))))
                 if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
-                    candidate_senders.extend(random.sample(other_senders,
-                                                           min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
-                                                               len(other_senders))))
+                    candidate_senders.extend(NMOSUtils.RANDOM.sample(other_senders,
+                                                                     min(CANDIDATE_SENDER_COUNT
+                                                                         - len(candidate_senders),
+                                                                         len(other_senders))))
 
                 candidate_senders.sort(key=itemgetter("label"))
 

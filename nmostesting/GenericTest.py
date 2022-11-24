@@ -126,6 +126,7 @@ class GenericTest(object):
         """Perform tests defined within this class"""
 
         for test_name in test_names:
+            NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED)
             self.execute_test(test_name)
 
     def execute_test(self, test_name):
