@@ -54,48 +54,48 @@ class BCP0060102Test(ControllerTest):
 
         interop_point_1 = self._create_interop_point(ip1_6c_base, [('video_width', 1280), ('video_height', 720),
                                                                    ('min_bit_rate', 83000), ('max_bit_rate', 221000),
-                                                                   ('interop_point', 'AB_1')])
+                                                                   ('interop_point', '1')])
         interoperability_points.append(interop_point_1)
 
         interop_point_2 = self._create_interop_point(ip1_6c_base, [('video_width', 1280), ('video_height', 720),
                                                                    ('video_exactframerate', '50'),
                                                                    ('min_bit_rate', 69000), ('max_bit_rate', 184000),
-                                                                   ('interop_point', 'AB_2')])
+                                                                   ('interop_point', '2')])
         interoperability_points.append(interop_point_2)
 
         interop_point_3 = self._create_interop_point(ip1_6c_base, [('video_exactframerate', '30000/1001'),
                                                                    ('video_interlace', True),
                                                                    ('min_bit_rate', 93000), ('max_bit_rate', 249000),
-                                                                   ('interop_point', 'AB_3')])
+                                                                   ('interop_point', '3')])
         interoperability_points.append(interop_point_3)
 
         interop_point_4 = self._create_interop_point(ip1_6c_base, [('video_exactframerate', '25'),
                                                                    ('video_interlace', True),
                                                                    ('min_bit_rate', 78000), ('max_bit_rate', 207000),
-                                                                   ('interop_point', 'AB_4')])
+                                                                   ('interop_point', '4')])
         interoperability_points.append(interop_point_4)
 
         interop_point_5a = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
-                                                                    ('interop_point', 'AB_5a')])
+                                                                    ('interop_point', '5a')])
         interoperability_points.append(interop_point_5a)
 
         interop_point_5b = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'PQ'),
-                                                                    ('interop_point', 'AB_5b')])
+                                                                    ('interop_point', '5b')])
         interoperability_points.append(interop_point_5b)
 
         interop_point_5c = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'HLG'),
-                                                                    ('interop_point', 'AB_5c')])
+                                                                    ('interop_point', '5c')])
         interoperability_points.append(interop_point_5c)
 
         interop_point_6a = self._create_interop_point(ip1_6c_base, [('video_exactframerate', '50'),
                                                                     ('bit_rate', 250000),
                                                                     ('video_exactframerate', '50'),
                                                                     ('min_bit_rate', 156000), ('max_bit_rate', 415000),
-                                                                    ('interop_point', 'AB_6a')])
+                                                                    ('interop_point', '6a')])
         interoperability_points.append(interop_point_6a)
 
         interop_point_6b = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000),
@@ -103,7 +103,7 @@ class BCP0060102Test(ControllerTest):
                                                                     ('video_exactframerate', '50'),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'PQ'),
-                                                                    ('interop_point', 'AB_6b')])
+                                                                    ('interop_point', '6b')])
         interoperability_points.append(interop_point_6b)
 
         interop_point_6c = self._create_interop_point(ip1_6c_base, [('bit_rate', 250000), ('min_bit_rate', 156000),
@@ -111,7 +111,7 @@ class BCP0060102Test(ControllerTest):
                                                                     ('video_exactframerate', '50'),
                                                                     ('video_colorimetry', 'BT2100'),
                                                                     ('video_transfer_characteristic', 'HLG'),
-                                                                    ('interop_point', 'AB_6c')])
+                                                                    ('interop_point', '6c')])
         interoperability_points.append(interop_point_6c)
 
         return interoperability_points
@@ -132,36 +132,36 @@ class BCP0060102Test(ControllerTest):
                         'capability_set': 'AB', 'conformance_level': 'UHD1'}
 
         interop_point_7a = self._create_interop_point(ip7a_8c_base, [('video_colorimetry', 'BT2020'),
-                                                                     ('interop_point', 'AB_7a')])
+                                                                     ('interop_point', '7a')])
         interoperability_points.append(interop_point_7a)
 
         interop_point_7b = self._create_interop_point(ip7a_8c_base, [('video_transfer_characteristic', 'PQ'),
-                                                                     ('interop_point', 'AB_7b')])
+                                                                     ('interop_point', '7b')])
         interoperability_points.append(interop_point_7b)
 
         interop_point_7c = self._create_interop_point(ip7a_8c_base, [('video_transfer_characteristic', 'HLG'),
-                                                                     ('interop_point', 'AB_7c')])
+                                                                     ('interop_point', '7c')])
         interoperability_points.append(interop_point_7c)
 
         interop_point_8a = self._create_interop_point(ip7a_8c_base, [('min_bit_rate', 622000),
                                                                      ('max_bit_rate', 1659000),
                                                                      ('video_exactframerate', '50'),
                                                                      ('video_colorimetry', 'BT2020'),
-                                                                     ('interop_point', 'AB_8a')])
+                                                                     ('interop_point', '8a')])
         interoperability_points.append(interop_point_8a)
 
         interop_point_8b = self._create_interop_point(ip7a_8c_base, [('min_bit_rate', 622000),
                                                                      ('max_bit_rate', 1659000),
                                                                      ('video_exactframerate', '50'),
                                                                      ('video_transfer_characteristic', 'PQ'),
-                                                                     ('interop_point', 'AB_8b')])
+                                                                     ('interop_point', '8b')])
         interoperability_points.append(interop_point_8b)
 
         interop_point_8c = self._create_interop_point(ip7a_8c_base, [('min_bit_rate', 622000),
                                                                      ('max_bit_rate', 1659000),
                                                                      ('video_exactframerate', '50'),
                                                                      ('video_transfer_characteristic', 'HLG'),
-                                                                     ('interop_point', 'AB_8c')])
+                                                                     ('interop_point', '8c')])
         interoperability_points.append(interop_point_8c)
 
         return interoperability_points
@@ -182,36 +182,36 @@ class BCP0060102Test(ControllerTest):
                          'capability_set': 'AB', 'conformance_level': 'UHD2'}
 
         interop_point_9a = self._create_interop_point(ip9a_10c_base, [('video_colorimetry', 'BT2020'),
-                                                                      ('interop_point', 'AB_9a')])
+                                                                      ('interop_point', '9a')])
         interoperability_points.append(interop_point_9a)
 
         interop_point_9b = self._create_interop_point(ip9a_10c_base, [('video_transfer_characteristic', 'PQ'),
-                                                                      ('interop_point', 'AB_9b')])
+                                                                      ('interop_point', '9b')])
         interoperability_points.append(interop_point_9b)
 
         interop_point_9c = self._create_interop_point(ip9a_10c_base, [('video_transfer_characteristic', 'HLG'),
-                                                                      ('interop_point', 'AB_9c')])
+                                                                      ('interop_point', '9c')])
         interoperability_points.append(interop_point_9c)
 
         interop_point_10a = self._create_interop_point(ip9a_10c_base, [('min_bit_rate', 2488000),
                                                                        ('max_bit_rate', 6636000),
                                                                        ('video_exactframerate', '50'),
                                                                        ('video_colorimetry', 'BT2020'),
-                                                                       ('interop_point', 'AB_10a')])
+                                                                       ('interop_point', '10a')])
         interoperability_points.append(interop_point_10a)
 
         interop_point_10b = self._create_interop_point(ip9a_10c_base, [('min_bit_rate', 2488000),
                                                                        ('max_bit_rate', 6636000),
                                                                        ('video_exactframerate', '50'),
                                                                        ('video_transfer_characteristic', 'PQ'),
-                                                                       ('interop_point', 'AB_10b')])
+                                                                       ('interop_point', '10b')])
         interoperability_points.append(interop_point_10b)
 
         interop_point_10c = self._create_interop_point(ip9a_10c_base, [('min_bit_rate', 2488000),
                                                                        ('max_bit_rate', 6636000),
                                                                        ('video_exactframerate', '50'),
                                                                        ('video_transfer_characteristic', 'HLG'),
-                                                                       ('interop_point', 'AB_10c')])
+                                                                       ('interop_point', '10c')])
         interoperability_points.append(interop_point_10c)
 
         return interoperability_points
@@ -229,24 +229,24 @@ class BCP0060102Test(ControllerTest):
                         'st2110_21_sender_type': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'C', 'conformance_level': 'FHD'}
 
-        interop_point_1a = self._create_interop_point(ip1a_2b_base, [('interop_point', 'C_1a')])
+        interop_point_1a = self._create_interop_point(ip1a_2b_base, [('interop_point', '1a')])
         interoperability_points.append(interop_point_1a)
 
         interop_point_1b = self._create_interop_point(ip1a_2b_base, [('video_exactframerate', '50'),
                                                                      ('min_bit_rate', 156000),
                                                                      ('max_bit_rate', 415000),
-                                                                     ('interop_point', 'C_1b')])
+                                                                     ('interop_point', '1b')])
         interoperability_points.append(interop_point_1b)
 
         interop_point_1c = self._create_interop_point(ip1a_2b_base, [('video_exactframerate', '60'),
                                                                      ('min_bit_rate', 187000),
                                                                      ('max_bit_rate', 498000),
                                                                      ('video_depth', '10'),
-                                                                     ('interop_point', 'C_1c')])
+                                                                     ('interop_point', '1c')])
         interoperability_points.append(interop_point_1c)
 
         interop_point_1d = self._create_interop_point(ip1a_2b_base, [('video_sampling', 'YCbCr-4:4:4'),
-                                                                     ('interop_point', 'C_1d')])
+                                                                     ('interop_point', '1d')])
         interoperability_points.append(interop_point_1d)
 
         interop_point_2a = self._create_interop_point(ip1a_2b_base, [('video_height', 1200),
@@ -255,7 +255,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('min_bit_rate', 207000),
                                                                      ('max_bit_rate', 552000),
                                                                      ('fullrange', True),
-                                                                     ('interop_point', 'C_2a')])
+                                                                     ('interop_point', '2a')])
         interoperability_points.append(interop_point_2a)
 
         interop_point_2b = self._create_interop_point(ip1a_2b_base, [('video_height', 1200),
@@ -264,7 +264,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('min_bit_rate', 173000),
                                                                      ('max_bit_rate', 461000),
                                                                      ('fullrange', True),
-                                                                     ('interop_point', 'C_2b')])
+                                                                     ('interop_point', '2b')])
         interoperability_points.append(interop_point_2b)
 
         return interoperability_points
@@ -285,23 +285,23 @@ class BCP0060102Test(ControllerTest):
         interop_point_3a = self._create_interop_point(ip3a_4c_base, [('video_depth', '8'),
                                                                      ('video_sampling', 'RGB'),
                                                                      ('video_colorimetry', 'BT709'),
-                                                                     ('interop_point', 'C_3a')])
+                                                                     ('interop_point', '3a')])
         interoperability_points.append(interop_point_3a)
 
-        interop_point_3b = self._create_interop_point(ip3a_4c_base, [('interop_point', 'C_3b')])
+        interop_point_3b = self._create_interop_point(ip3a_4c_base, [('interop_point', '3b')])
         interoperability_points.append(interop_point_3b)
 
         interop_point_3c = self._create_interop_point(ip3a_4c_base, [('video_transfer_characteristic', 'PQ'),
-                                                                     ('interop_point', 'C_3c')])
+                                                                     ('interop_point', '3c')])
         interoperability_points.append(interop_point_3c)
 
         interop_point_3d = self._create_interop_point(ip3a_4c_base, [('video_transfer_characteristic', 'HLG'),
-                                                                     ('interop_point', 'C_3d')])
+                                                                     ('interop_point', '3d')])
         interoperability_points.append(interop_point_3d)
 
         interop_point_3e = self._create_interop_point(ip3a_4c_base, [('video_sampling', 'RGB'),
                                                                      ('video_colorimetry', 'BT2020'),
-                                                                     ('interop_point', 'C_3e')])
+                                                                     ('interop_point', '3e')])
         interoperability_points.append(interop_point_3e)
 
         interop_point_4a = self._create_interop_point(ip3a_4c_base, [('bit_rate', 4000000),
@@ -309,7 +309,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('max_bit_rate', 7963000),
                                                                      ('level', '8k-2'),
                                                                      ('conformance_level', 'UHD2'),
-                                                                     ('interop_point', 'C_4a')])
+                                                                     ('interop_point', '4a')])
         interoperability_points.append(interop_point_4a)
 
         interop_point_4b = self._create_interop_point(ip3a_4c_base, [('bit_rate', 4000000),
@@ -318,7 +318,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('level', '8k-2'),
                                                                      ('video_transfer_characteristic', 'PQ'),
                                                                      ('conformance_level', 'UHD2'),
-                                                                     ('interop_point', 'C_4b')])
+                                                                     ('interop_point', '4b')])
         interoperability_points.append(interop_point_4b)
 
         interop_point_4c = self._create_interop_point(ip3a_4c_base, [('bit_rate', 4000000),
@@ -327,7 +327,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('level', '8k-2'),
                                                                      ('video_transfer_characteristic', 'HLG'),
                                                                      ('conformance_level', 'UHD2'),
-                                                                     ('interop_point', 'C_4c')])
+                                                                     ('interop_point', '4c')])
         interoperability_points.append(interop_point_4c)
 
         return interoperability_points
@@ -346,21 +346,21 @@ class BCP0060102Test(ControllerTest):
                         'capability_set': 'D', 'conformance_level': 'UHD1'}
 
         interop_point_1a = self._create_interop_point(ip1a_2c_base, [('video_depth', '8'),
-                                                                     ('interop_point', 'D_1a')])
+                                                                     ('interop_point', '1a')])
         interoperability_points.append(interop_point_1a)
 
         interop_point_1b = self._create_interop_point(ip1a_2c_base, [('video_depth', '8'),
                                                                      ('video_exactframerate', '50'),
                                                                      ('min_bit_rate', 622000),
                                                                      ('max_bit_rate', 1659000),
-                                                                     ('interop_point', 'D_1b')])
+                                                                     ('interop_point', '1b')])
         interoperability_points.append(interop_point_1b)
 
-        interop_point_1c = self._create_interop_point(ip1a_2c_base, [('interop_point', 'D_1c')])
+        interop_point_1c = self._create_interop_point(ip1a_2c_base, [('interop_point', '1c')])
         interoperability_points.append(interop_point_1c)
 
         interop_point_1d = self._create_interop_point(ip1a_2c_base, [('video_depth', '12'),
-                                                                     ('interop_point', 'D_1d')])
+                                                                     ('interop_point', '1d')])
         interoperability_points.append(interop_point_1d)
 
         interop_point_2a = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
@@ -369,7 +369,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('max_bit_rate', 7955000),
                                                                      ('level', '8k-2'),
                                                                      ('conformance_level', 'UHD2'),
-                                                                     ('interop_point', 'D_2a')])
+                                                                     ('interop_point', '2a')])
         interoperability_points.append(interop_point_2a)
 
         interop_point_2b = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
@@ -379,7 +379,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('video_transfer_characteristic', 'PQ'),
                                                                      ('level', '8k-2'),
                                                                      ('conformance_level', 'UHD2'),
-                                                                     ('interop_point', 'D_2b')])
+                                                                     ('interop_point', '2b')])
         interoperability_points.append(interop_point_2b)
 
         interop_point_2c = self._create_interop_point(ip1a_2c_base, [('video_width', 7680), ('video_height', 4320),
@@ -389,7 +389,7 @@ class BCP0060102Test(ControllerTest):
                                                                      ('video_transfer_characteristic', 'HLG'),
                                                                      ('level', '8k-2'),
                                                                      ('conformance_level', 'UHD2'),
-                                                                     ('interop_point', 'D_2c')])
+                                                                     ('interop_point', '2c')])
         interoperability_points.append(interop_point_2c)
 
         return interoperability_points
@@ -445,9 +445,7 @@ class BCP0060102Test(ControllerTest):
             "urn:x-nmos:cap:format:transfer_characteristic": {
                 "enum": [sdp_params.get("video_transfer_characteristic",
                                         CONFIG.SDP_PREFERENCES["video_transfer_characteristic"])]
-            },
-            "capability_set": sdp_params.get('capability_set'),
-            "conformance_level": sdp_params.get('conformance_level')
+            }
         }
 
         # JPEG XS specific caps
@@ -527,12 +525,19 @@ class BCP0060102Test(ControllerTest):
         return False
 
     def set_up_tests(self):
+        random.seed(a=CONFIG.RANDOM_SEED)
 
-        sender_names = ['rush', 'fly_by_night', 'caress_of_steel', '_2112_',
-                        'farewell_to_kings', 'hemispheres', 'permanent_waves', 'moving_pictures',
-                        'signals', 'grace_under_pressure', 'power_windows', 'hold_your_fire',
-                        'presto', 'roll_the_bones', 'counterparts', 'test_for_echo',
-                        'vapor_trails', 'feedback', 'snakes_and_ladders', 'clockwork_angels']
+        sender_names = ['rush', 'fly_by_night', 'caress_of_steel', '_2112_', 'all_the_worlds_a_stage',
+                        'farewell_to_kings', 'hemispheres', 'permanent_waves', 'moving_pictures', 'exit_stage_left',
+                        'signals', 'grace_under_pressure', 'power_windows', 'hold_your_fire', 'show_of_hands',
+                        'presto', 'roll_the_bones', 'counterparts', 'test_for_echo', 'different_stages',
+                        'vapor_trails', 'feedback', 'snakes_and_ladders', 'clockwork_angels', 'in_rio',
+                        'to_revelation', 'trespass', 'nursery_cryme', 'foxtrot', 'by_the_pound',
+                        'lamb_lies', 'trick_of_the_tail', 'wind_wuthering', 'were_three', 'duke',
+                        'abacab', 'genesis', 'invisible_touch', 'cant_dance', 'all_stations',
+                        'murmur', 'reckoning', 'fables', 'rich_pageant', 'document'
+                        'green', 'out_of_time', 'automatic', 'monster', 'new_adventures',
+                        'up', 'reveal', 'around_the_sun', 'accelerate', 'collapse']
 
         receiver_names = ['tubular_bells', 'hergest_ridge', 'ommadawn', 'incantations', 'platinum',
                           'qe2', 'five_miles_out', 'crises', 'discovery', 'islands',
@@ -551,19 +556,18 @@ class BCP0060102Test(ControllerTest):
         interoperability_points.extend(self._initialize_capability_set_C_level_UHD1_UHD2())
         interoperability_points.extend(self._initialize_capability_set_D_level_UHD1_UHD2())
 
-        # create a map of the interop points so they can be assigned to Senders
-        capability_set_map = {interop_point['interop_point']: interop_point
-                              for interop_point in interoperability_points}
+        sender_configurations = [('AB', 'FHD'), ('AB', 'UHD1'), ('AB', 'UHD2'),
+                                 ('C', 'FHD'), ('C', 'UHD1'), ('C', 'UHD2'),
+                                 ('D', 'UHD1'), ('D', 'UHD2')]
 
-        # create sub list of representative interoperability points, key is TR-08 Interoperability Point
-        sender_interop_points = [capability_set_map['AB_1'],  # FHD
-                                 capability_set_map['AB_7a'],  # UHD1
-                                 capability_set_map['AB_9a'],  # UHD2
-                                 capability_set_map['C_1a'],  # FHD
-                                 capability_set_map['C_3a'],  # UHD1
-                                 capability_set_map['C_4a'],  # UHD2
-                                 capability_set_map['D_1a'],  # UHD1
-                                 capability_set_map['D_2a']]  # UHD2
+        if CONFIG.EXHAUSTIVE_TESTING:
+            sender_interop_points = interoperability_points.copy()
+        else:
+            sender_interop_points = []
+            for (capability_set, conformance_level) in sender_configurations:
+                sender_interop_points.append(random.choice([i for i in interoperability_points
+                                                            if i['capability_set'] == capability_set
+                                                            and i['conformance_level'] == conformance_level]))
 
         # pad with video raw Senders
         VIDEO_RAW_SENDER_COUNT = 3
@@ -628,6 +632,9 @@ class BCP0060102Test(ControllerTest):
         """
         Ensure NCuT can identify JPEG XS Senders
         """
+        # Controllers MUST support IS-04 to discover JPEG XS Senders
+
+        random.seed(a=CONFIG.RANDOM_SEED)
 
         CANDIDATE_SENDER_COUNT = 4
 
@@ -678,6 +685,9 @@ class BCP0060102Test(ControllerTest):
         """
         Ensure NCuT can identify JPEG XS Receivers
         """
+        # Controllers MUST support IS-04 to discover JPEG XS Receivers
+
+        random.seed(a=CONFIG.RANDOM_SEED)
 
         CANDIDATE_RECEIVER_COUNT = 4
 
@@ -725,10 +735,14 @@ class BCP0060102Test(ControllerTest):
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
 
-    def test_05(self, test):
+    def test_03(self, test):
         """
         Ensure NCuT can identify JPEG XS Receiver compatibility according to TR-08 Capability Set and Conformance Level
         """
+        # Indentify compatible Receivers given a random Sender.
+        # Sender and Recievers have SDP/caps as specifiied in TR-08.
+
+        random.seed(a=CONFIG.RANDOM_SEED)
 
         MAX_COMPATIBLE_RECEIVER_COUNT = 4
         CANDIDATE_RECEIVER_COUNT = 6
@@ -789,10 +803,14 @@ class BCP0060102Test(ControllerTest):
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
 
-    def test_06(self, test):
+    def test_04(self, test):
         """
         Ensure NCuT can identify JPEG XS Sender compatibility according to TR-08 Capability Set and Conformance Level
         """
+        # Indentify compatible Receivers given a random Sender.
+        # Sender and Recievers have SDP/caps as specifiied in TR-08
+
+        random.seed(a=CONFIG.RANDOM_SEED)
 
         MAX_COMPATIBLE_SENDER_COUNT = 3
         CANDIDATE_SENDER_COUNT = 6
@@ -837,17 +855,15 @@ class BCP0060102Test(ControllerTest):
                     question, possible_answers, test_type="multi_choice", multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Incorrect Sender identified for Compatibility Set ('
+                    return test.FAIL('Incorrect Sender identified for Compatibility Set(s) '
                                      + str(receiver['capability_set'])
-                                     + '), Conformance Level ' + receiver['conformance_level']
-                                     + ' and Interoperability Point ' + receiver['interop_point'])
+                                     + ', Conformance Level ' + receiver['conformance_level'])
                 else:
                     for answer in actual_answers:
                         if answer not in expected_answers:
-                            return test.FAIL('Incorrect Sender identified for Compatibility Set ('
+                            return test.FAIL('Incorrect Sender identified for Compatibility Set(s) '
                                              + str(receiver['capability_set'])
-                                             + '), Conformance Level ' + receiver['conformance_level']
-                                             + ' and Interoperability Point ' + receiver['interop_point'])
+                                             + ', Conformance Level ' + receiver['conformance_level'])
 
             return test.PASS('All Senders correctly identified')
 

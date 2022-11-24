@@ -129,6 +129,12 @@ PORT_BASE = 5000
 # This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
 WEBSOCKET_PORT_BASE = 6000
 
+# For BCP-006-01 testing set EXHAUSTIVE_TESTING to True to run through all
+# TR-08 Capability set/Conformance level/Interop point combinations.
+# Set a RANDOM_SEED to an integer value to make testing deterministic and repeatable.
+EXHAUSTIVE_TESTING = False
+RANDOM_SEED = None
+
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed
 # into Sender configuration when testing IS-05.
 # The default values are from the IANA-registered TEST-NET-1 and MCAST-TEST-NET ranges. To avoid unintended network
