@@ -390,6 +390,7 @@ class GenericTest(object):
         results = []
 
         for api in sorted(self.apis.keys()):
+            NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(api))
             if "raml" not in self.apis[api]:
                 continue
 
