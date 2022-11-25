@@ -67,10 +67,8 @@ CACHE_PATH = 'cache'
 # Timeout for any HTTP requests
 HTTP_TIMEOUT = 1
 
-# Restrict the maximum number of resources that time consuming tests run against.
-# 0 = unlimited for a really thorough test!
-# Use for BCP0060102 to limit the the TR-08 Capability set/Conformance level/Interop point combination tested.
-# 0 = test all combinations
+# Restrict the maximum number of resources or test points that time consuming tests run against.
+# 0 = unlimited (all available resources or test points) for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
