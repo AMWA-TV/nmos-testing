@@ -810,27 +810,36 @@ class IS0401Test(GenericTest):
                 except TypeError:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver))
 
-                try:
-                    media_type = receiver["caps"]["media_types"][0]
-                except TypeError:
-                    return test.FAIL("Unexpected CAPS Media Type: {}".format(receiver))
-
-                # print("\nCAPS MEDIA IS", media_type, "\n")
-
                 # Test each available receiver format once
+                # TODO: Should this be based on CONFIG.MAX_TEST_ITERATIONS?
                 if stream_type in formats_tested:
                     continue
 
                 if stream_type not in ["video", "audio", "data", "mux"]:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
-                if stream_type == "video":
-                    if media_type not in ["video/raw", "video/jxsv", "video/SMPTE2022-6", "video/smpte291"]:
-                        return test.FAIL("Unexpected Receiver video media format: {}".format(receiver["format"]))
+                caps = receiver["caps"]
 
-                # media_type add for sdp and parameter selection in node_sdp
-                # request_data = self.node.get_sender(stream_type)
-                request_data = self.node.get_sender(stream_type, media_type)
+                if stream_type == "video":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/raw"
+                elif stream_type == "audio":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "audio/L24"
+                elif stream_type == "data":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/smpte291"
+                elif stream_type == "mux":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/SMPTE2022-6"
+
+                supported_media_types = [
+                    "video/raw",
+                    "video/jxsv",
+                    "audio/L24",
+                    "video/smpte291",
+                    "video/SMPTE2022-6"
+                ]
+                if media_type not in supported_media_types:
+                    return test.MANUAL("Unsupported video Receiver caps media_types: {}".format(media_type))
+
+                request_data = self.node.get_sender(media_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)

@@ -179,6 +179,7 @@ SDP_PREFERENCES = {
     "video_transfer_characteristic": "SDR",
     "video_type_parameter": "2110TPW"
 }
+
 # Test with an MQTT Broker as per AMWA IS-07
 ENABLE_MQTT_BROKER = True
 
