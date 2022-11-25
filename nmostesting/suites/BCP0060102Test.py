@@ -31,8 +31,8 @@ class BCP0060102Test(ControllerTest):
     def _create_interop_point(self, sdp_base, override_params):
         interop_point = {**sdp_base, **override_params}
         # Set bit rate and sublevel based on 2 bpp relying on VSF TR-08:2022 Appendix B min bit rate for 1.5 bpp
-        interop_point['bit_rate'] = int(round(interop_point['min_bit_rate'] * 2/1.5, -3))
-        interop_point['sublevel'] = 'Sublev3bpp'
+        interop_point['video_bit_rate'] = int(round(interop_point['min_bit_rate'] * 2/1.5, -3))
+        interop_point['video_sublevel'] = 'Sublev3bpp'
         return interop_point
 
     def _initialize_capability_set_AB_level_FHD(self):
@@ -42,10 +42,11 @@ class BCP0060102Test(ControllerTest):
         # Interoperability Points Capability Set A & Set B, Conformance Level FHD with reference to VSF TR-08:2022
         # NOTE: Set A & Set B have the same metadata as currently IS-04 doesn't distinguish between
         # ST 2110-21 Type A and Type W Receivers
-        ip1_6c_base = {'media_type': 'jxsv', 'video_width': 1920, 'video_height': 1080, 'video_interlace': False,
+        ip1_6c_base = {'media_type': 'video/jxsv',
+                       'video_width': 1920, 'video_height': 1080, 'video_interlace': False,
                        'video_exactframerate': '60000/1001', 'min_bit_rate': 186000, 'max_bit_rate': 497000,
                        'video_depth': 10, 'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT709',
-                       'profile': 'High444.12', 'level': '2k-1', 'video_transfer_characteristic': 'SDR',
+                       'video_profile': 'High444.12', 'video_level': '2k-1', 'video_transfer_characteristic': 'SDR',
                        'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                        'capability_set': 'AB', 'conformance_level': 'FHD'}
 
@@ -54,7 +55,7 @@ class BCP0060102Test(ControllerTest):
                                                                    'video_height': 720,
                                                                    'min_bit_rate': 83000,
                                                                    'max_bit_rate': 221000,
-                                                                   'level': '1k-1'})
+                                                                   'video_level': '1k-1'})
         interoperability_points.append(interop_point_1)
 
         interop_point_2 = self._create_interop_point(ip1_6c_base, {'interop_point': '2',
@@ -63,7 +64,7 @@ class BCP0060102Test(ControllerTest):
                                                                    'video_exactframerate': '50',
                                                                    'min_bit_rate': 69000,
                                                                    'max_bit_rate': 184000,
-                                                                   'level': '1k-1'})
+                                                                   'video_level': '1k-1'})
         interoperability_points.append(interop_point_2)
 
         interop_point_3 = self._create_interop_point(ip1_6c_base, {'interop_point': '3',
@@ -124,10 +125,11 @@ class BCP0060102Test(ControllerTest):
         # Interoperability Points Capability Set A & Set B, Conformance Level UHD1 with reference to VSF TR-08:2022
         # NOTE: Set A & Set B have the same metadata as currently IS-04 doesn't distinguish between
         # ST 2110-21 Type A and Type W Receivers
-        ip7a_8c_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
+        ip7a_8c_base = {'media_type': 'video/jxsv',
+                        'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
                         'video_exactframerate': '60000/1001', 'min_bit_rate': 746000, 'max_bit_rate': 1989000,
                         'video_depth': 10, 'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT2100',
-                        'profile': 'High444.12', 'level': '4k-2', 'video_transfer_characteristic': 'SDR',
+                        'video_profile': 'High444.12', 'video_level': '4k-2', 'video_transfer_characteristic': 'SDR',
                         'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'AB', 'conformance_level': 'UHD1'}
 
@@ -173,10 +175,11 @@ class BCP0060102Test(ControllerTest):
         # Interoperability Points Capability Set A & Set B, Conformance Level UHD2 with reference to VSF TR-08:2022
         # NOTE: Set A & Set B have the same metadata as currently IS-04 doesn't distinguish between
         # ST 2110-21 Type A and Type W Receivers
-        ip9a_10c_base = {'media_type': 'jxsv', 'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
+        ip9a_10c_base = {'media_type': 'video/jxsv',
+                         'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
                          'video_exactframerate': '60000/1001', 'min_bit_rate': 2983000, 'max_bit_rate': 7955000,
                          'video_depth': 10, 'video_sampling': 'YCbCr-4:2:2', 'video_colorimetry': 'BT2100',
-                         'profile': 'High444.12', 'level': '8k-2', 'video_transfer_characteristic': 'SDR',
+                         'video_profile': 'High444.12', 'video_level': '8k-2', 'video_transfer_characteristic': 'SDR',
                          'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                          'capability_set': 'AB', 'conformance_level': 'UHD2'}
 
@@ -220,10 +223,11 @@ class BCP0060102Test(ControllerTest):
         interoperability_points = []  # 6 interoperability points defined here
 
         # Interoperability Points Capability Set C, Conformance Level FHD with reference to VSF TR-08:2022
-        ip1a_2b_base = {'media_type': 'jxsv', 'video_width': 1920, 'video_height': 1080, 'video_interlace': False,
+        ip1a_2b_base = {'media_type': 'video/jxsv',
+                        'video_width': 1920, 'video_height': 1080, 'video_interlace': False,
                         'video_exactframerate': '60000/1001', 'min_bit_rate': 186000, 'max_bit_rate': 497000,
                         'video_depth': 8, 'video_sampling': 'RGB', 'video_colorimetry': 'BT709',
-                        'profile': 'High444.12', 'level': '2k-1', 'video_transfer_characteristic': 'SDR',
+                        'video_profile': 'High444.12', 'video_level': '2k-1', 'video_transfer_characteristic': 'SDR',
                         'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'C', 'conformance_level': 'FHD'}
 
@@ -252,8 +256,8 @@ class BCP0060102Test(ControllerTest):
                                                                      'video_exactframerate': '60',
                                                                      'min_bit_rate': 207000,
                                                                      'max_bit_rate': 552000,
-                                                                     'fullrange': True,
-                                                                     'level': '4k-1'})
+                                                                     'video_fullrange': True,
+                                                                     'video_level': '4k-1'})
         interoperability_points.append(interop_point_2a)
 
         interop_point_2b = self._create_interop_point(ip1a_2b_base, {'interop_point': '2b',
@@ -261,8 +265,8 @@ class BCP0060102Test(ControllerTest):
                                                                      'video_exactframerate': '50',
                                                                      'min_bit_rate': 173000,
                                                                      'max_bit_rate': 461000,
-                                                                     'fullrange': True,
-                                                                     'level': '4k-1'})
+                                                                     'video_fullrange': True,
+                                                                     'video_level': '4k-1'})
         interoperability_points.append(interop_point_2b)
 
         return interoperability_points
@@ -272,10 +276,11 @@ class BCP0060102Test(ControllerTest):
         interoperability_points = []  # 5 interoperability points defined here
 
         # Interoperability Points Capability Set C, Conformance Level UHD1 with reference to VSF TR-08:2022
-        ip3a_3e_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
+        ip3a_3e_base = {'media_type': 'video/jxsv',
+                        'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
                         'video_exactframerate': '60000/1001', 'min_bit_rate': 746000, 'max_bit_rate': 1991000,
                         'video_depth': 10, 'video_sampling': 'YCbCr-4:4:4', 'video_colorimetry': 'BT2100',
-                        'profile': 'High444.12', 'level': '4k-2', 'video_transfer_characteristic': 'SDR',
+                        'video_profile': 'High444.12', 'video_level': '4k-2', 'video_transfer_characteristic': 'SDR',
                         'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'C', 'conformance_level': 'UHD1'}
 
@@ -308,10 +313,11 @@ class BCP0060102Test(ControllerTest):
         interoperability_points = []  # 3 interoperability points defined here
 
         # Interoperability Points Capability Set C, Conformance Level UHD2 with reference to VSF TR-08:2022
-        ip4a_4c_base = {'media_type': 'jxsv', 'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
+        ip4a_4c_base = {'media_type': 'video/jxsv',
+                        'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
                         'video_exactframerate': '60000/1001', 'min_bit_rate': 2986000, 'max_bit_rate': 7963000,
                         'video_depth': 10, 'video_sampling': 'YCbCr-4:4:4', 'video_colorimetry': 'BT2100',
-                        'profile': 'High444.12', 'level': '8k-2', 'video_transfer_characteristic': 'SDR',
+                        'video_profile': 'High444.12', 'video_level': '8k-2', 'video_transfer_characteristic': 'SDR',
                         'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'C', 'conformance_level': 'UHD2'}
 
@@ -333,10 +339,11 @@ class BCP0060102Test(ControllerTest):
         interoperability_points = []  # 4 interoperability points defined here
 
         # Interoperability Points Capability Set D, Conformance Level UHD1 with reference to VSF TR-08:2022
-        ip1a_1d_base = {'media_type': 'jxsv', 'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
+        ip1a_1d_base = {'media_type': 'video/jxsv',
+                        'video_width': 3840, 'video_height': 2160, 'video_interlace': False,
                         'video_exactframerate': '60000/1001', 'min_bit_rate': 746000, 'max_bit_rate': 1989000,
                         'video_depth': 10, 'video_sampling': 'YCbCr-4:2:0', 'video_colorimetry': 'BT2020',
-                        'profile': 'High444.12', 'level': '4k-2', 'video_transfer_characteristic': 'SDR',
+                        'video_profile': 'High444.12', 'video_level': '4k-2', 'video_transfer_characteristic': 'SDR',
                         'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'D', 'conformance_level': 'UHD1'}
 
@@ -365,10 +372,11 @@ class BCP0060102Test(ControllerTest):
         interoperability_points = []  # 3 interoperability points defined here
 
         # Interoperability Points Capability Set D, Conformance Level UHD2 with reference to VSF TR-08:2022
-        ip2a_2c_base = {'media_type': 'jxsv', 'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
+        ip2a_2c_base = {'media_type': 'video/jxsv',
+                        'video_width': 7680, 'video_height': 4320, 'video_interlace': False,
                         'video_exactframerate': '60000/1001', 'min_bit_rate': 2983000, 'max_bit_rate': 7955000,
                         'video_depth': 10, 'video_sampling': 'YCbCr-4:2:0', 'video_colorimetry': 'BT2100',
-                        'profile': 'High444.12', 'level': '8k-2', 'video_transfer_characteristic': 'SDR',
+                        'video_profile': 'High444.12', 'video_level': '8k-2', 'video_transfer_characteristic': 'SDR',
                         'video_type_parameter': '2110TPW', 'packet_transmission_mode': 'codestream',
                         'capability_set': 'D', 'conformance_level': 'UHD2'}
 
@@ -387,7 +395,7 @@ class BCP0060102Test(ControllerTest):
 
     def _generate_non_JXSV_interop_points(self, size):
         # Non JPEG XS Interoperability Points
-        non_jxsv_base = {'media_type': 'raw', 'capability_set': None, 'conformance_level': None}
+        non_jxsv_base = {'media_type': 'video/raw', 'capability_set': None, 'conformance_level': None}
 
         interoperability_points = []
 
@@ -461,7 +469,7 @@ class BCP0060102Test(ControllerTest):
         }
 
         for sdp_params in sdp_params_set:
-            media_type = 'video/' + sdp_params.get("media_type", "raw")
+            media_type = sdp_params.get("media_type", "video/raw")
             if media_type not in caps["media_types"]:
                 caps["media_types"].append(media_type)
 
@@ -473,13 +481,13 @@ class BCP0060102Test(ControllerTest):
     def _generate_flow_params(self, sdp_params):
         flow_params = {}
 
-        # Mapping sdp_param names to flow_param names
+        # Mapping sdp_params names to flow_params names
         param_mapping = {'video_width': 'frame_width', 'video_height': 'frame_height',
-                         'profile': 'profile', 'level': 'level', 'sublevel': 'sublevel',
-                         'video_colorimetry': 'colorspace', 'bit_rate': 'bit_rate',
+                         'video_profile': 'profile', 'video_level': 'level', 'video_sublevel': 'sublevel',
+                         'video_colorimetry': 'colorspace', 'video_bit_rate': 'bit_rate',
                          'video_transfer_characteristic': 'transfer_characteristic'}
 
-        flow_params["media_type"] = "video/" + sdp_params.get("media_type", "raw")
+        flow_params["media_type"] = sdp_params.get("media_type", "video/raw")
 
         for sdp_param, flow_param in param_mapping.items():
             if sdp_param in sdp_params:
@@ -671,8 +679,8 @@ class BCP0060102Test(ControllerTest):
                        that are JPEG XS capable from the following list.
                        """
 
-            jpeg_xs_senders = [s for s in self.senders if 'jxsv' == s['sdp_params']['media_type']]
-            video_raw_senders = [s for s in self.senders if 'raw' == s['sdp_params']['media_type']]
+            jpeg_xs_senders = [s for s in self.senders if 'video/jxsv' == s['sdp_params']['media_type']]
+            video_raw_senders = [s for s in self.senders if 'video/raw' == s['sdp_params']['media_type']]
 
             jpeg_xs_sender_count = NMOSUtils.RANDOM.randint(1, min(CANDIDATE_SENDER_COUNT, len(jpeg_xs_senders)))
             candidate_senders = NMOSUtils.RANDOM.sample(jpeg_xs_senders, jpeg_xs_sender_count)
@@ -687,7 +695,7 @@ class BCP0060102Test(ControllerTest):
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
                                 for i, r in enumerate(candidate_senders)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_senders)
-                                if 'jxsv' == r['sdp_params']['media_type']]
+                                if 'video/jxsv' == r['sdp_params']['media_type']]
 
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type="multi_choice")['answer_response']

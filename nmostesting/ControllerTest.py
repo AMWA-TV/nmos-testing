@@ -395,13 +395,14 @@ class ControllerTest(GenericTest):
         sender_data = deepcopy(self.test_data["sender"])
 
         if "sdp_params" in sender:
-            # For JPEG XS pull some sdp_params out to add as Sender properties
+            # Mapping sdp_params names to sender names
             # For JPEG XS Senders, 'bit_rate' and 'st2110_21_sender_type' MUST be included
-            sdp_properties = ["bit_rate", "st2110_21_sender_type", "packet_transmission_mode"]
+            param_mapping = {'video_bit_rate': 'bit_rate', 'video_type_parameter': 'st2110_21_sender_type',
+                             'packet_transmission_mode': 'packet_transmission_mode'}
 
-            for property in sdp_properties:
-                if property in sender["sdp_params"]:
-                    sender_data[property] = sender["sdp_params"][property]
+            for sdp_param, sender_param in param_mapping.items():
+                if sdp_param in sender["sdp_params"]:
+                    sender_data[sender_param] = sender["sdp_params"][sdp_param]
 
         overridden_properties = ["id",
                                  "label",

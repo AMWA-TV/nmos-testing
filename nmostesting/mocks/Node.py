@@ -368,7 +368,7 @@ def node_sdp(media_type, media_subtype):
         # Not all keywords are used in all templates but that's OK
         sdp_file = template.render(
             dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-            media_type=media_subtype,
+            media_subtype=media_subtype,
             width=CONFIG.SDP_PREFERENCES["video_width"],
             height=CONFIG.SDP_PREFERENCES["video_height"],
             interlace=CONFIG.SDP_PREFERENCES["video_interlace"],
@@ -376,6 +376,7 @@ def node_sdp(media_type, media_subtype):
             depth=CONFIG.SDP_PREFERENCES["video_depth"],
             sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
             colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+            fullrange=CONFIG.SDP_PREFERENCES["video_fullrange"],
             transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
             type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
             profile=CONFIG.SDP_PREFERENCES["video_profile"],
@@ -385,7 +386,7 @@ def node_sdp(media_type, media_subtype):
     elif media_type == "audio":
         sdp_file = template.render(
             dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-            media_type=media_subtype,
+            media_subtype=media_subtype,
             channels=CONFIG.SDP_PREFERENCES["audio_channels"],
             sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
             max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
@@ -576,37 +577,48 @@ def transport_file(version, resource, resource_id):
             sender = NODE.senders[resource_id]
             sdp_params = {**CONFIG.SDP_PREFERENCES, **sender.get('sdp_params', {})}
 
-            sdp_file = "jxsv.sdp" if sdp_params.get("media_type", "raw") == "jxsv" else "video.sdp"
+            media_type = sdp_params.get("media_type", "video/raw")
 
-            template_path = "test_data/controller/" + sdp_file
+            media_type, media_subtype = media_type.split("/")
+
+            template_path = None
+            if media_type == "video":
+                if media_subtype == "raw":
+                    template_path = "test_data/controller/video.sdp"
+                elif media_subtype == "jxsv":
+                    template_path = "test_data/controller/video-jxsv.sdp"
+
+            if not template_path:
+                abort(404)
 
             template_file = open(template_path).read()
             template = Template(template_file, keep_trailing_newline=True)
 
-            destination_ip = sender['activations']['transport_params'][0]['destination_ip']
-            destination_port = sender['activations']['transport_params'][0]['destination_port']
-            source_ip = sender['activations']['transport_params'][0]['source_ip']
+            template_file = open(template_path).read()
+            template = Template(template_file, keep_trailing_newline=True)
 
-            # TODO: The SDP_PREFERENCES doesn't include video media type
-            sdp_file = template.render(dst_ip=destination_ip,
-                                       dst_port=destination_port,
-                                       src_ip=source_ip,
-                                       media_type=sdp_params.get("media_type", "raw"),
-                                       width=sdp_params.get("video_width"),
-                                       height=sdp_params.get("video_height"),
-                                       interlace=sdp_params.get("video_interlace"),
-                                       exactframerate=sdp_params.get("video_exactframerate"),
-                                       depth=sdp_params.get("video_depth"),
-                                       sampling=sdp_params.get("video_sampling"),
-                                       colorimetry=sdp_params.get("video_colorimetry"),
-                                       transfer_characteristic=sdp_params.get("video_transfer_characteristic"),
-                                       type_parameter=sdp_params.get("video_type_parameter"),
-                                       # JPEG XS / BCP-006-01 parameters
-                                       fullrange=sdp_params.get("fullrange"),
-                                       profile=sdp_params.get("profile"),
-                                       level=sdp_params.get("level"),
-                                       sublevel=sdp_params.get("sublevel"),
-                                       bit_rate=sdp_params.get("bit_rate"))
+            src_ip = sender['activations']['transport_params'][0]['source_ip']
+            dst_ip = sender['activations']['transport_params'][0]['destination_ip']
+            dst_port = sender['activations']['transport_params'][0]['destination_port']
+
+            # Not all keywords are used in all templates but that's OK
+            sdp_file = template.render(
+                dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
+                media_subtype=media_subtype,
+                width=sdp_params["video_width"],
+                height=sdp_params["video_height"],
+                interlace=sdp_params["video_interlace"],
+                exactframerate=sdp_params["video_exactframerate"],
+                depth=sdp_params["video_depth"],
+                sampling=sdp_params["video_sampling"],
+                colorimetry=sdp_params["video_colorimetry"],
+                fullrange=sdp_params["video_fullrange"],
+                transfer_characteristic=sdp_params["video_transfer_characteristic"],
+                type_parameter=sdp_params["video_type_parameter"],
+                profile=sdp_params["video_profile"],
+                level=sdp_params["video_level"],
+                sublevel=sdp_params["video_sublevel"],
+                bit_rate=sdp_params["video_bit_rate"])
 
             response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"

@@ -67,7 +67,7 @@ CACHE_PATH = 'cache'
 # Timeout for any HTTP requests
 HTTP_TIMEOUT = 1
 
-# Restrict the maximum number of resources or test points that time consuming tests run against.
+# Restrict the maximum number of resources or test points that time-consuming tests run against.
 # 0 = unlimited (all available resources or test points) for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
@@ -158,6 +158,7 @@ SDP_PREFERENCES = {
     "video_depth": 10,
     "video_sampling": "YCbCr-4:2:2",
     "video_colorimetry": "BT709",
+    "video_fullrange": False,
     "video_transfer_characteristic": "SDR",
     "video_type_parameter": "2110TPW",
     # video/jxsv
