@@ -22,6 +22,7 @@ from jsonschema import ValidationError
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from copy import deepcopy
+from collections import defaultdict
 from pathlib import Path
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 
@@ -800,24 +801,48 @@ class IS0401Test(GenericTest):
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
-            formats_tested = []
+            found_rtp = False
+            formats_tested = defaultdict(int)
+            warn_sdp_untested = ""
             for receiver in receivers.json():
                 if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
                     continue
+                found_rtp = True
 
-                try:
-                    stream_type = receiver["format"].split(":")[-1]
-                except TypeError:
-                    return test.FAIL("Unexpected Receiver format: {}".format(receiver))
+                caps = receiver["caps"]
 
-                # Test each available receiver format once
-                if stream_type in formats_tested:
-                    continue
-
-                if stream_type not in ["video", "audio", "data", "mux"]:
+                if receiver["format"] == "urn:x-nmos:format:video":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/raw"
+                elif receiver["format"] == "urn:x-nmos:format:audio":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "audio/L24"
+                elif receiver["format"] == "urn:x-nmos:format:data":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/smpte291"
+                elif receiver["format"] == "urn:x-nmos:format:mux":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/SMPTE2022-6"
+                else:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
 
-                request_data = self.node.get_sender(stream_type)
+                if CONFIG.MAX_TEST_ITERATIONS > 0:
+                    # Limit maximum number of Receivers of each format that are tested
+                    if CONFIG.MAX_TEST_ITERATIONS <= formats_tested[receiver["format"]]:
+                        continue
+
+                supported_media_types = [
+                    "video/raw",
+                    "video/jxsv",
+                    "audio/L16",
+                    "audio/L24",
+                    "audio/L32",
+                    "video/smpte291",
+                    "video/SMPTE2022-6"
+                ]
+                if media_type not in supported_media_types:
+                    if not warn_sdp_untested:
+                        warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data " \
+                            "for media_type '{}'".format(receiver["id"], media_type)
+                    continue
+
+                request_data = self.node.get_sender(media_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
 
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
@@ -837,9 +862,11 @@ class IS0401Test(GenericTest):
                         return test.FAIL("Node API Receiver {} subscription does not indicate an active "
                                          "subscription".format(receiver["id"]))
 
-                formats_tested.append(stream_type)
+                formats_tested[receiver["format"]] += 1
 
-            if len(formats_tested) > 0:
+            if warn_sdp_untested:
+                return test.MANUAL(warn_sdp_untested)
+            elif found_rtp:
                 return test.PASS()
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")

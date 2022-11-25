@@ -142,10 +142,12 @@ PREVALIDATE_API = True
 # SDP media parameters which can be modified for devices which do not support the defaults
 # SDP testing is not concerned with support for specific media parameters, but must include them in the file
 SDP_PREFERENCES = {
+    # audio/L16, audio/L24, audio/L32
     "audio_channels": 2,
     "audio_sample_rate": 48000,
     "audio_packet_time": 1,
     "audio_max_packet_time": 1,
+    # video/raw, etc.
     "video_width": 1920,
     "video_height": 1080,
     "video_interlace": True,
@@ -154,7 +156,12 @@ SDP_PREFERENCES = {
     "video_sampling": "YCbCr-4:2:2",
     "video_colorimetry": "BT709",
     "video_transfer_characteristic": "SDR",
-    "video_type_parameter": "2110TPW"
+    "video_type_parameter": "2110TPW",
+    # video/jxsv
+    "video_profile": "High444.12",
+    "video_level": "2k-1",
+    "video_sublevel": "Sublev3bpp",
+    "video_bit_rate": 109000
 }
 
 # Test with an MQTT Broker as per AMWA IS-07

@@ -39,7 +39,7 @@ class Node(object):
         self.receivers = {}
         self.senders = {}
 
-    def get_sender(self, stream_type="video"):
+    def get_sender(self, media_type="video/raw"):
         protocol = "http"
         host = get_default_ip()
         if CONFIG.ENABLE_HTTPS:
@@ -56,7 +56,7 @@ class Node(object):
             "version": "50:50",
             "caps": {},
             "tags": {},
-            "manifest_href": "{}://{}:{}/{}.sdp".format(protocol, host, self.port, stream_type),
+            "manifest_href": "{}://{}:{}/{}.sdp".format(protocol, host, self.port, media_type),
             "flow_id": str(uuid.uuid4()),
             "transport": "urn:x-nmos:transport:rtp.mcast",
             "device_id": str(uuid.uuid4()),
@@ -336,18 +336,24 @@ NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
 
 
-@NODE_API.route('/<stream_type>.sdp', methods=["GET"])
-def node_sdp(stream_type):
+@NODE_API.route('/<media_type>/<media_subtype>.sdp', methods=["GET"])
+def node_sdp(media_type, media_subtype):
     # TODO: Should we check for an auth token here? May depend on the URL?
-    if stream_type == "video":
-        template_path = "test_data/IS0401/video.sdp"
-    elif stream_type == "audio":
-        template_path = "test_data/IS0401/audio.sdp"
-    elif stream_type == "data":
-        template_path = "test_data/IS0401/data.sdp"
-    elif stream_type == "mux":
-        template_path = "test_data/IS0401/mux.sdp"
-    else:
+    template_path = None
+    if media_type == "video":
+        if media_subtype == "raw":
+            template_path = "test_data/IS0401/video.sdp"
+        elif media_subtype == "jxsv":
+            template_path = "test_data/IS0401/video-jxsv.sdp"
+        elif media_subtype == "smpte291":
+            template_path = "test_data/IS0401/data.sdp"
+        elif media_subtype == "SMPTE2022-6":
+            template_path = "test_data/IS0401/mux.sdp"
+    elif media_type == "audio":
+        if media_subtype in ["L16", "L24", "L32"]:
+            template_path = "test_data/IS0401/audio.sdp"
+
+    if not template_path:
         abort(404)
 
     template_file = open(template_path).read()
@@ -357,32 +363,32 @@ def node_sdp(stream_type):
     dst_ip = "232.40.50.{}".format(randint(1, 254))
     dst_port = randint(5000, 5999)
 
-    if stream_type == "video":
-        interlace = ""
-        if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
-            interlace = "interlace; "
-        # TODO: The SDP_PREFERENCES doesn't include video media type
-        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
-                                   width=CONFIG.SDP_PREFERENCES["video_width"],
-                                   height=CONFIG.SDP_PREFERENCES["video_height"],
-                                   interlace=interlace,
-                                   exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                                   depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                                   sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                                   colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                                   transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                                   type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-    elif stream_type == "audio":
-        # TODO: The SDP_PREFERENCES doesn't include audio media type or sample depth
-        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
-                                   channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                                   sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                                   max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                                   packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-    elif stream_type == "data":
-        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
-    elif stream_type == "mux":
-        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
+    if media_type == "video":
+        # Not all keywords are used in all templates but that's OK
+        sdp_file = template.render(
+            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
+            media_type=media_subtype,
+            width=CONFIG.SDP_PREFERENCES["video_width"],
+            height=CONFIG.SDP_PREFERENCES["video_height"],
+            interlace=CONFIG.SDP_PREFERENCES["video_interlace"],
+            exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+            depth=CONFIG.SDP_PREFERENCES["video_depth"],
+            sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+            colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+            transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+            type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
+            profile=CONFIG.SDP_PREFERENCES["video_profile"],
+            level=CONFIG.SDP_PREFERENCES["video_level"],
+            sublevel=CONFIG.SDP_PREFERENCES["video_sublevel"],
+            bit_rate=CONFIG.SDP_PREFERENCES["video_bit_rate"])
+    elif media_type == "audio":
+        sdp_file = template.render(
+            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
+            media_type=media_subtype,
+            channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+            sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+            max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+            packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
 
     response = make_response(sdp_file)
     response.headers["Content-Type"] = "application/sdp"
