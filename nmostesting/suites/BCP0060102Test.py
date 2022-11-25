@@ -913,3 +913,97 @@ class BCP0060102Test(ControllerTest):
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
+
+    def test_05(self, test):
+        """
+        Instruct Receiver to subscribe to a Sender's JPEG XS Flow via IS-05
+        """
+        # Perform an immediate activation between a Receiver and a Sender.
+        # Sender and Recievers have SDP/caps as specifiied in TR-08.
+
+        try:
+            self.node.clear_staged_requests()
+            # Choose random sender and receiver to be connected
+            jxsv_senders = [s for s in self.senders if 'jxsv' == s['sdp_params']['media_type']]
+            sender = NMOSUtils.RANDOM.choice(jxsv_senders)
+            jxsv_receivers = [r for r in self.receivers if self._is_compatible(sender, r)]
+            receiver = NMOSUtils.RANDOM.choice(jxsv_receivers)
+
+            question = textwrap.dedent(f"""\
+                       All flows that are available in a Sender should be able to be \
+                       connected to a compatible Receiver.
+
+                       Use the NCuT to perform an 'immediate' activation between sender:
+
+                       {sender['display_answer']}
+
+                       and receiver:
+
+                       {receiver['display_answer']}
+
+                       Click the 'Next' button once the connection is active.
+                       """)
+
+            possible_answers = []
+
+            metadata = {'sender':
+                        {'id': sender['id'],
+                         'label': sender['label'],
+                         'description': sender['description']},
+                        'receiver':
+                        {'id': receiver['id'],
+                         'label': receiver['label'],
+                         'description': receiver['description']}}
+
+            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+
+            # Check the staged API endpoint received the correct PATCH request
+            patch_requests = [r for r in self.node.staged_requests
+                              if r['method'] == 'PATCH' and r['resource'] == 'receivers']
+            if len(patch_requests) < 1:
+                return test.FAIL('No PATCH request was received by the node')
+            elif len(patch_requests) == 1:
+                if patch_requests[0]['resource_id'] != receiver['id']:
+                    return test.FAIL('Connection request sent to incorrect receiver')
+
+                if 'master_enable' not in patch_requests[0]['data']:
+                    return test.FAIL('Master enable not found in PATCH request')
+                else:
+                    if not patch_requests[0]['data']['master_enable']:
+                        return test.FAIL('Master_enable not set to True in PATCH request')
+
+                if 'sender_id' in patch_requests[0]['data'] and patch_requests[0]['data']['sender_id']\
+                        and patch_requests[0]['data']['sender_id'] != sender['id']:
+                    return test.FAIL('Incorrect sender found in PATCH request')
+
+                if 'activation' not in patch_requests[0]['data']:
+                    return test.FAIL('No activation details in PATCH request')
+
+                if patch_requests[0]['data']['activation'].get('mode') != 'activate_immediate':
+                    return test.FAIL('Immediate activation not requested in PATCH request')
+            else:
+                return test.FAIL('Multiple PATCH requests were found')
+
+            # Check the receiver now has subscription details
+            if receiver['id'] in self.primary_registry.get_resources()["receiver"]:
+                receiver_details = self.primary_registry.get_resources()["receiver"][receiver['id']]
+
+                if not receiver_details['subscription']['active']:
+                    return test.FAIL('Receiver does not have active subscription')
+
+                if 'sender_id' in receiver_details['subscription'] and receiver_details['subscription']['sender_id']\
+                        and receiver_details['subscription']['sender_id'] != sender['id']:
+                    return test.FAIL('Receiver did not connect to correct sender')
+
+            if 'sender_id' not in patch_requests[0]['data'] or not patch_requests[0]['data']['sender_id']:
+                return test.WARNING('Sender id SHOULD be set in patch request')
+
+            return test.PASS("Connection successfully established")
+        except TestingFacadeException as e:
+            return test.UNCLEAR(e.args[0])
+        finally:
+            # Disconnect all receivers
+            for receiver in self.receivers:
+                deactivate_json = {"master_enable": False, 'sender_id': None,
+                                   "activation": {"mode": "activate_immediate"}}
+                self.node.patch_staged('receivers', receiver['id'], deactivate_json)
