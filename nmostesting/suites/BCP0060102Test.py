@@ -24,7 +24,6 @@ class BCP0060102Test(ControllerTest):
     """
     Runs Controller Tests covering BCP-006-01
     """
-
     def __init__(self, apis, registries, node, dns_server):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
 
