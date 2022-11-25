@@ -6,6 +6,6 @@ m=video {{ dst_port }} RTP/AVP 97
 c=IN IP4 {{ dst_ip }}/32
 a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0
-a=rtpmap:97 {{ media_type }}/90000
-a=fmtp:97 sampling=YCbCr-4:2:2; width={{ width }}; height={{ height }}; depth=10; {{ interlace }}SSN=ST2110-20:2017; colorimetry=BT709; PM=2110GPM; TP=2110TPW; TCS=SDR; exactframerate={{ exactframerate }}
-a=mediaclk:direct=0 rate=90000
+a=rtpmap:97 raw/90000
+a=fmtp:97 sampling={{ sampling }}; width={{ width }}; height={{ height }}; depth={{ depth }}; {{ "interlace; " if interlace else "" }}SSN=ST2110-20:2017; colorimetry={{ colorimetry }}; PM=2110GPM; TP={{ type_parameter }}; TCS={{ transfer_characteristic }}; exactframerate={{ exactframerate }}
+a=mediaclk:direct=0

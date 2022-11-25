@@ -67,8 +67,8 @@ CACHE_PATH = 'cache'
 # Timeout for any HTTP requests
 HTTP_TIMEOUT = 1
 
-# Restrict the maximum number of resources that time consuming tests run against.
-# 0 = unlimited for a really thorough test!
+# Restrict the maximum number of resources or test points that time-consuming tests run against.
+# 0 = unlimited (all available resources or test points) for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
@@ -129,6 +129,9 @@ PORT_BASE = 5000
 # This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
 WEBSOCKET_PORT_BASE = 6000
 
+# Set a RANDOM_SEED to an integer value to make testing deterministic and repeatable.
+RANDOM_SEED = None
+
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed
 # into Sender configuration when testing IS-05.
 # The default values are from the IANA-registered TEST-NET-1 and MCAST-TEST-NET ranges. To avoid unintended network
@@ -155,6 +158,7 @@ SDP_PREFERENCES = {
     "video_depth": 10,
     "video_sampling": "YCbCr-4:2:2",
     "video_colorimetry": "BT709",
+    "video_fullrange": False,
     "video_transfer_characteristic": "SDR",
     "video_type_parameter": "2110TPW",
     # video/jxsv

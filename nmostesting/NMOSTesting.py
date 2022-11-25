@@ -89,6 +89,9 @@ DNS_SERVER = None
 TOOL_VERSION = None
 CMD_ARGS = None
 
+if not CONFIG.RANDOM_SEED:
+    CONFIG.RANDOM_SEED = random.randrange(sys.maxsize)
+
 CACHEBUSTER = random.randint(1, 10000)
 
 core_app = Flask(__name__)

@@ -1168,7 +1168,7 @@ class IS0502Test(GenericTest):
                 # Not all keywords are used in all templates but that's OK
                 sdp_file = template.render(
                     dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-                    media_type=media_subtype,
+                    media_subtype=media_subtype,
                     width=CONFIG.SDP_PREFERENCES["video_width"],
                     height=CONFIG.SDP_PREFERENCES["video_height"],
                     interlace=CONFIG.SDP_PREFERENCES["video_interlace"],
@@ -1176,6 +1176,7 @@ class IS0502Test(GenericTest):
                     depth=CONFIG.SDP_PREFERENCES["video_depth"],
                     sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
                     colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                    fullrange=CONFIG.SDP_PREFERENCES["video_fullrange"],
                     transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
                     type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
                     profile=CONFIG.SDP_PREFERENCES["video_profile"],
@@ -1185,7 +1186,7 @@ class IS0502Test(GenericTest):
             elif media_type == "audio":
                 sdp_file = template.render(
                     dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-                    media_type=media_subtype,
+                    media_subtype=media_subtype,
                     channels=CONFIG.SDP_PREFERENCES["audio_channels"],
                     sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
                     max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
