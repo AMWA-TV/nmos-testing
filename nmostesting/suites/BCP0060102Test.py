@@ -401,15 +401,17 @@ class BCP0060102Test(ControllerTest):
         split_exactframerate = sdp_params.get("video_exactframerate",
                                               CONFIG.SDP_PREFERENCES["video_exactframerate"]).split('/')
 
+        sdp_params = {**CONFIG.SDP_PREFERENCES, **sdp_params}
+
         constraint_set = {
             "urn:x-nmos:cap:format:color_sampling": {
-                "enum": [sdp_params.get("video_sampling", CONFIG.SDP_PREFERENCES["video_sampling"])]
+                "enum": [sdp_params.get("video_sampling")]
             },
             "urn:x-nmos:cap:format:frame_height": {
-                "enum": [sdp_params.get("video_height", CONFIG.SDP_PREFERENCES["video_height"])]
+                "enum": [sdp_params.get("video_height")]
             },
             "urn:x-nmos:cap:format:frame_width": {
-                "enum": [sdp_params.get("video_width", CONFIG.SDP_PREFERENCES["video_width"])]
+                "enum": [sdp_params.get("video_width")]
             },
             "urn:x-nmos:cap:format:grain_rate": {
                 "enum": [{
@@ -422,19 +424,18 @@ class BCP0060102Test(ControllerTest):
                     "interlaced_bff",
                     "interlaced_tff",
                     "interlaced_psf"
-                ] if sdp_params.get("video_interlace", CONFIG.SDP_PREFERENCES["video_interlace"]) else [
+                ] if sdp_params.get("video_interlace") else [
                     "progressive"
                 ]
             },
             "urn:x-nmos:cap:format:component_depth": {
-                "enum": [sdp_params.get("video_depth", CONFIG.SDP_PREFERENCES["video_depth"])]
+                "enum": [sdp_params.get("video_depth")]
             },
             "urn:x-nmos:cap:format:colorspace": {
-                "enum": [sdp_params.get("video_colorimetry", CONFIG.SDP_PREFERENCES["video_colorimetry"])]
+                "enum": [sdp_params.get("video_colorimetry")]
             },
             "urn:x-nmos:cap:format:transfer_characteristic": {
-                "enum": [sdp_params.get("video_transfer_characteristic",
-                                        CONFIG.SDP_PREFERENCES["video_transfer_characteristic"])]
+                "enum": [sdp_params.get("video_transfer_characteristic")]
             }
         }
 
