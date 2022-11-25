@@ -503,14 +503,32 @@ class BCP0060102Test(ControllerTest):
                 "numerator": int(split_exactframerate[0])
             }
         if "video_sampling" in sdp_params:
+            frame_width = sdp_params["video_width"]
+            frame_height = sdp_params["video_height"]
+            component_depth = sdp_params["video_depth"]
             if sdp_params["video_sampling"] == "YCbCr-4:2:2":
                 flow_params["components"] = [
-                    {"name": "Y",  "width": sdp_params["video_width"], "height": sdp_params["video_height"],
-                        "bit_depth": sdp_params.get("video_depth")},
-                    {"name": "Cb", "width": int(sdp_params["video_width"])//2, "height": sdp_params["video_height"],
-                        "bit_depth": sdp_params.get("video_depth")},
-                    {"name": "Cr", "width": int(sdp_params["video_width"])//2, "height": sdp_params["video_height"],
-                        "bit_depth": sdp_params.get("video_depth")}
+                    {"name": "Y",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+                    {"name": "Cb", "width": frame_width//2, "height": frame_height, "bit_depth": component_depth},
+                    {"name": "Cr", "width": frame_width//2, "height": frame_height, "bit_depth": component_depth},
+                ]
+            elif sdp_params["video_sampling"] == "YCbCr-4:2:0":
+                flow_params["components"] = [
+                    {"name": "Y",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+                    {"name": "Cb", "width": frame_width//2, "height": frame_height//2, "bit_depth": component_depth},
+                    {"name": "Cr", "width": frame_width//2, "height": frame_height//2, "bit_depth": component_depth},
+                ]
+            elif sdp_params["video_sampling"] == "RGB":
+                flow_params["components"] = [
+                    {"name": "R",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+                    {"name": "G", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+                    {"name": "B", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+                ]
+            elif sdp_params["video_sampling"] == "YCbCr-4:4:4":
+                flow_params["components"] = [
+                    {"name": "Y",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+                    {"name": "Cb", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+                    {"name": "Cr", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
                 ]
 
         return flow_params
