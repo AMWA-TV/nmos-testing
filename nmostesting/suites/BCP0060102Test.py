@@ -524,8 +524,8 @@ class BCP0060102Test(ControllerTest):
 
         return False
 
-    # Adpated from itertools recipes
-    # https://docs.python.org/3/library/itertools.html#recipes
+    # Adapted from itertools recipes
+    # https://docs.python.org/3/library/itertools.html#itertools-recipes
     def _roundrobin(self, *iterables):
         "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
         # Recipe credited to George Sakkis
