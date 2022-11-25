@@ -398,10 +398,10 @@ class BCP0060102Test(ControllerTest):
         return interoperability_points
 
     def _generate_constraint_set(self, sdp_params):
-        split_exactframerate = sdp_params.get("video_exactframerate",
-                                              CONFIG.SDP_PREFERENCES["video_exactframerate"]).split('/')
 
         sdp_params = {**CONFIG.SDP_PREFERENCES, **sdp_params}
+
+        split_exactframerate = sdp_params.get("video_exactframerate").split('/')
 
         constraint_set = {
             "urn:x-nmos:cap:format:color_sampling": {
