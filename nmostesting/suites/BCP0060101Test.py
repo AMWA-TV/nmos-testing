@@ -105,3 +105,40 @@ class BCP0060101Test(GenericTest):
                 return test.FAIL("Expected key '{}' not found in response from {}".format(str(e), url))
 
         return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")
+
+    def test_02(self, test):
+        """JPEG XS Sources have the required attributes"""
+
+        url = self.node_url + "flows"
+        flows_valid, flows_response = self.do_request("GET", url)
+
+        if flows_valid and flows_response.status_code == 200:
+            try:
+                flows = flows_response.json()
+                found_video_jxsv = False
+
+                for flow in flows:
+                    if flow["media_type"] != "video/jxsv":
+                        continue
+                    found_video_jxsv = True
+
+                    url = self.node_url + "sources/" + flow["source_id"]
+                    source_valid, source_response = self.do_request("GET", url)
+                    if not source_valid or source_response.status_code != 200:
+                        return test.FAIL("Unexpected response from the Node API: {}".format(source_response))
+
+                    source = source_response.json()
+
+                    if source["format"] != "urn:x-nmos:format:video":
+                        return test.FAIL("Source {} MUST indicate format with value 'urn:x-nmos:format:video'"
+                                         .format(source["id"]))
+
+                if found_video_jxsv:
+                    return test.PASS()
+
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Expected key '{}' not found in response from {}".format(str(e), url))
+
+        return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")

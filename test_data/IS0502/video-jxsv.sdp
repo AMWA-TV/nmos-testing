@@ -1,0 +1,11 @@
+v=0
+o=- 3877078594 3877078594 IN IP4 {{ src_ip }}
+s=Demo Video JXSV Stream
+t=0 0
+m=video {{ dst_port }} RTP/AVP 96
+c=IN IP4 {{ dst_ip }}/32
+b=AS:{{ bit_rate }}
+a=mediaclk:direct=0
+a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
+a=rtpmap:96 {{ media_type }}/90000
+a=fmtp:96 packetmode=0; profile={{ profile }}; level={{ level }}; sublevel={{ sublevel }}; depth={{ depth }}; width={{ width }}; height={{ height }}; exactframerate={{ exactframerate }}; {{ "interlace; " if interlace else "" }}sampling={{ sampling }}; colorimetry={{ colorimetry }}; TCS={{ transfer_characteristic }}; SSN=ST2110-22:2019; TP={{ type_parameter }}

@@ -17,6 +17,7 @@ import uuid
 import re
 from requests.compat import json
 from copy import deepcopy
+from collections import defaultdict
 from random import randint
 from jinja2 import Template
 
@@ -1096,107 +1097,99 @@ class IS0502Test(GenericTest):
             return test.UNCLEAR("Could not find any IS-04 Receivers to test")
 
         video_sdp = open("test_data/IS0502/video.sdp").read()
+        video_jxsv_sdp = open("test_data/IS0502/video-jxsv.sdp").read()
         audio_sdp = open("test_data/IS0502/audio.sdp").read()
         data_sdp = open("test_data/IS0502/data.sdp").read()
         mux_sdp = open("test_data/IS0502/mux.sdp").read()
 
         found_rtp = False
-        warn_no_media_types = ""
+        formats_tested = defaultdict(int)
         warn_sdp_untested = ""
-        src_ip = get_default_ip()
         for receiver in self.is04_resources["receivers"]:
             if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
                 continue
             found_rtp = True
-            if "media_types" not in receiver["caps"] or len(receiver["caps"]["media_types"]) == 0:
-                if not warn_no_media_types:
-                    warn_no_media_types = "Could not test Receiver {} because it does not specify any " \
-                        "'caps.media_types'".format(receiver["id"])
+
+            caps = receiver["caps"]
+
+            if receiver["format"] == "urn:x-nmos:format:video":
+                media_type = caps["media_types"][0] if "media_types" in caps else "video/raw"
+            elif receiver["format"] == "urn:x-nmos:format:audio":
+                media_type = caps["media_types"][0] if "media_types" in caps else "audio/L24"
+            elif receiver["format"] == "urn:x-nmos:format:data":
+                media_type = caps["media_types"][0] if "media_types" in caps else "video/smpte291"
+            elif receiver["format"] == "urn:x-nmos:format:mux":
+                media_type = caps["media_types"][0] if "media_types" in caps else "video/SMPTE2022-6"
+            else:
+                return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
+
+            if CONFIG.MAX_TEST_ITERATIONS > 0:
+                # Limit maximum number of Receivers of each format that are tested
+                if CONFIG.MAX_TEST_ITERATIONS <= formats_tested[receiver["format"]]:
+                    continue
+
+            supported_media_types = [
+                "video/raw",
+                "video/jxsv",
+                "audio/L16",
+                "audio/L24",
+                "audio/L32",
+                "video/smpte291",
+                "video/SMPTE2022-6"
+            ]
+            if media_type not in supported_media_types:
+                if not warn_sdp_untested:
+                    warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data " \
+                        "for media_type '{}'".format(receiver["id"], media_type)
                 continue
 
-            sdp_file = None
+            media_type, media_subtype = media_type.split("/")
+
+            if media_type == "video":
+                if media_subtype == "raw":
+                    template_file = video_sdp
+                elif media_subtype == "jxsv":
+                    template_file = video_jxsv_sdp
+                elif media_subtype == "smpte291":
+                    template_file = data_sdp
+                elif media_subtype == "SMPTE2022-6":
+                    template_file = mux_sdp
+            elif media_type == "audio":
+                if media_subtype in ["L16", "L24", "L32"]:
+                    template_file = audio_sdp
+
+            template = Template(template_file, keep_trailing_newline=True)
+
+            src_ip = get_default_ip()
             dst_ip = "232.40.50.{}".format(randint(1, 254))
             dst_port = randint(5000, 5999)
-            if receiver["format"] == "urn:x-nmos:format:video":
-                template = Template(video_sdp, keep_trailing_newline=True)
-                interlace = ""
-                if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
-                    interlace = "interlace; "
-                # TODO: The media types besides video/raw likely need some different fmtp params
-                if "video/raw" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
-                        width=CONFIG.SDP_PREFERENCES["video_width"],
-                        height=CONFIG.SDP_PREFERENCES["video_height"],
-                        interlace=interlace,
-                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-                elif "video/vc2" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="vc2",
-                        width=CONFIG.SDP_PREFERENCES["video_width"],
-                        height=CONFIG.SDP_PREFERENCES["video_height"],
-                        interlace=interlace,
-                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-                elif "video/H264" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264",
-                        width=CONFIG.SDP_PREFERENCES["video_width"],
-                        height=CONFIG.SDP_PREFERENCES["video_height"],
-                        interlace=interlace,
-                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-            elif receiver["format"] == "urn:x-nmos:format:audio":
-                template = Template(audio_sdp, keep_trailing_newline=True)
-                if "audio/L16" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L16",
-                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-                elif "audio/L24" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
-                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-                elif "audio/L32" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L32",
-                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-            elif receiver["format"] == "urn:x-nmos:format:data":
-                template = Template(data_sdp, keep_trailing_newline=True)
-                if "video/smpte291" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
-            elif receiver["format"] == "urn:x-nmos:format:mux":
-                template = Template(mux_sdp, keep_trailing_newline=True)
-                if "video/SMPTE2022-6" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
 
-            if not sdp_file:
-                if not warn_sdp_untested:
-                    warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data for " \
-                        "any of its 'caps.media_types': {}".format(receiver["id"], receiver["caps"]["media_types"])
-
-                continue
+            if media_type == "video":
+                # Not all keywords are used in all templates but that's OK
+                sdp_file = template.render(
+                    dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
+                    media_type=media_subtype,
+                    width=CONFIG.SDP_PREFERENCES["video_width"],
+                    height=CONFIG.SDP_PREFERENCES["video_height"],
+                    interlace=CONFIG.SDP_PREFERENCES["video_interlace"],
+                    exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                    depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                    sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                    colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                    transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                    type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
+                    profile=CONFIG.SDP_PREFERENCES["video_profile"],
+                    level=CONFIG.SDP_PREFERENCES["video_level"],
+                    sublevel=CONFIG.SDP_PREFERENCES["video_sublevel"],
+                    bit_rate=CONFIG.SDP_PREFERENCES["video_bit_rate"])
+            elif media_type == "audio":
+                sdp_file = template.render(
+                    dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
+                    media_type=media_subtype,
+                    channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                    sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                    max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                    packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
 
             url = "single/receivers/{}/staged".format(receiver["id"])
             data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
@@ -1230,10 +1223,10 @@ class IS0502Test(GenericTest):
                 return test.FAIL("Receiver {} did not set 'rtp_enabled' to false in second leg of staged response"
                                  .format(receiver["id"]))
 
+            formats_tested[receiver["format"]] += 1
+
         if not found_rtp:
             return test.UNCLEAR("Could not find any IS-04 RTP Receivers to test")
-        elif warn_no_media_types:
-            return test.OPTIONAL(warn_no_media_types)
         elif warn_sdp_untested:
             return test.MANUAL(warn_sdp_untested)
         return test.PASS()
