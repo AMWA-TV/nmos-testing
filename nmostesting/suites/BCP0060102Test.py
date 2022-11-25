@@ -600,7 +600,8 @@ class BCP0060102Test(ControllerTest):
                                  ('C', 'FHD'), ('C', 'UHD1'), ('C', 'UHD2'),
                                  ('D', 'UHD1'), ('D', 'UHD2')]
 
-        sender_count = max(CONFIG.MAX_TEST_ITERATIONS, len(sender_configurations))
+        sender_count = len(interoperability_points) if not CONFIG.MAX_TEST_ITERATIONS \
+            else max(CONFIG.MAX_TEST_ITERATIONS, len(sender_configurations))
 
         sender_interop_points = interoperability_points[:sender_count].copy()
 

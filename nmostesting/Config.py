@@ -69,8 +69,8 @@ HTTP_TIMEOUT = 1
 
 # Restrict the maximum number of resources that time consuming tests run against.
 # 0 = unlimited for a really thorough test!
-# Conversely for BCP-006-01 testing set MAX_TEST_ITERATIONS to value > 50 to run through all
-# TR-08 Capability set/Conformance level/Interop point combinations.
+# Use for BCP0060102 to limit the the TR-08 Capability set/Conformance level/Interop point combination tested.
+# 0 = test all combinations
 MAX_TEST_ITERATIONS = 0
 
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
