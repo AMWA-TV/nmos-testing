@@ -126,7 +126,6 @@ class GenericTest(object):
         """Perform tests defined within this class"""
 
         for test_name in test_names:
-            NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(test_name))
             self.execute_test(test_name)
 
     def execute_test(self, test_name):
@@ -144,6 +143,7 @@ class GenericTest(object):
                 if method_name.startswith("test_"):
                     method = getattr(self, method_name)
                     if callable(method):
+                        NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(method_name))
                         print(" * Running " + method_name)
                         test = Test(inspect.getdoc(method), method_name)
                         try:
@@ -157,6 +157,7 @@ class GenericTest(object):
         if test_name != "auto" and test_name != "all":
             method = getattr(self, test_name)
             if callable(method):
+                NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(test_name))
                 print(" * Running " + test_name)
                 test = Test(inspect.getdoc(method), test_name)
                 try:
