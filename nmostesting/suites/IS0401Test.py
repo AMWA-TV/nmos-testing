@@ -31,6 +31,7 @@ from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
+from ..mocks.Node import NODE
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -87,7 +88,7 @@ class IS0401Test(GenericTest):
         if self.dns_server:
             self.dns_server.reset()
 
-    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
+    def _mdns_info(self, port, service_type, txt={}, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         if api_ver is None:
             api_ver = self.apis[NODE_API_KEY]["version"]
@@ -103,17 +104,29 @@ class IS0401Test(GenericTest):
             hostname = ip.replace(".", "-") + ".local."
 
         # TODO: Add another test which checks support for parsing CSV string in api_ver
-        txt = {'api_ver': api_ver, 'api_proto': api_proto, 'pri': str(priority), 'api_auth': str(api_auth).lower()}
-
-        service_type = "_nmos-registration._tcp.local."
-        if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
-            service_type = "_nmos-register._tcp.local."
+        txt = {**txt, 'api_ver': api_ver, 'api_proto': api_proto, 'api_auth': str(api_auth).lower()}
 
         info = ServiceInfo(service_type,
                            "NMOSTestSuite{}{}.{}".format(port, api_proto, service_type),
                            addresses=[socket.inet_aton(ip)], port=port,
                            properties=txt, server=hostname)
         return info
+
+    def _registry_mdns_info(self, port, priority=0, api_ver=None, api_proto=None, api_auth=None, ip=None):
+        service_type = "_nmos-registration._tcp.local."
+        if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0:
+            service_type = "_nmos-register._tcp.local."
+
+        txt = {'pri': str(priority)}
+
+        return self._mdns_info(port, service_type, txt, api_ver, api_proto, api_auth, ip)
+
+    def _node_mdns_info(self, port, api_ver=None, api_proto=None, api_auth=None, ip=None):
+        service_type = "_nmos-node._tcp.local."
+
+        txt = {'ver_slf': 0, 'ver_src': 0, 'ver_flw': 0, 'ver_dvc': 0, 'ver_snd': 0, 'ver_rcv': 0}
+
+        return self._mdns_info(port, service_type, txt, api_ver, api_proto, api_auth, ip)
 
     def do_node_basics_prereqs(self):
         """Collect a copy of each of the Node's resources"""
@@ -796,6 +809,9 @@ class IS0401Test(GenericTest):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
         and connects the Receiver to a stream"""
 
+        if CONFIG.DNS_SD_MODE == "multicast":
+            sender_info = self._node_mdns_info(NODE.port)
+
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid or receivers.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
@@ -842,8 +858,15 @@ class IS0401Test(GenericTest):
                             "for media_type '{}'".format(receiver["id"], media_type)
                     continue
 
+                if CONFIG.DNS_SD_MODE == "multicast":
+                    # Advertise the sender to allow the Node to find it to make connection
+                    self.zc.register_service(sender_info)
+
                 request_data = self.node.get_sender(media_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
+
+                if CONFIG.DNS_SD_MODE == "multicast":
+                    self.zc.unregister_service(sender_info)
 
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
