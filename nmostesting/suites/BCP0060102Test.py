@@ -671,17 +671,15 @@ class BCP0060102Test(ControllerTest):
                        that are JPEG XS capable from the following list.
                        """
 
-            jpeg_xs_senders = [r for r in self.senders if 'jxsv' == r['sdp_params']['media_type']]
-            video_raw_senders = [r for r in self.senders if 'raw' == r['sdp_params']['media_type']]
+            jpeg_xs_senders = [s for s in self.senders if 'jxsv' == s['sdp_params']['media_type']]
+            video_raw_senders = [s for s in self.senders if 'raw' == s['sdp_params']['media_type']]
 
-            candidate_senders = NMOSUtils.RANDOM.sample(jpeg_xs_senders,
-                                                        NMOSUtils.RANDOM.randint(1,
-                                                                                 min(CANDIDATE_SENDER_COUNT,
-                                                                                     len(jpeg_xs_senders))))
+            jpeg_xs_sender_count = NMOSUtils.RANDOM.randint(1, min(CANDIDATE_SENDER_COUNT, len(jpeg_xs_senders)))
+            candidate_senders = NMOSUtils.RANDOM.sample(jpeg_xs_senders, jpeg_xs_sender_count)
+
             if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
-                candidate_senders.extend(NMOSUtils.RANDOM.sample(video_raw_senders,
-                                                                 min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
-                                                                     len(video_raw_senders))))
+                other_sender_count = min(CANDIDATE_SENDER_COUNT - len(candidate_senders), len(video_raw_senders))
+                candidate_senders.extend(NMOSUtils.RANDOM.sample(video_raw_senders, other_sender_count))
 
             candidate_senders.sort(key=itemgetter("label"))
 
@@ -727,14 +725,13 @@ class BCP0060102Test(ControllerTest):
             jpeg_xs_receivers = [r for r in self.receivers if 'video/jxsv' in r['caps']['media_types']]
             video_raw_receivers = [r for r in self.receivers if 'video/raw' in r['caps']['media_types']]
 
-            candidate_receivers = NMOSUtils.RANDOM.sample(jpeg_xs_receivers,
-                                                          NMOSUtils.RANDOM.randint(1, min(CANDIDATE_RECEIVER_COUNT,
-                                                                                   len(jpeg_xs_receivers))))
+            jpeg_xs_receiver_count = NMOSUtils.RANDOM.randint(1, min(CANDIDATE_RECEIVER_COUNT, len(jpeg_xs_receivers)))
+            candidate_receivers = NMOSUtils.RANDOM.sample(jpeg_xs_receivers, jpeg_xs_receiver_count)
+
             if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
-                candidate_receivers.extend(NMOSUtils.RANDOM.sample(video_raw_receivers,
-                                                                   min(CANDIDATE_RECEIVER_COUNT
-                                                                       - len(candidate_receivers),
-                                                                       len(video_raw_receivers))))
+                other_receiver_count = min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
+                                           len(video_raw_receivers))
+                candidate_receivers.extend(NMOSUtils.RANDOM.sample(video_raw_receivers, other_receiver_count))
 
             candidate_receivers.sort(key=itemgetter("label"))
 
@@ -789,16 +786,14 @@ class BCP0060102Test(ControllerTest):
                 compatible_receviers = [r for r in self.receivers if self._is_compatible(sender, r)]
                 other_receivers = [r for r in self.receivers if not self._is_compatible(sender, r)]
 
-                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receviers,
-                                                              NMOSUtils.RANDOM.randint(
-                                                                  1,
-                                                                  min(MAX_COMPATIBLE_RECEIVER_COUNT,
-                                                                      len(compatible_receviers))))
+                compatible_receiver_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT,
+                                                                            len(compatible_receviers)))
+                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receviers, compatible_receiver_count)
+
                 if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
-                    candidate_receivers.extend(NMOSUtils.RANDOM.sample(other_receivers,
-                                                                       min(CANDIDATE_RECEIVER_COUNT
-                                                                           - len(candidate_receivers),
-                                                                           len(other_receivers))))
+                    incompatible_receiver_count = min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
+                                                      len(other_receivers))
+                    candidate_receivers.extend(NMOSUtils.RANDOM.sample(other_receivers, incompatible_receiver_count))
 
                 candidate_receivers.sort(key=itemgetter("label"))
 
@@ -858,15 +853,14 @@ class BCP0060102Test(ControllerTest):
                 compatible_senders = [s for s in self.senders if self._is_compatible(s, receiver)]
                 other_senders = [s for s in self.senders if not self._is_compatible(s, receiver)]
 
-                candidate_senders = NMOSUtils.RANDOM.sample(compatible_senders,
-                                                            NMOSUtils.RANDOM.randint(
-                                                                1, min(MAX_COMPATIBLE_SENDER_COUNT,
-                                                                       len(compatible_senders))))
+                compatible_sender_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT,
+                                                                          len(compatible_senders)))
+                candidate_senders = NMOSUtils.RANDOM.sample(compatible_senders, compatible_sender_count)
+
                 if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
-                    candidate_senders.extend(NMOSUtils.RANDOM.sample(other_senders,
-                                                                     min(CANDIDATE_SENDER_COUNT
-                                                                         - len(candidate_senders),
-                                                                         len(other_senders))))
+                    incompatible_sender_count = min(CANDIDATE_SENDER_COUNT - len(candidate_senders),
+                                                    len(other_senders))
+                    candidate_senders.extend(NMOSUtils.RANDOM.sample(other_senders, incompatible_sender_count))
 
                 candidate_senders.sort(key=itemgetter("label"))
 
