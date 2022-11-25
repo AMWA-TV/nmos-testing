@@ -31,7 +31,7 @@ class BCP0060102Test(ControllerTest):
     def _create_interop_point(self, sdp_base, override_params):
         interop_point = {**sdp_base, **override_params}
         # Set bit rate and sublevel based on 2 bpp relying on VSF TR-08:2022 Appendix B min bit rate for 1.5 bpp
-        interop_point['bit_rate'] = int(round(interop_point['min_bitrate'] * 2/1.5, -3))
+        interop_point['bit_rate'] = int(round(interop_point['min_bit_rate'] * 2/1.5, -3))
         interop_point['sublevel'] = 'Sublev3bpp'
         return interop_point
 
