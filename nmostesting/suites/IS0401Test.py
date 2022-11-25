@@ -22,6 +22,7 @@ from jsonschema import ValidationError
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from copy import deepcopy
+from collections import defaultdict
 from pathlib import Path
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 
@@ -800,44 +801,46 @@ class IS0401Test(GenericTest):
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
-            formats_tested = []
+            found_rtp = False
+            formats_tested = defaultdict(int)
+            warn_sdp_untested = ""
             for receiver in receivers.json():
                 if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
                     continue
-
-                try:
-                    stream_type = receiver["format"].split(":")[-1]
-                except TypeError:
-                    return test.FAIL("Unexpected Receiver format: {}".format(receiver))
-
-                # Test each available receiver format once
-                # TODO: Should this be based on CONFIG.MAX_TEST_ITERATIONS?
-                if stream_type in formats_tested:
-                    continue
-
-                if stream_type not in ["video", "audio", "data", "mux"]:
-                    return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
+                found_rtp = True
 
                 caps = receiver["caps"]
 
-                if stream_type == "video":
+                if receiver["format"] == "urn:x-nmos:format:video":
                     media_type = caps["media_types"][0] if "media_types" in caps else "video/raw"
-                elif stream_type == "audio":
+                elif receiver["format"] == "urn:x-nmos:format:audio":
                     media_type = caps["media_types"][0] if "media_types" in caps else "audio/L24"
-                elif stream_type == "data":
+                elif receiver["format"] == "urn:x-nmos:format:data":
                     media_type = caps["media_types"][0] if "media_types" in caps else "video/smpte291"
-                elif stream_type == "mux":
+                elif receiver["format"] == "urn:x-nmos:format:mux":
                     media_type = caps["media_types"][0] if "media_types" in caps else "video/SMPTE2022-6"
+                else:
+                    return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
+
+                if CONFIG.MAX_TEST_ITERATIONS > 0:
+                    # Limit maximum number of Receivers of each format that are tested
+                    if CONFIG.MAX_TEST_ITERATIONS <= formats_tested[receiver["format"]]:
+                        continue
 
                 supported_media_types = [
                     "video/raw",
                     "video/jxsv",
+                    "audio/L16",
                     "audio/L24",
+                    "audio/L32",
                     "video/smpte291",
                     "video/SMPTE2022-6"
                 ]
                 if media_type not in supported_media_types:
-                    return test.MANUAL("Unsupported video Receiver caps media_types: {}".format(media_type))
+                    if not warn_sdp_untested:
+                        warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data " \
+                            "for media_type '{}'".format(receiver["id"], media_type)
+                    continue
 
                 request_data = self.node.get_sender(media_type)
                 self.do_receiver_put(test, receiver["id"], request_data)
@@ -859,9 +862,11 @@ class IS0401Test(GenericTest):
                         return test.FAIL("Node API Receiver {} subscription does not indicate an active "
                                          "subscription".format(receiver["id"]))
 
-                formats_tested.append(stream_type)
+                formats_tested[receiver["format"]] += 1
 
-            if len(formats_tested) > 0:
+            if warn_sdp_untested:
+                return test.MANUAL(warn_sdp_untested)
+            elif found_rtp:
                 return test.PASS()
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")

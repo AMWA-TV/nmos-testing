@@ -8,4 +8,4 @@ b=AS:{{ bit_rate }}
 a=mediaclk:direct=0
 a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=rtpmap:96 {{ media_type }}/90000
-a=fmtp:96 packetmode={{ packet_mode }}; profile={{ profile }}; level={{ level }}; sublevel={{ sub_level }}; depth={{ depth }}; width={{ width }}; height={{ height }}; exactframerate={{ exactframerate }}; {{ "interlace; " if interlace else "" }}sampling={{ sampling }}; colorimetry={{ colorimetry }}; TCS={{ transfer_characteristic }}; SSN={{ ssn }}; TP={{ type_parameter }}
+a=fmtp:96 packetmode=0; profile={{ profile }}; level={{ level }}; sublevel={{ sublevel }}; depth={{ depth }}; width={{ width }}; height={{ height }}; exactframerate={{ exactframerate }}; {{ "interlace; " if interlace else "" }}sampling={{ sampling }}; colorimetry={{ colorimetry }}; TCS={{ transfer_characteristic }}; SSN=ST2110-22:2019; TP={{ type_parameter }}
