@@ -158,7 +158,7 @@ SDP_PREFERENCES = {
     "video_depth": 10,
     "video_sampling": "YCbCr-4:2:2",
     "video_colorimetry": "BT709",
-    "video_fullrange": False,
+    "video_range": None,
     "video_transfer_characteristic": "SDR",
     "video_type_parameter": "2110TPW",
     # video/jxsv

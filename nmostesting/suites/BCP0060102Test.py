@@ -255,7 +255,7 @@ class BCP0060102Test(ControllerTest):
                                                                      'video_exactframerate': '60',
                                                                      'min_bit_rate': 207000,
                                                                      'max_bit_rate': 552000,
-                                                                     'video_fullrange': True,
+                                                                     'video_range': 'FULL',
                                                                      'video_level': '4k-1'})
         interoperability_points.append(interop_point_2a)
 
@@ -264,7 +264,7 @@ class BCP0060102Test(ControllerTest):
                                                                      'video_exactframerate': '50',
                                                                      'min_bit_rate': 173000,
                                                                      'max_bit_rate': 461000,
-                                                                     'video_fullrange': True,
+                                                                     'video_range': 'FULL',
                                                                      'video_level': '4k-1'})
         interoperability_points.append(interop_point_2b)
 
@@ -646,7 +646,7 @@ class BCP0060102Test(ControllerTest):
         # For a particular conformance level (FHD, UHD1, UHD2):
         # * AB Senders are compatible with: [AB, C, D] Receivers
         # * C  Senders are compatible with: [C, D] Receivers
-        # * D  Senders are compatible with: [D Receivers
+        # * D  Senders are compatible with: [D] Receivers
 
         # pad configurations with some video/raw (None, None) configurations
         capability_configurations = [(['AB', 'C', 'D'], 'FHD'), (['AB', 'C', 'D'], 'UHD1'), (['AB', 'C', 'D'], 'UHD2'),
@@ -921,82 +921,120 @@ class BCP0060102Test(ControllerTest):
         # Perform an immediate activation between a Receiver and a Sender.
         # Sender and Recievers have SDP/caps as specifiied in TR-08.
 
+        CANDIDATE_SENDER_COUNT = 3
+
         try:
-            self.node.clear_staged_requests()
-            # Choose random sender and receiver to be connected
-            jxsv_senders = [s for s in self.senders if 'jxsv' == s['sdp_params']['media_type']]
-            sender = NMOSUtils.RANDOM.choice(jxsv_senders)
-            jxsv_receivers = [r for r in self.receivers if self._is_compatible(sender, r)]
-            receiver = NMOSUtils.RANDOM.choice(jxsv_receivers)
+            # Pick representative interoperability points
+            jxsv_senders = NMOSUtils.RANDOM.sample([s for s in self.senders
+                                                    if 'video/jxsv' == s['sdp_params']['media_type']],
+                                                   CANDIDATE_SENDER_COUNT)
 
-            question = textwrap.dedent(f"""\
-                       All flows that are available in a Sender should be able to be \
-                       connected to a compatible Receiver.
+            for sender in jxsv_senders:
+                self.node.clear_staged_requests()
 
-                       Use the NCuT to perform an 'immediate' activation between sender:
+                #  sender = NMOSUtils.RANDOM.choice(jxsv_senders)
+                jxsv_receivers = [r for r in self.receivers if self._is_compatible(sender, r)]
+                receiver = NMOSUtils.RANDOM.choice(jxsv_receivers)
 
-                       {sender['display_answer']}
+                question = textwrap.dedent(f"""\
+                           All flows that are available in a Sender should be able to be \
+                           connected to a compatible Receiver.
 
-                       and receiver:
+                           Use the NCuT to perform an 'immediate' activation between sender:
 
-                       {receiver['display_answer']}
+                           {sender['display_answer']}
 
-                       Click the 'Next' button once the connection is active.
-                       """)
+                           and receiver:
 
-            possible_answers = []
+                           {receiver['display_answer']}
 
-            metadata = {'sender':
-                        {'id': sender['id'],
-                         'label': sender['label'],
-                         'description': sender['description']},
-                        'receiver':
-                        {'id': receiver['id'],
-                         'label': receiver['label'],
-                         'description': receiver['description']}}
+                           Click the 'Next' button once the connection is active.
+                           """)
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+                possible_answers = []
 
-            # Check the staged API endpoint received the correct PATCH request
-            patch_requests = [r for r in self.node.staged_requests
-                              if r['method'] == 'PATCH' and r['resource'] == 'receivers']
-            if len(patch_requests) < 1:
-                return test.FAIL('No PATCH request was received by the node')
-            elif len(patch_requests) == 1:
-                if patch_requests[0]['resource_id'] != receiver['id']:
-                    return test.FAIL('Connection request sent to incorrect receiver')
+                metadata = {'sender':
+                            {'id': sender['id'],
+                             'label': sender['label'],
+                             'description': sender['description']},
+                            'receiver':
+                            {'id': receiver['id'],
+                             'label': receiver['label'],
+                             'description': receiver['description']}}
 
-                if 'master_enable' not in patch_requests[0]['data']:
-                    return test.FAIL('Master enable not found in PATCH request')
+                self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+
+                # Check the staged API endpoint received the correct PATCH request
+                patch_requests = [r for r in self.node.staged_requests
+                                  if r['method'] == 'PATCH' and r['resource'] == 'receivers']
+                if len(patch_requests) < 1:
+                    return test.FAIL('No PATCH request was received by the node')
+                elif len(patch_requests) == 1:
+                    if patch_requests[0]['resource_id'] != receiver['id']:
+                        return test.FAIL('Connection request sent to incorrect receiver')
+
+                    if 'master_enable' not in patch_requests[0]['data']:
+                        return test.FAIL('Master enable not found in PATCH request')
+                    else:
+                        if not patch_requests[0]['data']['master_enable']:
+                            return test.FAIL('Master_enable not set to True in PATCH request')
+
+                    if 'sender_id' in patch_requests[0]['data'] and patch_requests[0]['data']['sender_id']\
+                            and patch_requests[0]['data']['sender_id'] != sender['id']:
+                        return test.FAIL('Incorrect sender found in PATCH request')
+
+                    if 'activation' not in patch_requests[0]['data']:
+                        return test.FAIL('No activation details in PATCH request')
+
+                    if patch_requests[0]['data']['activation'].get('mode') != 'activate_immediate':
+                        return test.FAIL('Immediate activation not requested in PATCH request')
                 else:
-                    if not patch_requests[0]['data']['master_enable']:
-                        return test.FAIL('Master_enable not set to True in PATCH request')
+                    return test.FAIL('Multiple PATCH requests were found')
 
-                if 'sender_id' in patch_requests[0]['data'] and patch_requests[0]['data']['sender_id']\
-                        and patch_requests[0]['data']['sender_id'] != sender['id']:
-                    return test.FAIL('Incorrect sender found in PATCH request')
+                # Check the receiver now has subscription details
+                if receiver['id'] in self.primary_registry.get_resources()["receiver"]:
+                    receiver_details = self.primary_registry.get_resources()["receiver"][receiver['id']]
 
-                if 'activation' not in patch_requests[0]['data']:
-                    return test.FAIL('No activation details in PATCH request')
+                    if not receiver_details['subscription']['active']:
+                        return test.FAIL('Receiver does not have active subscription')
 
-                if patch_requests[0]['data']['activation'].get('mode') != 'activate_immediate':
-                    return test.FAIL('Immediate activation not requested in PATCH request')
-            else:
-                return test.FAIL('Multiple PATCH requests were found')
+                    if 'sender_id' in receiver_details['subscription'] \
+                            and receiver_details['subscription']['sender_id'] \
+                            and receiver_details['subscription']['sender_id'] != sender['id']:
+                        return test.FAIL('Receiver did not connect to correct sender')
 
-            # Check the receiver now has subscription details
-            if receiver['id'] in self.primary_registry.get_resources()["receiver"]:
-                receiver_details = self.primary_registry.get_resources()["receiver"][receiver['id']]
+                if 'sender_id' not in patch_requests[0]['data'] or not patch_requests[0]['data']['sender_id']:
+                    return test.WARNING('Sender id SHOULD be set in patch request')
 
-                if not receiver_details['subscription']['active']:
-                    return test.FAIL('Receiver does not have active subscription')
+                # Check patched SDP parameters are what were expected
+                patched_sdp = self.node.patched_sdp[receiver['id']]
 
-                if 'sender_id' in receiver_details['subscription'] and receiver_details['subscription']['sender_id']\
-                        and receiver_details['subscription']['sender_id'] != sender['id']:
-                    return test.FAIL('Receiver did not connect to correct sender')
+                # Compare patched SDP with Sender parameters
+                param_mapping = {'video_width': 'width',
+                                 'video_height': 'height',
+                                 'video_depth': 'depth',
+                                 'video_exactframerate': 'exactframerate',
+                                 'video_interlace': 'interlace',  # Optional
+                                 'video_profile': 'profile',
+                                 'video_level': 'level',
+                                 'video_sublevel': 'sublevel',
+                                 'video_sampling': 'sampling',
+                                 'video_colorimetry': 'colorimetry',
+                                 'video_range': 'RANGE',  # Optional
+                                 'video_transfer_characteristic': 'TCS',
+                                 'video_type_parameter': 'TP'}
 
-            if 'sender_id' not in patch_requests[0]['data'] or not patch_requests[0]['data']['sender_id']:
-                return test.WARNING('Sender id SHOULD be set in patch request')
+                if 'format' in patched_sdp[0]:
+                    for sdp_param, patched_param in param_mapping.items():
+                        if sender['sdp_params'].get(sdp_param) \
+                                and str(sender['sdp_params'][sdp_param]) \
+                                != patched_sdp[0]['format'].get(patched_param):
+                            return test.FAIL('Patched SDP does not match: ' + sdp_param)
+
+                # Disconnect receivers
+                deactivate_json = {"master_enable": False, 'sender_id': None,
+                                   "activation": {"mode": "activate_immediate"}}
+                self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
             return test.PASS("Connection successfully established")
         except TestingFacadeException as e:

@@ -38,6 +38,7 @@ class Node(object):
         self.staged_requests = []
         self.receivers = {}
         self.senders = {}
+        self.patched_sdp = {}
 
     def get_sender(self, media_type="video/raw"):
         protocol = "http"
@@ -211,6 +212,16 @@ class Node(object):
                 sdp_param_leg["source_ip"] = filter_line.group(2)
             else:
                 sdp_param_leg["source_ip"] = None
+
+            format_line = re.search(r"a=fmtp:(\S*\s*)(.*)", sdp_data)
+
+            if format_line and format_line.group(2):
+                #  Handle parameter keys that have no value, e.g. 'interlace' and set the value to 'True'
+                sdp_param_leg["format"] = {key: ''.join(value) if len(value) > 0 else 'True'
+                                           for key, *value in
+                                           [item.split('=') for item in re.split(';\\s', format_line.group(2))]
+                                           }
+
             sdp_params.append(sdp_param_leg)
 
         return sdp_params
@@ -239,10 +250,23 @@ class Node(object):
             if transport_file['type'] == 'application/sdp':
                 sdp_params = self.parse_sdp(transport_file['data'])
 
-                for key, value in sdp_params[0].items():
-                    response_data['transport_params'][0][key] = value
+                # Store patched SDP params for later validation in tests
+                self.patched_sdp[resource_id] = sdp_params
 
-                response_data['transport_params'][0]['rtp_enabled'] = True
+                rtp_enabled = {'rtp_enabled': True}
+
+                sdp_transport_param_keys = ['destination_port',
+                                            'multicast_ip',
+                                            'interface_ip',
+                                            'source_ip']
+
+                sdp_transport_params = {key: value for key, value in sdp_params[0].items()
+                                        if key in sdp_transport_param_keys}
+
+                response_data['transport_params'][0] = {**response_data['transport_params'][0],
+                                                        **sdp_transport_params,
+                                                        **rtp_enabled}
+                # response_data['transport_params'][0]['rtp_enabled'] = True
 
         # Overwrite with supplied parameters in transport_params
         if 'transport_params' in request_json:
@@ -376,7 +400,7 @@ def node_sdp(media_type, media_subtype):
             depth=CONFIG.SDP_PREFERENCES["video_depth"],
             sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
             colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-            fullrange=CONFIG.SDP_PREFERENCES["video_fullrange"],
+            fullrange=CONFIG.SDP_PREFERENCES["video_range"],
             transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
             type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
             profile=CONFIG.SDP_PREFERENCES["video_profile"],
@@ -612,7 +636,7 @@ def transport_file(version, resource, resource_id):
                 depth=sdp_params["video_depth"],
                 sampling=sdp_params["video_sampling"],
                 colorimetry=sdp_params["video_colorimetry"],
-                fullrange=sdp_params["video_fullrange"],
+                fullrange=sdp_params["video_range"],
                 transfer_characteristic=sdp_params["video_transfer_characteristic"],
                 type_parameter=sdp_params["video_type_parameter"],
                 profile=sdp_params["video_profile"],

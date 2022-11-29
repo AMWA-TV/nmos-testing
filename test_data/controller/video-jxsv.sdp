@@ -8,5 +8,5 @@ b=AS:{{ bit_rate }}
 a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0
 a=rtpmap:97 jxsv/90000
-a=fmtp:97 packetmode=0; profile={{ profile }}; level={{ level }}; sublevel={{ sublevel }}; depth={{ depth }}; width={{ width }}; height={{ height }}; exactframerate={{ exactframerate }}; {{ "interlace; " if interlace else "" }}sampling={{ sampling }}; colorimetry={{ colorimetry }}; {{ "RANGE=FULL; " if fullrange else "" }}TCS={{ transfer_characteristic }}; SSN=ST2110-22:2022; TP={{ type_parameter }}
+a=fmtp:97 packetmode=0; profile={{ profile }}; level={{ level }}; sublevel={{ sublevel }}; depth={{ depth }}; width={{ width }}; height={{ height }}; exactframerate={{ exactframerate }}; {{ "interlace; " if interlace else "" }}sampling={{ sampling }}; colorimetry={{ colorimetry }}; {% if fullrange -%}RANGE={{ fullrange }}; {% endif %}TCS={{ transfer_characteristic }}; SSN=ST2110-22:2022; TP={{ type_parameter }}
 a=mediaclk:direct=0
