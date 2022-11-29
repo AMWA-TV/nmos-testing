@@ -919,7 +919,7 @@ class BCP0060102Test(ControllerTest):
         Instruct Receiver to subscribe to a Sender's JPEG XS Flow via IS-05
         """
         # Perform an immediate activation between a Receiver and a Sender.
-        # Sender and Recievers have SDP/caps as specifiied in TR-08.
+        # Sender and Receivers have SDP/caps as specified in TR-08.
 
         CANDIDATE_SENDER_COUNT = 3
 

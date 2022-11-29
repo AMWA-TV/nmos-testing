@@ -219,7 +219,7 @@ class Node(object):
                 #  Handle parameter keys that have no value, e.g. 'interlace' and set the value to 'True'
                 sdp_param_leg["format"] = {key: ''.join(value) if len(value) > 0 else 'True'
                                            for key, *value in
-                                           [item.split('=') for item in re.split(';\\s', format_line.group(2))]
+                                           [item.split('=') for item in re.split(r'[ \t]*;[ \t]*', format_line.group(2))]
                                            }
 
             sdp_params.append(sdp_param_leg)
@@ -266,7 +266,6 @@ class Node(object):
                 response_data['transport_params'][0] = {**response_data['transport_params'][0],
                                                         **sdp_transport_params,
                                                         **rtp_enabled}
-                # response_data['transport_params'][0]['rtp_enabled'] = True
 
         # Overwrite with supplied parameters in transport_params
         if 'transport_params' in request_json:
