@@ -1031,7 +1031,7 @@ class BCP0060102Test(ControllerTest):
                                 != patched_sdp[0]['format'].get(patched_param):
                             return test.FAIL('Patched SDP does not match: ' + sdp_param)
 
-                # Disconnect receivers
+                # Disconnect receiver
                 deactivate_json = {"master_enable": False, 'sender_id': None,
                                    "activation": {"mode": "activate_immediate"}}
                 self.node.patch_staged('receivers', receiver['id'], deactivate_json)
