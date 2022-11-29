@@ -932,7 +932,6 @@ class BCP0060102Test(ControllerTest):
             for sender in jxsv_senders:
                 self.node.clear_staged_requests()
 
-                #  sender = NMOSUtils.RANDOM.choice(jxsv_senders)
                 jxsv_receivers = [r for r in self.receivers if self._is_compatible(sender, r)]
                 receiver = NMOSUtils.RANDOM.choice(jxsv_receivers)
 
