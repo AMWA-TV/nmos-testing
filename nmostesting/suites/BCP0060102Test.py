@@ -936,7 +936,7 @@ class BCP0060102Test(ControllerTest):
                 receiver = NMOSUtils.RANDOM.choice(jxsv_receivers)
 
                 question = textwrap.dedent(f"""\
-                           All flows that are available in a Sender should be able to be \
+                           All JPEG XS flows that are available in a Sender should be able to be \
                            connected to a compatible Receiver.
 
                            Use the NCuT to perform an 'immediate' activation between sender:
