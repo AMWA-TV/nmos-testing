@@ -397,7 +397,7 @@ class ControllerTest(GenericTest):
         if "sdp_params" in sender:
             # Mapping sdp_params names to sender names
             # For JPEG XS Senders, 'bit_rate' and 'st2110_21_sender_type' MUST be included
-            param_mapping = {'video_bit_rate': 'bit_rate', 'video_type_parameter': 'st2110_21_sender_type',
+            param_mapping = {'bit_rate': 'bit_rate', 'TP': 'st2110_21_sender_type',
                              'packet_transmission_mode': 'packet_transmission_mode'}
 
             for sdp_param, sender_param in param_mapping.items():

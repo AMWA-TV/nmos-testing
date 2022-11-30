@@ -1169,28 +1169,28 @@ class IS0502Test(GenericTest):
                 sdp_file = template.render(
                     dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
                     media_subtype=media_subtype,
-                    width=CONFIG.SDP_PREFERENCES["video_width"],
-                    height=CONFIG.SDP_PREFERENCES["video_height"],
-                    interlace=CONFIG.SDP_PREFERENCES["video_interlace"],
-                    exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                    depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                    sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                    colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                    fullrange=CONFIG.SDP_PREFERENCES["video_fullrange"],
-                    transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                    type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
-                    profile=CONFIG.SDP_PREFERENCES["video_profile"],
-                    level=CONFIG.SDP_PREFERENCES["video_level"],
-                    sublevel=CONFIG.SDP_PREFERENCES["video_sublevel"],
-                    bit_rate=CONFIG.SDP_PREFERENCES["video_bit_rate"])
+                    width=CONFIG.SDP_PREFERENCES["width"],
+                    height=CONFIG.SDP_PREFERENCES["height"],
+                    interlace=CONFIG.SDP_PREFERENCES["interlace"],
+                    exactframerate=CONFIG.SDP_PREFERENCES["exactframerate"],
+                    depth=CONFIG.SDP_PREFERENCES["depth"],
+                    sampling=CONFIG.SDP_PREFERENCES["sampling"],
+                    colorimetry=CONFIG.SDP_PREFERENCES["colorimetry"],
+                    RANGE=CONFIG.SDP_PREFERENCES["RANGE"],
+                    TCS=CONFIG.SDP_PREFERENCES["TCS"],
+                    TP=CONFIG.SDP_PREFERENCES["TP"],
+                    profile=CONFIG.SDP_PREFERENCES["profile"],
+                    level=CONFIG.SDP_PREFERENCES["level"],
+                    sublevel=CONFIG.SDP_PREFERENCES["sublevel"],
+                    bit_rate=CONFIG.SDP_PREFERENCES["bit_rate"])
             elif media_type == "audio":
                 sdp_file = template.render(
                     dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
                     media_subtype=media_subtype,
-                    channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                    sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                    max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                    packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+                    channels=CONFIG.SDP_PREFERENCES["channels"],
+                    sample_rate=CONFIG.SDP_PREFERENCES["sample_rate"],
+                    max_packet_time=CONFIG.SDP_PREFERENCES["max_packet_time"],
+                    packet_time=CONFIG.SDP_PREFERENCES["packet_time"])
 
             url = "single/receivers/{}/staged".format(receiver["id"])
             data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
