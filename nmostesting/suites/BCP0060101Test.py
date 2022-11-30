@@ -142,3 +142,63 @@ class BCP0060101Test(GenericTest):
                 return test.FAIL("Expected key '{}' not found in response from {}".format(str(e), url))
 
         return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")
+
+    def test_03(self, test):
+        """JPEG XS Senders have the required attributes"""
+
+        url = self.node_url + "flows"
+        flows_valid, flows_response = self.do_request("GET", url)
+
+        if flows_valid and flows_response.status_code == 200:
+            try:
+                flows = flows_response.json()
+                found_video_jxsv = False
+                jxsv_flow_ids = set()
+
+                for flow in flows:
+                    if flow["media_type"] != "video/jxsv":
+                        continue
+                    found_video_jxsv = True
+                    jxsv_flow_ids.add(flow["id"])
+
+                if found_video_jxsv:
+                    url = self.node_url + "senders"
+                    senders_valid, senders_response = self.do_request("GET", url)
+                    if not senders_valid or senders_response.status_code != 200:
+                        return test.FAIL("Unexpected response from the Node API: {}".format(senders_response))
+
+                    senders = senders_response.json()
+
+                    for sender in senders:
+                        if sender["flow_id"] in jxsv_flow_ids:
+                            if "transport" not in sender:
+                                return test.FAIL("Sender {} MUST indicate the 'transport' attribute."
+                                                 .format(sender["id"]))
+                            if sender["transport"] not in {"urn:x-nmos:transport:rtp",
+                                                           "urn:x-nmos:transport:rtp.ucast",
+                                                           "urn:x-nmos:transport:rtp.mcast"}:
+                                return test.FAIL("Sender {} MUST indicate 'transport' with one of the following values "
+                                                 "'urn:x-nmos:transport:rtp', 'urn:x-nmos:transport:rtp.ucast', or "
+                                                 "'urn:x-nmos:transport:rtp.mcast'"
+                                                 .format(sender["id"]))
+
+                            # TODO obtain properties from SDP
+
+                            if "packet_transmission_mode" in sender and \
+                                    sender["packet_transmission_mode"] not in {"codestream",
+                                                                               "slice_sequential",
+                                                                               "slice_out_of_order"}:
+                                return test.FAIL("Sender {} MUST not set 'packet_transmission_mode' or indicate "
+                                                 "with one of the following values "
+                                                 "'codestream', 'slice_sequential', or 'slice_out_of_order'"
+                                                 .format(sender["id"]))
+
+                            # TODO Determine if sender is compliant with ST 2110-22
+                    return test.PASS()
+
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Expected key '{}' not found in response from {}".format(str(e), url))
+
+        return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")
