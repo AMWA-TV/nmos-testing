@@ -191,8 +191,10 @@ def do_request(method, url, headers=None, **kwargs):
 
         # CORS preflight requests do not use Auth
         is_CORS_preflight = method.upper() == "OPTIONS" and "Access-Control-Request-Method" in headers
-        if not is_CORS_preflight and "Authorization" not in headers and CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN:
+        if not is_CORS_preflight and "Authorization" not in headers and CONFIG.ENABLE_AUTH and CONFIG.AUTH_TOKEN and "auth_test" not in kwargs:
             headers["Authorization"] = "Bearer " + CONFIG.AUTH_TOKEN
+        if "auth_test" in kwargs:
+            del kwargs["auth_test"]
 
         # all requests must have Origin to qualify as CORS requests
         headers["Origin"] = "null"
