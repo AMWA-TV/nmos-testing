@@ -461,8 +461,7 @@ class GenericTest(object):
 
         if self.authorization:
             headers = {}
-            if token:
-                headers = {"Authorization": "Bearer {}".format(token)}
+            headers = {"Authorization": "Bearer {}".format(token) if token else None}
             valid, response = self.do_request("GET", url, headers=headers)
             if not valid:
                 return test.FAIL(response)
