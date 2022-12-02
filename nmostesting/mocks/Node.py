@@ -365,42 +365,6 @@ NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
 
 
-@NODE_API.route('/<media_type>/<media_subtype>.sdp', methods=["GET"])
-def node_sdp(media_type, media_subtype):
-    # TODO: Should we check for an auth token here? May depend on the URL?
-    template_path = None
-    if media_type == "video":
-        if media_subtype == "raw":
-            template_path = "test_data/IS0401/video.sdp"
-        elif media_subtype == "jxsv":
-            template_path = "test_data/IS0401/video-jxsv.sdp"
-        elif media_subtype == "smpte291":
-            template_path = "test_data/IS0401/data.sdp"
-        elif media_subtype == "SMPTE2022-6":
-            template_path = "test_data/IS0401/mux.sdp"
-    elif media_type == "audio":
-        if media_subtype in ["L16", "L24", "L32"]:
-            template_path = "test_data/IS0401/audio.sdp"
-
-    if not template_path:
-        abort(404)
-
-    template_file = open(template_path).read()
-    template = Template(template_file, keep_trailing_newline=True)
-
-    transport_params = {'src_ip': get_default_ip(),
-                        'dst_ip': "232.40.50.{}".format(randint(1, 254)),
-                        'dst_port': randint(5000, 5999),
-                        'media_subtype': media_subtype}
-
-    # Not all keywords are used in all templates but that's OK
-    sdp_file = template.render({**CONFIG.SDP_PREFERENCES, **transport_params})
-
-    response = make_response(sdp_file)
-    response.headers["Content-Type"] = "application/sdp"
-    return response
-
-
 @NODE_API.route('/x-nmos', methods=['GET'], strict_slashes=False)
 def x_nmos_root():
     base_data = ['connection/']
@@ -572,6 +536,52 @@ def transport_type(version, resource, resource_id):
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
+def _generate_sdp(media_type, media_subtype, src_ip, dst_ip, dst_port, sdp_params):
+    template_path = None
+    if media_type == 'video':
+        if media_subtype == 'raw':
+            template_path = "test_data/sdp/video.sdp"
+        elif media_subtype == 'jxsv':
+            template_path = "test_data/sdp/video-jxsv.sdp"
+        elif media_subtype == 'smpte291':
+            template_path = "test_data/sdp/data.sdp"
+        elif media_subtype == 'SMPTE2022-6':
+            template_path = "test_data/sdp/mux.sdp"
+    elif media_type == 'audio':
+        if media_subtype in ['L16', 'L24', 'L32']:
+            template_path = "test_data/sdp/audio.sdp"
+
+    if not template_path:
+        abort(404)
+
+    template_file = open(template_path).read()
+    template = Template(template_file, keep_trailing_newline=True)
+
+    # Not all keywords are used in all templates but that's OK
+    return template.render({**sdp_params,
+                            **{'src_ip': src_ip,
+                               'dst_ip': dst_ip,
+                               'dst_port': dst_port,
+                               'media_subtype': media_subtype
+                               }
+                            })
+
+
+@NODE_API.route('/<media_type>/<media_subtype>.sdp', methods=["GET"])
+def node_sdp(media_type, media_subtype):
+
+    sdp_file = _generate_sdp(media_type=media_type,
+                             media_subtype=media_subtype,
+                             src_ip=get_default_ip(),
+                             dst_ip="232.40.50.{}".format(randint(1, 254)),
+                             dst_port=randint(5000, 5999),
+                             sdp_params=CONFIG.SDP_PREFERENCES)
+
+    response = make_response(sdp_file)
+    response.headers['Content-Type'] = 'application/sdp'
+    return response
+
+
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transportfile',
                 methods=["GET"], strict_slashes=False)
 def transport_file(version, resource, resource_id):
@@ -585,28 +595,15 @@ def transport_file(version, resource, resource_id):
 
             media_type, media_subtype = media_type.split("/")
 
-            template_path = None
-            if media_type == 'video':
-                if media_subtype == 'raw':
-                    template_path = "test_data/controller/video.sdp"
-                elif media_subtype == 'jxsv':
-                    template_path = "test_data/controller/video-jxsv.sdp"
-
-            if not template_path:
-                abort(404)
-
-            template_file = open(template_path).read()
-            template = Template(template_file, keep_trailing_newline=True)
-
-            transport_params = {'src_ip': sender['activations']['transport_params'][0]['source_ip'],
-                                'dst_ip': sender['activations']['transport_params'][0]['destination_ip'],
-                                'dst_port': sender['activations']['transport_params'][0]['destination_port'],
-                                'media_subtype': media_subtype}
-
-            sdp_file = template.render({**sdp_params, **transport_params})
+            sdp_file = _generate_sdp(media_type=media_type,
+                                     media_subtype=media_subtype,
+                                     src_ip=sender['activations']['transport_params'][0]['source_ip'],
+                                     dst_ip=sender['activations']['transport_params'][0]['destination_ip'],
+                                     dst_port=sender['activations']['transport_params'][0]['destination_port'],
+                                     sdp_params=sdp_params)
 
             response = make_response(sdp_file, 200)
-            response.headers["Content-Type"] = "application/sdp"
+            response.headers['Content-Type'] = 'application/sdp'
 
             return response
 
