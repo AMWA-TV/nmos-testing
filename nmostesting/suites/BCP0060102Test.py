@@ -566,7 +566,7 @@ class BCP0060102Test(ControllerTest):
                         'vapor_trails', 'feedback', 'snakes_and_ladders', 'clockwork_angels', 'in_rio',
                         'to_revelation', 'trespass', 'nursery_cryme', 'foxtrot', 'by_the_pound',
                         'lamb_lies', 'trick_of_the_tail', 'wind_wuthering', 'were_three', 'duke',
-                        'abacab', 'genesis', 'invisible_touch', 'cant_dance', 'all_stations',
+                        'abacab', 'genesis', 'invisible_touch', 'cant_dance',
                         'murmur', 'reckoning', 'fables', 'rich_pageant', 'document',
                         'green', 'out_of_time', 'automatic', 'monster', 'new_adventures',
                         'up', 'reveal', 'around_the_sun', 'accelerate', 'collapse']
