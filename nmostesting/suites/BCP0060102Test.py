@@ -921,14 +921,22 @@ class BCP0060102Test(ControllerTest):
         # Perform an immediate activation between a Receiver and a Sender.
         # Sender and Receivers have SDP/caps as specified in TR-08.
 
-        CANDIDATE_SENDER_COUNT = 3
-
         try:
-            # Pick representative interoperability points
-            # jxsv_senders = NMOSUtils.RANDOM.sample([s for s in self.senders
-            #                                        if 'video/jxsv' == s['sdp_params']['media_type']],
-            #                                       CANDIDATE_SENDER_COUNT)
-            jxsv_senders = [s for s in self.senders if 'video/jxsv' == s['sdp_params']['media_type'] and s['sdp_params'].get('interlace')]
+            # A representative cross section of interoperability points
+            jxsv_interops = [{'capability_set': 'AB', 'conformance_level': 'FHD', 'interop_point': '1'},  # 720p/59
+                             {'capability_set': 'AB', 'conformance_level': 'FHD', 'interop_point': '4'},  # 1080i/25
+                             {'capability_set': 'AB', 'conformance_level': 'FHD', 'interop_point': '6a'},  # 1080p/50
+                             {'capability_set': 'C', 'conformance_level': 'FHD', 'interop_point': '2b'},  # FULL RGB
+                             {'capability_set': 'C', 'conformance_level': 'UHD1', 'interop_point': '3a'},  # 2160p/59
+                             {'capability_set': 'D', 'conformance_level': 'UHD2', 'interop_point': '2a'}]  # 4320p/59
+
+            jxsv_senders = []
+
+            for interop in jxsv_interops:
+                jxsv_senders.extend([s for s in self.senders
+                                     if s['sdp_params']['capability_set'] == interop['capability_set']
+                                     and s['sdp_params']['conformance_level'] == interop['conformance_level']
+                                     and s['sdp_params']['interop_point'] == interop['interop_point']])
 
             for sender in jxsv_senders:
                 self.node.clear_staged_requests()
@@ -1012,14 +1020,14 @@ class BCP0060102Test(ControllerTest):
                 if 'format' in patched_sdp[0]:
                     for param, value in patched_sdp[0]['format'].items():
                         if sender['sdp_params'].get(param) and sender['sdp_params'][param] != value:
-                            return test.FAIL('Patched SDP does not match: ' + sdp_param)
+                            return test.FAIL('Patched SDP does not match: ' + param)
 
                 # Disconnect receiver
                 deactivate_json = {'master_enable': False, 'sender_id': None,
                                    'activation': {'mode': 'activate_immediate'}}
                 self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
-            return test.PASS("Connection successfully established")
+            return test.PASS("Connections successfully established")
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
         finally:
