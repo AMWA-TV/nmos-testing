@@ -217,7 +217,7 @@ class Node(object):
 
             if format_line and format_line.group(2):
                 #  Handle parameter keys that have no value, e.g. 'interlace' and set their value to 'True'
-                sdp_param_leg['format'] = {key_value.split('=')[0]: 
+                sdp_param_leg['format'] = {key_value.split('=')[0]:
                                            key_value.split('=', maxsplit=1)[1] if '=' in key_value else True
                                            for key_value in re.split(r'[ \t]*;[ \t]*', format_line.group(2))}
 
@@ -601,9 +601,9 @@ def transport_file(version, resource, resource_id):
             transport_params = {'src_ip': sender['activations']['transport_params'][0]['source_ip'],
                                 'dst_ip': sender['activations']['transport_params'][0]['destination_ip'],
                                 'dst_port': sender['activations']['transport_params'][0]['destination_port'],
-                                'media_subtype': media_subtype }
+                                'media_subtype': media_subtype}
 
-            sdp_file = template.render({**transport_params, **sdp_params})
+            sdp_file = template.render({**sdp_params, **transport_params})
 
             response = make_response(sdp_file, 200)
             response.headers["Content-Type"] = "application/sdp"
