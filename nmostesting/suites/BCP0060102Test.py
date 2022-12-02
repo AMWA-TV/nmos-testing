@@ -408,71 +408,71 @@ class BCP0060102Test(ControllerTest):
 
         sdp_params = {**CONFIG.SDP_PREFERENCES, **sdp_params}
 
-        split_exactframerate = sdp_params.get("exactframerate").split('/')
+        split_exactframerate = sdp_params.get('exactframerate').split('/')
 
         constraint_set = {
-            "urn:x-nmos:cap:format:color_sampling": {
-                "enum": [sdp_params.get("sampling")]
+            'urn:x-nmos:cap:format:color_sampling': {
+                'enum': [sdp_params.get('sampling')]
             },
-            "urn:x-nmos:cap:format:frame_height": {
-                "enum": [sdp_params.get("height")]
+            'urn:x-nmos:cap:format:frame_height': {
+                'enum': [sdp_params.get('height')]
             },
-            "urn:x-nmos:cap:format:frame_width": {
-                "enum": [sdp_params.get("width")]
+            'urn:x-nmos:cap:format:frame_width': {
+                'enum': [sdp_params.get('width')]
             },
-            "urn:x-nmos:cap:format:grain_rate": {
-                "enum": [{
-                            "denominator": int(split_exactframerate[1]) if 1 < len(split_exactframerate) else 1,
-                            "numerator": int(split_exactframerate[0])
+            'urn:x-nmos:cap:format:grain_rate': {
+                'enum': [{
+                            'denominator': int(split_exactframerate[1]) if 1 < len(split_exactframerate) else 1,
+                            'numerator': int(split_exactframerate[0])
                         }]
             },
-            "urn:x-nmos:cap:format:interlace_mode": {
-                "enum": [
-                    "interlaced_bff",
-                    "interlaced_tff",
-                    "interlaced_psf"
-                ] if sdp_params.get("interlace") else [
-                    "progressive"
+            'urn:x-nmos:cap:format:interlace_mode': {
+                'enum': [
+                    'interlaced_bff',
+                    'interlaced_tff',
+                    'interlaced_psf'
+                ] if sdp_params.get('interlace') else [
+                    'progressive'
                 ]
             },
-            "urn:x-nmos:cap:format:component_depth": {
-                "enum": [sdp_params.get("depth")]
+            'urn:x-nmos:cap:format:component_depth': {
+                'enum': [sdp_params.get('depth')]
             },
-            "urn:x-nmos:cap:format:colorspace": {
-                "enum": [sdp_params.get("colorimetry")]
+            'urn:x-nmos:cap:format:colorspace': {
+                'enum': [sdp_params.get('colorimetry')]
             },
-            "urn:x-nmos:cap:format:transfer_characteristic": {
-                "enum": [sdp_params.get("TCS")]
+            'urn:x-nmos:cap:format:transfer_characteristic': {
+                'enum': [sdp_params.get('TCS')]
             }
         }
 
         # JPEG XS specific caps
-        if "profile" in sdp_params and "level" in sdp_params:
-            constraint_set.update({"urn:x-nmos:cap:format:profile": {"enum": [sdp_params.get("profile")]},
-                                   "urn:x-nmos:cap:format:level": {"enum": [sdp_params.get("level")]},
-                                   "urn:x-nmos:cap:format:sublevel": {"enum": ["Sublev3bpp", "Sublev4bpp"]},
-                                   "urn:x-nmos:cap:transport:packet_transmission_mode": {"enum": ["codestream"]},
-                                   "urn:x-nmos:cap:format:bit_rate": {"minimum": sdp_params.get("min_bit_rate"),
-                                                                      "maximum": sdp_params.get("max_bit_rate")},
-                                   "urn:x-nmos:cap:transport:st2110_21_sender_type": {
-                                       "enum": ['2110TN', '2110TNL', '2110TPW']}})
+        if 'profile' in sdp_params and 'level' in sdp_params:
+            constraint_set.update({'urn:x-nmos:cap:format:profile': {'enum': [sdp_params.get('profile')]},
+                                   'urn:x-nmos:cap:format:level': {'enum': [sdp_params.get('level')]},
+                                   'urn:x-nmos:cap:format:sublevel': {'enum': ['Sublev3bpp', 'Sublev4bpp']},
+                                   'urn:x-nmos:cap:transport:packet_transmission_mode': {'enum': ['codestream']},
+                                   'urn:x-nmos:cap:format:bit_rate': {'minimum': sdp_params.get('min_bit_rate'),
+                                                                      'maximum': sdp_params.get('max_bit_rate')},
+                                   'urn:x-nmos:cap:transport:st2110_21_sender_type': {
+                                       'enum': ['2110TN', '2110TNL', '2110TPW']}})
         return constraint_set
 
     # convert sdp_params into Receiver caps
     def _generate_caps(self, sdp_params_set):
 
         caps = {
-            "media_types": [],
-            "constraint_sets": [],
-            "version": NMOSUtils.get_TAI_time()
+            'media_types': [],
+            'constraint_sets': [],
+            'version': NMOSUtils.get_TAI_time()
         }
 
         for sdp_params in sdp_params_set:
-            media_type = sdp_params.get("media_type", "video/raw")
-            if media_type not in caps["media_types"]:
-                caps["media_types"].append(media_type)
+            media_type = sdp_params.get('media_type', 'video/raw')
+            if media_type not in caps['media_types']:
+                caps['media_types'].append(media_type)
 
-            caps["constraint_sets"].append(self._generate_constraint_set(sdp_params))
+            caps['constraint_sets'].append(self._generate_constraint_set(sdp_params))
 
         return caps
 
@@ -486,48 +486,48 @@ class BCP0060102Test(ControllerTest):
                          'colorimetry': 'colorspace', 'bit_rate': 'bit_rate',
                          'TCS': 'transfer_characteristic'}
 
-        flow_params["media_type"] = sdp_params.get("media_type", "video/raw")
+        flow_params['media_type'] = sdp_params.get('media_type', 'video/raw')
 
         for sdp_param, flow_param in param_mapping.items():
             if sdp_param in sdp_params:
                 flow_params[flow_param] = sdp_params[sdp_param]
 
-        flow_params["interlace_mode"] = "interlaced_tff" \
-            if sdp_params.get("interlace") else "progressive"
+        flow_params['interlace_mode'] = 'interlaced_tff' \
+            if sdp_params.get('interlace') else 'progressive'
 
-        if "exactframerate" in sdp_params:
-            split_exactframerate = sdp_params["exactframerate"].split('/')
-            flow_params["grain_rate"] = {
-                "denominator": int(split_exactframerate[1]) if 1 < len(split_exactframerate) else 1,
-                "numerator": int(split_exactframerate[0])
+        if 'exactframerate' in sdp_params:
+            split_exactframerate = sdp_params['exactframerate'].split('/')
+            flow_params['grain_rate'] = {
+                'denominator': int(split_exactframerate[1]) if 1 < len(split_exactframerate) else 1,
+                'numerator': int(split_exactframerate[0])
             }
-        if "sampling" in sdp_params:
-            frame_width = sdp_params["width"]
-            frame_height = sdp_params["height"]
-            component_depth = sdp_params["depth"]
-            if sdp_params["sampling"] == "YCbCr-4:2:2":
-                flow_params["components"] = [
-                    {"name": "Y",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
-                    {"name": "Cb", "width": frame_width//2, "height": frame_height, "bit_depth": component_depth},
-                    {"name": "Cr", "width": frame_width//2, "height": frame_height, "bit_depth": component_depth},
+        if 'sampling' in sdp_params:
+            frame_width = sdp_params['width']
+            frame_height = sdp_params['height']
+            component_depth = sdp_params['depth']
+            if sdp_params['sampling'] == 'YCbCr-4:2:2':
+                flow_params['components'] = [
+                    {'name': 'Y',  'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
+                    {'name': 'Cb', 'width': frame_width//2, 'height': frame_height, 'bit_depth': component_depth},
+                    {'name': 'Cr', 'width': frame_width//2, 'height': frame_height, 'bit_depth': component_depth},
                 ]
-            elif sdp_params["sampling"] == "YCbCr-4:2:0":
-                flow_params["components"] = [
-                    {"name": "Y",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
-                    {"name": "Cb", "width": frame_width//2, "height": frame_height//2, "bit_depth": component_depth},
-                    {"name": "Cr", "width": frame_width//2, "height": frame_height//2, "bit_depth": component_depth},
+            elif sdp_params['sampling'] == 'YCbCr-4:2:0':
+                flow_params['components'] = [
+                    {'name': 'Y',  'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
+                    {'name': 'Cb', 'width': frame_width//2, 'height': frame_height//2, 'bit_depth': component_depth},
+                    {'name': 'Cr', 'width': frame_width//2, 'height': frame_height//2, 'bit_depth': component_depth},
                 ]
-            elif sdp_params["sampling"] == "RGB":
-                flow_params["components"] = [
-                    {"name": "R",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
-                    {"name": "G", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
-                    {"name": "B", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+            elif sdp_params['sampling'] == 'RGB':
+                flow_params['components'] = [
+                    {'name': 'R',  'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
+                    {'name': 'G', 'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
+                    {'name': 'B', 'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
                 ]
-            elif sdp_params["sampling"] == "YCbCr-4:4:4":
-                flow_params["components"] = [
-                    {"name": "Y",  "width": frame_width, "height": frame_height, "bit_depth": component_depth},
-                    {"name": "Cb", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
-                    {"name": "Cr", "width": frame_width, "height": frame_height, "bit_depth": component_depth},
+            elif sdp_params['sampling'] == 'YCbCr-4:4:4':
+                flow_params['components'] = [
+                    {'name': 'Y',  'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
+                    {'name': 'Cb', 'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
+                    {'name': 'Cr', 'width': frame_width, 'height': frame_height, 'bit_depth': component_depth},
                 ]
 
         return flow_params
@@ -662,14 +662,14 @@ class BCP0060102Test(ControllerTest):
                 enumerate(zip(receiver_names, capability_configurations)):
             # choose a random interop point
             caps = [i for i in interoperability_points
-                    if i["capability_set"] in capability_set and i["conformance_level"] == conformance_level]
+                    if i['capability_set'] in capability_set and i['conformance_level'] == conformance_level]
 
             receiver = {
                 'label': 'r' + str(idx) + '/' + receiver_name,
                 'description': 'Mock Receiver ' + str(idx),
                 'connectable': True,
                 'registered': True,
-                'caps': self._generate_caps(caps) if caps else {"media_types": ['video/raw']},
+                'caps': self._generate_caps(caps) if caps else {'media_types': ['video/raw']},
                 'capability_set': capability_set,
                 'conformance_level': conformance_level,
                 'interop_point': interop_point.get('interop_point')
@@ -706,7 +706,7 @@ class BCP0060102Test(ControllerTest):
                 other_sender_count = min(CANDIDATE_SENDER_COUNT - len(candidate_senders), len(video_raw_senders))
                 candidate_senders.extend(NMOSUtils.RANDOM.sample(video_raw_senders, other_sender_count))
 
-            candidate_senders.sort(key=itemgetter("label"))
+            candidate_senders.sort(key=itemgetter('label'))
 
             possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
@@ -715,7 +715,7 @@ class BCP0060102Test(ControllerTest):
                                 if 'video/jxsv' == r['sdp_params']['media_type']]
 
             actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice")['answer_response']
+                question, possible_answers, test_type='multi_choice')['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect Sender identified')
@@ -758,7 +758,7 @@ class BCP0060102Test(ControllerTest):
                                            len(video_raw_receivers))
                 candidate_receivers.extend(NMOSUtils.RANDOM.sample(video_raw_receivers, other_receiver_count))
 
-            candidate_receivers.sort(key=itemgetter("label"))
+            candidate_receivers.sort(key=itemgetter('label'))
 
             possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
                                 'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
@@ -767,7 +767,7 @@ class BCP0060102Test(ControllerTest):
                                 if 'video/jxsv' in r['caps']['media_types']]
 
             actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice")['answer_response']
+                question, possible_answers, test_type='multi_choice')['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect Receiver identified')
@@ -820,7 +820,7 @@ class BCP0060102Test(ControllerTest):
                                                       len(other_receivers))
                     candidate_receivers.extend(NMOSUtils.RANDOM.sample(other_receivers, incompatible_receiver_count))
 
-                candidate_receivers.sort(key=itemgetter("label"))
+                candidate_receivers.sort(key=itemgetter('label'))
 
                 possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
                                     'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
@@ -829,7 +829,7 @@ class BCP0060102Test(ControllerTest):
                                     if self._is_compatible(sender, r)]
 
                 actual_answers = self._invoke_testing_facade(
-                    question, possible_answers, test_type="multi_choice", multipart_test=i)['answer_response']
+                    question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
                     return test.FAIL('Incorrect Receiver identified for Compatibility Set ' + sender['capability_set']
@@ -887,7 +887,7 @@ class BCP0060102Test(ControllerTest):
                                                     len(other_senders))
                     candidate_senders.extend(NMOSUtils.RANDOM.sample(other_senders, incompatible_sender_count))
 
-                candidate_senders.sort(key=itemgetter("label"))
+                candidate_senders.sort(key=itemgetter('label'))
 
                 possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': r['display_answer'],
                                     'resource': {'id': r['id'], 'label': r['label'], 'description': r['description']}}
@@ -896,7 +896,7 @@ class BCP0060102Test(ControllerTest):
                                     if self._is_compatible(s, receiver)]
 
                 actual_answers = self._invoke_testing_facade(
-                    question, possible_answers, test_type="multi_choice", multipart_test=i)['answer_response']
+                    question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
                     return test.FAIL('Incorrect Sender identified for Compatibility Set(s) '
@@ -928,7 +928,7 @@ class BCP0060102Test(ControllerTest):
             # jxsv_senders = NMOSUtils.RANDOM.sample([s for s in self.senders
             #                                        if 'video/jxsv' == s['sdp_params']['media_type']],
             #                                       CANDIDATE_SENDER_COUNT)
-            jxsv_senders = [s for s in self.senders if 'video/jxsv' == s['sdp_params']['media_type']]
+            jxsv_senders = [s for s in self.senders if 'video/jxsv' == s['sdp_params']['media_type'] and s['sdp_params'].get('interlace')]
 
             for sender in jxsv_senders:
                 self.node.clear_staged_requests()
@@ -962,7 +962,7 @@ class BCP0060102Test(ControllerTest):
                              'label': receiver['label'],
                              'description': receiver['description']}}
 
-                self._invoke_testing_facade(question, possible_answers, test_type="action", metadata=metadata)
+                self._invoke_testing_facade(question, possible_answers, test_type='action', metadata=metadata)
 
                 # Check the staged API endpoint received the correct PATCH request
                 patch_requests = [r for r in self.node.staged_requests
@@ -992,8 +992,8 @@ class BCP0060102Test(ControllerTest):
                     return test.FAIL('Multiple PATCH requests were found')
 
                 # Check the receiver now has subscription details
-                if receiver['id'] in self.primary_registry.get_resources()["receiver"]:
-                    receiver_details = self.primary_registry.get_resources()["receiver"][receiver['id']]
+                if receiver['id'] in self.primary_registry.get_resources()['receiver']:
+                    receiver_details = self.primary_registry.get_resources()['receiver'][receiver['id']]
 
                     if not receiver_details['subscription']['active']:
                         return test.FAIL('Receiver does not have active subscription')
@@ -1009,29 +1009,14 @@ class BCP0060102Test(ControllerTest):
                 # Check patched SDP parameters are what were expected
                 patched_sdp = self.node.patched_sdp[receiver['id']]
 
-                # Compare patched SDP with Sender parameters
-                param_mapping = {'width': 'width',
-                                 'height': 'height',
-                                 'depth': 'depth',
-                                 'exactframerate': 'exactframerate',
-                                 'interlace': 'interlace',  # Optional
-                                 'profile': 'profile',
-                                 'level': 'level',
-                                 'sublevel': 'sublevel',
-                                 'sampling': 'sampling',
-                                 'colorimetry': 'colorimetry',
-                                 'RANGE': 'RANGE',  # Optional
-                                 'TCS': 'TCS',
-                                 'TP': 'TP'}
-
                 if 'format' in patched_sdp[0]:
                     for param, value in patched_sdp[0]['format'].items():
-                        if sender['sdp_params'].get(param) and str(sender['sdp_params'][param]) != value:
+                        if sender['sdp_params'].get(param) and sender['sdp_params'][param] != value:
                             return test.FAIL('Patched SDP does not match: ' + sdp_param)
 
                 # Disconnect receiver
-                deactivate_json = {"master_enable": False, 'sender_id': None,
-                                   "activation": {"mode": "activate_immediate"}}
+                deactivate_json = {'master_enable': False, 'sender_id': None,
+                                   'activation': {'mode': 'activate_immediate'}}
                 self.node.patch_staged('receivers', receiver['id'], deactivate_json)
 
             return test.PASS("Connection successfully established")
@@ -1040,6 +1025,6 @@ class BCP0060102Test(ControllerTest):
         finally:
             # Disconnect all receivers
             for receiver in self.receivers:
-                deactivate_json = {"master_enable": False, 'sender_id': None,
-                                   "activation": {"mode": "activate_immediate"}}
+                deactivate_json = {'master_enable': False, 'sender_id': None,
+                                   'activation': {'mode': 'activate_immediate'}}
                 self.node.patch_staged('receivers', receiver['id'], deactivate_json)

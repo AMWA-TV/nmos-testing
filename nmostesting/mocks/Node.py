@@ -196,31 +196,36 @@ class Node(object):
             sdp_param_leg = {}
 
             media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
-            sdp_param_leg["destination_port"] = int(media_line.group(2))
+            sdp_param_leg['destination_port'] = int(media_line.group(2))
 
             connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
             destination_ip = connection_line.group(1)
             if ipaddress.IPv4Address(destination_ip).is_multicast:
-                sdp_param_leg["multicast_ip"] = destination_ip
-                sdp_param_leg["interface_ip"] = "auto"
+                sdp_param_leg['multicast_ip'] = destination_ip
+                sdp_param_leg['interface_ip'] = "auto"
             else:
-                sdp_param_leg["multicast_ip"] = None
-                sdp_param_leg["interface_ip"] = destination_ip
+                sdp_param_leg['multicast_ip'] = None
+                sdp_param_leg['interface_ip'] = destination_ip
 
             filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
             if filter_line and filter_line.group(2):
-                sdp_param_leg["source_ip"] = filter_line.group(2)
+                sdp_param_leg['source_ip'] = filter_line.group(2)
             else:
-                sdp_param_leg["source_ip"] = None
+                sdp_param_leg['source_ip'] = None
 
             format_line = re.search(r"a=fmtp:(\S*\s*)(.*)", sdp_data)
 
             if format_line and format_line.group(2):
-                #  Handle parameter keys that have no value, e.g. 'interlace' and set the value to 'True'
-                sdp_param_leg["format"] = {key: ''.join(value) if len(value) > 0 else 'True'
-                                           for key, *value in
-                                           [item.split('=') for item in re.split(r'[ \t]*;[ \t]*', format_line.group(2))]
-                                           }
+                #  Handle parameter keys that have no value, e.g. 'interlace' and set their value to 'True'
+                sdp_param_leg['format'] = {key_value.split('=')[0]: 
+                                           key_value.split('=', maxsplit=1)[1] if '=' in key_value else True
+                                           for key_value in re.split(r'[ \t]*;[ \t]*', format_line.group(2))}
+
+                # Cast the string to an integer value for these parameters
+                int_params = {'packetmode', 'width', 'height', 'depth'}
+                for param in int_params:
+                    if param in sdp_param_leg['format']:
+                        sdp_param_leg['format'][param] = int(sdp_param_leg['format'][param])
 
             sdp_params.append(sdp_param_leg)
 
