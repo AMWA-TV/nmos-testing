@@ -590,14 +590,14 @@ class BCP0060102Test(ControllerTest):
         capability_set_D_level_UHD1 = self._initialize_capability_set_D_level_UHD1()
         capability_set_D_level_UHD2 = self._initialize_capability_set_D_level_UHD2()
 
-        #  NMOSUtils.RANDOM.shuffle(capability_set_AB_level_FHD)
-        #  NMOSUtils.RANDOM.shuffle(capability_set_AB_level_UHD1)
-        #  NMOSUtils.RANDOM.shuffle(capability_set_AB_level_UHD2)
-        #  NMOSUtils.RANDOM.shuffle(capability_set_C_level_FHD)
-        #  NMOSUtils.RANDOM.shuffle(capability_set_C_level_UHD1)
-        #  NMOSUtils.RANDOM.shuffle(capability_set_C_level_UHD2)
-        #  NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD1)
-        #  NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD2)
+        NMOSUtils.RANDOM.shuffle(capability_set_AB_level_FHD)
+        NMOSUtils.RANDOM.shuffle(capability_set_AB_level_UHD1)
+        NMOSUtils.RANDOM.shuffle(capability_set_AB_level_UHD2)
+        NMOSUtils.RANDOM.shuffle(capability_set_C_level_FHD)
+        NMOSUtils.RANDOM.shuffle(capability_set_C_level_UHD1)
+        NMOSUtils.RANDOM.shuffle(capability_set_C_level_UHD2)
+        NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD1)
+        NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD2)
 
         interleaved_interop_points = self._roundrobin(capability_set_AB_level_FHD,
                                                       capability_set_AB_level_UHD1,
@@ -625,8 +625,8 @@ class BCP0060102Test(ControllerTest):
 
         self.senders.clear()
 
-        #  NMOSUtils.RANDOM.shuffle(sender_names)
-        #  NMOSUtils.RANDOM.shuffle(sender_interop_points)
+        NMOSUtils.RANDOM.shuffle(sender_names)
+        NMOSUtils.RANDOM.shuffle(sender_interop_points)
         for idx, (sender_name, interop_point) in enumerate(zip(sender_names, sender_interop_points)):
 
             sender = {
