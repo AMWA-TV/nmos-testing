@@ -1096,11 +1096,11 @@ class IS0502Test(GenericTest):
         if len(self.is04_resources["receivers"]) == 0:
             return test.UNCLEAR("Could not find any IS-04 Receivers to test")
 
-        video_sdp = open("test_data/IS0502/video.sdp").read()
-        video_jxsv_sdp = open("test_data/IS0502/video-jxsv.sdp").read()
-        audio_sdp = open("test_data/IS0502/audio.sdp").read()
-        data_sdp = open("test_data/IS0502/data.sdp").read()
-        mux_sdp = open("test_data/IS0502/mux.sdp").read()
+        video_sdp = open("test_data/sdp/video.sdp").read()
+        video_jxsv_sdp = open("test_data/sdp/video-jxsv.sdp").read()
+        audio_sdp = open("test_data/sdp/audio.sdp").read()
+        data_sdp = open("test_data/sdp/data.sdp").read()
+        mux_sdp = open("test_data/sdp/mux.sdp").read()
 
         found_rtp = False
         formats_tested = defaultdict(int)
