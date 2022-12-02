@@ -1164,33 +1164,13 @@ class IS0502Test(GenericTest):
             dst_ip = "232.40.50.{}".format(randint(1, 254))
             dst_port = randint(5000, 5999)
 
-            if media_type == "video":
-                # Not all keywords are used in all templates but that's OK
-                sdp_file = template.render(
-                    dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-                    media_subtype=media_subtype,
-                    width=CONFIG.SDP_PREFERENCES["width"],
-                    height=CONFIG.SDP_PREFERENCES["height"],
-                    interlace=CONFIG.SDP_PREFERENCES["interlace"],
-                    exactframerate=CONFIG.SDP_PREFERENCES["exactframerate"],
-                    depth=CONFIG.SDP_PREFERENCES["depth"],
-                    sampling=CONFIG.SDP_PREFERENCES["sampling"],
-                    colorimetry=CONFIG.SDP_PREFERENCES["colorimetry"],
-                    RANGE=CONFIG.SDP_PREFERENCES["RANGE"],
-                    TCS=CONFIG.SDP_PREFERENCES["TCS"],
-                    TP=CONFIG.SDP_PREFERENCES["TP"],
-                    profile=CONFIG.SDP_PREFERENCES["profile"],
-                    level=CONFIG.SDP_PREFERENCES["level"],
-                    sublevel=CONFIG.SDP_PREFERENCES["sublevel"],
-                    bit_rate=CONFIG.SDP_PREFERENCES["bit_rate"])
-            elif media_type == "audio":
-                sdp_file = template.render(
-                    dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-                    media_subtype=media_subtype,
-                    channels=CONFIG.SDP_PREFERENCES["channels"],
-                    sample_rate=CONFIG.SDP_PREFERENCES["sample_rate"],
-                    max_packet_time=CONFIG.SDP_PREFERENCES["max_packet_time"],
-                    packet_time=CONFIG.SDP_PREFERENCES["packet_time"])
+            sdp_file = template.render({**CONFIG.SDP_PREFERENCES,
+                                        **{'src_ip': src_ip,
+                                           'dst_ip': dst_ip,
+                                           'dst_port': dst_port,
+                                           'media_subtype': media_subtype
+                                           }
+                                        })
 
             url = "single/receivers/{}/staged".format(receiver["id"])
             data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
