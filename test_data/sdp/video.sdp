@@ -7,5 +7,5 @@ c=IN IP4 {{ dst_ip }}/32
 a=source-filter: incl IN IP4 {{ dst_ip }} {{ src_ip }}
 a=ts-refclk:ptp=IEEE1588-2008:EC-46-70-FF-FE-00-CE-DE:0
 a=rtpmap:97 raw/90000
-a=fmtp:97 sampling={{ sampling }}; width={{ width }}; height={{ height }}; depth={{ depth }}; {{ "interlace; " if interlace else "" }}SSN=ST2110-20:2017; colorimetry={{ colorimetry }}; PM=2110GPM; TP={{ TP }}; TCS={{ TCS }}; exactframerate={{ exactframerate }}
+a=fmtp:97 sampling={{ sampling }}; width={{ width }}; height={{ height }}; depth={{ depth }}; {{ "interlace; " if interlace }}SSN=ST2110-20:2017; colorimetry={{ colorimetry }}; PM=2110GPM; TP={{ TP }}; TCS={{ TCS }}; exactframerate={{ exactframerate }}
 a=mediaclk:direct=0
