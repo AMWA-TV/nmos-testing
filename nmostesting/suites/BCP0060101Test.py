@@ -21,6 +21,7 @@ from ..TestHelper import load_resolved_schema
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
 FLOW_REGISTER_KEY = "flow-register"
+SENDER_REGISTER_KEY = "sender-register"
 
 
 class BCP0060101Test(GenericTest):
@@ -69,6 +70,7 @@ class BCP0060101Test(GenericTest):
                                          "the 'bit_rate' attribute.".format(flow["id"]))
 
                     # check values of all additional attributes against the schema
+                    # e.g. 'components', 'profile', 'level', 'sublevel' and 'bit_rate'
                     try:
                         self.validate_schema(flow, reg_schema)
                     except ValidationError as e:
@@ -146,22 +148,24 @@ class BCP0060101Test(GenericTest):
     def test_03(self, test):
         """JPEG XS Senders have the required attributes"""
 
+        reg_api = self.apis[SENDER_REGISTER_KEY]
+
         url = self.node_url + "flows"
         flows_valid, flows_response = self.do_request("GET", url)
+
+        reg_path = reg_api["spec_path"] + "/sender-attributes"
+        reg_schema = load_resolved_schema(reg_path, "sender_register.json", path_prefix=False)
 
         if flows_valid and flows_response.status_code == 200:
             try:
                 flows = flows_response.json()
                 found_video_jxsv = False
-                jxsv_flow_ids = set()
+                warn_st2110_22 = False
+                warn_message = ""
 
-                for flow in flows:
-                    if flow["media_type"] != "video/jxsv":
-                        continue
-                    found_video_jxsv = True
-                    jxsv_flow_ids.add(flow["id"])
+                jxsv_flow_ids = {flow["id"] for flow in flows if flow["media_type"] == "video/jxsv"}
 
-                if found_video_jxsv:
+                if len(jxsv_flow_ids) > 0:
                     url = self.node_url + "senders"
                     senders_valid, senders_response = self.do_request("GET", url)
                     if not senders_valid or senders_response.status_code != 200:
@@ -170,30 +174,49 @@ class BCP0060101Test(GenericTest):
                     senders = senders_response.json()
 
                     for sender in senders:
-                        if sender["flow_id"] in jxsv_flow_ids:
-                            if "transport" not in sender:
-                                return test.FAIL("Sender {} MUST indicate the 'transport' attribute."
-                                                 .format(sender["id"]))
-                            if sender["transport"] not in {"urn:x-nmos:transport:rtp",
-                                                           "urn:x-nmos:transport:rtp.ucast",
-                                                           "urn:x-nmos:transport:rtp.mcast"}:
-                                return test.FAIL("Sender {} MUST indicate 'transport' with one of the following values "
-                                                 "'urn:x-nmos:transport:rtp', 'urn:x-nmos:transport:rtp.ucast', or "
-                                                 "'urn:x-nmos:transport:rtp.mcast'"
-                                                 .format(sender["id"]))
+                        if sender["flow_id"] not in jxsv_flow_ids:
+                            continue
+                        found_video_jxsv = True
 
-                            # TODO obtain properties from SDP
+                        # check required attributes are present
+                        if "transport" not in sender:
+                            return test.FAIL("Sender {} MUST indicate the 'transport' attribute."
+                                             .format(sender["id"]))
+                        if sender["transport"] not in {"urn:x-nmos:transport:rtp",
+                                                       "urn:x-nmos:transport:rtp.ucast",
+                                                       "urn:x-nmos:transport:rtp.mcast"}:
+                            return test.FAIL("Sender {} MUST indicate 'transport' with one of the following values "
+                                             "'urn:x-nmos:transport:rtp', 'urn:x-nmos:transport:rtp.ucast', or "
+                                             "'urn:x-nmos:transport:rtp.mcast'"
+                                             .format(sender["id"]))
+                        if "bit_rate" not in sender:
+                            return test.FAIL("Sender {} MUST indicate the 'bit_rate' attribute."
+                                             .format(sender["id"]))
 
-                            if "packet_transmission_mode" in sender and \
-                                    sender["packet_transmission_mode"] not in {"codestream",
-                                                                               "slice_sequential",
-                                                                               "slice_out_of_order"}:
-                                return test.FAIL("Sender {} MUST not set 'packet_transmission_mode' or indicate "
-                                                 "with one of the following values "
-                                                 "'codestream', 'slice_sequential', or 'slice_out_of_order'"
-                                                 .format(sender["id"]))
+                        # check values of all additional attributes against the schema
+                        # e.g. 'bit_rate', 'packet_transmission_mode' and 'st2110_21_sender_type'
+                        try:
+                            self.validate_schema(sender, reg_schema)
+                        except ValidationError as e:
+                            return test.FAIL("Sender {} does not comply with the schema for Sender additional and "
+                                             "extensible attributes defined in the NMOS Parameter Registers: "
+                                             "{}".format(sender["id"], str(e)),
+                                             "https://specs.amwa.tv/nmos-parameter-registers/branches/{}"
+                                             "/sender-attributes/sender_register.html"
+                                             .format(reg_api["spec_branch"]))
 
-                            # TODO Determine if sender is compliant with ST 2110-22
+                        # check recommended attributes are present
+                        if warn_st2110_22:
+                            continue
+                        if "st2110_21_sender_type" not in sender:
+                            warn_st2110_22 = True
+                            warn_message = "Sender {} MUST indicate the ST 2110-21 Sender Type using " \
+                                "the 'st2110_21_sender_type' attribute if it is compliant with ST 2110-22." \
+                                .format(sender["id"])
+
+                if warn_st2110_22:
+                    return test.WARNING(warn_message)
+                if found_video_jxsv:
                     return test.PASS()
 
             except json.JSONDecodeError:
@@ -201,4 +224,4 @@ class BCP0060101Test(GenericTest):
             except KeyError as e:
                 return test.FAIL("Expected key '{}' not found in response from {}".format(str(e), url))
 
-        return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")
+        return test.UNCLEAR("No JPEG XS Sender resources were found on the Node")

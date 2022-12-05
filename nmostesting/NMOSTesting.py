@@ -341,6 +341,9 @@ TEST_DEFINITIONS = {
         "extra_specs": [{
             "spec_key": "nmos-parameter-registers",
             "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
         }],
         "class": BCP0060101Test.BCP0060101Test
     },
