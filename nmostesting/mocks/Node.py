@@ -222,7 +222,7 @@ class Node(object):
                                            for key_value in re.split(r'[ \t]*;[ \t]*', format_line.group(2))}
 
                 # Cast the string to an integer value for these parameters
-                int_params = {'packetmode', 'width', 'height', 'depth'}
+                int_params = {'width', 'height', 'depth'}
                 for param in int_params:
                     if param in sdp_param_leg['format']:
                         sdp_param_leg['format'][param] = int(sdp_param_leg['format'][param])
