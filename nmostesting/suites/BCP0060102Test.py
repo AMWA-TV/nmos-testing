@@ -1017,6 +1017,7 @@ class BCP0060102Test(ControllerTest):
                 patched_sdp = self.node.patched_sdp[receiver['id']]
 
                 if 'format' in patched_sdp[0]:
+                    # Perhaps ought to loop over expected params and check in patched_sdp?
                     for param, value in patched_sdp[0]['format'].items():
                         if sender['sdp_params'].get(param) and sender['sdp_params'][param] != value:
                             return test.FAIL('Patched SDP does not match: ' + param)

@@ -216,13 +216,14 @@ class Node(object):
             format_line = re.search(r"a=fmtp:(\S*\s*)(.*)", sdp_data)
 
             if format_line and format_line.group(2):
-                #  Handle parameter keys that have no value, e.g. 'interlace' and set their value to 'True'
+                #  Handle parameter keys that have no value, e.g. 'interlace', and set their value to True
                 sdp_param_leg['format'] = {key_value.split('=')[0]:
                                            key_value.split('=', maxsplit=1)[1] if '=' in key_value else True
                                            for key_value in re.split(r'[ \t]*;[ \t]*', format_line.group(2))}
 
                 # Cast the string to an integer value for these parameters
-                int_params = {'width', 'height', 'depth'}
+                # ('packetmode' and 'transmode' are JPEG XS parameters)
+                int_params = ['width', 'height', 'depth', 'packetmode', 'transmode']
                 for param in int_params:
                     if param in sdp_param_leg['format']:
                         sdp_param_leg['format'][param] = int(sdp_param_leg['format'][param])
@@ -258,8 +259,6 @@ class Node(object):
                 # Store patched SDP params for later validation in tests
                 self.patched_sdp[resource_id] = sdp_params
 
-                rtp_enabled = {'rtp_enabled': True}
-
                 sdp_transport_param_keys = ['destination_port',
                                             'multicast_ip',
                                             'interface_ip',
@@ -270,7 +269,7 @@ class Node(object):
 
                 response_data['transport_params'][0] = {**response_data['transport_params'][0],
                                                         **sdp_transport_params,
-                                                        **rtp_enabled}
+                                                        'rtp_enabled': True}
 
         # Overwrite with supplied parameters in transport_params
         if 'transport_params' in request_json:
@@ -559,11 +558,10 @@ def _generate_sdp(media_type, media_subtype, src_ip, dst_ip, dst_port, sdp_param
 
     # Not all keywords are used in all templates but that's OK
     return template.render({**sdp_params,
-                            **{'src_ip': src_ip,
-                               'dst_ip': dst_ip,
-                               'dst_port': dst_port,
-                               'media_subtype': media_subtype
-                               }
+                            'src_ip': src_ip,
+                            'dst_ip': dst_ip,
+                            'dst_port': dst_port,
+                            'media_subtype': media_subtype
                             })
 
 

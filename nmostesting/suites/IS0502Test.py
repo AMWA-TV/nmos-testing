@@ -1165,11 +1165,10 @@ class IS0502Test(GenericTest):
             dst_port = randint(5000, 5999)
 
             sdp_file = template.render({**CONFIG.SDP_PREFERENCES,
-                                        **{'src_ip': src_ip,
-                                           'dst_ip': dst_ip,
-                                           'dst_port': dst_port,
-                                           'media_subtype': media_subtype
-                                           }
+                                        'src_ip': src_ip,
+                                        'dst_ip': dst_ip,
+                                        'dst_port': dst_port,
+                                        'media_subtype': media_subtype
                                         })
 
             url = "single/receivers/{}/staged".format(receiver["id"])
