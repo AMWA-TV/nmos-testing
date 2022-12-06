@@ -18,3 +18,10 @@ from . import Config as CONFIG
 
 # Example of setting ENABLE_HTTPS, any value from Config.py can be overridden using the same pattern.
 CONFIG.ENABLE_HTTPS = False
+
+# Example of overriding specific values in SDP_PREFERENCES.
+CONFIG.SDP_PREFERENCES = {
+    **CONFIG.SDP_PREFERENCES,
+    "channels": 4,
+    "exactframerate": "30000/1001"
+}
