@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 
 # NMOS Testing Configuration File
 # -------------------------------
@@ -315,6 +316,10 @@ SPECIFICATIONS = {
 }
 
 try:
+    SDP_PREFERENCES_DEFAULTS = SDP_PREFERENCES
     from . import UserConfig  # noqa: F401
+    if SDP_PREFERENCES.keys() != SDP_PREFERENCES_DEFAULTS.keys():
+        print(" * ERROR: Check SDP_PREFERENCES keys in UserConfig.py")
+        sys.exit(-1)
 except ImportError:
     pass
