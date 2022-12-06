@@ -316,9 +316,9 @@ SPECIFICATIONS = {
 }
 
 try:
-    SDP_PREFERENCES_DEFAULTS = SDP_PREFERENCES
+    keys = SDP_PREFERENCES.keys()
     from . import UserConfig  # noqa: F401
-    if SDP_PREFERENCES.keys() != SDP_PREFERENCES_DEFAULTS.keys():
+    if SDP_PREFERENCES.keys() != keys:
         print(" * ERROR: Check SDP_PREFERENCES keys in UserConfig.py")
         sys.exit(-1)
 except ImportError:
