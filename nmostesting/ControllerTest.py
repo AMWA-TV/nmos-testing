@@ -397,12 +397,7 @@ class ControllerTest(GenericTest):
         if "sdp_params" in sender:
             # Mapping sdp_params names to sender names
             # For JPEG XS Senders, 'bit_rate' and 'st2110_21_sender_type' MUST be included
-            # Note that the IS-04 packet_transmission_mode corresponds to two SDP format-specific parameters,
-            # 'packetmode' (which is required and currently hard-coded to 0 in the SDP templates) AND 'transmode'
-            # (which is optional with a default value) which with the currently hard-coded 'packetmode' corresponds
-            # to the 'codestream' value used in BCP00602 test suite's interoperability point definitions.
-            param_mapping = {'bit_rate': 'bit_rate', 'TP': 'st2110_21_sender_type',
-                             'packet_transmission_mode': 'packet_transmission_mode'}
+            param_mapping = {'bit_rate': 'bit_rate', 'TP': 'st2110_21_sender_type'}
 
             for sdp_param, sender_param in param_mapping.items():
                 if sdp_param in sender["sdp_params"]:

@@ -46,7 +46,7 @@ class BCP0060102Test(ControllerTest):
                        'exactframerate': '60000/1001', 'min_bit_rate': 186000, 'max_bit_rate': 497000,
                        'depth': 10, 'sampling': 'YCbCr-4:2:2', 'colorimetry': 'BT709',
                        'profile': 'High444.12', 'level': '2k-1', 'TCS': 'SDR',
-                       'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                       'TP': '2110TPW',
                        'capability_set': 'AB', 'conformance_level': 'FHD'}
 
         interop_point_1 = self._create_interop_point(ip1_6c_base, {'interop_point': '1',
@@ -129,7 +129,7 @@ class BCP0060102Test(ControllerTest):
                         'exactframerate': '60000/1001', 'min_bit_rate': 746000, 'max_bit_rate': 1989000,
                         'depth': 10, 'sampling': 'YCbCr-4:2:2', 'colorimetry': 'BT2100',
                         'profile': 'High444.12', 'level': '4k-2', 'TCS': 'SDR',
-                        'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'TP': '2110TPW',
                         'capability_set': 'AB', 'conformance_level': 'UHD1'}
 
         interop_point_7a = self._create_interop_point(ip7a_8c_base, {'interop_point': '7a',
@@ -179,7 +179,7 @@ class BCP0060102Test(ControllerTest):
                          'exactframerate': '60000/1001', 'min_bit_rate': 2983000, 'max_bit_rate': 7955000,
                          'depth': 10, 'sampling': 'YCbCr-4:2:2', 'colorimetry': 'BT2100',
                          'profile': 'High444.12', 'level': '8k-2', 'TCS': 'SDR',
-                         'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                         'TP': '2110TPW',
                          'capability_set': 'AB', 'conformance_level': 'UHD2'}
 
         interop_point_9a = self._create_interop_point(ip9a_10c_base, {'interop_point': '9a',
@@ -227,7 +227,7 @@ class BCP0060102Test(ControllerTest):
                         'exactframerate': '60000/1001', 'min_bit_rate': 186000, 'max_bit_rate': 497000,
                         'depth': 8, 'sampling': 'RGB', 'colorimetry': 'BT709',
                         'profile': 'High444.12', 'level': '2k-1', 'TCS': 'SDR',
-                        'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'TP': '2110TPW',
                         'capability_set': 'C', 'conformance_level': 'FHD'}
 
         interop_point_1a = self._create_interop_point(ip1a_2b_base, {'interop_point': '1a'})
@@ -280,7 +280,7 @@ class BCP0060102Test(ControllerTest):
                         'exactframerate': '60000/1001', 'min_bit_rate': 746000, 'max_bit_rate': 1991000,
                         'depth': 10, 'sampling': 'YCbCr-4:4:4', 'colorimetry': 'BT2100',
                         'profile': 'High444.12', 'level': '4k-2', 'TCS': 'SDR',
-                        'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'TP': '2110TPW',
                         'capability_set': 'C', 'conformance_level': 'UHD1'}
 
         interop_point_3a = self._create_interop_point(ip3a_3e_base, {'interop_point': '3a',
@@ -317,7 +317,7 @@ class BCP0060102Test(ControllerTest):
                         'exactframerate': '60000/1001', 'min_bit_rate': 2986000, 'max_bit_rate': 7963000,
                         'depth': 10, 'sampling': 'YCbCr-4:4:4', 'colorimetry': 'BT2100',
                         'profile': 'High444.12', 'level': '8k-2', 'TCS': 'SDR',
-                        'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'TP': '2110TPW',
                         'capability_set': 'C', 'conformance_level': 'UHD2'}
 
         interop_point_4a = self._create_interop_point(ip4a_4c_base, {'interop_point': '4a'})
@@ -343,7 +343,7 @@ class BCP0060102Test(ControllerTest):
                         'exactframerate': '60000/1001', 'min_bit_rate': 746000, 'max_bit_rate': 1989000,
                         'depth': 10, 'sampling': 'YCbCr-4:2:0', 'colorimetry': 'BT2020',
                         'profile': 'High444.12', 'level': '4k-2', 'TCS': 'SDR',
-                        'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'TP': '2110TPW',
                         'capability_set': 'D', 'conformance_level': 'UHD1'}
 
         interop_point_1a = self._create_interop_point(ip1a_1d_base, {'interop_point': '1a',
@@ -376,7 +376,7 @@ class BCP0060102Test(ControllerTest):
                         'exactframerate': '60000/1001', 'min_bit_rate': 2983000, 'max_bit_rate': 7955000,
                         'depth': 10, 'sampling': 'YCbCr-4:2:0', 'colorimetry': 'BT2100',
                         'profile': 'High444.12', 'level': '8k-2', 'TCS': 'SDR',
-                        'TP': '2110TPW', 'packet_transmission_mode': 'codestream',
+                        'TP': '2110TPW',
                         'capability_set': 'D', 'conformance_level': 'UHD2'}
 
         interop_point_2a = self._create_interop_point(ip2a_2c_base, {'interop_point': '2a'})
