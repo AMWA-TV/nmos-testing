@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import json
+import re
+
 from jsonschema import ValidationError
 
 from ..GenericTest import GenericTest
@@ -28,6 +30,7 @@ class BCP0060101Test(GenericTest):
     """
     Runs Node Tests covering BCP-006-01
     """
+
     def __init__(self, apis):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
@@ -87,15 +90,15 @@ class BCP0060101Test(GenericTest):
                     if "profile" not in flow:
                         warn_unrestricted = True
                         warn_message = "Flow {} MUST indicate the JPEG XS profile using " \
-                            "the 'profile' attribute unless it is Unrestricted.".format(flow["id"])
+                                       "the 'profile' attribute unless it is Unrestricted.".format(flow["id"])
                     elif "level" not in flow:
                         warn_unrestricted = True
                         warn_message = "Flow {} MUST indicate the JPEG XS level using " \
-                            "the 'level' attribute unless it is Unrestricted.".format(flow["id"])
+                                       "the 'level' attribute unless it is Unrestricted.".format(flow["id"])
                     elif "sublevel" not in flow:
                         warn_unrestricted = True
                         warn_message = "Flow {} MUST indicate the JPEG XS sublevel using " \
-                            "the 'sublevel' attribute unless it is Unrestricted.".format(flow["id"])
+                                       "the 'sublevel' attribute unless it is Unrestricted.".format(flow["id"])
 
                 if warn_unrestricted:
                     return test.WARNING(warn_message)
@@ -211,8 +214,114 @@ class BCP0060101Test(GenericTest):
                         if "st2110_21_sender_type" not in sender:
                             warn_st2110_22 = True
                             warn_message = "Sender {} MUST indicate the ST 2110-21 Sender Type using " \
-                                "the 'st2110_21_sender_type' attribute if it is compliant with ST 2110-22." \
+                                           "the 'st2110_21_sender_type' attribute if it is compliant with ST 2110-22." \
                                 .format(sender["id"])
+
+                        if "manifest_href" not in sender:
+                            return test.FAIL("Sender {} MUST indicate the 'manifest_href' attribute."
+                                             .format(sender["id"]))
+
+                        url = sender["manifest_href"]
+                        manifest_href_valid, manifest_href_response = self.do_request("GET", url)
+                        if not manifest_href_valid or manifest_href_response.status_code != 200:
+                            return test.FAIL(
+                                "Unexpected response from the Node API: {}".format(senders_response))
+
+                        sdp = manifest_href_response.text
+
+                        payload_type = self.rtp_ptype(sdp)
+                        if not payload_type:
+                            return test.FAIL(
+                                "Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                .format(sender["id"]))
+
+                        flow = next((flow for flow in flows if flow["id"] == sender["flow_id"]), None)
+
+                        fmtp_line = "a=fmtp:{}".format(payload_type)
+                        for sdp_line in sdp.split("\n"):
+                            sdp_line = sdp_line.replace("\r", "")
+
+                            if sdp_line.startswith(fmtp_line):
+                                sdp_format_params = {}
+                                sdp_line = sdp_line[len(fmtp_line):]
+                                for param in sdp_line.split(";"):
+                                    param_components = param.strip().split("=")
+                                    sdp_format_params[param_components[0]] = param_components[1] \
+                                        if len(param_components) > 1 else True
+
+                                for prop in ["profile", "level", "sublevel"]:
+                                    if prop in flow and flow[prop] != sdp_format_params[prop]:
+                                        return test.FAIL("Video Flow {} {} do not match that found in SDP for "
+                                                         "Sender {}".format(flow["id"], prop, sender["id"]))
+
+                                if flow["frame_width"] != int(sdp_format_params["width"]):
+                                    return test.FAIL("Video Flow {} frame_width do not match that found in SDP for "
+                                                     "Sender {}".format(flow["id"], sender["id"]))
+
+                                if flow["frame_height"] != int(sdp_format_params["height"]):
+                                    return test.FAIL("Video Flow {} frame_height do not match that found in SDP for "
+                                                     "Sender {}".format(flow["id"], sender["id"]))
+
+                                if flow["colorspace"] != sdp_format_params["colorimetry"]:
+                                    return test.FAIL("Video Flow {} colorspace do not match that found in SDP for "
+                                                     "Sender {}".format(flow["id"], sender["id"]))
+
+                                if flow["interlace_mode"] == "interlaced_tff" and "interlace" not in sdp_format_params:
+                                    return test.FAIL("Video Flow {} interlace_mode do not match that found in SDP for "
+                                                     "Sender {}".format(flow["id"], sender["id"]))
+
+                                if "exactframerate" not in sdp_format_params:
+                                    return test.FAIL("SDP for Sender {} misses format parameter 'exactframerate'"
+                                                     .format(sender["id"]))
+
+                                framerate_components = sdp_format_params["exactframerate"].split("/")
+                                framerate_numerator = int(framerate_components[0])
+                                framerate_denominator = int(framerate_components[1]) \
+                                    if len(framerate_components) > 1 else 1
+
+                                if flow["grain_rate"]["numerator"] != framerate_numerator or \
+                                        flow["grain_rate"]["denominator"] != framerate_denominator:
+                                    return test.FAIL("Video Flow {} grain_rate do not match that found in SDP for "
+                                                     "Sender {}".format(flow["id"], sender["id"]))
+
+                                if "sampling" not in sdp_format_params:
+                                    return test.FAIL("SDP for Sender {} misses format parameter 'sampling'"
+                                                     .format(sender["id"]))
+
+                                sampling_format = sdp_format_params["sampling"].split("-")
+                                components = sampling_format[0]
+                                if components in ["YCbCr", "ICtCp", "RGB"]:
+                                    if len(flow["components"]) != 3:
+                                        return test.FAIL("Video Flow {} components do not match those found in SDP for "
+                                                         "Sender {}".format(flow["id"], sender["id"]))
+                                    if len(sampling_format) > 1:
+                                        sampling = sampling_format[1]
+                                    else:
+                                        sampling = None
+                                    for component in flow["components"]:
+                                        if component["name"] not in components:
+                                            return test.FAIL("Video Flow component {} does not match the SDP sampling "
+                                                             "for Sender {}".format(component["name"], sender["id"]))
+                                        if component["bit_depth"] != int(sdp_format_params["depth"]):
+                                            return test.FAIL("Video Flow component {} does not match the SDP depth "
+                                                             "for Sender {}".format(component["name"], sender["id"]))
+                                        sampling_error = False
+                                        if sampling == "4:4:4" or sampling is None or component["name"] in ["Y", "I"]:
+                                            if component["width"] != flow["frame_width"] or \
+                                                    component["height"] != flow["frame_height"]:
+                                                sampling_error = True
+                                        elif sampling == "4:2:2":
+                                            if component["width"] != (flow["frame_width"] / 2) or \
+                                                    component["height"] != flow["frame_height"]:
+                                                sampling_error = True
+                                        elif sampling == "4:2:0":
+                                            if component["width"] != (flow["frame_width"] / 2) or \
+                                                    component["height"] != (flow["frame_height"] / 2):
+                                                sampling_error = True
+                                        if sampling_error:
+                                            return test.FAIL("Video Flow {} components do not match the expected "
+                                                             "dimensions for Sender sampling {}"
+                                                             .format(flow["id"], sampling))
 
                 if warn_st2110_22:
                     return test.WARNING(warn_message)
@@ -225,3 +334,14 @@ class BCP0060101Test(GenericTest):
                 return test.FAIL("Expected key '{}' not found in response from {}".format(str(e), url))
 
         return test.UNCLEAR("No JPEG XS Sender resources were found on the Node")
+
+    def rtp_ptype(self, sdp_file):
+        """Extract the payload type from an SDP file string"""
+        payload_type = None
+        for sdp_line in sdp_file.split("\n"):
+            sdp_line = sdp_line.replace("\r", "")
+            try:
+                payload_type = int(re.search(r"^a=rtpmap:(\d+) ", sdp_line).group(1))
+            except Exception:
+                pass
+        return payload_type
