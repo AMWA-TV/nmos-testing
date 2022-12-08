@@ -32,6 +32,7 @@ import ssl
 import subprocess
 import pkgutil
 import shlex
+import re
 
 from flask import Flask, render_template, flash, request, make_response, jsonify
 from flask_cors import CORS
@@ -681,8 +682,9 @@ def _check_test_result(test_result, results):
 
 def _export_config():
     current_config = {"VERSION": TOOL_VERSION}
+    exclude_params = ['SPECIFICATIONS']
     for param in dir(CONFIG):
-        if not param.startswith("__") and param != "SPECIFICATIONS" and param != "UserConfig":
+        if re.match("^[A-Z][A-Z0-9_]*$", param) and param not in exclude_params:
             current_config[param] = getattr(CONFIG, param)
     return current_config
 

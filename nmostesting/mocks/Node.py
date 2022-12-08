@@ -38,6 +38,7 @@ class Node(object):
         self.staged_requests = []
         self.receivers = {}
         self.senders = {}
+        self.patched_sdp = {}
 
     def get_sender(self, media_type="video/raw"):
         protocol = "http"
@@ -195,22 +196,38 @@ class Node(object):
             sdp_param_leg = {}
 
             media_line = re.search(r"m=([a-z]+) ([0-9]+) RTP/AVP ([0-9]+)", sdp_data)
-            sdp_param_leg["destination_port"] = int(media_line.group(2))
+            sdp_param_leg['destination_port'] = int(media_line.group(2))
 
             connection_line = re.search(r"c=IN IP[4,6] ([^/\r\n]*)(?:/[0-9]+){0,2}", sdp_data)
             destination_ip = connection_line.group(1)
             if ipaddress.IPv4Address(destination_ip).is_multicast:
-                sdp_param_leg["multicast_ip"] = destination_ip
-                sdp_param_leg["interface_ip"] = "auto"
+                sdp_param_leg['multicast_ip'] = destination_ip
+                sdp_param_leg['interface_ip'] = "auto"
             else:
-                sdp_param_leg["multicast_ip"] = None
-                sdp_param_leg["interface_ip"] = destination_ip
+                sdp_param_leg['multicast_ip'] = None
+                sdp_param_leg['interface_ip'] = destination_ip
 
             filter_line = re.search(r"a=source-filter: incl IN IP[4,6] (\S*) (\S*)", sdp_data)
             if filter_line and filter_line.group(2):
-                sdp_param_leg["source_ip"] = filter_line.group(2)
+                sdp_param_leg['source_ip'] = filter_line.group(2)
             else:
-                sdp_param_leg["source_ip"] = None
+                sdp_param_leg['source_ip'] = None
+
+            format_line = re.search(r"a=fmtp:(\S*\s*)(.*)", sdp_data)
+
+            if format_line and format_line.group(2):
+                #  Handle parameter keys that have no value, e.g. 'interlace', and set their value to True
+                sdp_param_leg['format'] = {key_value.split('=')[0]:
+                                           key_value.split('=', maxsplit=1)[1] if '=' in key_value else True
+                                           for key_value in re.split(r'[ \t]*;[ \t]*', format_line.group(2))}
+
+                # Cast the string to an integer value for these parameters
+                # ('packetmode' and 'transmode' are JPEG XS parameters)
+                int_params = ['width', 'height', 'depth', 'packetmode', 'transmode']
+                for param in int_params:
+                    if param in sdp_param_leg['format']:
+                        sdp_param_leg['format'][param] = int(sdp_param_leg['format'][param])
+
             sdp_params.append(sdp_param_leg)
 
         return sdp_params
@@ -239,10 +256,20 @@ class Node(object):
             if transport_file['type'] == 'application/sdp':
                 sdp_params = self.parse_sdp(transport_file['data'])
 
-                for key, value in sdp_params[0].items():
-                    response_data['transport_params'][0][key] = value
+                # Store patched SDP params for later validation in tests
+                self.patched_sdp[resource_id] = sdp_params
 
-                response_data['transport_params'][0]['rtp_enabled'] = True
+                sdp_transport_param_keys = ['destination_port',
+                                            'multicast_ip',
+                                            'interface_ip',
+                                            'source_ip']
+
+                sdp_transport_params = {key: value for key, value in sdp_params[0].items()
+                                        if key in sdp_transport_param_keys}
+
+                response_data['transport_params'][0] = {**response_data['transport_params'][0],
+                                                        **sdp_transport_params,
+                                                        'rtp_enabled': True}
 
         # Overwrite with supplied parameters in transport_params
         if 'transport_params' in request_json:
@@ -335,66 +362,6 @@ class Node(object):
 
 NODE = Node(1)
 NODE_API = Blueprint('node_api', __name__)
-
-
-@NODE_API.route('/<media_type>/<media_subtype>.sdp', methods=["GET"])
-def node_sdp(media_type, media_subtype):
-    # TODO: Should we check for an auth token here? May depend on the URL?
-    template_path = None
-    if media_type == "video":
-        if media_subtype == "raw":
-            template_path = "test_data/IS0401/video.sdp"
-        elif media_subtype == "jxsv":
-            template_path = "test_data/IS0401/video-jxsv.sdp"
-        elif media_subtype == "smpte291":
-            template_path = "test_data/IS0401/data.sdp"
-        elif media_subtype == "SMPTE2022-6":
-            template_path = "test_data/IS0401/mux.sdp"
-    elif media_type == "audio":
-        if media_subtype in ["L16", "L24", "L32"]:
-            template_path = "test_data/IS0401/audio.sdp"
-
-    if not template_path:
-        abort(404)
-
-    template_file = open(template_path).read()
-    template = Template(template_file, keep_trailing_newline=True)
-
-    src_ip = get_default_ip()
-    dst_ip = "232.40.50.{}".format(randint(1, 254))
-    dst_port = randint(5000, 5999)
-
-    if media_type == "video":
-        # Not all keywords are used in all templates but that's OK
-        sdp_file = template.render(
-            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-            media_subtype=media_subtype,
-            width=CONFIG.SDP_PREFERENCES["video_width"],
-            height=CONFIG.SDP_PREFERENCES["video_height"],
-            interlace=CONFIG.SDP_PREFERENCES["video_interlace"],
-            exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-            depth=CONFIG.SDP_PREFERENCES["video_depth"],
-            sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-            colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-            fullrange=CONFIG.SDP_PREFERENCES["video_fullrange"],
-            transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-            type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
-            profile=CONFIG.SDP_PREFERENCES["video_profile"],
-            level=CONFIG.SDP_PREFERENCES["video_level"],
-            sublevel=CONFIG.SDP_PREFERENCES["video_sublevel"],
-            bit_rate=CONFIG.SDP_PREFERENCES["video_bit_rate"])
-    elif media_type == "audio":
-        sdp_file = template.render(
-            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-            media_subtype=media_subtype,
-            channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-            sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-            max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-            packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-
-    response = make_response(sdp_file)
-    response.headers["Content-Type"] = "application/sdp"
-    return response
 
 
 @NODE_API.route('/x-nmos', methods=['GET'], strict_slashes=False)
@@ -568,6 +535,51 @@ def transport_type(version, resource, resource_id):
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
 
 
+def _generate_sdp(media_type, media_subtype, src_ip, dst_ip, dst_port, sdp_params):
+    template_path = None
+    if media_type == 'video':
+        if media_subtype == 'raw':
+            template_path = "test_data/sdp/video.sdp"
+        elif media_subtype == 'jxsv':
+            template_path = "test_data/sdp/video-jxsv.sdp"
+        elif media_subtype == 'smpte291':
+            template_path = "test_data/sdp/data.sdp"
+        elif media_subtype == 'SMPTE2022-6':
+            template_path = "test_data/sdp/mux.sdp"
+    elif media_type == 'audio':
+        if media_subtype in ['L16', 'L24', 'L32']:
+            template_path = "test_data/sdp/audio.sdp"
+
+    if not template_path:
+        abort(404)
+
+    template_file = open(template_path).read()
+    template = Template(template_file, keep_trailing_newline=True)
+
+    # Not all keywords are used in all templates but that's OK
+    return template.render({**sdp_params,
+                            'src_ip': src_ip,
+                            'dst_ip': dst_ip,
+                            'dst_port': dst_port,
+                            'media_subtype': media_subtype
+                            })
+
+
+@NODE_API.route('/<media_type>/<media_subtype>.sdp', methods=["GET"])
+def node_sdp(media_type, media_subtype):
+
+    sdp_file = _generate_sdp(media_type=media_type,
+                             media_subtype=media_subtype,
+                             src_ip=get_default_ip(),
+                             dst_ip="232.40.50.{}".format(randint(1, 254)),
+                             dst_port=randint(5000, 5999),
+                             sdp_params=CONFIG.SDP_PREFERENCES)
+
+    response = make_response(sdp_file)
+    response.headers['Content-Type'] = 'application/sdp'
+    return response
+
+
 @NODE_API.route('/x-nmos/connection/<version>/single/<resource>/<resource_id>/transportfile',
                 methods=["GET"], strict_slashes=False)
 def transport_file(version, resource, resource_id):
@@ -577,51 +589,19 @@ def transport_file(version, resource, resource_id):
             sender = NODE.senders[resource_id]
             sdp_params = {**CONFIG.SDP_PREFERENCES, **sender.get('sdp_params', {})}
 
-            media_type = sdp_params.get("media_type", "video/raw")
+            media_type = sdp_params.get('media_type', 'video/raw')
 
             media_type, media_subtype = media_type.split("/")
 
-            template_path = None
-            if media_type == "video":
-                if media_subtype == "raw":
-                    template_path = "test_data/controller/video.sdp"
-                elif media_subtype == "jxsv":
-                    template_path = "test_data/controller/video-jxsv.sdp"
-
-            if not template_path:
-                abort(404)
-
-            template_file = open(template_path).read()
-            template = Template(template_file, keep_trailing_newline=True)
-
-            template_file = open(template_path).read()
-            template = Template(template_file, keep_trailing_newline=True)
-
-            src_ip = sender['activations']['transport_params'][0]['source_ip']
-            dst_ip = sender['activations']['transport_params'][0]['destination_ip']
-            dst_port = sender['activations']['transport_params'][0]['destination_port']
-
-            # Not all keywords are used in all templates but that's OK
-            sdp_file = template.render(
-                dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-                media_subtype=media_subtype,
-                width=sdp_params["video_width"],
-                height=sdp_params["video_height"],
-                interlace=sdp_params["video_interlace"],
-                exactframerate=sdp_params["video_exactframerate"],
-                depth=sdp_params["video_depth"],
-                sampling=sdp_params["video_sampling"],
-                colorimetry=sdp_params["video_colorimetry"],
-                fullrange=sdp_params["video_fullrange"],
-                transfer_characteristic=sdp_params["video_transfer_characteristic"],
-                type_parameter=sdp_params["video_type_parameter"],
-                profile=sdp_params["video_profile"],
-                level=sdp_params["video_level"],
-                sublevel=sdp_params["video_sublevel"],
-                bit_rate=sdp_params["video_bit_rate"])
+            sdp_file = _generate_sdp(media_type=media_type,
+                                     media_subtype=media_subtype,
+                                     src_ip=sender['activations']['transport_params'][0]['source_ip'],
+                                     dst_ip=sender['activations']['transport_params'][0]['destination_ip'],
+                                     dst_port=sender['activations']['transport_params'][0]['destination_port'],
+                                     sdp_params=sdp_params)
 
             response = make_response(sdp_file, 200)
-            response.headers["Content-Type"] = "application/sdp"
+            response.headers['Content-Type'] = 'application/sdp'
 
             return response
 

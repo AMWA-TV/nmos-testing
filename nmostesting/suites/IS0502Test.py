@@ -1059,11 +1059,11 @@ class IS0502Test(GenericTest):
         if len(self.is04_resources["receivers"]) == 0:
             return test.UNCLEAR("Could not find any IS-04 Receivers to test")
 
-        video_sdp = open("test_data/IS0502/video.sdp").read()
-        video_jxsv_sdp = open("test_data/IS0502/video-jxsv.sdp").read()
-        audio_sdp = open("test_data/IS0502/audio.sdp").read()
-        data_sdp = open("test_data/IS0502/data.sdp").read()
-        mux_sdp = open("test_data/IS0502/mux.sdp").read()
+        video_sdp = open("test_data/sdp/video.sdp").read()
+        video_jxsv_sdp = open("test_data/sdp/video-jxsv.sdp").read()
+        audio_sdp = open("test_data/sdp/audio.sdp").read()
+        data_sdp = open("test_data/sdp/data.sdp").read()
+        mux_sdp = open("test_data/sdp/mux.sdp").read()
 
         found_rtp = False
         formats_tested = defaultdict(int)
@@ -1127,33 +1127,12 @@ class IS0502Test(GenericTest):
             dst_ip = "232.40.50.{}".format(randint(1, 254))
             dst_port = randint(5000, 5999)
 
-            if media_type == "video":
-                # Not all keywords are used in all templates but that's OK
-                sdp_file = template.render(
-                    dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-                    media_subtype=media_subtype,
-                    width=CONFIG.SDP_PREFERENCES["video_width"],
-                    height=CONFIG.SDP_PREFERENCES["video_height"],
-                    interlace=CONFIG.SDP_PREFERENCES["video_interlace"],
-                    exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                    depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                    sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                    colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                    fullrange=CONFIG.SDP_PREFERENCES["video_fullrange"],
-                    transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                    type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"],
-                    profile=CONFIG.SDP_PREFERENCES["video_profile"],
-                    level=CONFIG.SDP_PREFERENCES["video_level"],
-                    sublevel=CONFIG.SDP_PREFERENCES["video_sublevel"],
-                    bit_rate=CONFIG.SDP_PREFERENCES["video_bit_rate"])
-            elif media_type == "audio":
-                sdp_file = template.render(
-                    dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip,
-                    media_subtype=media_subtype,
-                    channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                    sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                    max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                    packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+            sdp_file = template.render({**CONFIG.SDP_PREFERENCES,
+                                        'src_ip': src_ip,
+                                        'dst_ip': dst_ip,
+                                        'dst_port': dst_port,
+                                        'media_subtype': media_subtype
+                                        })
 
             url = "single/receivers/{}/staged".format(receiver["id"])
             data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
