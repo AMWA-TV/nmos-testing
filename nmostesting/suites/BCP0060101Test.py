@@ -18,6 +18,7 @@ import re
 from jsonschema import ValidationError
 
 from ..GenericTest import GenericTest
+from ..IS04Utils import IS04Utils
 from ..TestHelper import load_resolved_schema
 
 NODE_API_KEY = "node"
@@ -39,6 +40,7 @@ class BCP0060101Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
         self.is04_resources = {"senders": [], "receivers": [], "_requested": [], "sources": [], "flows": []}
+        self.is04_utils = IS04Utils(self.node_url)
 
     # Utility function from IS0502Test
     def get_is04_resources(self, resource_type):
@@ -65,6 +67,8 @@ class BCP0060101Test(GenericTest):
     def test_01(self, test):
         """JPEG XS Flows have the required attributes"""
 
+        v1_3 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0
+
         reg_api = self.apis[FLOW_REGISTER_KEY]
 
         valid, result = self.get_is04_resources("flows")
@@ -77,17 +81,25 @@ class BCP0060101Test(GenericTest):
         try:
             jxsv_flows = [flow for flow in self.is04_resources["flows"] if flow["media_type"] == "video/jxsv"]
 
+            warn_na = False
             warn_unrestricted = False
             warn_message = ""
 
             for flow in jxsv_flows:
                 # check required attributes are present
                 if "components" not in flow:
-                    return test.FAIL("Flow {} MUST indicate the color (sub-)sampling using "
-                                     "the 'components' attribute.".format(flow["id"]))
+                    if v1_3:
+                        return test.FAIL("Flow {} MUST indicate the color (sub-)sampling using "
+                                         "the 'components' attribute.".format(flow["id"]))
+                    else:
+                        warn_na = True
+
                 if "bit_rate" not in flow:
-                    return test.FAIL("Flow {} MUST indicate the target bit rate of the codestream using "
-                                     "the 'bit_rate' attribute.".format(flow["id"]))
+                    if v1_3:
+                        return test.FAIL("Flow {} MUST indicate the target bit rate of the codestream using "
+                                         "the 'bit_rate' attribute.".format(flow["id"]))
+                    else:
+                        warn_na = True
 
                 # check values of all additional attributes against the schema
                 # e.g. 'components', 'profile', 'level', 'sublevel' and 'bit_rate'
@@ -102,21 +114,25 @@ class BCP0060101Test(GenericTest):
                                      .format(reg_api["spec_branch"]))
 
                 # check recommended attributes are present
-                if warn_unrestricted:
-                    continue
                 if "profile" not in flow:
-                    warn_unrestricted = True
-                    warn_message = "Flow {} MUST indicate the JPEG XS profile using " \
-                                   "the 'profile' attribute unless it is Unrestricted.".format(flow["id"])
-                elif "level" not in flow:
-                    warn_unrestricted = True
-                    warn_message = "Flow {} MUST indicate the JPEG XS level using " \
-                                   "the 'level' attribute unless it is Unrestricted.".format(flow["id"])
-                elif "sublevel" not in flow:
-                    warn_unrestricted = True
-                    warn_message = "Flow {} MUST indicate the JPEG XS sublevel using " \
-                                   "the 'sublevel' attribute unless it is Unrestricted.".format(flow["id"])
+                    if v1_3 and not warn_unrestricted:
+                        warn_unrestricted = True
+                        warn_message = "Flow {} MUST indicate the JPEG XS profile using " \
+                                       "the 'profile' attribute unless it is Unrestricted.".format(flow["id"])
+                if "level" not in flow:
+                    if v1_3 and not warn_unrestricted:
+                        warn_unrestricted = True
+                        warn_message = "Flow {} MUST indicate the JPEG XS level using " \
+                                       "the 'level' attribute unless it is Unrestricted.".format(flow["id"])
+                if "sublevel" not in flow:
+                    if v1_3 and not warn_unrestricted:
+                        warn_unrestricted = True
+                        warn_message = "Flow {} MUST indicate the JPEG XS sublevel using " \
+                                       "the 'sublevel' attribute unless it is Unrestricted.".format(flow["id"])
 
+            if warn_na:
+                return test.NA("Additional Flow attributes such as 'bit_rate' are required "
+                               "with 'video/jxsv' from IS-04 v1.3")
             if warn_unrestricted:
                 return test.WARNING(warn_message)
 
@@ -159,6 +175,8 @@ class BCP0060101Test(GenericTest):
     def test_03(self, test):
         """JPEG XS Senders have the required attributes"""
 
+        v1_3 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0
+
         reg_api = self.apis[SENDER_REGISTER_KEY]
 
         for resource_type in ["senders", "flows"]:
@@ -176,6 +194,7 @@ class BCP0060101Test(GenericTest):
                             and sender["flow_id"] in flow_map
                             and flow_map[sender["flow_id"]]["media_type"] == "video/jxsv"]
 
+            warn_na = False
             warn_st2110_22 = False
             warn_message = ""
 
@@ -192,8 +211,11 @@ class BCP0060101Test(GenericTest):
                                      "'urn:x-nmos:transport:rtp.mcast'"
                                      .format(sender["id"]))
                 if "bit_rate" not in sender:
-                    return test.FAIL("Sender {} MUST indicate the 'bit_rate' attribute."
-                                     .format(sender["id"]))
+                    if v1_3:
+                        return test.FAIL("Sender {} MUST indicate the 'bit_rate' attribute."
+                                         .format(sender["id"]))
+                    else:
+                        warn_na = True
 
                 # check values of all additional attributes against the schema
                 # e.g. 'bit_rate', 'packet_transmission_mode' and 'st2110_21_sender_type'
@@ -208,14 +230,16 @@ class BCP0060101Test(GenericTest):
                                      .format(reg_api["spec_branch"]))
 
                 # check recommended attributes are present
-                if warn_st2110_22:
-                    continue
                 if "st2110_21_sender_type" not in sender:
-                    warn_st2110_22 = True
-                    warn_message = "Sender {} MUST indicate the ST 2110-21 Sender Type using " \
-                                   "the 'st2110_21_sender_type' attribute if it is compliant with ST 2110-22." \
-                                   .format(sender["id"])
+                    if v1_3 and not warn_st2110_22:
+                        warn_st2110_22 = True
+                        warn_message = "Sender {} MUST indicate the ST 2110-21 Sender Type using " \
+                                       "the 'st2110_21_sender_type' attribute if it is compliant with ST 2110-22." \
+                                       .format(sender["id"])
 
+            if warn_na:
+                return test.NA("Additional Sender attributes such as 'bit_rate' are required "
+                               "with 'video/jxsv' from IS-04 v1.3")
             if warn_st2110_22:
                 return test.WARNING(warn_message)
 
@@ -229,6 +253,9 @@ class BCP0060101Test(GenericTest):
 
     def test_04(self, test):
         """JPEG XS Sender manifests have the required parameters"""
+
+        v1_1 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.1") >= 0
+        v1_3 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0
 
         for resource_type in ["senders", "flows"]:
             valid, result = self.get_is04_resources(resource_type)
@@ -290,8 +317,8 @@ class BCP0060101Test(GenericTest):
                                                  .format(name, sender["id"]))
                         sdp_format_params[name] = value
 
-                    # these SDP parameters are optional in RFC 9134 but required to be included or omitted by BCP-006-01
-                    # and correspond to the Flow attributes, if not Unrestricted
+                    # these SDP parameters are optional in RFC 9134 but are required by BCP-006-01
+                    # and, from v1.3, must correspond to the Flow attributes, if not Unrestricted
                     for name, nmos_name in {"profile": "profile",
                                             "level": "level",
                                             "sublevel": "sublevel"}.items():
@@ -300,109 +327,132 @@ class BCP0060101Test(GenericTest):
                                 if sdp_format_params[name] != flow[nmos_name]:
                                     return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                                      .format(name, sender["id"], nmos_name, flow["id"]))
-                            else:
+                            elif v1_3:
                                 return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
                                                  .format(name, sender["id"], nmos_name, flow["id"]))
-                        else:
-                            if nmos_name in flow:
-                                return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
-                                                 .format(name, sender["id"], nmos_name, flow["id"]))
-
-                    # the SDP 'sampling' parameter is optional in RFC 9134 but required by BCP-006-01
-                    # since the Flow attributes are required by IS-04
-                    name, nmos_name = "sampling", "components"
-                    if name in sdp_format_params:
-                        if not self.check_sampling(flow[nmos_name], flow["frame_width"], flow["frame_height"],
-                                                   sdp_format_params[name]):
-                            return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
-                                             .format(name, sender["id"], nmos_name, flow["id"]))
-                    else:
-                        return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
-                                         .format(name, sender["id"], nmos_name, flow["id"]))
-
-                    # the SDP 'depth' parameter is optional in RFC 9134 but required by BCP-006-01
-                    # since it corresponds to bit_depth in Flow components which is required by IS-04
-                    name, nmos_name = "depth", "components"
-                    if name in sdp_format_params:
-                        for component in flow[nmos_name]:
-                            if sdp_format_params[name] != component["bit_depth"]:
-                                return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
-                                                 .format(name, sender["id"], nmos_name, flow["id"]))
-                    else:
-                        return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
-                                         .format(name, sender["id"], nmos_name, flow["id"]))
-
-                    # these SDP parameters are optional in RFC 9134 but required by BCP-006-01
-                    # since the Flow attributes are required by IS-04
-                    for name, nmos_name in {"width": "frame_width",
-                                            "height": "frame_height"}.items():
-                        if name in sdp_format_params:
-                            if sdp_format_params[name] != flow[nmos_name]:
-                                return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
-                                                 .format(name, sender["id"], nmos_name, flow["id"]))
-                        else:
+                        elif nmos_name in flow:
                             return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
 
-                    # the SDP 'exactframerate' parameter is optional in RFC 9134 but required by BCP-006-01
-                    # since the Flow or Source attribute is required by IS-04
+                    # this SDP parameter is optional in RFC 9134 but is required by BCP-006-01
+                    # and, from v1.3, must correspond to the Flow attribute
+                    name, nmos_name = "sampling", "components"
+                    if name in sdp_format_params:
+                        if nmos_name in flow:
+                            if not self.check_sampling(flow[nmos_name], flow["frame_width"], flow["frame_height"],
+                                                       sdp_format_params[name]):
+                                return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                 .format(name, sender["id"], nmos_name, flow["id"]))
+                        elif v1_3:
+                            return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
+                                             .format(name, sender["id"], nmos_name, flow["id"]))
+                    else:
+                        return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in its Flow {} "
+                                         "from v1.3".format(name, sender["id"], nmos_name, flow["id"]))
+
+                    # this SDP parameter is optional in RFC 9134 but is required by BCP-006-01
+                    # and, from v1.3, must correspond to the Flow attribute
+                    name, nmos_name = "depth", "components"
+                    if name in sdp_format_params:
+                        if nmos_name in flow:
+                            for component in flow[nmos_name]:
+                                if sdp_format_params[name] != component["bit_depth"]:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], nmos_name, flow["id"]))
+                        elif v1_3:
+                            return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
+                                             .format(name, sender["id"], nmos_name, flow["id"]))
+                    else:
+                        return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in its Flow {} "
+                                         "from v1.3".format(name, sender["id"], nmos_name, flow["id"]))
+
+                    # these SDP parameters are optional in RFC 9134 but are required by BCP-006-01
+                    # and, from v1.1, must correspond to the Flow attributes
+                    for name, nmos_name in {"width": "frame_width",
+                                            "height": "frame_height"}.items():
+                        if name in sdp_format_params:
+                            if nmos_name in flow:
+                                if sdp_format_params[name] != flow[nmos_name]:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], nmos_name, flow["id"]))
+                            elif v1_1:
+                                return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
+                                                 .format(name, sender["id"], nmos_name, flow["id"]))
+                        else:
+                            return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in its Flow {} "
+                                             "from v1.1".format(name, sender["id"], nmos_name, flow["id"]))
+
+                    # this SDP parameter is optional in RFC 9134 but is required by BCP-006-01
+                    # and, from v1.1, must correspond to the Flow or Source attribute
                     name, nmos_name = "exactframerate", "grain_rate"
                     if name in sdp_format_params:
                         if nmos_name in flow:
                             if sdp_format_params[name] != self.exactframerate(flow[nmos_name]):
                                 return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                                  .format(name, sender["id"], nmos_name, flow["id"]))
-                        elif sdp_format_params[name] != self.exactframerate(source[nmos_name]):
-                            return test.FAIL("SDP '{}' for Sender {} does not match {} in its Source {}"
-                                             .format(name, sender["id"], nmos_name, source["id"]))
+                        elif nmos_name in source:
+                            if sdp_format_params[name] != self.exactframerate(source[nmos_name]):
+                                return test.FAIL("SDP '{}' for Sender {} does not match {} in its Source {}"
+                                                 .format(name, sender["id"], nmos_name, source["id"]))
+                        elif v1_1:
+                            return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
+                                             .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
-                        return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
-                                         .format(name, sender["id"], nmos_name, flow["id"]))
+                        return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in its Flow {} "
+                                         "from v1.1".format(name, sender["id"], nmos_name, flow["id"]))
 
-                    # the SDP 'colorimetry' parameter is optional in RFC 9134 but required by BCP-006-01
-                    # since the Flow attribute is required by IS-04
+                    # this SDP parameter is optional in RFC 9134 but is required by BCP-006-01
+                    # and, from v1.1, must correspond to the Flow attribute
                     name, nmos_name = "colorimetry", "colorspace"
                     if name in sdp_format_params:
-                        if sdp_format_params[name] != flow[nmos_name]:
-                            return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                        if nmos_name in flow:
+                            if sdp_format_params[name] != flow[nmos_name]:
+                                return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                 .format(name, sender["id"], nmos_name, flow["id"]))
+                        elif v1_1:
+                            return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
-                        return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
-                                         .format(name, sender["id"], nmos_name, flow["id"]))
+                        return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in its Flow {} "
+                                         "from v1.1".format(name, sender["id"], nmos_name, flow["id"]))
 
-                    # the SDP 'TCS' parameter is optional in RFC 9134 but required by BCP-006-01
-                    # since the Flow attribute has a default of "SDR" in IS-04
-                    # (and unlike ST 2110-20, RFC 91334 does not specify a default of "SDR")
+                    # this SDP parameter is optional in RFC 9134 but is required by BCP-006-01
+                    # and, from v1.1, must correspond to the Flow attribute which has a default of "SDR"
+                    # (and unlike ST 2110-20, RFC 91334 does not specify a default)
                     name, nmos_name = "TCS", "transfer_characteristic"
                     if name in sdp_format_params:
-                        if sdp_format_params[name] != flow.get(nmos_name, "SDR"):
-                            return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                        if nmos_name in flow:
+                            if sdp_format_params[name] != flow.get(nmos_name, "SDR"):
+                                return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                 .format(name, sender["id"], nmos_name, flow["id"]))
+                        elif v1_1:
+                            return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
-                        return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
-                                         .format(name, sender["id"], nmos_name, flow["id"]))
+                        return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in its Flow {} "
+                                         "from v1.1".format(name, sender["id"], nmos_name, flow["id"]))
 
-                    # the SDP 'interlace' parameter is required to be included or omitted by RFC 9134
-                    # and corresponds to the Flow attribute which has a default of "progressive" in IS-04
+                    # this SDP parameter is required to be included or omitted by RFC 9134
+                    # and, from IS-04 v1.1, corresponds to the Flow attribute which has a default of "progressive"
                     name, nmos_name = "interlace", "interlace_mode"
                     if name in sdp_format_params:
-                        if "progressive" == flow.get(nmos_name, "progressive"):
+                        if v1_1 and "progressive" == flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
-                        if "progressive" != flow.get(nmos_name, "progressive"):
+                        if v1_1 and "progressive" != flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
 
-                    # the SDP 'segmented' parameter is required to be included or omitted by RFC 9134
-                    # and corresponds to the Flow attribute which has a default of "progressive" in IS-04
+                    # this SDP parameter is required to be included or omitted by RFC 9134
+                    # and, from IS-04 v1.1, corresponds to the Flow attribute which has a default of "progressive"
                     name, nmos_name = "segmented", "interlace_mode"
                     if name in sdp_format_params:
-                        if "interlaced_psf" != flow.get(nmos_name, "progressive"):
+                        if v1_1 and "interlaced_psf" != flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
-                        if "interlaced_psf" == flow.get(nmos_name, "progressive"):
+                        if v1_1 and "interlaced_psf" == flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
 
