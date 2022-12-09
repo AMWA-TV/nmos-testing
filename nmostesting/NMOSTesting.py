@@ -511,10 +511,11 @@ def index_page():
             discovery_mode = "Invalid Configuration"
     else:
         discovery_mode = "Disabled (Using Query API {}:{})".format(CONFIG.QUERY_API_HOST, CONFIG.QUERY_API_PORT)
-
+    max_test_iterations = CONFIG.MAX_TEST_ITERATIONS or "Unlimited"
     r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
                                                                        "protocol": protocol,
-                                                                       "authorization": authorization},
+                                                                       "authorization": authorization,
+                                                                       "max_test_iterations": max_test_iterations},
                                       cachebuster=CACHEBUSTER))
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
