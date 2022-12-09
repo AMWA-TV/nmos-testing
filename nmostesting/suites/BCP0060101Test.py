@@ -308,7 +308,7 @@ class BCP0060101Test(GenericTest):
                                 return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
                                                  .format(name, sender["id"], nmos_name, flow["id"]))
 
-                    # the SDP 'depth' parameter is optional in RFC 9134 but required by BCP-006-01
+                    # the SDP 'sampling' parameter is optional in RFC 9134 but required by BCP-006-01
                     # since the Flow attributes are required by IS-04
                     name, nmos_name = "sampling", "components"
                     if name in sdp_format_params:
