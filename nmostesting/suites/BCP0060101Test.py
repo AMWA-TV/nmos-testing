@@ -298,20 +298,17 @@ class BCP0060101Test(GenericTest):
                     return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
                                      .format(sender["id"]))
 
+                sdp_lines = [sdp_line.replace("\r", "") for sdp_line in sdp.split("\n")]
+
                 found_fmtp = False
-
-                fmtp_line = "a=fmtp:{}".format(payload_type)
-                for sdp_line in sdp.split("\n"):
-                    sdp_line = sdp_line.replace("\r", "")
-
-                    if not sdp_line.startswith(fmtp_line):
+                for sdp_line in sdp_lines:
+                    fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
+                    if not fmtp:
                         continue
                     found_fmtp = True
 
-                    sdp_line = sdp_line[len(fmtp_line):]
-
                     sdp_format_params = {}
-                    for param in sdp_line.split(";"):
+                    for param in fmtp.group(1).split(";"):
                         name, _, value = param.strip().partition("=")
                         if name in ["interlace", "segmented"] and _:
                             return test.FAIL("SDP '{}' for Sender {} incorrectly includes an '='"
@@ -488,6 +485,39 @@ class BCP0060101Test(GenericTest):
 
                 if not found_fmtp:
                     return test.FAIL("SDP for Sender {} is missing format-specific parameters".format(sender["id"]))
+
+                # this SDP line is required if the Sender is compliant with ST 2110-22
+                # and, from v1.3, must correspond to the Sender attribute
+                name, nmos_name = "b=<brtype>:<brvalue>", "bit_rate"
+                found_bandwidth = False
+                for sdp_line in sdp_lines:
+                    bandwidth = re.search(r"^b=(.+):(.+)$", sdp_line)
+                    if not bandwidth:
+                        continue
+                    found_bandwidth = True
+
+                    if bandwidth.group(1) != "AS":
+                        return test.FAIL("SDP '<brtype>' for Sender {} is not 'AS'"
+                                         .format(sender["id"]))
+
+                    value = bandwidth.group(2)
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        return test.FAIL("SDP '<brvalue>' for Sender {} is not an integer"
+                                         .format(sender["id"]))
+
+                    if nmos_name in sender:
+                        if value != sender[nmos_name]:
+                            return test.FAIL("SDP '{}' for Sender {} does not match {} in the Sender"
+                                             .format(name, sender["id"], nmos_name))
+                    elif v1_3:
+                        return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in the Sender"
+                                         .format(name, sender["id"], nmos_name))
+
+                if nmos_name in sender and not found_bandwidth:
+                    return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in the Sender"
+                                     .format(name, sender["id"], nmos_name))
 
             if len(jxsv_senders) > 0:
                 return test.PASS()
