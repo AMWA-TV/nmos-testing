@@ -39,7 +39,7 @@ class IS0402Test(GenericTest):
     """
     Runs IS-04-02-Test
     """
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
         omit_paths = ["/health/nodes/{nodeId}"]
         GenericTest.__init__(self, apis, omit_paths)

@@ -34,7 +34,7 @@ class IS0502Test(GenericTest):
     """
     Runs Tests covering both IS-04 and IS-05
     """
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
             "/single/senders/{senderId}/transportfile"

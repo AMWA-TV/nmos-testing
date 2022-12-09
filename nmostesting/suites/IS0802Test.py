@@ -32,7 +32,7 @@ class IS0802Test(GenericTest):
     Runs Tests covering both IS-04 and IS-05
     """
 
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         # Don't auto-test /map/active/{outputId} as the tests cannot find the {outputId}s automatically
         omit_paths = [
             "/map/active/{outputId}"

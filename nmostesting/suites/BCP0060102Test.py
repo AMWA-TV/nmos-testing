@@ -24,7 +24,7 @@ class BCP0060102Test(ControllerTest):
     """
     Runs Controller Tests covering BCP-006-01
     """
-    def __init__(self, apis, registries, node, dns_server):
+    def __init__(self, apis, registries, node, dns_server, **kwargs):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
 
     def _create_interop_point(self, sdp_base, override_params):

@@ -42,7 +42,7 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registries, node, dns_server):
+    def __init__(self, apis, registries, node, dns_server, **kwargs):
         GenericTest.__init__(self, apis)
         self.invalid_registry = registries[0]
         self.primary_registry = registries[1]

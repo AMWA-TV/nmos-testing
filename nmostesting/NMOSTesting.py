@@ -595,17 +595,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                     apis[api_key]["raml"] = spec_api["raml"]
 
         # Instantiate the test class
-        if test == "IS-04-01":
-            # This test has an unusual constructor as it requires a registry instance
-            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-        elif test == "IS-09-02":
-            # This test has an unusual constructor as it requires a system api instance
-            test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
-        elif test in ["IS-04-04", "IS-05-03", "BCP-006-01-02"]:
-            # Controller tests require a registry instance, mock Node and DNS server
-            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-        else:
-            test_obj = test_def["class"](apis)
+        test_obj = test_def["class"](apis, systems=SYSTEMS, registries=REGISTRIES, node=NODE, dns_server=DNS_SERVER)
 
         core_app.config['TEST_ACTIVE'] = time.time()
         try:
