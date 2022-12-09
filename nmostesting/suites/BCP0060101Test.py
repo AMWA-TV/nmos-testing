@@ -262,7 +262,6 @@ class BCP0060101Test(GenericTest):
 
         self.do_test_node_api_v1_1(test)
 
-        v1_1 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.1") >= 0
         v1_3 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0
 
         for resource_type in ["senders", "flows"]:
@@ -383,7 +382,7 @@ class BCP0060101Test(GenericTest):
                                 if sdp_format_params[name] != flow[nmos_name]:
                                     return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                                      .format(name, sender["id"], nmos_name, flow["id"]))
-                            elif v1_1:
+                            else:
                                 return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
                                                  .format(name, sender["id"], nmos_name, flow["id"]))
                         else:
@@ -402,7 +401,7 @@ class BCP0060101Test(GenericTest):
                             if sdp_format_params[name] != self.exactframerate(source[nmos_name]):
                                 return test.FAIL("SDP '{}' for Sender {} does not match {} in its Source {}"
                                                  .format(name, sender["id"], nmos_name, source["id"]))
-                        elif v1_1:
+                        else:
                             return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
@@ -417,7 +416,7 @@ class BCP0060101Test(GenericTest):
                             if sdp_format_params[name] != flow[nmos_name]:
                                 return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                                  .format(name, sender["id"], nmos_name, flow["id"]))
-                        elif v1_1:
+                        else:
                             return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
@@ -429,40 +428,63 @@ class BCP0060101Test(GenericTest):
                     # (and unlike ST 2110-20, RFC 91334 does not specify a default)
                     name, nmos_name = "TCS", "transfer_characteristic"
                     if name in sdp_format_params:
-                        if nmos_name in flow:
-                            if sdp_format_params[name] != flow.get(nmos_name, "SDR"):
-                                return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
-                                                 .format(name, sender["id"], nmos_name, flow["id"]))
-                        elif v1_1:
-                            return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in its Flow {}"
+                        if sdp_format_params[name] != flow.get(nmos_name, "SDR"):
+                            return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
                         return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in its Flow {} "
                                          "from v1.1".format(name, sender["id"], nmos_name, flow["id"]))
 
                     # this SDP parameter is required to be included or omitted by RFC 9134
-                    # and, from IS-04 v1.1, corresponds to the Flow attribute which has a default of "progressive"
+                    # and, from v1.1, must correspond to the Flow attribute which has a default of "progressive"
                     name, nmos_name = "interlace", "interlace_mode"
                     if name in sdp_format_params:
-                        if v1_1 and "progressive" == flow.get(nmos_name, "progressive"):
+                        if "progressive" == flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
-                        if v1_1 and "progressive" != flow.get(nmos_name, "progressive"):
+                        if "progressive" != flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
 
                     # this SDP parameter is required to be included or omitted by RFC 9134
-                    # and, from IS-04 v1.1, corresponds to the Flow attribute which has a default of "progressive"
+                    # and, from v1.1, must correspond to the Flow attribute which has a default of "progressive"
                     name, nmos_name = "segmented", "interlace_mode"
                     if name in sdp_format_params:
-                        if v1_1 and "interlaced_psf" != flow.get(nmos_name, "progressive"):
+                        if "interlaced_psf" != flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
                     else:
-                        if v1_1 and "interlaced_psf" == flow.get(nmos_name, "progressive"):
+                        if "interlaced_psf" == flow.get(nmos_name, "progressive"):
                             return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in its Flow {}"
                                              .format(name, sender["id"], nmos_name, flow["id"]))
+
+                    # this SDP parameter is required in RFC 9134
+                    # and, from v1.3, must correspond to the Sender attribute which has a default of "codestream"
+                    name, nmos_name = "packetmode", "packet_transmission_mode"
+                    if name in sdp_format_params:
+                        k, t = sdp_format_params[name], sdp_format_params.get("transmode", 1)
+                        if v1_3 and self.packet_transmission_mode(k, t) != sender.get(nmos_name, "codestream"):
+                            return test.FAIL("SDP '{}' for Sender {} does not match {} in the Sender"
+                                             .format(name, sender["id"], nmos_name))
+                    else:
+                        return test.FAIL("SDP '{}' for Sender {} is missing and must match {} in the Sender "
+                                         "from v1.3".format(name, sender["id"], nmos_name))
+
+                    # this SDP parameter is required if the Sender is compliant with ST 2110-22
+                    # and, from v1.3, must correspond to the Sender attribute
+                    name, nmos_name = "TP", "st2110_21_sender_type"
+                    if name in sdp_format_params:
+                        if nmos_name in sender:
+                            if sdp_format_params[name] != sender[nmos_name]:
+                                return test.FAIL("SDP '{}' for Sender {} does not match {} in the Sender"
+                                                 .format(name, sender["id"], nmos_name))
+                        elif v1_3:
+                            return test.FAIL("SDP '{}' for Sender {} is present but {} is missing in the Sender"
+                                             .format(name, sender["id"], nmos_name))
+                    elif nmos_name in sender:
+                        return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in the Sender"
+                                         .format(name, sender["id"], nmos_name))
 
                 if not found_fmtp:
                     return test.FAIL("SDP for Sender {} is missing format-specific parameters".format(sender["id"]))
@@ -531,6 +553,17 @@ class BCP0060101Test(GenericTest):
                 return False
 
         return components == ""
+
+    def packet_transmission_mode(self, packetmode, transmode):
+        """Format the SDP 'packetmode' and 'transmode' as a Flow 'packet_transmission_mode'"""
+        if packetmode == 0 and transmode == 1:
+            return "codestream"
+        elif packetmode == 1 and transmode == 1:
+            return "slice_sequential"
+        elif packetmode == 1 and transmode == 0:
+            return "slice_out_of_order"
+        else:
+            return "INVALID"
 
     def do_test_node_api_v1_1(self, test):
         """
