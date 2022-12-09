@@ -17,7 +17,7 @@ import re
 
 from jsonschema import ValidationError
 
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 from ..IS04Utils import IS04Utils
 from ..TestHelper import load_resolved_schema
 
@@ -66,6 +66,8 @@ class BCP0060101Test(GenericTest):
 
     def test_01(self, test):
         """JPEG XS Flows have the required attributes"""
+
+        self.do_test_node_api_v1_1(test)
 
         v1_3 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0
 
@@ -147,6 +149,8 @@ class BCP0060101Test(GenericTest):
     def test_02(self, test):
         """JPEG XS Sources have the required attributes"""
 
+        self.do_test_node_api_v1_1(test)
+
         for resource_type in ["flows", "sources"]:
             valid, result = self.get_is04_resources(resource_type)
             if not valid:
@@ -174,6 +178,8 @@ class BCP0060101Test(GenericTest):
 
     def test_03(self, test):
         """JPEG XS Senders have the required attributes"""
+
+        self.do_test_node_api_v1_1(test)
 
         v1_3 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0
 
@@ -253,6 +259,8 @@ class BCP0060101Test(GenericTest):
 
     def test_04(self, test):
         """JPEG XS Sender manifests have the required parameters"""
+
+        self.do_test_node_api_v1_1(test)
 
         v1_1 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.1") >= 0
         v1_3 = self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.3") >= 0
@@ -523,3 +531,12 @@ class BCP0060101Test(GenericTest):
                 return False
 
         return components == ""
+
+    def do_test_node_api_v1_1(self, test):
+        """
+        Precondition check of the API version.
+        Raises an NMOSTestException when the Node API version is less than v1.1
+        """
+        api = self.apis[NODE_API_KEY]
+        if self.is04_utils.compare_api_version(api["version"], "v1.1") < 0:
+            raise NMOSTestException(test.NA("This test cannot be run against IS-04 below version v1.1."))

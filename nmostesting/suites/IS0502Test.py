@@ -21,10 +21,9 @@ from collections import defaultdict
 from random import randint
 from jinja2 import Template
 
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
 from .. import Config as CONFIG
-from ..GenericTest import NMOSTestException
 from ..TestHelper import compare_json, get_default_ip
 
 NODE_API_KEY = "node"
