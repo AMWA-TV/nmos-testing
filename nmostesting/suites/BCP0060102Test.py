@@ -684,7 +684,7 @@ class BCP0060102Test(ControllerTest):
         """
         # Controllers MUST support IS-04 to discover JPEG XS Senders
 
-        MAX_COMPATIBLE_RECEIVER_COUNT = 3
+        MAX_COMPATIBLE_SENDER_COUNT = 3
         CANDIDATE_SENDER_COUNT = 4
 
         try:
@@ -700,7 +700,7 @@ class BCP0060102Test(ControllerTest):
             jpeg_xs_senders = [s for s in self.senders if 'video/jxsv' == s['sdp_params']['media_type']]
             video_raw_senders = [s for s in self.senders if 'video/raw' == s['sdp_params']['media_type']]
 
-            jpeg_xs_sender_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT, len(jpeg_xs_senders)))
+            jpeg_xs_sender_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_SENDER_COUNT, len(jpeg_xs_senders)))
             candidate_senders = NMOSUtils.RANDOM.sample(jpeg_xs_senders, jpeg_xs_sender_count)
 
             if len(candidate_senders) < CANDIDATE_SENDER_COUNT:
