@@ -21,10 +21,9 @@ from collections import defaultdict
 from random import randint
 from jinja2 import Template
 
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
 from .. import Config as CONFIG
-from ..GenericTest import NMOSTestException
 from ..TestHelper import compare_json, get_default_ip
 
 NODE_API_KEY = "node"
@@ -600,18 +599,19 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         try:
-            for resource in self.is04_resources["senders"]:
-                valid_transports = self.is05_utils.get_valid_transports(self.apis[CONN_API_KEY]["version"])
-                if resource["transport"] not in valid_transports:
+            valid_transports = self.is05_utils.get_valid_transports(self.apis[CONN_API_KEY]["version"])
+
+            for sender in self.is04_resources["senders"]:
+                if sender["transport"] not in valid_transports:
                     continue
 
                 is04_transport_file = None
                 is05_transport_file = None
-                if resource["manifest_href"] is not None and resource["manifest_href"] != "":
-                    valid, result = self.do_request("GET", resource["manifest_href"])
+                if sender["manifest_href"] is not None and sender["manifest_href"] != "":
+                    valid, result = self.do_request("GET", sender["manifest_href"])
                     if valid and result.status_code != 404:
                         is04_transport_file = result.text
-                url_path = self.connection_url + "single/senders/" + resource["id"] + "/transportfile"
+                url_path = self.connection_url + "single/senders/" + sender["id"] + "/transportfile"
                 valid, result = self.do_request("GET", url_path)
                 if valid and result.status_code != 404:
                     is05_transport_file = result.text
@@ -619,12 +619,12 @@ class IS0502Test(GenericTest):
                 if is04_transport_file != is05_transport_file:
                     if is04_transport_file is None:
                         return test.FAIL("Sender '{}' did not return a transport file "
-                                         "from IS-04".format(resource["id"]))
+                                         "from IS-04".format(sender["id"]))
                     if is05_transport_file is None:
                         return test.FAIL("Sender '{}' did not return a transport file "
-                                         "from IS-05".format(resource["id"]))
+                                         "from IS-05".format(sender["id"]))
                     return test.FAIL("Transport file contents for Sender '{}' do not match "
-                                     "between IS-04 and IS-05".format(resource["id"]))
+                                     "between IS-04 and IS-05".format(sender["id"]))
 
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 Sender: {}".format(ex))
@@ -652,23 +652,21 @@ class IS0502Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
-            for resource in self.is04_resources["senders"]:
-                if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
-                    continue
-                if resource["flow_id"] is None:
-                    continue
+            rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                           and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
-                flow = flow_map[resource["flow_id"]]
+            for sender in rtp_senders:
+                flow = flow_map[sender["flow_id"]]
                 source = source_map[flow["source_id"]]
 
-                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                is05_transport_file = self.is05_resources["transport_files"][sender["id"]]
                 if is05_transport_file is None:
-                    return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+                    return test.FAIL("Unable to download transportfile for Sender {}".format(sender["id"]))
 
                 payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
                     return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
-                                     .format(resource["id"]))
+                                     .format(sender["id"]))
 
                 for sdp_line in is05_transport_file.split("\n"):
                     sdp_line = sdp_line.replace("\r", "")
@@ -678,56 +676,56 @@ class IS0502Test(GenericTest):
                                            sdp_line)
                         if not rtpmap:
                             return test.FAIL(r"a=rtpmap does not match Flow media type {} for Sender {}"
-                                             .format(flow["media_type"], resource["id"]))
+                                             .format(flow["media_type"], sender["id"]))
 
                         if source["format"] == "urn:x-nmos:format:video":
                             rtpmap = re.search(r"^a=rtpmap:\d+ {}/90000$".format(flow["media_type"].split("/")[1]),
                                                sdp_line)
                             if not rtpmap:
                                 return test.FAIL("a=rtpmap clock rate does not match expected rate for Flow media "
-                                                 "type {} and Sender {}".format(flow["media_type"], resource["id"]))
+                                                 "type {} and Sender {}".format(flow["media_type"], sender["id"]))
                         elif source["format"] == "urn:x-nmos:format:audio":
                             rtpmap = re.search(r"^a=rtpmap:\d+ L(\d+)\/(\d+)(?:\/(\d+))?$", sdp_line)
                             if re.search(r"^audio\/L\d+$", flow["media_type"]):
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
-                                                     "for Sender {}".format(flow["media_type"], resource["id"]))
+                                                     "for Sender {}".format(flow["media_type"], sender["id"]))
                                 bit_depth = int(rtpmap.group(1))
                                 sample_rate = int(rtpmap.group(2))
                                 channels = int(rtpmap.group(3)) if rtpmap.group(3) is not None else 1
                                 if len(source["channels"]) != channels:
                                     return test.FAIL("Number of channels for Sender {} does not match its Source {}"
-                                                     .format(resource["id"], source["id"]))
+                                                     .format(sender["id"], source["id"]))
                                 if flow["bit_depth"] != bit_depth:
                                     return test.FAIL("Bit depth for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
+                                                     .format(sender["id"], flow["id"]))
                                 if flow["sample_rate"]["numerator"] != sample_rate:
                                     return test.FAIL("Sample rate for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
+                                                     .format(sender["id"], flow["id"]))
                                 if flow["media_type"] != "audio/L{}".format(bit_depth):
                                     return test.FAIL("Mismatch between bit depth and media_type for Flow {}"
                                                      .format(flow["id"]))
                             elif rtpmap:
                                 return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
-                                                 .format(resource["id"]))
+                                                 .format(sender["id"]))
                         elif source["format"] == "urn:x-nmos:format:data":
                             rtpmap = re.search(r"^a=rtpmap:\d+ smpte291/90000$", sdp_line)
                             if flow["media_type"] == "video/smpte291":
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
-                                                     "and Sender {}".format(flow["media_type"], resource["id"]))
+                                                     "and Sender {}".format(flow["media_type"], sender["id"]))
                             elif rtpmap:
                                 return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
-                                                 .format(resource["id"]))
+                                                 .format(sender["id"]))
                         elif source["format"] == "urn:x-nmos:format:mux":
                             rtpmap = re.search(r"^a=rtpmap:\d+ SMPTE2022-6/27000000$", sdp_line)
                             if flow["media_type"] == "video/SMPTE2022-6":
                                 if not rtpmap:
                                     return test.FAIL("a=rtpmap does not match pattern expected for Flow media type {} "
-                                                     "and Sender {}".format(flow["media_type"], resource["id"]))
+                                                     "and Sender {}".format(flow["media_type"], sender["id"]))
                             elif rtpmap:
                                 return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
-                                                 .format(resource["id"]))
+                                                 .format(sender["id"]))
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
@@ -754,142 +752,100 @@ class IS0502Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
-            for resource in self.is04_resources["senders"]:
-                if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
-                    continue
-                if resource["flow_id"] is None:
-                    continue
+            rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                           and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
-                flow = flow_map[resource["flow_id"]]
+            for sender in rtp_senders:
+                flow = flow_map[sender["flow_id"]]
                 source = source_map[flow["source_id"]]
 
-                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                is05_transport_file = self.is05_resources["transport_files"][sender["id"]]
                 if is05_transport_file is None:
-                    return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+                    return test.FAIL("Unable to download transportfile for Sender {}".format(sender["id"]))
 
                 payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
                     return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
-                                     .format(resource["id"]))
+                                     .format(sender["id"]))
 
                 for sdp_line in is05_transport_file.split("\n"):
                     sdp_line = sdp_line.replace("\r", "")
                     fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
-                    if fmtp and source["format"] == "urn:x-nmos:format:video":
+                    if fmtp and flow["media_type"] == "video/raw":
                         for param in fmtp.group(1).split(";"):
-                            param_components = param.strip().split("=")
-                            if param_components[0] == "sampling":  # ref: RFC4175 and ST.2110-20
-                                sampling_format = param_components[1].split("-")
-                                components = sampling_format[0]
-                                if components in ["YCbCr", "ICtCp", "RGB"]:
-                                    if len(flow["components"]) != 3:
-                                        return test.FAIL("Video Flow {} components do not match those found in SDP for "
-                                                         "Sender {}".format(flow["id"], resource["id"]))
-                                    if len(sampling_format) > 1:
-                                        sampling = sampling_format[1]
-                                    else:
-                                        sampling = None
-                                    for component in flow["components"]:
-                                        if component["name"] not in components:
-                                            return test.FAIL("Video Flow component {} does not match the SDP sampling "
-                                                             "for Sender {}".format(component["name"], resource["id"]))
-                                        sampling_error = False
-                                        if sampling == "4:4:4" or sampling is None or component["name"] in ["Y", "I"]:
-                                            if component["width"] != flow["frame_width"] or \
-                                                    component["height"] != flow["frame_height"]:
-                                                sampling_error = True
-                                        elif sampling == "4:2:2":
-                                            if component["width"] != (flow["frame_width"] / 2) or \
-                                                    component["height"] != flow["frame_height"]:
-                                                sampling_error = True
-                                        elif sampling == "4:2:0":
-                                            if component["width"] != (flow["frame_width"] / 2) or \
-                                                    component["height"] != (flow["frame_height"] / 2):
-                                                sampling_error = True
-                                        if sampling_error:
-                                            return test.FAIL("Video Flow {} components do not match the expected "
-                                                             "dimensions for Sender sampling {}"
-                                                             .format(flow["id"], sampling))
-                            elif param_components[0] == "width":  # ref: RFC4175
-                                if flow["frame_width"] != int(param_components[1]):
-                                    return test.FAIL("Width for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "height":  # ref: RFC4175
-                                if flow["frame_height"] != int(param_components[1]):
-                                    return test.FAIL("Height for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "depth":  # ref: RFC4175
+                            name, _, value = param.strip().partition("=")
+                            if name in ["interlace", "top-field-first", "segmented"] and _:
+                                return test.FAIL("SDP '{}' for Sender {} incorrectly includes an '='"
+                                                 .format(name, sender["id"]))
+                            if name in ["depth", "width", "height"]:
+                                try:
+                                    value = int(value)
+                                except ValueError:
+                                    return test.FAIL("SDP '{}' for Sender {} is not an integer"
+                                                     .format(name, sender["id"]))
+
+                            if name == "sampling":  # ref: RFC4175 and ST.2110-20
+                                if not self.check_sampling(flow["components"],
+                                                           flow["frame_width"], flow["frame_height"], value):
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "components", flow["id"]))
+                            elif name == "width":  # ref: RFC4175
+                                if flow["frame_width"] != value:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "frame_width", flow["id"]))
+                            elif name == "height":  # ref: RFC4175
+                                if flow["frame_height"] != value:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "frame_height", flow["id"]))
+                            elif name == "depth":  # ref: RFC4175
                                 for component in flow["components"]:
-                                    if component["bit_depth"] != int(param_components[1]):
-                                        return test.FAIL("Bit depth for Sender {} does not match its Flow {}"
-                                                         .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "colorimetry":  # ref: RFC4175 and ST.2110-20
-                                if param_components[1].startswith("BT"):
-                                    # RFC4175 uses 'BT709-2', but ST.2110-20 uses 'BT709'
-                                    colorimetry_match = param_components[1].split("-")[0]
-                                else:
-                                    colorimetry_match = param_components[1]
-                                if flow["colorspace"] != colorimetry_match:
-                                    return test.FAIL("Colorimetry for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
-                            elif param_components[0] == "interlace":  # ref: RFC4175
-                                if "interlace_mode" not in flow or flow["interlace_mode"] == "progressive":
-                                    return test.FAIL("Interlace parameter for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
-                                elif len(param_components) > 1:
-                                    return test.FAIL("Interlace parameter for Sender {} incorrectly includes an '='"
-                                                     .format(resource["id"]))
-                            elif param_components[0] == "top-field-first":  # ref: RFC4175
-                                if "interlace_mode" not in flow or flow["interlace_mode"] == "progressive":
-                                    return test.FAIL("Top-field-first parameter for Sender {} does not match its Flow "
-                                                     "{}".format(resource["id"], flow["id"]))
-                                elif len(param_components) > 1:
-                                    return test.FAIL("Top-field-first parameter for Sender {} incorrectly includes an "
-                                                     "'='".format(resource["id"]))
-                            elif param_components[0] == "segmented":  # ref: ST.2110-20
-                                if "interlace_mode" not in flow or flow["interlace_mode"] != "interlaced_psf":
-                                    return test.FAIL("Segmented parameter for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
-                                elif len(param_components) > 1:
-                                    return test.FAIL("Segmented parameter for Sender {} incorrectly includes an '='"
-                                                     .format(resource["id"]))
-                            elif param_components[0] == "exactframerate":  # ref: ST.2110-20
-                                if "grain_rate" not in source:
-                                    return test.FAIL("No grain_rate found for Source {} associated with Sender {}"
-                                                     .format(source["id"], resource["id"]))
+                                    if component["bit_depth"] != value:
+                                        return test.FAIL("SDP '{}' for Sender {} does not match {} its Flow {}"
+                                                         .format(name, sender["id"], "components", flow["id"]))
+                            elif name == "colorimetry":  # ref: RFC4175 and ST.2110-20
+                                value = "BT709" if value == "BT709-2" else value
+                                if flow["colorspace"] != value:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "colorspace", flow["id"]))
+                            elif name == "interlace":  # ref: RFC4175
+                                if "progressive" == flow.get("interlace_mode", "progressive"):
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "interlace_mode", flow["id"]))
+                            elif name == "top-field-first":  # ref: RFC4175
+                                if "progressive" == flow.get("interlace_mode", "progressive"):
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "interlace_mode", flow["id"]))
+                            elif name == "segmented":  # ref: ST.2110-20
+                                if "interlaced_psf" != flow.get("interlace_mode", "progressive"):
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "interlace_mode", flow["id"]))
+                            elif name == "exactframerate":  # ref: ST.2110-20
                                 if "grain_rate" in flow:
-                                    flow_rate = self.exactframerate(flow["grain_rate"])
-                                    if param_components[1] != flow_rate:
-                                        return test.FAIL("Exactframerate for Sender {} does not match its Flow {}"
-                                                         .format(resource["id"], flow["id"]))
-                                else:
-                                    source_rate = self.exactframerate(source["grain_rate"])
-                                    if param_components[1] != source_rate:
-                                        return test.FAIL("Exactframerate for Sender {} does not match its Source {} "
-                                                         "and is not overridden by the Flow"
-                                                         .format(resource["id"], source["id"]))
-                            elif param_components[0] == "TCS":  # ref: ST.2110-20
-                                if "transfer_characteristic" not in flow and param_components[1] != "SDR":
-                                    return test.FAIL("Transfer characteristic is missing from Flow attributes")
-                                elif "transfer_characteristic" in flow and \
-                                        flow["transfer_characteristic"] != param_components[1]:
-                                    return test.FAIL("TCS parameter for Sender {} does not match its Flow {}"
-                                                     .format(resource["id"], flow["id"]))
+                                    if value != self.exactframerate(flow["grain_rate"]):
+                                        return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                         .format(name, sender["id"], "grain_rate", flow["id"]))
+                                elif value != self.exactframerate(source["grain_rate"]):
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Source {}"
+                                                     .format(name, sender["id"], "grain_rate", source["id"]))
+                            elif name == "TCS":  # ref: ST.2110-20
+                                if flow.get("transfer_characteristic", "SDR") != value:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "transfer_characteristic", flow["id"]))
                     elif fmtp and flow["media_type"].startswith("audio/L"):
                         for param in fmtp.group(1).split(";"):
-                            param_components = param.strip().split("=")
-                            if param_components[0] == "channel-order":  # ref: ST.2110-30
-                                if self.channel_order(source["channels"]) != param_components[1]:
-                                    return test.FAIL("Channel-order parameter for Sender {} does not match its Source "
-                                                     "{}".format(resource["id"], source["id"]))
+                            name, _, value = param.strip().partition("=")
+                            if name == "channel-order":  # ref: ST.2110-30
+                                if self.channel_order(source["channels"]) != value:
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} its Source {}"
+                                                     .format(name, sender["id"], "channels", source["id"]))
                     elif fmtp and flow["media_type"] == "video/smpte291":
                         for param in fmtp.group(1).split(";"):
-                            param_components = param.strip().split("=")
-                            if param_components[0] == "DID_SDID":  # ref: RFC8331
-                                did, sdid = param_components[1].lstrip("{").rstrip("}").split(",")
+                            name, _, value = param.strip().partition("=")
+                            if name == "DID_SDID":  # ref: RFC8331
+                                did, sdid = value.lstrip("{").rstrip("}").split(",")
                                 if "DID_SDID" not in flow:
                                     return test.FAIL("No DID_SDID found for Flow {} associated with Sender {}"
-                                                     .format(flow["id"], resource["id"]))
+                                                     .format(flow["id"], sender["id"]))
                                 found_match = False
                                 for did_sdid in flow["DID_SDID"]:
                                     if int(did_sdid["DID"], 16) == int(did, 16) and \
@@ -897,8 +853,8 @@ class IS0502Test(GenericTest):
                                         found_match = True
 
                                 if not found_match:
-                                    return test.FAIL("DID/SDID parameters for Sender {} do not match the Flow {}"
-                                                     .format(resource["id"], flow["id"]))
+                                    return test.FAIL("SDP '{}' for Sender {} does not match {} in its Flow {}"
+                                                     .format(name, sender["id"], "DID_SDID", flow["id"]))
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
@@ -923,22 +879,20 @@ class IS0502Test(GenericTest):
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
 
-        for resource in self.is04_resources["senders"]:
-            if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            if resource["flow_id"] is None:
-                continue
+        rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                       and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
-            flow = flow_map[resource["flow_id"]]
+        for sender in rtp_senders:
+            flow = flow_map[sender["flow_id"]]
 
-            is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+            is05_transport_file = self.is05_resources["transport_files"][sender["id"]]
             if is05_transport_file is None:
-                return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+                return test.FAIL("Unable to download transportfile for Sender {}".format(sender["id"]))
 
             payload_type = self.rtp_ptype(is05_transport_file)
             if not payload_type:
                 return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
-                                 .format(resource["id"]))
+                                 .format(sender["id"]))
 
             sdp_interlace = False
             sdp_chroma_first_field = False
@@ -949,40 +903,43 @@ class IS0502Test(GenericTest):
             for sdp_line in is05_transport_file.split("\n"):
                 sdp_line = sdp_line.replace("\r", "")
                 fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
-                if fmtp and flow["format"] == "urn:x-nmos:format:video":
+                if fmtp and flow["media_type"] == "video/raw":
                     for param in fmtp.group(1).split(";"):
-                        param_components = param.strip().split("=")
-                        if param_components[0] == "interlace":  # ref: RFC4175
+                        name, _, value = param.strip().partition("=")
+                        if name == "interlace":  # ref: RFC4175
                             sdp_interlace = True
-                        elif param_components[0] == "top-field-first":  # ref: RFC4175
+                        elif name == "top-field-first":  # ref: RFC4175
                             sdp_chroma_first_field = True
-                        elif param_components[0] == "segmented":  # ref: ST.2110-20
+                        elif name == "segmented":  # ref: ST.2110-20
                             sdp_segmented = True
-                        elif param_components[0] == "TCS":  # ref: ST.2110-20
+                        elif name == "TCS":  # ref: ST.2110-20
                             sdp_tcs = True
                 elif fmtp and flow["media_type"] == "video/smpte291":
                     for param in fmtp.group(1).split(";"):
-                        param_components = param.strip().split("=")
-                        if param_components[0] == "DID_SDID":  # ref: RFC8331
+                        name, _, value = param.strip().partition("=")
+                        if name == "DID_SDID":  # ref: RFC8331
                             sdp_did_sdid = True
 
-            if "DID_SDID" in flow and not sdp_did_sdid:
-                return test.FAIL("Flow for Sender {} indicates DID_SDID parameter but this is missing from its "
-                                 "SDP file".format(resource["id"]))
-            if "interlace_mode" in flow and flow["interlace_mode"] != "progressive" and not sdp_interlace:
-                return test.FAIL("Flow for Sender {} indicates video is interlaced, but this is missing from its "
-                                 "SDP file".format(resource["id"]))
-            if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_psf" and not sdp_segmented:
-                return test.FAIL("Flow for Sender {} indicates video is segmented, but this is missing from its "
-                                 "SDP file".format(resource["id"]))
-            if "transfer_characteristic" in flow and flow["transfer_characteristic"] != "SDR" and not sdp_tcs:
-                return test.FAIL("Flow for Sender {} indicates video's transfer characteristic, but this is missing "
-                                 "from its SDP file".format(resource["id"]))
+            if flow["media_type"] == "video/smpte291":
+                if "DID_SDID" in flow and not sdp_did_sdid:
+                    return test.FAIL("Flow {} for Sender {} indicates DID_SDID parameter but this is "
+                                     "missing from its SDP file".format(flow["id"], sender["id"]))
+            if flow["media_type"] == "video/raw":
+                if flow.get("interlace_mode", "progressive") != "progressive" and not sdp_interlace:
+                    return test.FAIL("Flow {} for Sender {} indicates video is interlaced, but this is "
+                                     "missing from its SDP file".format(flow["id"], sender["id"]))
+                if flow.get("interlace_mode", "progressive") == "interlaced_psf" and not sdp_segmented:
+                    return test.FAIL("Flow {} for Sender {} indicates video is segmented, but this is "
+                                     "missing from its SDP file".format(flow["id"], sender["id"]))
+                # ST.2110-20 specifies TCS default is SDR
+                if flow.get("transfer_characteristic", "SDR") != "SDR" and not sdp_tcs:
+                    return test.FAIL("Flow {} for Sender {} indicates video transfer characteristic, but this is "
+                                     "missing from its SDP file".format(flow["id"], sender["id"]))
 
-            # Technically the following is just SDP validation, so could move to sdpoker
-            if (sdp_chroma_first_field or sdp_segmented) and not sdp_interlace:
-                return test.FAIL("SDP file for Sender {} indicates top-field-first or segmented, but doesn't indicate "
-                                 "interlace".format(resource["id"]))
+                # Technically the following is just SDP validation, so could move to sdpoker
+                if (sdp_chroma_first_field or sdp_segmented) and not sdp_interlace:
+                    return test.FAIL("SDP file for Sender {} indicates top-field-first or segmented, but doesn't "
+                                     "indicate interlace".format(sender["id"]))
 
         return test.PASS()
 
@@ -1018,21 +975,19 @@ class IS0502Test(GenericTest):
         clock_map = {clock["name"]: clock for clock in node_self["clocks"]}
         interface_map = {interface["name"]: interface for interface in node_self["interfaces"]}
 
-        for resource in self.is04_resources["senders"]:
-            if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            if resource["flow_id"] is None:
-                continue
+        rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                       and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
-            flow = flow_map[resource["flow_id"]]
+        for sender in rtp_senders:
+            flow = flow_map[sender["flow_id"]]
             source = source_map[flow["source_id"]]
 
-            is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+            is05_transport_file = self.is05_resources["transport_files"][sender["id"]]
             if is05_transport_file is None:
-                return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+                return test.FAIL("Unable to download transportfile for Sender {}".format(sender["id"]))
 
             found_refclk = False
-            interface_bindings = deepcopy(resource["interface_bindings"])
+            interface_bindings = deepcopy(sender["interface_bindings"])
             for sdp_line in is05_transport_file.split("\n"):
                 sdp_line = sdp_line.replace("\r", "")
                 ts_refclk = re.search(r"^a=ts-refclk:(.+)$", sdp_line)
@@ -1046,22 +1001,22 @@ class IS0502Test(GenericTest):
                 is04_clock = clock_map[source["clock_name"]]
                 if is04_clock["ref_type"] == "internal" and ts_refclk.group(1).startswith("ptp="):
                     return test.FAIL("IS-04 Source indicates 'internal' clock but SDP file indicates 'ptp' for Sender "
-                                     "{}".format(resource["id"]))
+                                     "{}".format(sender["id"]))
                 elif is04_clock["ref_type"] == "ptp":
                     prefix = "ptp="
                     if not ts_refclk.group(1).startswith(prefix):
                         return test.FAIL("IS-04 Source indicates 'ptp' clock but SDP file indicates '{}' for Sender "
-                                         "{}".format(ts_refclk.group(1), resource["id"]))
+                                         "{}".format(ts_refclk.group(1), sender["id"]))
                     ptp_data = ts_refclk.group(1)[len(prefix):].split(":")
                     if is04_clock["version"] != ptp_data[0]:
                         return test.FAIL("IS-04 Source PTP version {} does not match ts-refclk PTP version {} for "
-                                         "Sender {}".format(is04_clock["version"], ptp_data[0], resource["id"]))
+                                         "Sender {}".format(is04_clock["version"], ptp_data[0], sender["id"]))
                     if ptp_data[1] != "traceable" and is04_clock["gmid"] != ptp_data[1].lower():
                         return test.FAIL("IS-04 Source PTP gmid {} does not match ts-refclk PTP gmid {} for "
-                                         "Sender {}".format(is04_clock["gmid"], ptp_data[1], resource["id"]))
+                                         "Sender {}".format(is04_clock["gmid"], ptp_data[1], sender["id"]))
                     elif ptp_data[1] == "traceable" and is04_clock["traceable"] is not True:
                         return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for Sender {}"
-                                         .format(resource["id"]))
+                                         .format(sender["id"]))
 
                 prefix = "localmac="
                 if ts_refclk.group(1).startswith(prefix):
@@ -1072,7 +1027,7 @@ class IS0502Test(GenericTest):
                         sdp_mac = ts_refclk.group(1)[len(prefix):].lower()
                         if api_mac != sdp_mac:
                             return test.FAIL("IS-04 interface_binding MAC does not match SDP ts-refclk localmac for "
-                                             "Sender {}".format(resource["id"]))
+                                             "Sender {}".format(sender["id"]))
                         # Ensure that any further localmacs we test match the expected interface
                         del interface_bindings[0]
                     except (KeyError, IndexError) as e:
@@ -1080,7 +1035,7 @@ class IS0502Test(GenericTest):
 
             if source["clock_name"] is not None and not found_refclk:
                 return test.FAIL("IS-04 Source indicates a clock, but SDP ts-refclk is missing for Sender {}"
-                                 .format(resource["id"]))
+                                 .format(sender["id"]))
 
         return test.PASS()
 
@@ -1102,14 +1057,12 @@ class IS0502Test(GenericTest):
         data_sdp = open("test_data/sdp/data.sdp").read()
         mux_sdp = open("test_data/sdp/mux.sdp").read()
 
-        found_rtp = False
+        rtp_receivers = [receiver for receiver in self.is04_resources["receivers"]
+                         if receiver["transport"].startswith("urn:x-nmos:transport:rtp")]
+
         formats_tested = defaultdict(int)
         warn_sdp_untested = ""
-        for receiver in self.is04_resources["receivers"]:
-            if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            found_rtp = True
-
+        for receiver in rtp_receivers:
             caps = receiver["caps"]
 
             if receiver["format"] == "urn:x-nmos:format:video":
@@ -1205,7 +1158,7 @@ class IS0502Test(GenericTest):
 
             formats_tested[receiver["format"]] += 1
 
-        if not found_rtp:
+        if len(rtp_receivers) == 0:
             return test.UNCLEAR("Could not find any IS-04 RTP Receivers to test")
         elif warn_sdp_untested:
             return test.MANUAL(warn_sdp_untested)
@@ -1229,6 +1182,41 @@ class IS0502Test(GenericTest):
             except Exception:
                 pass
         return payload_type
+
+    def check_sampling(self, flow_components, flow_width, flow_height, sampling):
+        """Check SDP video format-specific parameter 'sampling' matches Flow 'components'"""
+        # SDP sampling should be like:
+        # "RGBA", "RGB", "YCbCr-J:a:b", "CLYCbCr-J:a:b", "ICtCp-J:a:b", "XYZ", "KEY"
+        components, _, sampling = sampling.partition("-")
+
+        # Flow component names should be like:
+        # "R", "G", "B", "A", "Y", "Cb", "Cr", "Yc", "Cbc", "Crc", "I", "Ct", "Cp", "X", "Z", "Key"
+        if components == "CLYCbCr":
+            components = "YcCbcCrc"
+        if components == "KEY":
+            components = "Key"
+
+        sampler = None
+        if not sampling or sampling == "4:4:4":
+            sampler = (1, 1)
+        elif sampling == "4:2:2":
+            sampler = (2, 1)
+        elif sampling == "4:2:0":
+            sampler = (2, 2)
+        elif sampling == "4:1:1":
+            sampler = (4, 1)
+
+        for component in flow_components:
+            if component["name"] not in components:
+                return False
+            components = components.replace(component["name"], "")
+            # subsampled components are "Cb", "Cr", "Cbc", "Crc", "Ct", "Cp"
+            c = component["name"].startswith("C")
+            if component["width"] != flow_width / (sampler[0] if c else 1) or \
+                    component["height"] != flow_height / (sampler[1] if c else 1):
+                return False
+
+        return components == ""
 
     def channel_order(self, channels):
         """Create an ST.2110-30 'channel-order' format-specific parameter value from an NMOS audio source 'channels'"""
