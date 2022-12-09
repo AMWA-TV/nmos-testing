@@ -600,8 +600,9 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         try:
+            valid_transports = self.is05_utils.get_valid_transports(self.apis[CONN_API_KEY]["version"])
+
             for sender in self.is04_resources["senders"]:
-                valid_transports = self.is05_utils.get_valid_transports(self.apis[CONN_API_KEY]["version"])
                 if sender["transport"] not in valid_transports:
                     continue
 
@@ -652,12 +653,10 @@ class IS0502Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
-            for sender in self.is04_resources["senders"]:
-                if not sender["transport"].startswith("urn:x-nmos:transport:rtp"):
-                    continue
-                if sender["flow_id"] is None:
-                    continue
+            rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                           and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
+            for sender in rtp_senders:
                 flow = flow_map[sender["flow_id"]]
                 source = source_map[flow["source_id"]]
 
@@ -754,12 +753,10 @@ class IS0502Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
-            for sender in self.is04_resources["senders"]:
-                if not sender["transport"].startswith("urn:x-nmos:transport:rtp"):
-                    continue
-                if sender["flow_id"] is None:
-                    continue
+            rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                           and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
+            for sender in rtp_senders:
                 flow = flow_map[sender["flow_id"]]
                 source = source_map[flow["source_id"]]
 
@@ -883,12 +880,10 @@ class IS0502Test(GenericTest):
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
 
-        for sender in self.is04_resources["senders"]:
-            if not sender["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            if sender["flow_id"] is None:
-                continue
+        rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                       and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
+        for sender in rtp_senders:
             flow = flow_map[sender["flow_id"]]
 
             is05_transport_file = self.is05_resources["transport_files"][sender["id"]]
@@ -981,12 +976,10 @@ class IS0502Test(GenericTest):
         clock_map = {clock["name"]: clock for clock in node_self["clocks"]}
         interface_map = {interface["name"]: interface for interface in node_self["interfaces"]}
 
-        for sender in self.is04_resources["senders"]:
-            if not sender["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            if sender["flow_id"] is None:
-                continue
+        rtp_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                       and sender["transport"].startswith("urn:x-nmos:transport:rtp")]
 
+        for sender in rtp_senders:
             flow = flow_map[sender["flow_id"]]
             source = source_map[flow["source_id"]]
 
@@ -1065,14 +1058,12 @@ class IS0502Test(GenericTest):
         data_sdp = open("test_data/sdp/data.sdp").read()
         mux_sdp = open("test_data/sdp/mux.sdp").read()
 
-        found_rtp = False
+        rtp_receivers = [receiver for receiver in self.is04_resources["receivers"]
+                         if receiver["transport"].startswith("urn:x-nmos:transport:rtp")]
+
         formats_tested = defaultdict(int)
         warn_sdp_untested = ""
-        for receiver in self.is04_resources["receivers"]:
-            if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            found_rtp = True
-
+        for receiver in rtp_receivers:
             caps = receiver["caps"]
 
             if receiver["format"] == "urn:x-nmos:format:video":
@@ -1168,7 +1159,7 @@ class IS0502Test(GenericTest):
 
             formats_tested[receiver["format"]] += 1
 
-        if not found_rtp:
+        if len(rtp_receivers) == 0:
             return test.UNCLEAR("Could not find any IS-04 RTP Receivers to test")
         elif warn_sdp_untested:
             return test.MANUAL(warn_sdp_untested)

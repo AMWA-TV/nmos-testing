@@ -75,15 +75,12 @@ class BCP0060101Test(GenericTest):
         reg_schema = load_resolved_schema(reg_path, "flow_video_register.json", path_prefix=False)
 
         try:
-            found_video_jxsv = False
+            jxsv_flows = [flow for flow in self.is04_resources["flows"] if flow["media_type"] == "video/jxsv"]
+
             warn_unrestricted = False
             warn_message = ""
 
-            for flow in self.is04_resources["flows"]:
-                if flow["media_type"] != "video/jxsv":
-                    continue
-                found_video_jxsv = True
-
+            for flow in jxsv_flows:
                 # check required attributes are present
                 if "components" not in flow:
                     return test.FAIL("Flow {} MUST indicate the color (sub-)sampling using "
@@ -122,8 +119,10 @@ class BCP0060101Test(GenericTest):
 
             if warn_unrestricted:
                 return test.WARNING(warn_message)
-            if found_video_jxsv:
+
+            if len(jxsv_flows) > 0:
                 return test.PASS()
+
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
@@ -140,20 +139,16 @@ class BCP0060101Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
-            found_video_jxsv = False
+            jxsv_flows = [flow for flow in self.is04_resources["flows"] if flow["media_type"] == "video/jxsv"]
 
-            for flow in self.is04_resources["flows"]:
-                if flow["media_type"] != "video/jxsv":
-                    continue
-                found_video_jxsv = True
-
+            for flow in jxsv_flows:
                 source = source_map[flow["source_id"]]
 
                 if source["format"] != "urn:x-nmos:format:video":
                     return test.FAIL("Source {} MUST indicate format with value 'urn:x-nmos:format:video'"
                                      .format(source["id"]))
 
-            if found_video_jxsv:
+            if len(jxsv_flows) > 0:
                 return test.PASS()
 
         except KeyError as ex:
@@ -177,20 +172,14 @@ class BCP0060101Test(GenericTest):
         reg_schema = load_resolved_schema(reg_path, "sender_register.json", path_prefix=False)
 
         try:
-            found_video_jxsv = False
+            jxsv_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                            and sender["flow_id"] in flow_map
+                            and flow_map[sender["flow_id"]]["media_type"] == "video/jxsv"]
+
             warn_st2110_22 = False
             warn_message = ""
 
-            for sender in self.is04_resources["senders"]:
-                if sender["flow_id"] is None:
-                    continue
-                if sender["flow_id"] not in flow_map:
-                    continue
-                flow = flow_map[sender["flow_id"]]
-                if flow["media_type"] != "video/jxsv":
-                    continue
-                found_video_jxsv = True
-
+            for sender in jxsv_senders:
                 # check required attributes are present
                 if "transport" not in sender:
                     return test.FAIL("Sender {} MUST indicate the 'transport' attribute."
@@ -229,7 +218,8 @@ class BCP0060101Test(GenericTest):
 
             if warn_st2110_22:
                 return test.WARNING(warn_message)
-            if found_video_jxsv:
+
+            if len(jxsv_senders) > 0:
                 return test.PASS()
 
         except KeyError as ex:
@@ -249,18 +239,12 @@ class BCP0060101Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
-            found_video_jxsv = False
+            jxsv_senders = [sender for sender in self.is04_resources["senders"] if sender["flow_id"]
+                            and sender["flow_id"] in flow_map
+                            and flow_map[sender["flow_id"]]["media_type"] == "video/jxsv"]
 
-            for sender in self.is04_resources["senders"]:
-                if sender["flow_id"] is None:
-                    continue
-                if sender["flow_id"] not in flow_map:
-                    continue
+            for sender in jxsv_senders:
                 flow = flow_map[sender["flow_id"]]
-                if flow["media_type"] != "video/jxsv":
-                    continue
-                found_video_jxsv = True
-
                 source = source_map[flow["source_id"]]
 
                 if "manifest_href" not in sender:
@@ -425,7 +409,7 @@ class BCP0060101Test(GenericTest):
                 if not found_fmtp:
                     return test.FAIL("SDP for Sender {} is missing format-specific parameters".format(sender["id"]))
 
-            if found_video_jxsv:
+            if len(jxsv_senders) > 0:
                 return test.PASS()
 
         except KeyError as ex:
