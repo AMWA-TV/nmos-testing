@@ -1928,7 +1928,10 @@ class IS0401Test(GenericTest):
 
         # general_constraints = [
         #     "urn:x-nmos:cap:format:media_type",
-        #     "urn:x-nmos:cap:format:grain_rate"
+        #     "urn:x-nmos:cap:format:grain_rate",
+        #     "urn:x-nmos:cap:format:bit_rate",
+        #     "urn:x-nmos:cap:transport:bit_rate",
+        #     "urn:x-nmos:cap:transport:st2110_21_sender_type"
         # ]
         video_specific_constraints = [
             "urn:x-nmos:cap:format:frame_width",
@@ -1938,7 +1941,10 @@ class IS0401Test(GenericTest):
             "urn:x-nmos:cap:format:transfer_characteristic",
             "urn:x-nmos:cap:format:color_sampling",
             "urn:x-nmos:cap:format:component_depth",
-            "urn:x-nmos:cap:transport:st2110_21_sender_type"
+            "urn:x-nmos:cap:format:profile",
+            "urn:x-nmos:cap:format:level",
+            "urn:x-nmos:cap:format:sublevel",
+            "urn:x-nmos:cap:transport:packet_transmission_mode"
         ]
         audio_specific_constraints = [
             "urn:x-nmos:cap:format:channel_count",
