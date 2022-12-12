@@ -589,6 +589,100 @@ class BCP0060101Test(GenericTest):
 
         return test.UNCLEAR("No JPEG XS Receiver resources were found on the Node")
 
+    def test_06(self, test):
+        """JPEG XS Receiver parameter constraints have valid values"""
+
+        self.do_test_node_api_v1_1(test)
+
+        valid, result = self.get_is04_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
+
+        flow_reg_path = self.apis[FLOW_REGISTER_KEY]["spec_path"] + "/flow-attributes"
+        base_properties = load_resolved_schema(flow_reg_path, "flow_video_base_register.json",
+                                               path_prefix=False)["properties"]
+        jxsv_properties = load_resolved_schema(flow_reg_path, "flow_video_jxsv_register.json",
+                                               path_prefix=False)["properties"]
+        sender_path = self.apis[SENDER_REGISTER_KEY]["spec_path"] + "/sender-attributes"
+        sender_properties = load_resolved_schema(sender_path, "sender_register.json",
+                                                 path_prefix=False)["properties"]
+
+        media_type_constraint = "urn:x-nmos:cap:format:media_type"
+
+        enum_constraints = {
+            "urn:x-nmos:cap:format:profile": jxsv_properties["profile"]["enum"],
+            "urn:x-nmos:cap:format:level": jxsv_properties["level"]["enum"],
+            "urn:x-nmos:cap:format:sublevel": jxsv_properties["sublevel"]["enum"],
+            "urn:x-nmos:cap:format:colorspace": base_properties["colorspace"]["enum"],
+            "urn:x-nmos:cap:format:transfer_characteristic": base_properties["transfer_characteristic"]["enum"],
+            # sampling corresponds to Flow 'components' so there isn't a Flow schema to use
+            "urn:x-nmos:cap:format:color_sampling": [
+                # Red-Green-Blue-Alpha
+                "RGBA",
+                # Red-Green-Blue
+                "RGB",
+                # Non-constant luminance YCbCr
+                "YCbCr-4:4:4",
+                "YCbCr-4:2:2",
+                "YCbCr-4:2:0",
+                "YCbCr-4:1:1",
+                # Constant luminance YCbCr
+                "CLYCbCr-4:4:4",
+                "CLYCbCr-4:2:2",
+                "CLYCbCr-4:2:0",
+                # Constant intensity ICtCp
+                "ICtCp-4:4:4",
+                "ICtCp-4:2:2",
+                "ICtCp-4:2:0",
+                # XYZ
+                "XYZ",
+                # Key signal represented as a single component
+                "KEY",
+                # Sampling signaled by the payload
+                "UNSPECIFIED"
+            ],
+            "urn:x-nmos:cap:transport:packet_transmission_mode": sender_properties["packet_transmission_mode"]["enum"],
+            "urn:x-nmos:cap:transport:st2110_21_sender_type": sender_properties["st2110_21_sender_type"]["enum"],
+        }
+
+        try:
+            jxsv_receivers = [receiver for receiver in self.is04_resources["receivers"]
+                              if "media_types" in receiver["caps"]
+                              and "video/jxsv" in receiver["caps"]["media_types"]]
+
+            for receiver in jxsv_receivers:
+                # check required attributes are present
+                if "constraint_sets" not in receiver["caps"]:
+                    # FAIL reported by test_05
+                    continue
+
+                # exclude constraint sets for other media types
+                jxsv_constraint_sets = [constraint_set for constraint_set in receiver["caps"]["constraint_sets"]
+                                        if media_type_constraint not in constraint_set
+                                        or ("enum" in constraint_set[media_type_constraint]
+                                            and "video/jxsv" in constraint_set[media_type_constraint]["enum"])]
+
+                if len(jxsv_constraint_sets) == 0:
+                    # FAIL reported by test_05
+                    continue
+
+                # check recommended attributes are present
+                for constraint_set in jxsv_constraint_sets:
+                    for constraint, enum_values in enum_constraints.items():
+                        if constraint in constraint_set and "enum" in constraint_set[constraint]:
+                            for enum_value in constraint_set[constraint]["enum"]:
+                                if enum_value not in enum_values:
+                                    return test.FAIL("Receiver {} uses an invalid value for '{}': {}"
+                                                     .format(receiver["id"], constraint, enum_value))
+
+            if len(jxsv_receivers) > 0:
+                return test.PASS()
+
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+
+        return test.UNCLEAR("No JPEG XS Receiver resources were found on the Node")
+
     # Utility function from IS0502Test
     def exactframerate(self, grain_rate):
         """Format an NMOS grain rate like the SDP video format-specific parameter 'exactframerate'"""
