@@ -124,6 +124,10 @@ function disableRunbtn() {
     var runbtn = document.getElementById("runbtn");
     runbtn.value = "Executing tests...";
     runbtn.disabled = true;
+    var alerts = Array.from(document.getElementsByTagName("form")[0].getElementsByClassName("alert"));
+    for (alert of alerts) {
+        alert.remove()
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function() {
