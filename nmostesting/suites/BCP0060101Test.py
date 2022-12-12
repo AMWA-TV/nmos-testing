@@ -527,6 +527,68 @@ class BCP0060101Test(GenericTest):
 
         return test.UNCLEAR("No JPEG XS Sender resources were found on the Node")
 
+    def test_05(self, test):
+        """JPEG XS Receivers have the required attributes"""
+
+        self.do_test_node_api_v1_1(test)
+
+        valid, result = self.get_is04_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
+
+        media_type_constraint = "urn:x-nmos:cap:format:media_type"
+        # does BCP-006-01 recommend 'profile', 'level', 'sublevel' and/or 'packet_transmission_mode'?
+        recommended_constraints = {
+            "urn:x-nmos:cap:format:profile": "profile",
+            "urn:x-nmos:cap:format:level": "level",
+            "urn:x-nmos:cap:format:sublevel": "sublevel",
+            "urn:x-nmos:cap:transport:packet_transmission_mode": "packet transmission mode"
+        }
+
+        try:
+            jxsv_receivers = [receiver for receiver in self.is04_resources["receivers"]
+                              if "media_types" in receiver["caps"]
+                              and "video/jxsv" in receiver["caps"]["media_types"]]
+
+            warn_unrestricted = False
+            warn_message = ""
+
+            for receiver in jxsv_receivers:
+                # check required attributes are present
+                if "constraint_sets" not in receiver["caps"]:
+                    return test.FAIL("Receiver {} MUST indicate constraints in accordance with BCP-004-01 using "
+                                     "the 'caps' attribute 'constraint_sets'.".format(receiver["id"]))
+
+                # exclude constraint sets for other media types
+                jxsv_constraint_sets = [constraint_set for constraint_set in receiver["caps"]["constraint_sets"]
+                                        if media_type_constraint not in constraint_set
+                                        or ("enum" in constraint_set[media_type_constraint]
+                                            and "video/jxsv" in constraint_set[media_type_constraint]["enum"])]
+
+                if len(jxsv_constraint_sets) == 0:
+                    return test.FAIL("Receiver {} MUST indicate constraints in accordance with BCP-004-01 using "
+                                     "the 'caps' attribute 'constraint_sets'.".format(receiver["id"]))
+
+                # check recommended attributes are present
+                for constraint_set in jxsv_constraint_sets:
+                    for constraint, target in recommended_constraints.items():
+                        if constraint not in constraint_set:
+                            if not warn_unrestricted:
+                                warn_unrestricted = True
+                                warn_message = "Receiver {} SHOULD indicate the supported JPEG XS {} using the " \
+                                               "'{}' parameter constraint.".format(receiver["id"], target, constraint)
+
+            if warn_unrestricted:
+                return test.WARNING(warn_message)
+
+            if len(jxsv_receivers) > 0:
+                return test.PASS()
+
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+
+        return test.UNCLEAR("No JPEG XS Receiver resources were found on the Node")
+
     # Utility function from IS0502Test
     def exactframerate(self, grain_rate):
         """Format an NMOS grain rate like the SDP video format-specific parameter 'exactframerate'"""
