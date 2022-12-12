@@ -170,7 +170,7 @@ class GenericTest(object):
         traceback.print_exc()
         test = Test("Error executing {}".format(test_name), test_name)
         return test.FAIL("Uncaught exception. Please report the traceback from the terminal to "
-                         "https://github.com/amwa-tv/nmos-testing/issues. {}".format(exception))
+                         "https://github.com/AMWA-TV/nmos-testing/issues. {}".format(exception))
 
     def set_up_tests(self):
         """Called before a set of tests is run. Override this method with setup code."""
