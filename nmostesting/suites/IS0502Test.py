@@ -599,6 +599,8 @@ class IS0502Test(GenericTest):
             return test.FAIL(result)
 
         try:
+            access_error = False
+
             for resource in self.is04_resources["senders"]:
                 valid_transports = self.is05_utils.get_valid_transports(self.apis[CONN_API_KEY]["version"])
                 if resource["transport"] not in valid_transports:
@@ -624,6 +626,12 @@ class IS0502Test(GenericTest):
                                          "from IS-05".format(resource["id"]))
                     return test.FAIL("Transport file contents for Sender '{}' do not match "
                                      "between IS-04 and IS-05".format(resource["id"]))
+                if is05_transport_file is None:
+                    access_error = True
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
 
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 Sender: {}".format(ex))
@@ -651,6 +659,8 @@ class IS0502Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
+            access_error = False
+
             for resource in self.is04_resources["senders"]:
                 if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
                     continue
@@ -662,7 +672,8 @@ class IS0502Test(GenericTest):
 
                 is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
                 if is05_transport_file is None:
-                    return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+                    access_error = True
+                    continue
 
                 payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
@@ -727,6 +738,11 @@ class IS0502Test(GenericTest):
                             elif rtpmap:
                                 return test.FAIL("a=rtpmap specifies a different media_type to the Flow for Sender {}"
                                                  .format(resource["id"]))
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
+
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
@@ -753,6 +769,8 @@ class IS0502Test(GenericTest):
         source_map = {source["id"]: source for source in self.is04_resources["sources"]}
 
         try:
+            access_error = False
+
             for resource in self.is04_resources["senders"]:
                 if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
                     continue
@@ -764,7 +782,8 @@ class IS0502Test(GenericTest):
 
                 is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
                 if is05_transport_file is None:
-                    return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+                    access_error = True
+                    continue
 
                 payload_type = self.rtp_ptype(is05_transport_file)
                 if not payload_type:
@@ -898,6 +917,11 @@ class IS0502Test(GenericTest):
                                 if not found_match:
                                     return test.FAIL("DID/SDID parameters for Sender {} do not match the Flow {}"
                                                      .format(resource["id"], flow["id"]))
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
+
         except KeyError as ex:
             return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
@@ -922,66 +946,77 @@ class IS0502Test(GenericTest):
 
         flow_map = {flow["id"]: flow for flow in self.is04_resources["flows"]}
 
-        for resource in self.is04_resources["senders"]:
-            if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            if resource["flow_id"] is None:
-                continue
+        try:
+            access_error = False
 
-            flow = flow_map[resource["flow_id"]]
+            for resource in self.is04_resources["senders"]:
+                if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+                if resource["flow_id"] is None:
+                    continue
 
-            is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
-            if is05_transport_file is None:
-                return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
+                flow = flow_map[resource["flow_id"]]
 
-            payload_type = self.rtp_ptype(is05_transport_file)
-            if not payload_type:
-                return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
-                                 .format(resource["id"]))
+                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                if is05_transport_file is None:
+                    access_error = True
+                    continue
 
-            sdp_interlace = False
-            sdp_chroma_first_field = False
-            sdp_segmented = False
-            sdp_tcs = False
-            sdp_did_sdid = False
+                payload_type = self.rtp_ptype(is05_transport_file)
+                if not payload_type:
+                    return test.FAIL("Unable to locate payload type from rtpmap in SDP file for Sender {}"
+                                     .format(resource["id"]))
 
-            for sdp_line in is05_transport_file.split("\n"):
-                sdp_line = sdp_line.replace("\r", "")
-                fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
-                if fmtp and flow["format"] == "urn:x-nmos:format:video":
-                    for param in fmtp.group(1).split(";"):
-                        param_components = param.strip().split("=")
-                        if param_components[0] == "interlace":  # ref: RFC4175
-                            sdp_interlace = True
-                        elif param_components[0] == "top-field-first":  # ref: RFC4175
-                            sdp_chroma_first_field = True
-                        elif param_components[0] == "segmented":  # ref: ST.2110-20
-                            sdp_segmented = True
-                        elif param_components[0] == "TCS":  # ref: ST.2110-20
-                            sdp_tcs = True
-                elif fmtp and flow["media_type"] == "video/smpte291":
-                    for param in fmtp.group(1).split(";"):
-                        param_components = param.strip().split("=")
-                        if param_components[0] == "DID_SDID":  # ref: RFC8331
-                            sdp_did_sdid = True
+                sdp_interlace = False
+                sdp_chroma_first_field = False
+                sdp_segmented = False
+                sdp_tcs = False
+                sdp_did_sdid = False
 
-            if "DID_SDID" in flow and not sdp_did_sdid:
-                return test.FAIL("Flow for Sender {} indicates DID_SDID parameter but this is missing from its "
-                                 "SDP file".format(resource["id"]))
-            if "interlace_mode" in flow and flow["interlace_mode"] != "progressive" and not sdp_interlace:
-                return test.FAIL("Flow for Sender {} indicates video is interlaced, but this is missing from its "
-                                 "SDP file".format(resource["id"]))
-            if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_psf" and not sdp_segmented:
-                return test.FAIL("Flow for Sender {} indicates video is segmented, but this is missing from its "
-                                 "SDP file".format(resource["id"]))
-            if "transfer_characteristic" in flow and flow["transfer_characteristic"] != "SDR" and not sdp_tcs:
-                return test.FAIL("Flow for Sender {} indicates video's transfer characteristic, but this is missing "
-                                 "from its SDP file".format(resource["id"]))
+                for sdp_line in is05_transport_file.split("\n"):
+                    sdp_line = sdp_line.replace("\r", "")
+                    fmtp = re.search(r"^a=fmtp:{} (.+)$".format(payload_type), sdp_line)
+                    if fmtp and flow["format"] == "urn:x-nmos:format:video":
+                        for param in fmtp.group(1).split(";"):
+                            param_components = param.strip().split("=")
+                            if param_components[0] == "interlace":  # ref: RFC4175
+                                sdp_interlace = True
+                            elif param_components[0] == "top-field-first":  # ref: RFC4175
+                                sdp_chroma_first_field = True
+                            elif param_components[0] == "segmented":  # ref: ST.2110-20
+                                sdp_segmented = True
+                            elif param_components[0] == "TCS":  # ref: ST.2110-20
+                                sdp_tcs = True
+                    elif fmtp and flow["media_type"] == "video/smpte291":
+                        for param in fmtp.group(1).split(";"):
+                            param_components = param.strip().split("=")
+                            if param_components[0] == "DID_SDID":  # ref: RFC8331
+                                sdp_did_sdid = True
 
-            # Technically the following is just SDP validation, so could move to sdpoker
-            if (sdp_chroma_first_field or sdp_segmented) and not sdp_interlace:
-                return test.FAIL("SDP file for Sender {} indicates top-field-first or segmented, but doesn't indicate "
-                                 "interlace".format(resource["id"]))
+                if "DID_SDID" in flow and not sdp_did_sdid:
+                    return test.FAIL("Flow for Sender {} indicates DID_SDID parameter but this is missing from its "
+                                     "SDP file".format(resource["id"]))
+                if "interlace_mode" in flow and flow["interlace_mode"] != "progressive" and not sdp_interlace:
+                    return test.FAIL("Flow for Sender {} indicates video is interlaced, but this is missing from its "
+                                     "SDP file".format(resource["id"]))
+                if "interlace_mode" in flow and flow["interlace_mode"] == "interlaced_psf" and not sdp_segmented:
+                    return test.FAIL("Flow for Sender {} indicates video is segmented, but this is missing from its "
+                                     "SDP file".format(resource["id"]))
+                if "transfer_characteristic" in flow and flow["transfer_characteristic"] != "SDR" and not sdp_tcs:
+                    return test.FAIL("Flow for Sender {} indicates video's transfer characteristic, but this "
+                                     "is missing from its SDP file".format(resource["id"]))
+
+                # Technically the following is just SDP validation, so could move to sdpoker
+                if (sdp_chroma_first_field or sdp_segmented) and not sdp_interlace:
+                    return test.FAIL("SDP file for Sender {} indicates top-field-first or segmented, but doesn't "
+                                     "indicate interlace".format(resource["id"]))
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
+
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
         return test.PASS()
 
@@ -1017,69 +1052,82 @@ class IS0502Test(GenericTest):
         clock_map = {clock["name"]: clock for clock in node_self["clocks"]}
         interface_map = {interface["name"]: interface for interface in node_self["interfaces"]}
 
-        for resource in self.is04_resources["senders"]:
-            if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            if resource["flow_id"] is None:
-                continue
+        try:
+            access_error = False
 
-            flow = flow_map[resource["flow_id"]]
-            source = source_map[flow["source_id"]]
-
-            is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
-            if is05_transport_file is None:
-                return test.FAIL("Unable to download transportfile for Sender {}".format(resource["id"]))
-
-            found_refclk = False
-            interface_bindings = deepcopy(resource["interface_bindings"])
-            for sdp_line in is05_transport_file.split("\n"):
-                sdp_line = sdp_line.replace("\r", "")
-                ts_refclk = re.search(r"^a=ts-refclk:(.+)$", sdp_line)
-                if not ts_refclk:
+            for resource in self.is04_resources["senders"]:
+                if not resource["transport"].startswith("urn:x-nmos:transport:rtp"):
                     continue
-                found_refclk = True
-                if source["clock_name"] is None:
-                    return test.FAIL("SDP file includes ts-refclk but Source {} does not indicate a clock_name"
-                                     .format(source["id"]))
+                if resource["flow_id"] is None:
+                    continue
 
-                is04_clock = clock_map[source["clock_name"]]
-                if is04_clock["ref_type"] == "internal" and ts_refclk.group(1).startswith("ptp="):
-                    return test.FAIL("IS-04 Source indicates 'internal' clock but SDP file indicates 'ptp' for Sender "
-                                     "{}".format(resource["id"]))
-                elif is04_clock["ref_type"] == "ptp":
-                    prefix = "ptp="
-                    if not ts_refclk.group(1).startswith(prefix):
-                        return test.FAIL("IS-04 Source indicates 'ptp' clock but SDP file indicates '{}' for Sender "
-                                         "{}".format(ts_refclk.group(1), resource["id"]))
-                    ptp_data = ts_refclk.group(1)[len(prefix):].split(":")
-                    if is04_clock["version"] != ptp_data[0]:
-                        return test.FAIL("IS-04 Source PTP version {} does not match ts-refclk PTP version {} for "
-                                         "Sender {}".format(is04_clock["version"], ptp_data[0], resource["id"]))
-                    if ptp_data[1] != "traceable" and is04_clock["gmid"] != ptp_data[1].lower():
-                        return test.FAIL("IS-04 Source PTP gmid {} does not match ts-refclk PTP gmid {} for "
-                                         "Sender {}".format(is04_clock["gmid"], ptp_data[1], resource["id"]))
-                    elif ptp_data[1] == "traceable" and is04_clock["traceable"] is not True:
-                        return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for Sender {}"
-                                         .format(resource["id"]))
+                flow = flow_map[resource["flow_id"]]
+                source = source_map[flow["source_id"]]
 
-                prefix = "localmac="
-                if ts_refclk.group(1).startswith(prefix):
-                    try:
-                        # This assumes that ts-refclk isn't specified globally, but this shouldn't be the case when
-                        # localmac is used given each RTP sender is likely to use a different interface
-                        api_mac = interface_map[interface_bindings[0]]["port_id"]
-                        sdp_mac = ts_refclk.group(1)[len(prefix):].lower()
-                        if api_mac != sdp_mac:
-                            return test.FAIL("IS-04 interface_binding MAC does not match SDP ts-refclk localmac for "
+                is05_transport_file = self.is05_resources["transport_files"][resource["id"]]
+                if is05_transport_file is None:
+                    access_error = True
+                    continue
+
+                found_refclk = False
+                interface_bindings = deepcopy(resource["interface_bindings"])
+                for sdp_line in is05_transport_file.split("\n"):
+                    sdp_line = sdp_line.replace("\r", "")
+                    ts_refclk = re.search(r"^a=ts-refclk:(.+)$", sdp_line)
+                    if not ts_refclk:
+                        continue
+                    found_refclk = True
+                    if source["clock_name"] is None:
+                        return test.FAIL("SDP file includes ts-refclk but Source {} does not indicate a clock_name"
+                                         .format(source["id"]))
+
+                    is04_clock = clock_map[source["clock_name"]]
+                    if is04_clock["ref_type"] == "internal" and ts_refclk.group(1).startswith("ptp="):
+                        return test.FAIL("IS-04 Source indicates 'internal' clock but SDP file indicates 'ptp' for "
+                                         "Sender {}".format(resource["id"]))
+                    elif is04_clock["ref_type"] == "ptp":
+                        prefix = "ptp="
+                        if not ts_refclk.group(1).startswith(prefix):
+                            return test.FAIL("IS-04 Source indicates 'ptp' clock but SDP file indicates '{}' for "
+                                             "Sender {}".format(ts_refclk.group(1), resource["id"]))
+                        ptp_data = ts_refclk.group(1)[len(prefix):].split(":")
+                        if is04_clock["version"] != ptp_data[0]:
+                            return test.FAIL("IS-04 Source PTP version {} does not match ts-refclk PTP version {} for "
+                                             "Sender {}".format(is04_clock["version"], ptp_data[0], resource["id"]))
+                        if ptp_data[1] != "traceable" and is04_clock["gmid"] != ptp_data[1].lower():
+                            return test.FAIL("IS-04 Source PTP gmid {} does not match ts-refclk PTP gmid {} for "
+                                             "Sender {}".format(is04_clock["gmid"], ptp_data[1], resource["id"]))
+                        elif ptp_data[1] == "traceable" and is04_clock["traceable"] is not True:
+                            return test.FAIL("IS-04 Source PTP clock traceability does not match ts-refclk for "
                                              "Sender {}".format(resource["id"]))
-                        # Ensure that any further localmacs we test match the expected interface
-                        del interface_bindings[0]
-                    except (KeyError, IndexError) as e:
-                        return test.FAIL("Expected key not found in IS-04 API: {}".format(e))
 
-            if source["clock_name"] is not None and not found_refclk:
-                return test.FAIL("IS-04 Source indicates a clock, but SDP ts-refclk is missing for Sender {}"
-                                 .format(resource["id"]))
+                    prefix = "localmac="
+                    if ts_refclk.group(1).startswith(prefix):
+                        try:
+                            # This assumes that ts-refclk isn't specified globally, but this shouldn't be the case when
+                            # localmac is used given each RTP sender is likely to use a different interface
+                            if len(interface_bindings) == 0:
+                                return test.FAIL("Sender {} returned empty 'interface_bindings'".format(resource["id"]))
+                            api_mac = interface_map[interface_bindings[0]]["port_id"]
+                            sdp_mac = ts_refclk.group(1)[len(prefix):].lower()
+                            if api_mac != sdp_mac:
+                                return test.FAIL("IS-04 interface_bindings port_id does not match SDP ts-refclk "
+                                                 "localmac for Sender {}".format(resource["id"]))
+                            # Ensure that any further localmacs we test match the expected interface
+                            del interface_bindings[0]
+                        except KeyError as e:
+                            return test.FAIL("Expected attribute not found in IS-04 API: {}".format(e))
+
+                if source["clock_name"] is not None and not found_refclk:
+                    return test.FAIL("IS-04 Source indicates a clock, but SDP ts-refclk is missing for Sender {}"
+                                     .format(resource["id"]))
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
+
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
 
         return test.PASS()
 
@@ -1100,142 +1148,153 @@ class IS0502Test(GenericTest):
         data_sdp = open("test_data/IS0502/data.sdp").read()
         mux_sdp = open("test_data/IS0502/mux.sdp").read()
 
-        found_rtp = False
-        warn_no_media_types = ""
-        warn_sdp_untested = ""
-        src_ip = get_default_ip()
-        for receiver in self.is04_resources["receivers"]:
-            if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
-                continue
-            found_rtp = True
-            if "media_types" not in receiver["caps"] or len(receiver["caps"]["media_types"]) == 0:
-                if not warn_no_media_types:
-                    warn_no_media_types = "Could not test Receiver {} because it does not specify any " \
-                        "'caps.media_types'".format(receiver["id"])
-                continue
+        try:
+            found_rtp = False
+            warn_no_media_types = ""
+            warn_sdp_untested = ""
+            src_ip = get_default_ip()
+            for receiver in self.is04_resources["receivers"]:
+                if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
+                    continue
+                found_rtp = True
+                if "media_types" not in receiver["caps"] or len(receiver["caps"]["media_types"]) == 0:
+                    if not warn_no_media_types:
+                        warn_no_media_types = "Could not test Receiver {} because it does not specify any " \
+                            "'caps.media_types'".format(receiver["id"])
+                    continue
 
-            sdp_file = None
-            dst_ip = "232.40.50.{}".format(randint(1, 254))
-            dst_port = randint(5000, 5999)
-            if receiver["format"] == "urn:x-nmos:format:video":
-                template = Template(video_sdp, keep_trailing_newline=True)
-                interlace = ""
-                if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
-                    interlace = "interlace; "
-                # TODO: The media types besides video/raw likely need some different fmtp params
-                if "video/raw" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
-                        width=CONFIG.SDP_PREFERENCES["video_width"],
-                        height=CONFIG.SDP_PREFERENCES["video_height"],
-                        interlace=interlace,
-                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-                elif "video/vc2" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="vc2",
-                        width=CONFIG.SDP_PREFERENCES["video_width"],
-                        height=CONFIG.SDP_PREFERENCES["video_height"],
-                        interlace=interlace,
-                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-                elif "video/H264" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264",
-                        width=CONFIG.SDP_PREFERENCES["video_width"],
-                        height=CONFIG.SDP_PREFERENCES["video_height"],
-                        interlace=interlace,
-                        exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
-                        depth=CONFIG.SDP_PREFERENCES["video_depth"],
-                        sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
-                        colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
-                        transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
-                        type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
-            elif receiver["format"] == "urn:x-nmos:format:audio":
-                template = Template(audio_sdp, keep_trailing_newline=True)
-                if "audio/L16" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L16",
-                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-                elif "audio/L24" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
-                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-                elif "audio/L32" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(
-                        dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L32",
-                        channels=CONFIG.SDP_PREFERENCES["audio_channels"],
-                        sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
-                        max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
-                        packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
-            elif receiver["format"] == "urn:x-nmos:format:data":
-                template = Template(data_sdp, keep_trailing_newline=True)
-                if "video/smpte291" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
-            elif receiver["format"] == "urn:x-nmos:format:mux":
-                template = Template(mux_sdp, keep_trailing_newline=True)
-                if "video/SMPTE2022-6" in receiver["caps"]["media_types"]:
-                    sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
+                sdp_file = None
+                dst_ip = "232.40.50.{}".format(randint(1, 254))
+                dst_port = randint(5000, 5999)
+                if receiver["format"] == "urn:x-nmos:format:video":
+                    template = Template(video_sdp, keep_trailing_newline=True)
+                    interlace = ""
+                    if CONFIG.SDP_PREFERENCES["video_interlace"] is True:
+                        interlace = "interlace; "
+                    # TODO: The media types besides video/raw likely need some different fmtp params
+                    if "video/raw" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(
+                            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="raw",
+                            width=CONFIG.SDP_PREFERENCES["video_width"],
+                            height=CONFIG.SDP_PREFERENCES["video_height"],
+                            interlace=interlace,
+                            exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                            depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                            sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                            colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                            transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                            type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                    elif "video/vc2" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(
+                            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="vc2",
+                            width=CONFIG.SDP_PREFERENCES["video_width"],
+                            height=CONFIG.SDP_PREFERENCES["video_height"],
+                            interlace=interlace,
+                            exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                            depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                            sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                            colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                            transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                            type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                    elif "video/H264" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(
+                            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="H264",
+                            width=CONFIG.SDP_PREFERENCES["video_width"],
+                            height=CONFIG.SDP_PREFERENCES["video_height"],
+                            interlace=interlace,
+                            exactframerate=CONFIG.SDP_PREFERENCES["video_exactframerate"],
+                            depth=CONFIG.SDP_PREFERENCES["video_depth"],
+                            sampling=CONFIG.SDP_PREFERENCES["video_sampling"],
+                            colorimetry=CONFIG.SDP_PREFERENCES["video_colorimetry"],
+                            transfer_characteristic=CONFIG.SDP_PREFERENCES["video_transfer_characteristic"],
+                            type_parameter=CONFIG.SDP_PREFERENCES["video_type_parameter"])
+                elif receiver["format"] == "urn:x-nmos:format:audio":
+                    template = Template(audio_sdp, keep_trailing_newline=True)
+                    if "audio/L16" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(
+                            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L16",
+                            channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                            sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                            max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                            packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+                    elif "audio/L24" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(
+                            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L24",
+                            channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                            sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                            max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                            packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+                    elif "audio/L32" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(
+                            dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip, media_type="L32",
+                            channels=CONFIG.SDP_PREFERENCES["audio_channels"],
+                            sample_rate=CONFIG.SDP_PREFERENCES["audio_sample_rate"],
+                            max_packet_time=CONFIG.SDP_PREFERENCES["audio_max_packet_time"],
+                            packet_time=CONFIG.SDP_PREFERENCES["audio_packet_time"])
+                elif receiver["format"] == "urn:x-nmos:format:data":
+                    template = Template(data_sdp, keep_trailing_newline=True)
+                    if "video/smpte291" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
+                elif receiver["format"] == "urn:x-nmos:format:mux":
+                    template = Template(mux_sdp, keep_trailing_newline=True)
+                    if "video/SMPTE2022-6" in receiver["caps"]["media_types"]:
+                        sdp_file = template.render(dst_ip=dst_ip, dst_port=dst_port, src_ip=src_ip)
 
-            if not sdp_file:
-                if not warn_sdp_untested:
-                    warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data for " \
-                        "any of its 'caps.media_types': {}".format(receiver["id"], receiver["caps"]["media_types"])
+                if not sdp_file:
+                    if not warn_sdp_untested:
+                        warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data " \
+                            "for any of its 'caps.media_types': {}" \
+                            .format(receiver["id"], receiver["caps"]["media_types"])
 
-                continue
+                    continue
 
-            url = "single/receivers/{}/staged".format(receiver["id"])
-            data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
-            valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data)
-            if not valid:
-                return test.FAIL("Receiver {} rejected staging of SDP file: {}".format(receiver["id"], response))
+                url = "single/receivers/{}/staged".format(receiver["id"])
+                data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
+                valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data)
+                if not valid:
+                    return test.FAIL("Receiver {} rejected staging of SDP file: {}".format(receiver["id"], response))
 
-            if response["sender_id"] != data["sender_id"]:
-                return test.FAIL("Receiver {} did not set 'sender_id' to '{}' in staged response"
-                                 .format(receiver["id"], data["sender_id"]))
-            # TODO: Ensure the returned SDP has sufficiently similar contents to those submitted, if not identical
-            if response["transport_file"]["data"] is None or response["transport_file"]["data"] == "":
-                return test.FAIL("Receiver {} did not set 'data' to requested SDP file contents in staged response"
-                                 .format(receiver["id"]))
-            if response["transport_file"]["type"] != data["transport_file"]["type"]:
-                return test.FAIL("Receiver {} did not set 'type' to '{}' in staged response"
-                                 .format(receiver["id"], data["transport_file"]["type"]))
-            if response["transport_params"][0]["source_ip"] != src_ip:
-                return test.FAIL("Receiver {} did not set 'source_ip' to '{}' in staged response"
-                                 .format(receiver["id"], src_ip))
-            if response["transport_params"][0]["multicast_ip"] != dst_ip:
-                return test.FAIL("Receiver {} did not set 'multicast_ip' to '{}' in staged response"
-                                 .format(receiver["id"], dst_ip))
-            if response["transport_params"][0]["destination_port"] != dst_port:
-                return test.FAIL("Receiver {} did not set 'destination_port' to '{}' in staged response"
-                                 .format(receiver["id"], dst_port))
-            if response["transport_params"][0]["rtp_enabled"] is not True:
-                return test.FAIL("Receiver {} did not set 'rtp_enabled' to true in staged response"
-                                 .format(receiver["id"]))
-            if len(response["transport_params"]) > 1 and response["transport_params"][1]["rtp_enabled"] is not False:
-                return test.FAIL("Receiver {} did not set 'rtp_enabled' to false in second leg of staged response"
-                                 .format(receiver["id"]))
+                if response["sender_id"] != data["sender_id"]:
+                    return test.FAIL("Receiver {} did not set 'sender_id' to '{}' in staged response"
+                                     .format(receiver["id"], data["sender_id"]))
+                # TODO: Ensure the returned SDP has sufficiently similar contents to those submitted, if not identical
+                transport_file = response["transport_file"]
+                if transport_file["data"] is None or transport_file["data"] == "":
+                    return test.FAIL("Receiver {} did not set 'data' to requested SDP file contents in staged response"
+                                     .format(receiver["id"]))
+                if transport_file["type"] != data["transport_file"]["type"]:
+                    return test.FAIL("Receiver {} did not set 'type' to '{}' in staged response"
+                                     .format(receiver["id"], data["transport_file"]["type"]))
+                transport_params = response["transport_params"]
+                if len(transport_params) == 0:
+                    return test.FAIL("Receiver {} returned empty 'transport_params' in staged response"
+                                     .format(receiver["id"]))
+                if transport_params[0]["source_ip"] != src_ip:
+                    return test.FAIL("Receiver {} did not set 'source_ip' to '{}' in staged response"
+                                     .format(receiver["id"], src_ip))
+                if transport_params[0]["multicast_ip"] != dst_ip:
+                    return test.FAIL("Receiver {} did not set 'multicast_ip' to '{}' in staged response"
+                                     .format(receiver["id"], dst_ip))
+                if transport_params[0]["destination_port"] != dst_port:
+                    return test.FAIL("Receiver {} did not set 'destination_port' to '{}' in staged response"
+                                     .format(receiver["id"], dst_port))
+                if transport_params[0]["rtp_enabled"] is not True:
+                    return test.FAIL("Receiver {} did not set 'rtp_enabled' to true in staged response"
+                                     .format(receiver["id"]))
+                if len(transport_params) > 1 and transport_params[1]["rtp_enabled"] is not False:
+                    return test.FAIL("Receiver {} did not set 'rtp_enabled' to false in second leg of staged response"
+                                     .format(receiver["id"]))
 
-        if not found_rtp:
-            return test.UNCLEAR("Could not find any IS-04 RTP Receivers to test")
-        elif warn_no_media_types:
-            return test.OPTIONAL(warn_no_media_types)
-        elif warn_sdp_untested:
-            return test.MANUAL(warn_sdp_untested)
+            if not found_rtp:
+                return test.UNCLEAR("Could not find any IS-04 RTP Receivers to test")
+            elif warn_no_media_types:
+                return test.OPTIONAL(warn_no_media_types)
+            elif warn_sdp_untested:
+                return test.MANUAL(warn_sdp_untested)
+
+        except KeyError as ex:
+            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+
         return test.PASS()
 
     def exactframerate(self, grain_rate):

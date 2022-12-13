@@ -524,9 +524,11 @@ class IS05Utils(NMOSUtils):
         aDest = "single/senders/" + portId + "/active/"
         sdpDest = "single/senders/" + portId + "/transportfile/"
         a_valid, a_response = self.checkCleanRequestJSON("GET", aDest)
-        sdp_valid, sdp_response = self.checkCleanRequest("GET", sdpDest)
+        sdp_valid, sdp_response = self.checkCleanRequest("GET", sdpDest, codes=[200, 404])
         if a_valid:
             if sdp_valid:
+                if sdp_response.status_code != 200:
+                    return True, sdp_response
                 sdp_sections = sdp_response.text.split("m=")
                 sdp_global = sdp_sections[0]
                 sdp_media_sections = sdp_sections[1:]
@@ -563,7 +565,7 @@ class IS05Utils(NMOSUtils):
                 return False, sdp_response
         else:
             return False, a_response
-        return True, ""
+        return True, sdp_response
 
     def get_senders(self):
         """Gets a list of the available senders on the API"""
@@ -672,20 +674,21 @@ class IS05Utils(NMOSUtils):
 
         return True, ""
 
-    def checkCleanRequest(self, method, dest, data=None, code=200):
-        """Checks a request can be made and the resulting json can be parsed"""
+    def checkCleanRequest(self, method, dest, data=None, codes=[200]):
+        """Checks a request can be made"""
         status, response = TestHelper.do_request(method, self.url + dest, json=data)
         if not status:
             return status, response
 
-        message = "Expected status code {} from {}, got {}.".format(code, dest, response.status_code)
-        if response.status_code == code:
+        message = "Expected status code {} from {}, got {}.".format(codes[0], dest, response.status_code)
+        if response.status_code in codes:
             return True, response
         else:
             return False, message
 
     def checkCleanRequestJSON(self, method, dest, data=None, code=200):
-        valid, response = self.checkCleanRequest(method, dest, data, code)
+        """Checks a request can be made and the resulting json can be parsed"""
+        valid, response = self.checkCleanRequest(method, dest, data, [code])
         if valid:
             try:
                 return True, response.json()
