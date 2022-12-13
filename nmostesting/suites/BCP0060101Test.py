@@ -65,6 +65,19 @@ class BCP0060101Test(GenericTest):
         return True, ""
 
     def test_01(self, test):
+        """Check that version 1.3 or greater of the Node API is available"""
+
+        api = self.apis[NODE_API_KEY]
+        if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
+            valid, result = self.do_request("GET", self.node_url)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL("Node API did not respond as expected: {}".format(result))
+        else:
+            return test.FAIL("Node API must be running v1.3 or greater to fully implement BCP-006-01")
+
+    def test_02(self, test):
         """JPEG XS Flows have the required attributes"""
 
         self.do_test_node_api_v1_1(test)
@@ -146,7 +159,7 @@ class BCP0060101Test(GenericTest):
 
         return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")
 
-    def test_02(self, test):
+    def test_03(self, test):
         """JPEG XS Sources have the required attributes"""
 
         self.do_test_node_api_v1_1(test)
@@ -176,7 +189,7 @@ class BCP0060101Test(GenericTest):
 
         return test.UNCLEAR("No JPEG XS Flow resources were found on the Node")
 
-    def test_03(self, test):
+    def test_04(self, test):
         """JPEG XS Senders have the required attributes"""
 
         self.do_test_node_api_v1_1(test)
@@ -257,7 +270,7 @@ class BCP0060101Test(GenericTest):
 
         return test.UNCLEAR("No JPEG XS Sender resources were found on the Node")
 
-    def test_04(self, test):
+    def test_05(self, test):
         """JPEG XS Sender manifests have the required parameters"""
 
         self.do_test_node_api_v1_1(test)
@@ -527,7 +540,7 @@ class BCP0060101Test(GenericTest):
 
         return test.UNCLEAR("No JPEG XS Sender resources were found on the Node")
 
-    def test_05(self, test):
+    def test_06(self, test):
         """JPEG XS Receivers have the required attributes"""
 
         self.do_test_node_api_v1_1(test)
@@ -589,7 +602,7 @@ class BCP0060101Test(GenericTest):
 
         return test.UNCLEAR("No JPEG XS Receiver resources were found on the Node")
 
-    def test_06(self, test):
+    def test_07(self, test):
         """JPEG XS Receiver parameter constraints have valid values"""
 
         self.do_test_node_api_v1_1(test)
