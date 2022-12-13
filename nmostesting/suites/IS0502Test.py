@@ -1308,4 +1308,4 @@ class IS0502Test(GenericTest):
         """
         api = self.apis[NODE_API_KEY]
         if self.is05_utils.compare_api_version(api["version"], "v1.2") < 0:
-            raise NMOSTestException(test.NA("This test cannot be run against IS-04 below version v1.2."))
+            raise NMOSTestException(test.NA("This test cannot be run against Node API below version v1.2."))
