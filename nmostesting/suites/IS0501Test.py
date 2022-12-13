@@ -123,12 +123,18 @@ class IS0501Test(GenericTest):
         """All params listed in /single/senders/{senderId}/active/ match their corresponding SDP files"""
 
         if len(self.senders) > 0:
+            access_error = False
             for sender in self.senders:
                 if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                    valid, result = self.is05_utils.check_sdp_matches_params(sender)
+                    valid, response = self.is05_utils.check_sdp_matches_params(sender)
                     if not valid:
                         return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
-                                         .format(sender, result))
+                                         .format(sender, response))
+                    elif response.status_code != 200:
+                        access_error = True
+            if access_error:
+                return test.UNCLEAR("One or more of the tested transport files returned a 404 HTTP code. Please "
+                                    "ensure 'master_enable' is set to true for all Senders and re-test.")
             return test.PASS()
         else:
             return test.UNCLEAR("Not tested. No resources found.")
@@ -603,7 +609,7 @@ class IS0501Test(GenericTest):
                         warn = response
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
-                        if not valid2:
+                        if not valid2 or response2.status_code != 200:
                             return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
                                              .format(sender, response2))
                 else:
@@ -651,7 +657,7 @@ class IS0501Test(GenericTest):
                         warn = response
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
-                        if not valid2:
+                        if not valid2 or response2.status_code != 200:
                             return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
                                              .format(sender, response2))
                 else:
@@ -699,7 +705,7 @@ class IS0501Test(GenericTest):
                         warn = response
                     if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
                         valid2, response2 = self.is05_utils.check_sdp_matches_params(sender)
-                        if not valid2:
+                        if not valid2 or response2.status_code != 200:
                             return test.FAIL("SDP file for Sender {} does not match the transport_params: {}"
                                              .format(sender, response2))
                 else:
@@ -784,7 +790,7 @@ class IS0501Test(GenericTest):
 
         url = "bulk/senders"
         error_code = 405
-        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, codes=[error_code])
         if valid:
             valid, message = self.check_error_response("GET", response, error_code)
             if valid:
@@ -799,7 +805,7 @@ class IS0501Test(GenericTest):
 
         url = "bulk/receivers"
         error_code = 405
-        valid, response = self.is05_utils.checkCleanRequest("GET", url, code=error_code)
+        valid, response = self.is05_utils.checkCleanRequest("GET", url, codes=[error_code])
         if valid:
             valid, message = self.check_error_response("GET", response, error_code)
             if valid:
@@ -1192,7 +1198,7 @@ class IS0501Test(GenericTest):
 
     def compare_to_schema(self, schema, endpoint, status_code=200):
         """Compares the response from an endpoint to a schema"""
-        valid, response = self.is05_utils.checkCleanRequest("GET", endpoint, code=status_code)
+        valid, response = self.is05_utils.checkCleanRequest("GET", endpoint, codes=[status_code])
         if valid:
             return self.check_response(schema, "GET", response)
         else:
