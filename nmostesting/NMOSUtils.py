@@ -179,3 +179,168 @@ class NMOSUtils(object):
     @staticmethod
     def sort_versions(versions_list):
         return sorted(versions_list, key=functools.cmp_to_key(NMOSUtils.compare_api_version))
+
+    @staticmethod
+    def downgrade_resource(resource_type, data, requested_version):
+        """Downgrades given resource data to requested version"""
+        version_major, version_minor = [int(x) for x in requested_version[1:].split(".")]
+
+        if version_major == 1:
+            if resource_type == "node":
+                if version_minor <= 2:
+                    if "interfaces" in data:
+                        key = "attached_network_device"
+                        for interface in data["interfaces"]:
+                            if key in interface:
+                                del interface[key]
+                    key = "authorization"
+                    for service in data["services"]:
+                        if key in service:
+                            del service[key]
+                    if "api" in data and "endpoints" in data["api"]:
+                        for endpoint in data["api"]["endpoints"]:
+                            if key in endpoint:
+                                del endpoint[key]
+                if version_minor <= 1:
+                    keys_to_remove = [
+                        "interfaces"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "api",
+                        "clocks",
+                        "description",
+                        "tags"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "device":
+                if version_minor <= 2:
+                    key = "authorization"
+                    if "controls" in data:
+                        for control in data["controls"]:
+                            if key in control:
+                                del control[key]
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "controls",
+                        "description",
+                        "tags"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "sender":
+                if version_minor <= 2:
+                    pass
+                if version_minor <= 1:
+                    keys_to_remove = [
+                        "caps",
+                        "interface_bindings",
+                        "subscription"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                if version_minor == 0:
+                    pass
+                return data
+
+            elif resource_type == "receiver":
+                if version_minor <= 2:
+                    pass
+                if version_minor <= 1:
+                    keys_to_remove = [
+                        "interface_bindings"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                    if "subscription" in data and "active" in data["subscription"]:
+                        del data["subscription"]["active"]
+                if version_minor == 0:
+                    pass
+                return data
+
+            elif resource_type == "source":
+                if version_minor <= 2:
+                    keys_to_remove = [
+                        "event_type"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "channels",
+                        "clock_name",
+                        "grain_rate"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "flow":
+                if version_minor <= 2:
+                    keys_to_remove = [
+                        "event_type"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "bit_depth",
+                        "colorspace",
+                        "components",
+                        "device_id",
+                        "DID_SDID",
+                        "frame_height",
+                        "frame_width",
+                        "grain_rate",
+                        "interlace_mode",
+                        "media_type",
+                        "sample_rate",
+                        "transfer_characteristic"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+            elif resource_type == "subscription":
+                if version_minor <= 2:
+                    keys_to_remove = [
+                        "authorization"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                if version_minor <= 1:
+                    pass
+                if version_minor == 0:
+                    keys_to_remove = [
+                        "secure"
+                    ]
+                    for key in keys_to_remove:
+                        if key in data:
+                            del data[key]
+                return data
+
+        # Invalid request
+        return None
