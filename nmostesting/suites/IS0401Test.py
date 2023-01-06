@@ -862,7 +862,8 @@ class IS0401Test(GenericTest):
                     # Advertise the sender to allow the Node to find it to make connection
                     self.zc.register_service(sender_info)
 
-                request_data = self.node.get_sender(media_type)
+                api = self.apis[NODE_API_KEY]
+                request_data = self.node.get_sender(media_type, api["version"])
                 self.do_receiver_put(test, receiver["id"], request_data)
 
                 if CONFIG.DNS_SD_MODE == "multicast":
@@ -879,7 +880,6 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed "
                                      "Sender ID".format(receiver["id"]))
 
-                api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if not receiver["subscription"]["active"]:
                         return test.FAIL("Node API Receiver {} subscription does not indicate an active "
