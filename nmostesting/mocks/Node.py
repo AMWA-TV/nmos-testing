@@ -68,9 +68,7 @@ class Node(object):
             }
         }
 
-        NMOSUtils.downgrade_resource("sender", sender, version)
-
-        return sender
+        return NMOSUtils.downgrade_resource("sender", sender, version)
 
     def add_sender(self, sender, sender_ip_address, sdp_params={}):
         """
