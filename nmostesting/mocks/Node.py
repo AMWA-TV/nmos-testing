@@ -40,7 +40,7 @@ class Node(object):
         self.senders = {}
         self.patched_sdp = {}
 
-    def get_sender(self, media_type="video/raw"):
+    def get_sender(self, media_type="video/raw", version="v1.3"):
         protocol = "http"
         host = get_default_ip()
         if CONFIG.ENABLE_HTTPS:
@@ -49,7 +49,7 @@ class Node(object):
                 host = "nmos-mocks.local"
             else:
                 host = "mocks.{}".format(CONFIG.DNS_DOMAIN)
-        # TODO: Provide the means to downgrade this to a <v1.2 JSON representation
+
         sender = {
             "id": str(uuid.uuid4()),
             "label": "Dummy Sender",
@@ -67,6 +67,9 @@ class Node(object):
                 "active": True
             }
         }
+
+        NMOSUtils.downgrade_resource("sender", sender, version)
+
         return sender
 
     def add_sender(self, sender, sender_ip_address, sdp_params={}):
