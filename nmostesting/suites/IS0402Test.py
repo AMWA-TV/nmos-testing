@@ -30,7 +30,6 @@ from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException, NMO
 from ..IS04Utils import IS04Utils
 from ..TestHelper import is_ip_address, load_resolved_schema, WebsocketWorker
 from ..TestResult import Test
-from ..NMOSUtils import NMOSUtils
 
 REG_API_KEY = "registration"
 QUERY_API_KEY = "query"
@@ -2180,7 +2179,7 @@ class IS0402Test(GenericTest):
             with open("test_data/IS0402/v1.3_{}.json".format(resource)) as resource_data:
                 resource_json = json.load(resource_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
-                    resource_json = NMOSUtils.downgrade_resource(resource, resource_json,
+                    resource_json = IS04Utils.downgrade_resource(resource, resource_json,
                                                                  api["version"])
 
                 result_data[resource] = resource_json
@@ -2192,7 +2191,7 @@ class IS0402Test(GenericTest):
         with open("test_data/IS0402/subscriptions_request.json") as resource_data:
             resource_json = json.load(resource_data)
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
-                return NMOSUtils.downgrade_resource("subscription", resource_json, api["version"])
+                return IS04Utils.downgrade_resource("subscription", resource_json, api["version"])
             return resource_json
 
     def do_400_check(self, test, resource_type):
@@ -2225,7 +2224,7 @@ class IS0402Test(GenericTest):
             api_ver = self.apis[REG_API_KEY]["version"]
         data = deepcopy(self.test_data[type])
         if self.is04_reg_utils.compare_api_version(api_ver, "v1.3") < 0:
-            data = NMOSUtils.downgrade_resource(type, data, api_ver)
+            data = IS04Utils.downgrade_resource(type, data, api_ver)
         return data
 
     def bump_resource_version(self, resource):
@@ -2243,7 +2242,7 @@ class IS0402Test(GenericTest):
         sub_json["params"] = params
         sub_json["secure"] = CONFIG.ENABLE_HTTPS
         if self.is04_query_utils.compare_api_version(api_ver, "v1.3") < 0:
-            sub_json = NMOSUtils.downgrade_resource("subscription", sub_json, api_ver)
+            sub_json = IS04Utils.downgrade_resource("subscription", sub_json, api_ver)
         return sub_json
 
     def post_subscription(self, test, sub_json, query_url=None):
@@ -2381,7 +2380,7 @@ class IS0402Test(GenericTest):
             data["device_id"] = source["device_id"]
             data["source_id"] = source["id"]
             # since device_id is v1.1, downgrade
-            data = NMOSUtils.downgrade_resource(type, data, self.apis[REG_API_KEY]["version"])
+            data = IS04Utils.downgrade_resource(type, data, self.apis[REG_API_KEY]["version"])
         elif type == "sender":
             device = self.post_super_resources_and_resource(test, "device", description, fail=Test.UNCLEAR)
             data["device_id"] = device["id"]

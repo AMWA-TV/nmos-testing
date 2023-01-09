@@ -24,6 +24,7 @@ from jinja2 import Template
 from .. import Config as CONFIG
 from ..TestHelper import get_default_ip, do_request
 from ..NMOSUtils import NMOSUtils
+from ..IS04Utils import IS04Utils
 
 
 class Node(object):
@@ -68,7 +69,7 @@ class Node(object):
             }
         }
 
-        return NMOSUtils.downgrade_resource("sender", sender, version)
+        return IS04Utils.downgrade_resource("sender", sender, version)
 
     def add_sender(self, sender, sender_ip_address, sdp_params={}):
         """
