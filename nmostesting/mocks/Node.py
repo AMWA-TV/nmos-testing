@@ -23,7 +23,6 @@ from copy import deepcopy
 from jinja2 import Template
 from .. import Config as CONFIG
 from ..TestHelper import get_default_ip, do_request
-from ..NMOSUtils import NMOSUtils
 from ..IS04Utils import IS04Utils
 
 
@@ -328,7 +327,7 @@ class Node(object):
                     response_data['transport_params'][0][key] = default_params[key]
 
             # Add activation time
-            response_data['activation']['activation_time'] = NMOSUtils.get_TAI_time()
+            response_data['activation']['activation_time'] = IS04Utils.get_TAI_time()
 
             if response_data['activation']['mode'] == 'activate_immediate':
                 response_data['activation']['requested_time'] = None
@@ -339,7 +338,7 @@ class Node(object):
             # Create update for IS-04 subscription
             subscription_update = resource_data[resource_type]
             subscription_update['subscription']['active'] = response_data['master_enable']
-            subscription_update['version'] = NMOSUtils.get_TAI_time()
+            subscription_update['version'] = IS04Utils.get_TAI_time()
 
             if subscription_update['subscription']['active'] is True:
                 subscription_update['subscription'][connected_resource_id] = response_data[connected_resource_id]
@@ -414,7 +413,7 @@ def connection(version, resource, resource_id):
     if resource == 'senders':
         base_data.append("transportfile/")
 
-    if NMOSUtils.compare_api_version("v1.1", version) <= 0:
+    if IS04Utils.compare_api_version("v1.1", version) <= 0:
         base_data.append("transporttype/")
 
     return make_response(Response(json.dumps(base_data), mimetype='application/json'))
