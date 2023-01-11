@@ -318,8 +318,8 @@ class Registry(object):
             # Guard against concurrent subscription creation
             self.subscription_lock.acquire()
 
-            for id, subscription_server in list(self.subscription_websockets.items()):
-                subscription_server['server'].close()
+            for id, subscription_websocket in list(self.subscription_websockets.items()):
+                subscription_websocket['server'].close()
                 del self.subscription_websockets[id]
         finally:
             self.subscription_lock.release()
