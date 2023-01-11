@@ -581,7 +581,7 @@ class IS0402Test(GenericTest):
         description = "test_21_2"
 
         # Initial test cases based on the examples in NMOS documentation
-        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/docs/2.5.%20APIs%20-%20Query%20Parameters.md#pagination # noqa: E501
+        # See https://specs.amwa.tv/is-04/releases/v1.2.2/docs/2.5._APIs_-_Query_Parameters.html#pagination
 
         ts, ids = self.post_sample_nodes(test, 20, description)
 
@@ -598,7 +598,7 @@ class IS0402Test(GenericTest):
         # "Implementations may specify their own default and maximum for the limit"
         # so theoretically, if a Query API had a very low maximum limit, that number could be returned
         # rather than the requested limit, for many of the following tests.
-        # See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.x/APIs/QueryAPI.raml#L37
+        # See https://github.com/AMWA-TV/is-04/blob/v1.2.2/APIs/QueryAPI.raml#L37
 
         # Example 1: Initial /nodes Request
 

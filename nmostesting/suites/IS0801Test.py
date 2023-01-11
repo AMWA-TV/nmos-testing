@@ -264,7 +264,7 @@ class IS0801Test(GenericTest):
                 )
 
         if len(constrainedOutputList) == 0:
-            return test.NA("Could not test - no outputs have routing constraints set.")
+            return test.UNCLEAR("Could not test - no outputs have routing constraints set.")
 
         inputIDList = [None]
         for inputInstance in inputList:
@@ -290,7 +290,7 @@ class IS0801Test(GenericTest):
                            "and Output {} despite routing constraint."
                            .format(forbiddenRoutes[0], outputInstance.id))
                     return test.FAIL(msg)
-        return test.NA("Could not test - no route is forbidden.")
+        return test.UNCLEAR("Could not test - no route is forbidden.")
 
     def test_14(self, test):
         """It is not possible to re-order channels when re-ordering is set to false"""
@@ -308,7 +308,7 @@ class IS0801Test(GenericTest):
                 constraintSet = True
 
         if not constraintSet:
-            return test.NA("No inputs prevent re-ordering.")
+            return test.UNCLEAR("No inputs prevent re-ordering.")
 
         # Filter out inputs where the constraint can't be tested because the
         # block size prevents re-ordering anyway
@@ -383,7 +383,7 @@ class IS0801Test(GenericTest):
                 constrainedInputs.append(inputInstance)
 
         if not constraintSet:
-            return test.NA("No inputs constrain by block.")
+            return test.UNCLEAR("No inputs constrain by block.")
 
         chosenInput = constrainedInputs[0]
         output = chosenInput.getRoutableOutputs()
