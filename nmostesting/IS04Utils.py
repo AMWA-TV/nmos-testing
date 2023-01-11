@@ -15,6 +15,7 @@
 from . import TestHelper
 
 from .NMOSUtils import NMOSUtils
+from copy import deepcopy
 
 
 class IS04Utils(NMOSUtils):
@@ -70,9 +71,11 @@ class IS04Utils(NMOSUtils):
         return toReturn
 
     @staticmethod
-    def downgrade_resource(resource_type, data, requested_version):
+    def downgrade_resource(resource_type, resource_data, requested_version):
         """Downgrades given resource data to requested version"""
         version_major, version_minor = [int(x) for x in requested_version[1:].split(".")]
+
+        data = deepcopy(resource_data)
 
         if version_major == 1:
             if resource_type == "node":
