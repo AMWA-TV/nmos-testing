@@ -288,6 +288,7 @@ class BCP0060101Test(GenericTest):
                             and sender["flow_id"] in flow_map
                             and flow_map[sender["flow_id"]]["media_type"] == "video/jxsv"]
 
+            access_error = False
             for sender in jxsv_senders:
                 flow = flow_map[sender["flow_id"]]
                 source = source_map[flow["source_id"]]
@@ -296,11 +297,20 @@ class BCP0060101Test(GenericTest):
                     return test.FAIL("Sender {} MUST indicate the 'manifest_href' attribute."
                                      .format(sender["id"]))
 
-                url = sender["manifest_href"]
-                manifest_href_valid, manifest_href_response = self.do_request("GET", url)
-                if not manifest_href_valid or manifest_href_response.status_code != 200:
-                    return test.FAIL("Unexpected response from the Node API: {}"
-                                     .format(manifest_href_response))
+                href = sender["manifest_href"]
+                if not href:
+                    access_error = True
+                    continue
+
+                manifest_href_valid, manifest_href_response = self.do_request("GET", href)
+                if manifest_href_valid and manifest_href_response.status_code == 200:
+                    pass
+                elif manifest_href_valid and manifest_href_response.status_code == 404:
+                    access_error = True
+                    continue
+                else:
+                    return test.FAIL("Unexpected response from manifest_href '{}': {}"
+                                     .format(href, manifest_href_response))
 
                 sdp = manifest_href_response.text
 
@@ -529,6 +539,10 @@ class BCP0060101Test(GenericTest):
                 if nmos_name in sender and not found_bandwidth:
                     return test.FAIL("SDP '{}' for Sender {} is missing but must match {} in the Sender"
                                      .format(name, sender["id"], nmos_name))
+
+            if access_error:
+                return test.UNCLEAR("One or more of the tested Senders had null or empty 'manifest_href' or "
+                                    "returned a 404 HTTP code. Please ensure all Senders are enabled and re-test.")
 
             if len(jxsv_senders) > 0:
                 return test.PASS()
