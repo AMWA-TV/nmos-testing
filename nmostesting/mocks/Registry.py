@@ -25,6 +25,7 @@ from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUE
     WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
 from ..NMOSUtils import NMOSUtils
+from ..IS04Utils import IS04Utils
 from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip, get_mocks_hostname
 
 
@@ -240,7 +241,7 @@ class Registry(object):
                             + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
                             'version': NMOSUtils.get_TAI_time()}
 
-            self.subscription_websockets[subscription_id] = websocket_server
+            self.subscription_websockets[subscription_id] = {'server': websocket_server, 'api_version': version}
 
             self.get_resources()['subscription'][subscription_id] = subscription
         finally:
@@ -291,15 +292,21 @@ class Registry(object):
                               'grain': {'type': 'urn:x-nmos:format:data.event',
                                         'topic': '/' + resource_type + 's/', 'data': []}}
 
+                api_version = self.subscription_websockets[subscription_id]['api_version']
+
                 for resource_id in resource_ids:
                     data = {'path': resource_id}
                     if pre_resources.get(resource_id):
-                        data['pre'] = pre_resources[resource_id]
+                        data['pre'] = IS04Utils.downgrade_resource(resource_type,
+                                                                   pre_resources[resource_id],
+                                                                   api_version)
                     if post_resources.get(resource_id):
-                        data['post'] = post_resources[resource_id]
+                        data['post'] = IS04Utils.downgrade_resource(resource_type,
+                                                                    post_resources[resource_id],
+                                                                    api_version)
                     data_grain["grain"]["data"].append(data)
 
-                self.subscription_websockets[subscription_id].queue_message(json.dumps(data_grain))
+                self.subscription_websockets[subscription_id]['server'].queue_message(json.dumps(data_grain))
 
         except KeyError as err:
             print('No subscription for resource type: {0}'.format(err))
@@ -312,8 +319,8 @@ class Registry(object):
             # Guard against concurrent subscription creation
             self.subscription_lock.acquire()
 
-            for id, subscription_websocket in list(self.subscription_websockets.items()):
-                subscription_websocket.close()
+            for id, subscription_server in list(self.subscription_websockets.items()):
+                subscription_server['server'].close()
                 del self.subscription_websockets[id]
         finally:
             self.subscription_lock.release()
@@ -544,16 +551,18 @@ def query_resource(version, resource):
     # Check to see if resource is being requested as a query
     if request.args.get('id'):
         resource_id = request.args.get('id')
-        base_data.append(registry.get_resources()[resource_type][resource_id])
+        base_data.append(IS04Utils.downgrade_resource(resource_type,
+                                                      registry.get_resources()[resource_type][resource_id],
+                                                      version))
     else:
         data = registry.get_resources()[resource_type]
 
         # only paginate for version v1.1 and up
         if NMOSUtils.compare_api_version("v1.1", version) > 0:
             for key, value in data.items():
-                base_data.append(value)
+                base_data.append(IS04Utils.downgrade_resource(resource_type, value, version))
         else:
-            data_list = [d for k, d in data.items()]
+            data_list = [IS04Utils.downgrade_resource(resource_type, d, version) for k, d in data.items()]
             sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
 
             # Only if until is after the start of the resource list
@@ -627,7 +636,9 @@ def get_resource(version, resource, resource_id):
     resource_type = resource.rstrip("s")
     data = []
     try:
-        data = registry.get_resources()[resource_type][resource_id]
+        data = IS04Utils.downgrade_resource(resource_type,
+                                            registry.get_resources()[resource_type][resource_id],
+                                            version)
     except Exception:
         abort(404)
         pass
@@ -703,7 +714,7 @@ def delete_subscription(version, subscription_id):
             abort(403)
 
         # Close subscription WebSocket server and remove from resources
-        registry.subscription_websockets[subscription_id].close()
+        registry.subscription_websockets[subscription_id]['server'].close()
         del registry.subscription_websockets[subscription_id]
         del registry.get_resources()['subscription'][subscription_id]
 
