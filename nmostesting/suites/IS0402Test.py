@@ -2222,9 +2222,13 @@ class IS0402Test(GenericTest):
         """Make a clone of the test data for the requested type and API version"""
         if api_ver is None:
             api_ver = self.apis[REG_API_KEY]["version"]
-        data = deepcopy(self.test_data[type])
+
         if self.is04_reg_utils.compare_api_version(api_ver, "v1.3") < 0:
-            data = IS04Utils.downgrade_resource(type, data, api_ver)
+            # downgrade_resource makes a deepcopy of the resource
+            data = IS04Utils.downgrade_resource(type, self.test_data[type], api_ver)
+        else:
+            data = deepcopy(self.test_data[type])
+
         return data
 
     def bump_resource_version(self, resource):
