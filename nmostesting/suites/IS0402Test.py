@@ -2223,13 +2223,7 @@ class IS0402Test(GenericTest):
         if api_ver is None:
             api_ver = self.apis[REG_API_KEY]["version"]
 
-        if self.is04_reg_utils.compare_api_version(api_ver, "v1.3") < 0:
-            # downgrade_resource makes a deepcopy of the resource
-            data = IS04Utils.downgrade_resource(type, self.test_data[type], api_ver)
-        else:
-            data = deepcopy(self.test_data[type])
-
-        return data
+        return IS04Utils.downgrade_resource(type, self.test_data[type], api_ver)
 
     def bump_resource_version(self, resource):
         """Bump version timestamp of the given resource"""
