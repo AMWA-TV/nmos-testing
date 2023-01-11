@@ -335,9 +335,6 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
-        }, {
-            "spec_key": "is-05",
-            "api_key": "connection"
         }],
         "extra_specs": [{
             "spec_key": "nmos-parameter-registers",

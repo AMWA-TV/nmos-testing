@@ -22,7 +22,6 @@ from ..IS04Utils import IS04Utils
 from ..TestHelper import load_resolved_schema
 
 NODE_API_KEY = "node"
-CONN_API_KEY = "connection"
 FLOW_REGISTER_KEY = "flow-register"
 SENDER_REGISTER_KEY = "sender-register"
 
@@ -38,7 +37,6 @@ class BCP0060101Test(GenericTest):
         ]
         GenericTest.__init__(self, apis, omit_paths)
         self.node_url = self.apis[NODE_API_KEY]["url"]
-        self.connection_url = self.apis[CONN_API_KEY]["url"]
         self.is04_resources = {"senders": [], "receivers": [], "_requested": [], "sources": [], "flows": []}
         self.is04_utils = IS04Utils(self.node_url)
 
