@@ -24,7 +24,6 @@ from threading import Event, Lock
 from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER, \
     WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
-from ..NMOSUtils import NMOSUtils
 from ..IS04Utils import IS04Utils
 from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip, get_mocks_hostname
 
@@ -239,7 +238,7 @@ class Registry(object):
                             'secure': secure,
                             'ws_href': protocol + '://' + host + ':' + str(websocket_port)
                             + '/x-nmos/query/' + version + '/subscriptions/' + subscription_id,
-                            'version': NMOSUtils.get_TAI_time()}
+                            'version': IS04Utils.get_TAI_time()}
 
             self.subscription_websockets[subscription_id] = {'server': websocket_server, 'api_version': version}
 
@@ -278,7 +277,7 @@ class Registry(object):
             subscription_ids = [id for id, subscription in self.get_resources()['subscription'].items()
                                 if self._get_resource_type(subscription['resource_path']) == resource_type]
 
-            timestamp = NMOSUtils.get_TAI_time()
+            timestamp = IS04Utils.get_TAI_time()
 
             for subscription_id in subscription_ids:
                 data_grain = {'grain_type': 'event',
@@ -490,7 +489,7 @@ def query(version):
 
 def compare_resources(resource1, resource2):
     try:
-        return NMOSUtils.compare_resource_version(resource1['version'], resource2['version'])
+        return IS04Utils.compare_resource_version(resource1['version'], resource2['version'])
     except Exception as e:
         print(e)
         return 0
@@ -516,7 +515,7 @@ def query_resource(version, resource):
     # * e.g. http://<host>:<port>/x-nmos/query/<version>/nodes?id=<resource_id> will return a single registered node
 
     MIN_SINCE = "0:0"
-    MAX_UNTIL = NMOSUtils.get_TAI_time()
+    MAX_UNTIL = IS04Utils.get_TAI_time()
 
     base_data = []
 
@@ -527,7 +526,7 @@ def query_resource(version, resource):
     until = request.args.get('paging.until') or MAX_UNTIL
     limit = min(int(request.args.get('paging.limit') or registry.paging_limit), registry.paging_limit)
 
-    if NMOSUtils.compare_resource_version(since, until) > 0:
+    if IS04Utils.compare_resource_version(since, until) > 0:
         # If since is after until, it's a bad request
         abort(400)
 
@@ -558,7 +557,7 @@ def query_resource(version, resource):
         data = registry.get_resources()[resource_type]
 
         # only paginate for version v1.1 and up
-        if NMOSUtils.compare_api_version("v1.1", version) > 0:
+        if IS04Utils.compare_api_version("v1.1", version) > 0:
             for key, value in data.items():
                 base_data.append(IS04Utils.downgrade_resource(resource_type, value, version))
         else:
@@ -566,18 +565,18 @@ def query_resource(version, resource):
             sorted_list = sorted(data_list, key=functools.cmp_to_key(compare_resources))
 
             # Only if until is after the start of the resource list
-            if len(sorted_list) > 0 and NMOSUtils.compare_resource_version(until, sorted_list[0]['version']) > 0:
+            if len(sorted_list) > 0 and IS04Utils.compare_resource_version(until, sorted_list[0]['version']) > 0:
                 since_index = 0
                 until_index = 0
 
                 # find since index
                 for value in sorted_list:
-                    if NMOSUtils.compare_resource_version(since, value['version']) > 0:
+                    if IS04Utils.compare_resource_version(since, value['version']) > 0:
                         since_index += 1
 
                 # find until index
                 for value in sorted_list:
-                    if NMOSUtils.compare_resource_version(until, value['version']) > 0:
+                    if IS04Utils.compare_resource_version(until, value['version']) > 0:
                         until_index += 1
 
                 if request.args.get('paging.until') and not request.args.get('paging.since'):
@@ -594,7 +593,7 @@ def query_resource(version, resource):
     response = Response(json.dumps(base_data), mimetype='application/json')
 
     # add pagination headers for v1.1 and up
-    if NMOSUtils.compare_api_version("v1.1", version) <= 0:
+    if IS04Utils.compare_api_version("v1.1", version) <= 0:
         protocol = "http"
         host = get_default_ip()
         port = str(registry.get_data().port)
