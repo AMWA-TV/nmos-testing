@@ -698,6 +698,9 @@ class BCP0060102Test(ControllerTest):
 
                        Refresh the NCuT's view of the Registry and carefully select the Senders \
                        that are JPEG XS capable from the following list.
+
+                       Once capable Senders have been indentified press 'Submit'. If unable \
+                       to identify capable Senders, press 'Submit' without making a selection.
                        """
 
             jpeg_xs_senders = [s for s in self.senders if 'video/jxsv' == s['sdp_params']['media_type']]
@@ -722,11 +725,11 @@ class BCP0060102Test(ControllerTest):
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
             if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Incorrect Sender identified')
+                return test.FAIL('Capable Senders not identified')
             else:
                 for answer in actual_answers:
                     if answer not in expected_answers:
-                        return test.FAIL('Incorrect Sender identified')
+                        return test.FAIL('Capable Senders not identified')
 
             return test.PASS('All Senders correctly identified')
 
@@ -750,6 +753,9 @@ class BCP0060102Test(ControllerTest):
 
                        Refresh the NCuT's view of the Registry and carefully select the Receivers \
                        that are JPEG XS capable from the following list.
+
+                       Once capable Receivers have been indentified press 'Submit'. If unable \
+                       to identify capable Receivers, press 'Submit' without making a selection.
                        """
 
             jpeg_xs_receivers = [r for r in self.receivers if 'video/jxsv' in r['caps']['media_types']]
@@ -812,6 +818,9 @@ class BCP0060102Test(ControllerTest):
                            that are compatible with the following Sender:
 
                            {sender['display_answer']}
+
+                           Once compatible Receivers have been indentified press 'Submit'. If unable \
+                           to identify compatible Receivers, press 'Submit' without making a selection.
                            """)
 
                 compatible_receviers = [r for r in self.receivers if self._is_compatible(sender, r)]
@@ -879,6 +888,9 @@ class BCP0060102Test(ControllerTest):
                            that are compatible with the following Receiver:
 
                            {receiver['display_answer']}
+
+                           Once compatible Senders have been indentified press 'Submit'. If unable \
+                           to identify compatible Senders, press 'Submit' without making a selection.
                            """)
 
                 compatible_senders = [s for s in self.senders if self._is_compatible(s, receiver)]
