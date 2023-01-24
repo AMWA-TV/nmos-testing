@@ -29,8 +29,6 @@ class BCP0060102Test(ControllerTest):
     """
     def __init__(self, apis, registries, node, dns_server, **kwargs):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
-        if NMOSUtils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.1") < 0:
-            raise NMOSInitException("This test suite cannot be run against Query API below version v1.1.")
 
     def _create_interop_point(self, sdp_base, override_params):
         interop_point = {**sdp_base, **override_params}
