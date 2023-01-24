@@ -698,7 +698,7 @@ class BCP0060102Test(ControllerTest):
                        Refresh the NCuT's view of the Registry and carefully select the Senders \
                        that are JPEG XS capable from the following list.
 
-                       Once capable Senders have been indentified press 'Submit'. If unable \
+                       Once capable Senders have been identified press 'Submit'. If unable \
                        to identify capable Senders, press 'Submit' without making a selection.
                        """
 
@@ -753,7 +753,7 @@ class BCP0060102Test(ControllerTest):
                        Refresh the NCuT's view of the Registry and carefully select the Receivers \
                        that are JPEG XS capable from the following list.
 
-                       Once capable Receivers have been indentified press 'Submit'. If unable \
+                       Once capable Receivers have been identified press 'Submit'. If unable \
                        to identify capable Receivers, press 'Submit' without making a selection.
                        """
 
@@ -818,7 +818,7 @@ class BCP0060102Test(ControllerTest):
 
                            {sender['display_answer']}
 
-                           Once compatible Receivers have been indentified press 'Submit'. If unable \
+                           Once compatible Receivers have been identified press 'Submit'. If unable \
                            to identify compatible Receivers, press 'Submit' without making a selection.
                            """)
 
@@ -889,7 +889,7 @@ class BCP0060102Test(ControllerTest):
 
                            {receiver['display_answer']}
 
-                           Once compatible Senders have been indentified press 'Submit'. If unable \
+                           Once compatible Senders have been identified press 'Submit'. If unable \
                            to identify compatible Senders, press 'Submit' without making a selection.
                            """)
 
