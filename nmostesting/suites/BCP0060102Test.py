@@ -796,8 +796,8 @@ class BCP0060102Test(ControllerTest):
         """
         Ensure NCuT can identify JPEG XS Receiver compatibility according to TR-08 Capability Set and Conformance Level
         """
-        # Indentify compatible Receivers given a random Sender.
-        # Sender and Recievers have SDP/caps as specifiied in TR-08.
+        # Identify compatible Receivers given a random Sender.
+        # Sender and Receivers have SDP/caps as specified in TR-08.
 
         MAX_COMPATIBLE_RECEIVER_COUNT = 4
         CANDIDATE_RECEIVER_COUNT = 6
@@ -822,12 +822,12 @@ class BCP0060102Test(ControllerTest):
                            to identify compatible Receivers, press 'Submit' without making a selection.
                            """)
 
-                compatible_receviers = [r for r in self.receivers if self._is_compatible(sender, r)]
+                compatible_receivers = [r for r in self.receivers if self._is_compatible(sender, r)]
                 other_receivers = [r for r in self.receivers if not self._is_compatible(sender, r)]
 
                 compatible_receiver_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT,
-                                                                            len(compatible_receviers)))
-                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receviers, compatible_receiver_count)
+                                                                            len(compatible_receivers)))
+                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receivers, compatible_receiver_count)
 
                 if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
                     incompatible_receiver_count = min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
@@ -867,8 +867,8 @@ class BCP0060102Test(ControllerTest):
         """
         Ensure NCuT can identify JPEG XS Sender compatibility according to TR-08 Capability Set and Conformance Level
         """
-        # Indentify compatible Receivers given a random Sender.
-        # Sender and Recievers have SDP/caps as specifiied in TR-08
+        # Identify compatible Receivers given a random Sender.
+        # Sender and Receivers have SDP/caps as specified in TR-08
 
         MAX_COMPATIBLE_SENDER_COUNT = 3
         CANDIDATE_SENDER_COUNT = 6
