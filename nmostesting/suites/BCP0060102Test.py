@@ -16,7 +16,6 @@ import textwrap
 from operator import itemgetter
 from itertools import cycle, islice
 from .. import Config as CONFIG
-from ..GenericTest import NMOSInitException
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..NMOSUtils import NMOSUtils
 
@@ -847,7 +846,8 @@ class BCP0060102Test(ControllerTest):
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Unable to identify compatible Receivers for Compatibility Set ' + sender['capability_set']
+                    return test.FAIL('Unable to identify compatible Receivers for Compatibility Set '
+                                     + sender['capability_set']
                                      + ', Conformance Level ' + sender['conformance_level']
                                      + ' and Interoperability Point ' + sender['interop_point'])
                 else:
