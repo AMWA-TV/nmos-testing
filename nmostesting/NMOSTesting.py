@@ -352,7 +352,7 @@ TEST_DEFINITIONS = {
         "class": IS1101Test.IS1101Test
     },
     "IS-11-02": {
-        "name": "IS-11 Interaction with IS-04",
+        "name": "IS-11 Interaction with IS-04 and IS-05",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
