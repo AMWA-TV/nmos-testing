@@ -782,11 +782,11 @@ class BCP0060102Test(ControllerTest):
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
             if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Incorrect Receiver identified')
+                return test.FAIL('Capable Receiver not identified')
             else:
                 for answer in actual_answers:
                     if answer not in expected_answers:
-                        return test.FAIL('Incorrect Receiver identified')
+                        return test.FAIL('Capable Receiver not identified')
 
             return test.PASS('All Receivers correctly identified')
 
@@ -847,13 +847,13 @@ class BCP0060102Test(ControllerTest):
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Incorrect Receiver identified for Compatibility Set ' + sender['capability_set']
+                    return test.FAIL('Unable to identify compatible Receivers for Compatibility Set ' + sender['capability_set']
                                      + ', Conformance Level ' + sender['conformance_level']
                                      + ' and Interoperability Point ' + sender['interop_point'])
                 else:
                     for answer in actual_answers:
                         if answer not in expected_answers:
-                            return test.FAIL('Incorrect Receiver identified for Compatibility Set '
+                            return test.FAIL('Unable to identify compatible Receivers for Compatibility Set '
                                              + sender['capability_set']
                                              + ', Conformance Level ' + sender['conformance_level']
                                              + ' and Interoperability Point ' + sender['interop_point'])
@@ -917,13 +917,13 @@ class BCP0060102Test(ControllerTest):
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
                 if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Incorrect Sender identified for Compatibility Set(s) '
+                    return test.FAIL('Unable to identify compatible Senders for Compatibility Set(s) '
                                      + str(receiver['capability_set'])
                                      + ', Conformance Level ' + receiver['conformance_level'])
                 else:
                     for answer in actual_answers:
                         if answer not in expected_answers:
-                            return test.FAIL('Incorrect Sender identified for Compatibility Set(s) '
+                            return test.FAIL('Unable to identify compatible Senders for Compatibility Set(s) '
                                              + str(receiver['capability_set'])
                                              + ', Conformance Level ' + receiver['conformance_level'])
 
