@@ -690,7 +690,7 @@ class BCP0060102Test(ControllerTest):
         CANDIDATE_SENDER_COUNT = 4
 
         try:
-            # Question 1 connection
+            # Identify capable Senders
             question = """\
                        The NCuT should be able to discover JPEG XS capable Senders \
                        that are registered in the Registry.
@@ -746,7 +746,7 @@ class BCP0060102Test(ControllerTest):
         CANDIDATE_RECEIVER_COUNT = 4
 
         try:
-            # Question 1 connection
+            # Identify capable Receivers
             question = """\
                        The NCuT should be able to discover JPEG XS capable Receivers \
                        that are registered in the Registry.
@@ -810,6 +810,7 @@ class BCP0060102Test(ControllerTest):
 
             for i, sender in enumerate(jxsv_senders):
 
+                # Identify compatible Receivers
                 question = textwrap.dedent(f"""\
                            The NCuT should be able to discover JPEG XS capable Receivers \
                            that are compatible with JPEG XS Senders according to \
@@ -884,6 +885,7 @@ class BCP0060102Test(ControllerTest):
 
             for i, receiver in enumerate(jxsv_receivers):
 
+                # Identify compatible Senders
                 question = textwrap.dedent(f"""\
                            The NCuT should be able to discover JPEG XS capable Senders \
                            that are compatible with JPEG XS Receivers according to \
