@@ -16,7 +16,6 @@ import textwrap
 from operator import itemgetter
 from itertools import cycle, islice
 from .. import Config as CONFIG
-from ..GenericTest import NMOSInitException
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..NMOSUtils import NMOSUtils
 
@@ -29,8 +28,6 @@ class BCP0060102Test(ControllerTest):
     """
     def __init__(self, apis, registries, node, dns_server, **kwargs):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
-        if NMOSUtils.compare_api_version(self.apis[QUERY_API_KEY]["version"], "v1.1") < 0:
-            raise NMOSInitException("This test suite cannot be run against Query API below version v1.1.")
 
     def _create_interop_point(self, sdp_base, override_params):
         interop_point = {**sdp_base, **override_params}
@@ -693,13 +690,16 @@ class BCP0060102Test(ControllerTest):
         CANDIDATE_SENDER_COUNT = 4
 
         try:
-            # Question 1 connection
+            # Identify capable Senders
             question = """\
                        The NCuT should be able to discover JPEG XS capable Senders \
                        that are registered in the Registry.
 
                        Refresh the NCuT's view of the Registry and carefully select the Senders \
                        that are JPEG XS capable from the following list.
+
+                       Once capable Senders have been identified press 'Submit'. If unable \
+                       to identify capable Senders, press 'Submit' without making a selection.
                        """
 
             jpeg_xs_senders = [s for s in self.senders if 'video/jxsv' == s['sdp_params']['media_type']]
@@ -723,14 +723,15 @@ class BCP0060102Test(ControllerTest):
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
-            if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Incorrect Sender identified')
-            else:
-                for answer in actual_answers:
-                    if answer not in expected_answers:
-                        return test.FAIL('Incorrect Sender identified')
+            actual = set(actual_answers)
+            expected = set(expected_answers)
 
-            return test.PASS('All Senders correctly identified')
+            if expected - actual:
+                return test.FAIL('Not all capable Senders identified')
+            elif actual - expected:
+                return test.FAIL('Senders incorrectly identified as capable')
+
+            return test.PASS('All capable Senders correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
@@ -745,13 +746,16 @@ class BCP0060102Test(ControllerTest):
         CANDIDATE_RECEIVER_COUNT = 4
 
         try:
-            # Question 1 connection
+            # Identify capable Receivers
             question = """\
                        The NCuT should be able to discover JPEG XS capable Receivers \
                        that are registered in the Registry.
 
                        Refresh the NCuT's view of the Registry and carefully select the Receivers \
                        that are JPEG XS capable from the following list.
+
+                       Once capable Receivers have been identified press 'Submit'. If unable \
+                       to identify capable Receivers, press 'Submit' without making a selection.
                        """
 
             jpeg_xs_receivers = [r for r in self.receivers if 'video/jxsv' in r['caps']['media_types']]
@@ -777,14 +781,15 @@ class BCP0060102Test(ControllerTest):
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
-            if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Incorrect Receiver identified')
-            else:
-                for answer in actual_answers:
-                    if answer not in expected_answers:
-                        return test.FAIL('Incorrect Receiver identified')
+            actual = set(actual_answers)
+            expected = set(expected_answers)
 
-            return test.PASS('All Receivers correctly identified')
+            if expected - actual:
+                return test.FAIL('Not all capable Receivers identified')
+            elif actual - expected:
+                return test.FAIL('Receivers incorrectly identified as capable')
+
+            return test.PASS('All capable Receivers correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
@@ -793,8 +798,8 @@ class BCP0060102Test(ControllerTest):
         """
         Ensure NCuT can identify JPEG XS Receiver compatibility according to TR-08 Capability Set and Conformance Level
         """
-        # Indentify compatible Receivers given a random Sender.
-        # Sender and Recievers have SDP/caps as specifiied in TR-08.
+        # Identify compatible Receivers given a random Sender.
+        # Sender and Receivers have SDP/caps as specified in TR-08.
 
         MAX_COMPATIBLE_RECEIVER_COUNT = 4
         CANDIDATE_RECEIVER_COUNT = 6
@@ -805,6 +810,7 @@ class BCP0060102Test(ControllerTest):
 
             for i, sender in enumerate(jxsv_senders):
 
+                # Identify compatible Receivers
                 question = textwrap.dedent(f"""\
                            The NCuT should be able to discover JPEG XS capable Receivers \
                            that are compatible with JPEG XS Senders according to \
@@ -814,14 +820,17 @@ class BCP0060102Test(ControllerTest):
                            that are compatible with the following Sender:
 
                            {sender['display_answer']}
+
+                           Once compatible Receivers have been identified press 'Submit'. If unable \
+                           to identify compatible Receivers, press 'Submit' without making a selection.
                            """)
 
-                compatible_receviers = [r for r in self.receivers if self._is_compatible(sender, r)]
+                compatible_receivers = [r for r in self.receivers if self._is_compatible(sender, r)]
                 other_receivers = [r for r in self.receivers if not self._is_compatible(sender, r)]
 
                 compatible_receiver_count = NMOSUtils.RANDOM.randint(1, min(MAX_COMPATIBLE_RECEIVER_COUNT,
-                                                                            len(compatible_receviers)))
-                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receviers, compatible_receiver_count)
+                                                                            len(compatible_receivers)))
+                candidate_receivers = NMOSUtils.RANDOM.sample(compatible_receivers, compatible_receiver_count)
 
                 if len(candidate_receivers) < CANDIDATE_RECEIVER_COUNT:
                     incompatible_receiver_count = min(CANDIDATE_RECEIVER_COUNT - len(candidate_receivers),
@@ -839,19 +848,23 @@ class BCP0060102Test(ControllerTest):
                 actual_answers = self._invoke_testing_facade(
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
-                if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Incorrect Receiver identified for Compatibility Set ' + sender['capability_set']
+                actual = set(actual_answers)
+                expected = set(expected_answers)
+
+                if expected - actual:
+                    return test.FAIL('Not all compatible Receivers identified for '
+                                     + 'Sender ' + sender['display_answer'] + ': '
+                                     + 'Capability Set ' + sender['capability_set']
                                      + ', Conformance Level ' + sender['conformance_level']
                                      + ' and Interoperability Point ' + sender['interop_point'])
-                else:
-                    for answer in actual_answers:
-                        if answer not in expected_answers:
-                            return test.FAIL('Incorrect Receiver identified for Compatibility Set '
-                                             + sender['capability_set']
-                                             + ', Conformance Level ' + sender['conformance_level']
-                                             + ' and Interoperability Point ' + sender['interop_point'])
+                elif actual - expected:
+                    return test.FAIL('Receivers incorrectly identified as compatible for '
+                                     + 'Sender ' + sender['display_answer'] + ': '
+                                     + 'Capability Set ' + sender['capability_set']
+                                     + ', Conformance Level ' + sender['conformance_level']
+                                     + ' and Interoperability Point ' + sender['interop_point'])
 
-            return test.PASS('All Receivers correctly identified')
+            return test.PASS('All compatible Receivers correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
@@ -860,8 +873,8 @@ class BCP0060102Test(ControllerTest):
         """
         Ensure NCuT can identify JPEG XS Sender compatibility according to TR-08 Capability Set and Conformance Level
         """
-        # Indentify compatible Receivers given a random Sender.
-        # Sender and Recievers have SDP/caps as specifiied in TR-08
+        # Identify compatible Receivers given a random Sender.
+        # Sender and Receivers have SDP/caps as specified in TR-08
 
         MAX_COMPATIBLE_SENDER_COUNT = 3
         CANDIDATE_SENDER_COUNT = 6
@@ -872,6 +885,7 @@ class BCP0060102Test(ControllerTest):
 
             for i, receiver in enumerate(jxsv_receivers):
 
+                # Identify compatible Senders
                 question = textwrap.dedent(f"""\
                            The NCuT should be able to discover JPEG XS capable Senders \
                            that are compatible with JPEG XS Receivers according to \
@@ -881,6 +895,9 @@ class BCP0060102Test(ControllerTest):
                            that are compatible with the following Receiver:
 
                            {receiver['display_answer']}
+
+                           Once compatible Senders have been identified press 'Submit'. If unable \
+                           to identify compatible Senders, press 'Submit' without making a selection.
                            """)
 
                 compatible_senders = [s for s in self.senders if self._is_compatible(s, receiver)]
@@ -906,18 +923,21 @@ class BCP0060102Test(ControllerTest):
                 actual_answers = self._invoke_testing_facade(
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
-                if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Incorrect Sender identified for Compatibility Set(s) '
-                                     + str(receiver['capability_set'])
-                                     + ', Conformance Level ' + receiver['conformance_level'])
-                else:
-                    for answer in actual_answers:
-                        if answer not in expected_answers:
-                            return test.FAIL('Incorrect Sender identified for Compatibility Set(s) '
-                                             + str(receiver['capability_set'])
-                                             + ', Conformance Level ' + receiver['conformance_level'])
+                actual = set(actual_answers)
+                expected = set(expected_answers)
 
-            return test.PASS('All Senders correctly identified')
+                if expected - actual:
+                    return test.FAIL('Not all compatible Senders identified for '
+                                     + 'Receiver ' + receiver['display_answer'] + ': '
+                                     + 'Capability Set ' + str(receiver['capability_set'])
+                                     + ' and Conformance Level ' + receiver['conformance_level'])
+                elif actual - expected:
+                    return test.FAIL('Senders incorrectly identified as compatible for '
+                                     + 'Receiver ' + receiver['display_answer'] + ': '
+                                     + 'Capability Set ' + str(receiver['capability_set'])
+                                     + ' and Conformance Level ' + receiver['conformance_level'])
+
+            return test.PASS('All compatible Senders correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
