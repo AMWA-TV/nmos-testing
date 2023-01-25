@@ -723,14 +723,15 @@ class BCP0060102Test(ControllerTest):
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
-            if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Capable Senders not identified')
-            else:
-                for answer in actual_answers:
-                    if answer not in expected_answers:
-                        return test.FAIL('Capable Senders not identified')
+            actual = set(actual_answers)
+            expected = set(expected_answers)
 
-            return test.PASS('All Senders correctly identified')
+            if expected - actual:
+                return test.FAIL('Not all capable Senders identified')
+            elif actual - expected:
+                return test.FAIL('Senders incorrectly identified as capable')
+
+            return test.PASS('All capable Senders correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
@@ -780,14 +781,15 @@ class BCP0060102Test(ControllerTest):
             actual_answers = self._invoke_testing_facade(
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
-            if len(actual_answers) != len(expected_answers):
-                return test.FAIL('Capable Receiver not identified')
-            else:
-                for answer in actual_answers:
-                    if answer not in expected_answers:
-                        return test.FAIL('Capable Receiver not identified')
+            actual = set(actual_answers)
+            expected = set(expected_answers)
 
-            return test.PASS('All Receivers correctly identified')
+            if expected - actual:
+                return test.FAIL('Not all capable Receivers identified')
+            elif actual - expected:
+                return test.FAIL('Receivers incorrectly identified as capable')
+
+            return test.PASS('All capable Receivers correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
@@ -845,21 +847,23 @@ class BCP0060102Test(ControllerTest):
                 actual_answers = self._invoke_testing_facade(
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
-                if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Compatible Receivers not identified for '
+                actual = set(actual_answers)
+                expected = set(expected_answers)
+
+                if expected - actual:
+                    return test.FAIL('Not all compatible Receivers identified for '
                                      + 'Sender ' + sender['display_answer'] + ': '
                                      + 'Capability Set ' + sender['capability_set']
                                      + ', Conformance Level ' + sender['conformance_level']
                                      + ' and Interoperability Point ' + sender['interop_point'])
-                else:
-                    for answer in actual_answers:
-                        if answer not in expected_answers:
-                            return test.FAIL('Unable to identify compatible Receivers for Compatibility Set '
-                                             + sender['capability_set']
-                                             + ', Conformance Level ' + sender['conformance_level']
-                                             + ' and Interoperability Point ' + sender['interop_point'])
+                elif actual - expected:
+                    return test.FAIL('Receivers incorrectly identified as compatible for '
+                                     + 'Sender ' + sender['display_answer'] + ': '
+                                     + 'Capability Set ' + sender['capability_set']
+                                     + ', Conformance Level ' + sender['conformance_level']
+                                     + ' and Interoperability Point ' + sender['interop_point'])
 
-            return test.PASS('All Receivers correctly identified')
+            return test.PASS('All compatible Receivers correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
@@ -917,18 +921,21 @@ class BCP0060102Test(ControllerTest):
                 actual_answers = self._invoke_testing_facade(
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
-                if len(actual_answers) != len(expected_answers):
-                    return test.FAIL('Unable to identify compatible Senders for Compatibility Set(s) '
-                                     + str(receiver['capability_set'])
-                                     + ', Conformance Level ' + receiver['conformance_level'])
-                else:
-                    for answer in actual_answers:
-                        if answer not in expected_answers:
-                            return test.FAIL('Unable to identify compatible Senders for Compatibility Set(s) '
-                                             + str(receiver['capability_set'])
-                                             + ', Conformance Level ' + receiver['conformance_level'])
+                actual = set(actual_answers)
+                expected = set(expected_answers)
 
-            return test.PASS('All Senders correctly identified')
+                if expected - actual:
+                    return test.FAIL('Not all compatible Senders identified for '
+                                     + 'Receiver ' + receiver['display_answer'] + ': '
+                                     + 'Capability Set ' + str(receiver['capability_set'])
+                                     + ' and Conformance Level ' + receiver['conformance_level'])
+                elif actual - expected:
+                    return test.FAIL('Senders incorrectly identified as compatible for '
+                                     + 'Receiver ' + receiver['display_answer'] + ': '
+                                     + 'Capability Set ' + str(receiver['capability_set'])
+                                     + ' and Conformance Level ' + receiver['conformance_level'])
+
+            return test.PASS('All compatible Senders correctly identified')
 
         except TestingFacadeException as e:
             return test.UNCLEAR(e.args[0])
