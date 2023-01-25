@@ -2061,7 +2061,8 @@ class IS0401Test(GenericTest):
                                                      NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
         elif put_response.status_code != 202:
             raise NMOSTestException(test.FAIL("Receiver target PUT did not produce a 202 (or 501) response code: "
-                                              "{}".format(put_response.status_code)))
+                                              "{}. Please ensure SDP_PREFERENCES match the node under test."
+                                              .format(put_response.status_code)))
 
         schema = self.get_schema(NODE_API_KEY, "PUT", "/receivers/{receiverId}/target", put_response.status_code)
         valid, message = self.check_response(schema, "PUT", put_response)

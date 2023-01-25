@@ -1177,7 +1177,9 @@ class IS0502Test(GenericTest):
                 data = {"sender_id": None, "transport_file": {"data": sdp_file, "type": "application/sdp"}}
                 valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data)
                 if not valid:
-                    return test.FAIL("Receiver {} rejected staging of SDP file: {}".format(receiver["id"], response))
+                    return test.FAIL("Receiver {} rejected staging of SDP file: '{}'. "
+                                     "Please ensure SDP_PREFERENCES match the node under test."
+                                     .format(receiver["id"], response))
 
                 if response["sender_id"] != data["sender_id"]:
                     return test.FAIL("Receiver {} did not set 'sender_id' to '{}' in staged response"
