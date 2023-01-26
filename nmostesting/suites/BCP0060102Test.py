@@ -545,7 +545,7 @@ class BCP0060102Test(ControllerTest):
             'A/B': ['A/B'],
             'C':   ['A/B', 'C'],
             'D':   ['A/B', 'C', 'D'],
-            None: [None]
+            None:  [None]
         }
         if sender.get('conformance_level') == receiver.get('conformance_level'):
 
@@ -854,7 +854,6 @@ class BCP0060102Test(ControllerTest):
                                      'Capability Set {}, Conformance Level {}, Interoperability Point {}'
                                      .format(sender['display_answer'], sender['capability_set'],
                                              sender['conformance_level'], sender['interop_point']))
-
                 elif actual - expected:
                     return test.FAIL('Receivers incorrectly identified as compatible for Sender {}: '
                                      'Capability Set {}, Conformance Level {}, Interoperability Point {}'
