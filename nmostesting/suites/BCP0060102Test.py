@@ -49,7 +49,7 @@ class BCP0060102Test(ControllerTest):
                        'depth': 10, 'sampling': 'YCbCr-4:2:2', 'colorimetry': 'BT709',
                        'profile': 'High444.12', 'level': '2k-1', 'TCS': 'SDR',
                        'TP': '2110TPW',
-                       'capability_set': 'AB', 'conformance_level': 'FHD'}
+                       'capability_set': 'A/B', 'conformance_level': 'FHD'}
 
         interop_point_1 = self._create_interop_point(ip1_6c_base, {'interop_point': '1',
                                                                    'width': 1280,
@@ -132,7 +132,7 @@ class BCP0060102Test(ControllerTest):
                         'depth': 10, 'sampling': 'YCbCr-4:2:2', 'colorimetry': 'BT2100',
                         'profile': 'High444.12', 'level': '4k-2', 'TCS': 'SDR',
                         'TP': '2110TPW',
-                        'capability_set': 'AB', 'conformance_level': 'UHD1'}
+                        'capability_set': 'A/B', 'conformance_level': 'UHD1'}
 
         interop_point_7a = self._create_interop_point(ip7a_8c_base, {'interop_point': '7a',
                                                                      'colorimetry': 'BT2020'})
@@ -182,7 +182,7 @@ class BCP0060102Test(ControllerTest):
                          'depth': 10, 'sampling': 'YCbCr-4:2:2', 'colorimetry': 'BT2100',
                          'profile': 'High444.12', 'level': '8k-2', 'TCS': 'SDR',
                          'TP': '2110TPW',
-                         'capability_set': 'AB', 'conformance_level': 'UHD2'}
+                         'capability_set': 'A/B', 'conformance_level': 'UHD2'}
 
         interop_point_9a = self._create_interop_point(ip9a_10c_base, {'interop_point': '9a',
                                                                       'colorimetry': 'BT2020'})
@@ -535,9 +535,21 @@ class BCP0060102Test(ControllerTest):
         return flow_params
 
     def _is_compatible(self, sender, receiver):
+        # Notes on TR-08 Compatibility of Senders and Receivers
+        # Set A and Set B are not distinguished here and are denoted as Set A/B
+        # For a particular conformance level (FHD, UHD1, UHD2):
+        # * A/B Senders are compatible with: [A/B, C, D] Receivers
+        # * C   Senders are compatible with: [C, D] Receivers
+        # * D   Senders are compatible with: [D] Receivers
+        receiver_capability_sets = {
+            'A/B': ['A/B'],
+            'C':   ['A/B', 'C'],
+            'D':   ['A/B', 'C', 'D'],
+            None: [None]
+        }
         if sender.get('conformance_level') == receiver.get('conformance_level'):
 
-            if sender.get('capability_set') in receiver['capability_set']:
+            if sender.get('capability_set') in receiver_capability_sets[receiver['capability_set']]:
                 return True
 
         return False
@@ -601,23 +613,20 @@ class BCP0060102Test(ControllerTest):
         NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD1)
         NMOSUtils.RANDOM.shuffle(capability_set_D_level_UHD2)
 
-        interleaved_interop_points = self._roundrobin(capability_set_AB_level_FHD,
-                                                      capability_set_AB_level_UHD1,
-                                                      capability_set_AB_level_UHD2,
-                                                      capability_set_C_level_FHD,
-                                                      capability_set_C_level_UHD1,
-                                                      capability_set_C_level_UHD2,
-                                                      capability_set_D_level_UHD1,
-                                                      capability_set_D_level_UHD2)
+        capability_sets = [capability_set_AB_level_FHD,
+                           capability_set_AB_level_UHD1,
+                           capability_set_AB_level_UHD2,
+                           capability_set_C_level_FHD,
+                           capability_set_C_level_UHD1,
+                           capability_set_C_level_UHD2,
+                           capability_set_D_level_UHD1,
+                           capability_set_D_level_UHD2]
+        interleaved_interop_points = self._roundrobin(*capability_sets)
 
         interoperability_points = [i for i in interleaved_interop_points]
 
-        sender_configurations = [('AB', 'FHD'), ('AB', 'UHD1'), ('AB', 'UHD2'),
-                                 ('C', 'FHD'), ('C', 'UHD1'), ('C', 'UHD2'),
-                                 ('D', 'UHD1'), ('D', 'UHD2')]
-
         sender_count = len(interoperability_points) if not CONFIG.MAX_TEST_ITERATIONS \
-            else max(CONFIG.MAX_TEST_ITERATIONS, len(sender_configurations))
+            else max(CONFIG.MAX_TEST_ITERATIONS, len(capability_sets))
 
         sender_interop_points = interoperability_points[:sender_count].copy()
 
@@ -643,18 +652,11 @@ class BCP0060102Test(ControllerTest):
             }
             self.senders.append(sender)
 
-        # Notes on TR-08 Compatibility of Senders and Receivers
-        # Set A and Set B are not distinguished here and are denoted as Set AB
-        # For a particular conformance level (FHD, UHD1, UHD2):
-        # * AB Senders are compatible with: [AB, C, D] Receivers
-        # * C  Senders are compatible with: [C, D] Receivers
-        # * D  Senders are compatible with: [D] Receivers
-
         # pad configurations with some video/raw (None, None) configurations
-        capability_configurations = [(['AB', 'C', 'D'], 'FHD'), (['AB', 'C', 'D'], 'UHD1'), (['AB', 'C', 'D'], 'UHD2'),
-                                     (['C', 'D'], 'FHD'), (['C', 'D'], 'UHD1'), (['C', 'D'], 'UHD2'),
-                                     (['D'], 'UHD1'), (['D'], 'UHD2'),
-                                     ([], None), ([], None), ([], None)]
+        capability_configurations = [('A/B', 'FHD'), ('A/B', 'UHD1'), ('A/B', 'UHD2'),
+                                     ('C', 'FHD'), ('C', 'UHD1'), ('C', 'UHD2'),
+                                     ('D', 'UHD1'), ('D', 'UHD2'),
+                                     (None, None), (None, None), (None, None)]
 
         self.receivers.clear()
 
@@ -662,20 +664,16 @@ class BCP0060102Test(ControllerTest):
         NMOSUtils.RANDOM.shuffle(capability_configurations)
         for idx, (receiver_name, (capability_set, conformance_level)) in \
                 enumerate(zip(receiver_names, capability_configurations)):
-            # choose a random interop point
-            caps = [i for i in interoperability_points
-                    if i['capability_set'] in capability_set and i['conformance_level'] == conformance_level]
-
             receiver = {
                 'label': 'r' + str(idx) + '/' + receiver_name,
                 'description': 'Mock Receiver ' + str(idx),
                 'connectable': True,
                 'registered': True,
-                'caps': self._generate_caps(caps) if caps else {'media_types': ['video/raw']},
                 'capability_set': capability_set,
-                'conformance_level': conformance_level,
-                'interop_point': interop_point.get('interop_point')
+                'conformance_level': conformance_level
             }
+            caps = [i for i in interoperability_points if self._is_compatible(i, receiver)]
+            receiver['caps'] = self._generate_caps(caps) if caps else {'media_types': ['video/raw']}
             self.receivers.append(receiver)
 
         ControllerTest.set_up_tests(self)
@@ -852,17 +850,16 @@ class BCP0060102Test(ControllerTest):
                 expected = set(expected_answers)
 
                 if expected - actual:
-                    return test.FAIL('Not all compatible Receivers identified for '
-                                     + 'Sender ' + sender['display_answer'] + ': '
-                                     + 'Capability Set ' + sender['capability_set']
-                                     + ', Conformance Level ' + sender['conformance_level']
-                                     + ' and Interoperability Point ' + sender['interop_point'])
+                    return test.FAIL('Not all compatible Receivers identified for Sender {}: '
+                                     'Capability Set {}, Conformance Level {}, Interoperability Point {}'
+                                     .format(sender['display_answer'], sender['capability_set'],
+                                             sender['conformance_level'], sender['interop_point']))
+
                 elif actual - expected:
-                    return test.FAIL('Receivers incorrectly identified as compatible for '
-                                     + 'Sender ' + sender['display_answer'] + ': '
-                                     + 'Capability Set ' + sender['capability_set']
-                                     + ', Conformance Level ' + sender['conformance_level']
-                                     + ' and Interoperability Point ' + sender['interop_point'])
+                    return test.FAIL('Receivers incorrectly identified as compatible for Sender {}: '
+                                     'Capability Set {}, Conformance Level {}, Interoperability Point {}'
+                                     .format(sender['display_answer'], sender['capability_set'],
+                                             sender['conformance_level'], sender['interop_point']))
 
             return test.PASS('All compatible Receivers correctly identified')
 
@@ -881,7 +878,7 @@ class BCP0060102Test(ControllerTest):
 
         try:
             jxsv_receivers = [r for r in self.receivers
-                              if len(r['capability_set']) != 0 and r['conformance_level'] is not None]
+                              if r['capability_set'] is not None and r['conformance_level'] is not None]
 
             for i, receiver in enumerate(jxsv_receivers):
 
@@ -927,15 +924,15 @@ class BCP0060102Test(ControllerTest):
                 expected = set(expected_answers)
 
                 if expected - actual:
-                    return test.FAIL('Not all compatible Senders identified for '
-                                     + 'Receiver ' + receiver['display_answer'] + ': '
-                                     + 'Capability Set ' + str(receiver['capability_set'])
-                                     + ' and Conformance Level ' + receiver['conformance_level'])
+                    return test.FAIL('Not all compatible Senders identified for Receiver {}: '
+                                     'Capability Set {}, Conformance Level {}'
+                                     .format(receiver['display_answer'],
+                                             receiver['capability_set'], receiver['conformance_level']))
                 elif actual - expected:
-                    return test.FAIL('Senders incorrectly identified as compatible for '
-                                     + 'Receiver ' + receiver['display_answer'] + ': '
-                                     + 'Capability Set ' + str(receiver['capability_set'])
-                                     + ' and Conformance Level ' + receiver['conformance_level'])
+                    return test.FAIL('Senders incorrectly identified as compatible for Receiver {}: '
+                                     'Capability Set {}, Conformance Level {}'
+                                     .format(receiver['display_answer'],
+                                             receiver['capability_set'], receiver['conformance_level']))
 
             return test.PASS('All compatible Senders correctly identified')
 
@@ -951,9 +948,9 @@ class BCP0060102Test(ControllerTest):
 
         try:
             # A representative cross section of interoperability points
-            jxsv_interops = [{'capability_set': 'AB', 'conformance_level': 'FHD', 'interop_point': '1'},  # 720p/59
-                             {'capability_set': 'AB', 'conformance_level': 'FHD', 'interop_point': '4'},  # 1080i/25
-                             {'capability_set': 'AB', 'conformance_level': 'FHD', 'interop_point': '6a'},  # 1080p/50
+            jxsv_interops = [{'capability_set': 'A/B', 'conformance_level': 'FHD', 'interop_point': '1'},  # 720p/59
+                             {'capability_set': 'A/B', 'conformance_level': 'FHD', 'interop_point': '4'},  # 1080i/25
+                             {'capability_set': 'A/B', 'conformance_level': 'FHD', 'interop_point': '6a'},  # 1080p/50
                              {'capability_set': 'C', 'conformance_level': 'FHD', 'interop_point': '2b'},  # FULL RGB
                              {'capability_set': 'C', 'conformance_level': 'UHD1', 'interop_point': '3a'},  # 2160p/59
                              {'capability_set': 'D', 'conformance_level': 'UHD2', 'interop_point': '2a'}]  # 4320p/59
