@@ -562,7 +562,12 @@ class BCP0060101Test(GenericTest):
             return test.FAIL(result)
 
         media_type_constraint = "urn:x-nmos:cap:format:media_type"
-        # does BCP-006-01 recommend 'profile', 'level', 'sublevel' and/or 'packet_transmission_mode'?
+        # BCP-006-01 recommends indicating "constraints as precisely as possible".
+        # ISO/IEC 21122 says "profiles, levels and sublevels specify restrictions on codestreams [and may be]
+        # used to indicate interoperability points".
+        # The transmission mode and packetization mode defined by RFC 9134 are also fundamental, since
+        # some implementations will only handle codestream packetization.
+        # BCP-006-01 lists other appropriate parameter constraints as well; all are checked in test_07.
         recommended_constraints = {
             "urn:x-nmos:cap:format:profile": "profile",
             "urn:x-nmos:cap:format:level": "level",
