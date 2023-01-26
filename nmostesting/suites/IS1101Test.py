@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from requests.compat import json
+
 from ..GenericTest import GenericTest
+from ..IS11Utils import IS11Utils
 
 COMPAT_API_KEY = "streamcompatibility"
 
@@ -30,3 +33,31 @@ class IS1101Test(GenericTest):
         ]
         GenericTest.__init__(self, apis, omit_paths)
         self.compat_url = self.apis[COMPAT_API_KEY]["url"]
+        self.is11_utils = IS11Utils(self.compat_url)
+
+    def set_up_tests(self):
+        self.senders = self.is11_utils.get_senders()
+        self.receivers = self.is11_utils.get_receivers()
+
+    def test_01(self, test):
+        """A sender rejects Active Constraints with unsupported Parameter Constraint URNs"""
+
+        if len(self.senders) == 0:
+            return test.UNCLEAR("Not tested. No senders found.")
+
+        senderId = self.senders[0]
+
+        try:
+            url = "senders/{}/constraints/active".format(senderId)
+            data = {"constraint_sets": [{"urn:x-nmos:cap:not:existing": {"enum": [""]}}]}
+            valid, response = self.is11_utils.checkCleanRequestJSON("PUT", url, data, 400)
+            if valid:
+                return test.PASS()
+            else:
+                return test.FAIL(response)
+
+
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError as e:
+            return test.FAIL("Unable to find expected key: {}".format(e))

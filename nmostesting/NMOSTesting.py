@@ -357,6 +357,9 @@ TEST_DEFINITIONS = {
             "spec_key": "is-04",
             "api_key": "node"
         }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }, {
             "spec_key": "is-11",
             "api_key": "streamcompatibility"
         }],
