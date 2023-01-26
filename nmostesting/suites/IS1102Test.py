@@ -71,7 +71,9 @@ class IS1102Test(GenericTest):
 
     # TODO: Consider making it more generic (IS0502Test)
     def get_is11_resources(self, resource_type):
-        """Retrieve all Senders or Receivers from a Stream Compatibility Management API, keeping hold of the returned objects"""
+        """Retrieve all Senders or Receivers from a Stream Compatibility Management API,
+        keeping hold of the returned objects"""
+
         assert resource_type in ["senders", "receivers"]
 
         # Prevent this being executed twice in one test run
@@ -189,7 +191,9 @@ class IS1102Test(GenericTest):
         return test.PASS()
 
     def test_05(self, test):
-        """Immediate activation of a receiver without a transport file switches the state of the receiver to 'unknown'"""
+        """
+        Immediate activation of a receiver without a transport file switches the state of the receiver to 'unknown'
+        """
 
         valid, result = self.get_is11_resources("receivers")
         if not valid:
@@ -212,11 +216,14 @@ class IS1102Test(GenericTest):
                     data = {"sender_id": None, "transport_file": {"data": None, "type": None}}
                     valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, data)
                     if not valid:
-                        return test.FAIL("Receiver {} rejected staging of absent SDP file: {}".format(receiverId, response))
+                        return test.FAIL("Receiver {} rejected staging of absent SDP file: "
+                                         "{}".format(receiverId, response))
 
-                    valid, response = self.is05_utils.check_activation("receiver", receiverId,
-                                                                   self.is05_utils.check_perform_immediate_activation,
-                                                                   receiver["transport"], True)
+                    valid, response = self.is05_utils.check_activation(
+                        "receiver", receiverId,
+                        self.is05_utils.check_perform_immediate_activation,
+                        receiver["transport"], True
+                    )
                     if not valid:
                         return test.FAIL(response)
 
@@ -231,7 +238,8 @@ class IS1102Test(GenericTest):
 
                     state = response["state"]
                     if state != "unknown":
-                        return test.FAIL("Receiver {} has state: {}. Expected state: {}".format(receiverId, state, "unknown"))
+                        return test.FAIL("Receiver {} has state: {}. Expected state: "
+                                         "{}".format(receiverId, state, "unknown"))
 
                 except json.JSONDecodeError:
                     return test.FAIL("Non-JSON response returned from Node API")

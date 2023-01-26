@@ -56,7 +56,6 @@ class IS1101Test(GenericTest):
             else:
                 return test.FAIL(response)
 
-
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
         except KeyError as e:
