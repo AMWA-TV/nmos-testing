@@ -28,6 +28,7 @@ class BCP0060102Test(ControllerTest):
     """
     def __init__(self, apis, registries, node, dns_server, **kwargs):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
+        self.sender_iterations = 0
 
     def _create_interop_point(self, sdp_base, override_params):
         interop_point = {**sdp_base, **override_params}
@@ -625,14 +626,14 @@ class BCP0060102Test(ControllerTest):
 
         interoperability_points = [i for i in interleaved_interop_points]
 
-        sender_count = len(interoperability_points) if not CONFIG.MAX_TEST_ITERATIONS \
-            else max(CONFIG.MAX_TEST_ITERATIONS, len(capability_sets))
-
-        sender_interop_points = interoperability_points[:sender_count].copy()
+        sender_interop_points = interoperability_points.copy()
 
         # pad with video raw Senders
         VIDEO_RAW_SENDER_COUNT = 3
         sender_interop_points.extend(self._generate_non_JXSV_interop_points(VIDEO_RAW_SENDER_COUNT))
+
+        self.sender_iterations = len(interoperability_points) if not CONFIG.MAX_TEST_ITERATIONS \
+            else max(CONFIG.MAX_TEST_ITERATIONS, len(capability_sets))
 
         self.senders.clear()
 
@@ -804,7 +805,10 @@ class BCP0060102Test(ControllerTest):
 
         try:
             jxsv_senders = [s for s in self.senders
-                            if s['capability_set'] is not None and s['conformance_level'] is not None]
+                            if s['capability_set'] is not None
+                            and s['conformance_level'] is not None][:self.sender_iterations]
+
+            NMOSUtils.RANDOM.shuffle(jxsv_senders)
 
             for i, sender in enumerate(jxsv_senders):
 
@@ -958,9 +962,9 @@ class BCP0060102Test(ControllerTest):
 
             for interop in jxsv_interops:
                 jxsv_senders.extend([s for s in self.senders
-                                     if s['sdp_params']['capability_set'] == interop['capability_set']
-                                     and s['sdp_params']['conformance_level'] == interop['conformance_level']
-                                     and s['sdp_params']['interop_point'] == interop['interop_point']])
+                                     if s['capability_set'] == interop['capability_set']
+                                     and s['conformance_level'] == interop['conformance_level']
+                                     and s['interop_point'] == interop['interop_point']])
 
             for sender in jxsv_senders:
                 self.node.clear_staged_requests()
