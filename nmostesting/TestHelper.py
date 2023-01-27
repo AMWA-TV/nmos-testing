@@ -197,7 +197,7 @@ def do_request(method, url, headers=None, **kwargs):
         # all requests must have Origin to qualify as CORS requests
         headers["Origin"] = "null"
 
-        req = requests.Request(method, url, headers=headers, **kwargs)
+        req = requests.Request(method, url, headers={k: v for k, v in headers.items() if v is not None}, **kwargs)
         prepped = s.prepare_request(req)
         settings = s.merge_environment_settings(prepped.url, {}, None, CONFIG.CERT_TRUST_ROOT_CA, None)
         response = s.send(prepped, timeout=CONFIG.HTTP_TIMEOUT, **settings)

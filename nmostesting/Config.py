@@ -175,7 +175,7 @@ TEST_SSL_BASH = "bash"
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
-        "repo": "nmos-discovery-registration",
+        "repo": "is-04",
         "versions": ["v1.0", "v1.1", "v1.2", "v1.3"],
         "default_version": "v1.3",
         "apis": {
@@ -194,7 +194,7 @@ SPECIFICATIONS = {
         }
     },
     "is-05": {
-        "repo": "nmos-device-connection-management",
+        "repo": "is-05",
         "versions": ["v1.0", "v1.1"],
         "default_version": "v1.1",
         "apis": {
@@ -205,7 +205,7 @@ SPECIFICATIONS = {
         }
     },
     "is-06": {
-        "repo": "nmos-network-control",
+        "repo": "is-06",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
@@ -216,7 +216,7 @@ SPECIFICATIONS = {
         }
     },
     "is-07": {
-        "repo": "nmos-event-tally",
+        "repo": "is-07",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
@@ -227,7 +227,7 @@ SPECIFICATIONS = {
         }
     },
     "is-08": {
-        "repo": "nmos-audio-channel-mapping",
+        "repo": "is-08",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
@@ -238,7 +238,7 @@ SPECIFICATIONS = {
         }
     },
     "is-09": {
-        "repo": "nmos-system",
+        "repo": "is-09",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
@@ -249,7 +249,7 @@ SPECIFICATIONS = {
         }
     },
     "is-10": {
-        "repo": "nmos-authorization",
+        "repo": "is-10",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
@@ -271,13 +271,13 @@ SPECIFICATIONS = {
         }
     },
     "bcp-003-01": {
-        "repo": "nmos-secure-communication",
+        "repo": "bcp-003-01",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {}
     },
     "bcp-004-01": {
-        "repo": "nmos-receiver-capabilities",
+        "repo": "bcp-004-01",
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
