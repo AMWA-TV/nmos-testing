@@ -259,17 +259,18 @@ class GenericTest(object):
                                   .format(cors_method, headers['Access-Control-Allow-Methods'])
         return True, ""
 
-    def check_content_type(self, headers, expected_type="application/json"):
+    def check_content_type(self, headers, expected_type = ["application/json", "application/sdp","application/octet-stream"]):
         """Check the Content-Type header of an API request or response"""
         if "Content-Type" not in headers:
             return False, "API failed to signal a Content-Type."
         else:
             ctype = headers["Content-Type"]
             ctype_params = ctype.split(";")
-            if ctype_params[0] != expected_type:
+            is_expected_type = ctype_params[0] in expected_type
+            if not is_expected_type:
                 return False, "API signalled a Content-Type of {} rather than {}." \
                               .format(ctype, expected_type)
-            elif ctype_params[0] in ["application/json", "application/sdp"]:
+            elif is_expected_type:
                 if len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
                     return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
                                  .format(ctype)
@@ -351,13 +352,13 @@ class GenericTest(object):
         cors_valid, cors_message = self.check_CORS(method, response.headers)
         if not cors_valid:
             return False, cors_message
-
-        try:
-            self.validate_schema(response.json(), schema)
-        except jsonschema.ValidationError:
-            return False, "Response schema validation error"
-        except json.JSONDecodeError:
-            return False, "Invalid JSON received"
+        if response.headers["Content-Type"] == "application/json":
+            try:
+                self.validate_schema(response.json(), schema)
+            except jsonschema.ValidationError:
+                return False, "Response schema validation error"
+            except json.JSONDecodeError:
+                return False, "Invalid JSON received"
 
         return True, ctype_message
 
@@ -577,8 +578,8 @@ class GenericTest(object):
 
         # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
-
-        if not schema:
+ 
+        if not schema and response.headers["Content-Type"] != 'application/octet-stream':
             raise NMOSTestException(test.MANUAL("Test suite unable to locate schema"))
 
         return self.check_response(schema, resource[1]["method"], response)

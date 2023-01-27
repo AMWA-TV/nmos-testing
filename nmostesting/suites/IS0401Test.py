@@ -1383,7 +1383,7 @@ class IS0401Test(GenericTest):
                     headers = None
                 valid, response = self.do_request("GET", href, headers=headers)
                 if valid and response.status_code == 200:
-                    valid, message = self.check_content_type(response.headers, "application/sdp")
+                    valid, message = self.check_content_type(response.headers, ["application/sdp"])
                     if not content_type_warn and (not valid or message != ""):
                         content_type_warn = message
                 elif valid and response.status_code == 404:
