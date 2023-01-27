@@ -28,7 +28,6 @@ class BCP0060102Test(ControllerTest):
     """
     def __init__(self, apis, registries, node, dns_server, **kwargs):
         ControllerTest.__init__(self, apis, registries, node, dns_server)
-        self.sender_iterations = 0
 
     def _create_interop_point(self, sdp_base, override_params):
         interop_point = {**sdp_base, **override_params}
@@ -632,9 +631,6 @@ class BCP0060102Test(ControllerTest):
         VIDEO_RAW_SENDER_COUNT = 3
         sender_interop_points.extend(self._generate_non_JXSV_interop_points(VIDEO_RAW_SENDER_COUNT))
 
-        self.sender_iterations = len(interoperability_points) if not CONFIG.MAX_TEST_ITERATIONS \
-            else max(CONFIG.MAX_TEST_ITERATIONS, len(capability_sets))
-
         self.senders.clear()
 
         NMOSUtils.RANDOM.shuffle(sender_names)
@@ -804,9 +800,11 @@ class BCP0060102Test(ControllerTest):
         CANDIDATE_RECEIVER_COUNT = 6
 
         try:
+            sender_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS else len(self.senders)
+
             jxsv_senders = [s for s in self.senders
                             if s['capability_set'] is not None
-                            and s['conformance_level'] is not None][:self.sender_iterations]
+                            and s['conformance_level'] is not None][:sender_iterations]
 
             NMOSUtils.RANDOM.shuffle(jxsv_senders)
 
@@ -880,8 +878,11 @@ class BCP0060102Test(ControllerTest):
         CANDIDATE_SENDER_COUNT = 6
 
         try:
+            receiver_iterations = CONFIG.MAX_TEST_ITERATIONS if CONFIG.MAX_TEST_ITERATIONS else len(self.receivers)
+
             jxsv_receivers = [r for r in self.receivers
-                              if r['capability_set'] is not None and r['conformance_level'] is not None]
+                              if r['capability_set'] is not None
+                              and r['conformance_level'] is not None][:receiver_iterations]
 
             for i, receiver in enumerate(jxsv_receivers):
 
