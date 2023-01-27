@@ -82,6 +82,10 @@ BIND_INTERFACE = None
 # Defaults to the CA contained within this testing tool
 CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
 
+# certificate authority private key
+# Used by the testing tool's mock Auth to generate certificate
+KEY_TRUST_ROOT_CA = "test_data/BCP00301/ca/private/ca.key.pem"
+
 # Certificate chains and the corresponding private keys
 # Used by the testing tool's mock Node, Registry and System API
 CERTS_MOCKS = [

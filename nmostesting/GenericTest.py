@@ -20,20 +20,25 @@ import traceback
 import inspect
 import uuid
 import time
-from authlib.jose import jwt
+import ssl
+import threading
+import requests
 
 from . import TestHelper
 from .NMOSUtils import NMOSUtils
 from .Specification import Specification
 from .TestResult import Test
 from . import Config as CONFIG
-
+from .TestHelper import get_default_ip, generate_token
+from flask import Flask, render_template, flash, request, make_response, jsonify
+from .mocks.Auth import AUTH, AUTH_API
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
 
 
 def test_depends(func):
     """Decorator to prevent a test being executed in individual mode"""
+
     def invalid(self, test):
         if self.test_individual:
             test.description = "Invalid"
@@ -61,6 +66,7 @@ class GenericTest(object):
     Generic testing class.
     Can be inherited from in order to perform detailed testing.
     """
+
     def __init__(self, apis, omit_paths=None, disable_auto=False):
         self.apis = apis
         self.saved_entities = {}
@@ -80,6 +86,8 @@ class GenericTest(object):
         if isinstance(omit_paths, list):
             self.omit_paths = omit_paths
         self.disable_auto = disable_auto
+
+        self.auth_server = None
 
         test = Test("Test initialisation")
 
@@ -194,7 +202,7 @@ class GenericTest(object):
             # Add 'query' permission when mock registry is disabled and existing network registry is used
             if not CONFIG.ENABLE_DNS_SD and "query" not in scopes:
                 scopes.append("query")
-            CONFIG.AUTH_TOKEN = self.generate_token(scopes, True)
+            CONFIG.AUTH_TOKEN = generate_token(scopes, True)
         if CONFIG.PREVALIDATE_API:
             for api in self.apis:
                 if "raml" not in self.apis[api] or self.apis[api]["url"] is None:
@@ -383,6 +391,36 @@ class GenericTest(object):
     def do_request(self, method, url, **kwargs):
         return TestHelper.do_request(method=method, url=url, **kwargs)
 
+    def start_auth_server(self, cert, key):
+        if CONFIG.ENABLE_HTTPS:
+            # generate key and certificate for the mock authorization server
+            AUTH.generate_cert(cert, key)
+            # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
+            ctx = ssl.create_default_context()
+            ctx.load_cert_chain(cert, key)
+            # additionally disable TLS v1.0 and v1.1
+            ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+            # BCP-003-01 however doesn't require client certificates, so disable those
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+        auth_app = Flask(__name__)
+        auth_app.debug = False
+        auth_app.register_blueprint(AUTH_API)  # mock authorization server
+        port = AUTH.port
+
+        self.auth_server = threading.Thread(target=auth_app.run, kwargs={
+            'host': '0.0.0.0', 'port': port, 'threaded': True, 'ssl_context': ctx})
+        self.auth_server.start()
+
+    def stop_auth_server(self):
+        if self.auth_server:
+            port = AUTH.port
+            requests.post('{}://0.0.0.0:{}/shutdown'.format(self.protocol, port), verify=False)
+
+            self.auth_server.join()
+            self.auth_server = None
+
     def basics(self):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""
         results = []
@@ -417,19 +455,22 @@ class GenericTest(object):
             # Test that the API responds with a 4xx when a missing or invalid token is used
             results.append(self.do_test_authorization(api, "Missing Authorization Header", error_type=None))
             results.append(self.do_test_authorization(api, "Invalid Authorization Token", token=str(uuid.uuid4())))
-            token = self.generate_token([api], True, overrides={"iat": int(time.time() - 7200),
-                                                                "exp": int(time.time() - 3600)})
+            token = generate_token([api], True, overrides={"iat": int(time.time() - 7200),
+                                                           "exp": int(time.time() - 3600)})
             results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
-            token = self.generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
+            token = generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
             results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", error_code=403,
                                                       error_type="insufficient_scope", token=token))
-            token = self.generate_token(["nonsense"], overrides={"x-nmos-nonsense": {"read": [str(uuid.uuid4())]}})
+            token = generate_token(["nonsense"], overrides={"x-nmos-nonsense": {"read": [str(uuid.uuid4())]}})
             results.append(self.do_test_authorization(api, "Incorrect Authorization Scope", error_code=403,
                                                       error_type="insufficient_scope", token=token))
 
             # Test that the API responds with a 200 when only the scope is present
-            token = self.generate_token([api], False, add_claims=False)
+            token = generate_token([api], False, add_claims=False)
             results.append(self.do_test_authorization(api, "Valid Authorization Scope", error_code=200, token=token))
+
+            # Test that the API responds with a 401 or 503 followed by 200 when no matching public keys for the token
+            results.append(self.do_test_no_matching_public_key_authorization(api))
 
         return results
 
@@ -496,6 +537,103 @@ class GenericTest(object):
                                         .format(error_type))
 
             return test.PASS()
+        else:
+            return test.DISABLED("This test is only performed when an API supports Authorization and 'ENABLE_AUTH' "
+                                 "is True")
+
+    def do_test_no_matching_public_key_authorization(self, api_name):
+        api = self.apis[api_name]
+        url = "{}".format(api["url"].rstrip("/"))
+        test = Test("GET /x-nmos/{}/{} (No Matching Public Keys)".format(api_name,
+                                                                         api["version"]), self.auto_test_name(api_name))
+
+        if not CONFIG.ENABLE_DNS_SD or CONFIG.DNS_SD_MODE != "unicast":
+            return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False or DNS_SD_MODE is not "
+                                 "'unicast'")
+
+        if self.authorization:
+            # certificate place holder for mock auth server
+            cert = "mock_auth_cert.pem"
+            # key place holder for mock auth server
+            AUTH.key = "mock_auth_key.pem"
+
+            # create certificate and key for the mock auth server, then start the mock auth server
+            self.start_auth_server(cert, AUTH.key)
+
+            # generate mock auth server token
+            token = AUTH.generate_token([api_name])
+
+            fail = None
+            warning = None
+            headers = {"Authorization": "Bearer {}".format(token)}
+            valid, response = self.do_request("GET", url, headers=headers)
+            if not valid:
+                fail = response
+
+            if response.status_code != 401 and response.status_code != 503:
+                fail = "Incorrect response code, expected 401 or 503. Received {}".format(response.status_code)
+
+            if "WWW-Authenticate" not in response.headers:
+                fail = "Authorization error responses must include a 'WWW-Authenticate' header"
+            if not response.headers["WWW-Authenticate"].startswith("Bearer "):
+                fail = "'WWW-Authenticate' response header must begin 'Bearer'"
+
+            error_code = response.status_code
+            valid, message = self.check_error_response("GET", response, error_code)
+            if not valid:
+                fail = message
+
+            # if node responds wiuth 401, node should attempt to obtain the missing public key via the the token iss claim
+            # as specified in RFC 8414 section 3.
+            # https://specs.amwa.tv/is-10/branches/v1.0-dev/docs/4.5._Behaviour_-_Resource_Servers.html#public-keys
+            if response.status_code == 401:
+                warning = "should attempt to obtain the missing public key via the the token iss claim"
+
+                error_type = "invalid_token"
+                # Remove 'Bearer ' and tokenise
+                # https://tools.ietf.org/html/rfc6750#section-3
+                error_header_ok = False
+                auth_params = response.headers["WWW-Authenticate"][7:].split(",")
+                for param in auth_params:
+                    param_parts = param.split("=")
+                    if param_parts[0] == "error":
+                        if param_parts[1] == error_type:
+                            error_header_ok = True
+                if not error_header_ok:
+                    warning = "'WWW-Authenticate' response header should contain 'error={}'".format(error_type)
+
+            # if node responds with 503 retry GET based on the Retry-After value or maiximum up to 5 sec
+            # https://specs.amwa.tv/is-10/branches/v1.0-dev/docs/4.5._Behaviour_-_Resource_Servers.html#public-keys
+            if response.status_code == 503:
+                # get retry-after from response
+                retry_after = response.headers.get("Retry-After")
+                if retry_after is None:
+                    warning = "'Retry-After' response should include a 'Retry-After' header"
+                else:
+                    delay = int(retry_after)
+                    # maximum wait for 5 sec before retry
+                    if delay > 5:
+                        delay = 5
+                    time.sleep(delay)
+
+                    # do retry GET
+                    valid, response = self.do_request("GET", url, headers=headers)
+                    if not valid:
+                        fail = response
+
+                    if response.status_code != 200:
+                        fail = "Incorrect response code, expected 200. Received {}".format(response.status_code)
+
+            # shutdown the mock auth server
+            self.stop_auth_server()
+
+            if fail:
+                return test.FAIL(fail)
+            elif warning:
+                return test.WARNING(warning)
+            else:
+                return test.PASS()
+
         else:
             return test.DISABLED("This test is only performed when an API supports Authorization and 'ENABLE_AUTH' "
                                  "is True")
@@ -619,30 +757,3 @@ class GenericTest(object):
             else:
                 raise
         return schema
-
-    def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
-        if scopes is None:
-            scopes = []
-        header = {"typ": "JWT", "alg": "RS512"}
-        payload = {"iss": "{}".format(CONFIG.AUTH_TOKEN_ISSUER),
-                   "sub": "testsuite@nmos.tv",
-                   "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN), "https://*.local"],
-                   "exp": int(time.time() + 3600),
-                   "iat": int(time.time()),
-                   "scope": " ".join(scopes)}
-        if azp:
-            payload["azp"] = str(uuid.uuid4())
-        else:
-            payload["client_id"] = str(uuid.uuid4())
-        nmos_claims = {}
-        if add_claims:
-            for api in scopes:
-                nmos_claims["x-nmos-{}".format(api)] = {"read": ["*"]}
-                if write:
-                    nmos_claims["x-nmos-{}".format(api)]["write"] = ["*"]
-        payload.update(nmos_claims)
-        if overrides:
-            payload.update(overrides)
-        key = open(CONFIG.AUTH_TOKEN_PRIVKEY).read()
-        token = jwt.encode(header, payload, key).decode()
-        return token
