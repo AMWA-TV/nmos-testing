@@ -31,6 +31,7 @@ from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
 from ..mocks.Node import NODE
+from ..mocks.Auth import PRIMARY_AUTH
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -1377,7 +1378,7 @@ class IS0401Test(GenericTest):
                     continue
 
                 if self.authorization and urlparse(href).path.startswith("/x-nmos/connection"):
-                    token = self.generate_token(["connection"], True)
+                    token = PRIMARY_AUTH.generate_token(["connection"], True)
                     headers = {"Authorization": "Bearer {}".format(token)}
                 else:
                     headers = None

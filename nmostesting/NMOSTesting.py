@@ -56,6 +56,8 @@ from .OCSP import OCSP, OCSP_API
 from .mocks.Node import NODE, NODE_API
 from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
+from .mocks.Auth import AUTH_API, PRIMARY_AUTH
+from zeroconf_monkey import Zeroconf
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -150,6 +152,16 @@ ocsp_app.config['PORT'] = OCSP.port
 ocsp_app.config['SECURE'] = False
 ocsp_app.register_blueprint(OCSP_API)  # OCSP server
 FLASK_APPS.append(ocsp_app)
+
+# Primary Authorization server
+if CONFIG.ENABLE_AUTH and CONFIG.ENABLE_HTTPS:
+    auth_app = Flask(__name__)
+    auth_app.debug = False
+    auth_app.config['AUTH_INSTANCE'] = 0
+    auth_app.config['PORT'] = PRIMARY_AUTH.port
+    auth_app.config['SECURE'] = True
+    auth_app.register_blueprint(AUTH_API)
+    FLASK_APPS.append(auth_app)
 
 # Definitions of each set of tests made available from the dropdowns
 TEST_DEFINITIONS = {
@@ -918,7 +930,8 @@ def check_internal_requirements():
                    "pyopenssl": "OpenSSL",
                    "websocket-client": "websocket",
                    "paho-mqtt": "paho",
-                   "Flask-Cors": "flask_cors"}
+                   "Flask-Cors": "flask_cors",
+                   "pycryptodome": "Crypto"}
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
@@ -1073,6 +1086,12 @@ def main(args):
     if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
+    # Advertise the primary mock Authorization server to allow the Node to find it to access auth endpoint
+    if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
+        primary_auth_info = PRIMARY_AUTH.make_mdns_info()
+        zc = Zeroconf()
+        zc.register_service(primary_auth_info)
+
     # Start the HTTP servers
     start_web_servers()
 
@@ -1093,6 +1112,10 @@ def main(args):
 
     # Testing complete
     print(" * Exiting")
+
+    # Remove the primary mock Authorization server advertisement
+    if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
+        zc.unregister_service(primary_auth_info)
 
     # Stop the DNS server
     if DNS_SERVER:

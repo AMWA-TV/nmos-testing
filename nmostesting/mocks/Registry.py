@@ -21,11 +21,12 @@ import functools
 
 from flask import request, jsonify, abort, Blueprint, Response
 from threading import Event, Lock
-from ..Config import PORT_BASE, AUTH_TOKEN_PUBKEY, ENABLE_AUTH, AUTH_TOKEN_ISSUER, \
+from ..Config import PORT_BASE, ENABLE_AUTH, \
     WEBSOCKET_PORT_BASE, ENABLE_HTTPS, SPECIFICATIONS
 from authlib.jose import jwt
 from ..NMOSUtils import NMOSUtils
 from ..TestHelper import SubscriptionWebsocketWorker, get_default_ip, get_mocks_hostname
+from .Auth import PRIMARY_AUTH
 
 
 class RegistryCommon(object):
@@ -150,7 +151,7 @@ class Registry(object):
                 if not request.headers["Authorization"].startswith("Bearer "):
                     return False
                 token = request.headers["Authorization"].split(" ")[1]
-                claims = jwt.decode(token, open(AUTH_TOKEN_PUBKEY).read())
+                claims = jwt.decode(token, PRIMARY_AUTH.generate_jwk())
                 if "client_id" in claims:
                     return claims["client_id"]
                 elif "azp" in claims:
@@ -176,9 +177,9 @@ class Registry(object):
                 if not request.headers["Authorization"].startswith("Bearer "):
                     return 400
                 token = request.headers["Authorization"].split(" ")[1]
-                claims = jwt.decode(token, open(AUTH_TOKEN_PUBKEY).read())
+                claims = jwt.decode(token, PRIMARY_AUTH.generate_jwk())
                 claims.validate()
-                if claims["iss"] != AUTH_TOKEN_ISSUER:
+                if claims["iss"] != PRIMARY_AUTH.make_issuer():
                     return 401
                 # TODO: Check 'aud' claim matches 'mocks.<domain>'
                 if not self._check_path_match(path, claims["x-nmos-registration"]["read"]):

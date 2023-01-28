@@ -34,7 +34,8 @@ from numbers import Number
 from functools import cmp_to_key
 from collections.abc import KeysView
 from urllib.parse import urlparse
-from authlib.jose import jwt
+from Crypto.PublicKey import RSA
+from authlib.jose import jwt, JsonWebKey
 
 from . import Config as CONFIG
 
@@ -267,11 +268,26 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix
     return schema
 
 
-def generate_token(scopes=None, write=False, azp=False, add_claims=True, overrides=None, private_key=None):
+def read_RSA_private_key(priavte_key_files):
+    for private_key_file in priavte_key_files:
+        private_key = open(private_key_file, "r").read()
+        if private_key.find("BEGIN RSA PRIVATE KEY") != -1:
+            return private_key
+    return None
+
+
+def generate_jwk(rsa_private_key):
+    rsa_key = RSA.importKey(rsa_private_key)
+    public_key = rsa_key.publickey().exportKey(format="PEM")
+    return JsonWebKey.import_key(public_key, {"kty": "RSA", "use": "sig",
+                                 "key_ops": "verify", "alg": "RS512"}).as_dict()
+
+
+def generate_token(rsa_private_key, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
     if scopes is None:
         scopes = []
     header = {"typ": "JWT", "alg": "RS512"}
-    payload = {"iss": "{}".format(CONFIG.AUTH_TOKEN_ISSUER),
+    payload = {"iss": "{}".format("https://testsuite.nmos.tv"),
                "sub": "testsuite@nmos.tv",
                "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN), "https://*.local"],
                "exp": int(time.time() + 3600),
@@ -290,11 +306,7 @@ def generate_token(scopes=None, write=False, azp=False, add_claims=True, overrid
     payload.update(nmos_claims)
     if overrides:
         payload.update(overrides)
-    if private_key is None:
-        key = open(CONFIG.AUTH_TOKEN_PRIVKEY).read()
-    else:
-        key = private_key
-    token = jwt.encode(header, payload, key).decode()
+    token = jwt.encode(header, payload, rsa_private_key).decode()
     return token
 
 

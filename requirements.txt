@@ -18,3 +18,4 @@ authlib
 websockets
 Flask-Cors
 flask-socketio
+pycryptodome
