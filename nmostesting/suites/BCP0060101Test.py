@@ -585,6 +585,16 @@ class BCP0060101Test(GenericTest):
 
             for receiver in jxsv_receivers:
                 # check required attributes are present
+                if "transport" not in receiver:
+                    return test.FAIL("Receiver {} MUST indicate the 'transport' attribute."
+                                     .format(receiver["id"]))
+                if receiver["transport"] not in {"urn:x-nmos:transport:rtp",
+                                                 "urn:x-nmos:transport:rtp.ucast",
+                                                 "urn:x-nmos:transport:rtp.mcast"}:
+                    return test.FAIL("Receiver {} MUST indicate 'transport' with one of the following values "
+                                     "'urn:x-nmos:transport:rtp', 'urn:x-nmos:transport:rtp.ucast', or "
+                                     "'urn:x-nmos:transport:rtp.mcast'"
+                                     .format(receiver["id"]))
                 if "constraint_sets" not in receiver["caps"]:
                     return test.FAIL("Receiver {} MUST indicate constraints in accordance with BCP-004-01 using "
                                      "the 'caps' attribute 'constraint_sets'.".format(receiver["id"]))
