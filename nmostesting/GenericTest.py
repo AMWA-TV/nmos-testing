@@ -643,8 +643,8 @@ class GenericTest(object):
                     if not valid:
                         fail = message
 
-            # if node responds with 401, node should attempt to obtain the missing public key via the the token iss claim
-            # as specified in RFC 8414 section 3.
+            # if node responds with 401, node should attempt to obtain the missing public key via the the token
+            # iss claim, as specified in RFC 8414 section 3.
             # https://specs.amwa.tv/is-10/releases/v1.0.0/docs/4.5._Behaviour_-_Resource_Servers.html#public-keys
             elif response.status_code == 401:
                 warning = "should attempt to obtain the missing public key via the the token iss claim"

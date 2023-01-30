@@ -18,23 +18,23 @@ import flask
 import urllib
 import socket
 import time
-import codecs
 import base64
 
 from flask import Blueprint, Response, request, jsonify, redirect
 from urllib.parse import parse_qs
-from ..Config import DNS_DOMAIN, PORT_BASE, KEYS_MOCKS
+from ..Config import PORT_BASE, KEYS_MOCKS
 from ..TestHelper import get_default_ip, get_mocks_hostname, generate_token, \
     read_RSA_private_key, generate_jwk
 from zeroconf_monkey import ServiceInfo
 from enum import Enum
 
 
-GRANT_TYPES = Enum("grant_types", ["authorization_code", "implicit", "refresh_token", "password", "client_credentials"])
+GRANT_TYPES = Enum("grant_types", [
+    "authorization_code", "implicit", "refresh_token", "password", "client_credentials"])
 SCOPES = Enum("scopes", ["connection", "node", "query", "registration", "events", "channelmapping"])
 CODE_CHALLENGE_METHODS = Enum("code_challenge_methods", ["plain", "S256"])
 TOKEN_ENDPOINT_AUTH_METHODS = Enum("token_endpoint_auth_methods", [
-                                   "none", "client_secret_post", "client_secret_basic", "client_secret_jwt", "private_key_jwt"])
+    "none", "client_secret_post", "client_secret_basic", "client_secret_jwt", "private_key_jwt"])
 
 
 class Auth(object):
@@ -195,7 +195,8 @@ def auth_register():
     # hmm, more to test
     if token_endpoint_auth_method == TOKEN_ENDPOINT_AUTH_METHODS.private_key_jwt.name and not jwks_uri:
         error_message = {"code": 400,
-                         "error": "Missing jwks_uri"}
+                         "error": "invalid_request",
+                         "error_description": "Missing jwks_uri"}
         return Response(json.dumps(error_message), status=error_message["code"], mimetype='application/json')
 
     # hmm, TODO register_client_response schema validation
@@ -219,6 +220,9 @@ def auth_token():
     # no validation done yet, just create a token based on the given scopes
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
 
+    code = 400
+    error = None
+    error_description = None
     client_id = None
     scopes = []
     request_data = request.get_data()
@@ -227,6 +231,35 @@ def auth_token():
         query = json.loads(json.dumps(parse_qs(request_data.decode('ascii'))))
         if "scope" in query:
             scopes = query["scope"][0].split()
+            for scope in scopes:
+                # if scope not in SCOPES:
+                if scope not in [e.name for e in SCOPES]:
+                    error = "invalid_scope"
+                    error_description = "scope is not supported"
+                    break
+        if "grant_type" in query:
+            grant_type = query["grant_type"][0]
+            print(grant_type)
+            print(GRANT_TYPES)
+            if grant_type not in [e.name for e in GRANT_TYPES]:
+                error = "unsupported_grant_type"
+                error_description = "grant_type is not supported"
+        else:
+            error = "invalid_request"
+            error_description = "missing grant_type"
+        # using private_key_jwt authentication
+        if "client_assertion_type" in query:
+            client_assertion_type = query["client_assertion_type"][0]
+            if client_assertion_type == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer":
+                if "client_assertion" in query:
+                    client_assertion = query["client_assertion"][0]
+                else:
+                    error = "invalid_request"
+                    error_description = "missing client_assertion for private_key_jwt authentication"
+            else:
+                error = "unsupported_grant_type"
+                error_description = "invalid client_assertion_type used for private_key_jwt authentication"
+
         # Public client or using private_key_jwt has client_id in query
         if "client_id" in query:
             client_id = query["client_id"][0]
@@ -240,17 +273,33 @@ def auth_token():
             client_id_client_secret_array = client_id_client_secret.split(":")
             if len(client_id_client_secret_array) == 2:
                 client_id = client_id_client_secret_array[0]
-                client_secret = client_id_client_secret_array[1]
+                #client_secret = client_id_client_secret_array[1]
+            else:
+                error = "invalid_request"
+                error_description = "missing client_id or client_secret from authorization header"
+        else:
+            error = "invalid_client"
+            error_description = "invalid authorization header"
+        code = 401
 
-    expires_in = 60
-    token = auth.generate_token(scopes, True, overrides={
-        "client_id": client_id,
-        "exp": int(time.time() + expires_in)})
+    if not client_id:
+        error = "invalid_client"
+        error_description = "missing client_id"
 
-    response = {
-        "access_token": token,
-        "token_type": "bearer",
-        "expires_in": expires_in
-    }
+    if not error:
+        expires_in = 60
+        token = auth.generate_token(scopes, True, overrides={
+            "client_id": client_id,
+            "exp": int(time.time() + expires_in)})
 
-    return jsonify(response), 200
+        response = {
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": expires_in
+        }
+        return jsonify(response), 200
+    else:
+        error_message = {"code": code,
+                         "error": error,
+                         "error_description": error_description}
+        return Response(json.dumps(error_message), status=error_message["code"], mimetype='application/json')
