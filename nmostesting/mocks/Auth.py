@@ -239,8 +239,6 @@ def auth_token():
                     break
         if "grant_type" in query:
             grant_type = query["grant_type"][0]
-            print(grant_type)
-            print(GRANT_TYPES)
             if grant_type not in [e.name for e in GRANT_TYPES]:
                 error = "unsupported_grant_type"
                 error_description = "grant_type is not supported"
@@ -251,11 +249,12 @@ def auth_token():
         if "client_assertion_type" in query:
             client_assertion_type = query["client_assertion_type"][0]
             if client_assertion_type == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer":
-                if "client_assertion" in query:
-                    client_assertion = query["client_assertion"][0]
-                else:
+                if "client_assertion" not in query:
                     error = "invalid_request"
                     error_description = "missing client_assertion for private_key_jwt authentication"
+                # hmm, will use the client_assertion for client authentication in future
+                # else:
+                    # client_assertion = query["client_assertion"][0]
             else:
                 error = "unsupported_grant_type"
                 error_description = "invalid client_assertion_type used for private_key_jwt authentication"
@@ -273,7 +272,8 @@ def auth_token():
             client_id_client_secret_array = client_id_client_secret.split(":")
             if len(client_id_client_secret_array) == 2:
                 client_id = client_id_client_secret_array[0]
-                #client_secret = client_id_client_secret_array[1]
+                # hmm, will use the client_secret for client authentication in future
+                # client_secret = client_id_client_secret_array[1]
             else:
                 error = "invalid_request"
                 error_description = "missing client_id or client_secret from authorization header"
