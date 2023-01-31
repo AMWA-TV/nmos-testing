@@ -407,7 +407,7 @@ class GenericTest(object):
         cert.set_version(2)
         cert.get_subject().C = "GB"
         cert.get_subject().ST = "England"
-        cert.get_subject().O = "NMOS Testing Ltd"
+        cert.get_subject().O = "NMOS Testing Ltd"  # noqa: E741
         ca_cert_subject = cert.get_subject()
         ca_cert_subject.CN = "ca.testsuite.nmos.tv"
         cert.set_issuer(ca_cert_subject)
