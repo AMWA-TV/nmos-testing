@@ -154,12 +154,12 @@ ocsp_app.register_blueprint(OCSP_API)  # OCSP server
 FLASK_APPS.append(ocsp_app)
 
 # Primary Authorization server
-if CONFIG.ENABLE_AUTH and CONFIG.ENABLE_HTTPS:
+if CONFIG.ENABLE_AUTH:
     auth_app = Flask(__name__)
     auth_app.debug = False
     auth_app.config['AUTH_INSTANCE'] = 0
     auth_app.config['PORT'] = PRIMARY_AUTH.port
-    auth_app.config['SECURE'] = True
+    auth_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
     auth_app.register_blueprint(AUTH_API)
     FLASK_APPS.append(auth_app)
 

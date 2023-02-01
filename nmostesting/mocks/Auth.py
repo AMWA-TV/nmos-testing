@@ -22,7 +22,7 @@ import base64
 
 from flask import Blueprint, Response, request, jsonify, redirect
 from urllib.parse import parse_qs
-from ..Config import PORT_BASE, KEYS_MOCKS
+from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS
 from ..TestHelper import get_default_ip, get_mocks_hostname, generate_token, \
     read_RSA_private_key, generate_jwk
 from zeroconf_monkey import ServiceInfo
@@ -43,13 +43,18 @@ class Auth(object):
         self.scopes = []
         self.private_keys = KEYS_MOCKS
         self.version = version
+        self.protocol = "http"
+        self.host = get_default_ip()
+        if ENABLE_HTTPS:
+            self.protocol = "https"
+            self.host = get_mocks_hostname()
 
     def make_mdns_info(self, priority=0, api_ver=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
         if api_ver is None:
             api_ver = self.version
 
-        api_proto = 'https'
+        api_proto = self.protocol
 
         if ip is None:
             ip = get_default_ip()
@@ -70,21 +75,15 @@ class Auth(object):
         return info
 
     def make_issuer(self):
-        host = get_default_ip()
-        protocol = "https"
-        host = get_mocks_hostname()
-        return "{}://{}:{}".format(protocol, host, self.port)
+        return "{}://{}:{}".format(self.protocol, self.host, self.port)
 
     def make_metadata(self):
-        host = get_default_ip()
-        protocol = "https"
-        host = get_mocks_hostname()
         metadata = {
             "issuer": self.make_issuer(),
-            "authorization_endpoint": "{}://{}:{}/auth".format(protocol, host, self.port),
-            "token_endpoint": "{}://{}:{}/token".format(protocol, host, self.port),
-            "jwks_uri": "{}://{}:{}/jwks".format(protocol, host, self.port),
-            "registration_endpoint": "{}://{}:{}/register".format(protocol, host, self.port),
+            "authorization_endpoint": "{}://{}:{}/auth".format(self.protocol, self.host, self.port),
+            "token_endpoint": "{}://{}:{}/token".format(self.protocol, self.host, self.port),
+            "jwks_uri": "{}://{}:{}/jwks".format(self.protocol, self.host, self.port),
+            "registration_endpoint": "{}://{}:{}/register".format(self.protocol, self.host, self.port),
             "response_types_supported": [
                 "code",
                 "code token"
@@ -100,10 +99,8 @@ class Auth(object):
         return generate_jwk(private_key)
 
     def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
-        protocol = "https"
-        host = get_mocks_hostname()
         private_key = read_RSA_private_key(self.private_keys)
-        overrides_ = {"iss": "{}://{}:{}".format(protocol, host, self.port)}
+        overrides_ = {"iss": "{}://{}:{}".format(self.protocol, self.host, self.port)}
         if overrides:
             overrides_.update(overrides)
         return generate_token(private_key, scopes, write, azp, add_claims, overrides=overrides_)

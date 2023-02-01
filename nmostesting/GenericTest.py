@@ -397,7 +397,7 @@ class GenericTest(object):
     def do_request(self, method, url, **kwargs):
         return TestHelper.do_request(method=method, url=url, **kwargs)
 
-    def make_key_cert_file(self, cert_file, key_file):
+    def make_key_cert_files(self, cert_file, key_file):
         # create a key pair
         k = crypto.PKey()
         k.generate_key(crypto.TYPE_RSA, 2048)
@@ -452,13 +452,13 @@ class GenericTest(object):
 
     def start_secondary_authorization_server(self, auth):
         ctx = None
+        # place holder for the certificate
+        cert_file = "test_data/BCP00301/ca/mock_auth_cert.pem"
+        # place holder for the private key
+        key_file = "test_data/BCP00301/ca/mock_auth_private_key.pem"
+        # generate RSA key and certificate for the mock secondary Authorization server
+        self.make_key_cert_files(cert_file, key_file)
         if CONFIG.ENABLE_HTTPS:
-            # place holder for the certificate
-            cert_file = "test_data/BCP00301/ca/mock_auth_cert.pem"
-            # place holder for the private key
-            key_file = "test_data/BCP00301/ca/mock_auth_private_key.pem"
-            # generate RSA key and certificate for the mock secondary Authorization server
-            self.make_key_cert_file(cert_file, key_file)
             # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
             ctx = ssl.create_default_context()
             ctx.load_cert_chain(cert_file, key_file)
