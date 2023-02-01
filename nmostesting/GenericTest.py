@@ -671,6 +671,7 @@ class GenericTest(object):
                     warning = "'Retry-After' response should include a 'Retry-After' header"
                 else:
                     delay = int(retry_after)
+                    print(" * Wait {}s before retry \"GET {}\"".format(delay, url))
                     time.sleep(delay)
 
                     # do retry GET
