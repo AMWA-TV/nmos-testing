@@ -294,7 +294,7 @@ class ControllerTest(GenericTest):
                 # Add sender to mock node
                 sender_json = self._create_sender_json(sender)
                 sender_ip_address = self.senders_ip_base + str(sender_ip_final_octet)
-                self.node.add_sender(sender_json, sender_ip_address)
+                self.node.add_sender(sender_json, sender_ip_address, sender.get("sdp_params", {}))
                 self.sender_ip_addresses[sender["id"]] = sender_ip_address
                 sender_ip_final_octet += 1
 
@@ -393,13 +393,27 @@ class ControllerTest(GenericTest):
 
     def _create_sender_json(self, sender):
         sender_data = deepcopy(self.test_data["sender"])
-        sender_data["id"] = sender["id"]
-        sender_data["label"] = sender["label"]
-        sender_data["description"] = sender["description"]
-        sender_data["device_id"] = sender["device_id"]
-        sender_data["flow_id"] = sender["flow_id"]
-        sender_data["manifest_href"] = sender["manifest_href"]
-        sender_data["version"] = sender["version"]
+
+        if "sdp_params" in sender:
+            # Mapping sdp_params names to sender names
+            # For JPEG XS Senders, 'bit_rate' and 'st2110_21_sender_type' MUST be included
+            param_mapping = {'bit_rate': 'bit_rate', 'TP': 'st2110_21_sender_type'}
+
+            for sdp_param, sender_param in param_mapping.items():
+                if sdp_param in sender["sdp_params"]:
+                    sender_data[sender_param] = sender["sdp_params"][sdp_param]
+
+        overridden_properties = ["id",
+                                 "label",
+                                 "description",
+                                 "device_id",
+                                 "flow_id",
+                                 "manifest_href",
+                                 "version"]
+
+        for property in overridden_properties:
+            if property in sender:
+                sender_data[property] = sender[property]
 
         return sender_data
 
@@ -442,6 +456,12 @@ class ControllerTest(GenericTest):
         flow_data["device_id"] = sender["device_id"]
         flow_data["source_id"] = sender["source_id"]
         flow_data["version"] = sender["version"]
+
+        # Explicit override of flow parameters - used in JPEG XS testing
+        if "flow_params" in sender:
+            for param in sender["flow_params"]:
+                flow_data[param] = sender["flow_params"][param]
+
         self.post_resource(test, "flow", flow_data, codes=codes, fail=fail)
 
         # Register sender
@@ -459,11 +479,12 @@ class ControllerTest(GenericTest):
     def _create_receiver_json(self, receiver):
         # Register receiver
         receiver_data = deepcopy(self.test_data["receiver"])
-        receiver_data["id"] = receiver["id"]
-        receiver_data["label"] = receiver["label"]
-        receiver_data["description"] = receiver["description"]
-        receiver_data["device_id"] = receiver["device_id"]
-        receiver_data["version"] = receiver["version"]
+
+        overriden_properties = ["id", "label", "description", "device_id", "version", "caps"]
+
+        for property in overriden_properties:
+            if property in receiver:
+                receiver_data[property] = receiver[property]
 
         return receiver_data
 

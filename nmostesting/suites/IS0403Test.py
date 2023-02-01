@@ -28,7 +28,7 @@ class IS0403Test(GenericTest):
     """
     Runs IS-04-03-Test
     """
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         GenericTest.__init__(self, apis)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.is04_utils = IS04Utils(self.node_url)
