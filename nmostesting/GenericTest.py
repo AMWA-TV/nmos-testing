@@ -668,7 +668,7 @@ class GenericTest(object):
                 # get retry-after from response
                 retry_after = response.headers.get("Retry-After")
                 if retry_after is None:
-                    warning = "'Retry-After' response should include a 'Retry-After' header"
+                    warning = "503 'Service Unavailable' response should include a 'Retry-After' header"
                 else:
                     delay = int(retry_after)
                     print(" * Wait {}s before retry \"GET {}\"".format(delay, url))
