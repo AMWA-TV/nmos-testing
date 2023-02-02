@@ -25,8 +25,6 @@ import os
 import jsonref
 import netifaces
 import paho.mqtt.client as mqtt
-import time
-import uuid
 from copy import copy
 from pathlib import Path
 from enum import IntEnum
@@ -34,8 +32,6 @@ from numbers import Number
 from functools import cmp_to_key
 from collections.abc import KeysView
 from urllib.parse import urlparse
-from Crypto.PublicKey import RSA
-from authlib.jose import jwt, JsonWebKey
 
 from . import Config as CONFIG
 
@@ -266,48 +262,6 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix
                                       loader=loader)
 
     return schema
-
-
-def read_RSA_private_key(priavte_key_files):
-    for private_key_file in priavte_key_files:
-        private_key = open(private_key_file, "r").read()
-        if private_key.find("BEGIN RSA PRIVATE KEY") != -1:
-            return private_key
-    return None
-
-
-def generate_jwk(rsa_private_key):
-    rsa_key = RSA.importKey(rsa_private_key)
-    public_key = rsa_key.publickey().exportKey(format="PEM")
-    return JsonWebKey.import_key(public_key, {"kty": "RSA", "use": "sig",
-                                 "key_ops": "verify", "alg": "RS512"}).as_dict()
-
-
-def generate_token(rsa_private_key, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
-    if scopes is None:
-        scopes = []
-    header = {"typ": "JWT", "alg": "RS512"}
-    payload = {"iss": "{}".format("https://testsuite.nmos.tv"),
-               "sub": "testsuite@nmos.tv",
-               "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN), "https://*.local"],
-               "exp": int(time.time() + 3600),
-               "iat": int(time.time()),
-               "scope": " ".join(scopes)}
-    if azp:
-        payload["azp"] = str(uuid.uuid4())
-    else:
-        payload["client_id"] = str(uuid.uuid4())
-    nmos_claims = {}
-    if add_claims:
-        for api in scopes:
-            nmos_claims["x-nmos-{}".format(api)] = {"read": ["*"]}
-            if write:
-                nmos_claims["x-nmos-{}".format(api)]["write"] = ["*"]
-    payload.update(nmos_claims)
-    if overrides:
-        payload.update(overrides)
-    token = jwt.encode(header, payload, rsa_private_key).decode()
-    return token
 
 
 class WebsocketWorker(threading.Thread):

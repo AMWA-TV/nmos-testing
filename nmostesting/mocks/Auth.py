@@ -19,14 +19,17 @@ import urllib
 import socket
 import time
 import base64
+import ssl
+import threading
 
-from flask import Blueprint, Response, request, jsonify, redirect
+from flask import Flask, Blueprint, Response, request, jsonify, redirect
 from urllib.parse import parse_qs
 from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS
-from ..TestHelper import get_default_ip, get_mocks_hostname, generate_token, \
-    read_RSA_private_key, generate_jwk
+from ..TestHelper import get_default_ip, get_mocks_hostname
+from ..IS10Utils import IS10Utils
 from zeroconf_monkey import ServiceInfo
 from enum import Enum
+from werkzeug.serving import make_server
 
 
 GRANT_TYPES = Enum("grant_types", [
@@ -35,6 +38,55 @@ SCOPES = Enum("scopes", ["connection", "node", "query", "registration", "events"
 CODE_CHALLENGE_METHODS = Enum("code_challenge_methods", ["plain", "S256"])
 TOKEN_ENDPOINT_AUTH_METHODS = Enum("token_endpoint_auth_methods", [
     "none", "client_secret_post", "client_secret_basic", "client_secret_jwt", "private_key_jwt"])
+
+
+class AuthServer(object):
+    def __init__(self, auth):
+        self.server = None
+        self.server_thread = None
+        self.auth = auth
+
+    def start(self):
+        """Start Authorization server"""
+        if not self.server_thread:
+            ctx = None
+            # placeholder for the certificate
+            cert_file = "test_data/BCP00301/ca/mock_auth_cert.pem"
+            # placeholder for the private key
+            key_file = "test_data/BCP00301/ca/mock_auth_private_key.pem"
+            # generate RSA key and certificate for the mock secondary Authorization server
+            IS10Utils.make_key_cert_files(cert_file, key_file)
+            if ENABLE_HTTPS:
+                # ssl.create_default_context() provides options that broadly correspond to
+                # the requirements of BCP-003-01
+                ctx = ssl.create_default_context()
+                ctx.load_cert_chain(cert_file, key_file)
+                # additionally disable TLS v1.0 and v1.1
+                ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+                # BCP-003-01 however doesn't require client certificates, so disable those
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+
+            # mock secondary Authorization server
+            auth_app = Flask(__name__)
+            auth_app.debug = False
+            auth_app.config["AUTH_INSTANCE"] = 1
+            self.auth.private_keys = [key_file]
+            port = self.auth.port
+            auth_app.register_blueprint(AUTH_API)
+
+            self.server = make_server("0.0.0.0", port, auth_app, threaded=True, ssl_context=ctx)
+            self.server_thread = threading.Thread(
+                target=self.server.serve_forever)
+            self.server_thread.daemon = True
+            self.server_thread.start()
+
+    def shutdown(self):
+        """Stop Authorization server"""
+        if self.server_thread:
+            self.server.shutdown()
+            self.server_thread.join()
+            self.server_thread = None
 
 
 class Auth(object):
@@ -95,15 +147,15 @@ class Auth(object):
         return metadata
 
     def generate_jwk(self):
-        private_key = read_RSA_private_key(self.private_keys)
-        return generate_jwk(private_key)
+        private_key = IS10Utils.read_RSA_private_key(self.private_keys)
+        return IS10Utils.generate_jwk(private_key)
 
     def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
-        private_key = read_RSA_private_key(self.private_keys)
+        private_key = IS10Utils.read_RSA_private_key(self.private_keys)
         overrides_ = {"iss": "{}://{}:{}".format(self.protocol, self.host, self.port)}
         if overrides:
             overrides_.update(overrides)
-        return generate_token(private_key, scopes, write, azp, add_claims, overrides=overrides_)
+        return IS10Utils.generate_token(private_key, scopes, write, azp, add_claims, overrides=overrides_)
 
 
 # 0 = Primary mock Authorization API
@@ -129,9 +181,9 @@ def auth_jwks():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
 
     jwks = []
-    private_key = read_RSA_private_key(auth.private_keys)
+    private_key = IS10Utils.read_RSA_private_key(auth.private_keys)
     if private_key:
-        jwk = generate_jwk(private_key)
+        jwk = IS10Utils.generate_jwk(private_key)
         jwks = {"keys": [jwk]}
 
     return Response(json.dumps(jwks), mimetype='application/json')

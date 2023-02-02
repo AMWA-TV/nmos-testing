@@ -20,20 +20,13 @@ import traceback
 import inspect
 import uuid
 import time
-import ssl
-import threading
 
 from . import TestHelper
 from .NMOSUtils import NMOSUtils
 from .Specification import Specification
 from .TestResult import Test
 from . import Config as CONFIG
-from flask import Flask
-from .mocks.Auth import AUTH_API, PRIMARY_AUTH, SECONDARY_AUTH
-from OpenSSL import crypto
-from cryptography.hazmat.primitives import serialization
-from cryptography import x509
-from werkzeug.serving import make_server
+from .mocks.Auth import PRIMARY_AUTH, SECONDARY_AUTH, AuthServer
 
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
@@ -89,9 +82,6 @@ class GenericTest(object):
         if isinstance(omit_paths, list):
             self.omit_paths = omit_paths
         self.disable_auto = disable_auto
-
-        self.secondary_authorization_server = None
-        self.secondary_authorization_server_thread = None
 
         test = Test("Test initialisation")
 
@@ -397,97 +387,6 @@ class GenericTest(object):
     def do_request(self, method, url, **kwargs):
         return TestHelper.do_request(method=method, url=url, **kwargs)
 
-    def make_key_cert_files(self, cert_file, key_file):
-        # create a key pair
-        k = crypto.PKey()
-        k.generate_key(crypto.TYPE_RSA, 2048)
-
-        # create cert
-        cert = crypto.X509()
-        cert.set_version(2)
-        cert.get_subject().C = "GB"
-        cert.get_subject().ST = "England"
-        cert.get_subject().O = "NMOS Testing Ltd"  # noqa: E741
-        ca_cert_subject = cert.get_subject()
-        ca_cert_subject.CN = "ca.testsuite.nmos.tv"
-        cert.set_issuer(ca_cert_subject)
-        cert.get_subject().CN = "mocks.testsuite.nmos.tv"
-        cert.set_serial_number(x509.random_serial_number())
-        cert.gmtime_adj_notBefore(0)
-        cert.gmtime_adj_notAfter(10*365*24*60*60)
-        cert.set_pubkey(k)
-        # get Root CA key
-        capkey = open(CONFIG.KEY_TRUST_ROOT_CA, "r").read()
-        ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, capkey)
-        # get Root CA cert
-        cacert = open(CONFIG.CERT_TRUST_ROOT_CA, "r").read()
-        ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, cacert)
-        # create cert extension
-        san = ["DNS:mocks.{}".format(CONFIG.DNS_DOMAIN), "DNS: nmos-mocks.local"]
-        cert_ext = []
-        cert_ext.append(crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', cert))
-        cert_ext.append(crypto.X509Extension(b'authorityKeyIdentifier', False, b'keyid,issuer:always', issuer=ca_cert))
-        cert_ext.append(crypto.X509Extension(b'basicConstraints', False, b'CA:FALSE'))
-        cert_ext.append(crypto.X509Extension(b'keyUsage', True, b'digitalSignature, keyEncipherment'))
-        cert_ext.append(crypto.X509Extension(b'subjectAltName', False, ','.join(san).encode()))
-        cert.add_extensions(cert_ext)
-
-        # sign cert with Intermediate CA key
-        cert.sign(ca_pkey, 'sha256')
-
-        # write chain certificate file
-        if cert_file is not None:
-            with open(cert_file, "wt") as f:
-                f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode("utf-8"))
-                f.write(cacert)
-        # write private key file
-        if key_file is not None:
-            with open(key_file, "wb") as f:
-                pem = k.to_cryptography_key().private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.NoEncryption()
-                )
-                f.write(pem)
-
-    def start_secondary_authorization_server(self, auth):
-        ctx = None
-        # placeholder for the certificate
-        cert_file = "test_data/BCP00301/ca/mock_auth_cert.pem"
-        # placeholder for the private key
-        key_file = "test_data/BCP00301/ca/mock_auth_private_key.pem"
-        # generate RSA key and certificate for the mock secondary Authorization server
-        self.make_key_cert_files(cert_file, key_file)
-        if CONFIG.ENABLE_HTTPS:
-            # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
-            ctx = ssl.create_default_context()
-            ctx.load_cert_chain(cert_file, key_file)
-            # additionally disable TLS v1.0 and v1.1
-            ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-            # BCP-003-01 however doesn't require client certificates, so disable those
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-
-        # mock secondary Authorization server
-        auth_app = Flask(__name__)
-        auth_app.debug = False
-        auth_app.config["AUTH_INSTANCE"] = 1
-        auth.private_keys = [key_file]
-        port = auth.port
-        auth_app.register_blueprint(AUTH_API)
-
-        self.secondary_authorization_server = make_server("0.0.0.0", port, auth_app, threaded=True, ssl_context=ctx)
-        self.secondary_authorization_server_thread = threading.Thread(
-            target=self.secondary_authorization_server.serve_forever)
-        self.secondary_authorization_server_thread.daemon = True
-        self.secondary_authorization_server_thread.start()
-
-    def stop_secondary_authorization_server(self):
-        if self.secondary_authorization_server_thread:
-            self.secondary_authorization_server.shutdown()
-            self.secondary_authorization_server_thread.join()
-            self.secondary_authorization_server_thread = None
-
     def basics(self):
         """Perform basic API read requests (GET etc.) relevant to all API definitions"""
         results = []
@@ -617,9 +516,9 @@ class GenericTest(object):
 
         if self.authorization:
             # start the mock secondary Authorization server
-
             auth = SECONDARY_AUTH
-            self.start_secondary_authorization_server(auth)
+            secondary_authorization_server = AuthServer(auth)
+            secondary_authorization_server.start()
 
             # generate token
             token = auth.generate_token([api_name])
@@ -683,7 +582,7 @@ class GenericTest(object):
                             response.status_code)
 
             # shutdown the mock secondary Authorization server
-            self.stop_secondary_authorization_server()
+            secondary_authorization_server.shutdown()
 
             if fail:
                 return test.FAIL(fail)
