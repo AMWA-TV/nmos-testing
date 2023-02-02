@@ -452,9 +452,9 @@ class GenericTest(object):
 
     def start_secondary_authorization_server(self, auth):
         ctx = None
-        # place holder for the certificate
+        # placeholder for the certificate
         cert_file = "test_data/BCP00301/ca/mock_auth_cert.pem"
-        # place holder for the private key
+        # placeholder for the private key
         key_file = "test_data/BCP00301/ca/mock_auth_private_key.pem"
         # generate RSA key and certificate for the mock secondary Authorization server
         self.make_key_cert_files(cert_file, key_file)
