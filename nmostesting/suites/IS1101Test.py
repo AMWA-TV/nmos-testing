@@ -67,7 +67,9 @@ class IS1101Test(GenericTest):
             return test.FAIL("Unable to find expected key: {}".format(e))
 
     def test_02(self, test):
-        """PUTting an empty 'constraint_sets' array to Active Constraints of a sender switches its state to 'unconstrained'"""
+        """
+        PUTting an empty 'constraint_sets' array to Active Constraints of a sender switches its state to 'unconstrained'
+        """
 
         if len(self.senders) == 0:
             return test.UNCLEAR("Not tested. No senders found.")
@@ -93,7 +95,7 @@ class IS1101Test(GenericTest):
                     return test.UNCLEAR("Sender {} has state: {}".format(senderId, state))
                 else:
                     return test.FAIL("Sender {} has state: {}. Expected state: "
-                                        "{}".format(senderId, state, state_expected))
+                                     "{}".format(senderId, state, state_expected))
             else:
                 return test.PASS()
 
@@ -128,7 +130,7 @@ class IS1101Test(GenericTest):
                     return test.UNCLEAR("Sender {} has state: {}".format(senderId, state))
                 else:
                     return test.FAIL("Sender {} has state: {}. Expected state: "
-                                        "{}".format(senderId, state, state_expected))
+                                     "{}".format(senderId, state, state_expected))
             else:
                 return test.PASS()
 
@@ -174,7 +176,9 @@ class IS1101Test(GenericTest):
             return test.FAIL("Unable to find expected key: {}".format(e))
 
     def test_05(self, test):
-        """PUTting a non-empty 'constraint_sets' array to Active Constraints of a sender appropriately switches its state"""
+        """
+        PUTting a non-empty 'constraint_sets' array to Active Constraints of a sender appropriately switches its state
+        """
 
         if len(self.senders) == 0:
             return test.UNCLEAR("Not tested. No senders found.")
@@ -198,7 +202,8 @@ class IS1101Test(GenericTest):
                 if state == self.state_awaiting_essence or state == self.state_no_essence:
                     return test.UNCLEAR("Sender {} has state: {}".format(senderId, state))
                 else:
-                    return test.FAIL("Sender {} has state: {}. Expected state is 'active_constraints_violation' or 'constrained'".format(senderId, state, state_expected))
+                    return test.FAIL("Sender {} has state: {}. Expected state is "
+                                     "'active_constraints_violation' or 'constrained'".format(senderId, state))
             else:
                 return test.PASS()
 
@@ -223,7 +228,8 @@ class IS1101Test(GenericTest):
 
             state = response["state"]
             if state != "constrained" and state != "active_constraints_violation":
-                return test.UNCLEAR("Sender {} has state: {}. Expected state is 'active_constraints_violation' or 'constrained'".format(senderId, state))
+                return test.UNCLEAR("Sender {} has state: {}. Expected state is "
+                                    "'active_constraints_violation' or 'constrained'".format(senderId, state))
 
             url = "senders/{}/constraints/active".format(senderId)
             valid, response = self.is11_utils.checkCleanRequestJSON("GET", url)
@@ -250,7 +256,8 @@ class IS1101Test(GenericTest):
             for inputId in self.is11_utils.sampled_list(self.inputs):
                 valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
                 if not valid or response.status_code != 200:
-                    return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}".format(response))
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
 
                 try:
                     input = response.json()
@@ -285,7 +292,8 @@ class IS1101Test(GenericTest):
             for inputId in self.is11_utils.sampled_list(self.inputs):
                 valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
                 if not valid or response.status_code != 200:
-                    return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}".format(response))
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
 
                 try:
                     input = response.json()
@@ -324,7 +332,8 @@ class IS1101Test(GenericTest):
             for outputId in self.is11_utils.sampled_list(self.outputs):
                 valid, response = self.do_request("GET", self.compat_url + "outputs/" + outputId + "/properties")
                 if not valid or response.status_code != 200:
-                    return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}".format(response))
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
 
                 try:
                     input = response.json()
