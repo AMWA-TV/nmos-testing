@@ -259,7 +259,10 @@ class GenericTest(object):
                                   .format(cors_method, headers['Access-Control-Allow-Methods'])
         return True, ""
 
-    def check_content_type(self, headers, expected_type = ["application/json", "application/sdp","application/octet-stream"]):
+    def check_content_type(self, headers, expected_type=["application/json",
+                                                           "application/sdp",
+                                                           "application/octet-stream"
+                                                           ]):
         """Check the Content-Type header of an API request or response"""
         if "Content-Type" not in headers:
             return False, "API failed to signal a Content-Type."
@@ -573,9 +576,8 @@ class GenericTest(object):
             # Fail immediately for CORS errors affecting any method
             return False, cors_message
         elif resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
-            # For methods which don't return a payload, return immediately after the CORS header check
+          # For methods which don't return a payload, return immediately after the CORS header check
             return True, ""
-
         # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
  
