@@ -30,7 +30,6 @@ from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
-from ..mocks.Node import NODE
 from ..mocks.Auth import PRIMARY_AUTH
 
 NODE_API_KEY = "node"
@@ -810,7 +809,7 @@ class IS0401Test(GenericTest):
         and connects the Receiver to a stream"""
 
         if CONFIG.DNS_SD_MODE == "multicast":
-            sender_info = self._node_mdns_info(NODE.port)
+            sender_info = self._node_mdns_info(self.node.port)
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid or receivers.status_code != 200:
