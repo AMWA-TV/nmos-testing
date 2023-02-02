@@ -679,7 +679,8 @@ class GenericTest(object):
                     if not valid:
                         fail = response
                     elif response.status_code != 200:
-                        fail = "Unexpected response code after retry, expected 200. Received {}".format(response.status_code)
+                        fail = "Unexpected response code after retry, expected 200. Received {}".format(
+                            response.status_code)
 
             # shutdown the mock secondary Authorization server
             self.stop_secondary_authorization_server()
