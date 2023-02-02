@@ -30,7 +30,6 @@ from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
-from ..mocks.Auth import PRIMARY_AUTH
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -41,13 +40,14 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registries, node, dns_server):
+    def __init__(self, apis, registries, node, dns_server, auth):
         GenericTest.__init__(self, apis)
         self.invalid_registry = registries[0]
         self.primary_registry = registries[1]
         self.registries = registries[1:]
         self.node = node
         self.dns_server = dns_server
+        self.auth = auth
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
@@ -1377,7 +1377,7 @@ class IS0401Test(GenericTest):
                     continue
 
                 if self.authorization and urlparse(href).path.startswith("/x-nmos/connection"):
-                    token = PRIMARY_AUTH.generate_token(["connection"], True)
+                    token = self.auth.generate_token(["connection"], True)
                     headers = {"Authorization": "Bearer {}".format(token)}
                 else:
                     headers = None
