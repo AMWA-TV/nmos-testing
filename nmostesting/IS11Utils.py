@@ -47,6 +47,32 @@ class IS11Utils(NMOSUtils):
         return toReturn
 
     # TODO: Remove the duplication (IS05Utils)
+    def get_inputs(self):
+        """Gets a list of the available inputs on the API"""
+        toReturn = []
+        valid, r = TestHelper.do_request("GET", self.url + "inputs/")
+        if valid and r.status_code == 200:
+            try:
+                for value in r.json():
+                    toReturn.append(value[:-1])
+            except ValueError:
+                pass
+        return toReturn
+
+    # TODO: Remove the duplication (IS05Utils)
+    def get_outputs(self):
+        """Gets a list of the available outputs on the API"""
+        toReturn = []
+        valid, r = TestHelper.do_request("GET", self.url + "outputs/")
+        if valid and r.status_code == 200:
+            try:
+                for value in r.json():
+                    toReturn.append(value[:-1])
+            except ValueError:
+                pass
+        return toReturn
+
+    # TODO: Remove the duplication (IS05Utils)
     def checkCleanRequest(self, method, dest, data=None, code=200):
         """Checks a request can be made and the resulting json can be parsed"""
         status, response = TestHelper.do_request(method, self.url + dest, json=data)
