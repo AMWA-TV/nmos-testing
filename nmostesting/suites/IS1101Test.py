@@ -358,3 +358,165 @@ class IS1101Test(GenericTest):
                 return test.UNCLEAR("Not tested. No outputs with no EDID support found.")
         else:
             return test.UNCLEAR("Not tested. No outputs found.")
+
+    def test_10(self, test):
+        """An input rejects an invalid file put as its Base EDID"""
+
+        if len(self.inputs) > 0:
+            inputs_tested = []
+
+            for inputId in self.is11_utils.sampled_list(self.inputs):
+                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                try:
+                    input = response.json()
+                    if not input["edid_support"]:
+                        continue
+
+                    base_edid = "This is the invalid data sample"
+
+                    valid, response = self.do_request("PUT", self.compat_url + "inputs/" + inputId + "/edid/base", headers={"Content-Type": "application/octet-stream"}, data=base_edid)
+                    if not valid:
+                        return test.FAIL("Unexpected response from "
+                                        "the Stream Compatibility Management API: {}".format(response))
+
+                    if response.status_code != 400:
+                        return test.FAIL("Input {} accepted an invalid EDID".format(inputId))
+
+                    inputs_tested.append(inputId)
+
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+            if len(inputs_tested) > 0:
+                return test.PASS()
+            else:
+                return test.UNCLEAR("Not tested. No inputs with EDID support found.")
+        else:
+            return test.UNCLEAR("Not tested. No inputs found.")
+
+    def test_11(self, test):
+        """Effective EDID updates if Base EDID changes"""
+
+        if len(self.inputs) > 0:
+            inputs_tested = []
+
+            for inputId in self.is11_utils.sampled_list(self.inputs):
+                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                try:
+                    input = response.json()
+                    if not input["edid_support"]:
+                        continue
+
+                    valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                    if not valid or response.status_code != 200:
+                        return test.FAIL("Unexpected response from "
+                                        "the Stream Compatibility Management API: {}".format(response))
+
+                    effective_edid_before = response.content
+
+                    base_edid = bytearray([
+                        0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+                        0x04, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x0a, 0x01, 0x04, 0x80, 0x00, 0x00, 0x00,
+                        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
+                        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+                        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                        0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
+                    ])
+
+                    valid, response = self.do_request("PUT", self.compat_url + "inputs/" + inputId + "/edid/base", headers={"Content-Type": "application/octet-stream"}, data=base_edid)
+                    if not valid or response.status_code != 204:
+                        return test.FAIL("Unexpected response from "
+                                        "the Stream Compatibility Management API: {}".format(response))
+
+                    valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                    if not valid or response.status_code != 200:
+                        return test.FAIL("Unexpected response from "
+                                        "the Stream Compatibility Management API: {}".format(response))
+
+                    if response.content == effective_edid_before:
+                        return test.FAIL("Effective EDID doesn't change when Base EDID changes")
+
+                    inputs_tested.append(inputId)
+
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+            if len(inputs_tested) > 0:
+                return test.PASS()
+            else:
+                return test.UNCLEAR("Not tested. No inputs with EDID support found.")
+        else:
+            return test.UNCLEAR("Not tested. No inputs found.")
+
+    def test_12(self, test):
+        """Effective EDID updates if Base EDID removed"""
+
+        if len(self.inputs) > 0:
+            inputs_tested = []
+
+            for inputId in self.is11_utils.sampled_list(self.inputs):
+                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                try:
+                    input = response.json()
+                    if not input["edid_support"]:
+                        continue
+
+                    valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                    if not valid or response.status_code != 200:
+                        return test.FAIL("Unexpected response from "
+                                        "the Stream Compatibility Management API: {}".format(response))
+
+                    effective_edid_before = response.content
+
+                    valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+                    if not valid or response.status_code != 204:
+                        return test.FAIL("Unexpected response from "
+                                        "the Stream Compatibility Management API: {}".format(response))
+
+                    valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                    if not valid or response.status_code != 200:
+                        return test.FAIL("Unexpected response from "
+                                        "the Stream Compatibility Management API: {}".format(response))
+
+                    if response.content == effective_edid_before:
+                        return test.FAIL("Effective EDID doesn't change when Base EDID removed")
+
+                    inputs_tested.append(inputId)
+
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+            if len(inputs_tested) > 0:
+                return test.PASS()
+            else:
+                return test.UNCLEAR("Not tested. No inputs with EDID support found.")
+        else:
+            return test.UNCLEAR("Not tested. No inputs found.")
