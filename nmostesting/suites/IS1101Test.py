@@ -378,10 +378,13 @@ class IS1101Test(GenericTest):
 
                     base_edid = "This is the invalid data sample"
 
-                    valid, response = self.do_request("PUT", self.compat_url + "inputs/" + inputId + "/edid/base", headers={"Content-Type": "application/octet-stream"}, data=base_edid)
+                    valid, response = self.do_request("PUT",
+                                                      self.compat_url + "inputs/" + inputId + "/edid/base",
+                                                      headers={"Content-Type": "application/octet-stream"},
+                                                      data=base_edid)
                     if not valid:
                         return test.FAIL("Unexpected response from "
-                                        "the Stream Compatibility Management API: {}".format(response))
+                                         "the Stream Compatibility Management API: {}".format(response))
 
                     if response.status_code != 400:
                         return test.FAIL("Input {} accepted an invalid EDID".format(inputId))
@@ -420,7 +423,7 @@ class IS1101Test(GenericTest):
                     valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
                     if not valid or response.status_code != 200:
                         return test.FAIL("Unexpected response from "
-                                        "the Stream Compatibility Management API: {}".format(response))
+                                         "the Stream Compatibility Management API: {}".format(response))
 
                     effective_edid_before = response.content
 
@@ -443,15 +446,18 @@ class IS1101Test(GenericTest):
                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
                     ])
 
-                    valid, response = self.do_request("PUT", self.compat_url + "inputs/" + inputId + "/edid/base", headers={"Content-Type": "application/octet-stream"}, data=base_edid)
+                    valid, response = self.do_request("PUT",
+                                                      self.compat_url + "inputs/" + inputId + "/edid/base",
+                                                      headers={"Content-Type": "application/octet-stream"},
+                                                      data=base_edid)
                     if not valid or response.status_code != 204:
                         return test.FAIL("Unexpected response from "
-                                        "the Stream Compatibility Management API: {}".format(response))
+                                         "the Stream Compatibility Management API: {}".format(response))
 
                     valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
                     if not valid or response.status_code != 200:
                         return test.FAIL("Unexpected response from "
-                                        "the Stream Compatibility Management API: {}".format(response))
+                                         "the Stream Compatibility Management API: {}".format(response))
 
                     if response.content == effective_edid_before:
                         return test.FAIL("Effective EDID doesn't change when Base EDID changes")
@@ -490,19 +496,19 @@ class IS1101Test(GenericTest):
                     valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
                     if not valid or response.status_code != 200:
                         return test.FAIL("Unexpected response from "
-                                        "the Stream Compatibility Management API: {}".format(response))
+                                         "the Stream Compatibility Management API: {}".format(response))
 
                     effective_edid_before = response.content
 
                     valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
                     if not valid or response.status_code != 204:
                         return test.FAIL("Unexpected response from "
-                                        "the Stream Compatibility Management API: {}".format(response))
+                                         "the Stream Compatibility Management API: {}".format(response))
 
                     valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
                     if not valid or response.status_code != 200:
                         return test.FAIL("Unexpected response from "
-                                        "the Stream Compatibility Management API: {}".format(response))
+                                         "the Stream Compatibility Management API: {}".format(response))
 
                     if response.content == effective_edid_before:
                         return test.FAIL("Effective EDID doesn't change when Base EDID removed")
