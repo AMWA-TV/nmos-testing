@@ -606,11 +606,11 @@ def run_tests(test, endpoints, test_selection=["all"]):
 
         # Instantiate the test class
         test_obj = test_def["class"](apis,
-            systems=SYSTEMS,
-            registries=REGISTRIES,
-            node=NODE,
-            dns_server=DNS_SERVER,
-            auth=PRIMARY_AUTH)
+                                     systems=SYSTEMS,
+                                     registries=REGISTRIES,
+                                     node=NODE,
+                                     dns_server=DNS_SERVER,
+                                     auth=PRIMARY_AUTH)
 
         core_app.config['TEST_ACTIVE'] = time.time()
         try:
