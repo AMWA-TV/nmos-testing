@@ -32,6 +32,7 @@ import ssl
 import subprocess
 import pkgutil
 import shlex
+import re
 
 from flask import Flask, render_template, flash, request, make_response, jsonify
 from flask_cors import CORS
@@ -82,12 +83,17 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import BCP00301Test
+from .suites import BCP0060101Test
+from .suites import BCP0060102Test
 
 
 FLASK_APPS = []
 DNS_SERVER = None
 TOOL_VERSION = None
 CMD_ARGS = None
+
+if not CONFIG.RANDOM_SEED:
+    CONFIG.RANDOM_SEED = random.randrange(sys.maxsize)
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -336,6 +342,37 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP00301Test.BCP00301Test
     },
+    "BCP-006-01-01": {
+        "name": "BCP-006-01 NMOS With JPEG XS",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }],
+        "class": BCP0060101Test.BCP0060101Test
+    },
+    "BCP-006-01-02": {
+        "name": "BCP-006-01 Controller",
+        "specs": [{
+            "spec_key": "controller-tests",
+            "api_key": "testquestion"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "query",
+            "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["host", "port"]
+        }],
+        "class": BCP0060102Test.BCP0060102Test
+    },
 }
 
 
@@ -483,10 +520,11 @@ def index_page():
             discovery_mode = "Invalid Configuration"
     else:
         discovery_mode = "Disabled (Using Query API {}:{})".format(CONFIG.QUERY_API_HOST, CONFIG.QUERY_API_PORT)
-
+    max_test_iterations = CONFIG.MAX_TEST_ITERATIONS or "Unlimited"
     r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
                                                                        "protocol": protocol,
-                                                                       "authorization": authorization},
+                                                                       "authorization": authorization,
+                                                                       "max_test_iterations": max_test_iterations},
                                       cachebuster=CACHEBUSTER))
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
@@ -567,20 +605,12 @@ def run_tests(test, endpoints, test_selection=["all"]):
                     apis[api_key]["raml"] = spec_api["raml"]
 
         # Instantiate the test class
-        if test == "IS-04-01":
-            # This test has an unusual constructor as it requires a registry and authorization instance
-            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER, PRIMARY_AUTH)
-        elif test == "IS-04-02":
-            # This test has an unusual constructor as it requires a authorization instance
-            test_obj = test_def["class"](apis, PRIMARY_AUTH)
-        elif test == "IS-09-02":
-            # This test has an unusual constructor as it requires a system api instance
-            test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
-        elif test == "IS-04-04" or test == "IS-05-03":
-            # Controller tests require a registry instance, mock Node and DNS server
-            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-        else:
-            test_obj = test_def["class"](apis)
+        test_obj = test_def["class"](apis,
+            systems=SYSTEMS,
+            registries=REGISTRIES,
+            node=NODE,
+            dns_server=DNS_SERVER,
+            auth=PRIMARY_AUTH)
 
         core_app.config['TEST_ACTIVE'] = time.time()
         try:
@@ -657,8 +687,9 @@ def _check_test_result(test_result, results):
 
 def _export_config():
     current_config = {"VERSION": TOOL_VERSION}
+    exclude_params = ['SPECIFICATIONS']
     for param in dir(CONFIG):
-        if not param.startswith("__") and param != "SPECIFICATIONS" and param != "UserConfig":
+        if re.match("^[A-Z][A-Z0-9_]*$", param) and param not in exclude_params:
             current_config[param] = getattr(CONFIG, param)
     return current_config
 

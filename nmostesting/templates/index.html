@@ -27,14 +27,14 @@
 </head>
 <body>
     <div id="page">
-        <h1>NMOS Test</h1>
+        <h1>NMOS Testing Tool</h1>
         <noscript>
           <div class="alert alert-danger top_alert" role="alert">
-              This test suite requires JavaScript. Please enable it to ensure accurate results.
+              This tool requires JavaScript. Please enable it to ensure accurate results.
           </div>
         </noscript>
         <div class="alert alert-primary top_alert" role="alert">
-            This test suite is under active development and does not yet provide 100% coverage of specifications.<br />
+            These test suites are under active development and do not yet provide 100% coverage of all specifications.<br />
             We recommend regularly re-testing implementations as new tests are developed.
         </div>
         <form action="" method='POST' onsubmit="disableRunbtn(); saveSettings(); return true;">
@@ -71,6 +71,11 @@
                 {% endfor %}
                 <br />
                 <div>
+                    Additional configuration can be specified via <code>nmostesting/UserConfig.py</code>.
+                    <a href="https://specs.amwa.tv/nmos-testing/branches/master/docs/1.0._Installation.html#configuration">More Information</a>
+                </div>
+                <br />
+                <div>
                     <label>Protocol:</label>
                     <select disabled>
                         <option>{{ config.protocol }}</option>
@@ -82,6 +87,10 @@
                     <label>Discovery Mode:</label>
                     <select disabled>
                       <option>{{ config.discovery }}</option>
+                    </select><br />
+                    <label>Max Test Iterations:</label>
+                    <select disabled>
+                      <option>{{ config.max_test_iterations }}</option>
                     </select><br />
                 </div>
                 <br />

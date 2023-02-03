@@ -48,8 +48,8 @@ class IS1001Test(GenericTest):
     }}
   """
 
-    def __init__(self, apis):
-        super(IS1001Test, self).__init__(apis)
+    def __init__(self, apis, **kwargs):
+        GenericTest.__init__(apis)
         if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("IS-10 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
         self.authorization = False  # Authorization API itself doesn't use auth, so don't send tokens in every request

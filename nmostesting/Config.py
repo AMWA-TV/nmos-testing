@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 
 # NMOS Testing Configuration File
 # -------------------------------
@@ -67,8 +68,8 @@ CACHE_PATH = 'cache'
 # Timeout for any HTTP requests
 HTTP_TIMEOUT = 1
 
-# Restrict the maximum number of resources that time consuming tests run against.
-# 0 = unlimited for a really thorough test!
+# Restrict the maximum number of resources or test points that time-consuming tests run against.
+# 0 = unlimited (all available resources or test points) for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
@@ -117,6 +118,9 @@ PORT_BASE = 5000
 # This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
 WEBSOCKET_PORT_BASE = 6000
 
+# Set a RANDOM_SEED to an integer value to make testing deterministic and repeatable.
+RANDOM_SEED = None
+
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed
 # into Sender configuration when testing IS-05.
 # The default values are from the IANA-registered TEST-NET-1 and MCAST-TEST-NET ranges. To avoid unintended network
@@ -130,19 +134,27 @@ PREVALIDATE_API = True
 # SDP media parameters which can be modified for devices which do not support the defaults
 # SDP testing is not concerned with support for specific media parameters, but must include them in the file
 SDP_PREFERENCES = {
-    "audio_channels": 2,
-    "audio_sample_rate": 48000,
-    "audio_packet_time": 1,
-    "audio_max_packet_time": 1,
-    "video_width": 1920,
-    "video_height": 1080,
-    "video_interlace": True,
-    "video_exactframerate": "25",
-    "video_depth": 10,
-    "video_sampling": "YCbCr-4:2:2",
-    "video_colorimetry": "BT709",
-    "video_transfer_characteristic": "SDR",
-    "video_type_parameter": "2110TPW"
+    # audio/L16, audio/L24, audio/L32
+    "channels": 2,
+    "sample_rate": 48000,
+    "packet_time": 1,
+    "max_packet_time": 1,
+    # video/raw, etc.
+    "width": 1920,
+    "height": 1080,
+    "interlace": True,
+    "exactframerate": "25",
+    "depth": 10,
+    "sampling": "YCbCr-4:2:2",
+    "colorimetry": "BT709",
+    "RANGE": None,
+    "TCS": "SDR",
+    "TP": "2110TPW",
+    # video/jxsv
+    "profile": "High444.12",
+    "level": "2k-1",
+    "sublevel": "Sublev3bpp",
+    "bit_rate": 109000
 }
 
 # Test with an MQTT Broker as per AMWA IS-07
@@ -270,6 +282,12 @@ SPECIFICATIONS = {
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
+            },
+            "flow-register": {
+                "name": "Flow Attributes Register"
+            },
+            "sender-register": {
+                "name": "Sender Attributes Register"
             }
         }
     },
@@ -286,6 +304,10 @@ SPECIFICATIONS = {
 }
 
 try:
+    keys = SDP_PREFERENCES.keys()
     from . import UserConfig  # noqa: F401
+    if SDP_PREFERENCES.keys() != keys:
+        print(" * ERROR: Check SDP_PREFERENCES keys in UserConfig.py")
+        sys.exit(-1)
 except ImportError:
     pass

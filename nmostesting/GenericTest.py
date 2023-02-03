@@ -145,6 +145,7 @@ class GenericTest(object):
                 if method_name.startswith("test_"):
                     method = getattr(self, method_name)
                     if callable(method):
+                        NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(method_name))
                         print(" * Running " + method_name)
                         test = Test(inspect.getdoc(method), method_name)
                         try:
@@ -158,6 +159,7 @@ class GenericTest(object):
         if test_name != "auto" and test_name != "all":
             method = getattr(self, test_name)
             if callable(method):
+                NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(test_name))
                 print(" * Running " + test_name)
                 test = Test(inspect.getdoc(method), test_name)
                 try:
@@ -392,6 +394,7 @@ class GenericTest(object):
         results = []
 
         for api in sorted(self.apis.keys()):
+            NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(api))
             if "raml" not in self.apis[api]:
                 continue
 
