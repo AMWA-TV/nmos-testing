@@ -32,12 +32,12 @@ class IS0802Test(GenericTest):
     Runs Tests covering both IS-04 and IS-05
     """
 
-    def __init__(self, apis, **kwargs):
+    def __init__(self, apis, auths, **kwargs):
         # Don't auto-test /map/active/{outputId} as the tests cannot find the {outputId}s automatically
         omit_paths = [
             "/map/active/{outputId}"
         ]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, auths=auths, **kwargs)
         globalConfig.apiUrl = apis[MAPPING_API_KEY]['url']
         globalConfig.testSuite = self
         globalConfig.apiKey = MAPPING_API_KEY

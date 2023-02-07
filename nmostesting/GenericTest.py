@@ -26,7 +26,7 @@ from .NMOSUtils import NMOSUtils
 from .Specification import Specification
 from .TestResult import Test
 from . import Config as CONFIG
-from .mocks.Auth import PRIMARY_AUTH, SECONDARY_AUTH, AuthServer
+from .mocks.Auth import AuthServer
 
 
 NMOS_WIKI_URL = "https://github.com/AMWA-TV/nmos/wiki"
@@ -63,7 +63,7 @@ class GenericTest(object):
     Can be inherited from in order to perform detailed testing.
     """
 
-    def __init__(self, apis, omit_paths=None, disable_auto=False):
+    def __init__(self, apis, omit_paths=None, disable_auto=False, auths=None, **kwargs):
         self.apis = apis
         self.saved_entities = {}
         self.auto_test_count = 0
@@ -115,6 +115,9 @@ class GenericTest(object):
         self.parse_RAML()
 
         self.result.append(test.NA(""))
+
+        self.primary_auth = None if not auths else auths[0]
+        self.secondary_auth = None if not auths else auths[1]
 
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""
@@ -198,7 +201,7 @@ class GenericTest(object):
             # Add 'query' permission when mock registry is disabled and existing network registry is used
             if not CONFIG.ENABLE_DNS_SD and "query" not in scopes:
                 scopes.append("query")
-            CONFIG.AUTH_TOKEN = PRIMARY_AUTH.generate_token(scopes, True, overrides={
+            CONFIG.AUTH_TOKEN = self.primary_auth.generate_token(scopes, True, overrides={
                 "client_id": str(uuid.uuid4()),
                 "exp": int(time.time() + 3600)})
         if CONFIG.PREVALIDATE_API:
@@ -424,19 +427,20 @@ class GenericTest(object):
             # Test that the API responds with a 4xx when a missing or invalid token is used
             results.append(self.do_test_authorization(api, "Missing Authorization Header", error_type=None))
             results.append(self.do_test_authorization(api, "Invalid Authorization Token", token=str(uuid.uuid4())))
-            token = PRIMARY_AUTH.generate_token([api], True, overrides={"iat": int(time.time() - 7200),
-                                                                        "exp": int(time.time() - 3600)})
+            token = None if not self.primary_auth else self.primary_auth.generate_token(
+                [api], True, overrides={"iat": int(time.time() - 7200), "exp": int(time.time() - 3600)})
             results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
-            token = PRIMARY_AUTH.generate_token([api], True, overrides={"aud": ["https://*.nmos.example.com"]})
+            token = None if not self.primary_auth else self.primary_auth.generate_token(
+                [api], True, overrides={"aud": ["https://*.nmos.example.com"]})
             results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", error_code=403,
                                                       error_type="insufficient_scope", token=token))
-            token = PRIMARY_AUTH.generate_token(
+            token = None if not self.primary_auth else self.primary_auth.generate_token(
                 ["nonsense"], overrides={"x-nmos-nonsense": {"read": [str(uuid.uuid4())]}})
             results.append(self.do_test_authorization(api, "Incorrect Authorization Scope", error_code=403,
                                                       error_type="insufficient_scope", token=token))
 
             # Test that the API responds with a 200 when only the scope is present
-            token = PRIMARY_AUTH.generate_token([api], False, add_claims=False)
+            token = None if not self.primary_auth else self.primary_auth.generate_token([api], False, add_claims=False)
             results.append(self.do_test_authorization(api, "Valid Authorization Scope", error_code=200, token=token))
 
             # Test that the API responds with a 401 or 503 followed by 200 when no matching public keys for the token
@@ -519,12 +523,11 @@ class GenericTest(object):
 
         if self.authorization:
             # start the mock secondary Authorization server
-            auth = SECONDARY_AUTH
-            secondary_authorization_server = AuthServer(auth)
+            secondary_authorization_server = AuthServer(self.secondary_auth)
             secondary_authorization_server.start()
 
             # generate token
-            token = auth.generate_token([api_name])
+            token = self.secondary_auth.generate_token([api_name])
 
             fail = None
             warning = None

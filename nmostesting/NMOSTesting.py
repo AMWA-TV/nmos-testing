@@ -57,7 +57,7 @@ from .OCSP import OCSP, OCSP_API
 from .mocks.Node import NODE, NODE_API
 from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
-from .mocks.Auth import AUTH_API, PRIMARY_AUTH
+from .mocks.Auth import AUTH_API, PRIMARY_AUTH, SECONDARY_AUTH
 from zeroconf_monkey import Zeroconf
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
@@ -610,7 +610,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                                      registries=REGISTRIES,
                                      node=NODE,
                                      dns_server=DNS_SERVER,
-                                     auth=PRIMARY_AUTH)
+                                     auths=[PRIMARY_AUTH, SECONDARY_AUTH])
 
         core_app.config['TEST_ACTIVE'] = time.time()
         try:

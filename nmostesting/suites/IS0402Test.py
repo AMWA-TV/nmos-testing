@@ -39,10 +39,10 @@ class IS0402Test(GenericTest):
     """
     Runs IS-04-02-Test
     """
-    def __init__(self, apis, auth, **kwargs):
+    def __init__(self, apis, auths, **kwargs):
         # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
         omit_paths = ["/health/nodes/{nodeId}"]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, auths=auths, **kwargs)
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
         if self.apis[REG_API_KEY]["version"] != self.apis[QUERY_API_KEY]["version"]:
@@ -53,7 +53,7 @@ class IS0402Test(GenericTest):
         self.is04_query_utils = IS04Utils(self.query_url)
         self.test_data = self.load_resource_data()
         self.subscription_data = self.load_subscription_request_data()
-        self.auth = auth
+        self.auth = auths[0]
 
     def set_up_tests(self):
         self.zc = Zeroconf()

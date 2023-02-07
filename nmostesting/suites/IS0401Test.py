@@ -41,14 +41,14 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registries, node, dns_server, auth, **kwargs):
-        GenericTest.__init__(self, apis)
+    def __init__(self, apis, registries, node, dns_server, auths, **kwargs):
+        GenericTest.__init__(self, apis, auths=auths, **kwargs)
         self.invalid_registry = registries[0]
         self.primary_registry = registries[1]
         self.registries = registries[1:]
         self.node = node
         self.dns_server = dns_server
-        self.auth = auth
+        self.auth = auths[0]
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
