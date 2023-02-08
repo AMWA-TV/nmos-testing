@@ -22,6 +22,7 @@ from .NMOSUtils import NMOSUtils
 from OpenSSL import crypto
 from cryptography.hazmat.primitives import serialization
 from cryptography import x509
+from .TestHelper import get_default_ip, get_mocks_hostname
 
 from . import Config as CONFIG
 
@@ -53,9 +54,14 @@ class IS10Utils(NMOSUtils):
         if scopes is None:
             scopes = []
         header = {"typ": "JWT", "alg": "RS512"}
-        payload = {"iss": "{}".format("https://testsuite.nmos.tv"),
-                   "sub": "testsuite@nmos.tv",
-                   "aud": ["https://*.{}".format(CONFIG.DNS_DOMAIN), "https://*.local"],
+        protocol = "http"
+        host = get_default_ip()
+        if CONFIG.ENABLE_HTTPS:
+            protocol = "https"
+            host = get_mocks_hostname()
+        payload = {"iss": "{}://{}".format(protocol, host),
+                   "sub": "test@{}".format(CONFIG.DNS_DOMAIN),
+                   "aud": ["{}://*.{}".format(protocol, CONFIG.DNS_DOMAIN), "{}://*.local".format(protocol)],
                    "exp": int(time.time() + 3600),
                    "iat": int(time.time()),
                    "scope": " ".join(scopes)}
