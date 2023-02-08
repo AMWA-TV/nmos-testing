@@ -116,8 +116,8 @@ class GenericTest(object):
 
         self.result.append(test.NA(""))
 
-        self.primary_auth = None if not auths else auths[0]
-        self.secondary_auth = None if not auths else auths[1]
+        self.primary_auth = auths[0] if auths else None
+        self.secondary_auth = auths[1] if auths else None
 
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""
