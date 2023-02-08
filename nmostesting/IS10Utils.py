@@ -77,32 +77,43 @@ class IS10Utils(NMOSUtils):
 
     @staticmethod
     def make_key_cert_files(cert_file, key_file):
+        """Create a 10 years CA Root signed certificate for the mock server """
         # create a key pair
         k = crypto.PKey()
         k.generate_key(crypto.TYPE_RSA, 2048)
 
+        # load Root CA cert
+        cacert = open(CONFIG.CERT_TRUST_ROOT_CA, "r").read()
+        ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, cacert)
+        # get Root CA cert Common Name to be used in the new certificate
+        ca_cn = ca_cert.get_subject().CN
+
         # create cert
         cert = crypto.X509()
         cert.set_version(2)
+        # country
         cert.get_subject().C = "GB"
+        # state or province name
         cert.get_subject().ST = "England"
+        # organization
         cert.get_subject().O = "NMOS Testing Ltd"  # noqa: E741
         ca_cert_subject = cert.get_subject()
-        ca_cert_subject.CN = "ca.testsuite.nmos.tv"
+        # issuer common name - CA Root common name
+        ca_cert_subject.CN = ca_cn
         cert.set_issuer(ca_cert_subject)
-        cert.get_subject().CN = "mocks.testsuite.nmos.tv"
+        # common name - mocks.<dns domain>
+        cert.get_subject().CN = "mocks.{}".format(CONFIG.DNS_DOMAIN)
+        # serial number - random
         cert.set_serial_number(x509.random_serial_number())
+        # not before - now
         cert.gmtime_adj_notBefore(0)
+        # not after - 10 years
         cert.gmtime_adj_notAfter(10*365*24*60*60)
         cert.set_pubkey(k)
-        # get Root CA key
-        capkey = open(CONFIG.KEY_TRUST_ROOT_CA, "r").read()
-        ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, capkey)
-        # get Root CA cert
-        cacert = open(CONFIG.CERT_TRUST_ROOT_CA, "r").read()
-        ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, cacert)
+
         # create cert extension
-        san = ["DNS:mocks.{}".format(CONFIG.DNS_DOMAIN), "DNS: nmos-mocks.local"]
+        # subject alternative name - mocks.<dns dimain> and  nmos-mocks.local
+        san = ["DNS:mocks.{}".format(CONFIG.DNS_DOMAIN), "DNS:nmos-mocks.local"]
         cert_ext = []
         cert_ext.append(crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', cert))
         cert_ext.append(crypto.X509Extension(b'authorityKeyIdentifier',
@@ -112,7 +123,9 @@ class IS10Utils(NMOSUtils):
         cert_ext.append(crypto.X509Extension(b'subjectAltName', False, ','.join(san).encode()))
         cert.add_extensions(cert_ext)
 
-        # sign cert with Intermediate CA key
+        # sign cert with Root CA key
+        capkey = open(CONFIG.KEY_TRUST_ROOT_CA, "r").read()
+        ca_pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, capkey)
         cert.sign(ca_pkey, 'sha256')
 
         # write chain certificate file
@@ -122,6 +135,7 @@ class IS10Utils(NMOSUtils):
                 f.write(cacert)
         # write private key file
         if key_file is not None:
+
             with open(key_file, "wb") as f:
                 pem = k.to_cryptography_key().private_bytes(
                     encoding=serialization.Encoding.PEM,
