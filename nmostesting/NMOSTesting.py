@@ -79,6 +79,7 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1100Test
 from .suites import IS1101Test
 from .suites import IS1102Test
 from .suites import BCP00301Test
@@ -319,6 +320,14 @@ TEST_DEFINITIONS = {
     #     }],
     #     "class": IS1001Test.IS1001Test
     # },
+    "IS-11-00": {
+        "name": "IS-11  General test ",
+        "specs": [{
+            "spec_key": "is-11",
+            "api_key": "streamcompatibility"
+        }],
+        "class": IS1100Test.IS1100Test
+    },
     "IS-11-01": {
         "name": "IS-11 Stream Compatibility Management API",
         "specs": [{
