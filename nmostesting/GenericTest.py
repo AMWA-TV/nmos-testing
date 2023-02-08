@@ -427,20 +427,26 @@ class GenericTest(object):
             # Test that the API responds with a 4xx when a missing or invalid token is used
             results.append(self.do_test_authorization(api, "Missing Authorization Header", error_type=None))
             results.append(self.do_test_authorization(api, "Invalid Authorization Token", token=str(uuid.uuid4())))
-            token = None if not self.primary_auth else self.primary_auth.generate_token(
-                [api], True, overrides={"iat": int(time.time() - 7200), "exp": int(time.time() - 3600)})
+            token = self.primary_auth.generate_token(
+                [api],
+                True,
+                overrides={"iat": int(time.time() - 7200),
+                           "exp": int(time.time() - 3600)}) if self.primary_auth else None
             results.append(self.do_test_authorization(api, "Expired Authorization Token", token=token))
-            token = None if not self.primary_auth else self.primary_auth.generate_token(
-                [api], True, overrides={"aud": ["https://*.nmos.example.com"]})
+            token = self.primary_auth.generate_token(
+                [api],
+                True,
+                overrides={"aud": ["https://*.nmos.example.com"]}) if self.primary_auth else None
             results.append(self.do_test_authorization(api, "Incorrect Authorization Audience", error_code=403,
                                                       error_type="insufficient_scope", token=token))
-            token = None if not self.primary_auth else self.primary_auth.generate_token(
-                ["nonsense"], overrides={"x-nmos-nonsense": {"read": [str(uuid.uuid4())]}})
+            token = self.primary_auth.generate_token(
+                ["nonsense"],
+                overrides={"x-nmos-nonsense": {"read": [str(uuid.uuid4())]}}) if self.primary_auth else None
             results.append(self.do_test_authorization(api, "Incorrect Authorization Scope", error_code=403,
                                                       error_type="insufficient_scope", token=token))
 
             # Test that the API responds with a 200 when only the scope is present
-            token = None if not self.primary_auth else self.primary_auth.generate_token([api], False, add_claims=False)
+            token = self.primary_auth.generate_token([api], False, add_claims=False) if self.primary_auth else None
             results.append(self.do_test_authorization(api, "Valid Authorization Scope", error_code=200, token=token))
 
             # Test that the API responds with a 401 or 503 followed by 200 when no matching public keys for the token
@@ -581,11 +587,12 @@ class GenericTest(object):
 
                     # do retry GET
                     valid, response = self.do_request("GET", url, headers=headers)
-                    if not valid:
+                    if valid:
+                        if response.status_code != 200:
+                            fail = "Unexpected response code after retry, expected 200. Received {}".format(
+                                response.status_code)
+                    else:
                         fail = response
-                    elif response.status_code != 200:
-                        fail = "Unexpected response code after retry, expected 200. Received {}".format(
-                            response.status_code)
 
             # shutdown the mock secondary Authorization server
             secondary_authorization_server.shutdown()
