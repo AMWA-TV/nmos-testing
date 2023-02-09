@@ -30,12 +30,12 @@ class BCP0060101Test(GenericTest):
     """
     Runs Node Tests covering BCP-006-01
     """
-    def __init__(self, apis, auths, **kwargs):
+    def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
             "/single/senders/{senderId}/transportfile"
         ]
-        GenericTest.__init__(self, apis, omit_paths, auths=auths, **kwargs)
+        GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.is04_resources = {"senders": [], "receivers": [], "_requested": [], "sources": [], "flows": []}
         self.is04_utils = IS04Utils(self.node_url)

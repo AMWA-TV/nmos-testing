@@ -39,13 +39,12 @@ class IS0501Test(GenericTest):
     """
     Runs IS-05-01-Test
     """
-
-    def __init__(self, apis, auths, **kwargs):
+    def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
             "/single/senders/{senderId}/transportfile"
         ]
-        GenericTest.__init__(self, apis, omit_paths, auths=auths, **kwargs)
+        GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.url = self.apis[CONN_API_KEY]["url"]
         self.is05_utils = IS05Utils(self.url)
 

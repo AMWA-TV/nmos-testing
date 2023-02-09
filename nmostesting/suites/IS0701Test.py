@@ -27,8 +27,8 @@ class IS0701Test(GenericTest):
     """
     Runs IS-07-01-Test
     """
-    def __init__(self, apis, auths, **kwargs):
-        GenericTest.__init__(self, apis, auths=auths, **kwargs)
+    def __init__(self, apis, **kwargs):
+        GenericTest.__init__(self, apis, **kwargs)
         self.events_url = self.apis[EVENTS_API_KEY]["url"]
         self.is07_utils = IS07Utils(self.events_url)
         self.sources = {}
