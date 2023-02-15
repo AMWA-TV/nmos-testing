@@ -24,7 +24,7 @@ RUN apt-get update \
     && tar -xvzf v3.0.7.tar.gz --strip-components=1 \
     && rm v3.0.7.tar.gz \
     && npm config set unsafe-perm true \
-    && npm install -g AMWA-TV/sdpoker#v0.2.0 \
+    && npm install -g AMWA-TV/sdpoker#v0.3.0 \
     && rm /home/nmos-testing/setup_14.x \
     && apt-get remove -y wget \
     && apt-get clean -y --no-install-recommends \
