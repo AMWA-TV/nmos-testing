@@ -17,19 +17,23 @@ import uuid
 import flask
 import urllib
 import socket
-import time
 import base64
 import ssl
 import threading
+import os
+import jsonschema
+import requests
 
 from flask import Flask, Blueprint, Response, request, jsonify, redirect
 from urllib.parse import parse_qs
-from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS
-from ..TestHelper import get_default_ip, get_mocks_hostname
+from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS, CERT_TRUST_ROOT_CA, JWKS_URI, REDIRECT_URI, SCOPE
+from ..TestHelper import get_default_ip, get_mocks_hostname, load_resolved_schema
 from ..IS10Utils import IS10Utils
 from zeroconf_monkey import ServiceInfo
 from enum import Enum
 from werkzeug.serving import make_server
+from http import HTTPStatus
+from authlib.jose import jwt
 
 
 GRANT_TYPES = Enum("grant_types", [
@@ -38,6 +42,14 @@ SCOPES = Enum("scopes", ["connection", "node", "query", "registration", "events"
 CODE_CHALLENGE_METHODS = Enum("code_challenge_methods", ["plain", "S256"])
 TOKEN_ENDPOINT_AUTH_METHODS = Enum("token_endpoint_auth_methods", [
     "none", "client_secret_post", "client_secret_basic", "client_secret_jwt", "private_key_jwt"])
+RESPONSE_TYPES = Enum("response_types", ["code", "token"])
+
+
+class AuthException(Exception):
+    def __init__(self, error, description, httpstatus=HTTPStatus.BAD_REQUEST):
+        self.httpstatus = httpstatus
+        self.error = error
+        self.description = description
 
 
 class AuthServer(object):
@@ -92,7 +104,6 @@ class AuthServer(object):
 class Auth(object):
     def __init__(self, port_increment, version="v1.0"):
         self.port = PORT_BASE + 9 + port_increment
-        self.scopes = []
         self.private_keys = KEYS_MOCKS
         self.version = version
         self.protocol = "http"
@@ -100,6 +111,8 @@ class Auth(object):
         if ENABLE_HTTPS:
             self.protocol = "https"
             self.host = get_mocks_hostname()
+        # authorization code of the authorization code flow
+        self.code = None
 
     def make_mdns_info(self, priority=0, api_ver=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -150,12 +163,12 @@ class Auth(object):
         private_key = IS10Utils.read_RSA_private_key(self.private_keys)
         return IS10Utils.generate_jwk(private_key)
 
-    def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
+    def generate_token(self, scopes=None, write=False, azp=False, add_claims=True, exp=3600, overrides=None):
         private_key = IS10Utils.read_RSA_private_key(self.private_keys)
         overrides_ = {"iss": "{}://{}:{}".format(self.protocol, self.host, self.port)}
         if overrides:
             overrides_.update(overrides)
-        return IS10Utils.generate_token(private_key, scopes, write, azp, add_claims, overrides=overrides_)
+        return IS10Utils.generate_token(private_key, scopes, write, azp, add_claims, exp=exp, overrides=overrides_)
 
 
 # 0 = Primary mock Authorization API
@@ -166,6 +179,10 @@ AUTHS = [Auth(i + 1) for i in range(NUM_AUTHS)]
 AUTH_API = Blueprint('auth_pi', __name__)
 PRIMARY_AUTH = AUTHS[0]
 SECONDARY_AUTH = AUTHS[1]
+
+SPEC_PATH = os.path.join("cache/is-10")
+REGISTER_CLIENT_REQUEST_SCHEMA = load_resolved_schema(SPEC_PATH, "register_client_request.json")
+JWKS_SCHEMA = load_resolved_schema(SPEC_PATH, "jwks_schema.json")
 
 
 @ AUTH_API.route('/.well-known/oauth-authorization-server', methods=["GET"])
@@ -191,164 +208,328 @@ def auth_jwks():
 
 @ AUTH_API.route('/register', methods=["POST"])
 def auth_register():
-    # hmm, TODO register_client_request schema validation
+    try:
+        # register_client_request schema validation
+        jsonschema.validate(request.json, REGISTER_CLIENT_REQUEST_SCHEMA)
 
-    # extending validation to cover those not in schema
-    # hmm, maybe more to do
-    redirect_uris = []
-    if "redirect_uris" in request.json:
-        redirect_uris.append(request.json["redirect_uris"])
+        # extending validation to cover those not in the schema
+        redirect_uris = []
+        if "redirect_uris" in request.json:
+            redirect_uris = request.json["redirect_uris"]
 
-    token_endpoint_auth_method = TOKEN_ENDPOINT_AUTH_METHODS.client_secret_basic.name
-    if "token_endpoint_auth_method" in request.json:
-        token_endpoint_auth_method = request.json["token_endpoint_auth_method"]
+        token_endpoint_auth_method = TOKEN_ENDPOINT_AUTH_METHODS.client_secret_basic.name
+        if "token_endpoint_auth_method" in request.json:
+            token_endpoint_auth_method = request.json["token_endpoint_auth_method"]
 
-    grant_types = [GRANT_TYPES.authorization_code]
-    if "grant_types" in request.json:
-        grant_types = request.json["grant_types"]
+        grant_types = [GRANT_TYPES.authorization_code]
+        if "grant_types" in request.json:
+            grant_types = request.json["grant_types"]
 
-    response_types = ["code token"]
-    if "response_types" in request.json:
-        response_types = request.json["response_types"]
+        response_types = ["code token"]
+        if "response_types" in request.json:
+            response_types = request.json["response_types"]
 
-    scopes = []
-    if "scope" in request.json:
-        scopes = request.json["scope"]
+        scopes = []
+        if "scope" in request.json:
+            scopes = request.json["scope"]
 
-    # pretending open client registration
-    response = {
-        # REQUIRED
-        "client_id": str(uuid.uuid4()),
-        "client_name": request.json["client_name"],
-        "client_secret_expires_at": 0,
-        # OPTIONAL
-        "redirect_uris": redirect_uris,
-        "grant_types": grant_types,
-        "response_types": response_types,
-        "scope": scopes,
-        "token_endpoint_auth_method": token_endpoint_auth_method
-    }
+        client_uri = None
+        if "client_uri" in request.json:
+            client_uri = request.json["client_uri"]
 
-    if token_endpoint_auth_method == TOKEN_ENDPOINT_AUTH_METHODS.client_secret_basic.name:
-        response["client_secret"] = str(uuid.uuid4())
+        jwks_uri = None
+        if "jwks_uri" in request.json:
+            jwks_uri = request.json["jwks_uri"]
 
-    if "client_uri" in request.json:
-        client_uri = request.json["client_uri"]
-        response["client_uri"] = client_uri
+        # hmm, maybe more to test
+        if token_endpoint_auth_method == TOKEN_ENDPOINT_AUTH_METHODS.private_key_jwt.name and not jwks_uri:
+            raise AuthException("invalid_request", "missing jwks_uri")
 
-    jwks_uri = None
-    if "jwks_uri" in request.json:
-        jwks_uri = request.json["jwks_uri"]
-        response["jwks_uri"] = jwks_uri
+        if GRANT_TYPES.authorization_code in grant_types and not redirect_uris:
+            raise AuthException("invalid_request", "missing redirect_uris")
 
-    # hmm, more to test
-    if token_endpoint_auth_method == TOKEN_ENDPOINT_AUTH_METHODS.private_key_jwt.name and not jwks_uri:
-        error_message = {"code": 400,
+        valid_scope_found = False
+        scopes_ = scopes.split()
+        for scope in scopes_:
+            if scope in [e.name for e in SCOPES]:
+                valid_scope_found = True
+                break
+        if not valid_scope_found:
+            raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes))
+
+        # allowing open client registration
+        response = {
+            "client_id": str(uuid.uuid4()),
+            "client_name": request.json["client_name"],
+            "client_secret_expires_at": 0,
+            "redirect_uris": redirect_uris,
+            "grant_types": grant_types,
+            "response_types": response_types,
+            "scope": scopes,
+            "token_endpoint_auth_method": token_endpoint_auth_method
+        }
+
+        if token_endpoint_auth_method == TOKEN_ENDPOINT_AUTH_METHODS.client_secret_basic.name:
+            response["client_secret"] = str(uuid.uuid4())
+
+        if client_uri:
+            response["client_uri"] = client_uri
+
+        if jwks_uri:
+            response["jwks_uri"] = jwks_uri
+
+        return jsonify(response), HTTPStatus.CREATED.value
+
+    except jsonschema.ValidationError as e:
+        error_message = {"code": HTTPStatus.BAD_REQUEST.value,
                          "error": "invalid_request",
-                         "error_description": "Missing jwks_uri"}
+                         "error_description": e.message}
         return Response(json.dumps(error_message), status=error_message["code"], mimetype='application/json')
-
-    # hmm, TODO register_client_response schema validation
-
-    return jsonify(response), 201
+    except AuthException as e:
+        error_message = {"code": e.httpstatus.value,
+                         "error": e.error,
+                         "error_description": e.description}
+        return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')
 
 
 @ AUTH_API.route('/auth', methods=["GET"])
 def auth_auth():
-    # pretending authorization code flow
-    # i.e. no validation done, just redirect a random authorization code back to client
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
+    try:
+        # this endpoint uses for the authorization code flow
+        # see https://tools.ietf.org/html/rfc6749#section-4.1.1
+        # Required parameters
+        #   response_type == code
+        #   client_id
+        # Optional parameters
+        #   redirect_uri
+        #   scope
+        # Recommended parameters
+        #   state
 
-    auth.scopes = request.args['scope'].split()
-    vars = {'state': request.args['state'], 'code': str(uuid.uuid4())}
-    return redirect("{}?{}".format(request.args['redirect_uri'], urllib.parse.urlencode(vars)))
+        # hmm, no client authorization done, just redirects a random authorization code back to the client
+        # TODO: add web pages for client authorization for the future
+
+        # "If the request fails due to a missing, invalid, or mismatching
+        # redirection URI, or if the client identifier is missing or invalid,
+        # the authorization server SHOULD inform the resource owner of the
+        # error and MUST NOT automatically redirect the user-agent to the
+        # invalid redirection URI."
+        # see https://tools.ietf.org/html/rfc6749#section-4.1.2.1
+        error = None
+        error_description = None
+        redirect_uri = REDIRECT_URI
+        if "redirect_uri" in request.args:
+            redirect_uri = request.args["redirect_uri"]
+            # TODO: check is the redirect_uri in the registered redirect_uris
+        if not redirect_uri:
+            raise AuthException("invalid_request", "missing redirect_uri")
+
+        if "client_id" not in request.args:
+            raise AuthException("invalid_request", "missing client_id")
+
+        if "response_type" not in request.args:
+            error = "invalid_request"
+            error_description = "missing response_type"
+        else:
+            response_type = request.args["response_type"]
+            if response_type != RESPONSE_TYPES.code.name:
+                error = "invalid_request"
+                error_description = "response_type not code"
+
+        if "scope" in request.args:
+            valid_scope_found = False
+            scopes = request.args["scope"].split()
+            for scope in scopes:
+                if scope in SCOPES.__members__:
+                    valid_scope_found = True
+                    break
+            if not valid_scope_found:
+                error = "invalid_request"
+                error_description = "scope: {} are not supported".format(scopes)
+
+        # create a random authorization code
+        # TODO: use it to test when client exchanges it for a bearer token
+        auth.code = str(uuid.uuid4())
+        vars = {"code": auth.code}
+
+        if "state" in request.args:
+            vars["state"] = request.args["state"]
+
+        if error:
+            vars["error"] = error
+
+        if error_description:
+            vars["error_description"] = error_description
+
+        return redirect("{}?{}".format(redirect_uri, urllib.parse.urlencode(vars)))
+
+    except AuthException as e:
+        error_message = {"code": e.httpstatus.value,
+                         "error": e.error,
+                         "error_description": e.description}
+        return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')
 
 
 @ AUTH_API.route('/token', methods=["POST"])
 def auth_token():
-    # no validation done yet, just create a token based on the given scopes
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
+    try:
+        auth_header_required = False
+        scopes = []
+        request_data = request.get_data()
+        if request_data:
+            query = json.loads(json.dumps(parse_qs(request_data.decode('ascii'))))
 
-    code = 400
-    error = None
-    error_description = None
-    client_id = None
-    scopes = []
-    request_data = request.get_data()
-    if request_data:
-        # extract scope and client_id from query parameters
-        query = json.loads(json.dumps(parse_qs(request_data.decode('ascii'))))
-        if "scope" in query:
-            scopes = query["scope"][0].split()
-            for scope in scopes:
-                # if scope not in SCOPES:
-                if scope not in [e.name for e in SCOPES]:
-                    error = "invalid_scope"
-                    error_description = "scope is not supported"
-                    break
-        if "grant_type" in query:
-            grant_type = query["grant_type"][0]
-            if grant_type not in [e.name for e in GRANT_TYPES]:
-                error = "unsupported_grant_type"
-                error_description = "grant_type is not supported"
-        else:
-            error = "invalid_request"
-            error_description = "missing grant_type"
-        # using private_key_jwt authentication
-        if "client_assertion_type" in query:
-            client_assertion_type = query["client_assertion_type"][0]
-            if client_assertion_type == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer":
-                if "client_assertion" not in query:
-                    error = "invalid_request"
-                    error_description = "missing client_assertion for private_key_jwt authentication"
-                # hmm, will use the client_assertion for client authentication in future
-                # else:
-                    # client_assertion = query["client_assertion"][0]
+            grant_type = None
+            if "grant_type" in query:
+                grant_type = query["grant_type"][0]
+                if grant_type not in [e.name for e in GRANT_TYPES]:
+                    raise AuthException("unsupported_grant_type", "grant_type is not supported")
+
+            code = query["code"][0] if "code" in query else None
+
+            redirect_uri = query["redirect_uri"][0] if "redirect_uri" in query else None
+
+            client_id = query["client_id"][0] if "client_id" in query else None
+
+            refresh_token = query["refresh_token"][0] if "refresh_token" in query else None
+
+            scopes = query["scope"][0].split() if "scope" in query else SCOPE.split() if SCOPE else []
+            if scopes:
+                for scope in scopes:
+                    valid_scope_found = False
+                    if scope in [e.name for e in SCOPES]:
+                        valid_scope_found = True
+                        break
+                    if not valid_scope_found:
+                        raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes))
             else:
-                error = "unsupported_grant_type"
-                error_description = "invalid client_assertion_type used for private_key_jwt authentication"
+                raise AuthException("invalid_scope", "empty scope")
 
-        # Public client or using private_key_jwt has client_id in query
-        if "client_id" in query:
-            client_id = query["client_id"][0]
+            if grant_type:
+                # Authorization Code Grant
+                # see https://tools.ietf.org/html/rfc6749#section-4.1.3
+                # Required parameters
+                #   grant_type == authorization_code
+                #   code
+                #   redirect_uri
+                #   client_id
+                if grant_type == GRANT_TYPES.authorization_code.name:
+                    if not code:
+                        raise AuthException("invalid_request", "missing authorization code")
+                    elif code != auth.code:
+                        raise AuthException("invalid_grant", "invalid authorization code")
+                    elif not redirect_uri:
+                        raise AuthException("invalid_request", "missing redirect_uri")
+                    elif not client_id:
+                        raise AuthException("invalid_request", "missing client_id")
+                    auth.code = None  # clear the authorization code after use
 
-    # hmm, TODO Confidential client, client_id and client_secret in header
-    auth_header = request.headers.get("Authorization", None)
-    if auth_header:
-        parts = auth_header.split()
-        if len(parts) == 2 and parts[0].lower() == "basic":
-            client_id_client_secret = base64.b64decode(parts[1]).decode('ascii')
-            client_id_client_secret_array = client_id_client_secret.split(":")
-            if len(client_id_client_secret_array) == 2:
-                client_id = client_id_client_secret_array[0]
-                # hmm, will use the client_secret for client authentication in future
-                # client_secret = client_id_client_secret_array[1]
+                # Client Credentials Grant
+                # see https://tools.ietf.org/html/rfc6749#section-4.4.2
+                # Required parameters
+                #   grant_type == client_credentials
+                # Optional parameters
+                #   scope
+                elif grant_type == GRANT_TYPES.client_credentials.name:
+                    pass
+
+                # Refreshing an Access Token
+                # see https://tools.ietf.org/html/rfc6749#section-6
+                # Required parameters
+                #   grant_type == refresh_token
+                #   refresh_token
+                # Optional parameters
+                #   scope
+                elif grant_type == GRANT_TYPES.refresh_token.name:
+                    if not refresh_token:
+                        raise AuthException("invalid_request", "missing refresh_token")
+                else:
+                    raise AuthException("unsupported_grant_type", "grant_type is not supported")
             else:
-                error = "invalid_request"
-                error_description = "missing client_id or client_secret from authorization header"
-        else:
-            error = "invalid_client"
-            error_description = "invalid authorization header"
-        code = 401
+                raise AuthException("invalid_request", "missing grant_type")
 
-    if not client_id:
-        error = "invalid_client"
-        error_description = "missing client_id"
+            # test if using private_key_jwt for client authentication
+            # see https://tools.ietf.org/html/rfc7523#section-2.2
+            if "client_assertion_type" in query:
+                client_assertion_type = query["client_assertion_type"][0]
+                if client_assertion_type == "urn:ietf:params:oauth:client-assertion-type:jwt-bearer":
+                    if "client_assertion" not in query:
+                        raise AuthException("invalid_request",
+                                            "missing client_assertion for private_key_jwt client authentication")
+                    else:
+                        print(" * Fetching client jwks to validate the client_assertion for client authentication")
+                        client_assertion = query["client_assertion"][0]
+                        # fetch the client public keys to validate the client_assertion for client authentication
+                        jwks_uri = JWKS_URI
+                        if jwks_uri:
+                            try:
+                                jwks_response = requests.get(
+                                    jwks_uri, verify=CERT_TRUST_ROOT_CA if ENABLE_HTTPS else False)
+                                jwks = jwks_response.json()
+                                # jwks schema validation
+                                jsonschema.validate(jwks, JWKS_SCHEMA)
+                                claims = jwt.decode(client_assertion, key=jwks)
+                                claims.validate()
+                            except jsonschema.ValidationError as e:
+                                raise AuthException(
+                                    "invalid_request",
+                                    "unable to extract client jwks for private_key_jwt client authentication, \
+                                    schema error: {}".format(e.message))
+                            except Exception:
+                                raise AuthException(
+                                    "invalid_request",
+                                    "unable to extract client jwks for private_key_jwt client authentication")
+                        else:
+                            raise AuthException("invalid_request",
+                                                "missing jwks_uri for private_key_jwt client authentication")
+                else:
+                    raise AuthException("unsupported_grant_type",
+                                        "missing client_assertion_type used for private_key_jwt client authentication")
+            else:
+                auth_header_required = True
 
-    if not error:
+        # for the Confidential client, client_id and client_secret are embedded in the Authorization header
+        auth_header = request.headers.get("Authorization", None)
+        if auth_header:
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == "basic":
+                client_id_client_secret = base64.b64decode(parts[1]).decode('ascii')
+                client_id_client_secret_array = client_id_client_secret.split(":")
+                if len(client_id_client_secret_array) == 2:
+                    client_id = client_id_client_secret_array[0]
+                    # TODO: if client has done the client registration, then the client_secret can be used for
+                    # client authentication
+                    # client_secret = client_id_client_secret_array[1]
+                else:
+                    raise AuthException("invalid_request",
+                                        "missing client_id or client_secret from authorization header")
+            else:
+                raise AuthException("invalid_client", "invalid authorization header")
+        elif auth_header_required:
+            raise AuthException("invalid_client", "invalid authorization header", HTTPStatus.UNAUTHORIZED)
+
         expires_in = 60
-        token = auth.generate_token(scopes, True, overrides={
-            "client_id": client_id,
-            "exp": int(time.time() + expires_in)})
+        token = auth.generate_token(scopes, True, exp=expires_in, overrides={"client_id": client_id})
 
+        # Successful Response
+        # see https://tools.ietf.org/html/rfc6749#section-5.1
         response = {
             "access_token": token,
             "token_type": "bearer",
             "expires_in": expires_in
         }
-        return jsonify(response), 200
-    else:
-        error_message = {"code": code,
-                         "error": error,
-                         "error_description": error_description}
-        return Response(json.dumps(error_message), status=error_message["code"], mimetype='application/json')
+        if grant_type == GRANT_TYPES.authorization_code.name or grant_type == GRANT_TYPES.refresh_token.name:
+            refresh_token = auth.generate_token(scopes, True, exp=expires_in)
+            response["refresh_token"] = refresh_token
+
+        return jsonify(response), HTTPStatus.OK.value
+
+    except AuthException as e:
+        # Error Response
+        # see https://tools.ietf.org/html/rfc6749#section-5.2
+        error_message = {"code": e.httpstatus.value,
+                         "error": e.error,
+                         "error_description": e.description}
+        return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')

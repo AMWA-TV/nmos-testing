@@ -49,7 +49,7 @@ class IS10Utils(NMOSUtils):
                                                   "key_ops": "verify", "alg": "RS512"}).as_dict()
 
     @staticmethod
-    def generate_token(rsa_private_key, scopes=None, write=False, azp=False, add_claims=True, overrides=None):
+    def generate_token(rsa_private_key, scopes=None, write=False, azp=False, add_claims=True, exp=3600, overrides=None):
         """Generate the access token with the given parameters"""
         if scopes is None:
             scopes = []
@@ -62,7 +62,7 @@ class IS10Utils(NMOSUtils):
         payload = {"iss": "{}://{}".format(protocol, host),
                    "sub": "test@{}".format(CONFIG.DNS_DOMAIN),
                    "aud": ["{}://*.{}".format(protocol, CONFIG.DNS_DOMAIN), "{}://*.local".format(protocol)],
-                   "exp": int(time.time() + 3600),
+                   "exp": int(time.time() + exp),
                    "iat": int(time.time()),
                    "scope": " ".join(scopes)}
         if azp:
