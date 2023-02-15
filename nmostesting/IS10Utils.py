@@ -149,3 +149,11 @@ class IS10Utils(NMOSUtils):
                     encryption_algorithm=serialization.NoEncryption()
                 )
                 f.write(pem)
+
+    @staticmethod
+    def is_any_contain(list, enum):
+        """Is any of the list items found in the enum list """
+        for l in list:
+            if l in [e.name for e in enum]:
+                return True
+        return False

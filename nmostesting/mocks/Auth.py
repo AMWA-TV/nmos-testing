@@ -248,14 +248,10 @@ def auth_register():
         if GRANT_TYPES.authorization_code in grant_types and not redirect_uris:
             raise AuthException("invalid_request", "missing redirect_uris")
 
-        valid_scope_found = False
         scopes_ = scopes.split()
-        for scope in scopes_:
-            if scope in [e.name for e in SCOPES]:
-                valid_scope_found = True
-                break
-        if not valid_scope_found:
-            raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes))
+        scope_found = IS10Utils.is_any_contain(scopes_, SCOPES)
+        if not scope_found:
+            raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes_))
 
         # allowing open client registration
         response = {
@@ -338,29 +334,25 @@ def auth_auth():
                 error_description = "response_type not code"
 
         if "scope" in request.args:
-            valid_scope_found = False
             scopes = request.args["scope"].split()
-            for scope in scopes:
-                if scope in SCOPES.__members__:
-                    valid_scope_found = True
-                    break
-            if not valid_scope_found:
+            scope_found = IS10Utils.is_any_contain(scopes, SCOPES)
+            if not scope_found:
                 error = "invalid_request"
                 error_description = "scope: {} are not supported".format(scopes)
 
-        # create a random authorization code
-        # TODO: use it to test when client exchanges it for a bearer token
-        auth.code = str(uuid.uuid4())
-        vars = {"code": auth.code}
+        vars = {}
+        if error:
+            vars["error"] = error
+            if error_description:
+                vars["error_description"] = error_description
+        else:
+            # create a random authorization code
+            # test it when client exchanges it for a bearer token
+            auth.code = str(uuid.uuid4())
+            vars = {"code": auth.code}
 
         if "state" in request.args:
             vars["state"] = request.args["state"]
-
-        if error:
-            vars["error"] = error
-
-        if error_description:
-            vars["error_description"] = error_description
 
         return redirect("{}?{}".format(redirect_uri, urllib.parse.urlencode(vars)))
 
@@ -397,13 +389,9 @@ def auth_token():
 
             scopes = query["scope"][0].split() if "scope" in query else SCOPE.split() if SCOPE else []
             if scopes:
-                for scope in scopes:
-                    valid_scope_found = False
-                    if scope in [e.name for e in SCOPES]:
-                        valid_scope_found = True
-                        break
-                    if not valid_scope_found:
-                        raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes))
+                scope_found = IS10Utils.is_any_contain(scopes, SCOPES)
+                if not scope_found:
+                    raise AuthException("invalid_scope", "scope: {} are not supported".format(scopes))
             else:
                 raise AuthException("invalid_scope", "empty scope")
 
@@ -509,6 +497,10 @@ def auth_token():
                 raise AuthException("invalid_client", "invalid authorization header")
         elif auth_header_required:
             raise AuthException("invalid_client", "invalid authorization header", HTTPStatus.UNAUTHORIZED)
+
+        # client_id is MUST be privided by all type of client
+        if not client_id:
+            raise AuthException("invalid_request", "missing client_id")
 
         expires_in = 60
         token = auth.generate_token(scopes, True, exp=expires_in, overrides={"client_id": client_id})
