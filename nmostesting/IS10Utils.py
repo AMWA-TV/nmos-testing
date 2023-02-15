@@ -118,7 +118,7 @@ class IS10Utils(NMOSUtils):
         cert.set_pubkey(k)
 
         # create cert extension
-        # subject alternative name - mocks.<dns dimain> and  nmos-mocks.local
+        # subject alternative name - mocks.<dns domain> and  nmos-mocks.local
         san = ["DNS:mocks.{}".format(CONFIG.DNS_DOMAIN), "DNS:nmos-mocks.local"]
         cert_ext = []
         cert_ext.append(crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', cert))

@@ -104,15 +104,14 @@ ENABLE_AUTH = False
 # The following token is set by the application at runtime and should be left as 'None'
 AUTH_TOKEN = None
 
-# When testing private_key_jwk OAuth client, mock Auth server uses the jwks_uri to locate the client
-# JSON Web Key Set (JWKS) endpoint for the client jwks to validate the client JWT (client_assertion)
+# When testing private_key_jwt OAuth client, mock Auth server uses the jwks_uri to locate the client
+# JSON Web Key Set (JWKS) endpoint for the client JWKS to validate the client JWT (client_assertion)
 # when fetching the bearer token
 # This is used by the /token endpoint and must be set up before test
 JWKS_URI = None
 
 # When testing Authorization Code Grant OAuth client, mock Auth server redirects the user-agent back to the client
-# with the authorization code. This is used by the /auth authorization endpoin, if no redirect_uri provided by
-# the client
+# with the authorization code. This is used by the /authorize endpoint, if no redirect_uri provided by the client
 REDIRECT_URI = None
 
 # The scope of the access request, this is used by the /token endpoint, if no scope provided by the client
