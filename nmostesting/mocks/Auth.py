@@ -145,7 +145,7 @@ class Auth(object):
     def make_metadata(self):
         metadata = {
             "issuer": self.make_issuer(),
-            "authorization_endpoint": "{}://{}:{}/auth".format(self.protocol, self.host, self.port),
+            "authorization_endpoint": "{}://{}:{}/authorize".format(self.protocol, self.host, self.port),
             "token_endpoint": "{}://{}:{}/token".format(self.protocol, self.host, self.port),
             "jwks_uri": "{}://{}:{}/jwks".format(self.protocol, self.host, self.port),
             "registration_endpoint": "{}://{}:{}/register".format(self.protocol, self.host, self.port),
@@ -288,7 +288,7 @@ def auth_register():
         return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')
 
 
-@ AUTH_API.route('/auth', methods=["GET"])
+@ AUTH_API.route('/authorize', methods=["GET"])
 def auth_auth():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
     try:
@@ -498,7 +498,7 @@ def auth_token():
         elif auth_header_required:
             raise AuthException("invalid_client", "invalid authorization header", HTTPStatus.UNAUTHORIZED)
 
-        # client_id is MUST be privided by all type of client
+        # client_id is MUST be provided by all type of client
         if not client_id:
             raise AuthException("invalid_request", "missing client_id")
 
