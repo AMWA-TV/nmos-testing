@@ -370,7 +370,7 @@ def auth_token():
         scopes = []
         request_data = request.get_data()
         if request_data:
-            query = json.loads(json.dumps(parse_qs(request_data.decode('ascii'))))
+            query = json.loads(json.dumps(parse_qs(request_data.decode('utf-8'))))
 
             grant_type = None
             if "grant_type" in query:
