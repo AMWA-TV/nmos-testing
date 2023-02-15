@@ -26,7 +26,7 @@ import requests
 
 from flask import Flask, Blueprint, Response, request, jsonify, redirect
 from urllib.parse import parse_qs
-from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS, CERT_TRUST_ROOT_CA, JWKS_URI, REDIRECT_URI, SCOPE
+from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS, CERT_TRUST_ROOT_CA, JWKS_URI, REDIRECT_URI, SCOPE, CACHE_PATH
 from ..TestHelper import get_default_ip, get_mocks_hostname, load_resolved_schema
 from ..IS10Utils import IS10Utils
 from zeroconf_monkey import ServiceInfo
@@ -180,9 +180,7 @@ AUTH_API = Blueprint('auth_pi', __name__)
 PRIMARY_AUTH = AUTHS[0]
 SECONDARY_AUTH = AUTHS[1]
 
-SPEC_PATH = os.path.join("cache/is-10")
-REGISTER_CLIENT_REQUEST_SCHEMA = load_resolved_schema(SPEC_PATH, "register_client_request.json")
-JWKS_SCHEMA = load_resolved_schema(SPEC_PATH, "jwks_schema.json")
+SPEC_PATH = os.path.join(CACHE_PATH + "/is-10")
 
 
 @ AUTH_API.route('/.well-known/oauth-authorization-server', methods=["GET"])
@@ -210,7 +208,8 @@ def auth_jwks():
 def auth_register():
     try:
         # register_client_request schema validation
-        jsonschema.validate(request.json, REGISTER_CLIENT_REQUEST_SCHEMA)
+        schema = load_resolved_schema(SPEC_PATH, "register_client_request.json")
+        jsonschema.validate(request.json, schema)
 
         # extending validation to cover those not in the schema
         redirect_uris = []
@@ -457,7 +456,8 @@ def auth_token():
                                     jwks_uri, verify=CERT_TRUST_ROOT_CA if ENABLE_HTTPS else False)
                                 jwks = jwks_response.json()
                                 # jwks schema validation
-                                jsonschema.validate(jwks, JWKS_SCHEMA)
+                                schema = load_resolved_schema(SPEC_PATH, "jwks_schema.json")
+                                jsonschema.validate(jwks, schema)
                                 claims = jwt.decode(client_assertion, key=jwks)
                                 claims.validate()
                             except jsonschema.ValidationError as e:
