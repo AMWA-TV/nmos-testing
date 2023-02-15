@@ -183,7 +183,7 @@ SECONDARY_AUTH = AUTHS[1]
 SPEC_PATH = os.path.join(CACHE_PATH + "/is-10")
 
 
-@ AUTH_API.route('/.well-known/oauth-authorization-server', methods=["GET"])
+@AUTH_API.route('/.well-known/oauth-authorization-server', methods=["GET"])
 def auth_metadata():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
 
@@ -191,7 +191,7 @@ def auth_metadata():
     return Response(json.dumps(metadata), mimetype='application/json')
 
 
-@ AUTH_API.route('/jwks', methods=["GET"])
+@AUTH_API.route('/jwks', methods=["GET"])
 def auth_jwks():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
 
@@ -204,7 +204,7 @@ def auth_jwks():
     return Response(json.dumps(jwks), mimetype='application/json')
 
 
-@ AUTH_API.route('/register', methods=["POST"])
+@AUTH_API.route('/register', methods=["POST"])
 def auth_register():
     try:
         # register_client_request schema validation
@@ -287,7 +287,7 @@ def auth_register():
         return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')
 
 
-@ AUTH_API.route('/authorize', methods=["GET"])
+@AUTH_API.route('/authorize', methods=["GET"])
 def auth_auth():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
     try:
@@ -362,7 +362,7 @@ def auth_auth():
         return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')
 
 
-@ AUTH_API.route('/token', methods=["POST"])
+@AUTH_API.route('/token', methods=["POST"])
 def auth_token():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
     try:
