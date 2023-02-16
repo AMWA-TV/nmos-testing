@@ -153,7 +153,7 @@ class IS10Utils(NMOSUtils):
     @staticmethod
     def is_any_contain(list, enum):
         """Is any of the list items found in the enum list """
-        for l in list:
-            if l in [e.name for e in enum]:
+        for item in list:
+            if item in [e.name for e in enum]:
                 return True
         return False
