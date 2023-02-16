@@ -23,7 +23,7 @@ from jsonschema import ValidationError, SchemaError
 
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
-from ..TestHelper import load_resolved_schema
+from ..TestHelper import load_resolved_schema, check_content_type
 
 CONN_API_KEY = "connection"
 
@@ -1026,7 +1026,7 @@ class IS0501Test(GenericTest):
                 url = self.url + "single/senders/{}/transportfile".format(sender)
                 valid, response = self.do_request("GET", url)
                 if valid and response.status_code == 200:
-                    valid, message = self.check_content_type(response.headers, "application/sdp")
+                    valid, message = check_content_type(response.headers, "application/sdp")
                     if valid and message != "":
                         return test.FAIL(message)
                     elif not valid:

@@ -268,25 +268,6 @@ class GenericTest(object):
                                   .format(cors_method, headers['Access-Control-Allow-Methods'])
         return True, ""
 
-    def check_content_type(self, headers, expected_type="application/json"):
-        """Check the Content-Type header of an API request or response"""
-        if "Content-Type" not in headers:
-            return False, "API failed to signal a Content-Type."
-        else:
-            ctype = headers["Content-Type"]
-            ctype_params = ctype.split(";")
-            if ctype_params[0] != expected_type:
-                return False, "API signalled a Content-Type of {} rather than {}." \
-                              .format(ctype, expected_type)
-            elif ctype_params[0] in ["application/json", "application/sdp"]:
-                if len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
-                    return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
-                                 .format(ctype)
-                elif len(ctype_params) >= 2:
-                    return False, "API signalled unexpected additional parameters in its Content-Type: {}" \
-                                  .format(ctype)
-        return True, ""
-
     def check_accept(self, headers):
         """Check the Accept header of an API request"""
         if "Accept" in headers:
@@ -353,7 +334,7 @@ class GenericTest(object):
 
     def check_response(self, schema, method, response):
         """Confirm that a given Requests response conforms to the expected schema and has any expected headers"""
-        ctype_valid, ctype_message = self.check_content_type(response.headers)
+        ctype_valid, ctype_message = TestHelper.check_content_type(response.headers)
         if not ctype_valid:
             return False, ctype_message
 

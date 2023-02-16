@@ -30,7 +30,7 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
+from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, check_content_type
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -354,7 +354,7 @@ class IS0401Test(GenericTest):
 
         ctype_warn = ""
         for resource in registry_data.posts:
-            ctype_valid, ctype_message = self.check_content_type(resource[1]["headers"])
+            ctype_valid, ctype_message = check_content_type(resource[1]["headers"])
             if not ctype_valid:
                 return test.FAIL(ctype_message)
             elif ctype_message and not ctype_warn:
@@ -1410,7 +1410,7 @@ class IS0401Test(GenericTest):
                     headers = None
                 valid, response = self.do_request("GET", href, headers=headers)
                 if valid and response.status_code == 200:
-                    valid, message = self.check_content_type(response.headers, "application/sdp")
+                    valid, message = check_content_type(response.headers, "application/sdp")
                     if not content_type_warn and (not valid or message != ""):
                         content_type_warn = message
                 elif valid and response.status_code == 404:
