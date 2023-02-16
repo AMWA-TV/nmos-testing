@@ -27,7 +27,7 @@ import requests
 from flask import Flask, Blueprint, Response, request, jsonify, redirect
 from urllib.parse import parse_qs
 from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS, CERT_TRUST_ROOT_CA, JWKS_URI, REDIRECT_URI, SCOPE, CACHE_PATH
-from ..TestHelper import get_default_ip, get_mocks_hostname, load_resolved_schema
+from ..TestHelper import get_default_ip, get_mocks_hostname, load_resolved_schema, check_content_type
 from ..IS10Utils import IS10Utils
 from zeroconf_monkey import ServiceInfo
 from enum import Enum
@@ -302,6 +302,10 @@ def auth_auth():
         # Recommended parameters
         #   state
 
+        ctype_valid, ctype_message = check_content_type(request.headers, "application/x-www-form-urlencoded")
+        if not ctype_valid:
+            raise AuthException("invalid_request", ctype_message)
+
         # hmm, no client authorization done, just redirects a random authorization code back to the client
         # TODO: add web pages for client authorization for the future
 
@@ -368,6 +372,11 @@ def auth_token():
     try:
         auth_header_required = False
         scopes = []
+
+        ctype_valid, ctype_message = check_content_type(request.headers, "application/x-www-form-urlencoded")
+        if not ctype_valid:
+            raise AuthException("invalid_request", ctype_message)
+
         request_data = request.get_data()
         if request_data:
             query = json.loads(json.dumps(parse_qs(request_data.decode('utf-8'))))
