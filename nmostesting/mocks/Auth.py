@@ -507,7 +507,7 @@ def auth_token():
         elif auth_header_required:
             raise AuthException("invalid_client", "invalid authorization header", HTTPStatus.UNAUTHORIZED)
 
-        # client_id is MUST be provided by all type of client
+        # client_id MUST be provided by all types of client
         if not client_id:
             raise AuthException("invalid_request", "missing client_id")
 

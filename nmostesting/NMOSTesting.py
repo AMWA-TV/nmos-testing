@@ -1120,7 +1120,7 @@ def main(args):
     if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
-    # Advertise the primary mock Authorization server to allow the Node to find it to access auth endpoint
+    # Advertise the primary mock Authorization server to allow the Node to find it
     if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
         primary_auth_info = PRIMARY_AUTH.make_mdns_info()
         zc = Zeroconf()
