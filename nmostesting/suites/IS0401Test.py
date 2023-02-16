@@ -48,7 +48,7 @@ class IS0401Test(GenericTest):
         self.registries = registries[1:]
         self.node = node
         self.dns_server = dns_server
-        self.auth = auths[0]
+        self.auth = auths[0] if auths else None
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []

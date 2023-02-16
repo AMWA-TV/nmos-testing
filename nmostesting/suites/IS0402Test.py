@@ -53,7 +53,7 @@ class IS0402Test(GenericTest):
         self.is04_query_utils = IS04Utils(self.query_url)
         self.test_data = self.load_resource_data()
         self.subscription_data = self.load_subscription_request_data()
-        self.auth = auths[0]
+        self.auth = auths[0] if auths else None
 
     def set_up_tests(self):
         self.zc = Zeroconf()
