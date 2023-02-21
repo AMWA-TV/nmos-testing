@@ -935,7 +935,7 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
         # Check SDPoker version
-        sdpoker_min_version = "0.2.0"
+        sdpoker_min_version = "0.3.0"
         try:
             cmd_string = "sdpoker --version"
             output = subprocess.check_output(cmd_string, stderr=subprocess.STDOUT, shell=True)
