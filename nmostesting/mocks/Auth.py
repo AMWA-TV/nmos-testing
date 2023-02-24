@@ -145,10 +145,10 @@ class Auth(object):
     def make_metadata(self):
         metadata = {
             "issuer": self.make_issuer(),
-            "authorization_endpoint": "{}://{}:{}/authorize".format(self.protocol, self.host, self.port),
-            "token_endpoint": "{}://{}:{}/token".format(self.protocol, self.host, self.port),
-            "jwks_uri": "{}://{}:{}/jwks".format(self.protocol, self.host, self.port),
-            "registration_endpoint": "{}://{}:{}/register".format(self.protocol, self.host, self.port),
+            "authorization_endpoint": "{}://{}:{}/testauthorize".format(self.protocol, self.host, self.port),
+            "token_endpoint": "{}://{}:{}/testtoken".format(self.protocol, self.host, self.port),
+            "jwks_uri": "{}://{}:{}/testjwks".format(self.protocol, self.host, self.port),
+            "registration_endpoint": "{}://{}:{}/testregister".format(self.protocol, self.host, self.port),
             "response_types_supported": [
                 "code",
                 "code token"
@@ -191,7 +191,7 @@ def auth_metadata():
     return Response(json.dumps(metadata), mimetype='application/json')
 
 
-@AUTH_API.route('/jwks', methods=["GET"])
+@AUTH_API.route('/testjwks', methods=["GET"])
 def auth_jwks():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
 
@@ -204,7 +204,7 @@ def auth_jwks():
     return Response(json.dumps(jwks), mimetype='application/json')
 
 
-@AUTH_API.route('/register', methods=["POST"])
+@AUTH_API.route('/testregister', methods=["POST"])
 def auth_register():
     try:
         # register_client_request schema validation
@@ -287,7 +287,7 @@ def auth_register():
         return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')
 
 
-@AUTH_API.route('/authorize', methods=["GET"])
+@AUTH_API.route('/testauthorize', methods=["GET"])
 def auth_auth():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
     try:
@@ -366,7 +366,7 @@ def auth_auth():
         return Response(json.dumps(error_message), status=e.httpstatus.value, mimetype='application/json')
 
 
-@AUTH_API.route('/token', methods=["POST"])
+@AUTH_API.route('/testtoken', methods=["POST"])
 def auth_token():
     auth = AUTHS[flask.current_app.config["AUTH_INSTANCE"]]
     try:
