@@ -35,7 +35,7 @@ class BCP0060101Test(GenericTest):
         omit_paths = [
             "/single/senders/{senderId}/transportfile"
         ]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.is04_resources = {"senders": [], "receivers": [], "_requested": [], "sources": [], "flows": []}
         self.is04_utils = IS04Utils(self.node_url)

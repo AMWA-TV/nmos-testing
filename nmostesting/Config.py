@@ -83,8 +83,12 @@ BIND_INTERFACE = None
 # Defaults to the CA contained within this testing tool
 CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
 
+# certificate authority private key
+# Used by the testing tool's mock Auth to generate certificate
+KEY_TRUST_ROOT_CA = "test_data/BCP00301/ca/private/ca.key.pem"
+
 # Certificate chains and the corresponding private keys
-# Used by the testing tool's mock Node, Registry and System API
+# Used by the testing tool's mock Node, Registry, System and Authorization API
 CERTS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/certs/ecdsa.mocks.testsuite.nmos.tv.cert.chain.pem",
     "test_data/BCP00301/ca/intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem"
@@ -97,24 +101,23 @@ KEYS_MOCKS = [
 # Test using authorization as per AMWA IS-10 and BCP-003-02
 ENABLE_AUTH = False
 
-# Where the Authorization Server is located on the network. Required when 'ENABLE_AUTH' is True
-# The hostname must match the CN or SAN in the TLS certificate used by the Authorization Server when combined
-# with the DNS_DOMAIN setting
-AUTH_SERVER_HOSTNAME = "auth"
-AUTH_SERVER_IP = "127.0.0.1"
-AUTH_SERVER_PORT = 443
-
-# Which private and public key to use to generate authorization tokens. These must match the keys used by an
-# authorization server on the network to ensure that Nodes trust tokens generated from them. DO NOT use production
-# keys for testing purposes.
-AUTH_TOKEN_PUBKEY = "test_data/BCP00301/ca/intermediate/certs/intermediate.pubkey.pem"
-AUTH_TOKEN_PRIVKEY = "test_data/BCP00301/ca/intermediate/private/intermediate.key.pem"
-
-# Set the contents of the 'iss' key within generated JSON Web Tokens to match what the network authorization server uses
-AUTH_TOKEN_ISSUER = "https://testsuite.nmos.tv"
-
 # The following token is set by the application at runtime and should be left as 'None'
 AUTH_TOKEN = None
+
+# When testing private_key_jwt OAuth client, mock Auth server uses the jwks_uri to locate the client
+# JSON Web Key Set (JWKS) endpoint for the client JWKS to validate the client JWT (client_assertion)
+# when fetching the bearer token
+# This is used by the /token endpoint and must be set up before test
+JWKS_URI = None
+
+# When testing Authorization Code Grant OAuth client, mock Auth server redirects the user-agent back to the client
+# with the authorization code. This is used by the /authorize endpoint, if no redirect_uri provided by the client
+REDIRECT_URI = None
+
+# The scope of the access request, this is used by the /token endpoint, if no scope provided by the client
+# Supported scopes are "connection", "node", "query", "registration", "events", "channelmapping"
+# Scope is space-separated list of scope names, e.g. "connection node events"
+SCOPE = None
 
 # Domain name to use for the local DNS server and mock Node
 # This must match the domain name used for certificates in HTTPS mode

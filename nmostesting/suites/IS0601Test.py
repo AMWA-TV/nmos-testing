@@ -20,4 +20,4 @@ class IS0601Test(GenericTest):
     Runs IS-06-01-Test
     """
     def __init__(self, apis, **kwargs):
-        GenericTest.__init__(self, apis)
+        GenericTest.__init__(self, apis, **kwargs)

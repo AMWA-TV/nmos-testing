@@ -39,7 +39,7 @@ class IS0502Test(GenericTest):
         omit_paths = [
             "/single/senders/{senderId}/transportfile"
         ]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONN_API_KEY]["url"]
         self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {},

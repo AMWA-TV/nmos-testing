@@ -39,10 +39,10 @@ class IS0402Test(GenericTest):
     """
     Runs IS-04-02-Test
     """
-    def __init__(self, apis, **kwargs):
+    def __init__(self, apis, auths, **kwargs):
         # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
         omit_paths = ["/health/nodes/{nodeId}"]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, auths=auths, **kwargs)
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
         if self.apis[REG_API_KEY]["version"] != self.apis[QUERY_API_KEY]["version"]:
@@ -53,6 +53,7 @@ class IS0402Test(GenericTest):
         self.is04_query_utils = IS04Utils(self.query_url)
         self.test_data = self.load_resource_data()
         self.subscription_data = self.load_subscription_request_data()
+        self.auth = auths[0] if auths else None
 
     def set_up_tests(self):
         self.zc = Zeroconf()
@@ -2137,8 +2138,8 @@ class IS0402Test(GenericTest):
         self.do_test_api_v1_x(test)
 
         token_scopes = ["registration"]
-        a_token = self.generate_token(token_scopes, True)
-        b_token = self.generate_token(token_scopes, True)
+        a_token = self.auth.generate_token(token_scopes, True)
+        b_token = self.auth.generate_token(token_scopes, True)
 
         data = self.copy_resource("node")
         data["id"] = str(uuid.uuid4())
@@ -2158,8 +2159,9 @@ class IS0402Test(GenericTest):
         self.do_test_api_v1_x(test)
 
         token_scopes = ["registration"]
-        a_token = self.generate_token(token_scopes, True, azp=True)
-        b_token = self.generate_token(token_scopes, True)  # Checks tha client_id and azp are treated the same way
+        a_token = self.auth.generate_token(token_scopes, True, azp=True)
+        # Checks tha client_id and azp are treated the same way
+        b_token = self.auth.generate_token(token_scopes, True)
 
         data = self.copy_resource("node")
         data["id"] = str(uuid.uuid4())

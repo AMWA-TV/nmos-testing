@@ -23,7 +23,7 @@ from jsonschema import ValidationError, SchemaError
 
 from ..GenericTest import GenericTest
 from ..IS05Utils import IS05Utils
-from ..TestHelper import load_resolved_schema
+from ..TestHelper import load_resolved_schema, check_content_type
 
 CONN_API_KEY = "connection"
 
@@ -39,13 +39,12 @@ class IS0501Test(GenericTest):
     """
     Runs IS-05-01-Test
     """
-
     def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
             "/single/senders/{senderId}/transportfile"
         ]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.url = self.apis[CONN_API_KEY]["url"]
         self.is05_utils = IS05Utils(self.url)
 
@@ -330,7 +329,7 @@ class IS0501Test(GenericTest):
         rtpGeneralAutoParams = [
             'interface_ip',
             'destination_port'
-            ]
+        ]
         fecAutoParams = [
             'fec_destination_ip',
             'fec_mode',
@@ -1027,7 +1026,7 @@ class IS0501Test(GenericTest):
                 url = self.url + "single/senders/{}/transportfile".format(sender)
                 valid, response = self.do_request("GET", url)
                 if valid and response.status_code == 200:
-                    valid, message = self.check_content_type(response.headers, "application/sdp")
+                    valid, message = check_content_type(response.headers, "application/sdp")
                     if valid and message != "":
                         return test.FAIL(message)
                     elif not valid:

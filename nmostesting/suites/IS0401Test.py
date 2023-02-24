@@ -30,8 +30,7 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
-from ..mocks.Node import NODE
+from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, check_content_type
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -42,13 +41,14 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registries, node, dns_server, **kwargs):
-        GenericTest.__init__(self, apis)
+    def __init__(self, apis, registries, node, dns_server, auths, **kwargs):
+        GenericTest.__init__(self, apis, auths=auths, **kwargs)
         self.invalid_registry = registries[0]
         self.primary_registry = registries[1]
         self.registries = registries[1:]
         self.node = node
         self.dns_server = dns_server
+        self.auth = auths[0] if auths else None
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
@@ -354,7 +354,7 @@ class IS0401Test(GenericTest):
 
         ctype_warn = ""
         for resource in registry_data.posts:
-            ctype_valid, ctype_message = self.check_content_type(resource[1]["headers"])
+            ctype_valid, ctype_message = check_content_type(resource[1]["headers"])
             if not ctype_valid:
                 return test.FAIL(ctype_message)
             elif ctype_message and not ctype_warn:
@@ -810,7 +810,7 @@ class IS0401Test(GenericTest):
         and connects the Receiver to a stream"""
 
         if CONFIG.DNS_SD_MODE == "multicast":
-            sender_info = self._node_mdns_info(NODE.port)
+            sender_info = self._node_mdns_info(self.node.port)
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid or receivers.status_code != 200:
@@ -1404,13 +1404,13 @@ class IS0401Test(GenericTest):
                     continue
 
                 if self.authorization and urlparse(href).path.startswith("/x-nmos/connection"):
-                    token = self.generate_token(["connection"], True)
+                    token = self.auth.generate_token(["connection"], True)
                     headers = {"Authorization": "Bearer {}".format(token)}
                 else:
                     headers = None
                 valid, response = self.do_request("GET", href, headers=headers)
                 if valid and response.status_code == 200:
-                    valid, message = self.check_content_type(response.headers, "application/sdp")
+                    valid, message = check_content_type(response.headers, "application/sdp")
                     if not content_type_warn and (not valid or message != ""):
                         content_type_warn = message
                 elif valid and response.status_code == 404:

@@ -22,6 +22,7 @@ from threading import Event
 
 from .TestHelper import get_default_ip
 from . import Config as CONFIG
+from .mocks.Auth import PRIMARY_AUTH
 
 
 class ForwardingZoneResolver(ZoneResolver):
@@ -130,9 +131,9 @@ class DNS(object):
         if CONFIG.ENABLE_AUTH:
             auth_proto = "https" if CONFIG.ENABLE_HTTPS else "http"
             extra_services["auth"] = {
-                "host": CONFIG.AUTH_SERVER_HOSTNAME,
-                "ip": CONFIG.AUTH_SERVER_IP,
-                "port": CONFIG.AUTH_SERVER_PORT,
+                "host": "mocks",
+                "ip": self.default_ip,
+                "port": PRIMARY_AUTH.port,
                 "txt": ["api_ver=v1.0", "api_proto={}".format(auth_proto), "pri=0"]
             }
         if CONFIG.ENABLE_MQTT_BROKER:
