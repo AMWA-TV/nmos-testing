@@ -71,7 +71,7 @@ class AuthServer(object):
             if ENABLE_HTTPS:
                 # ssl.create_default_context() provides options that broadly correspond to
                 # the requirements of BCP-003-01
-                ctx = ssl.create_default_context()
+                ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 ctx.load_cert_chain(cert_file, key_file)
                 # additionally disable TLS v1.0 and v1.1
                 ctx.options &= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
