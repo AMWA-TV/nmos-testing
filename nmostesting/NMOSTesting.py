@@ -342,6 +342,12 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-11",
             "api_key": "streamcompatibility"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
         }],
         "class": IS1101Test.IS1101Test
     },
