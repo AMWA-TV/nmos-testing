@@ -29,9 +29,9 @@
     <div id="page">
         <h1>NMOS Testing Tool</h1>
         <noscript>
-          <div class="alert alert-danger top_alert" role="alert">
-              This tool requires JavaScript. Please enable it to ensure accurate results.
-          </div>
+            <div class="alert alert-danger top_alert" role="alert">
+                This tool requires JavaScript. Please enable it to ensure accurate results.
+            </div>
         </noscript>
         <div class="alert alert-primary top_alert" role="alert">
             These test suites are under active development and do not yet provide 100% coverage of all specifications.<br />
@@ -78,19 +78,19 @@
                 <div>
                     <label>Protocol:</label>
                     <select disabled>
-                        <option>{{ config.protocol }}</option>
+                        <option>{{ pretty_config.protocol }}</option>
                     </select><br />
                     <label>Authorization:</label>
                     <select disabled>
-                        <option>{{ config.authorization }}</option>
+                        <option>{{ pretty_config.authorization }}</option>
                     </select><br />
                     <label>Discovery Mode:</label>
                     <select disabled>
-                      <option>{{ config.discovery }}</option>
+                      <option>{{ pretty_config.discovery }}</option>
                     </select><br />
                     <label>Max Test Iterations:</label>
                     <select disabled>
-                      <option>{{ config.max_test_iterations }}</option>
+                      <option>{{ pretty_config.max_test_iterations }}</option>
                     </select><br />
                 </div>
                 <br />
@@ -123,10 +123,10 @@
                     <input type="submit" id="runbtn" value="Run"/>
                 </div>
             </div>
-
+            <div class="footnote">
+                {{ config }}
+            </div>
         </form>
     </div>
-    <br/>
-    <br>
-    </body>
+</body>
 </html>
