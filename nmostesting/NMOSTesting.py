@@ -905,7 +905,7 @@ def start_web_servers():
     ctx = None
     if CONFIG.ENABLE_HTTPS:
         # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
-        ctx = ssl.create_default_context()
+        ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         for cert, key in zip(CONFIG.CERTS_MOCKS, CONFIG.KEYS_MOCKS):
             ctx.load_cert_chain(cert, key)
         # additionally disable TLS v1.0 and v1.1
