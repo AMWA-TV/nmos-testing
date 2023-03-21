@@ -36,6 +36,6 @@ jobs:
         with:
           builder: ${{ steps.buildx.outputs.name }}
           platforms: linux/amd64,linux/arm64
-          build-args: VERSION=${{ github.ref_name }}:${{ env.SHA8 }}
+          build-args: VERSION=${{ github.repository }}-${{ github.ref_name }}:${{ env.SHA8 }}
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/nmos-testing:${{ github.ref_name }}-${{ env.SHA8 }}
