@@ -1115,7 +1115,11 @@ def main(args):
         repo = git.Repo(".")
         TOOL_VERSION = repo.git.rev_parse(repo.head.object.hexsha, short=7)
     except git.exc.InvalidGitRepositoryError:
-        TOOL_VERSION = "Unknown"
+        try:
+            version_file = open('NMOS_TESTING_VERSION')
+            TOOL_VERSION = version_file.read();
+        except:
+            TOOL_VERSION = 'Unknown'
 
     # Start the DNS server
     if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
