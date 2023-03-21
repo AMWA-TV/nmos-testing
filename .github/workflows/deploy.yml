@@ -38,4 +38,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: VERSION=${{ github.ref_name }}:${{ env.SHA8 }}
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ github.ref_name }}-${{ env.SHA8 }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/nmos-testing:${{ github.ref_name }}-${{ env.SHA8 }}
