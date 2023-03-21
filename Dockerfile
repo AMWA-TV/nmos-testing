@@ -5,7 +5,7 @@ ARG VERSION
 
 ADD . .
 
-RUN echo $VERSION > NMOS_TESTING_VERSION
+RUN echo -n $VERSION > NMOS_TESTING_VERSION
 
 RUN apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
