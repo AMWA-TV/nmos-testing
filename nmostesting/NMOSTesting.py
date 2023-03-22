@@ -44,6 +44,7 @@ from junit_xml import TestSuite, TestCase
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from requests.compat import json
+from urllib.parse import urlparse
 
 from . import Config as CONFIG
 from .DNS import DNS
@@ -1113,7 +1114,10 @@ def main(args):
     # Identify current testing tool version
     try:
         repo = git.Repo(".")
-        TOOL_VERSION = repo.git.rev_parse(repo.head.object.hexsha, short=7)
+        repo_name = re.sub(r"\.git$", "", re.sub(r"^/", "", urlparse(repo.remotes.origin.url).path))
+        repo_branch = repo.active_branch
+        repo_commit = repo.git.rev_parse(repo.head.object.hexsha, short=7)
+        TOOL_VERSION = "{}:{}@{}".format(repo_name, repo_branch, repo_commit)
     except git.exc.InvalidGitRepositoryError:
         TOOL_VERSION = os.getenv('TOOL_VERSION', 'Unknown')
 
