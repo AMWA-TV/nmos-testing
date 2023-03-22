@@ -1116,7 +1116,7 @@ def main(args):
         TOOL_VERSION = repo.git.rev_parse(repo.head.object.hexsha, short=7)
     except git.exc.InvalidGitRepositoryError:
         TOOL_VERSION = os.getenv('TOOL_VERSION', 'Unknown')
-        
+
     # Start the DNS server
     if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
