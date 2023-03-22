@@ -2,10 +2,9 @@ FROM ubuntu:bionic
 
 WORKDIR /home/nmos-testing
 ARG VERSION
+ENV TOOL_VERSION=$VERSION
 
 ADD . .
-
-RUN echo -n $VERSION > NMOS_TESTING_VERSION
 
 RUN apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
