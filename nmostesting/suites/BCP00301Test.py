@@ -264,7 +264,7 @@ class BCP00301Test(GenericTest):
         """Certificate is valid and matches the host under test"""
 
         try:
-            context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, CONFIG.CERT_TRUST_ROOT_CA)
+            context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=CONFIG.CERT_TRUST_ROOT_CA)
             hostname = self.apis[SECURE_API_KEY]["hostname"]
             sock = context.wrap_socket(socket.socket(), server_hostname=hostname.rstrip('.'))
             sock.settimeout(CONFIG.HTTP_TIMEOUT)
