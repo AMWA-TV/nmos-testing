@@ -22,6 +22,7 @@ from jsonschema import ValidationError
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from copy import deepcopy
+from collections import defaultdict
 from pathlib import Path
 from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
 
@@ -29,8 +30,7 @@ from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
-from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema
-from ..mocks.Node import NODE
+from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, check_content_type
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -41,13 +41,14 @@ class IS0401Test(GenericTest):
     """
     Runs IS-04-01-Test
     """
-    def __init__(self, apis, registries, node, dns_server):
-        GenericTest.__init__(self, apis)
+    def __init__(self, apis, registries, node, dns_server, auths, **kwargs):
+        GenericTest.__init__(self, apis, auths=auths, **kwargs)
         self.invalid_registry = registries[0]
         self.primary_registry = registries[1]
         self.registries = registries[1:]
         self.node = node
         self.dns_server = dns_server
+        self.auth = auths[0] if auths else None
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
@@ -353,7 +354,7 @@ class IS0401Test(GenericTest):
 
         ctype_warn = ""
         for resource in registry_data.posts:
-            ctype_valid, ctype_message = self.check_content_type(resource[1]["headers"])
+            ctype_valid, ctype_message = check_content_type(resource[1]["headers"])
             if not ctype_valid:
                 return test.FAIL(ctype_message)
             elif ctype_message and not ctype_warn:
@@ -809,35 +810,60 @@ class IS0401Test(GenericTest):
         and connects the Receiver to a stream"""
 
         if CONFIG.DNS_SD_MODE == "multicast":
-            sender_info = self._node_mdns_info(NODE.port)
+            sender_info = self._node_mdns_info(self.node.port)
 
         valid, receivers = self.do_request("GET", self.node_url + "receivers")
         if not valid or receivers.status_code != 200:
             return test.FAIL("Unexpected response from the Node API: {}".format(receivers))
 
         try:
-            formats_tested = []
+            found_rtp = False
+            formats_tested = defaultdict(int)
+            warn_sdp_untested = ""
             for receiver in receivers.json():
                 if not receiver["transport"].startswith("urn:x-nmos:transport:rtp"):
                     continue
+                found_rtp = True
 
-                try:
-                    stream_type = receiver["format"].split(":")[-1]
-                except TypeError:
-                    return test.FAIL("Unexpected Receiver format: {}".format(receiver))
+                caps = receiver["caps"]
 
-                # Test each available receiver format once
-                if stream_type in formats_tested:
-                    continue
-
-                if stream_type not in ["video", "audio", "data", "mux"]:
+                if receiver["format"] == "urn:x-nmos:format:video":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/raw"
+                elif receiver["format"] == "urn:x-nmos:format:audio":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "audio/L24"
+                elif receiver["format"] == "urn:x-nmos:format:data":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/smpte291"
+                elif receiver["format"] == "urn:x-nmos:format:mux":
+                    media_type = caps["media_types"][0] if "media_types" in caps else "video/SMPTE2022-6"
+                else:
                     return test.FAIL("Unexpected Receiver format: {}".format(receiver["format"]))
+
+                if CONFIG.MAX_TEST_ITERATIONS > 0:
+                    # Limit maximum number of Receivers of each format that are tested
+                    if CONFIG.MAX_TEST_ITERATIONS <= formats_tested[receiver["format"]]:
+                        continue
+
+                supported_media_types = [
+                    "video/raw",
+                    "video/jxsv",
+                    "audio/L16",
+                    "audio/L24",
+                    "audio/L32",
+                    "video/smpte291",
+                    "video/SMPTE2022-6"
+                ]
+                if media_type not in supported_media_types:
+                    if not warn_sdp_untested:
+                        warn_sdp_untested = "Could not test Receiver {} because this test cannot generate SDP data " \
+                            "for media_type '{}'".format(receiver["id"], media_type)
+                    continue
 
                 if CONFIG.DNS_SD_MODE == "multicast":
                     # Advertise the sender to allow the Node to find it to make connection
                     self.zc.register_service(sender_info)
 
-                request_data = self.node.get_sender(stream_type)
+                api = self.apis[NODE_API_KEY]
+                request_data = self.node.get_sender(media_type, api["version"])
                 self.do_receiver_put(test, receiver["id"], request_data)
 
                 if CONFIG.DNS_SD_MODE == "multicast":
@@ -854,15 +880,16 @@ class IS0401Test(GenericTest):
                     return test.FAIL("Node API Receiver {} subscription does not reflect the subscribed "
                                      "Sender ID".format(receiver["id"]))
 
-                api = self.apis[NODE_API_KEY]
                 if self.is04_utils.compare_api_version(api["version"], "v1.2") >= 0:
                     if not receiver["subscription"]["active"]:
                         return test.FAIL("Node API Receiver {} subscription does not indicate an active "
                                          "subscription".format(receiver["id"]))
 
-                formats_tested.append(stream_type)
+                formats_tested[receiver["format"]] += 1
 
-            if len(formats_tested) > 0:
+            if warn_sdp_untested:
+                return test.MANUAL(warn_sdp_untested)
+            elif found_rtp:
                 return test.PASS()
         except json.JSONDecodeError:
             return test.FAIL("Non-JSON response returned from Node API")
@@ -1377,13 +1404,13 @@ class IS0401Test(GenericTest):
                     continue
 
                 if self.authorization and urlparse(href).path.startswith("/x-nmos/connection"):
-                    token = self.generate_token(["connection"], True)
+                    token = self.auth.generate_token(["connection"], True)
                     headers = {"Authorization": "Bearer {}".format(token)}
                 else:
                     headers = None
                 valid, response = self.do_request("GET", href, headers=headers)
                 if valid and response.status_code == 200:
-                    valid, message = self.check_content_type(response.headers, "application/sdp")
+                    valid, message = check_content_type(response.headers, "application/sdp")
                     if not content_type_warn and (not valid or message != ""):
                         content_type_warn = message
                 elif valid and response.status_code == 404:
@@ -1901,7 +1928,10 @@ class IS0401Test(GenericTest):
 
         # general_constraints = [
         #     "urn:x-nmos:cap:format:media_type",
-        #     "urn:x-nmos:cap:format:grain_rate"
+        #     "urn:x-nmos:cap:format:grain_rate",
+        #     "urn:x-nmos:cap:format:bit_rate",
+        #     "urn:x-nmos:cap:transport:bit_rate",
+        #     "urn:x-nmos:cap:transport:st2110_21_sender_type"
         # ]
         video_specific_constraints = [
             "urn:x-nmos:cap:format:frame_width",
@@ -1911,7 +1941,10 @@ class IS0401Test(GenericTest):
             "urn:x-nmos:cap:format:transfer_characteristic",
             "urn:x-nmos:cap:format:color_sampling",
             "urn:x-nmos:cap:format:component_depth",
-            "urn:x-nmos:cap:transport:st2110_21_sender_type"
+            "urn:x-nmos:cap:format:profile",
+            "urn:x-nmos:cap:format:level",
+            "urn:x-nmos:cap:format:sublevel",
+            "urn:x-nmos:cap:transport:packet_transmission_mode"
         ]
         audio_specific_constraints = [
             "urn:x-nmos:cap:format:channel_count",
@@ -2028,7 +2061,8 @@ class IS0401Test(GenericTest):
                                                      NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
         elif put_response.status_code != 202:
             raise NMOSTestException(test.FAIL("Receiver target PUT did not produce a 202 (or 501) response code: "
-                                              "{}".format(put_response.status_code)))
+                                              "{}. Please ensure SDP_PREFERENCES match the node under test."
+                                              .format(put_response.status_code)))
 
         schema = self.get_schema(NODE_API_KEY, "PUT", "/receivers/{receiverId}/target", put_response.status_code)
         valid, message = self.check_response(schema, "PUT", put_response)

@@ -23,6 +23,7 @@ from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from .. import Config as CONFIG
 from zeroconf_monkey import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
+from ..TestHelper import check_content_type
 
 AUTH_API_KEY = 'auth'
 GRANT_SCOPES = ['is-04', 'is-05']
@@ -48,8 +49,8 @@ class IS1001Test(GenericTest):
     }}
   """
 
-    def __init__(self, apis):
-        super(IS1001Test, self).__init__(apis)
+    def __init__(self, apis, **kwargs):
+        GenericTest.__init__(apis)
         if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("IS-10 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
         self.authorization = False  # Authorization API itself doesn't use auth, so don't send tokens in every request
@@ -466,7 +467,7 @@ class IS1001Test(GenericTest):
             self._raise_nmos_exception(test, response,
                                        string="Incorrect Status Code Returned. Expected {}".format(status_code))
 
-        ctype_valid, ctype_message = self.check_content_type(response.headers)
+        ctype_valid, ctype_message = check_content_type(response.headers)
         if not ctype_valid:
             self._raise_nmos_exception(test, response, ctype_message)
         # else if ctype_message:

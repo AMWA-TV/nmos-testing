@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 
 # NMOS Testing Configuration File
 # -------------------------------
@@ -67,8 +68,8 @@ CACHE_PATH = 'cache'
 # Timeout for any HTTP requests
 HTTP_TIMEOUT = 1
 
-# Restrict the maximum number of resources that time consuming tests run against.
-# 0 = unlimited for a really thorough test!
+# Restrict the maximum number of resources or test points that time-consuming tests run against.
+# 0 = unlimited (all available resources or test points) for a really thorough test!
 MAX_TEST_ITERATIONS = 0
 
 # Test using HTTPS rather than HTTP as per AMWA BCP-003-01
@@ -82,8 +83,12 @@ BIND_INTERFACE = None
 # Defaults to the CA contained within this testing tool
 CERT_TRUST_ROOT_CA = "test_data/BCP00301/ca/certs/ca.cert.pem"
 
+# certificate authority private key
+# Used by the testing tool's mock Auth to generate certificate
+KEY_TRUST_ROOT_CA = "test_data/BCP00301/ca/private/ca.key.pem"
+
 # Certificate chains and the corresponding private keys
-# Used by the testing tool's mock Node, Registry and System API
+# Used by the testing tool's mock Node, Registry, System and Authorization API
 CERTS_MOCKS = [
     "test_data/BCP00301/ca/intermediate/certs/ecdsa.mocks.testsuite.nmos.tv.cert.chain.pem",
     "test_data/BCP00301/ca/intermediate/certs/rsa.mocks.testsuite.nmos.tv.cert.chain.pem"
@@ -96,24 +101,23 @@ KEYS_MOCKS = [
 # Test using authorization as per AMWA IS-10 and BCP-003-02
 ENABLE_AUTH = False
 
-# Where the Authorization Server is located on the network. Required when 'ENABLE_AUTH' is True
-# The hostname must match the CN or SAN in the TLS certificate used by the Authorization Server when combined
-# with the DNS_DOMAIN setting
-AUTH_SERVER_HOSTNAME = "auth"
-AUTH_SERVER_IP = "127.0.0.1"
-AUTH_SERVER_PORT = 443
-
-# Which private and public key to use to generate authorization tokens. These must match the keys used by an
-# authorization server on the network to ensure that Nodes trust tokens generated from them. DO NOT use production
-# keys for testing purposes.
-AUTH_TOKEN_PUBKEY = "test_data/BCP00301/ca/intermediate/certs/intermediate.pubkey.pem"
-AUTH_TOKEN_PRIVKEY = "test_data/BCP00301/ca/intermediate/private/intermediate.key.pem"
-
-# Set the contents of the 'iss' key within generated JSON Web Tokens to match what the network authorization server uses
-AUTH_TOKEN_ISSUER = "https://testsuite.nmos.tv"
-
 # The following token is set by the application at runtime and should be left as 'None'
 AUTH_TOKEN = None
+
+# When testing private_key_jwt OAuth client, mock Auth server uses the jwks_uri to locate the client
+# JSON Web Key Set (JWKS) endpoint for the client JWKS to validate the client JWT (client_assertion)
+# when fetching the bearer token
+# This is used by the /token endpoint and must be set up before test
+JWKS_URI = None
+
+# When testing Authorization Code Grant OAuth client, mock Auth server redirects the user-agent back to the client
+# with the authorization code. This is used by the /authorize endpoint, if no redirect_uri provided by the client
+REDIRECT_URI = None
+
+# The scope of the access request, this is used by the /token endpoint, if no scope provided by the client
+# Supported scopes are "connection", "node", "query", "registration", "events", "channelmapping"
+# Scope is space-separated list of scope names, e.g. "connection node events"
+SCOPE = None
 
 # Domain name to use for the local DNS server and mock Node
 # This must match the domain name used for certificates in HTTPS mode
@@ -129,6 +133,9 @@ PORT_BASE = 5000
 # This will create up to 6 WebSocket servers starting at WEBSOCKET_PORT_BASE up to WEBSOCKET_PORT_BASE + 5
 WEBSOCKET_PORT_BASE = 6000
 
+# Set a RANDOM_SEED to an integer value to make testing deterministic and repeatable.
+RANDOM_SEED = None
+
 # A valid unicast/multicast IP address on the local network which media streams can be sent to. This will be passed
 # into Sender configuration when testing IS-05.
 # The default values are from the IANA-registered TEST-NET-1 and MCAST-TEST-NET ranges. To avoid unintended network
@@ -142,19 +149,27 @@ PREVALIDATE_API = True
 # SDP media parameters which can be modified for devices which do not support the defaults
 # SDP testing is not concerned with support for specific media parameters, but must include them in the file
 SDP_PREFERENCES = {
-    "audio_channels": 2,
-    "audio_sample_rate": 48000,
-    "audio_packet_time": 1,
-    "audio_max_packet_time": 1,
-    "video_width": 1920,
-    "video_height": 1080,
-    "video_interlace": True,
-    "video_exactframerate": "25",
-    "video_depth": 10,
-    "video_sampling": "YCbCr-4:2:2",
-    "video_colorimetry": "BT709",
-    "video_transfer_characteristic": "SDR",
-    "video_type_parameter": "2110TPW"
+    # audio/L16, audio/L24, audio/L32
+    "channels": 2,
+    "sample_rate": 48000,
+    "packet_time": 1,
+    "max_packet_time": 1,
+    # video/raw, etc.
+    "width": 1920,
+    "height": 1080,
+    "interlace": True,
+    "exactframerate": "25",
+    "depth": 10,
+    "sampling": "YCbCr-4:2:2",
+    "colorimetry": "BT709",
+    "RANGE": None,
+    "TCS": "SDR",
+    "TP": "2110TPW",
+    # video/jxsv
+    "profile": "High444.12",
+    "level": "2k-1",
+    "sublevel": "Sublev3bpp",
+    "bit_rate": 109000
 }
 
 # Test with an MQTT Broker as per AMWA IS-07
@@ -282,6 +297,12 @@ SPECIFICATIONS = {
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
+            },
+            "flow-register": {
+                "name": "Flow Attributes Register"
+            },
+            "sender-register": {
+                "name": "Sender Attributes Register"
             }
         }
     },
@@ -298,6 +319,10 @@ SPECIFICATIONS = {
 }
 
 try:
+    keys = SDP_PREFERENCES.keys()
     from . import UserConfig  # noqa: F401
+    if SDP_PREFERENCES.keys() != keys:
+        print(" * ERROR: Check SDP_PREFERENCES keys in UserConfig.py")
+        sys.exit(-1)
 except ImportError:
     pass
