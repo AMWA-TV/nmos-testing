@@ -14,8 +14,9 @@
 
 import time
 import functools
+import random
 from urllib.parse import urlparse
-from random import sample
+
 
 from . import Config as CONFIG
 
@@ -73,6 +74,10 @@ DEFAULT_ARGS = {
 
 
 class NMOSUtils(object):
+
+    # Seedable instance of random for deterministic testing
+    RANDOM = random.Random()
+
     def __init__(self, url):
         self.url = url
 
@@ -167,7 +172,7 @@ class NMOSUtils(object):
     @staticmethod
     def sampled_list(resource_list):
         if CONFIG.MAX_TEST_ITERATIONS > 0:
-            return sample(resource_list, min(CONFIG.MAX_TEST_ITERATIONS, len(resource_list)))
+            return NMOSUtils.RANDOM.sample(resource_list, min(CONFIG.MAX_TEST_ITERATIONS, len(resource_list)))
         else:
             return resource_list
 

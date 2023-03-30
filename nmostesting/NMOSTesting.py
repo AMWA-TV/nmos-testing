@@ -32,6 +32,7 @@ import ssl
 import subprocess
 import pkgutil
 import shlex
+import re
 
 from flask import Flask, render_template, flash, request, make_response, jsonify
 from flask_cors import CORS
@@ -56,6 +57,8 @@ from .OCSP import OCSP, OCSP_API
 from .mocks.Node import NODE, NODE_API
 from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
+from .mocks.Auth import AUTH_API, PRIMARY_AUTH, SECONDARY_AUTH
+from zeroconf_monkey import Zeroconf
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
@@ -83,12 +86,17 @@ from .suites import IS1101Test
 from .suites import IS1102Test
 from .suites import BCP00301Test
 from .suites import BCP0050101Test
+from .suites import BCP0060101Test
+from .suites import BCP0060102Test
 
 
 FLASK_APPS = []
 DNS_SERVER = None
 TOOL_VERSION = None
 CMD_ARGS = None
+
+if not CONFIG.RANDOM_SEED:
+    CONFIG.RANDOM_SEED = random.randrange(sys.maxsize)
 
 CACHEBUSTER = random.randint(1, 10000)
 
@@ -153,6 +161,16 @@ ocsp_app.config['PORT'] = OCSP.port
 ocsp_app.config['SECURE'] = False
 ocsp_app.register_blueprint(OCSP_API)  # OCSP server
 FLASK_APPS.append(ocsp_app)
+
+# Primary Authorization server
+if CONFIG.ENABLE_AUTH:
+    auth_app = Flask(__name__)
+    auth_app.debug = False
+    auth_app.config['AUTH_INSTANCE'] = 0
+    auth_app.config['PORT'] = PRIMARY_AUTH.port
+    auth_app.config['SECURE'] = CONFIG.ENABLE_HTTPS
+    auth_app.register_blueprint(AUTH_API)
+    FLASK_APPS.append(auth_app)
 
 # Definitions of each set of tests made available from the dropdowns
 TEST_DEFINITIONS = {
@@ -354,6 +372,33 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0050101Test.BCP0050101Test
     },
+    "BCP-006-01-01": {
+        "name": "BCP-006-01 NMOS With JPEG XS",
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }],
+        "class": BCP0060101Test.BCP0060101Test
+    },
+    "BCP-006-01-02": {
+        "name": "BCP-006-01 Controller",
+        "specs": [{
+            "spec_key": "controller-tests",
+            "api_key": "testquestion"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "query",
+            "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["host", "port"]
+        }],
+        "class": BCP0060102Test.BCP0060102Test
+    },
 }
 
 
@@ -501,10 +546,12 @@ def index_page():
             discovery_mode = "Invalid Configuration"
     else:
         discovery_mode = "Disabled (Using Query API {}:{})".format(CONFIG.QUERY_API_HOST, CONFIG.QUERY_API_PORT)
-
-    r = make_response(render_template("index.html", form=form, config={"discovery": discovery_mode,
-                                                                       "protocol": protocol,
-                                                                       "authorization": authorization},
+    max_test_iterations = CONFIG.MAX_TEST_ITERATIONS or "Unlimited"
+    r = make_response(render_template("index.html", form=form, config=_export_config(),
+                                      pretty_config={"discovery": discovery_mode,
+                                                     "protocol": protocol,
+                                                     "authorization": authorization,
+                                                     "max_test_iterations": max_test_iterations},
                                       cachebuster=CACHEBUSTER))
     r.headers['Cache-Control'] = 'no-cache, no-store'
     return r
@@ -585,17 +632,12 @@ def run_tests(test, endpoints, test_selection=["all"]):
                     apis[api_key]["raml"] = spec_api["raml"]
 
         # Instantiate the test class
-        if test == "IS-04-01":
-            # This test has an unusual constructor as it requires a registry instance
-            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-        elif test == "IS-09-02":
-            # This test has an unusual constructor as it requires a system api instance
-            test_obj = test_def["class"](apis, SYSTEMS, DNS_SERVER)
-        elif test == "IS-04-04" or test == "IS-05-03":
-            # Controller tests require a registry instance, mock Node and DNS server
-            test_obj = test_def["class"](apis, REGISTRIES, NODE, DNS_SERVER)
-        else:
-            test_obj = test_def["class"](apis)
+        test_obj = test_def["class"](apis,
+                                     systems=SYSTEMS,
+                                     registries=REGISTRIES,
+                                     node=NODE,
+                                     dns_server=DNS_SERVER,
+                                     auths=[PRIMARY_AUTH, SECONDARY_AUTH])
 
         core_app.config['TEST_ACTIVE'] = time.time()
         try:
@@ -672,8 +714,9 @@ def _check_test_result(test_result, results):
 
 def _export_config():
     current_config = {"VERSION": TOOL_VERSION}
+    exclude_params = ['SPECIFICATIONS']
     for param in dir(CONFIG):
-        if not param.startswith("__") and param != "SPECIFICATIONS" and param != "UserConfig":
+        if re.match("^[A-Z][A-Z0-9_]*$", param) and param not in exclude_params:
             current_config[param] = getattr(CONFIG, param)
     return current_config
 
@@ -889,7 +932,7 @@ def start_web_servers():
     ctx = None
     if CONFIG.ENABLE_HTTPS:
         # ssl.create_default_context() provides options that broadly correspond to the requirements of BCP-003-01
-        ctx = ssl.create_default_context()
+        ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         for cert, key in zip(CONFIG.CERTS_MOCKS, CONFIG.KEYS_MOCKS):
             ctx.load_cert_chain(cert, key)
         # additionally disable TLS v1.0 and v1.1
@@ -948,7 +991,8 @@ def check_internal_requirements():
                    "pyopenssl": "OpenSSL",
                    "websocket-client": "websocket",
                    "paho-mqtt": "paho",
-                   "Flask-Cors": "flask_cors"}
+                   "Flask-Cors": "flask_cors",
+                   "pycryptodome": "Crypto"}
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
@@ -964,7 +1008,7 @@ def check_internal_requirements():
 
 def check_external_requirements():
     deps = {
-        "sdpoker": ("sdpoker --version", "0.2.0"),
+        "sdpoker": ("sdpoker --version", "0.3.0"),
         "testssl": ("{} testssl/testssl.sh -v".format(shlex.quote(CONFIG.TEST_SSL_BASH)), "3.0.7")
     }
     for dep_name, dep_ver in deps.items():
@@ -1103,6 +1147,12 @@ def main(args):
     if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         DNS_SERVER = DNS()
 
+    # Advertise the primary mock Authorization server to allow the Node to find it
+    if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
+        primary_auth_info = PRIMARY_AUTH.make_mdns_info()
+        zc = Zeroconf()
+        zc.register_service(primary_auth_info)
+
     # Start the HTTP servers
     start_web_servers()
 
@@ -1123,6 +1173,10 @@ def main(args):
 
     # Testing complete
     print(" * Exiting")
+
+    # Remove the primary mock Authorization server advertisement
+    if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
+        zc.unregister_service(primary_auth_info)
 
     # Stop the DNS server
     if DNS_SERVER:

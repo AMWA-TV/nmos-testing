@@ -1,0 +1,1777 @@
+From 036890ddfffa20727a541f0b0ff36754f066c456 Mon Sep 17 00:00:00 2001
+From: ggeorgea <ggeorgea@matrox.com>
+Date: Sun, 19 Feb 2023 21:05:13 -0500
+Subject: [PATCH] Initial submit for tests general (0), Senders (2), Outputs
+ (3), Receivers (4)
+
+Based on IS-11 Test Plan v0.6
+Senders contains tests 2.0, 2.1 and 2.2
+Receivers contains tests 4.1 and 4.2
+---
+ nmostesting/suites/IS1101Test.py |  332 ++++++-
+ nmostesting/suites/IS1102Test.py | 1392 +++++++++++++++++++++++++++++-
+ 2 files changed, 1720 insertions(+), 4 deletions(-)
+
+diff --git a/nmostesting/suites/IS1101Test.py b/nmostesting/suites/IS1101Test.py
+index 14277a0..637d314 100644
+--- a/nmostesting/suites/IS1101Test.py
++++ b/nmostesting/suites/IS1101Test.py
+@@ -13,14 +13,344 @@
+ # limitations under the License.
+ 
+ from ..GenericTest import GenericTest
++from .. import TestHelper
+ 
+ COMPAT_API_KEY = "streamcompatibility"
++CONTROLS = "controls"
+ 
+ 
+ class IS1101Test(GenericTest):
+     """
+     Runs Node Tests covering IS-11
+     """
++
+     def __init__(self, apis):
+-        GenericTest.__init__(self, apis)
++        # Don't auto-test paths responding with an EDID binary as they don't have a JSON Schema
++        omit_paths = [
++            "/inputs/{inputId}/edid",
++            "/inputs/{inputId}/edid/base",
++            "/inputs/{inputId}/edid/effective",
++            "/outputs/{outputId}/edid",
++        ]
++        GenericTest.__init__(self, apis, omit_paths)
+         self.compat_url = self.apis[COMPAT_API_KEY]["url"]
++        self.base_url = self.apis[COMPAT_API_KEY]["base_url"]
++        self.connected_outputs = []
++        self.edid_connected_outputs = []
++        self.not_edid_connected_outputs = []
++        self.outputs = []
++        self.active_connected_outputs = []
++        self.receivers = ""
++        self.receivers_outputs = ""
++        self.caps = ""
++
++    # GENERAL TESTS
++    def test_00_01(self, test):
++        """Verify that IS-11 is exposed in the Node API as \
++        urn:x-nmos:control:stream-compat/v1.0 at url /x-nmos/streamcompatibility/v1.0/
++        """
++        valid_res, response = TestHelper.do_request(
++            "GET", self.base_url + "/x-nmos/node/v1.3/devices/"
++        )
++        if valid_res:
++            response_json = response.json()
++            controls = response_json[0][CONTROLS]
++            control_href = ""
++            for control in controls:
++                if control["type"] == "urn:x-nmos:control:stream-compat/v1.0":
++                    control_href = control["href"]
++                    break
++            if len(control) == 0:
++                return test.WARNING("IS-11 API is not available")
++            if not control_href.endswith(self.compat_url):
++                return test.FAIL("IS-11 URL is invalid")
++            return test.PASS()
++        return test.FAIL(response)
++
++    def test_00_02(self, test):
++        "Put all senders into inactive state"
++        senders_url = self.base_url + "/x-nmos/connection/v1.1/single/senders/"
++        _, response = TestHelper.do_request("GET", senders_url)
++        if response.status_code != 200:
++            return test.FAIL(response.json())
++        senders = response.json()
++        if len(senders) > 0:
++            for sender in senders:
++                url = senders_url + sender + "staged/"
++                deactivate_json = {
++                    "master_enable": False,
++                    "activation": {"mode": "activate_immediate"},
++                }
++
++                _, response = TestHelper.do_request("PATCH", url, json=deactivate_json)
++                if (
++                    response.status_code != 200
++                    or response.json()["master_enable"]
++                    or response.json()["activation"]["mode"] != "activate_immediate"
++                ):
++                    return test.FAIL(response.json())
++            return test.PASS()
++        return test.UNCLEAR("Could not find any IS-04 senders to test")
++
++    def test_00_03(self, test):
++        "Put all the receivers into inactive state"
++        receivers_url = self.base_url + "/x-nmos/connection/v1.1/single/receivers/"
++        _, response = TestHelper.do_request("GET", receivers_url)
++        if response.status_code != 200:
++            return test.FAIL(response.json())
++        receivers = response.json()
++        if len(receivers) > 0:
++            for receiver in receivers:
++                url = receivers_url + receiver + "staged/"
++                deactivate_json = {
++                    "master_enable": False,
++                    "activation": {"mode": "activate_immediate"},
++                }
++                _, response = TestHelper.do_request("PATCH", url, json=deactivate_json)
++                if (
++                    response.status_code != 200
++                    or response.json()["master_enable"]
++                    or response.json()["activation"]["mode"] != "activate_immediate"
++                ):
++                    return test.FAIL(response.json())
++
++            return test.PASS()
++
++        return test.UNCLEAR("Could not find any IS-04 receivers to test")
++
++    # OUTPUTS TESTS
++    def test_03_01(self, test):
++        """
++        Verify that the device supports the concept of Output.
++        """
++        _, response = TestHelper.do_request("GET", self.compat_url + "outputs/")
++
++        if response.status_code == 200:
++            if len(response.json()) != 0:
++                self.outputs.append(response.json()[0])
++            if len(self.outputs) == 0:
++                return test.UNCLEAR("No outputs")
++            return test.PASS()
++        return test.FAIL(response.json())
++
++    def test_03_02(self, test):
++        """
++        Verify that some of the outputs of the device are connected.
++        """
++        if len(self.outputs) == 0:
++            return test.UNCLEAR("No IS11 receivers outputs")
++        for output in self.outputs:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "outputs/" + output + "properties/"
++            )
++            if response.status_code == 200:
++                outputs_properties_json = []
++                outputs_properties_json.append(response.json())
++                for output in outputs_properties_json:
++                    if output["connected"]:
++                        self.connected_outputs.append(output["id"])
++            else:
++                return test.FAIL(response.json())
++        if len(self.connected_outputs) == 0:
++            return test.UNCLEAR("None Outputs support edid.")
++        return test.PASS()
++
++    def test_03_03(self, test):
++        """
++        Verify that all connected outputs do not have
++        a signal as test 0 put all of the receivers inactive.
++        """
++        if len(self.connected_outputs) == 0:
++            return test.UNCLEAR("no connected outputs")
++        for output_id in self.connected_outputs:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "outputs/" + output_id + "/properties/"
++            )
++            if response.status_code == 200:
++                if response.json()["status"]["state"] == "signal_present":
++                    self.active_connected_outputs.append(response.json())
++            else:
++                return test.FAIL(response.json())
++        if len(self.active_connected_outputs) != 0:
++            return test.UNCLEAR(
++                "Connected output have a signal while all receivers are inactive"
++            )
++        return test.PASS()
++
++    def test_03_04(self, test):
++        """
++        Verify that connected outputs supporting EDID behave according to the RAML file.
++        """
++        if len(self.connected_outputs) == 0:
++            return test.UNCLEAR("no connected outputs")
++        for output_id in self.connected_outputs:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "outputs/" + output_id + "/properties/"
++            )
++            if response.status_code == 200:
++                if response.json()["edid_support"]:
++                    self.edid_connected_outputs.append(response.json()["id"])
++            else:
++                return test.FAIL(response.json())
++        if self.edid_connected_outputs == 0:
++            return test.UNCLEAR("Outputs not supporting edid")
++        return test.PASS()
++
++    def test_03_04_01(self, test):
++        """
++        Verify that an output indicating EDID support behaves according to the RAML file.
++        """
++        if len(self.edid_connected_outputs) == 0:
++            return test.UNCLEAR("no edid connected outputs")
++        for output_id in self.edid_connected_outputs:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "outputs/" + output_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++        return test.PASS()
++
++    def test_03_04_02(self, test):
++        """
++        Verify that a valid EDID can be retrieved from the device;
++        this EDID represents the default EDID of the device.
++        """
++        is_valid_response = True
++        if len(self.edid_connected_outputs) == 0:
++            return test.UNCLEAR("no edid connected outputs")
++        for output_id in self.edid_connected_outputs:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "outputs/" + output_id + "/edid/"
++            )
++            if (
++                response.status_code != 200
++                and response.headers["Content-Type"] != "application/octet-stream"
++            ):
++                is_valid_response = False
++            break
++        if is_valid_response:
++            return test.PASS()
++        return test.FAIL(response.json())
++
++    def test_03_05(self, test):
++        """
++        Verify that connected outputs not supporting EDID behave according to the RAML file.
++        """
++        if len(self.connected_outputs) == 0:
++            return test.UNCLEAR("no connected outputs")
++        for output_id in self.connected_outputs:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "outputs/" + output_id + "/properties/"
++            )
++            if response.status_code == 200:
++                if not response.json()["edid_support"]:
++                    self.not_edid_connected_outputs.append(response.json()["id"])
++            else:
++                return test.FAIL(response.json())
++        if len(self.not_edid_connected_outputs) == 0:
++            return test.UNCLEAR("Outputs supporting edid")
++        return test.PASS()
++
++    def test_03_05_01(self, test):
++        """
++        Verify that there is no EDID support.
++        """
++        if len(self.not_edid_connected_outputs) == 0:
++            return test.UNCLEAR("none of not edid connected outputs")
++        for output_id in self.not_edid_connected_outputs:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "outputs/" + output_id + "/edid/"
++            )
++            if response.status_code != 204:
++                return test.UNCLEAR("status code should be 204")
++        return test.PASS()
++
++    # RECEIVERS TESTS
++    def test_04_01(self, test):
++        """
++        Verify that the device supports the concept of IS-11 Receiver.
++        """
++        _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
++
++        if response.status_code != 200:
++            return test.FAIL(response.json())
++        self.receivers = response.json()
++        return (
++            test.PASS()
++            if len(self.receivers) != 0
++            else test.UNCLEAR("No IS_11 receivers")
++        )
++
++    def test_04_01_01(self, test):
++        """
++        Verify that IS-11 Receivers exist on the Node API as Receivers.
++        """
++        for receiver_id in self.receivers:
++            _, response = TestHelper.do_request(
++                "GET", self.base_url + "/x-nmos/node/v1.3/receivers/" + receiver_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            if response.json()["id"] != receiver_id[:-1]:
++                return test.UNCLEAR(
++                    "The IS-11 Receiver doesn't exist on the Node API as receiver"
++                )
++        return (
++            test.PASS()
++            if len(self.receivers) != 0
++            else test.UNCLEAR("No IS_11 receivers")
++        )
++
++    def test_04_02(self, test):
++        """
++        Verify receivers (generic with/without outputs)
++        """
++        _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
++        if response.status_code != 200:
++            return test.FAIL(response.json())
++        self.receivers = response.json()
++        return (
++            test.PASS()
++            if len(self.receivers) != 0
++            else test.UNCLEAR("No IS_11 receivers")
++        )
++
++    def test_04_02_01(self, test):
++        """
++        Verify that the status is "unknown" or "non_compliant_stream"
++        as per our pre-conditions of not being master_enabled.
++        """
++        for receiver_id in self.receivers:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "receivers/" + receiver_id + "status/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            if response.json()["state"] not in ["unknown", "non compliant stream"]:
++                return test.FAIL("the state is not unknown or non compliant stream")
++        return (
++            test.PASS()
++            if len(self.receivers) != 0
++            else test.UNCLEAR("No IS_11 receivers")
++        )
++
++    def test_04_02_02(self, test):
++        """
++        Verify that the Receiver supports Receiver Capabilities.
++        """
++        for receiver_id in self.receivers:
++            _, response = TestHelper.do_request(
++                "GET", self.base_url + "/x-nmos/node/v1.3/receivers/" + receiver_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            self.caps = response.json()["caps"]
++            if "constraint_sets" not in self.caps:
++                return test.UNCLEAR(" The receiver does not have constraint_sets in caps")
++            if len(self.caps["constraint_sets"]) == 0:
++                return test.UNCLEAR(" The receiver does not support BCP-004-01")
++        return (
++            test.PASS()
++            if len(self.receivers) != 0
++            else test.UNCLEAR("No IS_11 receivers")
++        )
+diff --git a/nmostesting/suites/IS1102Test.py b/nmostesting/suites/IS1102Test.py
+index e0919fe..e51a0fb 100644
+--- a/nmostesting/suites/IS1102Test.py
++++ b/nmostesting/suites/IS1102Test.py
+@@ -13,16 +13,1402 @@
+ # limitations under the License.
+ 
+ from ..GenericTest import GenericTest
++from .. import TestHelper
++import time
++import re
+ 
+-NODE_API_KEY = "node"
+ COMPAT_API_KEY = "streamcompatibility"
++NODE_API_KEY = "node"
++CONTROLS = "controls"
++
++REF_SUPPORTED_CONSTRAINTS_VIDEO = [
++    "urn:x-nmos:cap:meta:label",
++    "urn:x-nmos:cap:meta:preference",
++    "urn:x-nmos:cap:meta:enabled",
++    "urn:x-nmos:cap:format:media_type",
++    "urn:x-nmos:cap:format:grain_rate",
++    "urn:x-nmos:cap:format:frame_width",
++    "urn:x-nmos:cap:format:frame_height",
++    "urn:x-nmos:cap:format:interlace_mode",
++    "urn:x-nmos:cap:format:color_sampling",
++    "urn:x-nmos:cap:format:component_depth",
++]
++REF_SUPPORTED_CONSTRAINTS_AUDIO = [
++    "urn:x-nmos:cap:meta:label",
++    "urn:x-nmos:cap:meta:preference",
++    "urn:x-nmos:cap:meta:enabled",
++    "urn:x-nmos:cap:format:media_type",
++    "urn:x-nmos:cap:format:channel_count",
++    "urn:x-nmos:cap:format:sample_rate",
++    "urn:x-nmos:cap:format:sample_depth",
++]
+ 
+ 
+ class IS1102Test(GenericTest):
+     """
+-    Runs Node Tests covering both IS-04 and IS-11
++    Runs Node Tests covering IS-11
+     """
+     def __init__(self, apis):
+-        GenericTest.__init__(self, apis,)
++        # Don't auto-test paths responding with an EDID binary as they don't have a JSON Schema
++        omit_paths = [
++            "/inputs/{inputId}/edid",
++            "/inputs/{inputId}/edid/base",
++            "/inputs/{inputId}/edid/effective",
++            "/outputs/{outputId}/edid"
++        ]
++        GenericTest.__init__(self, apis, omit_paths)
+         self.node_url = self.apis[NODE_API_KEY]["url"]
+         self.compat_url = self.apis[COMPAT_API_KEY]["url"]
++        self.base_url = self.apis[COMPAT_API_KEY]["base_url"]
++        self.senders = ""
++        self.senders_2 = ""
++        self.flow_format = {}
++        self.flow_format_audio = []
++        self.flow_format_video = []
++        self.flow_width = {}
++        self.flow_height = {}
++        self.flow_grain_rate = {}
++        self.flow_sample_rate = {}
++        self.version = {}
++        self.grain_rate_constraints = {}
++        self.empty_constraints = {}
++        self.sample_rate_constraints = {}
++        self.constraints = {}
++
++    # SENDERS TESTS
++    """
++    Runs Node Tests covering IS-11 for Senders
++    """
++
++    def compare_complex(self, response_constraints, sample_rate_constraints):
++
++        response_constraints_enum = response_constraints["constraint_sets"][0][
++            "urn:x-nmos:cap:format:sample_rate"
++        ]["enum"]
++        sample_rate_constraints_enum = sample_rate_constraints["constraint_sets"][0][
++            "urn:x-nmos:cap:format:sample_rate"
++        ]["enum"]
++
++        if len(response_constraints_enum) > 0 and len(sample_rate_constraints_enum) > 0:
++            if (
++                "numerator" in response_constraints_enum[0]
++                and "numerator" in sample_rate_constraints_enum[0]
++                and "denominator" in response_constraints_enum[0]
++                and "denominator" in sample_rate_constraints_enum[0]
++            ):
++                return (
++                    response_constraints_enum[0]["numerator"]
++                    == sample_rate_constraints_enum[0]["numerator"]
++                    and response_constraints_enum[0]["denominator"]
++                    == sample_rate_constraints_enum[0]["denominator"]
++                )
++
++            if (
++                "numerator" in response_constraints_enum[0]
++                and "numerator" in sample_rate_constraints_enum[0]
++                and "denominator" in response_constraints_enum[0]
++                and "denominator" not in sample_rate_constraints_enum[0]
++            ):
++                return (
++                    response_constraints_enum[0]["numerator"]
++                    == sample_rate_constraints_enum[0]["numerator"]
++                    and response_constraints_enum[0]["denominator"] == 1
++                )
++
++            if (
++                "numerator" in response_constraints_enum[0]
++                and "numerator" in sample_rate_constraints_enum[0]
++                and "denominator" not in response_constraints_enum[0]
++                and "denominator" in sample_rate_constraints_enum[0]
++            ):
++                return (
++                    response_constraints_enum[0]["numerator"]
++                    == sample_rate_constraints_enum[0]["numerator"]
++                    and 1 == sample_rate_constraints_enum[0]["denominator"]
++                )
++        return False
++
++    def getSdpColorSampling(self, flow_components):
++        """
++        getColorSamplingFromComponents supports RGB,
++        YCbCr-4:4:4, YCbCr-4:2:2, YCbCr-4:2:0 and assumes
++        that the bit-depth is compliant without verifying it.
++        """
++        names = []
++        widths = []
++        heights = []
++
++        if len(flow_components) != 3:
++            return "invalid array of video components"
++
++        for i in range(0, 3):
++            if "name" in flow_components[i]:
++                names.append(
++                    {"name" + str(i): flow_components[i]["name"], "err" + str(i): None}
++                )
++            else:
++                names.append({"name" + str(i): None, "err" + str(i): "not defined"})
++
++        if (
++            names[0]["err0"] is None
++            and names[0]["name0"] == "R"
++            and names[1]["err1"] is None
++            and names[1]["name1"] == "G"
++            and names[2]["err2"] is None
++            and names[2]["name2"] == "B"
++        ):
++            for i in range(0, 3):
++                if "width" in flow_components[i]:
++                    widths.append(
++                        {
++                            "width" + str(i): flow_components[i]["width"],
++                            "err" + str(i): None,
++                        }
++                    )
++                else:
++                    widths.append(
++                        {"width" + str(i): None, "err" + str(i): "not defined"}
++                    )
++
++            if (
++                widths[0]["err0"] is not None
++                or widths[1]["err1"] is not None
++                or widths[2]["err2"] is not None
++            ):
++                return "invalid array of video components"
++
++            for i in range(0, 3):
++                if "height" in flow_components[i]:
++                    heights.append(
++                        {
++                            "height" + str(i): flow_components[i]["height"],
++                            "err" + str(i): None,
++                        }
++                    )
++                else:
++                    heights.append(
++                        {"height" + str(i): None, "err" + str(i): "not defined"}
++                    )
++
++            if (
++                heights[0]["err0"] is not None
++                or heights[1]["err1"] is not None
++                or heights[2]["err2"] is not None
++            ):
++                return "invalid array of video components"
++
++            if (
++                widths[0]["width0"] == widths[1]["width1"]
++                and widths[0]["width0"] == widths[2]["width2"]
++                and heights[0]["height0"] == heights[1]["height1"]
++                and heights[0]["height0"] == heights[2]["height2"]
++            ):
++                return "RGB"
++
++        if (
++            names[0]["err0"] is None
++            and names[0]["name0"] == "Y"
++            and names[1]["err1"] is None
++            and names[1]["name1"] == "Cb"
++            and names[2]["err2"] is None
++            and names[2]["name2"] == "Cr"
++        ):
++
++            for i in range(0, 3):
++                if "width" in flow_components[i]:
++                    widths.append(
++                        {
++                            "width" + str(i): flow_components[i]["width"],
++                            "err" + str(i): None,
++                        }
++                    )
++                else:
++                    widths.append(
++                        {"width" + str(i): None, "err" + str(i): "not defined"}
++                    )
++
++            if (
++                widths[0]["err0"] is not None
++                or widths[1]["err1"] is not None
++                or widths[2]["err2"] is not None
++            ):
++                return "invalid array of video components"
++
++            for i in range(0, 3):
++                if "height" in flow_components[i]:
++                    heights.append(
++                        {
++                            "height" + str(i): flow_components[i]["height"],
++                            "err" + str(i): None,
++                        }
++                    )
++                else:
++                    heights.append(
++                        {"height" + str(i): None, "err" + str(i): "not defined"}
++                    )
++
++            if (
++                heights[0]["err0"] is not None
++                or heights[1]["err1"] is not None
++                or heights[2]["err2"] is not None
++            ):
++                return "invalid array of video components"
++
++            if (
++                widths[0]["width0"] == widths[1]["width1"]
++                and widths[0]["width0"] == widths[2]["width2"]
++                and heights[0]["height0"] == heights[1]["height1"]
++                and heights[0]["height0"] == heights[2]["height2"]
++            ):
++                return "YCbCr-4:4:4"
++
++            if (
++                widths[0]["width0"] == 2 * widths[1]["width1"]
++                and widths[0]["width0"] == 2 * widths[2]["width2"]
++                and heights[0]["height0"] == heights[1]["height1"]
++                and heights[0]["height0"] == heights[2]["height2"]
++            ):
++                return "YCbCr-4:2:2"
++
++            if (
++                widths[0]["width0"] == 2 * widths[1]["width1"]
++                and widths[0]["width0"] == 2 * widths[2]["width2"]
++                and heights[0]["height0"] == 2 * heights[1]["height1"]
++                and heights[0]["height0"] == 2 * heights[2]["height2"]
++            ):
++                return "YCbCr-4:2:0"
++
++        return "invalid array of video components"
++
++    def get_another_grain_rate(self, grain_rate):
++        numerator = grain_rate["numerator"]
++        denominator = grain_rate["denominator"]
++        if (numerator == 30 or numerator == 25) and denominator == 1:
++            return {"numerator": numerator * 2, "denominator": 1}
++        if (numerator == 60 or numerator == 50) and denominator == 1:
++            return {"numerator": numerator / 2, "denominator": 1}
++        if numerator == 24 and denominator == 1:
++            return {"numerator": 30, "denominator": 1}
++        if (numerator == 30000 or numerator == 25000) and denominator == 1001:
++            return {"numerator": numerator * 2, "denominator": 1001}
++        if (numerator == 60000 or numerator == 50000) and denominator == 1001:
++            return {"numerator": numerator / 2, "denominator": 1001}
++        return "grain_rate not valid"
++
++    def get_another_sample_rate(self, sample_rate):
++        numerator = sample_rate["numerator"]
++        if numerator == 48000:
++            return {"numerator": 44100}
++        if numerator == 44100:
++            return {"numerator": 48000}
++        if numerator == 96000:
++            return {"numerator": 4800}
++        if numerator == 88200:
++            return {"numerator": 44100}
++        return "sample_rate not valid"
++
++    def test_02_00(self, test):
++        "Reset active constraints of all senders"
++        _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
++        if response.status_code == 200:
++            self.senders = response.json()
++            for sender in self.senders:
++                _, response = TestHelper.do_request(
++                    "DELETE",
++                    self.compat_url + "senders/" + sender + "constraints/active/",
++                )
++                if response.status_code != 200:
++                    return test.FAIL("senders constraints cannot be deleted")
++            return test.PASS()
++
++        return test.FAIL(response.json())
++
++    def test_02_01(self, test):
++        "Verify that the device supports the concept of IS-11 Sender"
++        _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
++        if response.status_code != 200:
++            return test.FAIL(response.json)
++        self.senders = response.json()
++        if len(self.senders) == 0:
++            return test.UNCLEAR("there is no IS-11 senders")
++        return test.PASS()
++
++    def test_02_01_01(self, test):
++        "Verify that the device supports the concept of IS-11 Sender"
++        if len(self.senders) != 0:
++            for sender_id in self.senders:
++                _, response = TestHelper.do_request(
++                    "GET", self.node_url + "senders/" + sender_id
++                )
++                if response.status_code != 200:
++                    return test.FAIL()
++                sender_node = response.json()["id"]
++                if sender_id[:-1] != sender_node:
++                    return test.FAIL("")
++            return test.PASS()
++        return test.UNCLEAR("there is no IS-11 senders")
++
++    def test_02_02(self, test):
++        "Verify senders (generic with/without inputs)"
++        _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
++        if response.status_code != 200:
++            return test.FAIL(response.json())
++        self.senders_2 = response.json()
++        return test.PASS()
++
++    def test_02_02_01(self, test):
++        "Verify that the status is unconstrained as per our pre-conditions"
++        if len(self.senders_2) != 0:
++            for sender_id in self.senders_2:
++                _, response = TestHelper.do_request(
++                    "GET", self.compat_url + "senders/" + sender_id + "status/"
++                )
++                if response.status_code != 200:
++                    return test.FAIL(response.json())
++                state = response.json()["state"]
++                if state in ["awating_essence", "no_essence"]:
++                    for i in range(0, 5):
++                        _, response = TestHelper.do_request(
++                            "GET", self.compat_url + "senders/" + sender_id + "status/"
++                        )
++                        state = response.json()["status"]["state"]
++                        if state in ["awating_essence", "no_essence"]:
++                            time.sleep(3000)
++                        else:
++                            break
++                if state != "unconstrained":
++                    return test.FAIL("inputs are unstable.")
++            return test.PASS()
++        return test.UNCLEAR("there is no IS-11 senders")
++
++    def test_02_02_03(self, test):
++        """
++        Verify that the sender is available in the node API,
++        has an associated flow and is inactive
++        """
++        if len(self.senders_2) != 0:
++            for sender_id in self.senders_2:
++                _, response = TestHelper.do_request(
++                    "GET", self.node_url + "senders/" + sender_id
++                )
++                if response.status_code != 200:
++                    return test.FAIL(response.json)
++                sender_node = response.json()["id"]
++                if sender_id[:-1] != sender_node:
++                    return test.FAIL("")
++                sender_flow_id = response.json()["flow_id"]
++                if sender_flow_id is None:
++                    return test.FAIL("the sender must have a flow")
++                sender_subscription_active = response.json()["subscription"]["active"]
++                if sender_subscription_active:
++                    return test.FAIL("the sender must be inactive")
++                _, response = TestHelper.do_request(
++                    "GET", self.node_url + "flows/" + sender_flow_id
++                )
++                if response.status_code != 200:
++                    return test.FAIL(response.json())
++                flow_format = response.json()["format"]
++                self.flow_format[sender_id] = flow_format
++                if flow_format == "urn:x-nmos:format:video":
++                    self.flow_format_video.append(sender_id)
++                    flow_frame_width = response.json()["frame_width"]
++                    self.flow_width[sender_id] = flow_frame_width
++                    flow_frame_height = response.json()["frame_height"]
++                    self.flow_height[sender_id] = flow_frame_height
++                    flow_grain_rate = response.json()["grain_rate"]
++                    self.flow_grain_rate[sender_id] = flow_grain_rate
++                if flow_format == "urn:x-nmos:format:audio":
++                    self.flow_format_audio.append(sender_id)
++                    flow_sample_rate = response.json()["sample_rate"]
++                    self.flow_sample_rate[sender_id] = flow_sample_rate
++                if (
++                    flow_format != "urn:x-nmos:format:video"
++                    and flow_format != "urn:x-nmos:format:audio"
++                ):
++                    print("only audio and video senders are tested at this time.")
++            return test.PASS()
++        return test.UNCLEAR("there is no IS-11 senders")
++
++    def test_02_02_03_01(self, test):
++        "Verify that the video sender supports the minimum set of video constraints"
++
++        pattern = "^urn:x-nmos:cap:"
++
++        if len(self.flow_format_video) == 0:
++            return test.UNCLEAR("There is no video format")
++
++        for sender_id in self.flow_format_video:
++            _, response = TestHelper.do_request(
++                "GET",
++                self.compat_url + "senders/" + sender_id + "constraints/supported/ ",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            supportedConstraints = response.json()["parameter_constraints"]
++            for item in supportedConstraints:
++                if not re.search(pattern, item):
++                    return test.FAIL("only x-nmos:cap constraints are allowed")
++            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
++                if item not in supportedConstraints:
++                    return test.FAIL(item + " is not in supportedConstraints ")
++        return test.PASS()
++
++    def test_02_02_03_02(self, test):
++        "Verify that the video sender supports the minimum set of video constraints"
++
++        pattern = "^urn:x-nmos:cap:"
++
++        if len(self.flow_format_audio) == 0:
++            return test.UNCLEAR("There is no video format")
++
++        for sender_id in self.flow_format_audio:
++            _, response = TestHelper.do_request(
++                "GET",
++                self.compat_url + "senders/" + sender_id + "constraints/supported/ ",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            supportedConstraints = response.json()["parameter_constraints"]
++            for item in supportedConstraints:
++                if not re.search(pattern, item):
++                    return test.FAIL("only x-nmos:cap constraints are allowed")
++            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
++                if item not in supportedConstraints:
++                    return test.FAIL(item + "is not in supportedConstraints")
++        return test.PASS()
++
++    def test_02_02_04_01(self, test):
++        """
++        Verify that changing the constraints of an
++        IS-11 sender(video) changes the version of
++        the associated IS-04 sender.
++        """
++        if len(self.flow_format_video) == 0:
++            return test.UNCLEAR("There is no video format")
++
++        for sender_id in self.flow_format_video:
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            version = response.json()["version"]
++            self.version[sender_id] = version
++            self.grain_rate_constraints[sender_id] = {
++                "constraint_sets": [
++                    {
++                        "urn:x-nmos:cap:format:grain_rate": {
++                            "enum": [self.flow_grain_rate[sender_id]]
++                        }
++                    }
++                ]
++            }
++            self.empty_constraints[sender_id] = {"constraint_sets": []}
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.grain_rate_constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            version = response.json()["version"]
++            if version == self.version[sender_id]:
++                return test.FAIL()
++            self.version[sender_id] = version
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/ "
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            constraints = response.json()
++            if constraints != self.grain_rate_constraints[sender_id]:
++                return test.FAIL()
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            version = response.json()["version"]
++            if version == self.version[sender_id]:
++                return test.FAIL()
++            self.version[sender_id] = version
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            constraints = response.json()
++            if constraints != self.empty_constraints[sender_id]:
++                return test.FAIL("Constraints doesn't match")
++        return test.PASS()
++
++    def test_02_02_04_02(self, test):
++        """
++        Verify that changing the constraints of an IS-11
++        sender(audio) changes the version of the associated IS-04 sender.
++        """
++        if len(self.flow_format_audio) == 0:
++            return test.UNCLEAR("There is no audio format")
++        for sender_id in self.flow_format_audio:
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            version = response.json()["version"]
++            self.version[sender_id] = version
++            self.sample_rate_constraints[sender_id] = {
++                "constraint_sets": [
++                    {
++                        "urn:x-nmos:cap:format:sample_rate": {
++                            "enum": [self.flow_sample_rate[sender_id]]
++                        }
++                    }
++                ]
++            }
++            self.empty_constraints[sender_id] = {"constraint_sets": []}
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.sample_rate_constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            version = response.json()["version"]
++            if version == self.version[sender_id]:
++                return test.FAIL()
++            self.version[sender_id] = version
++
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            constraints = response.json()
++
++            if not self.compare_complex(
++                constraints, self.sample_rate_constraints[sender_id]
++            ):
++                return test.FAIL(
++                    "constraints and SampleRateConstraints["
++                    + sender_id
++                    + "] are different "
++                )
++
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            version = response.json()["version"]
++            if version == self.version[sender_id]:
++                return test.FAIL()
++            self.version[sender_id] = version
++
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/ "
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            constraints = response.json()
++            if constraints != self.empty_constraints[sender_id]:
++                return test.FAIL("Constraints doesn't match")
++        return test.PASS()
++
++    def test_02_02_05_01(self, test):
++        """Verify that setting NOP constraints for frame_width,
++        frame_height and grain_rate does not change the flow of
++        a sender (video) and that the state goes from \"unconstrained\"
++        to \"constrained\"
++        """
++        if len(self.flow_format_video) == 0:
++            return test.UNCLEAR("There is no audio format ")
++
++        for sender_id in self.flow_format_video:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            state = response.json()["state"]
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "unconstrained":
++                return test.FAIL("inputs are unstable.")
++
++            self.constraints[sender_id] = {
++                "constraint_sets": [
++                    {
++                        "urn:x-nmos:cap:format:grain_rate": {
++                            "enum": [self.flow_grain_rate[sender_id]]
++                        }
++                    },
++                    {
++                        "urn:x-nmos:cap:format:frame_width": {
++                            "enum": [self.flow_width[sender_id]]
++                        }
++                    },
++                    {
++                        "urn:x-nmos:cap:format:frame_height": {
++                            "enum": [self.flow_height[sender_id]]
++                        }
++                    },
++                ]
++            }
++
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            state = response.json()["state"]
++
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "constrained":
++                return test.FAIL("inputs are unstable.")
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json)
++            sender_flow_id = response.json()["flow_id"]
++            if sender_flow_id is None:
++                return test.FAIL("the sender must have a flow")
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender_flow_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++            if (
++                self.flow_grain_rate[sender_id] != response.json()["grain_rate"]
++                or self.flow_width[sender_id] != response.json()["frame_width"]
++                or self.flow_height[sender_id] != response.json()["frame_height"]
++            ):
++                return test.FAIL("different argument")
++
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++        return test.PASS()
++
++    def test_02_02_05_02(self, test):
++        """Verify that setting NOP constraints for sample_rate does not change the flow of  a sender (audio) and \
++            that the state goes from \"unconstrained\" to \"constrained\""""
++
++        if len(self.flow_format_audio) == 0:
++            return test.UNCLEAR("There is no audio format ")
++
++        for sender_id in self.flow_format_audio:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            state = response.json()["state"]
++
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "unconstrained":
++                return test.FAIL("inputs are unstable.")
++
++            self.constraints[sender_id] = {
++                "constraint_sets": [
++                    {
++                        "urn:x-nmos:cap:format:sample_rate": {
++                            "enum": [self.flow_sample_rate[sender_id]]
++                        }
++                    }
++                ]
++            }
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            state = response.json()["state"]
++
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "constrained":
++                return test.FAIL("inputs are unstable.")
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json)
++            sender_flow_id = response.json()["flow_id"]
++            if sender_flow_id is None:
++                return test.FAIL("the sender must have a flow")
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender_flow_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            flow_sample_rate = response.json()["sample_rate"]
++            if self.flow_sample_rate[sender_id] != flow_sample_rate:
++                return test.FAIL("Different sample rate")
++
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++        return test.PASS()
++
++    def test_02_02_06_01(self, test):
++        """Verify that setting NOP constraints for supported constraints does not change the flow of  a sender (video) \
++            and that the state goes from \"unconstrained\" to \"constrained\""""
++        if len(self.flow_format_video) == 0:
++            return test.UNCLEAR("There is no audio format ")
++
++        for sender_id in self.flow_format_video:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            state = response.json()["state"]
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "unconstrained":
++                return test.FAIL("inputs are unstable.")
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json)
++            sender = response.json()
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            flow = response.json()
++            color_sampling = self.getSdpColorSampling(flow["components"])
++            if color_sampling == "invalid array of video components":
++                return test.FAIL("invalid array of video components")
++            constraint_set = {}
++
++            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
++
++                if item == "urn:x-nmos:cap:meta:label":
++                    constraint_set["urn:x-nmos:cap:meta:label"] = "video constraint"
++                if item == "urn:x-nmos:cap:meta:preference":
++                    constraint_set["urn:x-nmos:cap:meta:preference"] = 0
++                if item == "urn:x-nmos:cap:meta:enabled":
++                    constraint_set["urn:x-nmos:cap:meta:enabled"] = True
++                if item == "urn:x-nmos:cap:format:media_type":
++                    constraint_set["urn:x-nmos:cap:format:media_type"] = {
++                        "enum": [flow["media_type"]]
++                    }
++                if item == "urn:x-nmos:cap:format:grain_rate":
++                    constraint_set["urn:x-nmos:cap:format:grain_rate"] = {
++                        "enum": [flow["grain_rate"]]
++                    }
++                if item == "urn:x-nmos:cap:format:frame_width":
++                    constraint_set["urn:x-nmos:cap:format:frame_width"] = {
++                        "enum": [flow["frame_width"]]
++                    }
++                if item == "urn:x-nmos:cap:format:frame_height":
++                    constraint_set["urn:x-nmos:cap:format:frame_height"] = {
++                        "enum": [flow["frame_height"]]
++                    }
++                if item == "urn:x-nmos:cap:format:interlace_mode":
++                    constraint_set["urn:x-nmos:cap:format:interlace_mode"] = {
++                        "enum": [flow["interlace_mode"]]
++                    }
++                if item == "urn:x-nmos:cap:format:color_sampling":
++                    constraint_set["urn:x-nmos:cap:format:color_sampling"] = {
++                        "enum": [color_sampling]
++                    }
++                if item == "urn:x-nmos:cap:format:component_depth":
++                    constraint_set["urn:x-nmos:cap:format:component_depth"] = {
++                        "enum": [flow["components"][0]["bit_depth"]]
++                    }
++            self.constraints[sender_id] = {"constraint_sets": [constraint_set]}
++
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            new_flow = response.json()
++
++            new_color_sampling = self.getSdpColorSampling(new_flow["components"])
++            if new_color_sampling == "invalid array of video components":
++                return test.FAIL("invalid array of video components")
++
++            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
++
++                if item == "urn:x-nmos:cap:format:media_type":
++                    if flow["media_type"] != new_flow["media_type"]:
++                        return test.FAIL("different media_type")
++                if item == "urn:x-nmos:cap:format:grain_rate":
++                    if flow["grain_rate"] != new_flow["grain_rate"]:
++                        return test.FAIL("different grain_rate")
++                if item == "urn:x-nmos:cap:format:frame_width":
++                    if flow["frame_width"] != new_flow["frame_width"]:
++                        return test.FAIL("different frame_width")
++                if item == "urn:x-nmos:cap:format:frame_height":
++                    if flow["frame_height"] != new_flow["frame_height"]:
++                        return test.FAIL("different frame_height")
++                if item == "urn:x-nmos:cap:format:interlace_mode":
++                    if flow["interlace_mode"] != new_flow["interlace_mode"]:
++                        return test.FAIL("different interlace_mode")
++                if item == "urn:x-nmos:cap:format:color_sampling":
++                    if color_sampling != new_color_sampling:
++                        return test.FAIL("different color_sampling")
++                if item == "urn:x-nmos:cap:format:component_depth":
++                    if (
++                        flow["components"][0]["bit_depth"]
++                        != new_flow["components"][0]["bit_depth"]
++                    ):
++                        return test.FAIL("different component_depth")
++
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++        return test.PASS()
++
++    def test_02_02_06_02(self, test):
++        """Verify that setting NOP constraints for supported
++        constraints does not change the flow of  a sender (audio)
++        and that the state goes from \"unconstrained\" to \"constrained\"
++        """
++        if len(self.flow_format_audio) == 0:
++            return test.UNCLEAR("There is no audio format")
++        for sender_id in self.flow_format_audio:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                test.FAIL(response.json())
++            state = response.json()["state"]
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "unconstrained":
++                return test.FAIL("inputs are unstable.")
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json)
++            sender = response.json()
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            flow = response.json()
++            constraint_set = {}
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "sources/" + flow["source_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            source = response.json()
++
++            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
++
++                if item == "urn:x-nmos:cap:meta:label":
++                    constraint_set["urn:x-nmos:cap:meta:label"] = "video constraint"
++                if item == "urn:x-nmos:cap:meta:preference":
++                    constraint_set["urn:x-nmos:cap:meta:preference"] = 0
++                if item == "urn:x-nmos:cap:meta:enabled":
++                    constraint_set["urn:x-nmos:cap:meta:enabled"] = True
++                if item == "urn:x-nmos:cap:format:media_type":
++                    constraint_set["urn:x-nmos:cap:format:media_type"] = {
++                        "enum": [flow["media_type"]]
++                    }
++                if item == "urn:x-nmos:cap:format:sample_rate":
++                    constraint_set["urn:x-nmos:cap:format:sample_rate"] = {
++                        "enum": [flow["sample_rate"]]
++                    }
++                if item == "urn:x-nmos:cap:format:channel_count":
++                    constraint_set["urn:x-nmos:cap:format:channel_count"] = {
++                        "enum": [len(source["channels"])]
++                    }
++                if item == "urn:x-nmos:cap:format:sample_depth":
++                    constraint_set["urn:x-nmos:cap:format:sample_depth"] = {
++                        "enum": [flow["bit_depth"]]
++                    }
++
++            self.constraints[sender_id] = {"constraint_sets": [constraint_set]}
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            new_flow = response.json()
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "sources/" + flow["source_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            new_source = response.json()
++
++            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
++
++                if item == "urn:x-nmos:cap:format:media_type":
++                    if flow["media_type"] != new_flow["media_type"]:
++                        return test.FAIL("different media_type")
++                if item == "urn:x-nmos:cap:format:sample_rate":
++                    if flow["sample_rate"] != new_flow["sample_rate"]:
++                        return test.FAIL("different sample_rate")
++                if item == "urn:x-nmos:cap:format:channel_count":
++                    if len(source["channels"]) != len(new_source["channels"]):
++                        return test.FAIL("different channel_count")
++                if item == "urn:x-nmos:cap:format:sample_depth":
++                    if flow["bit_depth"] != new_flow["bit_depth"]:
++                        return test.FAIL("different sample_depth")
++
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++        return test.PASS()
++
++    def test_02_02_07_01(self, test):
++        "Verify that the device adhere to the preference of the constraint_set."
++        if len(self.flow_format_video) == 0:
++            return test.UNCLEAR("There is no audio format ")
++
++        for sender_id in self.flow_format_video:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            state = response.json()["state"]
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "unconstrained":
++                return test.FAIL("inputs are unstable.")
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json)
++            sender = response.json()
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            flow = response.json()
++            color_sampling = self.getSdpColorSampling(flow["components"])
++            if color_sampling == "invalid array of video components":
++                return test.FAIL("invalid array of video components")
++            constraint_set0 = {}
++            constraint_set1 = {}
++
++            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
++
++                if item == "urn:x-nmos:cap:meta:label":
++                    constraint_set0["urn:x-nmos:cap:meta:label"] = "video constraint"
++                if item == "urn:x-nmos:cap:meta:preference":
++                    constraint_set0["urn:x-nmos:cap:meta:preference"] = 0
++                if item == "urn:x-nmos:cap:meta:enabled":
++                    constraint_set0["urn:x-nmos:cap:meta:enabled"] = True
++                if item == "urn:x-nmos:cap:format:media_type":
++                    constraint_set0["urn:x-nmos:cap:format:media_type"] = {
++                        "enum": [flow["media_type"]]
++                    }
++                if item == "urn:x-nmos:cap:format:grain_rate":
++                    constraint_set0["urn:x-nmos:cap:format:grain_rate"] = {
++                        "enum": [flow["grain_rate"]]
++                    }
++                if item == "urn:x-nmos:cap:format:frame_width":
++                    constraint_set0["urn:x-nmos:cap:format:frame_width"] = {
++                        "enum": [flow["frame_width"]]
++                    }
++                if item == "urn:x-nmos:cap:format:frame_height":
++                    constraint_set0["urn:x-nmos:cap:format:frame_height"] = {
++                        "enum": [flow["frame_height"]]
++                    }
++                if item == "urn:x-nmos:cap:format:interlace_mode":
++                    constraint_set0["urn:x-nmos:cap:format:interlace_mode"] = {
++                        "enum": [flow["interlace_mode"]]
++                    }
++                if item == "urn:x-nmos:cap:format:color_sampling":
++                    constraint_set0["urn:x-nmos:cap:format:color_sampling"] = {
++                        "enum": [color_sampling]
++                    }
++                if item == "urn:x-nmos:cap:format:component_depth":
++                    constraint_set0["urn:x-nmos:cap:format:component_depth"] = {
++                        "enum": [flow["components"][0]["bit_depth"]]
++                    }
++
++            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
++
++                if item == "urn:x-nmos:cap:meta:label":
++                    constraint_set1["urn:x-nmos:cap:meta:label"] = "video constraint"
++                if item == "urn:x-nmos:cap:meta:preference":
++                    constraint_set1["urn:x-nmos:cap:meta:preference"] = -100
++                if item == "urn:x-nmos:cap:meta:enabled":
++                    constraint_set1["urn:x-nmos:cap:meta:enabled"] = True
++                if item == "urn:x-nmos:cap:format:media_type":
++                    constraint_set1["urn:x-nmos:cap:format:media_type"] = {
++                        "enum": [flow["media_type"]]
++                    }
++                if item == "urn:x-nmos:cap:format:grain_rate":
++                    constraint_set1["urn:x-nmos:cap:format:grain_rate"] = {
++                        "enum": [self.get_another_grain_rate(flow["grain_rate"])]
++                    }
++                if item == "urn:x-nmos:cap:format:frame_width":
++                    constraint_set1["urn:x-nmos:cap:format:frame_width"] = {
++                        "enum": [flow["frame_width"]]
++                    }
++                if item == "urn:x-nmos:cap:format:frame_height":
++                    constraint_set1["urn:x-nmos:cap:format:frame_height"] = {
++                        "enum": [flow["frame_height"]]
++                    }
++                if item == "urn:x-nmos:cap:format:interlace_mode":
++                    constraint_set1["urn:x-nmos:cap:format:interlace_mode"] = {
++                        "enum": [flow["interlace_mode"]]
++                    }
++                if item == "urn:x-nmos:cap:format:color_sampling":
++                    constraint_set1["urn:x-nmos:cap:format:color_sampling"] = {
++                        "enum": [color_sampling]
++                    }
++                if item == "urn:x-nmos:cap:format:component_depth":
++                    constraint_set1["urn:x-nmos:cap:format:component_depth"] = {
++                        "enum": [flow["components"][0]["bit_depth"]]
++                    }
++
++            self.constraints[sender_id] = {
++                "constraint_sets": [constraint_set0, constraint_set0]
++            }
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            new_flow = response.json()
++
++            new_color_sampling = self.getSdpColorSampling(new_flow["components"])
++            if new_color_sampling == "invalid array of video components":
++                return test.FAIL("invalid array of video components")
++
++            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
++
++                if item == "urn:x-nmos:cap:format:media_type":
++                    if flow["media_type"] != new_flow["media_type"]:
++                        return test.FAIL("different media_type")
++                if item == "urn:x-nmos:cap:format:grain_rate":
++                    if flow["grain_rate"] != new_flow["grain_rate"]:
++                        return test.FAIL("different grain_rate")
++                if item == "urn:x-nmos:cap:format:frame_width":
++                    if flow["frame_width"] != new_flow["frame_width"]:
++                        return test.FAIL("different frame_width")
++                if item == "urn:x-nmos:cap:format:frame_height":
++                    if flow["frame_height"] != new_flow["frame_height"]:
++                        return test.FAIL("different frame_height")
++                if item == "urn:x-nmos:cap:format:interlace_mode":
++                    if flow["interlace_mode"] != new_flow["interlace_mode"]:
++                        return test.FAIL("different interlace_mode")
++                if item == "urn:x-nmos:cap:format:color_sampling":
++                    if color_sampling != new_color_sampling:
++                        return test.FAIL("different color_sampling")
++                if item == "urn:x-nmos:cap:format:component_depth":
++                    if (
++                        flow["components"][0]["bit_depth"]
++                        != new_flow["components"][0]["bit_depth"]
++                    ):
++                        return test.FAIL("different component_depth")
++
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++        return test.PASS()
++
++    def test_02_02_07_02(self, test):
++        "Verify that the device adhere to the preference of the constraint_set."
++        if len(self.flow_format_audio) == 0:
++            return test.UNCLEAR("There is no audio format")
++
++        for sender_id in self.flow_format_audio:
++            _, response = TestHelper.do_request(
++                "GET", self.compat_url + "senders/" + sender_id + "status/"
++            )
++            if response.status_code != 200:
++                test.FAIL(response.json())
++            state = response.json()["state"]
++            if state in ["awating_essence", "no_essence"]:
++                for i in range(0, 5):
++                    _, response = TestHelper.do_request(
++                        "GET", self.compat_url + "senders/" + sender_id + "status/"
++                    )
++                    state = response.json()["status"]["state"]
++                    if state in ["awating_essence", "no_essence"]:
++                        time.sleep(3000)
++                    else:
++                        break
++            if state != "unconstrained":
++                return test.FAIL("inputs are unstable.")
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "senders/" + sender_id
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json)
++            sender = response.json()
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            flow = response.json()
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "sources/" + flow["source_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            source = response.json()
++
++            constraint_set0 = {}
++            constraint_set1 = {}
++
++            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
++
++                if item == "urn:x-nmos:cap:meta:label":
++                    constraint_set0["urn:x-nmos:cap:meta:label"] = "video constraint"
++                if item == "urn:x-nmos:cap:meta:preference":
++                    constraint_set0["urn:x-nmos:cap:meta:preference"] = 0
++                if item == "urn:x-nmos:cap:meta:enabled":
++                    constraint_set0["urn:x-nmos:cap:meta:enabled"] = True
++                if item == "urn:x-nmos:cap:format:media_type":
++                    constraint_set0["urn:x-nmos:cap:format:media_type"] = {
++                        "enum": [flow["media_type"]]
++                    }
++                if item == "urn:x-nmos:cap:format:sample_rate":
++                    constraint_set0["urn:x-nmos:cap:format:sample_rate"] = {
++                        "enum": [flow["sample_rate"]]
++                    }
++                if item == "urn:x-nmos:cap:format:channel_count":
++                    constraint_set0["urn:x-nmos:cap:format:channel_count"] = {
++                        "enum": [len(source["channels"])]
++                    }
++                if item == "urn:x-nmos:cap:format:sample_depth":
++                    constraint_set0["urn:x-nmos:cap:format:sample_depth"] = {
++                        "enum": [flow["bit_depth"]]
++                    }
++
++            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
++
++                if item == "urn:x-nmos:cap:meta:label":
++                    constraint_set1["urn:x-nmos:cap:meta:label"] = "video constraint"
++                if item == "urn:x-nmos:cap:meta:preference":
++                    constraint_set1["urn:x-nmos:cap:meta:preference"] = -100
++                if item == "urn:x-nmos:cap:meta:enabled":
++                    constraint_set1["urn:x-nmos:cap:meta:enabled"] = True
++                if item == "urn:x-nmos:cap:format:media_type":
++                    constraint_set1["urn:x-nmos:cap:format:media_type"] = {
++                        "enum": [flow["media_type"]]
++                    }
++                if item == "urn:x-nmos:cap:format:sample_rate":
++                    constraint_set1["urn:x-nmos:cap:format:sample_rate"] = {
++                        "enum": [self.get_another_sample_rate(flow["sample_rate"])]
++                    }
++                if item == "urn:x-nmos:cap:format:channel_count":
++                    constraint_set1["urn:x-nmos:cap:format:channel_count"] = {
++                        "enum": [len(source["channels"])]
++                    }
++                if item == "urn:x-nmos:cap:format:sample_depth":
++                    constraint_set1["urn:x-nmos:cap:format:sample_depth"] = {
++                        "enum": [flow["bit_depth"]]
++                    }
++
++            self.constraints[sender_id] = {
++                "constraint_sets": [constraint_set0, constraint_set1]
++            }
++
++            _, response = TestHelper.do_request(
++                "PUT",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++                json=self.constraints[sender_id],
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "flows/" + sender["flow_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            new_flow = response.json()
++
++            _, response = TestHelper.do_request(
++                "GET", self.node_url + "sources/" + flow["source_id"]
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++            new_source = response.json()
++
++            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
++
++                if item == "urn:x-nmos:cap:format:media_type":
++                    if flow["media_type"] != new_flow["media_type"]:
++                        return test.FAIL("different media_type")
++                if item == "urn:x-nmos:cap:format:sample_rate":
++                    if flow["sample_rate"] != new_flow["sample_rate"]:
++                        return test.FAIL("different sample_rate")
++                if item == "urn:x-nmos:cap:format:channel_count":
++                    if len(source["channels"]) != len(new_source["channels"]):
++                        return test.FAIL("different channel_count")
++                if item == "urn:x-nmos:cap:format:sample_depth":
++                    if flow["bit_depth"] != new_flow["bit_depth"]:
++                        return test.FAIL("different sample_depth")
++
++            _, response = TestHelper.do_request(
++                "DELETE",
++                self.compat_url + "senders/" + sender_id + "constraints/active/",
++            )
++            if response.status_code != 200:
++                return test.FAIL(response.json())
++        return test.PASS()
+-- 
+2.39.1.windows.1
+

@@ -30,7 +30,7 @@ class BCP00301Test(GenericTest):
     """
     Runs BCP-003-01-Test
     """
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         GenericTest.__init__(self, apis)
         if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
@@ -264,7 +264,7 @@ class BCP00301Test(GenericTest):
         """Certificate is valid and matches the host under test"""
 
         try:
-            context = ssl.create_default_context(cafile=CONFIG.CERT_TRUST_ROOT_CA)
+            context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=CONFIG.CERT_TRUST_ROOT_CA)
             hostname = self.apis[SECURE_API_KEY]["hostname"]
             sock = context.wrap_socket(socket.socket(), server_hostname=hostname.rstrip('.'))
             sock.settimeout(CONFIG.HTTP_TIMEOUT)
