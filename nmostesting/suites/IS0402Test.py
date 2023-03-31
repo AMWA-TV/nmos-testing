@@ -39,10 +39,10 @@ class IS0402Test(GenericTest):
     """
     Runs IS-04-02-Test
     """
-    def __init__(self, apis):
+    def __init__(self, apis, auths, **kwargs):
         # Don't auto-test /health/nodes/{nodeId} as it's impossible to automatically gather test data
         omit_paths = ["/health/nodes/{nodeId}"]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, auths=auths, **kwargs)
         self.reg_url = self.apis[REG_API_KEY]["url"]
         self.query_url = self.apis[QUERY_API_KEY]["url"]
         if self.apis[REG_API_KEY]["version"] != self.apis[QUERY_API_KEY]["version"]:
@@ -53,6 +53,7 @@ class IS0402Test(GenericTest):
         self.is04_query_utils = IS04Utils(self.query_url)
         self.test_data = self.load_resource_data()
         self.subscription_data = self.load_subscription_request_data()
+        self.auth = auths[0] if auths else None
 
     def set_up_tests(self):
         self.zc = Zeroconf()
@@ -2137,8 +2138,8 @@ class IS0402Test(GenericTest):
         self.do_test_api_v1_x(test)
 
         token_scopes = ["registration"]
-        a_token = self.generate_token(token_scopes, True)
-        b_token = self.generate_token(token_scopes, True)
+        a_token = self.auth.generate_token(token_scopes, True)
+        b_token = self.auth.generate_token(token_scopes, True)
 
         data = self.copy_resource("node")
         data["id"] = str(uuid.uuid4())
@@ -2158,8 +2159,9 @@ class IS0402Test(GenericTest):
         self.do_test_api_v1_x(test)
 
         token_scopes = ["registration"]
-        a_token = self.generate_token(token_scopes, True, azp=True)
-        b_token = self.generate_token(token_scopes, True)  # Checks tha client_id and azp are treated the same way
+        a_token = self.auth.generate_token(token_scopes, True, azp=True)
+        # Checks tha client_id and azp are treated the same way
+        b_token = self.auth.generate_token(token_scopes, True)
 
         data = self.copy_resource("node")
         data["id"] = str(uuid.uuid4())
@@ -2179,8 +2181,8 @@ class IS0402Test(GenericTest):
             with open("test_data/IS0402/v1.3_{}.json".format(resource)) as resource_data:
                 resource_json = json.load(resource_data)
                 if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
-                    resource_json = self.downgrade_resource(resource, resource_json,
-                                                            api["version"])
+                    resource_json = IS04Utils.downgrade_resource(resource, resource_json,
+                                                                 api["version"])
 
                 result_data[resource] = resource_json
         return result_data
@@ -2191,7 +2193,7 @@ class IS0402Test(GenericTest):
         with open("test_data/IS0402/subscriptions_request.json") as resource_data:
             resource_json = json.load(resource_data)
             if self.is04_reg_utils.compare_api_version(api["version"], "v1.3") < 0:
-                return self.downgrade_resource("subscription", resource_json, api["version"])
+                return IS04Utils.downgrade_resource("subscription", resource_json, api["version"])
             return resource_json
 
     def do_400_check(self, test, resource_type):
@@ -2218,178 +2220,12 @@ class IS0402Test(GenericTest):
         else:
             return test.FAIL(message)
 
-    def downgrade_resource(self, resource_type, data, requested_version):
-        """Downgrades given resource data to requested version"""
-        version_major, version_minor = [int(x) for x in requested_version[1:].split(".")]
-
-        if version_major == 1:
-            if resource_type == "node":
-                if version_minor <= 2:
-                    if "interfaces" in data:
-                        key = "attached_network_device"
-                        for interface in data["interfaces"]:
-                            if key in interface:
-                                del interface[key]
-                    key = "authorization"
-                    for service in data["services"]:
-                        if key in service:
-                            del service[key]
-                    if "api" in data and "endpoints" in data["api"]:
-                        for endpoint in data["api"]["endpoints"]:
-                            if key in endpoint:
-                                del endpoint[key]
-                if version_minor <= 1:
-                    keys_to_remove = [
-                        "interfaces"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                if version_minor == 0:
-                    keys_to_remove = [
-                        "api",
-                        "clocks",
-                        "description",
-                        "tags"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                return data
-
-            elif resource_type == "device":
-                if version_minor <= 2:
-                    key = "authorization"
-                    if "controls" in data:
-                        for control in data["controls"]:
-                            if key in control:
-                                del control[key]
-                if version_minor <= 1:
-                    pass
-                if version_minor == 0:
-                    keys_to_remove = [
-                        "controls",
-                        "description",
-                        "tags"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                return data
-
-            elif resource_type == "sender":
-                if version_minor <= 2:
-                    pass
-                if version_minor <= 1:
-                    keys_to_remove = [
-                        "caps",
-                        "interface_bindings",
-                        "subscription"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                if version_minor == 0:
-                    pass
-                return data
-
-            elif resource_type == "receiver":
-                if version_minor <= 2:
-                    pass
-                if version_minor <= 1:
-                    keys_to_remove = [
-                        "interface_bindings"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                    if "subscription" in data and "active" in data["subscription"]:
-                        del data["subscription"]["active"]
-                if version_minor == 0:
-                    pass
-                return data
-
-            elif resource_type == "source":
-                if version_minor <= 2:
-                    keys_to_remove = [
-                        "event_type"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                if version_minor <= 1:
-                    pass
-                if version_minor == 0:
-                    keys_to_remove = [
-                        "channels",
-                        "clock_name",
-                        "grain_rate"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                return data
-
-            elif resource_type == "flow":
-                if version_minor <= 2:
-                    keys_to_remove = [
-                        "event_type"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                if version_minor <= 1:
-                    pass
-                if version_minor == 0:
-                    keys_to_remove = [
-                        "bit_depth",
-                        "colorspace",
-                        "components",
-                        "device_id",
-                        "DID_SDID",
-                        "frame_height",
-                        "frame_width",
-                        "grain_rate",
-                        "interlace_mode",
-                        "media_type",
-                        "sample_rate",
-                        "transfer_characteristic"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                return data
-
-            elif resource_type == "subscription":
-                if version_minor <= 2:
-                    keys_to_remove = [
-                        "authorization"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                if version_minor <= 1:
-                    pass
-                if version_minor == 0:
-                    keys_to_remove = [
-                        "secure"
-                    ]
-                    for key in keys_to_remove:
-                        if key in data:
-                            del data[key]
-                return data
-
-        # Invalid request
-        return None
-
     def copy_resource(self, type, api_ver=None):
         """Make a clone of the test data for the requested type and API version"""
         if api_ver is None:
             api_ver = self.apis[REG_API_KEY]["version"]
-        data = deepcopy(self.test_data[type])
-        if self.is04_reg_utils.compare_api_version(api_ver, "v1.3") < 0:
-            data = self.downgrade_resource(type, data, api_ver)
-        return data
+
+        return IS04Utils.downgrade_resource(type, self.test_data[type], api_ver)
 
     def bump_resource_version(self, resource):
         """Bump version timestamp of the given resource"""
@@ -2406,7 +2242,7 @@ class IS0402Test(GenericTest):
         sub_json["params"] = params
         sub_json["secure"] = CONFIG.ENABLE_HTTPS
         if self.is04_query_utils.compare_api_version(api_ver, "v1.3") < 0:
-            sub_json = self.downgrade_resource("subscription", sub_json, api_ver)
+            sub_json = IS04Utils.downgrade_resource("subscription", sub_json, api_ver)
         return sub_json
 
     def post_subscription(self, test, sub_json, query_url=None):
@@ -2544,7 +2380,7 @@ class IS0402Test(GenericTest):
             data["device_id"] = source["device_id"]
             data["source_id"] = source["id"]
             # since device_id is v1.1, downgrade
-            data = self.downgrade_resource(type, data, self.apis[REG_API_KEY]["version"])
+            data = IS04Utils.downgrade_resource(type, data, self.apis[REG_API_KEY]["version"])
         elif type == "sender":
             device = self.post_super_resources_and_resource(test, "device", description, fail=Test.UNCLEAR)
             data["device_id"] = device["id"]

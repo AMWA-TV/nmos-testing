@@ -19,6 +19,6 @@ class IS0901Test(GenericTest):
     """
     Runs IS-09-01-Test
     """
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         GenericTest.__init__(self, apis)
         self.authorization = False  # System API doesn't use auth, so don't send tokens in every request
