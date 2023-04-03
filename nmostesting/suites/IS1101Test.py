@@ -25,16 +25,14 @@ class IS1101Test(GenericTest):
     """
     Runs Node Tests covering IS-11
     """
-
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         # Don't auto-test paths responding with an EDID binary as they don't have a JSON Schema
         omit_paths = [
-            "/inputs/{inputId}/edid",
             "/inputs/{inputId}/edid/base",
             "/inputs/{inputId}/edid/effective",
             "/outputs/{outputId}/edid"
         ]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.compat_url = self.apis[COMPAT_API_KEY]["url"]
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.conn_url = self.apis[CONN_API_KEY]["url"]

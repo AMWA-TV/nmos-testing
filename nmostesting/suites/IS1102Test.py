@@ -47,18 +47,16 @@ REF_SUPPORTED_CONSTRAINTS_AUDIO = [
 
 class IS1102Test(GenericTest):
     """
-    Runs Node Tests covering IS-11
+    Runs Node Tests covering both IS-04 and IS-11
     """
-
-    def __init__(self, apis):
+    def __init__(self, apis, **kwargs):
         # Don't auto-test paths responding with an EDID binary as they don't have a JSON Schema
         omit_paths = [
-            "/inputs/{inputId}/edid",
             "/inputs/{inputId}/edid/base",
             "/inputs/{inputId}/edid/effective",
             "/outputs/{outputId}/edid"
         ]
-        GenericTest.__init__(self, apis, omit_paths)
+        GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.compat_url = self.apis[COMPAT_API_KEY]["url"]
         self.senders = ""

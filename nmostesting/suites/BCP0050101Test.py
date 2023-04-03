@@ -21,6 +21,6 @@ class BCP0050101Test(GenericTest):
     """
     Runs Node Tests covering BCP-005-01
     """
-    def __init__(self, apis):
-        GenericTest.__init__(self, apis)
+    def __init__(self, apis, **kwargs):
+        GenericTest.__init__(self, apis, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]

@@ -380,6 +380,10 @@ TEST_DEFINITIONS = {
     },
     "BCP-006-01-01": {
         "name": "BCP-006-01 NMOS With JPEG XS",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
         "extra_specs": [{
             "spec_key": "nmos-parameter-registers",
             "api_key": "flow-register"
