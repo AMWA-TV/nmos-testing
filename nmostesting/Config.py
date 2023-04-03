@@ -274,6 +274,26 @@ SPECIFICATIONS = {
             }
         }
     },
+    "bcp-002-01": {
+        "repo": "bcp-002-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "grouphint": {
+                "name": "Natural Grouping"
+            }
+        }
+    },
+    "bcp-002-02": {
+        "repo": "bcp-002-02",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "asset": {
+                "name": "Asset Distinguishing Information"
+            }
+        }
+    },
     "bcp-003-01": {
         "repo": "bcp-003-01",
         "versions": ["v1.0"],
