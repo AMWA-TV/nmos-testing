@@ -214,15 +214,15 @@ class IS05Utils(NMOSUtils):
 
                     if ready:
                         try:
-                            activeMode = response['activation']['mode']
-                            activeRequested = response['activation']['requested_time']
-                            activeActivation = response['activation']['activation_time']
+                            activeMode = activeParams['activation']['mode']
+                            activeRequested = activeParams['activation']['requested_time']
+                            activeActivation = activeParams['activation']['activation_time']
                         except KeyError:
                             return False, "Could not find all activation entries from {}, " \
-                                          "got {}".format(activeUrl, response)
+                                          "got {}".format(activeUrl, activeParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {}, " \
-                                          "got a {}: {}".format(activeUrl, type(response), response)
+                                          "got a {}: {}".format(activeUrl, type(activeParams), activeParams)
 
                         if activeMode == activateMode and activeRequested == activateTime \
                                 and self.compare_resource_version(activeActivation, stagedActivation) >= 0:
