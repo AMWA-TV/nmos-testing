@@ -341,13 +341,13 @@ class GenericTest(object):
         cors_valid, cors_message = self.check_CORS(method, response.headers)
         if not cors_valid:
             return False, cors_message
-
-        try:
-            self.validate_schema(response.json(), schema)
-        except jsonschema.ValidationError:
-            return False, "Response schema validation error"
-        except json.JSONDecodeError:
-            return False, "Invalid JSON received"
+        if response.headers["Content-Type"] == "application/json":
+            try:
+                self.validate_schema(response.json(), schema)
+            except jsonschema.ValidationError:
+                return False, "Response schema validation error"
+            except json.JSONDecodeError:
+                return False, "Invalid JSON received"
 
         return True, ctype_message
 
@@ -663,11 +663,9 @@ class GenericTest(object):
         elif resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
             # For methods which don't return a payload, return immediately after the CORS header check
             return True, ""
-
         # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
-
-        if not schema:
+        if not schema and response.headers["Content-Type"] == 'application/json':
             raise NMOSTestException(test.MANUAL("Test suite unable to locate schema"))
 
         return self.check_response(schema, resource[1]["method"], response)

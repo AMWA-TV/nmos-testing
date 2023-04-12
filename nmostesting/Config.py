@@ -186,7 +186,6 @@ MQTT_PASSWORD = None
 
 # Bash shell to use for running testssl.sh
 TEST_SSL_BASH = "bash"
-
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
