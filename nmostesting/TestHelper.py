@@ -469,7 +469,8 @@ class SubscriptionWebsocketWorker(threading.Thread):
         while True:
             message = await self._message_queue.get()
             # broadcast to all connected clients
-            await asyncio.wait([ws.send(message) for ws in self._connected_clients])
+            for ws in self._connected_clients:
+                await asyncio.create_task(ws.send(message))
 
     async def handler(self, websocket, path):
         consumer_task = asyncio.ensure_future(self.consumer_handler(websocket, path))
