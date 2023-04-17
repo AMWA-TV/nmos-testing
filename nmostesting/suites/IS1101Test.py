@@ -46,6 +46,7 @@ REF_SUPPORTED_CONSTRAINTS_AUDIO = [
     "urn:x-nmos:cap:format:sample_depth",
 ]
 
+
 class IS1101Test(GenericTest):
     """
     Runs Node Tests covering IS-11
