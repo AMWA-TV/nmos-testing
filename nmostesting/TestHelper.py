@@ -264,17 +264,18 @@ def load_resolved_schema(spec_path, file_name=None, schema_obj=None, path_prefix
     return schema
 
 
-def check_content_type(headers, expected_type="application/json"):
+def check_content_type(headers, expected_type=["application/json", "application/sdp", "application/octet-stream"]):
     """Check the Content-Type header of an API request or response"""
     if "Content-Type" not in headers:
         return False, "API failed to signal a Content-Type."
     else:
         ctype = headers["Content-Type"]
         ctype_params = ctype.split(";")
-        if ctype_params[0] != expected_type:
+        is_expected_type = ctype_params[0] in expected_type
+        if not is_expected_type:
             return False, "API signalled a Content-Type of {} rather than {}." \
                           .format(ctype, expected_type)
-        elif ctype_params[0] in ["application/json", "application/sdp"]:
+        elif is_expected_type:
             if len(ctype_params) == 2 and ctype_params[1].strip().lower() == "charset=utf-8":
                 return True, "API signalled an unnecessary 'charset' in its Content-Type: {}" \
                              .format(ctype)

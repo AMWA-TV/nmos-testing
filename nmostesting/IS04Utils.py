@@ -11,11 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from . import TestHelper
-
-from .NMOSUtils import NMOSUtils
+import re
 from copy import deepcopy
+from fractions import Fraction
+from . import TestHelper
+from .NMOSUtils import NMOSUtils
 
 
 class IS04Utils(NMOSUtils):
@@ -71,9 +71,106 @@ class IS04Utils(NMOSUtils):
         return toReturn
 
     @staticmethod
+    def comparable_parameter_constraint_value(value):
+        if isinstance(value, dict):
+            return Fraction(value["numerator"], value.get("denominator", 1))
+        return value
+
+    @staticmethod
+    def comparable_parameter_constraint(param_constraint):
+        result = deepcopy(param_constraint)
+        if "minimum" in result:
+            result["minimum"] = IS04Utils.comparable_parameter_constraint_value(
+                result["minimum"]
+            )
+        if "maximum" in result:
+            result["maximum"] = IS04Utils.comparable_parameter_constraint_value(
+                result["maximum"]
+            )
+        if "enum" in result:
+            for i, value in enumerate(result["enum"]):
+                result["enum"][i] = IS04Utils.comparable_parameter_constraint_value(
+                    value
+                )
+        return result
+
+    @staticmethod
+    def comparable_constraint_set(constraint_set):
+        result = {
+            k: IS04Utils.comparable_parameter_constraint(v)
+            if re.match("^urn:x-nmos:cap:(?!meta:)", k)
+            else v
+            for k, v in constraint_set.items()
+        }
+        # could also remove urn:x-nmos:cap:meta:label?
+        if "urn:x-nmos:cap:meta:preference" not in result:
+            result["urn:x-nmos:cap:meta:preference"] = 0
+        if "urn:x-nmos:cap:meta:enabled" not in result:
+            result["urn:x-nmos:cap:meta:enabled"] = True
+        return result
+
+    @staticmethod
+    def comparable_constraint_sets(constraint_sets):
+        return [IS04Utils.comparable_constraint_set(_) for _ in constraint_sets]
+
+    @staticmethod
+    def compare_constraint_sets(lhs, rhs):
+        """Check that two Constraint Sets arrays are closely equivalent"""
+        return TestHelper.compare_json(
+            IS04Utils.comparable_constraint_sets(lhs),
+            IS04Utils.comparable_constraint_sets(rhs),
+        )
+
+    @staticmethod
+    def make_sampling(flow_components):
+        samplers = {
+            # Red-Green-Blue-Alpha
+            "RGBA": {"R": (1, 1), "G": (1, 1), "B": (1, 1), "A": (1, 1)},
+            # Red-Green-Blue
+            "RGB": {"R": (1, 1), "G": (1, 1), "B": (1, 1)},
+            # Non-constant luminance YCbCr
+            "YCbCr-4:4:4": {"Y": (1, 1), "Cb": (1, 1), "Cr": (1, 1)},
+            "YCbCr-4:2:2": {"Y": (1, 1), "Cb": (2, 1), "Cr": (2, 1)},
+            "YCbCr-4:2:0": {"Y": (1, 1), "Cb": (2, 2), "Cr": (2, 2)},
+            "YCbCr-4:1:1": {"Y": (1, 1), "Cb": (4, 1), "Cr": (4, 1)},
+            # Constant luminance YCbCr
+            "CLYCbCr-4:4:4": {"Yc": (1, 1), "Cbc": (1, 1), "Crc": (1, 1)},
+            "CLYCbCr-4:2:2": {"Yc": (1, 1), "Cbc": (2, 1), "Crc": (2, 1)},
+            "CLYCbCr-4:2:0": {"Yc": (1, 1), "Cbc": (2, 2), "Crc": (2, 2)},
+            # Constant intensity ICtCp
+            "ICtCp-4:4:4": {"I": (1, 1), "Ct": (1, 1), "Cp": (1, 1)},
+            "ICtCp-4:2:2": {"I": (1, 1), "Ct": (2, 1), "Cp": (2, 1)},
+            "ICtCp-4:2:0": {"I": (1, 1), "Ct": (2, 2), "Cp": (2, 2)},
+            # XYZ
+            "XYZ": {"X": (1, 1), "Y": (1, 1), "Z": (1, 1)},
+            # Key signal represented as a single component
+            "KEY": {"Key": (1, 1)},
+            # Sampling signaled by the payload
+            "UNSPECIFIED": {},
+        }
+
+        max_w, max_h = 0, 0
+        for component in flow_components:
+            w, h = component["width"], component["height"]
+            if w > max_w:
+                max_w = w
+            if h > max_h:
+                max_h = h
+
+        components_sampler = {}
+        for component in flow_components:
+            w, h = component["width"], component["height"]
+            components_sampler[component["name"]] = (max_w / w, max_h / h)
+
+        for sampling, sampler in samplers.items():
+            if sampler == components_sampler:
+                return sampling
+
     def downgrade_resource(resource_type, resource_data, requested_version):
         """Downgrades given resource data to requested version"""
-        version_major, version_minor = [int(x) for x in requested_version[1:].split(".")]
+        version_major, version_minor = [
+            int(x) for x in requested_version[1:].split(".")
+        ]
 
         data = deepcopy(resource_data)
 
@@ -94,19 +191,12 @@ class IS04Utils(NMOSUtils):
                             if key in endpoint:
                                 del endpoint[key]
                 if version_minor <= 1:
-                    keys_to_remove = [
-                        "interfaces"
-                    ]
+                    keys_to_remove = ["interfaces"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
                 if version_minor == 0:
-                    keys_to_remove = [
-                        "api",
-                        "clocks",
-                        "description",
-                        "tags"
-                    ]
+                    keys_to_remove = ["api", "clocks", "description", "tags"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -122,11 +212,7 @@ class IS04Utils(NMOSUtils):
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
-                    keys_to_remove = [
-                        "controls",
-                        "description",
-                        "tags"
-                    ]
+                    keys_to_remove = ["controls", "description", "tags"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -136,11 +222,7 @@ class IS04Utils(NMOSUtils):
                 if version_minor <= 2:
                     pass
                 if version_minor <= 1:
-                    keys_to_remove = [
-                        "caps",
-                        "interface_bindings",
-                        "subscription"
-                    ]
+                    keys_to_remove = ["caps", "interface_bindings", "subscription"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -152,9 +234,7 @@ class IS04Utils(NMOSUtils):
                 if version_minor <= 2:
                     pass
                 if version_minor <= 1:
-                    keys_to_remove = [
-                        "interface_bindings"
-                    ]
+                    keys_to_remove = ["interface_bindings"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -166,20 +246,14 @@ class IS04Utils(NMOSUtils):
 
             elif resource_type == "source":
                 if version_minor <= 2:
-                    keys_to_remove = [
-                        "event_type"
-                    ]
+                    keys_to_remove = ["event_type"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
-                    keys_to_remove = [
-                        "channels",
-                        "clock_name",
-                        "grain_rate"
-                    ]
+                    keys_to_remove = ["channels", "clock_name", "grain_rate"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -187,9 +261,7 @@ class IS04Utils(NMOSUtils):
 
             elif resource_type == "flow":
                 if version_minor <= 2:
-                    keys_to_remove = [
-                        "event_type"
-                    ]
+                    keys_to_remove = ["event_type"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -208,7 +280,7 @@ class IS04Utils(NMOSUtils):
                         "interlace_mode",
                         "media_type",
                         "sample_rate",
-                        "transfer_characteristic"
+                        "transfer_characteristic",
                     ]
                     for key in keys_to_remove:
                         if key in data:
@@ -217,18 +289,14 @@ class IS04Utils(NMOSUtils):
 
             elif resource_type == "subscription":
                 if version_minor <= 2:
-                    keys_to_remove = [
-                        "authorization"
-                    ]
+                    keys_to_remove = ["authorization"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
-                    keys_to_remove = [
-                        "secure"
-                    ]
+                    keys_to_remove = ["secure"]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
