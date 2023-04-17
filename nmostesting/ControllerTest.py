@@ -91,8 +91,6 @@ class ControllerTest(GenericTest):
         self.dns_server = dns_server
         self.mock_registry_base_url = ''
         self.mock_node_base_url = ''
-        self.question_timeout = 600  # default timeout in seconds
-        self.extra_time = 2 * CONFIG.API_PROCESSING_TIMEOUT  # API processing time to add to test timeout
         self.test_data = self.load_resource_data()
         self.senders = []
         self.sender_ip_addresses = {}
@@ -184,8 +182,8 @@ class ControllerTest(GenericTest):
         answers:    list of all possible answers
         test_type:  "single_choice" - one and only one answer
                     "multi_choice" - multiple answers
-                    "action" - Test User asked to click button, defaults to self.question_timeout
-        timeout:    number of seconds before Testing Façade times out test
+                    "action" - Test User asked to click button
+        timeout:    number of seconds before Testing Façade times out test. A value of 0 disables timeout mechanism
         multipart_test: indicates test uses multiple questions. Default None, should be increasing
                     integers with each subsequent call within the same test
         metadata: Test details to assist fully automated testing
@@ -193,7 +191,10 @@ class ControllerTest(GenericTest):
 
         method = getattr(self, test_method_name)
 
-        question_timeout = timeout if timeout else self.question_timeout
+        question_timeout = timeout or CONFIG.CONTROLLER_TESTING_TIMEOUT
+
+        question_timeout = question_timeout if question_timeout > 0 else None
+
         question_id = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
 
         json_out = {
@@ -217,7 +218,11 @@ class ControllerTest(GenericTest):
 
     def _wait_for_testing_facade(self, question_id, test_type, timeout=None):
 
-        question_timeout = (timeout or self.question_timeout) + self.extra_time
+        question_timeout = timeout or CONFIG.CONTROLLER_TESTING_TIMEOUT
+
+        # If timeout == 0 then get_answer_response will block until complete
+        # Add API processing time to specified timeout
+        question_timeout = question_timeout + (2 * CONFIG.API_PROCESSING_TIMEOUT) if question_timeout > 0 else None
 
         # Wait for answer response or question timeout in seconds
         try:
