@@ -433,6 +433,9 @@ class GenericTest(object):
             # Test that the API responds with a 401 or 503 followed by 200 when no matching public keys for the token
             results.append(self.do_test_no_matching_public_key_authorization(api))
 
+            # Clear saved entities before switching the API
+            self.saved_entities.clear()
+
         return results
 
     def do_test_404_path(self, api_name):
