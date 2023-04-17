@@ -193,7 +193,7 @@ class ControllerTest(GenericTest):
 
         question_timeout = timeout or CONFIG.CONTROLLER_TESTING_TIMEOUT
 
-         # If timeout == 0 then Testing Facade timeout mechanism is disabled
+        # If timeout == 0 then Testing Facade timeout mechanism is disabled
         question_timeout = question_timeout if question_timeout > 0 else None
 
         question_id = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
