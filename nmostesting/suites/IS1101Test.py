@@ -190,7 +190,7 @@ class IS1101Test(GenericTest):
         if numerator == 44100:
             return {"numerator": 48000}
         if numerator == 96000:
-            return {"numerator": 4800}
+            return {"numerator": 48000}
         if numerator == 88200:
             return {"numerator": 44100}
         return "sample_rate not valid"
