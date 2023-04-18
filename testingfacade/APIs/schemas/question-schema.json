@@ -103,10 +103,10 @@
                 }
             ]
         },
-        "timeout": {
-            "type": "number",
-            "description": "Time in seconds the test suite will wait to receive an answer to a particular question"
-        },
+      "timeout": {
+        "description": "Time in seconds the test suite will wait to receive an answer to a particular question",
+        "type": [ "number", "null" ]
+      },
         "answer_uri": {
             "type": "string",
             "format": "uri",
