@@ -179,6 +179,12 @@ TEST_DEFINITIONS = {
             "api_key": "node"
         }],
         "extra_specs": [{
+            "spec_key": "bcp-002-01",
+            "api_key": "grouphint"
+        }, {
+            "spec_key": "bcp-002-02",
+            "api_key": "asset"
+        }, {
             "spec_key": "bcp-004-01",
             "api_key": "receiver-caps"
         }, {

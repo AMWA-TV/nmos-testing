@@ -35,6 +35,8 @@ from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, ch
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
 CAPS_REGISTER_KEY = "caps-register"
+GROUPHINT_KEY = "grouphint"
+ASSET_KEY = "asset"
 
 
 class IS0401Test(GenericTest):
@@ -1508,6 +1510,10 @@ class IS0401Test(GenericTest):
     def test_23(self, test):
         """Senders and Receivers correctly use BCP-002-01 grouping syntax"""
 
+        api = self.apis[GROUPHINT_KEY]
+
+        grouphint = "urn:x-nmos:tag:grouphint/v1.0"
+
         found_groups = False
         found_senders_receivers = False
         groups = {"node": {}, "device": {}}
@@ -1520,7 +1526,7 @@ class IS0401Test(GenericTest):
                         if resource["device_id"] not in groups["device"]:
                             groups["device"][resource["device_id"]] = {}
                         for tag_name, tag_value in resource["tags"].items():
-                            if tag_name != "urn:x-nmos:tag:grouphint/v1.0":
+                            if tag_name != grouphint:
                                 continue
                             if not isinstance(tag_value, list) or len(tag_value) == 0:
                                 return test.FAIL("Group tag for {} {} is not an array or has too few items"
@@ -1573,8 +1579,9 @@ class IS0401Test(GenericTest):
             return test.PASS()
         else:
             return test.OPTIONAL("No BCP-002-01 groups were identified in Sender or Receiver tags",
-                                 "https://specs.amwa.tv/bcp-002-01/branches/v1.0.x"
-                                 "/docs/Natural_Grouping.html")
+                                 "https://specs.amwa.tv/bcp-002-01/branches/{}"
+                                 "/docs/Natural_Grouping.html"
+                                 .format(api["spec_branch"]))
 
     def test_24(self, test):
         """Periodic Sources specify a 'grain_rate'"""
@@ -2039,6 +2046,71 @@ class IS0401Test(GenericTest):
                                  "https://specs.amwa.tv/bcp-004-01/branches/{}"
                                  "/docs/Receiver_Capabilities.html#listing-constraint-sets"
                                  .format(api["spec_branch"]))
+        else:
+            return test.PASS()
+
+    def test_28(self, test):
+        """Node and Device resources correctly use BCP-002-02 distinguishing information"""
+
+        api = self.apis[ASSET_KEY]
+
+        manufacturer = "urn:x-nmos:tag:asset:manufacturer/v1.0"
+        product = "urn:x-nmos:tag:asset:product/v1.0"
+        instance_id = "urn:x-nmos:tag:asset:instance-id/v1.0"
+        function = "urn:x-nmos:tag:asset:function/v1.0"
+        res_tags = {
+            "node": [manufacturer, product, instance_id],
+            "device": [manufacturer, product, instance_id, function]
+        }
+
+        self.do_node_basics_prereqs()
+
+        not_implemented = True
+        missing_tag = None
+        uniques = set()
+
+        for res_type in ["node", "device"]:
+            try:
+                node_resources = self.get_node_resources(res_type)
+
+                if not node_resources:
+                    return test.UNCLEAR("No {} resources were found on the Node.".format(res_type.title()))
+
+                for res_id, resource in node_resources.items():
+                    tags = resource["tags"]
+                    for tag in res_tags[res_type]:
+                        if tag in tags:
+                            not_implemented = False
+                            if len(tags[tag]) == 0 or (tag != function and len(tags[tag]) > 1):
+                                return test.FAIL("{} {} has {} '{}' tag values."
+                                                 .format(res_type.title(), res_id, len(tags[tag]), tag))
+                            if any([len(value) == 0 for value in tags[tag]]):
+                                return test.FAIL("{} {} has an empty '{}' tag value."
+                                                 .format(res_type.title(), res_id, tag))
+                        elif not missing_tag:
+                            missing_tag = "{} {} has no '{}' tag.".format(res_type.title(), res_id, tag)
+                    unique = (
+                        res_type,
+                        tags.get(manufacturer, [None])[0],
+                        tags.get(product, [None])[0],
+                        tags.get(instance_id, [None])[0]
+                    )
+                    if unique in uniques:
+                        return test.FAIL("{} {} does not have unique asset tags.".format(res_type.title(), res_id))
+                    uniques.add(unique)
+
+            except ValueError:
+                return test.FAIL("Failed to reach Node API or invalid JSON received!")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key in the {} {}: {}".format(res_type.title(), res_id, e))
+
+        if not_implemented:
+            return test.OPTIONAL("No BCP-002-02 asset tags were present on the Node or Devices",
+                                 "https://specs.amwa.tv/bcp-002-02/branches/{}"
+                                 "/docs/Overview.html"
+                                 .format(api["spec_branch"]))
+        elif missing_tag:
+            return test.FAIL(missing_tag)
         else:
             return test.PASS()
 
