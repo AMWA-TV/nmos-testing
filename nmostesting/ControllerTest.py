@@ -220,7 +220,7 @@ class ControllerTest(GenericTest):
 
         # Wait for answer response or question timeout in seconds. A timeout of None will wait indefinitely
         timeout = CONFIG.CONTROLLER_TESTING_TIMEOUT
-                
+
         try:
             answer_response = _event_loop.run_until_complete(self.get_answer_response(timeout))
         except asyncio.TimeoutError:
