@@ -39,7 +39,6 @@
         // Target for countdown is time question was sent plus timeout converted to milliseconds
         var target=(parseInt("{{ time_received }}") + parseInt("{{ timeout }}")) * 1000;
 
-        // A timeout value of 0 disables the timeout mechanism
         if (!isNaN(target)) {
             // target time exists so set countdown
             var x = setInterval(function() {
