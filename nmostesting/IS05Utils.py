@@ -160,7 +160,7 @@ class IS05Utils(NMOSUtils):
             else:
                 return False, "Expected requested time `{}` for {} activation, " \
                               "got {}".format(activateTime or "null", activationName, stageRequested)
-            if re.match("^[0-9]+:[0-9]+$", stageActivation) is not None:
+            if stageActivation and re.match("^[0-9]+:[0-9]+$", stageActivation) is not None:
                 pass
             else:
                 return False, "Expected activation time to match regex ^[0-9]+:[0-9]+$, " \
@@ -224,7 +224,7 @@ class IS05Utils(NMOSUtils):
                             return False, "Expected a dict to be returned from {}, " \
                                           "got a {}: {}".format(activeUrl, type(active), active)
 
-                        if activeMode == activateMode \
+                        if activeMode == activateMode and activeActivation \
                                 and (activateMode == IMMEDIATE_ACTIVATION or activeRequested == activateTime) \
                                 and self.compare_resource_version(activeActivation, stageActivation) >= 0:
                             if tries > 1:
