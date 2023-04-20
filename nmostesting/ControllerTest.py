@@ -177,7 +177,6 @@ class ControllerTest(GenericTest):
             question,
             answers,
             test_type,
-            timeout=None,
             multipart_test=None,
             metadata=None):
         """
@@ -187,7 +186,6 @@ class ControllerTest(GenericTest):
         test_type:  "single_choice" - one and only one answer
                     "multi_choice" - multiple answers
                     "action" - Test User asked to click button
-        timeout:    number of seconds before Testing Façade times out test. A value of 0 disables timeout mechanism
         multipart_test: indicates test uses multiple questions. Default None, should be increasing
                     integers with each subsequent call within the same test
         metadata: Test details to assist fully automated testing
@@ -195,7 +193,7 @@ class ControllerTest(GenericTest):
 
         method = getattr(self, test_method_name)
 
-        question_timeout = timeout or CONFIG.CONTROLLER_TESTING_TIMEOUT
+        timeout = CONFIG.CONTROLLER_TESTING_TIMEOUT
 
         question_id = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
 
@@ -206,7 +204,7 @@ class ControllerTest(GenericTest):
             "description": inspect.getdoc(method),
             "question": question,
             "answers": answers,
-            "timeout": question_timeout,
+            "timeout": timeout,
             "answer_uri": self.answer_uri,
             "metadata": metadata
         }
@@ -218,13 +216,13 @@ class ControllerTest(GenericTest):
 
         return json_out
 
-    def _wait_for_testing_facade(self, question_id, test_type, timeout=None):
+    def _wait_for_testing_facade(self, question_id, test_type):
 
-        question_timeout = timeout or CONFIG.CONTROLLER_TESTING_TIMEOUT
-
-        # Wait for answer response or question timeout in seconds
+        # Wait for answer response or question timeout in seconds. A timeout of None will wait indefinitely
+        timeout = CONFIG.CONTROLLER_TESTING_TIMEOUT
+                
         try:
-            answer_response = _event_loop.run_until_complete(self.get_answer_response(question_timeout))
+            answer_response = _event_loop.run_until_complete(self.get_answer_response(timeout))
         except asyncio.TimeoutError:
             raise TestingFacadeException("Test timed out")
 
@@ -244,14 +242,14 @@ class ControllerTest(GenericTest):
 
         return answer_response
 
-    def _invoke_testing_facade(self, question, answers, test_type, timeout=None, multipart_test=None, metadata=None):
+    def _invoke_testing_facade(self, question, answers, test_type, multipart_test=None, metadata=None):
         # Get the name of the calling test method to use as an identifier
         test_method_name = inspect.currentframe().f_back.f_code.co_name
 
         json_out = self._send_testing_facade_questions(
-            test_method_name, question, answers, test_type, timeout, multipart_test, metadata)
+            test_method_name, question, answers, test_type, multipart_test, metadata)
 
-        return self._wait_for_testing_facade(json_out['question_id'], test_type, timeout)
+        return self._wait_for_testing_facade(json_out['question_id'], test_type)
 
     def _generate_random_indices(self, index_range, min_index_count=2, max_index_count=4):
         """
@@ -596,7 +594,7 @@ class ControllerTest(GenericTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action", timeout=10)
+            self._invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # post_test_introducton timed out

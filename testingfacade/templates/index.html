@@ -40,7 +40,7 @@
         var target=(parseInt("{{ time_received }}") + parseInt("{{ timeout }}")) * 1000;
 
         // A timeout value of 0 disables the timeout mechanism
-        if (!isNaN(target) && parseInt("{{ timeout }}") > 0 ) {
+        if (!isNaN(target)) {
             // target time exists so set countdown
             var x = setInterval(function() {
                 // current time
