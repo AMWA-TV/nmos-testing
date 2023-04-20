@@ -55,7 +55,7 @@ MQTT_MESSAGE_TIMEOUT = 2
 # Number of seconds to wait after performing an API action for the results to be fully visible via IS-04
 API_PROCESSING_TIMEOUT = 1
 
-# Number of seconds to wait before timing out Controller test. Set to 0 to disable timeout mechanism
+# Number of seconds to wait before timing out Controller test. Set to None to disable timeout mechanism
 CONTROLLER_TESTING_TIMEOUT = 120
 
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
