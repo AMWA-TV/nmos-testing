@@ -165,6 +165,10 @@ class ControllerTest(GenericTest):
         self.post_tests_message()
 
     async def get_answer_response(self, timeout):
+        # Add API processing time to specified timeout
+        # Otherwise, if timeout is 0 then disable timeout mechanism
+        timeout = timeout + (2 * CONFIG.API_PROCESSING_TIMEOUT) if timeout else None
+
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
 
     def _send_testing_facade_questions(
@@ -193,9 +197,6 @@ class ControllerTest(GenericTest):
 
         question_timeout = timeout or CONFIG.CONTROLLER_TESTING_TIMEOUT
 
-        # If timeout == 0 then Testing Facade timeout mechanism is disabled
-        question_timeout = question_timeout if question_timeout > 0 else None
-
         question_id = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
 
         json_out = {
@@ -221,13 +222,9 @@ class ControllerTest(GenericTest):
 
         question_timeout = timeout or CONFIG.CONTROLLER_TESTING_TIMEOUT
 
-        # If timeout == 0 then get_answer_response will block until complete
-        # Add API processing time to specified timeout
-        question_timeout = question_timeout + (2 * CONFIG.API_PROCESSING_TIMEOUT) if question_timeout > 0 else None
-
         # Wait for answer response or question timeout in seconds
         try:
-            answer_response = _event_loop.run_until_complete(self.get_answer_response(timeout=question_timeout))
+            answer_response = _event_loop.run_until_complete(self.get_answer_response(question_timeout))
         except asyncio.TimeoutError:
             raise TestingFacadeException("Test timed out")
 
