@@ -167,7 +167,7 @@ class ControllerTest(GenericTest):
     async def get_answer_response(self, timeout):
         # Add API processing time to specified timeout
         # Otherwise, if timeout is None then disable timeout mechanism
-        timeout = timeout + (2 * CONFIG.API_PROCESSING_TIMEOUT) if timeout else None
+        timeout = timeout + (2 * CONFIG.API_PROCESSING_TIMEOUT) if timeout is not None else None
 
         return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
 
