@@ -82,6 +82,7 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1201Test
 from .suites import BCP00301Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
@@ -340,6 +341,14 @@ TEST_DEFINITIONS = {
     #     }],
     #     "class": IS1001Test.IS1001Test
     # },
+    "IS-12-01": {
+        "name": "IS-12 NMOS Control Protocol",
+        "specs": [{
+            "spec_key": "is-12",
+            "api_key": "node",
+        }],
+        "class": IS1201Test.IS1201Test
+    },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
         "specs": [{
