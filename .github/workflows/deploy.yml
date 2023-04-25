@@ -4,32 +4,49 @@ on:
 
   push:
     branches:
-        - main
-        - master
-        - deploy-action
+      - master
+      - dev
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ${{ secrets.DOCKER_USERNAME }}/nmos-testing
+          tags: |
+            # Tag all builds with branch name and sha
+            type=sha,prefix=${{ github.ref_name }}-
+            # Tag if non-master branch with branch name and latest
+            type=raw,value=latest,prefix=${{ github.ref_name }}-,enable=${{ github.ref_name != 'master' }}
+            # Tag if master branch with latest (no branch name prefix)
+            type=raw,value=latest,enable=${{ github.ref_name == 'master' }}
+
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2.1.0
         with:
           platforms: all
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2.5.0
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2.1.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4.0.0
         with:
+          context: .
           builder: ${{ steps.buildx.outputs.name }}
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/nmos-testing:latest
+          tags: ${{ steps.meta.outputs.tags }}
