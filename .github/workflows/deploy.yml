@@ -4,10 +4,8 @@ on:
 
   push:
     branches:
-      - main
       - master
       - dev
-      - deploy-action
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,10 +22,10 @@ jobs:
           tags: |
             # Tag all builds with branch name and sha
             type=sha,prefix=${{ github.ref_name }}-
-            # Tag each non-default branch with branch name and latest
+            # Tag if non-master branch with branch name and latest
             type=raw,value=latest,prefix=${{ github.ref_name }}-,enable=${{ github.ref_name != 'master' }}
-            # Tag default branch with latest (no branch name prefix)
-            type=raw,value=latest,enable={{is_default_branch}}
+            # Tag if master branch with latest (no branch name prefix)
+            type=raw,value=latest,enable=${{ github.ref_name == 'master' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2.1.0
