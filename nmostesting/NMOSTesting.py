@@ -344,8 +344,12 @@ TEST_DEFINITIONS = {
     "IS-12-01": {
         "name": "IS-12 NMOS Control Protocol",
         "specs": [{
-            "spec_key": "is-12",
+            "spec_key": "is-04",
             "api_key": "node",
+        }, {
+            "spec_key": "is-12",
+            "api_key": "control",
+            "disable_fields": ["host", "port"]
         }],
         "class": IS1201Test.IS1201Test
     },
