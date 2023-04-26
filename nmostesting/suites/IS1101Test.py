@@ -54,6 +54,7 @@ class IS1101Test(GenericTest):
     def __init__(self, apis, **kwargs):
         # Don't auto-test paths responding with an EDID binary as they don't have a JSON Schema
         omit_paths = [
+            "/single/senders/{senderId}/transportfile",
             "/inputs/{inputId}/edid",
             "/inputs/{inputId}/edid/base",
             "/inputs/{inputId}/edid/effective",
