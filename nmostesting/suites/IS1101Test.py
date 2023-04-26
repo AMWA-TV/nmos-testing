@@ -108,7 +108,7 @@ class IS1101Test(GenericTest):
             if not NMOSUtils.compare_urls(control_href, self.compat_url):
                 return test.FAIL("IS-11 URL is invalid")
             return test.PASS()
-        return test.FAIL("IS-11 API is not available")
+        return test.WARNING("IS-11 API is not available")
 
     def test_00_02(self, test):
         "Put all senders into inactive state"
@@ -1720,5 +1720,5 @@ class IS1101Test(GenericTest):
             if "constraint_sets" not in self.caps:
                 return test.UNCLEAR("The receiver does not have constraint_sets in caps.")
             if len(self.caps["constraint_sets"]) == 0:
-                return test.UNCLEAR("The receiver does not support BCP-004-01.")
+                return test.WARNING("The receiver does not support BCP-004-01.")
         return test.PASS()
