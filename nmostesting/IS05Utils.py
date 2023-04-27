@@ -100,17 +100,17 @@ class IS05Utils(NMOSUtils):
     def check_staged_activation_params_default(self, port, portId):
         # Check that the staged activation parameters have returned to their default values
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
-        valid, response = self.checkCleanRequestJSON("GET", stagedUrl)
+        valid, staged = self.checkCleanRequestJSON("GET", stagedUrl)
         if valid:
             expected = {"mode": None, "requested_time": None, "activation_time": None}
             try:
-                params = response['activation']
+                params = staged['activation']
             except KeyError:
                 return False, "Could not find a receiver_id entry in response from {}, got {}".format(stagedUrl,
-                                                                                                      response)
+                                                                                                      staged)
             except TypeError:
-                return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(response),
-                                                                                            response)
+                return False, "Expected a dict to be returned from {}, got a {}: {}".format(stagedUrl, type(staged),
+                                                                                            staged)
             if params == expected:
                 return True, ""
             else:
@@ -118,7 +118,7 @@ class IS05Utils(NMOSUtils):
                       "Expected {}, got {}".format(expected, params)
                 return False, msg
         else:
-            return False, response
+            return False, staged
 
     def perform_activation(self, port, portId, activateMode=IMMEDIATE_ACTIVATION, activateTime=None, masterEnable=None):
         # Request an immediate activation
@@ -132,46 +132,46 @@ class IS05Utils(NMOSUtils):
             data["master_enable"] = masterEnable
         return self.checkCleanRequestJSON("PATCH", stagedUrl, data=data, code=code)
 
-    def _check_perform_activation(self, port, portId, stagedParams, changedParam, activationName="immediate",
+    def _check_perform_activation(self, port, portId, stageParams, changedParam, activationName="immediate",
                                   activateMode=IMMEDIATE_ACTIVATION, activateTime=None, activateSleep=0):
         stagedUrl = "single/" + port + "s/" + portId + "/staged"
         activeUrl = "single/" + port + "s/" + portId + "/active"
-        valid, response = self.perform_activation(port, portId, activateMode, activateTime)
+        valid, stage = self.perform_activation(port, portId, activateMode, activateTime)
         if valid:
             # Check the values in the /staged PATCH response
 
             try:
-                stagedMode = response['activation']['mode']
-                stagedRequested = response['activation']['requested_time']
-                stagedActivation = response['activation']['activation_time']
+                stageMode = stage['activation']['mode']
+                stageRequested = stage['activation']['requested_time']
+                stageActivation = stage['activation']['activation_time']
             except KeyError:
                 return False, "Could not find all activation entries from {}, " \
-                              "got {}".format(stagedUrl, response)
+                              "got {}".format(stagedUrl, stage)
             except TypeError:
                 return False, "Expected a dict to be returned from {}, " \
-                              "got a {}: {}".format(stagedUrl, type(response), response)
-            if stagedMode == activateMode:
+                              "got a {}: {}".format(stagedUrl, type(stage), stage)
+            if stageMode == activateMode:
                 pass
             else:
                 return False, "Expected mode `{}` for {} activation, " \
-                              "got {}".format(activateMode, activationName, stagedMode)
-            if stagedRequested == activateTime:
+                              "got {}".format(activateMode, activationName, stageMode)
+            if stageRequested == activateTime:
                 pass
             else:
                 return False, "Expected requested time `{}` for {} activation, " \
-                              "got {}".format(activateTime or "null", activationName, stagedRequested)
-            if re.match("^[0-9]+:[0-9]+$", stagedActivation) is not None:
+                              "got {}".format(activateTime or "null", activationName, stageRequested)
+            if stageActivation and re.match("^[0-9]+:[0-9]+$", stageActivation) is not None:
                 pass
             else:
                 return False, "Expected activation time to match regex ^[0-9]+:[0-9]+$, " \
-                              "got {}".format(stagedActivation)
+                              "got {}".format(stageActivation)
 
             # For immediate activations, check the values now on /staged
 
             if activateMode == IMMEDIATE_ACTIVATION:
-                validImmediate, responseImmediate = self.check_staged_activation_params_default(port, portId)
+                validImmediate, stagedImmediate = self.check_staged_activation_params_default(port, portId)
                 if not validImmediate:
-                    return False, responseImmediate
+                    return False, stagedImmediate
 
             if activateSleep > 0:
                 time.sleep(activateSleep)
@@ -186,27 +186,27 @@ class IS05Utils(NMOSUtils):
 
             while tries < maxTries:
                 tries = tries + 1
-                valid2, activeParams = self.checkCleanRequestJSON("GET", activeUrl)
+                valid2, active = self.checkCleanRequestJSON("GET", activeUrl)
                 if valid2:
                     ready = True
                     for i in range(0, self.get_num_paths(portId, port)):
                         try:
-                            activeParam = activeParams['transport_params'][i][changedParam]
+                            activeParam = active['transport_params'][i][changedParam]
                         except KeyError:
                             return False, "Could not find active {} entry on leg {} from {}, " \
-                                          "got {}".format(changedParam, i, activeUrl, activeParams)
+                                          "got {}".format(changedParam, i, activeUrl, active)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
-                                          "got a {}: {}".format(activeUrl, i, type(activeParams), activeParams)
+                                          "got a {}: {}".format(activeUrl, i, type(active), active)
                         try:
-                            stagedParam = stagedParams[i][changedParam]
+                            stageParam = stageParams[i][changedParam]
                         except KeyError:
                             return False, "Could not find staged {} entry on leg {} from {}, " \
-                                          "got {}".format(changedParam, i, stagedUrl, stagedParams)
+                                          "got {}".format(changedParam, i, stagedUrl, stageParams)
                         except TypeError:
                             return False, "Expected a dict to be returned from {} on leg {}, " \
-                                          "got a {}: {}".format(stagedUrl, i, type(activeParams), stagedParams)
-                        if (stagedParam == activeParam if stagedParam != "auto" else "auto" != activeParam):
+                                          "got a {}: {}".format(stagedUrl, i, type(active), stageParams)
+                        if (stageParam == activeParam if stageParam != "auto" else "auto" != activeParam):
                             # changed param is ready, though maybe it was already so also check activation entries
                             pass
                         else:
@@ -214,18 +214,19 @@ class IS05Utils(NMOSUtils):
 
                     if ready:
                         try:
-                            activeMode = response['activation']['mode']
-                            activeRequested = response['activation']['requested_time']
-                            activeActivation = response['activation']['activation_time']
+                            activeMode = active['activation']['mode']
+                            activeRequested = active['activation']['requested_time']
+                            activeActivation = active['activation']['activation_time']
                         except KeyError:
                             return False, "Could not find all activation entries from {}, " \
-                                          "got {}".format(activeUrl, response)
+                                          "got {}".format(activeUrl, active)
                         except TypeError:
                             return False, "Expected a dict to be returned from {}, " \
-                                          "got a {}: {}".format(activeUrl, type(response), response)
+                                          "got a {}: {}".format(activeUrl, type(active), active)
 
-                        if activeMode == activateMode and activeRequested == activateTime \
-                                and self.compare_resource_version(activeActivation, stagedActivation) >= 0:
+                        if activeMode == activateMode and activeActivation \
+                                and (activateMode == IMMEDIATE_ACTIVATION or activeRequested == activateTime) \
+                                and self.compare_resource_version(activeActivation, stageActivation) >= 0:
                             if tries > 1:
                                 # True with a message means WARNING!
                                 return True, "Activation entries were set at {} later than expected. " \
@@ -234,7 +235,7 @@ class IS05Utils(NMOSUtils):
                             else:
                                 return True, ""
                 else:
-                    return False, activeParams
+                    return False, active
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
             if ready:
                 return False, "Activation entries were not set at {} after {} activation{}" \
@@ -242,7 +243,7 @@ class IS05Utils(NMOSUtils):
             return False, "Transport parameters did not transition to {} after {} activation{}" \
                           .format(activeUrl, activationName, " (Tries: {})".format(tries) if tries > 1 else "")
         else:
-            return False, response
+            return False, stage
 
     def check_perform_immediate_activation(self, port, portId, stagedParams, changedParam):
         return self._check_perform_activation(port, portId, stagedParams, changedParam)
@@ -276,24 +277,24 @@ class IS05Utils(NMOSUtils):
                 data['transport_params'].append({paramName: paramValues[i]})
             if len(data["transport_params"]) == 0:
                 del data["transport_params"]
-            valid2, r = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
+            valid2, stage = self.checkCleanRequestJSON("PATCH", stagedUrl, data=data)
             if valid2:
                 try:
-                    stagedParams = r['transport_params']
+                    stageParams = stage['transport_params']
                 except KeyError:
                     return False, "Could not find `transport_params` entry in response from {}".format(stagedUrl)
                 except TypeError:
                     return False, "Expected a dict to be returned from {}, got a {}".format(stagedUrl,
-                                                                                            type(stagedParams))
-                if len(stagedParams) != legs:
+                                                                                            type(stageParams))
+                if len(stageParams) != legs:
                     return False, "Expected {} `transport_params` in response from {}".format(legs, stagedUrl)
                 for i in range(0, legs):
-                    if paramName not in stagedParams[i] or stagedParams[i][paramName] != paramValues[i]:
+                    if paramName not in stageParams[i] or stageParams[i][paramName] != paramValues[i]:
                         return False, "Expected `transport_params` {} `{}` to be {} in response from {}" \
                                       .format(i, paramName, paramValues[i], stagedUrl)
-                return activationMethod(port, portId, stagedParams, paramName)
+                return activationMethod(port, portId, stageParams, paramName)
             else:
-                return False, r
+                return False, stage
         else:
             return False, paramValues
 
@@ -400,20 +401,20 @@ class IS05Utils(NMOSUtils):
             data['transport_params'][i][paramName] = paramValues[i]
         if len(data["transport_params"]) == 0:
             del data["transport_params"]
-        valid, response = self.checkCleanRequestJSON("PATCH", url, data=data)
+        valid, stage = self.checkCleanRequestJSON("PATCH", url, data=data)
         if valid:
-            valid2, response2 = self.checkCleanRequestJSON("GET", url + "/")
+            valid2, staged = self.checkCleanRequestJSON("GET", url + "/")
             if valid2:
                 try:
-                    response3 = response2['transport_params']
+                    stagedParams = staged['transport_params']
                 except KeyError:
-                    return False, "Could not find transport_params in response from {}, got {}".format(url, response2)
+                    return False, "Could not find transport_params in response from {}, got {}".format(url, staged)
                 except TypeError:
-                    return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(response2),
-                                                                                                response2)
+                    return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(staged),
+                                                                                                staged)
                 count = 0
                 try:
-                    for item in response3:
+                    for item in stagedParams:
                         expected = paramValues[count]
                         actual = item[paramName]
                         msg = "Could not change {} parameter at {}, expected {}, got {}".format(paramName, url,
@@ -425,12 +426,13 @@ class IS05Utils(NMOSUtils):
                             return False, msg
                         count = count + 1
                 except TypeError:
-                    return False, "Expected a dict to be returned from {}, got a {}: {}".format(url, type(response3),
-                                                                                                response3)
+                    return False, "Expected a dict to be returned from {}, got a {}: {}".format(url,
+                                                                                                type(stagedParams),
+                                                                                                stagedParams)
             else:
-                return False, response2
+                return False, staged
         else:
-            return False, response
+            return False, stage
         return True, ""
 
     def check_refuses_invalid_patch(self, port, portList):
@@ -438,11 +440,11 @@ class IS05Utils(NMOSUtils):
         data = {"bad": "data"}
         for myPort in portList:
             url = "single/" + port + "s/" + myPort + "/staged"
-            valid, response = self.checkCleanRequestJSON("PATCH", url, data=data, code=400)
+            valid, stage = self.checkCleanRequestJSON("PATCH", url, data=data, code=400)
             if valid:
                 pass
             else:
-                return False, response
+                return False, stage
         return True, ""
 
     def check_params_match(self, port, portList):

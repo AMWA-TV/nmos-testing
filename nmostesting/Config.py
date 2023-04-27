@@ -55,6 +55,9 @@ MQTT_MESSAGE_TIMEOUT = 2
 # Number of seconds to wait after performing an API action for the results to be fully visible via IS-04
 API_PROCESSING_TIMEOUT = 1
 
+# Number of seconds to wait before timing out Controller test. Set to None to disable timeout mechanism
+CONTROLLER_TESTING_TIMEOUT = 120
+
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
 QUERY_API_PORT = 80
@@ -282,6 +285,26 @@ SPECIFICATIONS = {
             "streamcompatibility": {
                 "name": "Stream Compatibility Management API",
                 "raml": "StreamCompatibilityManagementAPI.raml"
+            }
+        }
+    },
+    "bcp-002-01": {
+        "repo": "bcp-002-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "grouphint": {
+                "name": "Natural Grouping"
+            }
+        }
+    },
+    "bcp-002-02": {
+        "repo": "bcp-002-02",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "asset": {
+                "name": "Asset Distinguishing Information"
             }
         }
     },

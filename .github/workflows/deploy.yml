@@ -4,32 +4,145 @@ on:
 
   push:
     branches:
-        - main
-        - master
-        - deploy-action
+      - master
+      - dev
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Checkout Spec Repo 'is-04'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-04
+          path: cache/is-04
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-04
+
+      - name: Checkout Spec Repo 'is-05'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-05
+          path: cache/is-05
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-05
+
+      - name: Checkout Spec Repo 'is-06'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-06
+          path: cache/is-06
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-06
+
+      - name: Checkout Spec Repo 'is-07'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-07
+          path: cache/is-07
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-07
+
+      - name: Checkout Spec Repo 'is-08'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-08
+          path: cache/is-08
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-08
+
+      - name: Checkout Spec Repo 'is-09'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-09
+          path: cache/is-09
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-09
+
+      - name: Checkout Spec Repo 'is-10'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-10
+          path: cache/is-10
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-10
+
+      - name: Checkout Spec Repo 'bcp-002-01'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-002-01
+          path: cache/bcp-002-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-002-01
+
+      - name: Checkout Spec Repo 'bcp-002-02'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-002-02
+          path: cache/bcp-002-02
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-002-02
+
+      - name: Checkout Spec Repo 'bcp-003-01'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-003-01
+          path: cache/bcp-003-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-003-01
+
+      - name: Checkout Spec Repo 'bcp-004-01'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-004-01
+          path: cache/bcp-004-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-004-01
+
+      - name: Checkout Spec Repo 'nmos-parameter-registers'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/nmos-parameter-registers
+          path: cache/nmos-parameter-registers
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/nmos-parameter-registers
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ${{ secrets.DOCKER_USERNAME }}/nmos-testing
+          tags: |
+            # Tag all builds with branch name and sha
+            type=sha,prefix=${{ github.ref_name }}-
+            # Tag if non-master branch with branch name and latest
+            type=raw,value=latest,prefix=${{ github.ref_name }}-,enable=${{ github.ref_name != 'master' }}
+            # Tag if master branch with latest (no branch name prefix)
+            type=raw,value=latest,enable=${{ github.ref_name == 'master' }}
+
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2.1.0
         with:
           platforms: all
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2.5.0
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2.1.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4.0.0
         with:
+          context: .
           builder: ${{ steps.buildx.outputs.name }}
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/nmos-testing:latest
+          tags: ${{ steps.meta.outputs.tags }}

@@ -2,6 +2,7 @@ FROM ubuntu:bionic
 
 WORKDIR /home/nmos-testing
 ADD . .
+ADD .git .git
 
 RUN apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
