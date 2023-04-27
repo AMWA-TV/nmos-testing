@@ -83,7 +83,6 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import IS1101Test
-from .suites import IS1102Test
 from .suites import BCP00301Test
 from .suites import BCP0050101Test
 from .suites import BCP0060101Test
@@ -342,19 +341,14 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-11",
             "api_key": "streamcompatibility"
-        }],
-        "class": IS1101Test.IS1101Test
-    },
-    "IS-11-02": {
-        "name": "IS-11 Interaction with IS-04",
-        "specs": [{
+        }, {
             "spec_key": "is-04",
             "api_key": "node"
         }, {
-            "spec_key": "is-11",
-            "api_key": "streamcompatibility"
+            "spec_key": "is-05",
+            "api_key": "connection"
         }],
-        "class": IS1102Test.IS1102Test
+        "class": IS1101Test.IS1101Test
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
