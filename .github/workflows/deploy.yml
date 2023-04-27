@@ -13,6 +13,102 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
+      - name: Checkout Spec Repo 'is-04'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-04
+          path: cache/is-04
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-04
+
+      - name: Checkout Spec Repo 'is-05'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-05
+          path: cache/is-05
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-05
+
+      - name: Checkout Spec Repo 'is-06'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-06
+          path: cache/is-06
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-06
+
+      - name: Checkout Spec Repo 'is-07'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-07
+          path: cache/is-07
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-07
+
+      - name: Checkout Spec Repo 'is-08'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-08
+          path: cache/is-08
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-08
+
+      - name: Checkout Spec Repo 'is-09'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-09
+          path: cache/is-09
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-09
+
+      - name: Checkout Spec Repo 'is-10'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/is-10
+          path: cache/is-10
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/is-10
+
+      - name: Checkout Spec Repo 'bcp-002-01'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-002-01
+          path: cache/bcp-002-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-002-01
+
+      - name: Checkout Spec Repo 'bcp-002-02'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-002-02
+          path: cache/bcp-002-02
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-002-02
+
+      - name: Checkout Spec Repo 'bcp-003-01'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-003-01
+          path: cache/bcp-003-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-003-01
+
+      - name: Checkout Spec Repo 'bcp-004-01'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/bcp-004-01
+          path: cache/bcp-004-01
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/bcp-004-01
+
+      - name: Checkout Spec Repo 'nmos-parameter-registers'
+        uses: actions/checkout@v3
+        with:
+          repository: AMWA-TV/nmos-parameter-registers
+          path: cache/nmos-parameter-registers
+      - run: git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: cache/nmos-parameter-registers
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
