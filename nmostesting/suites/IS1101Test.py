@@ -72,8 +72,6 @@ class IS1101Test(GenericTest):
         self.receivers = ""
         self.receivers_outputs = ""
         self.caps = ""
-        self.node_url = self.apis[NODE_API_KEY]["url"]
-        self.compat_url = self.apis[COMPAT_API_KEY]["url"]
         self.senders = ""
         self.senders_2 = ""
         self.flow_format = {}
@@ -98,7 +96,7 @@ class IS1101Test(GenericTest):
             "GET", self.node_url + "devices/"
         )
         if response.status_code != 200:
-            return test.FAIL("The request has not succeeded: {}".format(response.json()))
+            return test.FAIL("The devices Node API request has not succeeded: {}".format(response.json()))
         controls = response.json()[0][CONTROLS]
         control_href = ""
         if len(controls) > 0:
@@ -116,7 +114,7 @@ class IS1101Test(GenericTest):
         senders_url = self.conn_url + "single/senders/"
         _, response = TestHelper.do_request("GET", senders_url)
         if response.status_code != 200:
-            return test.FAIL("The request has not succeeded: {}".format(response.json()))
+            return test.FAIL("The request {} has not succeeded: {}".format(senders_url, response.json()))
         senders = response.json()
         if len(senders) > 0:
             for sender in senders:
@@ -132,7 +130,7 @@ class IS1101Test(GenericTest):
                     or response.json()["master_enable"]
                     or response.json()["activation"]["mode"] != "activate_immediate"
                 ):
-                    return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                    return test.FAIL("The patch request with {} has not succeeded: {}".format(url, response.json()))
             return test.PASS()
         return test.UNCLEAR("Could not find any senders to test")
 
@@ -141,7 +139,7 @@ class IS1101Test(GenericTest):
         receivers_url = self.conn_url + "single/receivers/"
         _, response = TestHelper.do_request("GET", receivers_url)
         if response.status_code != 200:
-            return test.FAIL("The request has not succeeded: {}".format(response.json()))
+            return test.FAIL("The connection request {} has not succeeded: {}".format(receivers_url, response.json()))
         receivers = response.json()
         if len(receivers) > 0:
             for receiver in receivers:
@@ -156,7 +154,7 @@ class IS1101Test(GenericTest):
                     or response.json()["master_enable"]
                     or response.json()["activation"]["mode"] != "activate_immediate"
                 ):
-                    return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                    return test.FAIL("The patch request with {} has not succeeded: {}".format(url, response.json()))
 
             return test.PASS()
 
@@ -198,10 +196,11 @@ class IS1101Test(GenericTest):
 
     def test_02_00(self, test):
         "Reset active constraints of all senders"
-        _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
+        url = self.compat_url + "senders/"
+        _, response = TestHelper.do_request("GET", url)
         if response.status_code != 200:
             return test.FAIL(
-                "The request has not succeeded: {}".format(response.json())
+                "The senders streamcompatibility request {} has not succeeded: {}".format(url, response.json())
             )
         self.senders = response.json()
         if len(self.senders) != 0:
@@ -211,49 +210,47 @@ class IS1101Test(GenericTest):
                     self.compat_url + "senders/" + sender + "constraints/active/",
                 )
                 if response.status_code != 200:
-                    return test.FAIL("senders constraints cannot be deleted")
+                    return test.FAIL("The sender {} constraints cannot be deleted".format(sender))
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders.")
+        return test.UNCLEAR("There is no IS-11 senders")
 
     def test_02_01(self, test):
         "Verify that the device supports the concept of IS-11 Sender"
         _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
         if response.status_code != 200:
             return test.FAIL(
-                "The request has not succeeded: {}".format(response.json())
+                "The senders streamcompatibility request has not succeeded: {}".format(response.json())
             )
         self.senders = response.json()
         if len(self.senders) == 0:
-            return test.UNCLEAR("There is no IS-11 senders.")
+            return test.UNCLEAR("There is no IS-11 senders")
         return test.PASS()
 
     def test_02_01_01(self, test):
         "Verify that the device supports the concept of IS-11 Sender"
         if len(self.senders) != 0:
             for sender_id in self.senders:
-                _, response = TestHelper.do_request(
-                    "GET", self.node_url + "senders/" + sender_id
-                )
+                _, response = TestHelper.do_request("GET", self.node_url + "senders/" + sender_id)
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The request has not succeeded: {}".format(response.json())
+                        "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                     )
                 sender_node = response.json()["id"]
                 if sender_id[:-1] != sender_node:
                     return test.FAIL("Senders are different")
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders.")
+        return test.UNCLEAR("There is no IS-11 senders")
 
     def test_02_02(self, test):
         "Verify senders (generic with/without inputs)"
         _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
         if response.status_code != 200:
             return test.FAIL(
-                "The request has not succeeded: {}".format(response.json())
+                "The senders streamcompatibility request has not succeeded: {}".format(response.json())
             )
         self.senders_2 = response.json()
         if len(self.senders_2) == 0:
-            return test.UNCLEAR("There is no IS-11 senders.")
+            return test.UNCLEAR("There is no IS-11 senders")
         return test.PASS()
 
     def test_02_02_01(self, test):
@@ -265,7 +262,8 @@ class IS1101Test(GenericTest):
                 )
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The request has not succeeded: {}".format(response.json())
+                        "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                        .format(sender_id, response.json())
                     )
                 state = response.json()["state"]
                 if state in ["awating_essence", "no_essence"]:
@@ -275,9 +273,8 @@ class IS1101Test(GenericTest):
                         )
                         if response.status_code != 200:
                             return test.FAIL(
-                                "The request has not succeeded: {}".format(
-                                    response.json()
-                                )
+                                "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                                .format(sender_id, response.json())
                             )
                         state = response.json()["state"]
                         if state in ["awating_essence", "no_essence"]:
@@ -285,9 +282,9 @@ class IS1101Test(GenericTest):
                         else:
                             break
                 if state != "unconstrained":
-                    return test.FAIL("inputs are unstable.")
+                    return test.FAIL("Inputs are unstable")
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders.")
+        return test.UNCLEAR("There is no IS-11 senders")
 
     def test_02_02_03(self, test):
         """
@@ -301,25 +298,26 @@ class IS1101Test(GenericTest):
                 )
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The request has not succeeded: {}".format(response.json())
+                        "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                     )
                 sender_node = response.json()["id"]
                 if sender_id[:-1] != sender_node:
                     return test.FAIL("Senders are different")
                 sender_flow_id = response.json()["flow_id"]
                 if sender_flow_id is None:
-                    return test.FAIL("the sender {} must have a flow".format(sender_id))
+                    return test.FAIL("The sender {} must have a flow".format(sender_id))
                 sender_subscription_active = response.json()["subscription"]["active"]
                 if sender_subscription_active:
                     return test.FAIL(
-                        "the sender {} must be inactive ".format(sender_id)
+                        "The sender {} must be inactive ".format(sender_id)
                     )
                 _, response = TestHelper.do_request(
                     "GET", self.node_url + "flows/" + sender_flow_id
                 )
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The request has not succeeded: {}".format(response.json())
+                        "The sender {} is not available in the Node API has an associated flow: {}"
+                        .format(sender_flow_id, response.json())
                     )
                 flow_format = response.json()["format"]
                 self.flow_format[sender_id] = flow_format
@@ -335,9 +333,9 @@ class IS1101Test(GenericTest):
                     flow_format != "urn:x-nmos:format:video"
                     and flow_format != "urn:x-nmos:format:audio"
                 ):
-                    print("only audio and video senders are tested at this time.")
+                    print("Only audio and video senders are tested at this time.")
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders.")
+        return test.UNCLEAR("There is no IS-11 senders")
 
     def test_02_02_03_01(self, test):
         "Verify that the video sender supports the minimum set of video constraints"
@@ -345,7 +343,7 @@ class IS1101Test(GenericTest):
         pattern = "^urn:x-nmos:cap:"
 
         if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format.")
+            return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
             _, response = TestHelper.do_request(
@@ -354,12 +352,13 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} constraints supported has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             supportedConstraints = response.json()["parameter_constraints"]
             for item in supportedConstraints:
                 if not re.search(pattern, item):
-                    return test.FAIL("only x-nmos:cap constraints are allowed")
+                    return test.FAIL("Only x-nmos:cap constraints are allowed")
             for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
                 if item not in supportedConstraints:
                     return test.FAIL(item + " is not in supportedConstraints ")
@@ -371,7 +370,7 @@ class IS1101Test(GenericTest):
         pattern = "^urn:x-nmos:cap:"
 
         if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format.")
+            return test.UNCLEAR("There is no audio format")
 
         for sender_id in self.flow_format_audio:
             _, response = TestHelper.do_request(
@@ -380,12 +379,13 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} constraints supported has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             supportedConstraints = response.json()["parameter_constraints"]
             for item in supportedConstraints:
                 if not re.search(pattern, item):
-                    return test.FAIL("only x-nmos:cap constraints are allowed")
+                    return test.FAIL("Only x-nmos:cap constraints are allowed")
             for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
                 if item not in supportedConstraints:
                     return test.FAIL(item + "is not in supportedConstraints")
@@ -398,7 +398,7 @@ class IS1101Test(GenericTest):
         the associated IS-04 sender.
         """
         if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format.")
+            return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
             _, response = TestHelper.do_request(
@@ -406,7 +406,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             self.version[sender_id] = version
@@ -427,14 +427,14 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}".format(sender_id, response.json())
                 )
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -445,28 +445,28 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "Contraints active request sender {} has not succeeded: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
             if not IS04Utils.compare_constraint_sets(
                 constraints["constraint_sets"],
                 self.grain_rate_constraints[sender_id]["constraint_sets"],
             ):
-                return test.FAIL("Contraints are different")
+                return test.FAIL("The sender {} contraints are different".format(sender_id))
             _, response = TestHelper.do_request(
                 "DELETE",
                 self.compat_url + "senders/" + sender_id + "constraints/active/",
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                   "The sender {} constraints cannot be deleted".format(sender_id)
                 )
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -477,7 +477,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                     "Contraints active request for sender {} has not succeeded: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
             if constraints != self.empty_constraints[sender_id]:
@@ -490,14 +490,14 @@ class IS1101Test(GenericTest):
         sender(audio) changes the version of the associated IS-04 sender.
         """
         if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format.")
+            return test.UNCLEAR("There is no audio format")
         for sender_id in self.flow_format_audio:
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             self.version[sender_id] = version
@@ -518,14 +518,14 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}".format(sender_id, response.json())
                 )
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -537,7 +537,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "Contraints active request for sender {} has not succeeded: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
 
@@ -545,11 +545,7 @@ class IS1101Test(GenericTest):
                 constraints["constraint_sets"],
                 self.sample_rate_constraints[sender_id]["constraint_sets"],
             ):
-                return test.FAIL(
-                    "constraints and SampleRateConstraints["
-                    + sender_id
-                    + "] are different "
-                )
+                return test.FAIL("Constraints and SampleRateConstraints[{}] are different".format(sender_id))
 
             _, response = TestHelper.do_request(
                 "DELETE",
@@ -557,7 +553,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
 
             _, response = TestHelper.do_request(
@@ -565,7 +561,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -577,7 +573,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "Contraints active request for sender {} has not succeeded: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
             if constraints != self.empty_constraints[sender_id]:
@@ -590,7 +586,7 @@ class IS1101Test(GenericTest):
         grain_rate doesn't change the flow of a sender(video).
         """
         if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format.")
+            return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
             _, response = TestHelper.do_request(
@@ -598,7 +594,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} status has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             state = response.json()["state"]
             if state in ["awating_essence", "no_essence"]:
@@ -608,7 +605,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
                     if state in ["awating_essence", "no_essence"]:
@@ -616,7 +614,7 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("Inputs are unstable")
 
             self.constraints[sender_id] = {
                 "constraint_sets": [
@@ -645,7 +643,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
 
             _, response = TestHelper.do_request(
@@ -653,7 +652,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             state = response.json()["state"]
 
@@ -664,7 +664,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
                     if state in ["awating_essence", "no_essence"]:
@@ -672,25 +673,26 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "constrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("Inputs are unstable")
 
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
                 )
             sender_flow_id = response.json()["flow_id"]
             if sender_flow_id is None:
-                return test.FAIL("the sender must have a flow")
+                return test.FAIL("The sender {} must have a flow".format(sender_id))
 
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "flows/" + sender_flow_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender_flow_id, response.json())
                 )
 
             if (
@@ -698,7 +700,7 @@ class IS1101Test(GenericTest):
                 or self.flow_width[sender_id] != response.json()["frame_width"]
                 or self.flow_height[sender_id] != response.json()["frame_height"]
             ):
-                return test.FAIL("different argument")
+                return test.FAIL("Different argument")
 
             _, response = TestHelper.do_request(
                 "DELETE",
@@ -706,7 +708,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
 
         return test.PASS()
@@ -717,7 +719,7 @@ class IS1101Test(GenericTest):
         """
 
         if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format.")
+            return test.UNCLEAR("There is no audio format")
 
         for sender_id in self.flow_format_audio:
             _, response = TestHelper.do_request(
@@ -725,7 +727,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             state = response.json()["state"]
 
@@ -736,7 +739,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
                     if state in ["awating_essence", "no_essence"]:
@@ -744,7 +748,7 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("Inputs are unstable")
 
             self.constraints[sender_id] = {
                 "constraint_sets": [
@@ -762,7 +766,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
 
             _, response = TestHelper.do_request(
@@ -770,7 +775,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             state = response.json()["state"]
 
@@ -781,7 +787,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
                     if state in ["awating_essence", "no_essence"]:
@@ -789,25 +796,27 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "constrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("Inputs are unstable")
 
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}"
+                    .format(sender_id, response.json())
                 )
             sender_flow_id = response.json()["flow_id"]
             if sender_flow_id is None:
-                return test.FAIL("the sender must have a flow")
+                return test.FAIL("The sender {} must have a flow".format(sender_id))
 
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "flows/" + sender_flow_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender_flow_id, response.json())
                 )
             flow_sample_rate = response.json()["sample_rate"]
             if self.flow_sample_rate[sender_id] != flow_sample_rate:
@@ -819,7 +828,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
         return test.PASS()
 
@@ -829,7 +838,7 @@ class IS1101Test(GenericTest):
         doesn't change the flow of a sender(video).
         """
         if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format.")
+            return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
             _, response = TestHelper.do_request(
@@ -837,7 +846,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             state = response.json()["state"]
             if state in ["awating_essence", "no_essence"]:
@@ -847,7 +857,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
                     if state in ["awating_essence", "no_essence"]:
@@ -855,14 +866,15 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("Inputs are unstable")
 
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}"
+                    .format(sender_id, response.json())
                 )
             sender = response.json()
 
@@ -871,12 +883,13 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             flow = response.json()
             color_sampling = IS04Utils.make_sampling(flow["components"])
             if color_sampling is None:
-                return test.FAIL("invalid array of video components")
+                return test.FAIL("Invalid array of video components")
             constraint_set = {}
 
             for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
@@ -927,7 +940,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
 
             _, response = TestHelper.do_request(
@@ -935,40 +949,41 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             new_flow = response.json()
 
             new_color_sampling = IS04Utils.make_sampling(new_flow["components"])
             if new_color_sampling is None:
-                return test.FAIL("invalid array of video components")
+                return test.FAIL("Invalid array of video components")
 
             for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
                         if flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("different media_type")
+                            return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:grain_rate":
                         if flow["grain_rate"] != new_flow["grain_rate"]:
-                            return test.FAIL("different grain_rate")
+                            return test.FAIL("Different grain_rate")
                     if item == "urn:x-nmos:cap:format:frame_width":
                         if flow["frame_width"] != new_flow["frame_width"]:
-                            return test.FAIL("different frame_width")
+                            return test.FAIL("Different frame_width")
                     if item == "urn:x-nmos:cap:format:frame_height":
                         if flow["frame_height"] != new_flow["frame_height"]:
-                            return test.FAIL("different frame_height")
+                            return test.FAIL("Different frame_height")
                     if item == "urn:x-nmos:cap:format:interlace_mode":
                         if flow["interlace_mode"] != new_flow["interlace_mode"]:
-                            return test.FAIL("different interlace_mode")
+                            return test.FAIL("Different interlace_mode")
                     if item == "urn:x-nmos:cap:format:color_sampling":
                         if color_sampling != new_color_sampling:
-                            return test.FAIL("different color_sampling")
+                            return test.FAIL("Different color_sampling")
                     if item == "urn:x-nmos:cap:format:component_depth":
                         if (
                             flow["components"][0]["bit_depth"]
                             != new_flow["components"][0]["bit_depth"]
                         ):
-                            return test.FAIL("different component_depth")
+                            return test.FAIL("Different component_depth")
                 except Exception:
                     pass
             _, response = TestHelper.do_request(
@@ -977,7 +992,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
         return test.PASS()
 
@@ -987,13 +1002,14 @@ class IS1101Test(GenericTest):
         constraints doesn't change the flow of a sender(audio).
         """
         if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format.")
+            return test.UNCLEAR("There is no audio format")
         for sender_id in self.flow_format_audio:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "senders/" + sender_id + "status/"
             )
             if response.status_code != 200:
-                test.FAIL("The request has not succeeded: {}".format(response.json()))
+                test.FAIL("The streamcompatibility request for sender {} status  has not succeeded: {}"
+                          .format(sender_id, response.json()))
             state = response.json()["state"]
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
@@ -1002,7 +1018,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
                     if state in ["awating_essence", "no_essence"]:
@@ -1010,13 +1027,14 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("Inputs are unstable")
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}"
+                    .format(sender_id, response.json())
                 )
             sender = response.json()
 
@@ -1025,7 +1043,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             flow = response.json()
             constraint_set = {}
@@ -1035,7 +1054,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The source {} is not available in the Node API: {}"
+                    .format(flow["source_id"], response.json())
                 )
             source = response.json()
 
@@ -1074,7 +1094,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
 
             _, response = TestHelper.do_request(
@@ -1082,7 +1103,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             new_flow = response.json()
 
@@ -1091,7 +1113,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The source {} is not available in the Node API: {}"
+                    .format(flow["source_id"], response.json())
                 )
             new_source = response.json()
 
@@ -1099,16 +1122,16 @@ class IS1101Test(GenericTest):
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
                         if flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("different media_type")
+                            return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:sample_rate":
                         if flow["sample_rate"] != new_flow["sample_rate"]:
-                            return test.FAIL("different sample_rate")
+                            return test.FAIL("Different sample_rate")
                     if item == "urn:x-nmos:cap:format:channel_count":
                         if len(source["channels"]) != len(new_source["channels"]):
-                            return test.FAIL("different channel_count")
+                            return test.FAIL("Different channel_count")
                     if item == "urn:x-nmos:cap:format:sample_depth":
                         if flow["bit_depth"] != new_flow["bit_depth"]:
-                            return test.FAIL("different sample_depth")
+                            return test.FAIL("Different sample_depth")
                 except Exception:
                     pass
             _, response = TestHelper.do_request(
@@ -1117,14 +1140,14 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
         return test.PASS()
 
     def test_02_02_07_01(self, test):
         "Verify that the device adhere to the preference of the constraint_set."
         if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format.")
+            return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
             _, response = TestHelper.do_request(
@@ -1132,7 +1155,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             state = response.json()["state"]
             if state in ["awating_essence", "no_essence"]:
@@ -1142,7 +1166,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
 
@@ -1151,14 +1176,15 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("inputs are unstable")
 
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}"
+                    .format(sender_id, response.json())
                 )
             sender = response.json()
 
@@ -1167,12 +1193,13 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             flow = response.json()
             color_sampling = IS04Utils.make_sampling(flow["components"])
             if color_sampling is None:
-                return test.FAIL("invalid array of video components")
+                return test.FAIL("Invalid array of video components")
             constraint_set0 = {}
             constraint_set1 = {}
 
@@ -1269,7 +1296,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
 
             _, response = TestHelper.do_request(
@@ -1277,7 +1305,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             new_flow = response.json()
 
@@ -1289,28 +1318,28 @@ class IS1101Test(GenericTest):
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
                         if flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("different media_type")
+                            return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:grain_rate":
                         if flow["grain_rate"] != new_flow["grain_rate"]:
-                            return test.FAIL("different grain_rate")
+                            return test.FAIL("Different grain_rate")
                     if item == "urn:x-nmos:cap:format:frame_width":
                         if flow["frame_width"] != new_flow["frame_width"]:
-                            return test.FAIL("different frame_width")
+                            return test.FAIL("Different frame_width")
                     if item == "urn:x-nmos:cap:format:frame_height":
                         if flow["frame_height"] != new_flow["frame_height"]:
-                            return test.FAIL("different frame_height")
+                            return test.FAIL("Different frame_height")
                     if item == "urn:x-nmos:cap:format:interlace_mode":
                         if flow["interlace_mode"] != new_flow["interlace_mode"]:
-                            return test.FAIL("different interlace_mode")
+                            return test.FAIL("Different interlace_mode")
                     if item == "urn:x-nmos:cap:format:color_sampling":
                         if color_sampling != new_color_sampling:
-                            return test.FAIL("different color_sampling")
+                            return test.FAIL("Different color_sampling")
                     if item == "urn:x-nmos:cap:format:component_depth":
                         if (
                             flow["components"][0]["bit_depth"]
                             != new_flow["components"][0]["bit_depth"]
                         ):
-                            return test.FAIL("different component_depth")
+                            return test.FAIL("Different component_depth")
                 except Exception:
                     pass
 
@@ -1320,21 +1349,22 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
         return test.PASS()
 
     def test_02_02_07_02(self, test):
         "Verify that the device adhere to the preference of the constraint_set."
         if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format.")
+            return test.UNCLEAR("There is no audio format")
 
         for sender_id in self.flow_format_audio:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "senders/" + sender_id + "status/"
             )
             if response.status_code != 200:
-                test.FAIL("The request has not succeeded: {}".format(response.json()))
+                test.FAIL("The streamcompatibility request for sender {} status  has not succeeded: {}"
+                          .format(sender_id, response.json()))
             state = response.json()["state"]
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
@@ -1343,7 +1373,8 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The request has not succeeded: {}".format(response.json())
+                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
                     if state in ["awating_essence", "no_essence"]:
@@ -1351,14 +1382,15 @@ class IS1101Test(GenericTest):
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable.")
+                return test.FAIL("inputs are unstable")
 
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API request: {}"
+                    .format(sender_id, response.json())
                 )
             sender = response.json()
 
@@ -1367,7 +1399,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             flow = response.json()
             _, response = TestHelper.do_request(
@@ -1375,7 +1408,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The source {} is not available in the Node API: {}"
+                    .format(flow["source_id"], response.json())
                 )
             source = response.json()
 
@@ -1451,14 +1485,16 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints changes has not succeeded: {}"
+                    .format(sender_id, response.json())
                 )
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "flows/" + sender["flow_id"]
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} is not available in the Node API has an associated flow: {}"
+                    .format(sender["flow_id"], response.json())
                 )
             new_flow = response.json()
 
@@ -1467,7 +1503,8 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The source {} is not available in the Node API: {}"
+                    .format(flow["source_id"], response.json())
                 )
             new_source = response.json()
 
@@ -1475,16 +1512,16 @@ class IS1101Test(GenericTest):
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
                         if flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("different media_type")
+                            return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:sample_rate":
                         if flow["sample_rate"] != new_flow["sample_rate"]:
-                            return test.FAIL("different sample_rate")
+                            return test.FAIL("Different sample_rate")
                     if item == "urn:x-nmos:cap:format:channel_count":
                         if len(source["channels"]) != len(new_source["channels"]):
-                            return test.FAIL("different channel_count")
+                            return test.FAIL("Different channel_count")
                     if item == "urn:x-nmos:cap:format:sample_depth":
                         if flow["bit_depth"] != new_flow["bit_depth"]:
-                            return test.FAIL("different sample_depth")
+                            return test.FAIL("Different sample_depth")
                 except Exception:
                     pass
             _, response = TestHelper.do_request(
@@ -1493,7 +1530,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The request has not succeeded: {}".format(response.json())
+                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
         return test.PASS()
 
@@ -1508,9 +1545,10 @@ class IS1101Test(GenericTest):
             if len(response.json()) != 0:
                 self.outputs.append(response.json()[0])
             if len(self.outputs) == 0:
-                return test.UNCLEAR("No outputs")
+                return test.UNCLEAR("No output")
             return test.PASS()
-        return test.FAIL("The request has not succeeded: {}".format(response.json()))
+        return test.FAIL("The outputs streamcompatibility request has not succeeded: {}"
+                         .format(response.json()))
 
     def test_03_02(self, test):
         """
@@ -1529,9 +1567,10 @@ class IS1101Test(GenericTest):
                     if output["connected"]:
                         self.connected_outputs.append(output["id"])
             else:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                                 .format(output, response.json()))
         if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs.")
+            return test.UNCLEAR("No connected output")
         return test.PASS()
 
     def test_03_03(self, test):
@@ -1540,7 +1579,7 @@ class IS1101Test(GenericTest):
         a signal as test 0 put all of the receivers inactive.
         """
         if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs.")
+            return test.UNCLEAR("No connected output")
         for output_id in self.connected_outputs:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "outputs/" + output_id + "/properties/"
@@ -1549,7 +1588,8 @@ class IS1101Test(GenericTest):
                 if response.json()["status"]["state"] == "signal_present":
                     self.active_connected_outputs.append(response.json())
             else:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                                 .format(output_id, response.json()))
         if len(self.active_connected_outputs) != 0:
             return test.UNCLEAR(
                 "Connected output have a signal while all receivers are inactive."
@@ -1561,7 +1601,7 @@ class IS1101Test(GenericTest):
         Verify that connected outputs supporting EDID behave according to the RAML file.
         """
         if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs.")
+            return test.UNCLEAR("No connected output")
         for output_id in self.connected_outputs:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "outputs/" + output_id + "/properties/"
@@ -1570,9 +1610,10 @@ class IS1101Test(GenericTest):
                 if response.json()["edid_support"]:
                     self.edid_connected_outputs.append(response.json()["id"])
             else:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                                 .format(output_id, response.json()))
         if self.edid_connected_outputs == 0:
-            return test.UNCLEAR("Outputs not supporting edid.")
+            return test.UNCLEAR("Outputs not supporting edid")
         return test.PASS()
 
     def test_03_04_01(self, test):
@@ -1580,13 +1621,14 @@ class IS1101Test(GenericTest):
         Verify that an output indicating EDID support behaves according to the RAML file.
         """
         if len(self.edid_connected_outputs) == 0:
-            return test.UNCLEAR("No edid connected outputs.")
+            return test.UNCLEAR("No edid connected outputs")
         for output_id in self.edid_connected_outputs:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "outputs/" + output_id
             )
             if response.status_code != 200:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The streamcompatibility request for output {} has not succeeded: {}"
+                                 .format(output_id, response.json()))
         return test.PASS()
 
     def test_03_04_02(self, test):
@@ -1596,7 +1638,7 @@ class IS1101Test(GenericTest):
         """
         is_valid_response = True
         if len(self.edid_connected_outputs) == 0:
-            return test.UNCLEAR("No edid connected outputs.")
+            return test.UNCLEAR("No edid connected outputs")
         for output_id in self.edid_connected_outputs:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "outputs/" + output_id + "/edid/"
@@ -1609,14 +1651,15 @@ class IS1101Test(GenericTest):
             break
         if is_valid_response:
             return test.PASS()
-        return test.FAIL("The request has not succeeded: {}".format(response.json()))
+        return test.FAIL("The output {} edid streamcompatibility request has not succeeded: {}"
+                         .format(output_id, response.json()))
 
     def test_03_05(self, test):
         """
         Verify that connected outputs not supporting EDID behave according to the RAML file.
         """
         if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs.")
+            return test.UNCLEAR("No connected output")
         for output_id in self.connected_outputs:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "outputs/" + output_id + "/properties/"
@@ -1625,9 +1668,10 @@ class IS1101Test(GenericTest):
                 if not response.json()["edid_support"]:
                     self.not_edid_connected_outputs.append(response.json()["id"])
             else:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                                 .format(output_id, response.json()))
         if len(self.not_edid_connected_outputs) == 0:
-            return test.UNCLEAR("Outputs supporting edid.")
+            return test.UNCLEAR("Outputs supporting edid")
         return test.PASS()
 
     def test_03_05_01(self, test):
@@ -1635,13 +1679,13 @@ class IS1101Test(GenericTest):
         Verify that there is no EDID support.
         """
         if len(self.not_edid_connected_outputs) == 0:
-            return test.UNCLEAR("None of not edid connected outputs.")
+            return test.UNCLEAR("None of not edid connected outputs")
         for output_id in self.not_edid_connected_outputs:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "outputs/" + output_id + "/edid/"
             )
             if response.status_code != 204:
-                return test.FAIL("Status code should be 204.")
+                return test.FAIL("Status code should be 204")
         return test.PASS()
 
     # RECEIVERS TESTS
@@ -1652,10 +1696,11 @@ class IS1101Test(GenericTest):
         _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
 
         if response.status_code != 200:
-            return test.FAIL("The request has not succeeded: {}".format(response.json()))
+            return test.FAIL("The receivers streamcompatibility request has not succeeded: {}"
+                             .format(response.json()))
         self.receivers = response.json()
         if len(self.receivers) == 0:
-            return test.UNCLEAR("No IS-11 receivers.")
+            return test.UNCLEAR("No IS-11 receivers")
         return test.PASS()
 
     def test_04_01_01(self, test):
@@ -1663,13 +1708,14 @@ class IS1101Test(GenericTest):
         Verify that IS-11 Receivers exist on the Node API as Receivers.
         """
         if len(self.receivers) == 0:
-            return test.UNCLEAR("No IS-11 receivers.")
+            return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "receivers/" + receiver_id
             )
             if response.status_code != 200:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The Node API request for receiver {} has not succeeded: {}"
+                                 .format(receiver_id, response.json()))
             if response.json()["id"] != receiver_id[:-1]:
                 return test.UNCLEAR(
                     "The IS-11 Receiver doesn't exist on the Node API as receiver."
@@ -1682,10 +1728,11 @@ class IS1101Test(GenericTest):
         """
         _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
         if response.status_code != 200:
-            return test.FAIL("The request has not succeeded: {}".format(response.json()))
+            return test.FAIL("The receivers streamcompatibility request has not succeeded: {}"
+                             .format(response.json()))
         self.receivers = response.json()
         if len(self.receivers) == 0:
-            return test.UNCLEAR("No IS-11 receivers.")
+            return test.UNCLEAR("No IS-11 receivers")
         return test.PASS()
 
     def test_04_02_01(self, test):
@@ -1694,13 +1741,14 @@ class IS1101Test(GenericTest):
         as per our pre-conditions of not being master_enabled.
         """
         if len(self.receivers) == 0:
-            return test.UNCLEAR("No IS-11 receivers.")
+            return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
             _, response = TestHelper.do_request(
                 "GET", self.compat_url + "receivers/" + receiver_id + "status/"
             )
             if response.status_code != 200:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The streamcompatibility request for receiver {} has not succeeded: {}"
+                                 .format(receiver_id, response.json()))
             if response.json()["state"] not in ["unknown", "non_compliant_stream"]:
                 return test.FAIL("The state is not unknown or non_compliant_stream.")
         return test.PASS()
@@ -1710,13 +1758,14 @@ class IS1101Test(GenericTest):
         Verify that the Receiver supports Receiver Capabilities.
         """
         if len(self.receivers) == 0:
-            return test.UNCLEAR("No IS-11 receivers.")
+            return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "receivers/" + receiver_id
             )
             if response.status_code != 200:
-                return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                return test.FAIL("The Node API request for receiver {} has not succeeded: {}"
+                                 .format(receiver_id, response.json()))
             self.caps = response.json()["caps"]
             if "constraint_sets" not in self.caps:
                 return test.UNCLEAR("The receiver does not have constraint_sets in caps.")
