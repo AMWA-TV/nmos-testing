@@ -96,7 +96,7 @@ class IS1101Test(GenericTest):
             "GET", self.node_url + "devices/"
         )
         if response.status_code != 200:
-            return test.FAIL("The devices Node API request has not succeeded: {}".format(response.json()))
+            return test.FAIL("The device's node API request has failed: {}".format(response.json()))
         controls = response.json()[0][CONTROLS]
         control_href = ""
         if len(controls) > 0:
@@ -114,7 +114,7 @@ class IS1101Test(GenericTest):
         senders_url = self.conn_url + "single/senders/"
         _, response = TestHelper.do_request("GET", senders_url)
         if response.status_code != 200:
-            return test.FAIL("The request {} has not succeeded: {}".format(senders_url, response.json()))
+            return test.FAIL("The request {} has failed {}".format(senders_url, response.json()))
         senders = response.json()
         if len(senders) > 0:
             for sender in senders:
@@ -130,7 +130,7 @@ class IS1101Test(GenericTest):
                     or response.json()["master_enable"]
                     or response.json()["activation"]["mode"] != "activate_immediate"
                 ):
-                    return test.FAIL("The patch request with {} has not succeeded: {}".format(url, response.json()))
+                    return test.FAIL("The patch request with {} has failed: {}".format(url, response.json()))
             return test.PASS()
         return test.UNCLEAR("Could not find any senders to test")
 
@@ -139,7 +139,7 @@ class IS1101Test(GenericTest):
         receivers_url = self.conn_url + "single/receivers/"
         _, response = TestHelper.do_request("GET", receivers_url)
         if response.status_code != 200:
-            return test.FAIL("The connection request {} has not succeeded: {}".format(receivers_url, response.json()))
+            return test.FAIL("The connection request {} has failed: {}".format(receivers_url, response.json()))
         receivers = response.json()
         if len(receivers) > 0:
             for receiver in receivers:
@@ -154,7 +154,7 @@ class IS1101Test(GenericTest):
                     or response.json()["master_enable"]
                     or response.json()["activation"]["mode"] != "activate_immediate"
                 ):
-                    return test.FAIL("The patch request with {} has not succeeded: {}".format(url, response.json()))
+                    return test.FAIL("The patch request with {} has failed: {}".format(url, response.json()))
 
             return test.PASS()
 
@@ -200,7 +200,7 @@ class IS1101Test(GenericTest):
         _, response = TestHelper.do_request("GET", url)
         if response.status_code != 200:
             return test.FAIL(
-                "The senders streamcompatibility request {} has not succeeded: {}".format(url, response.json())
+                "The sender's streamcompatibility request {} has failed: {}".format(url, response.json())
             )
         self.senders = response.json()
         if len(self.senders) != 0:
@@ -219,7 +219,7 @@ class IS1101Test(GenericTest):
         _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
         if response.status_code != 200:
             return test.FAIL(
-                "The senders streamcompatibility request has not succeeded: {}".format(response.json())
+                "The sender's streamcompatibility request has failed: {}".format(response.json())
             )
         self.senders = response.json()
         if len(self.senders) == 0:
@@ -246,7 +246,7 @@ class IS1101Test(GenericTest):
         _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
         if response.status_code != 200:
             return test.FAIL(
-                "The senders streamcompatibility request has not succeeded: {}".format(response.json())
+                "The sender's streamcompatibility request has failed: {}".format(response.json())
             )
         self.senders_2 = response.json()
         if len(self.senders_2) == 0:
@@ -262,7 +262,7 @@ class IS1101Test(GenericTest):
                 )
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                        "The streamcompatibility request for sender {} status has failed: {}"
                         .format(sender_id, response.json())
                     )
                 state = response.json()["state"]
@@ -273,7 +273,7 @@ class IS1101Test(GenericTest):
                         )
                         if response.status_code != 200:
                             return test.FAIL(
-                                "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                                "The streamcompatibility request for sender {} status has failed: {}"
                                 .format(sender_id, response.json())
                             )
                         state = response.json()["state"]
@@ -352,7 +352,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} constraints supported has not succeeded: {}"
+                    "The streamcompatibility request for sender {} constraints supported has failed: {}"
                     .format(sender_id, response.json())
                 )
             supportedConstraints = response.json()["parameter_constraints"]
@@ -379,7 +379,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} constraints supported has not succeeded: {}"
+                    "The streamcompatibility request for sender {} constraints supported has failed: {}"
                     .format(sender_id, response.json())
                 )
             supportedConstraints = response.json()["parameter_constraints"]
@@ -427,7 +427,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}".format(sender_id, response.json())
+                    "The sender {} constraints changes has failed: {}".format(sender_id, response.json())
                 )
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
@@ -445,7 +445,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "Contraints active request sender {} has not succeeded: {}".format(sender_id, response.json())
+                    "Contraints active request sender {} has failed: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
             if not IS04Utils.compare_constraint_sets(
@@ -477,7 +477,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                     "Contraints active request for sender {} has not succeeded: {}".format(sender_id, response.json())
+                     "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
             if constraints != self.empty_constraints[sender_id]:
@@ -518,7 +518,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}".format(sender_id, response.json())
+                    "The sender {} constraints changes has failed: {}".format(sender_id, response.json())
                 )
             _, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
@@ -537,7 +537,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "Contraints active request for sender {} has not succeeded: {}".format(sender_id, response.json())
+                    "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
 
@@ -573,7 +573,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "Contraints active request for sender {} has not succeeded: {}".format(sender_id, response.json())
+                    "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
                 )
             constraints = response.json()
             if constraints != self.empty_constraints[sender_id]:
@@ -594,7 +594,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} status has not succeeded: {}"
+                    "The streamcompatibility request for sender {} status has failed: {}"
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
@@ -605,7 +605,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -643,7 +643,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}"
+                    "The sender {} constraints changes has failed: {}"
                     .format(sender_id, response.json())
                 )
 
@@ -652,7 +652,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    "The streamcompatibility request for sender {} status has failed: {}"
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
@@ -664,7 +664,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -727,7 +727,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    "The streamcompatibility request for sender {} status has failed: {}"
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
@@ -739,7 +739,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -766,7 +766,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}"
+                    "The sender {} constraints changes has failed: {}"
                     .format(sender_id, response.json())
                 )
 
@@ -775,7 +775,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    "The streamcompatibility request for sender {} status has failed: {}"
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
@@ -787,7 +787,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -846,7 +846,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    "The streamcompatibility request for sender {} status has failed: {}"
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
@@ -857,7 +857,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -940,7 +940,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}"
+                    "The sender {} constraints changes has failed: {}"
                     .format(sender_id, response.json())
                 )
 
@@ -1008,7 +1008,7 @@ class IS1101Test(GenericTest):
                 "GET", self.compat_url + "senders/" + sender_id + "status/"
             )
             if response.status_code != 200:
-                test.FAIL("The streamcompatibility request for sender {} status  has not succeeded: {}"
+                test.FAIL("The streamcompatibility request for sender {} status has failed: {}"
                           .format(sender_id, response.json()))
             state = response.json()["state"]
             if state in ["awating_essence", "no_essence"]:
@@ -1018,7 +1018,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -1094,7 +1094,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}"
+                    "The sender {} constraints changes has failed: {}"
                     .format(sender_id, response.json())
                 )
 
@@ -1155,7 +1155,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                    "The streamcompatibility request for sender {} status has failed: {}"
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
@@ -1166,7 +1166,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -1296,7 +1296,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}"
+                    "The sender {} constraints changes has failed: {}"
                     .format(sender_id, response.json())
                 )
 
@@ -1363,7 +1363,7 @@ class IS1101Test(GenericTest):
                 "GET", self.compat_url + "senders/" + sender_id + "status/"
             )
             if response.status_code != 200:
-                test.FAIL("The streamcompatibility request for sender {} status  has not succeeded: {}"
+                test.FAIL("The streamcompatibility request for sender {} status has failed: {}"
                           .format(sender_id, response.json()))
             state = response.json()["state"]
             if state in ["awating_essence", "no_essence"]:
@@ -1373,7 +1373,7 @@ class IS1101Test(GenericTest):
                     )
                     if response.status_code != 200:
                         return test.FAIL(
-                            "The streamcompatibility request for sender {} status  has not succeeded: {}"
+                            "The streamcompatibility request for sender {} status has failed: {}"
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
@@ -1485,7 +1485,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} constraints changes has not succeeded: {}"
+                    "The sender {} constraints changes has failed: {}"
                     .format(sender_id, response.json())
                 )
             _, response = TestHelper.do_request(
@@ -1547,7 +1547,7 @@ class IS1101Test(GenericTest):
             if len(self.outputs) == 0:
                 return test.UNCLEAR("No output")
             return test.PASS()
-        return test.FAIL("The outputs streamcompatibility request has not succeeded: {}"
+        return test.FAIL("The outputs streamcompatibility request has failed: {}"
                          .format(response.json()))
 
     def test_03_02(self, test):
@@ -1567,7 +1567,7 @@ class IS1101Test(GenericTest):
                     if output["connected"]:
                         self.connected_outputs.append(output["id"])
             else:
-                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
                                  .format(output, response.json()))
         if len(self.connected_outputs) == 0:
             return test.UNCLEAR("No connected output")
@@ -1588,7 +1588,7 @@ class IS1101Test(GenericTest):
                 if response.json()["status"]["state"] == "signal_present":
                     self.active_connected_outputs.append(response.json())
             else:
-                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
                                  .format(output_id, response.json()))
         if len(self.active_connected_outputs) != 0:
             return test.UNCLEAR(
@@ -1610,7 +1610,7 @@ class IS1101Test(GenericTest):
                 if response.json()["edid_support"]:
                     self.edid_connected_outputs.append(response.json()["id"])
             else:
-                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
                                  .format(output_id, response.json()))
         if self.edid_connected_outputs == 0:
             return test.UNCLEAR("Outputs not supporting edid")
@@ -1627,7 +1627,7 @@ class IS1101Test(GenericTest):
                 "GET", self.compat_url + "outputs/" + output_id
             )
             if response.status_code != 200:
-                return test.FAIL("The streamcompatibility request for output {} has not succeeded: {}"
+                return test.FAIL("The streamcompatibility request for output {} has failed: {}"
                                  .format(output_id, response.json()))
         return test.PASS()
 
@@ -1651,7 +1651,7 @@ class IS1101Test(GenericTest):
             break
         if is_valid_response:
             return test.PASS()
-        return test.FAIL("The output {} edid streamcompatibility request has not succeeded: {}"
+        return test.FAIL("The output {} edid streamcompatibility request has failed: {}"
                          .format(output_id, response.json()))
 
     def test_03_05(self, test):
@@ -1668,7 +1668,7 @@ class IS1101Test(GenericTest):
                 if not response.json()["edid_support"]:
                     self.not_edid_connected_outputs.append(response.json()["id"])
             else:
-                return test.FAIL("The output {} properties streamcompatibility request has not succeeded: {}"
+                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
                                  .format(output_id, response.json()))
         if len(self.not_edid_connected_outputs) == 0:
             return test.UNCLEAR("Outputs supporting edid")
@@ -1696,7 +1696,7 @@ class IS1101Test(GenericTest):
         _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
 
         if response.status_code != 200:
-            return test.FAIL("The receivers streamcompatibility request has not succeeded: {}"
+            return test.FAIL("The receiver's streamcompatibility request has failed: {}"
                              .format(response.json()))
         self.receivers = response.json()
         if len(self.receivers) == 0:
@@ -1714,7 +1714,7 @@ class IS1101Test(GenericTest):
                 "GET", self.node_url + "receivers/" + receiver_id
             )
             if response.status_code != 200:
-                return test.FAIL("The Node API request for receiver {} has not succeeded: {}"
+                return test.FAIL("The Node API request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
             if response.json()["id"] != receiver_id[:-1]:
                 return test.UNCLEAR(
@@ -1728,7 +1728,7 @@ class IS1101Test(GenericTest):
         """
         _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
         if response.status_code != 200:
-            return test.FAIL("The receivers streamcompatibility request has not succeeded: {}"
+            return test.FAIL("The receiver's streamcompatibility request has failed: {}"
                              .format(response.json()))
         self.receivers = response.json()
         if len(self.receivers) == 0:
@@ -1747,7 +1747,7 @@ class IS1101Test(GenericTest):
                 "GET", self.compat_url + "receivers/" + receiver_id + "status/"
             )
             if response.status_code != 200:
-                return test.FAIL("The streamcompatibility request for receiver {} has not succeeded: {}"
+                return test.FAIL("The streamcompatibility request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
             if response.json()["state"] not in ["unknown", "non_compliant_stream"]:
                 return test.FAIL("The state is not unknown or non_compliant_stream.")
@@ -1764,7 +1764,7 @@ class IS1101Test(GenericTest):
                 "GET", self.node_url + "receivers/" + receiver_id
             )
             if response.status_code != 200:
-                return test.FAIL("The Node API request for receiver {} has not succeeded: {}"
+                return test.FAIL("The Node API request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
             self.caps = response.json()["caps"]
             if "constraint_sets" not in self.caps:
