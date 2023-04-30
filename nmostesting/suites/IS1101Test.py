@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from requests.compat import json
+import time
+import re
+
 from ..NMOSUtils import NMOSUtils
 from ..GenericTest import GenericTest
 from .. import TestHelper
-import time
-import re
 from ..IS04Utils import IS04Utils
 
 COMPAT_API_KEY = "streamcompatibility"
@@ -91,25 +93,37 @@ class IS1101Test(GenericTest):
 
     # GENERAL TESTS
     def test_00_01(self, test):
-        """Verify that IS-11 is exposed in the Node API as \
-        urn:x-nmos:control:stream-compat/v1.0 at url /x-nmos/streamcompatibility/v1.0/
-        """
-        _, response = TestHelper.do_request(
-            "GET", self.node_url + "devices/"
-        )
-        if response.status_code != 200:
-            return test.FAIL("The request has not succeeded: {}".format(response.json()))
-        controls = response.json()[0][CONTROLS]
-        control_href = ""
-        if len(controls) > 0:
-            for control in controls:
-                if control["type"] == "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]:
-                    control_href = control["href"]
-                    break
-            if not NMOSUtils.compare_urls(control_href, self.compat_url):
-                return test.FAIL("IS-11 URL is invalid")
+        """At least one Device is showing an IS-11 control advertisement matching the API under test"""
+
+        valid, devices = self.do_request("GET", self.node_url + "devices")
+        if not valid:
+            return test.FAIL("Node API did not respond as expected: {}".format(devices))
+
+        is11_devices = []
+        found_api_match = False
+        try:
+            device_type = "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]
+            for device in devices.json():
+                controls = device["controls"]
+                for control in controls:
+                    if control["type"] == device_type:
+                        is11_devices.append(control["href"])
+                        if NMOSUtils.compare_urls(self.compat_url, control["href"]) and \
+                                self.authorization is control.get("authorization", False):
+                            found_api_match = True
+        except json.JSONDecodeError:
+            return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError:
+            return test.FAIL("One or more Devices were missing the 'controls' attribute")
+
+        if len(is11_devices) > 0 and found_api_match:
             return test.PASS()
-        return test.WARNING("IS-11 API is not available")
+        elif len(is11_devices) > 0:
+            return test.FAIL("Found one or more Device controls, but no href and authorization mode matched the "
+                             "Stream Compatibility Management API under test")
+        else:
+            return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(device_type))
+
 
     def test_00_02(self, test):
         "Put all senders into inactive state"
