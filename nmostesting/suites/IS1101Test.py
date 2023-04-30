@@ -114,7 +114,7 @@ class IS1101Test(GenericTest):
     def test_00_02(self, test):
         "Put all senders into inactive state"
         senders_url = self.conn_url + "single/senders/"
-        _, response = TestHelper.do_request("GET", senders_url)
+        _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
         if response.status_code != 200:
             return test.FAIL("The request has not succeeded: {}".format(response.json()))
         senders = response.json()
@@ -139,7 +139,7 @@ class IS1101Test(GenericTest):
     def test_00_03(self, test):
         "Put all the receivers into inactive state"
         receivers_url = self.conn_url + "single/receivers/"
-        _, response = TestHelper.do_request("GET", receivers_url)
+        _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
         if response.status_code != 200:
             return test.FAIL("The request has not succeeded: {}".format(response.json()))
         receivers = response.json()
