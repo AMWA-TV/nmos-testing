@@ -124,7 +124,6 @@ class IS1101Test(GenericTest):
         else:
             return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(device_type))
 
-
     def test_00_02(self, test):
         "Put all senders into inactive state"
         senders_url = self.conn_url + "single/senders/"
