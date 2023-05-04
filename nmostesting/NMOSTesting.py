@@ -346,12 +346,14 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node",
+            "disable_fields": ["selector"]
         }, {
             "spec_key": "is-12",
-            "api_key": "control",
-            "disable_fields": ["host", "port"]
+            "api_key": "ncp",
+            "websocket": True,
         }],
-        "class": IS1201Test.IS1201Test
+        "class": IS1201Test.IS1201Test,
+        "selector": True
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
@@ -553,12 +555,12 @@ def index_page():
 def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
-        protocol = "http"
-        if CONFIG.ENABLE_HTTPS:
-            protocol = "https"
+        protocol = "https" if CONFIG.ENABLE_HTTPS else "http"
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
+            if spec.get("websocket"):
+                protocol = "wss" if CONFIG.ENABLE_HTTPS else "ws"
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
             if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
@@ -575,6 +577,9 @@ def run_tests(test, endpoints, test_selection=["all"]):
                         url += "{}/".format(endpoints[index]["version"])
                 if endpoints[index]["selector"] not in [None, ""]:
                     url += "{}/".format(endpoints[index]["selector"])
+                if spec.get("websocket"):
+                    # Strip trailing slash
+                    url = url.rstrip("/")
                 tested_urls.append(url)
             else:
                 url = None
