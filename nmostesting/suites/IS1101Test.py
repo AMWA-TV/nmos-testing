@@ -113,11 +113,24 @@ class IS1101Test(GenericTest):
 
     def test_00_02(self, test):
         "Put all senders into inactive state"
+
+        warning_senders = []
+
+        valid, response = TestHelper.do_request("GET", self.compat_url + "senders/")
+        if not valid:
+            return test.FAIL(response)
+        if response.status_code != 200:
+            return test.FAIL("The request has not succeeded: {}".format(response.json()))
+        is11_senders = response.json()
+
         senders_url = self.conn_url + "single/senders/"
-        _, response = TestHelper.do_request("GET", self.compat_url + "senders/")
+        valid, response = TestHelper.do_request("GET", senders_url)
+        if not valid:
+            return test.FAIL(response)
         if response.status_code != 200:
             return test.FAIL("The request has not succeeded: {}".format(response.json()))
         senders = response.json()
+
         if len(senders) > 0:
             for sender in senders:
                 url = senders_url + sender + "staged/"
@@ -132,17 +145,36 @@ class IS1101Test(GenericTest):
                     or response.json()["master_enable"]
                     or response.json()["activation"]["mode"] != "activate_immediate"
                 ):
-                    return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                    if sender in is11_senders:
+                        return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                    else:
+                        warning_senders.append(sender[:-1])
+            if warning_senders:
+                return test.WARNING("IS-05 Senders {} returned codes other than 200 while being deactivated"
+                                    .format(", ".join(warning_senders)))
             return test.PASS()
         return test.UNCLEAR("Could not find any senders to test")
 
     def test_00_03(self, test):
         "Put all the receivers into inactive state"
+
+        warning_receivers = []
+
+        valid, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
+        if not valid:
+            return test.FAIL(response)
+        if response.status_code != 200:
+            return test.FAIL("The request has not succeeded: {}".format(response.json()))
+        is11_receivers = response.json()
+
         receivers_url = self.conn_url + "single/receivers/"
-        _, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
+        valid, response = TestHelper.do_request("GET", receivers_url)
+        if not valid:
+            return test.FAIL(response)
         if response.status_code != 200:
             return test.FAIL("The request has not succeeded: {}".format(response.json()))
         receivers = response.json()
+
         if len(receivers) > 0:
             for receiver in receivers:
                 url = receivers_url + receiver + "staged/"
@@ -156,8 +188,13 @@ class IS1101Test(GenericTest):
                     or response.json()["master_enable"]
                     or response.json()["activation"]["mode"] != "activate_immediate"
                 ):
-                    return test.FAIL("The request has not succeeded: {}".format(response.json()))
-
+                    if receiver in is11_receivers:
+                        return test.FAIL("The request has not succeeded: {}".format(response.json()))
+                    else:
+                        warning_receivers.append(receiver[:-1])
+            if warning_receivers:
+                return test.WARNING("IS-05 Receivers {} returned codes other than 200 while being deactivated"
+                                    .format(", ".join(warning_receivers)))
             return test.PASS()
 
         return test.UNCLEAR("Could not find any receivers to test")
