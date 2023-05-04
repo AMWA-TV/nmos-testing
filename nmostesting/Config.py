@@ -282,7 +282,7 @@ SPECIFICATIONS = {
         "versions": ["v1.0"],
         "default_version": "v1.0",
         "apis": {
-            "control": {
+            "ncp": {
                 "name": "Control Protocol"
             },
         }
