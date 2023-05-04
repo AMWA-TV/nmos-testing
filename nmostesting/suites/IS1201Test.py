@@ -14,14 +14,15 @@
 
 import json
 from time import sleep
+from urllib.parse import urlparse
 
 from .. import Config as CONFIG
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 from ..IS04Utils import IS04Utils
-from ..TestHelper import WebsocketWorker
+from ..TestHelper import WebsocketWorker, is_ip_address
 
 NODE_API_KEY = "node"
-CONTROL_API_KEY = "control"
+CONTROL_API_KEY = "ncp"
 
 
 class IS1201Test(GenericTest):
@@ -33,7 +34,13 @@ class IS1201Test(GenericTest):
         self.node_url = apis[NODE_API_KEY]["url"]
         self.node_api_version = apis[NODE_API_KEY]["version"]
         self.is04_utils = IS04Utils(self.node_url)
-        self.ncp_endpoint = None
+        self.ncp_url = apis[CONTROL_API_KEY]["url"]
+        self.ncp_websocket = None
+        self.ncp_ip_address = apis[CONTROL_API_KEY]["ip"]
+        self.ncp_hostname = apis[CONTROL_API_KEY]["hostname"]
+        self.ncp_port = apis[CONTROL_API_KEY]["port"]
+        self.ncp_api_version = apis[CONTROL_API_KEY]["version"]
+        self.ncp_api_selector = apis[CONTROL_API_KEY]["selector"]
 
     def set_up_tests(self):
         # Do nothing
@@ -41,54 +48,69 @@ class IS1201Test(GenericTest):
 
     def tear_down_tests(self):
         # Clean up Websocket resources
-        if self.ncp_endpoint:
-            self.ncp_endpoint.close()
-
-    def get_ncp_endpoint(self, test):
-        # Discover the NMOS Control Protocol endpoint from the Node API
-        valid, response = self.do_request("GET", self.node_url + "devices")
-        if not valid or response.status_code == 200:
-            try:
-                node_devices = response.json()
-                for device in node_devices:
-                    for control in device["controls"]:
-                        href = control["href"]
-                        if self.is04_utils.compare_api_version(self.node_api_version, "v1.3") >= 0 and \
-                                control["type"].startswith("urn:x-nmos:control:ncp"):
-                            return True, href
-
-            except json.JSONDecodeError:
-                return False, test.FAIL("Non-JSON response returned from Node API")
-            except KeyError as e:
-                return False, test.FAIL("Unable to find expected key: {}".format(e))
-            except AttributeError:
-                return False, test.DISABLED("Incorrect websocket library version")
+        if self.ncp_websocket:
+            self.ncp_websocket.close()
 
     def test_01(self, test):
         """Control endpoint advertised in Node endpoint's Device controls array"""
-        success, result = self.get_ncp_endpoint(test)
+        ncp_endpoint = None
 
-        if not success:
-            return result
+        # Discover the NMOS Control Protocol endpoint from the Node API
+        valid, response = self.do_request("GET", self.node_url + "devices")
+        if not valid or response.status_code != 200:
+            return test.FAIL("Unable to reach Node endpoint")
+        try:
+            node_devices = response.json()
+            for device in node_devices:
+                for control in device["controls"]:
+                    href = control["href"]
+                    if self.is04_utils.compare_api_version(self.node_api_version, "v1.3") >= 0 and \
+                            control["type"].startswith("urn:x-nmos:control:ncp"):
+                        ncp_endpoint = href
+                        break
 
-        return test.PASS("NMOS Control Endpoint discovered succesfully")
+            if not ncp_endpoint:
+                return test.FAIL("Control endpoint not found in Node endpoint's Device controls array")
+
+            if not ncp_endpoint.startswith(self.ws_protocol + "://"):
+                return test.FAIL("Control endpoint 'href' does not match the current protocol")
+
+            parsed = urlparse(ncp_endpoint)
+            if urlparse(ncp_endpoint).hostname != self.ncp_hostname \
+                    and urlparse(ncp_endpoint).hostname != self.ncp_ip_address:
+                return test.FAIL("Control endpoint 'href' does not match the hostname")
+        
+            if parsed.port != self.ncp_port:
+                return test.FAIL("Control endpoint 'href' does not match the port")
+
+            expected_path = "/x-nmos/" + CONTROL_API_KEY + "/" + self.ncp_api_version + "/" + self.ncp_api_selector
+
+            if urlparse(ncp_endpoint).path != expected_path:
+                return test.FAIL("Control endpoint 'href' does not match the path")
+
+            if ncp_endpoint.startswith("wss://") and is_ip_address(urlparse(ncp_endpoint).hostname):
+                return test.WARN("Secure NMOS Control Endpoint has an IP address not a hostname")
+            
+        except json.JSONDecodeError:
+            raise NMOSTestException(test.FAIL("Non-JSON response returned from Node API"))
+        except KeyError as e:
+            raise NMOSTestException(test.FAIL("Unable to find expected key: {}".format(e)))
+        except AttributeError:
+            raise NMOSTestException(test.DISABLED("Incorrect websocket library version"))
+        
+        return test.PASS("NMOS Control Endpoint found and validated")
 
     def create_ncp_socket(self, test):
         # Reuse socket if connection already established
-        if self.ncp_endpoint:
+        if self.ncp_websocket:
             return True, None
 
-        success, result = self.get_ncp_endpoint(test)
-
-        if not success:
-            return False, result
-
         # Create a WebSocket connection to NMOS Control Protocol endpoint
-        self.ncp_endpoint = WebsocketWorker(result)
-        self.ncp_endpoint.start()
+        self.ncp_websocket = WebsocketWorker(self.ncp_url)
+        self.ncp_websocket.start()
         sleep(CONFIG.WS_MESSAGE_TIMEOUT)
-        if self.ncp_endpoint.did_error_occur():
-            return False, test.FAIL("Error opening websocket: {}".format(self.ncp_endpoint.get_error_message()))
+        if self.ncp_websocket.did_error_occur():
+            raise NMOSTestException(test.FAIL("Error opening websocket: {}".format(self.ncp_websocket.get_error_message())))
         else:
             return True, None
 
