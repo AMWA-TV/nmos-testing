@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from requests.compat import json
 import time
 import re
 
@@ -95,34 +94,14 @@ class IS1101Test(GenericTest):
     def test_00_01(self, test):
         """At least one Device is showing an IS-11 control advertisement matching the API under test"""
 
-        valid, devices = self.do_request("GET", self.node_url + "devices")
-        if not valid:
-            return test.FAIL("Node API did not respond as expected: {}".format(devices))
-
-        is11_devices = []
-        found_api_match = False
-        try:
-            device_type = "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]
-            for device in devices.json():
-                controls = device["controls"]
-                for control in controls:
-                    if control["type"] == device_type:
-                        is11_devices.append(control["href"])
-                        if NMOSUtils.compare_urls(self.compat_url, control["href"]) and \
-                                self.authorization is control.get("authorization", False):
-                            found_api_match = True
-        except json.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned from Node API")
-        except KeyError:
-            return test.FAIL("One or more Devices were missing the 'controls' attribute")
-
-        if len(is11_devices) > 0 and found_api_match:
-            return test.PASS()
-        elif len(is11_devices) > 0:
-            return test.FAIL("Found one or more Device controls, but no href and authorization mode matched the "
-                             "Stream Compatibility Management API under test")
-        else:
-            return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(device_type))
+        control_type = "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]
+        return NMOSUtils.test_device_control_advertisement(
+            test,
+            self.node_url,
+            self.compat_url,
+            control_type,
+            self.authorization
+        )
 
     def test_00_02(self, test):
         "Put all senders into inactive state"
