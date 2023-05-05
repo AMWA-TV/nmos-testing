@@ -31,15 +31,9 @@ class IS1201Test(GenericTest):
         # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
         GenericTest.__init__(self, apis, **kwargs)
-        self.node_url = apis[NODE_API_KEY]["url"]
-        self.node_api_version = apis[NODE_API_KEY]["version"]
-        self.is04_utils = IS04Utils(self.node_url)
-        self.ncp_url = apis[CONTROL_API_KEY]["url"]
+        self.apis = apis
+        self.is04_utils = IS04Utils(self.apis[NODE_API_KEY]["url"])
         self.ncp_websocket = None
-        self.ncp_hostname = apis[CONTROL_API_KEY]["hostname"]
-        self.ncp_port = apis[CONTROL_API_KEY]["port"]
-        self.ncp_api_version = apis[CONTROL_API_KEY]["version"]
-        self.ncp_api_selector = apis[CONTROL_API_KEY]["selector"]
 
     def set_up_tests(self):
         # Do nothing
@@ -52,41 +46,38 @@ class IS1201Test(GenericTest):
 
     def test_01(self, test):
         """Control endpoint advertised in Node endpoint's Device controls array"""
-        ncp_endpoint = None
 
         # Discover the NMOS Control Protocol endpoint from the Node API
-        valid, response = self.do_request("GET", self.node_url + "devices")
+        valid, response = self.do_request("GET", self.apis[NODE_API_KEY]["url"] + "devices")
         if not valid or response.status_code != 200:
             return test.FAIL("Unable to reach Node endpoint")
+
+        ncp_endpoint = None
+        found_api_match = False
+
         try:
-            node_devices = response.json()
-            for device in node_devices:
+            device_type = "urn:x-nmos:control:ncp/" + self.apis[CONTROL_API_KEY]["version"]
+            for device in response.json():
                 for control in device["controls"]:
-                    href = control["href"]
-                    if self.is04_utils.compare_api_version(self.node_api_version, "v1.3") >= 0 and \
-                            control["type"].startswith("urn:x-nmos:control:ncp"):
-                        ncp_endpoint = href
-                        break
+                    if control["type"] == device_type:
+                        ncp_endpoint = control["href"]
+                        if self.is04_utils.compare_urls(self.apis[CONTROL_API_KEY]["url"], control["href"]) and \
+                                self.authorization is control.get("authorization", False):
+                            found_api_match = True
 
-            if not ncp_endpoint:
-                return test.FAIL("Control endpoint not found in Node endpoint's Device controls array")
-
-            if not self.is04_utils.compare_urls(ncp_endpoint, "{}://{}:{}/x-nmos/{}/{}/{}"
-                                                .format(self.ws_protocol,
-                                                        self.ncp_hostname,
-                                                        self.ncp_port,
-                                                        CONTROL_API_KEY,
-                                                        self.ncp_api_version,
-                                                        self.ncp_api_selector)):
-                return test.FAIL("None of the Control endpoints match the Control Protocol API under test")
+            if ncp_endpoint and not found_api_match:
+                return test.FAIL("Found one or more Device controls, but no href and authorization mode matched the "
+                                 "Events API under test")
+            elif not found_api_match:
+                return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(device_type))
 
             if ncp_endpoint.startswith("wss://") and is_ip_address(urlparse(ncp_endpoint).hostname):
                 return test.WARN("Secure NMOS Control Endpoint has an IP address not a hostname")
 
         except json.JSONDecodeError:
-            raise NMOSTestException(test.FAIL("Non-JSON response returned from Node API"))
-        except KeyError as e:
-            raise NMOSTestException(test.FAIL("Unable to find expected key: {}".format(e)))
+            return test.FAIL("Non-JSON response returned from Node API")
+        except KeyError:
+            return test.FAIL("One or more Devices were missing the 'controls' attribute")
 
         return test.PASS("NMOS Control Endpoint found and validated")
 
@@ -96,7 +87,7 @@ class IS1201Test(GenericTest):
             return True
 
         # Create a WebSocket connection to NMOS Control Protocol endpoint
-        self.ncp_websocket = WebsocketWorker(self.ncp_url)
+        self.ncp_websocket = WebsocketWorker(self.apis[CONTROL_API_KEY]["url"])
         self.ncp_websocket.start()
 
         # Give WebSocket client a chance to start and open its connection
@@ -108,7 +99,8 @@ class IS1201Test(GenericTest):
 
         if self.ncp_websocket.did_error_occur():
             raise NMOSTestException(test.FAIL("Error opening WebSocket connection to {}: {}"
-                                              .format(self.ncp_url, self.ncp_websocket.get_error_message())))
+                                              .format(self.apis[CONTROL_API_KEY]["url"],
+                                                      self.ncp_websocket.get_error_message())))
         else:
             return self.ncp_websocket.is_open()
 
