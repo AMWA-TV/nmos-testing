@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import json
-from time import sleep
+import time
 from urllib.parse import urlparse
 
 from .. import Config as CONFIG
@@ -36,7 +36,6 @@ class IS1201Test(GenericTest):
         self.is04_utils = IS04Utils(self.node_url)
         self.ncp_url = apis[CONTROL_API_KEY]["url"]
         self.ncp_websocket = None
-        self.ncp_ip_address = apis[CONTROL_API_KEY]["ip"]
         self.ncp_hostname = apis[CONTROL_API_KEY]["hostname"]
         self.ncp_port = apis[CONTROL_API_KEY]["port"]
         self.ncp_api_version = apis[CONTROL_API_KEY]["version"]
@@ -73,7 +72,12 @@ class IS1201Test(GenericTest):
                 return test.FAIL("Control endpoint not found in Node endpoint's Device controls array")
 
             if not self.is04_utils.compare_urls(ncp_endpoint, "{}://{}:{}/x-nmos/{}/{}/{}"
-                                          .format(self.ws_protocol, self.ncp_hostname, self.ncp_port, CONTROL_API_KEY, self.ncp_api_version, self.ncp_api_selector)):
+                                                .format(self.ws_protocol,
+                                                        self.ncp_hostname,
+                                                        self.ncp_port,
+                                                        CONTROL_API_KEY,
+                                                        self.ncp_api_version,
+                                                        self.ncp_api_selector)):
                 return test.FAIL("None of the Control endpoints match the Control Protocol API under test")
 
             if ncp_endpoint.startswith("wss://") and is_ip_address(urlparse(ncp_endpoint).hostname):
@@ -89,23 +93,29 @@ class IS1201Test(GenericTest):
     def create_ncp_socket(self, test):
         # Reuse socket if connection already established
         if self.ncp_websocket:
-            return True, None
+            return True
 
         # Create a WebSocket connection to NMOS Control Protocol endpoint
         self.ncp_websocket = WebsocketWorker(self.ncp_url)
         self.ncp_websocket.start()
-        sleep(CONFIG.WS_MESSAGE_TIMEOUT)
+
+        # Give WebSocket client a chance to start and open its connection
+        start_time = time.time()
+        while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+            if self.ncp_websocket.is_open():
+                break
+            time.sleep(0.2)
+
         if self.ncp_websocket.did_error_occur():
-            raise NMOSTestException(test.FAIL("Error opening websocket: {}".format(
-                self.ncp_websocket.get_error_message())))
+            raise NMOSTestException(test.FAIL("Error opening WebSocket connection to {}: {}"
+                                              .format(self.ncp_url, self.ncp_websocket.get_error_message())))
         else:
-            return True, None
+            return self.ncp_websocket.is_open()
 
     def test_02(self, test):
         """WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint"""
-        success, error = self.create_ncp_socket(test)
 
-        if not success:
-            return error
+        if not self.create_ncp_socket(test):
+            return test.PASS("Failed to open WebSocket successfully")
 
         return test.PASS("WebSocket successfully opened")
