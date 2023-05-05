@@ -73,7 +73,7 @@ class IS1201Test(GenericTest):
             if not ncp_endpoint:
                 return test.FAIL("Control endpoint not found in Node endpoint's Device controls array")
 
-            if not NMOSUtils.compare_urls(ncp_endpoint, "{}://{}:{}/x-nmos/{}/{}/{}"
+            if not self.is04_utils.compare_urls(ncp_endpoint, "{}://{}:{}/x-nmos/{}/{}/{}"
                                           .format(self.ws_protocol, self.ncp_hostname, self.ncp_port, CONTROL_API_KEY, self.ncp_api_version, self.ncp_api_selector)):
                 return test.FAIL("None of the Control endpoints match the Control Protocol API under test")
 
