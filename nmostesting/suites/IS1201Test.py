@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 from .. import Config as CONFIG
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS04Utils import IS04Utils
+from ..NMOSUtils import NMOSUtils
 from ..TestHelper import WebsocketWorker, is_ip_address
 
 NODE_API_KEY = "node"
@@ -72,32 +73,18 @@ class IS1201Test(GenericTest):
             if not ncp_endpoint:
                 return test.FAIL("Control endpoint not found in Node endpoint's Device controls array")
 
-            if not ncp_endpoint.startswith(self.ws_protocol + "://"):
-                return test.FAIL("Control endpoint 'href' does not match the current protocol")
-
-            parsed = urlparse(ncp_endpoint)
-            if urlparse(ncp_endpoint).hostname != self.ncp_hostname \
-                    and urlparse(ncp_endpoint).hostname != self.ncp_ip_address:
-                return test.FAIL("Control endpoint 'href' does not match the hostname")
-        
-            if parsed.port != self.ncp_port:
-                return test.FAIL("Control endpoint 'href' does not match the port")
-
-            expected_path = "/x-nmos/" + CONTROL_API_KEY + "/" + self.ncp_api_version + "/" + self.ncp_api_selector
-
-            if urlparse(ncp_endpoint).path != expected_path:
-                return test.FAIL("Control endpoint 'href' does not match the path")
+            if not NMOSUtils.compare_urls(ncp_endpoint, "{}://{}:{}/x-nmos/{}/{}/{}"
+                                          .format(self.ws_protocol, self.ncp_hostname, self.ncp_port, CONTROL_API_KEY, self.ncp_api_version, self.ncp_api_selector)):
+                return test.FAIL("None of the Control endpoints match the Control Protocol API under test")
 
             if ncp_endpoint.startswith("wss://") and is_ip_address(urlparse(ncp_endpoint).hostname):
                 return test.WARN("Secure NMOS Control Endpoint has an IP address not a hostname")
-            
+
         except json.JSONDecodeError:
             raise NMOSTestException(test.FAIL("Non-JSON response returned from Node API"))
         except KeyError as e:
             raise NMOSTestException(test.FAIL("Unable to find expected key: {}".format(e)))
-        except AttributeError:
-            raise NMOSTestException(test.DISABLED("Incorrect websocket library version"))
-        
+
         return test.PASS("NMOS Control Endpoint found and validated")
 
     def create_ncp_socket(self, test):
@@ -110,7 +97,8 @@ class IS1201Test(GenericTest):
         self.ncp_websocket.start()
         sleep(CONFIG.WS_MESSAGE_TIMEOUT)
         if self.ncp_websocket.did_error_occur():
-            raise NMOSTestException(test.FAIL("Error opening websocket: {}".format(self.ncp_websocket.get_error_message())))
+            raise NMOSTestException(test.FAIL("Error opening websocket: {}".format(
+                self.ncp_websocket.get_error_message())))
         else:
             return True, None
 
