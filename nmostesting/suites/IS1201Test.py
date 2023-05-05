@@ -19,7 +19,6 @@ from urllib.parse import urlparse
 from .. import Config as CONFIG
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS04Utils import IS04Utils
-from ..NMOSUtils import NMOSUtils
 from ..TestHelper import WebsocketWorker, is_ip_address
 
 NODE_API_KEY = "node"
