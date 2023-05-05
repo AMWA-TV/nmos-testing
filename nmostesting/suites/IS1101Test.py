@@ -98,8 +98,8 @@ class IS1101Test(GenericTest):
         return NMOSUtils.test_device_control_advertisement(
             test,
             self.node_url,
-            self.compat_url,
             control_type,
+            self.compat_url,
             self.authorization
         )
 

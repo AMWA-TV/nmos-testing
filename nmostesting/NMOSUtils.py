@@ -183,7 +183,7 @@ class NMOSUtils(object):
         return sorted(versions_list, key=functools.cmp_to_key(NMOSUtils.compare_api_version))
 
     @staticmethod
-    def test_device_control_advertisement(test, node_url, api_under_test_url, control_type, authorization):
+    def test_device_control_advertisement(test, node_url, type, href, authorization):
         """At least one Device is showing the given control advertisement matching the API under test"""
 
         valid, devices = TestHelper.do_request("GET", node_url + "devices")
@@ -196,9 +196,9 @@ class NMOSUtils(object):
             for device in devices.json():
                 controls = device["controls"]
                 for control in controls:
-                    if control["type"] == control_type:
+                    if control["type"] == type:
                         compat_devices.append(control["href"])
-                        if NMOSUtils.compare_urls(api_under_test_url, control["href"]) and \
+                        if NMOSUtils.compare_urls(href, control["href"]) and \
                                 authorization is control.get("authorization", False):
                             found_api_match = True
         except json.JSONDecodeError:
@@ -212,4 +212,4 @@ class NMOSUtils(object):
             return test.FAIL("Found one or more Device controls, but no href and authorization mode matched the "
                              "API under test")
         else:
-            return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(control_type))
+            return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(type))

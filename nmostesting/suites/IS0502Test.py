@@ -309,8 +309,8 @@ class IS0502Test(GenericTest):
         return self.is05_utils.test_device_control_advertisement(
             test,
             self.node_url,
-            self.connection_url,
             control_type,
+            self.connection_url,
             self.authorization
         )
 
