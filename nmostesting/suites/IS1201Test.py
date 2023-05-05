@@ -108,6 +108,6 @@ class IS1201Test(GenericTest):
         """WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint"""
 
         if not self.create_ncp_socket(test):
-            return test.PASS("Failed to open WebSocket successfully")
+            return test.FAIL("Failed to open WebSocket successfully")
 
         return test.PASS("WebSocket successfully opened")
