@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
+import re
+
 from ..NMOSUtils import NMOSUtils
 from ..GenericTest import GenericTest
 from .. import TestHelper
-import time
-import re
 from ..IS04Utils import IS04Utils
 
 COMPAT_API_KEY = "streamcompatibility"
@@ -91,25 +92,16 @@ class IS1101Test(GenericTest):
 
     # GENERAL TESTS
     def test_00_01(self, test):
-        """Verify that IS-11 is exposed in the Node API as \
-        urn:x-nmos:control:stream-compat/v1.0 at url /x-nmos/streamcompatibility/v1.0/
-        """
-        _, response = TestHelper.do_request(
-            "GET", self.node_url + "devices/"
+        """At least one Device is showing an IS-11 control advertisement matching the API under test"""
+
+        control_type = "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]
+        return NMOSUtils.do_test_device_control(
+            test,
+            self.node_url,
+            control_type,
+            self.compat_url,
+            self.authorization
         )
-        if response.status_code != 200:
-            return test.FAIL("The request has not succeeded: {}".format(response.json()))
-        controls = response.json()[0][CONTROLS]
-        control_href = ""
-        if len(controls) > 0:
-            for control in controls:
-                if control["type"] == "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]:
-                    control_href = control["href"]
-                    break
-            if not NMOSUtils.compare_urls(control_href, self.compat_url):
-                return test.FAIL("IS-11 URL is invalid")
-            return test.PASS()
-        return test.WARNING("IS-11 API is not available")
 
     def test_00_02(self, test):
         "Put all senders into inactive state"
