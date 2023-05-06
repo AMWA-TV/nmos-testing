@@ -637,6 +637,18 @@ class IS0702Test(GenericTest):
         else:
             return test.UNCLEAR("Not tested. No resources found.")
 
+    def test_07(self, test):
+        """At least one Device is showing an IS-07 control advertisement matching the API under test"""
+
+        control_type = "urn:x-nmos:control:events/" + self.apis[EVENTS_API_KEY]["version"]
+        return self.is04_utils.do_test_device_control(
+            test,
+            self.node_url,
+            control_type,
+            self.events_url,
+            self.authorization
+        )
+
     def get_websocket_connection_sources(self, test):
         """Returns a dictionary of WebSocket sources available for connection"""
         connection_sources = {}
