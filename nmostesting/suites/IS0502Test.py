@@ -306,7 +306,7 @@ class IS0502Test(GenericTest):
         """At least one Device is showing an IS-05 control advertisement matching the API under test"""
 
         control_type = "urn:x-nmos:control:sr-ctrl/" + self.apis[CONN_API_KEY]["version"]
-        return self.is05_utils.test_device_control_advertisement(
+        return self.is05_utils.do_test_device_control(
             test,
             self.node_url,
             control_type,

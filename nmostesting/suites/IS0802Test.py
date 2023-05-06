@@ -160,6 +160,7 @@ class IS0802Test(GenericTest):
 
         return self.get_is04_resources(resource_type)
 
+    # hm, see NMOSUtils.do_test_device_control
     def find_device_advertisement(self):
         test = globalConfig.test
 
