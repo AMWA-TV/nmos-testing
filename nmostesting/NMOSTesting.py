@@ -555,12 +555,13 @@ def index_page():
 def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
-        protocol = "https" if CONFIG.ENABLE_HTTPS else "http"
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
             if spec.get("websocket"):
                 protocol = "wss" if CONFIG.ENABLE_HTTPS else "ws"
+            else:
+                protocol = "https" if CONFIG.ENABLE_HTTPS else "http"
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
             if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
@@ -577,9 +578,6 @@ def run_tests(test, endpoints, test_selection=["all"]):
                         url += "{}/".format(endpoints[index]["version"])
                 if endpoints[index]["selector"] not in [None, ""]:
                     url += "{}/".format(endpoints[index]["selector"])
-                if spec.get("websocket"):
-                    # Strip trailing slash
-                    url = url.rstrip("/")
                 tested_urls.append(url)
             else:
                 url = None
