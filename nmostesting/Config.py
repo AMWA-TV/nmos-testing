@@ -277,6 +277,16 @@ SPECIFICATIONS = {
             }
         }
     },
+    "is-12": {
+        "repo": "is-12",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "ncp": {
+                "name": "Control Protocol"
+            },
+        }
+    },
     "bcp-002-01": {
         "repo": "bcp-002-01",
         "versions": ["v1.0"],

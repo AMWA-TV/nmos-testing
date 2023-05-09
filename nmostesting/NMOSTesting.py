@@ -82,6 +82,7 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1201Test
 from .suites import BCP00301Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
@@ -340,6 +341,20 @@ TEST_DEFINITIONS = {
     #     }],
     #     "class": IS1001Test.IS1001Test
     # },
+    "IS-12-01": {
+        "name": "IS-12 NMOS Control Protocol",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["selector"]
+        }, {
+            "spec_key": "is-12",
+            "api_key": "ncp",
+            "websocket": True,
+        }],
+        "class": IS1201Test.IS1201Test,
+        "selector": True
+    },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
         "specs": [{
@@ -540,12 +555,13 @@ def index_page():
 def run_tests(test, endpoints, test_selection=["all"]):
     if test in TEST_DEFINITIONS:
         test_def = TEST_DEFINITIONS[test]
-        protocol = "http"
-        if CONFIG.ENABLE_HTTPS:
-            protocol = "https"
         apis = {}
         tested_urls = []
         for index, spec in enumerate(test_def["specs"]):
+            if spec.get("websocket"):
+                protocol = "wss" if CONFIG.ENABLE_HTTPS else "ws"
+            else:
+                protocol = "https" if CONFIG.ENABLE_HTTPS else "http"
             spec_key = spec["spec_key"]
             api_key = spec["api_key"]
             if endpoints[index]["host"] == "" or endpoints[index]["port"] == "":
