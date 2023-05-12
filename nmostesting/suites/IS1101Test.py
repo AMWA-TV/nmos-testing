@@ -27,6 +27,7 @@ COMPAT_API_KEY = "streamcompatibility"
 CONTROLS = "controls"
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
+PATTERN = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
 REF_SUPPORTED_CONSTRAINTS_VIDEO = [
     "urn:x-nmos:cap:meta:label",
@@ -1918,6 +1919,423 @@ class IS1101Test(GenericTest):
             if len(self.caps["constraint_sets"]) == 0:
                 return test.WARNING("The receiver does not support BCP-004-01.")
         return test.PASS()
+
+    def test_04_03(self, test):
+        """
+        Verify receivers supporting outputs
+        """
+        if len(self.receivers) == 0:
+            return test.UNCLEAR("No IS-11 receivers")
+        for receiver_id in self.receivers:
+            _, response = TestHelper.do_request('GET', self.compat_url + "receivers/")
+            if response.status_code != 200:
+                return test.FAIL("The receiver's streamcompatibility request has failed: {}"
+                                 .format(response.json()))
+            self.receivers_outputs = response.json()
+
+            """
+            The test requires streaming from a Sender in order to
+            verify the state of the Receiver and the associated outputs.
+            """
+            """
+            if IS11_RefecenceSender is not configured fail 4.3 with log indicating
+            that IS11_RefecenceSender is not configured
+            """
+            if len(CONFIG.IS11_REFERENCE_SENDER) == 0:
+                return test.FAIL("IS11_RefecenceSender is not configured")
+            if len(self.receivers_outputs) == 0:
+                return test.UNCLEAR("No IS-11 receivers support outputs")
+            for receiver_id in self.receivers_outputs:
+                _, response = TestHelper.do_request('GET', self.node_url + "receivers/" + receiver_id)
+                if response.status_code != 200:
+                    return test.FAIL("The Node API request for receiver {} has failed: {}"
+                                     .format(receiver_id, response.json()))
+                receiver_format = response.json()["format"]
+                receiver_transport_file = response.json()["transport"]
+                if (receiver_format == "urn:x-nmos:format:video"):
+                    """
+                    using $IS11_RefecenceSender GET sender_id from N?/senders/*/ where
+                    .format is receiver.format and .transport is receiver.transport
+                    """
+                    url = self.node_url.replace(PATTERN.search(self.node_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+                    _, response = TestHelper.do_request('GET', url + "senders/")
+                    if response.status_code != 200:
+                        return test.FAIL("The sender's request {} has failed: {}"
+                                         .format(url + "senders/", response.json()))
+                    self.senders = response.json()
+                    if len(self.senders) == 0:
+                        return test.DISABLED("No IS-11 reference sender")
+
+                    for sender in self.senders:
+                        if (sender["flow_id"]):
+                            _, response = TestHelper.do_request('GET', url + "flows/" + sender["flow_id"])
+                            if response.status_code != 200:
+                                return test.FAIL("The sender {} is not available in the Node"
+                                                 "API has an associated flow: {}"
+                                                 .format(sender["flow_id"], response.json()))
+                            sender_format = response.json()["format"]
+                            if ((sender_format == receiver_format) and
+                                    (sender["transport"] == receiver_transport_file)):
+                                self.reference_sender_id = sender["id"]
+            if not(self.reference_sender_id):
+                return test.UNCLEAR("The format and transport file of the "
+                                    "IS-11_REFERENCE_SENDER do not match with the receiver")
+        return test.PASS()
+
+    def test_04_03_01(self, test):
+        """
+        Verify the status of the Receiver and the associated outputs using
+        the reference Sender to produce the video stream consumed by the Receiver
+        """
+        if len(CONFIG.IS11_REFERENCE_SENDER) == 0:
+            return test.FAIL("IS-11 RefecenceSender is not configured")
+        if len(self.senders) == 0:
+            return test.DISABLED("No IS-11 reference sender")
+        for sender in self.senders:
+            url_node = self.node_url.replace(PATTERN.search(self.node_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+            _, response = TestHelper.do_request('GET', url_node + "senders/" + sender["id"])
+            if response.status_code != 200:
+                return test.FAIL("The Node API request for sender {} has failed: {}"
+                                 .format(sender["id"], response.json()))
+            sender_caps = response.json()["caps"]["media_types"]
+            url = self.conn_url.replace(PATTERN.search(self.conn_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+            json_data = {
+                    "master_enable": True,
+                    "activation": {"mode": "activate_immediate"}
+                }
+            headers = {"Content-Type": "application/json"}
+            _, response = TestHelper.do_request('PATCH', url + "single/senders/"
+                                                + sender["id"] + "/staged/", json=json_data, headers=headers)
+            if response.status_code != 200:
+                return test.FAIL("The patch request to {} has failed: {}"
+                                 .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
+            _, response = TestHelper.do_request('GET', url + "single/senders/" + sender["id"] + "/transportfile/")
+            if response.status_code != 200:
+                return test.FAIL("The connection request for sender {} transportfile has failed: {}"
+                                 .format(sender["id"], response.json()))
+            self.sdp_transport_file = response.text
+
+            for receiver_id in self.receivers_outputs:
+                _, response = TestHelper.do_request('GET', self.node_url + "receivers/" + receiver_id)
+                if response.status_code != 200:
+                    return test.FAIL("The Node API request for receiver {} has failed: {}"
+                                     .format(receiver_id, response.json()))
+                receiver_caps = response.json()["caps"]["media_types"]
+                if(sender_caps == receiver_caps and len(self.sdp_transport_file.strip()) != 0):
+                    patchload = {
+                            "sender_id": sender["id"],
+                            "master_enable": True,
+                            "activation": {"mode": "activate_immediate"},
+                            "transport_file": {"type": "application/sdp",
+                                               "data": "{}".format(self.sdp_transport_file)}
+                            }
+                    _, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
+                                                        + receiver_id + "staged/", json=patchload, headers=headers)
+                    if response.status_code != 200:
+                        return test.FAIL("The patch request to {} has failed: {}"
+                                         .format(self.conn_url + "single/receivers/" +
+                                                 receiver_id + "staged/", response.json()))
+                    _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/" +
+                                                        receiver_id + "active/")
+                    if response.status_code != 200:
+                        return test.FAIL("The connection request for receiver {} has failed: {}"
+                                         .format(receiver_id, response.json()))
+
+                    if(response.json()["master_enable"] is not True):
+                        time.sleep(3)
+                        _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
+                                                            + receiver_id + "active/")
+                        if response.status_code != 200:
+                            return test.FAIL("The connection request for receiver {} has failed: {}"
+                                             .format(receiver_id, response.json()))
+                        if(response.json()["master_enable"] is not True):
+                            return test.FAIL("The master_enable still False")
+                    _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "status/")
+                    if response.status_code != 200:
+                        return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
+                                         .format(receiver_id, response.json()))
+                    if(response.json()["state"] != "compliant_stream"):
+                        return test.FAIL("The state should be compliant_stream")
+
+                    _, response = TestHelper.do_request('GET', self.compat_url +
+                                                        "receivers/" + receiver_id + "outputs/")
+                    if response.status_code != 200:
+                        return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
+                                         .format(receiver_id, response.json()))
+                    self.outputs = response.json()
+        return test.PASS()
+
+    def test_04_03_01_01(self, test):
+        """
+        Verify that the status indicates that there is a signal.
+        """
+        if len(CONFIG.IS11_REFERENCE_SENDER) == 0:
+            return test.FAIL("IS-11 Refecence Sender is not configured")
+        if len(self.outputs) == 0:
+            return test.DISABLED("No IS-11 receiver outputs")
+        for output_id in self.outputs:
+            _, response = TestHelper.do_request('GET', self.compat_url + "outputs/" + output_id + "/properties/")
+            if response.status_code != 200:
+                return test.FAIL("The streamcompatibility request for output {} properties has failed: {}"
+                                 .format(output_id, response.json()))
+            if (response.json()["status"]["state"] != "signal_present"):
+                return test.FAIL("The state: {} should be signal_present".format(response.json()["status"]["state"]))
+            if len(self.senders) == 0:
+                return test.DISABLED("No IS-11 reference sender")
+
+            for sender in self.senders:
+                url = self.conn_url.replace(PATTERN.search(self.conn_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+                json_data = {
+                        "master_enable": False,
+                        "activation": {"mode": "activate_immediate"}
+                        }
+                headers = {"Content-Type": "application/json"}
+                _, response = TestHelper.do_request('PATCH', url + "single/senders/"
+                                                    + sender["id"] + "/staged/", json=json_data, headers=headers)
+                if response.status_code != 200:
+                    return test.FAIL("The patch request to {} has failed: {}"
+                                     .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
+                if len(self.receivers_outputs) == 0:
+                    return test.UNCLEAR("No IS-11 receivers support outputs")
+                for receiver_id in self.receivers_outputs:
+                    _, response = TestHelper.do_request('GET', self.node_url + "receivers/" + receiver_id)
+                    if response.status_code != 200:
+                        return test.FAIL("The Node API request for receiver {} has failed: {}"
+                                         .format(receiver_id, response.json()))
+                    receiver_format = response.json()["format"]
+                    receiver_transport_file = response.json()["transport"]
+                    if (receiver_format == "urn:x-nmos:format:audio"):
+                        """
+                        using $IS11_RefecenceSender GET sender_id from N?/senders/*/ where
+                        .format is receiver.format and .transport is receiver.transport
+                        """
+                        url = self.node_url.replace(PATTERN.search(self.node_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+                        _, response = TestHelper.do_request('GET', url + "senders/")
+                        if response.status_code != 200:
+                            return test.FAIL("The request for {} has failed: {}"
+                                             .format(url + "senders/", response.json()))
+                        self.senders = response.json()
+                        if len(self.senders) == 0:
+                            return test.DISABLED("No IS-11 reference sender")
+                        for sender in self.senders:
+                            if (sender["flow_id"]):
+                                _, response = TestHelper.do_request('GET', url + "flows/" + sender["flow_id"])
+                                if response.status_code != 200:
+                                    return test.FAIL("The sender {} is not available in the Node"
+                                                     " API has an associated flow: {}"
+                                                     .format(sender["flow_id"], response.json()))
+                                sender_format = response.json()["format"]
+                                if (sender_format == receiver_format and
+                                        sender["transport"] == receiver_transport_file):
+                                    self.reference_sender_id = sender["id"]
+            if len(self.reference_sender_id) == 0:
+                return test.UNCLEAR("The format and transport file of the "
+                                    "IS-11 REFERENCE SENDER do not match with the receiver")
+        return test.PASS()
+
+    def test_04_03_02(self, test):
+        """
+        Verify the status of the Receiver and the
+        associated outputs using the reference Sender to
+        produce the audio stream consumed by the Receiver.
+        """
+        if len(self.senders) == 0:
+            return test.DISABLED("No IS-11 reference sender")
+        for sender in self.senders:
+            url = self.conn_url.replace(PATTERN.search(self.conn_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+            json_data = {
+                    "master_enable": True,
+                    "activation": {"mode": "activate_immediate"}
+                }
+            headers = {"Content-Type": "application/json"}
+            _, response = TestHelper.do_request('PATCH', url + "single/senders/"
+                                                + sender["id"] + "/staged/", json=json_data, headers=headers)
+            if response.status_code != 200:
+                return test.FAIL("The patch request to {} has failed: {}"
+                                 .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
+
+            _, response = TestHelper.do_request('GET', url + "single/senders/" + sender["id"] + "/transportfile/")
+            if response.status_code != 200:
+                return test.FAIL("The connection request for sender {} transportfile has failed: {}"
+                                 .format(sender["id"], response.json()))
+            self.sdp_transport_file = response.text
+            if len(self.sdp_transport_file) == 0:
+                return test.FAIL("The IS-11 reference sender transport file is empty")
+            for receiver_id in self.receivers_outputs:
+                patchload = {
+                        "sender_id": sender["id"],
+                        "master_enable": True,
+                        "activation": {"mode": "activate_immediate"},
+                        "transport_file": {"type": "application/sdp",
+                                           "data": "{}".format(self.sdp_transport_file.strip())}
+                        }
+
+            _, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
+                                                + receiver_id + "staged/", json=patchload, headers=headers)
+            if response.status_code != 200:
+                return test.FAIL("The patch request to {} has failed: {}"
+                                 .format(self.conn_url + "single/receivers/" + receiver_id +
+                                         "staged/", response.json()))
+
+            _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/" + receiver_id + "active/")
+            if response.status_code != 200:
+                return test.FAIL("The connection request for receiver {} has failed: {}"
+                                 .format(receiver_id, response.json()))
+
+            if(response.json()["master_enable"] is not True):
+                time.sleep(3)
+                _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
+                                                    + receiver_id + "active/")
+            if response.status_code != 200:
+                return test.FAIL("The connection request for receiver {} has failed: {}"
+                                 .format(receiver_id, response.json()))
+
+            _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "status/")
+            if response.status_code != 200:
+                return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
+                                 .format(receiver_id, response.json()))
+            if(response.json()["state"] != "compliant_stream"):
+                return test.FAIL("The state should be compliant_stream")
+
+            _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "outputs/")
+            if response.status_code != 200:
+                return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
+                                 .format(receiver_id, response.json()))
+            self.outputs = response.json()
+        return test.PASS()
+
+    def test_04_03_02_01(self, test):
+        """
+        Verify that the status indicates that there is a signal.
+        """
+        if len(self.outputs) == 0:
+            return test.DISABLED("No IS-11 receiver outputs")
+        for output_id in self.outputs:
+            _, response = TestHelper.do_request('GET', self.compat_url + "outputs/" + output_id + "/properties/")
+            if response.status_code != 200:
+                return test.FAIL("The streamcompatibility request for output {} properties has failed: {}"
+                                 .format(output_id, response.json()))
+            if (response.json()["status"]["state"] != "signal_present"):
+                return test.FAIL("The state: {} should be signal_present".format(response.json()["status"]["state"]))
+            if len(CONFIG.IS11_REFERENCE_SENDER) == 0:
+                return test.FAIL("IS-11 refecence sender is not configured")
+            if len(self.senders) == 0:
+                return test.DISABLED("No IS-11 reference sender")
+            for sender in self.senders:
+                url = self.conn_url.replace(PATTERN.search(self.conn_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+                json_data = {
+                    "master_enable": False,
+                    "activation": {"mode": "activate_immediate"}
+                }
+                headers = {"Content-Type": "application/json"}
+                _, response = TestHelper.do_request('PATCH', url + "single/senders/"
+                                                    + sender["id"] + "/staged/", json=json_data, headers=headers)
+                time.sleep(3)
+                if response.status_code != 200:
+                    return test.FAIL("The patch request to {} has failed: {}"
+                                     .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
+        return test.PASS()
+
+    def test_04_04(self, test):
+        """
+        Verify receivers not supporting outputs
+        """
+        if len(self.receivers) == 0:
+            return test.DISABLED("No IS-11 receivers")
+        for receiver_id in self.receivers:
+            _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "outputs/")
+            if response.status_code != 200:
+                return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
+                                 .format(receiver_id, response.json()))
+            if len(response.json()) == 0:
+                self.no_output_receivers.append(receiver_id)
+            if len(self.no_output_receivers) == 0:
+                return test.FAIL("All IS-11 receivers support outputs")
+        return test.PASS()
+
+    def test_04_04_01(self, test):
+        """
+        Verify the status of the Receiver.
+        The test requires streaming from a Sender
+        in order to verify the state of the Receiver.
+        """
+        if len(CONFIG.IS11_REFERENCE_SENDER) == 0:
+            return test.FAIL("IS-11 refecence sender is not configured")
+        if len(self.senders) == 0:
+            return test.DISABLED("No IS-11 reference sender")
+        for sender in self.senders:
+            url = self.conn_url.replace(PATTERN.search(self.conn_url)[0], CONFIG.IS11_REFERENCE_SENDER)
+            json_data = {
+                    "master_enable": True,
+                    "activation": {"mode": "activate_immediate"}
+                }
+            headers = {"Content-Type": "application/json"}
+            _, response = TestHelper.do_request('PATCH', url + "single/senders/"
+                                                + sender["id"] + "/staged/", json=json_data, headers=headers)
+            time.sleep(3)
+            if response.status_code != 200:
+                return test.FAIL("The patch request to {} has failed: {}"
+                                 .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
+
+            _, response = TestHelper.do_request('GET', url + "single/senders/" + sender["id"] + "/transportfile/")
+            time.sleep(3)
+            if response.status_code != 200:
+                return test.FAIL("The connection request for sender {} transportfile has failed: {}"
+                                 .format(sender["id"], response.json()))
+            self.sdp_transport_file = response.text
+            if len(self.no_output_receivers) == 0:
+                return test.FAIL("All IS-11 receivers support outputs")
+            for receiver_id in self.no_output_receivers:
+                patchload = {
+                        "sender_id": sender["id"],
+                        "master_enable": True,
+                        "activation": {"mode": "activate_immediate"},
+                        "transport_file": {"type": "application/sdp",
+                                           "data": "{}".format(self.sdp_transport_file)}
+                    }
+
+            _, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
+                                                + receiver_id + "staged/", json=patchload, headers=headers)
+            time.sleep(3)
+            if response.status_code != 200:
+                return test.FAIL("The patch request{} to has failed: {}"
+                                 .format(self.conn_url + "single/receivers/"
+                                         + receiver_id + "staged/", response.json()))
+
+            _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
+                                                + receiver_id + "active/")
+            if response.status_code != 200:
+                return test.FAIL("The connection request for receiver {} has failed: {}"
+                                 .format(receiver_id, response.json()))
+
+            if(response.json()["master_enable"] is not True):
+                time.sleep(3)
+                _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
+                                                    + receiver_id + "active/")
+            if response.status_code != 200:
+                return test.FAIL("The connection request for receiver {} has failed: {}"
+                                 .format(receiver_id, response.json()))
+
+            _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "status/")
+            if response.status_code != 200:
+                return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
+                                 .format(receiver_id, response.json()))
+            if(response.json()["state"] != "compliant_stream"):
+                return test.FAIL("The state should be compliant_stream")
+
+            json_data = {
+                    "master_enable": False,
+                    "activation": {"mode": "activate_immediate"}
+                }
+            headers = {"Content-Type": "application/json"}
+            _, response = TestHelper.do_request('PATCH', url + "single/senders/"
+                                                + sender["id"] + "/staged/", json=json_data, headers=headers)
+            time.sleep(3)
+            if response.status_code != 200:
+                return test.FAIL("The patch to {} has failed: {}"
+                                 .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
+        return test.PASS()
+
 
     def test_06_01(self, test):
         """A sender rejects Active Constraints with unsupported Parameter Constraint URN(s)"""

@@ -190,8 +190,18 @@ MQTT_PASSWORD = None
 # Bash shell to use for running testssl.sh
 TEST_SSL_BASH = "bash"
 
+# IP and port of IS-11 REFERENCE SENDER to test IS-11 Receivers under live streaming conditions.
+# The URL of a device API is required to access the IS-04 Node (http://{device}/x-nmos/node/v1.2),
+# IS-05 Connection (http://{device}/x-nmos/connection/v1.1) and
+# IS-11 Stream Compatibility (http://{device}/x-nmos/streamcompatibility/v1.0)
+IS11_REFERENCE_SENDER_CONNECTION_API = ""
+IS11_REFERENCE_SENDER_CONNECTION_API_PORT = ""
+IS11_REFERENCE_SENDER_NODE_API = ""
+IS11_REFERENCE_SENDER_NODE_API_PORT = ""
+
 # Stability delay for any request on IS-11
 STABLE_STATE_DELAY = 3
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
