@@ -1977,7 +1977,7 @@ class IS1101Test(GenericTest):
                             if ((sender_format == receiver_format) and
                                     (sender["transport"] == receiver_transport_file)):
                                 self.reference_sender_id = sender["id"]
-            if not(self.reference_sender_id):
+            if not (self.reference_sender_id):
                 return test.UNCLEAR("The format and transport file of the "
                                     "IS-11_REFERENCE_SENDER do not match with the receiver")
         return test.PASS()
@@ -2021,7 +2021,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("The Node API request for receiver {} has failed: {}"
                                      .format(receiver_id, response.json()))
                 receiver_caps = response.json()["caps"]["media_types"]
-                if(sender_caps == receiver_caps and len(self.sdp_transport_file.strip()) != 0):
+                if (sender_caps == receiver_caps and len(self.sdp_transport_file.strip()) != 0):
                     patchload = {
                             "sender_id": sender["id"],
                             "master_enable": True,
@@ -2041,20 +2041,20 @@ class IS1101Test(GenericTest):
                         return test.FAIL("The connection request for receiver {} has failed: {}"
                                          .format(receiver_id, response.json()))
 
-                    if(response.json()["master_enable"] is not True):
+                    if (response.json()["master_enable"] is not True):
                         time.sleep(3)
                         _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
                                                             + receiver_id + "active/")
                         if response.status_code != 200:
                             return test.FAIL("The connection request for receiver {} has failed: {}"
                                              .format(receiver_id, response.json()))
-                        if(response.json()["master_enable"] is not True):
+                        if (response.json()["master_enable"] is not True):
                             return test.FAIL("The master_enable still False")
                     _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "status/")
                     if response.status_code != 200:
                         return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
                                          .format(receiver_id, response.json()))
-                    if(response.json()["state"] != "compliant_stream"):
+                    if (response.json()["state"] != "compliant_stream"):
                         return test.FAIL("The state should be compliant_stream")
 
                     _, response = TestHelper.do_request('GET', self.compat_url +
@@ -2182,7 +2182,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The connection request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
 
-            if(response.json()["master_enable"] is not True):
+            if (response.json()["master_enable"] is not True):
                 time.sleep(3)
                 _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
                                                     + receiver_id + "active/")
@@ -2194,7 +2194,7 @@ class IS1101Test(GenericTest):
             if response.status_code != 200:
                 return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
                                  .format(receiver_id, response.json()))
-            if(response.json()["state"] != "compliant_stream"):
+            if (response.json()["state"] != "compliant_stream"):
                 return test.FAIL("The state should be compliant_stream")
 
             _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "outputs/")
@@ -2308,7 +2308,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The connection request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
 
-            if(response.json()["master_enable"] is not True):
+            if (response.json()["master_enable"] is not True):
                 time.sleep(3)
                 _, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
                                                     + receiver_id + "active/")
@@ -2320,7 +2320,7 @@ class IS1101Test(GenericTest):
             if response.status_code != 200:
                 return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
                                  .format(receiver_id, response.json()))
-            if(response.json()["state"] != "compliant_stream"):
+            if (response.json()["state"] != "compliant_stream"):
                 return test.FAIL("The state should be compliant_stream")
 
             json_data = {
