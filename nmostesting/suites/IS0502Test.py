@@ -305,34 +305,14 @@ class IS0502Test(GenericTest):
     def test_02(self, test):
         """At least one Device is showing an IS-05 control advertisement matching the API under test"""
 
-        valid, devices = self.do_request("GET", self.node_url + "devices")
-        if not valid:
-            return test.FAIL("Node API did not respond as expected: {}".format(devices))
-
-        is05_devices = []
-        found_api_match = False
-        try:
-            device_type = "urn:x-nmos:control:sr-ctrl/" + self.apis[CONN_API_KEY]["version"]
-            for device in devices.json():
-                controls = device["controls"]
-                for control in controls:
-                    if control["type"] == device_type:
-                        is05_devices.append(control["href"])
-                        if self.is05_utils.compare_urls(self.connection_url, control["href"]) and \
-                                self.authorization is control.get("authorization", False):
-                            found_api_match = True
-        except json.JSONDecodeError:
-            return test.FAIL("Non-JSON response returned from Node API")
-        except KeyError:
-            return test.FAIL("One or more Devices were missing the 'controls' attribute")
-
-        if len(is05_devices) > 0 and found_api_match:
-            return test.PASS()
-        elif len(is05_devices) > 0:
-            return test.FAIL("Found one or more Device controls, but no href and authorization mode matched the "
-                             "Connection API under test")
-        else:
-            return test.FAIL("Unable to find any Devices which expose the control type '{}'".format(device_type))
+        control_type = "urn:x-nmos:control:sr-ctrl/" + self.apis[CONN_API_KEY]["version"]
+        return self.is05_utils.do_test_device_control(
+            test,
+            self.node_url,
+            control_type,
+            self.connection_url,
+            self.authorization
+        )
 
     def test_03(self, test):
         """Receivers shown in Connection API matches those shown in Node API"""
