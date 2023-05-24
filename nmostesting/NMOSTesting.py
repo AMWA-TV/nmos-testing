@@ -58,7 +58,7 @@ from .mocks.Node import NODE, NODE_API
 from .mocks.Registry import NUM_REGISTRIES, REGISTRIES, REGISTRY_API
 from .mocks.System import NUM_SYSTEMS, SYSTEMS, SYSTEM_API
 from .mocks.Auth import AUTH_API, PRIMARY_AUTH, SECONDARY_AUTH
-from zeroconf_monkey import Zeroconf
+from zeroconf import Zeroconf
 
 # Make ANSI escape character sequences (for producing coloured terminal text) work under Windows
 try:
