@@ -17,59 +17,6 @@ from .NMOSUtils import NMOSUtils
 from enum import IntEnum
 
 
-class IS12Utils(NMOSUtils):
-    def __init__(self, url):
-        NMOSUtils.__init__(self, url)
-        self.protocol_definitions()
-
-    def protocol_definitions(self):
-        self.DEFAULT_PROTOCOL_VERSION = '1.0.0'
-
-        self.ROOT_BLOCK_OID = 1
-
-        self.METHOD_IDS = {
-            'NCOBJECT': {
-                'GENERIC_GET': {
-                    'level': 1,
-                    'index': 1,
-                },
-                'GENERIC_SET': {
-                    'level': 1,
-                    'index': 2,
-                }
-            },
-            'NCBLOCK': {
-                'GET_MEMBERS_DESCRIPTOR': {
-                    'level': 2,
-                    'index': 1,
-                }
-            },
-            'NCCLASSMANAGER': {
-                'GET_CONTROL_CLASS': {
-                    'level': 3,
-                    'index': 1,
-                }
-            },
-        }
-
-    def get_member_descriptors_message(self, oid, handle):
-        """Create message that will request the member descriptors of the object with the given oid"""
-        return {
-            'protocolVersion': self.DEFAULT_PROTOCOL_VERSION,
-            'messageType': MessageTypes.Command,
-            'commands': [
-                {
-                    'handle': handle,
-                    'oid': oid,
-                    'methodId': self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
-                    'arguments': {
-                        'recurse': False
-                    },
-                },
-            ],
-        }
-
-
 class MessageTypes(IntEnum):
     Command = 0
     CommandResponse = 1
@@ -96,3 +43,71 @@ class NcMethodStatus(IntEnum):
     NotReady = 503
     Timeout = 504
     ProtocolVersionError = 505
+
+
+class IS12Utils(NMOSUtils):
+    def __init__(self, url):
+        NMOSUtils.__init__(self, url)
+        self.protocol_definitions()
+
+    def protocol_definitions(self):
+        self.DEFAULT_PROTOCOL_VERSION = '1.0.0'
+
+        self.ROOT_BLOCK_OID = 1
+
+        self.METHOD_IDS = {
+            'NCOBJECT': {
+                'GENERIC_GET': {'level': 1, 'index': 1},
+                'GENERIC_SET': {'level': 1, 'index': 2}
+            },
+            'NCBLOCK': {
+                'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1}
+            },
+            'NCCLASSMANAGER': {
+                'GET_CONTROL_CLASS': {'level': 3, 'index': 1}
+            },
+        }
+
+        self.PROPERTY_IDS = {
+            'NCOBJECT': {
+                'CLASS_ID': {'level': 1, 'index': 1},
+                'OID': {'level': 1, 'index': 2},
+                'CONSTANT_OID': {'level': 1, 'index': 3},
+                'OWNER': {'level': 1, 'index': 4},
+                'ROLE': {'level': 1, 'index': 5},
+                'USER_LABEL': {'level': 1, 'index': 6},
+                'TOUCHPOINTS': {'level': 1, 'index': 7},
+                'RUNTIME_PROPERTY_CONSTRAINTS': {'level': 1, 'index': 8}
+            }
+        }
+
+    def create_command_JSON(self, handle, oid, method_id, arguments):
+        """Create command JSON for generic get of a property"""
+        return {
+            'protocolVersion': self.DEFAULT_PROTOCOL_VERSION,
+            'messageType': MessageTypes.Command,
+            'commands': [
+                {
+                    'handle': handle,
+                    'oid': oid,
+                    'methodId': method_id,
+                    'arguments': arguments
+                }
+            ],
+        }
+
+    def create_generic_get_command_JSON(self, handle, oid, property_id):
+        """Create command JSON for generic get of a property"""
+
+        return self.create_command_JSON(handle,
+                                        oid,
+                                        self.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                        {'id': property_id})
+
+    def create_get_member_descriptors_JSON(self, handle, oid):
+        """Create message that will request the member descriptors of the object with the given oid"""
+
+        return self.create_command_JSON(handle,
+                                        oid,
+                                        self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
+                                        {'recurse': False})
