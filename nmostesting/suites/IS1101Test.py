@@ -204,7 +204,7 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The sender {} constraints cannot be deleted".format(sender))
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders")
+        return test.UNCLEAR("There are no IS-11 senders")
 
     def test_02_01(self, test):
         "Verify that the device supports the concept of IS-11 Sender"
@@ -215,7 +215,7 @@ class IS1101Test(GenericTest):
             )
         self.senders = response.json()
         if len(self.senders) == 0:
-            return test.UNCLEAR("There is no IS-11 senders")
+            return test.UNCLEAR("There are no IS-11 senders")
         return test.PASS()
 
     def test_02_01_01(self, test):
@@ -225,13 +225,13 @@ class IS1101Test(GenericTest):
                 _, response = TestHelper.do_request("GET", self.node_url + "senders/" + sender_id)
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                        "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                     )
                 sender_node = response.json()["id"]
                 if sender_id[:-1] != sender_node:
                     return test.FAIL("Senders are different")
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders")
+        return test.UNCLEAR("There are no IS-11 senders")
 
     def test_02_02(self, test):
         "Verify senders (generic with/without inputs)"
@@ -242,7 +242,7 @@ class IS1101Test(GenericTest):
             )
         self.senders_2 = response.json()
         if len(self.senders_2) == 0:
-            return test.UNCLEAR("There is no IS-11 senders")
+            return test.UNCLEAR("There are no IS-11 senders")
         return test.PASS()
 
     def test_02_02_01(self, test):
@@ -276,7 +276,7 @@ class IS1101Test(GenericTest):
                 if state != "unconstrained":
                     return test.FAIL("Inputs are unstable")
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders")
+        return test.UNCLEAR("There are no IS-11 senders")
 
     def test_02_02_03(self, test):
         """
@@ -290,7 +290,7 @@ class IS1101Test(GenericTest):
                 )
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                        "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                     )
                 sender_node = response.json()["id"]
                 if sender_id[:-1] != sender_node:
@@ -327,7 +327,7 @@ class IS1101Test(GenericTest):
                 ):
                     print("Only audio and video senders are tested at this time.")
             return test.PASS()
-        return test.UNCLEAR("There is no IS-11 senders")
+        return test.UNCLEAR("There are no IS-11 senders")
 
     def test_02_02_03_01(self, test):
         "Verify that the video sender supports the minimum set of video constraints"
@@ -398,7 +398,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             self.version[sender_id] = version
@@ -426,7 +426,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -458,7 +458,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -489,7 +489,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             self.version[sender_id] = version
@@ -517,7 +517,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -537,7 +537,8 @@ class IS1101Test(GenericTest):
                 constraints["constraint_sets"],
                 self.sample_rate_constraints[sender_id]["constraint_sets"],
             ):
-                return test.FAIL("Constraints and SampleRateConstraints[{}] are different".format(sender_id))
+                return test.FAIL("The constraint applied does not match the active"
+                                 "constraint retrieved from the sender {}".format(sender_id))
 
             _, response = TestHelper.do_request(
                 "DELETE",
@@ -553,7 +554,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                 )
             version = response.json()["version"]
             if version == self.version[sender_id]:
@@ -574,7 +575,7 @@ class IS1101Test(GenericTest):
 
     def test_02_02_05_01(self, test):
         """
-        Verify that setting NOP constraints for frame(width,height),
+        Verify that setting no-op constraints for frame(width,height),
         grain_rate doesn't change the flow of a sender(video).
         """
         if len(self.flow_format_video) == 0:
@@ -672,7 +673,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(sender_id, response.json())
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                 )
             sender_flow_id = response.json()["flow_id"]
             if sender_flow_id is None:
@@ -693,7 +694,7 @@ class IS1101Test(GenericTest):
                 or self.flow_height[sender_id] != response.json()["frame_height"]
             ):
                 return test.FAIL(
-                    "The setting NOP constraints for frame_width, frame_height\
+                    "The setting no-op constraints for frame_width, frame_height\
                     and grain_rate change the flow of sender(video) {}"
                     .format(sender_id)
                 )
@@ -711,7 +712,7 @@ class IS1101Test(GenericTest):
 
     def test_02_02_05_02(self, test):
         """
-        Verify that setting NOP constraints for sample_rate doesn't change the flow of a sender(audio).
+        Verify that setting no-op constraints for sample_rate doesn't change the flow of a sender(audio).
         """
 
         if len(self.flow_format_audio) == 0:
@@ -799,7 +800,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}"
+                    "The sender {} is not available in the Node API response: {}"
                     .format(sender_id, response.json())
                 )
             sender_flow_id = response.json()["flow_id"]
@@ -830,7 +831,7 @@ class IS1101Test(GenericTest):
 
     def test_02_02_06_01(self, test):
         """
-        Verify that setting NOP constraints for supported constraints
+        Verify that setting no-op constraints for supported constraints
         doesn't change the flow of a sender(video).
         """
         if len(self.flow_format_video) == 0:
@@ -869,7 +870,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}"
+                    "The sender {} is not available in the Node API response: {}"
                     .format(sender_id, response.json())
                 )
             sender = response.json()
@@ -994,7 +995,7 @@ class IS1101Test(GenericTest):
 
     def test_02_02_06_02(self, test):
         """
-        Verify that setting NOP constraints for supported
+        Verify that setting no-op constraints for supported
         constraints doesn't change the flow of a sender(audio).
         """
         if len(self.flow_format_audio) == 0:
@@ -1029,7 +1030,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}"
+                    "The sender {} is not available in the Node API response: {}"
                     .format(sender_id, response.json())
                 )
             sender = response.json()
@@ -1179,7 +1180,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}"
+                    "The sender {} is not available in the Node API response: {}"
                     .format(sender_id, response.json())
                 )
             sender = response.json()
@@ -1385,7 +1386,7 @@ class IS1101Test(GenericTest):
             )
             if response.status_code != 200:
                 return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}"
+                    "The sender {} is not available in the Node API response: {}"
                     .format(sender_id, response.json())
                 )
             sender = response.json()
@@ -1548,8 +1549,7 @@ class IS1101Test(GenericTest):
 
     def test_03_02(self, test):
         """
-        The receivers
-        Verify that some of the outputs of the device are connected.
+        The receivers verify that some of the outputs of the device are connected.
         """
         if len(self.outputs) == 0:
             return test.UNCLEAR("No IS-11 outputs")
