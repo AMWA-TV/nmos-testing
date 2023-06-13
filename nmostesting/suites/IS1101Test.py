@@ -1549,7 +1549,7 @@ class IS1101Test(GenericTest):
 
     def test_03_02(self, test):
         """
-        The receivers verify that some of the outputs of the device are connected.
+        Verify that some of the outputs of the device are connected.
         """
         if len(self.outputs) == 0:
             return test.UNCLEAR("No IS-11 outputs")
