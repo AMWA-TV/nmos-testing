@@ -190,6 +190,8 @@ MQTT_PASSWORD = None
 # Bash shell to use for running testssl.sh
 TEST_SSL_BASH = "bash"
 
+# Stability delay for any request on IS-11
+STABLE_STATE_DELAY = 3
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
