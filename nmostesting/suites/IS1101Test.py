@@ -2024,7 +2024,16 @@ class IS1101Test(GenericTest):
             if response.status_code != 200:
                 return test.FAIL("The Node API request for sender {} has failed: {}"
                                  .format(sender["id"], response.json()))
-            sender_caps = response.json()["caps"]["media_types"]
+            sender_flow_id = response.json()["flow_id"]
+            if not sender_flow_id:
+                return test.UNCLEAR("There are no Flow id")
+            valid, flows_response = TestHelper.do_request('GET', url_node + "flows/" + sender_flow_id)
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(flows_response))
+            if response.status_code != 200:
+                return test.FAIL("The Node API request for flow {} has failed: {}"
+                                 .format(sender_flow_id, flows_response.json()))
+            sender_media_type = flows_response.json()["media_type"]
             new_netloc = "{}:{}".format(CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API,
                                         CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_PORT)
             url = self.conn_url.replace(urlparse(self.conn_url).netloc, new_netloc)
@@ -2055,8 +2064,8 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The Node API request for receiver {} has failed: {}"
                                      .format(receiver_id, response.json()))
-                receiver_caps = response.json()["caps"]["media_types"]
-                if (sender_caps == receiver_caps and len(self.sdp_transport_file.strip()) != 0):
+                receiver_media_type = response.json()["caps"]["media_types"]
+                if (sender_media_type in receiver_media_type and len(self.sdp_transport_file.strip()) != 0):
                     patchload = {
                             "sender_id": sender["id"],
                             "master_enable": True,
@@ -2239,7 +2248,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The connection request for sender {} transportfile has failed: {}"
                                  .format(sender["id"], response.json()))
             self.sdp_transport_file = response.text
-            if len(self.sdp_transport_file) == 0:
+            if len(self.sdp_transport_file.strip()) == 0:
                 return test.FAIL("The IS-11 reference sender transport file is empty")
             for receiver_id in self.receivers_outputs:
                 patchload = {
@@ -2249,7 +2258,6 @@ class IS1101Test(GenericTest):
                         "transport_file": {"type": "application/sdp",
                                            "data": "{}".format(self.sdp_transport_file.strip())}
                         }
-
             valid_patch, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
                                                           + receiver_id + "staged/", json=patchload, headers=headers)
             if not valid_patch:
@@ -2390,6 +2398,8 @@ class IS1101Test(GenericTest):
                                  .format(sender["id"], response.json()))
             time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
             self.sdp_transport_file = response.text
+            if len(self.sdp_transport_file.strip()) == 0:
+                return test.FAIL("The IS-11 reference sender transport file is empty")
             if len(self.no_output_receivers) == 0:
                 return test.FAIL("All IS-11 receivers support outputs")
             for receiver_id in self.no_output_receivers:
