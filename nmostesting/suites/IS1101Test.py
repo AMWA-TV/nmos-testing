@@ -20,7 +20,6 @@ from ..GenericTest import GenericTest
 from .. import TestHelper
 from .. import Config as CONFIG
 from ..IS04Utils import IS04Utils
-from urllib.parse import urlparse
 
 COMPAT_API_KEY = "streamcompatibility"
 CONTROLS = "controls"
