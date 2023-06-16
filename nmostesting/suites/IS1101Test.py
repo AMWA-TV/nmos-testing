@@ -82,7 +82,6 @@ class IS1101Test(GenericTest):
         self.no_output_receivers = []
         self.sdp_transport_file = ""
         self.caps = ""
-        self.senders_2 = ""
         self.flow_format = {}
         self.flow_format_audio = []
         self.flow_format_video = []
@@ -391,13 +390,10 @@ class IS1101Test(GenericTest):
         if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
             for input_id in self.edid_connected_inputs:
                 file = open(VALID_EDID, "rb")
-                payload = MultipartEncoder(
-                    {"uploadedFile": (file.name, file, "application/octet-stream")}
-                )
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=payload,
-                    headers={"Content-Type": payload.content_type},
+                    data=file,
+                    headers={"Content-Type":"application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 204:
@@ -504,13 +500,10 @@ class IS1101Test(GenericTest):
         if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
             for input_id in self.edid_connected_inputs:
                 file = open(INVALID_EDID, "rb")
-                payload = MultipartEncoder(
-                    {"uploadedFile": (file.name, file, "application/octet-stream")}
-                )
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=payload,
-                    headers={"Content-Type": payload.content_type},
+                    data=file,
+                    headers={"Content-Type":"application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 400:
@@ -604,13 +597,10 @@ class IS1101Test(GenericTest):
         if len(self.connected_inputs) != 0 and len(self.not_edid_connected_inputs) != 0:
             for input_id in self.not_edid_connected_inputs:
                 file = open(VALID_EDID, "rb")
-                payload = MultipartEncoder(
-                    {"uploadedFile": (file.name, file, "application/octet-stream")}
-                )
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=payload,
-                    headers={"Content-Type": payload.content_type},
+                    data=file,
+                    headers={"Content-Type":"application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 205:
@@ -670,13 +660,10 @@ class IS1101Test(GenericTest):
                 self.version[input_id] = version
 
                 file = open(VALID_EDID, "rb")
-                payload = MultipartEncoder(
-                    {"uploadedFile": (file.name, file, "application/octet-stream")}
-                )
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=payload,
-                    headers={"Content-Type": payload.content_type},
+                    data=file,
+                    headers={"Content-Type":"application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 204:
@@ -764,13 +751,10 @@ class IS1101Test(GenericTest):
                 self.version[device["id"]] = input["version"]
 
                 file = open(VALID_EDID, "rb")
-                payload = MultipartEncoder(
-                    {"uploadedFile": (file.name, file, "application/octet-stream")}
-                )
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=payload,
-                    headers={"Content-Type": payload.content_type},
+                    data=file,
+                    headers={"Content-Type":"application/octet-stream"},
                 )
                 file.close()
                 time.sleep(CONFIG.HTTP_TIMEOUT*3)
@@ -2515,13 +2499,10 @@ class IS1101Test(GenericTest):
                     self.version[sender_id] = version
 
                     file = open(VALID_EDID, "rb")
-                    payload = MultipartEncoder(
-                        {"uploadedFile": (file.name, file, "application/octet-stream")}
-                    )
                     response = requests.put(
                         self.compat_url + "inputs/" + input_id + "/edid/base/",
-                        data=payload,
-                        headers={"Content-Type": payload.content_type},
+                        data=file,
+                        headers={"Content-Type":"application/octet-stream"},
                     )
                     file.close()
                     time.sleep(CONFIG.HTTP_TIMEOUT*3)
