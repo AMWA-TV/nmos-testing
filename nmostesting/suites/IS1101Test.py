@@ -20,6 +20,7 @@ from ..GenericTest import GenericTest
 from .. import TestHelper
 from .. import Config as CONFIG
 from ..IS04Utils import IS04Utils
+from ..IS11Utils import IS11Utils
 
 COMPAT_API_KEY = "streamcompatibility"
 CONTROLS = "controls"
@@ -69,17 +70,7 @@ class IS1101Test(GenericTest):
         self.connected_outputs = []
         self.edid_connected_outputs = []
         self.not_edid_connected_outputs = []
-        self.outputs = []
-        self.active_connected_outputs = []
-        self.receivers = ""
-        self.senders = ""
-        self.reference_sender_id = ""
-        self.receivers_outputs = ""
-        self.no_output_receivers = []
-        self.sdp_transport_file = ""
         self.caps = ""
-        self.senders = ""
-        self.senders_2 = ""
         self.flow_format = {}
         self.flow_format_audio = []
         self.flow_format_video = []
@@ -92,6 +83,19 @@ class IS1101Test(GenericTest):
         self.empty_constraints = {}
         self.sample_rate_constraints = {}
         self.constraints = {}
+        self.is11_utils = IS11Utils(self.compat_url)
+
+    def build_constraints_active_url(self, sender_id):
+        return self.compat_url + "senders/" + sender_id + "/constraints/active/"
+
+    def build_sender_status_url(self, sender_id):
+        return self.compat_url + "senders/" + sender_id + "/status/"
+
+    def set_up_tests(self):
+        self.senders = self.is11_utils.get_senders()
+        self.receivers = self.is11_utils.get_receivers()
+        self.inputs = self.is11_utils.get_inputs()
+        self.outputs = self.is11_utils.get_outputs()
 
     def remove_last_slash(self, id):
         """
@@ -209,45 +213,29 @@ class IS1101Test(GenericTest):
 
     def test_02_00(self, test):
         "Reset active constraints of all senders"
-        url = self.compat_url + "senders/"
-        valid, response = TestHelper.do_request("GET", url)
-        if not valid:
-            return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-        if response.status_code != 200:
-            return test.FAIL(
-                "The sender's streamcompatibility request {} has failed: {}".format(url, response.json())
-            )
-        self.senders = response.json()
-        if len(self.senders) != 0:
-            for sender in self.senders:
+
+        if len(self.senders) > 0:
+            for sender_id in self.senders:
                 valid, response = TestHelper.do_request(
                     "DELETE",
-                    self.compat_url + "senders/" + sender + "constraints/active/",
+                    self.build_constraints_active_url(sender_id),
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
-                    return test.FAIL("The sender {} constraints cannot be deleted".format(sender))
+                    return test.FAIL("The sender {} constraints cannot be deleted".format(sender_id))
             return test.PASS()
         return test.UNCLEAR("There are no IS-11 senders")
 
     def test_02_01(self, test):
         "Verify that the device supports the concept of IS-11 Sender"
-        valid, response = TestHelper.do_request("GET", self.compat_url + "senders/")
-        if not valid:
-            return test.FAIL("Unexpected response from the Streamcompatibility API: {}".format(response))
-        if response.status_code != 200:
-            return test.FAIL(
-                "The sender's streamcompatibility request has failed: {}".format(response.json())
-            )
-        self.senders = response.json()
         if len(self.senders) == 0:
             return test.UNCLEAR("There are no IS-11 senders")
         return test.PASS()
 
     def test_02_01_01(self, test):
-        "Verify that the device supports the concept of IS-11 Sender"
-        if len(self.senders) != 0:
+        "Verify that IS-11 Senders exist on the Node API as Senders"
+        if len(self.senders) > 0:
             for sender_id in self.senders:
                 valid, response = TestHelper.do_request("GET", self.node_url + "senders/" + sender_id)
                 if not valid:
@@ -257,31 +245,23 @@ class IS1101Test(GenericTest):
                         "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                     )
                 sender_node_id = response.json()["id"]
-                if sender_id[:-1] != sender_node_id:
-                    return test.FAIL("Senders {} and {} are different".format(sender_id[:-1], sender_node_id))
+                if sender_id != sender_node_id:
+                    return test.FAIL("Senders {} and {} are different".format(sender_id, sender_node_id))
             return test.PASS()
         return test.UNCLEAR("There are no IS-11 senders")
 
     def test_02_02(self, test):
         "Verify senders (generic with/without inputs)"
-        valid, response = TestHelper.do_request("GET", self.compat_url + "senders/")
-        if not valid:
-            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-        if response.status_code != 200:
-            return test.FAIL(
-                "The sender's streamcompatibility request has failed: {}".format(response.json())
-            )
-        self.senders_2 = response.json()
-        if len(self.senders_2) == 0:
+        if len(self.senders) == 0:
             return test.UNCLEAR("There are no IS-11 senders")
         return test.PASS()
 
     def test_02_02_01(self, test):
         "Verify that the status is unconstrained as per our pre-conditions"
-        if len(self.senders_2) != 0:
-            for sender_id in self.senders_2:
+        if len(self.senders) > 0:
+            for sender_id in self.senders:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "status/"
+                    "GET", self.build_sender_status_url(sender_id)
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -294,7 +274,7 @@ class IS1101Test(GenericTest):
                 if state in ["awating_essence", "no_essence"]:
                     for i in range(0, 5):
                         valid, response = TestHelper.do_request(
-                            "GET", self.compat_url + "senders/" + sender_id + "status/"
+                            "GET", self.build_sender_status_url(sender_id)
                         )
                         if not valid:
                             return test.FAIL("Unexpected response from the streamcompatibility API: {}"
@@ -319,8 +299,8 @@ class IS1101Test(GenericTest):
         Verify that the sender is available in the node API,
         has an associated flow and is inactive
         """
-        if len(self.senders_2) != 0:
-            for sender_id in self.senders_2:
+        if len(self.senders) > 0:
+            for sender_id in self.senders:
                 valid, response = TestHelper.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
@@ -331,8 +311,8 @@ class IS1101Test(GenericTest):
                         "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
                     )
                 sender_node_id = response.json()["id"]
-                if sender_id[:-1] != sender_node_id:
-                    return test.FAIL("Senders {} and {} are different".format(sender_id[:-1], sender_node_id))
+                if sender_id != sender_node_id:
+                    return test.FAIL("Senders {} and {} are different".format(sender_id, sender_node_id))
                 sender_flow_id = response.json()["flow_id"]
                 if sender_flow_id is None:
                     return test.FAIL("The sender {} must have a flow".format(sender_id))
@@ -380,7 +360,7 @@ class IS1101Test(GenericTest):
         for sender_id in self.flow_format_video:
             valid, response = TestHelper.do_request(
                 "GET",
-                self.compat_url + "senders/" + sender_id + "constraints/supported/",
+                self.compat_url + "senders/" + sender_id + "/constraints/supported/",
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -409,7 +389,7 @@ class IS1101Test(GenericTest):
         for sender_id in self.flow_format_audio:
             valid, response = TestHelper.do_request(
                 "GET",
-                self.compat_url + "senders/" + sender_id + "constraints/supported/",
+                self.compat_url + "senders/" + sender_id + "/constraints/supported/",
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -460,7 +440,7 @@ class IS1101Test(GenericTest):
             self.empty_constraints[sender_id] = {"constraint_sets": []}
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.grain_rate_constraints[sender_id],
             )
             if not valid:
@@ -483,7 +463,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
             self.version[sender_id] = version
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/"
+                "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -499,7 +479,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The sender {} contraints are different".format(sender_id))
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -521,7 +501,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
             self.version[sender_id] = version
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/"
+                "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -565,7 +545,7 @@ class IS1101Test(GenericTest):
             self.empty_constraints[sender_id] = {"constraint_sets": []}
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.sample_rate_constraints[sender_id],
             )
             if not valid:
@@ -589,7 +569,7 @@ class IS1101Test(GenericTest):
             self.version[sender_id] = version
 
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/"
+                "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -608,7 +588,7 @@ class IS1101Test(GenericTest):
 
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -632,7 +612,7 @@ class IS1101Test(GenericTest):
             self.version[sender_id] = version
 
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "constraints/active/"
+                "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -655,7 +635,7 @@ class IS1101Test(GenericTest):
 
         for sender_id in self.flow_format_video:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -668,7 +648,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -707,7 +687,7 @@ class IS1101Test(GenericTest):
 
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
             )
             if not valid:
@@ -719,7 +699,7 @@ class IS1101Test(GenericTest):
                 )
 
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -733,7 +713,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -787,7 +767,7 @@ class IS1101Test(GenericTest):
 
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -808,7 +788,7 @@ class IS1101Test(GenericTest):
 
         for sender_id in self.flow_format_audio:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -822,7 +802,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -850,7 +830,7 @@ class IS1101Test(GenericTest):
             }
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
             )
             if not valid:
@@ -862,7 +842,7 @@ class IS1101Test(GenericTest):
                 )
 
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -876,7 +856,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -923,7 +903,7 @@ class IS1101Test(GenericTest):
 
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -943,7 +923,7 @@ class IS1101Test(GenericTest):
 
         for sender_id in self.flow_format_video:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -956,7 +936,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1044,7 +1024,7 @@ class IS1101Test(GenericTest):
 
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
             )
             if not valid:
@@ -1101,7 +1081,7 @@ class IS1101Test(GenericTest):
                     pass
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1120,7 +1100,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no audio format")
         for sender_id in self.flow_format_audio:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1131,7 +1111,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1214,7 +1194,7 @@ class IS1101Test(GenericTest):
             self.constraints[sender_id] = {"constraint_sets": [constraint_set]}
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
             )
             if not valid:
@@ -1267,7 +1247,7 @@ class IS1101Test(GenericTest):
                     pass
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1284,7 +1264,7 @@ class IS1101Test(GenericTest):
 
         for sender_id in self.flow_format_video:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1297,7 +1277,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1432,7 +1412,7 @@ class IS1101Test(GenericTest):
             }
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
             )
             if not valid:
@@ -1490,7 +1470,7 @@ class IS1101Test(GenericTest):
 
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1507,7 +1487,7 @@ class IS1101Test(GenericTest):
 
         for sender_id in self.flow_format_audio:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "senders/" + sender_id + "status/"
+                "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1518,7 +1498,7 @@ class IS1101Test(GenericTest):
             if state in ["awating_essence", "no_essence"]:
                 for i in range(0, 5):
                     valid, response = TestHelper.do_request(
-                        "GET", self.compat_url + "senders/" + sender_id + "status/"
+                        "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1637,7 +1617,7 @@ class IS1101Test(GenericTest):
 
             valid, response = TestHelper.do_request(
                 "PUT",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
             )
             if not valid:
@@ -1689,7 +1669,7 @@ class IS1101Test(GenericTest):
                     pass
             valid, response = TestHelper.do_request(
                 "DELETE",
-                self.compat_url + "senders/" + sender_id + "constraints/active/",
+                self.build_constraints_active_url(sender_id),
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1704,17 +1684,9 @@ class IS1101Test(GenericTest):
         """
         Verify that the device supports the concept of Output.
         """
-        valid, response = TestHelper.do_request("GET", self.compat_url + "outputs/")
-        if not valid:
-            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-        if response.status_code == 200:
-            if len(response.json()) != 0:
-                self.outputs.append(response.json()[0])
-            if len(self.outputs) == 0:
-                return test.UNCLEAR("No outputs")
-            return test.PASS()
-        return test.FAIL("The outputs streamcompatibility request has failed: {}"
-                         .format(response.json()))
+        if len(self.outputs) == 0:
+            return test.UNCLEAR("No outputs")
+        return test.PASS()
 
     def test_03_02(self, test):
         """
@@ -1724,7 +1696,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("No IS-11 outputs")
         for output in self.outputs:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output + "properties/"
+                "GET", self.compat_url + "outputs/" + output + "/properties/"
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -1748,6 +1720,9 @@ class IS1101Test(GenericTest):
         """
         if len(self.connected_outputs) == 0:
             return test.UNCLEAR("No connected outputs")
+
+        active_connected_outputs = []
+
         for output_id in self.connected_outputs:
             valid, response = TestHelper.do_request(
                 "GET", self.compat_url + "outputs/" + output_id + "/properties/"
@@ -1756,11 +1731,11 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
             if response.status_code == 200:
                 if response.json()["status"]["state"] == "signal_present":
-                    self.active_connected_outputs.append(response.json())
+                    active_connected_outputs.append(response.json())
             else:
                 return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
                                  .format(output_id, response.json()))
-        if len(self.active_connected_outputs) != 0:
+        if len(active_connected_outputs) != 0:
             return test.UNCLEAR(
                 "Connected output have a signal while all receivers are inactive."
             )
@@ -1873,13 +1848,6 @@ class IS1101Test(GenericTest):
         """
         Verify that the device supports the concept of IS-11 Receiver.
         """
-        valid, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
-        if not valid:
-            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-        if response.status_code != 200:
-            return test.FAIL("The receiver's streamcompatibility request has failed: {}"
-                             .format(response.json()))
-        self.receivers = response.json()
         if len(self.receivers) == 0:
             return test.UNCLEAR("No IS-11 receivers")
         return test.PASS()
@@ -1909,13 +1877,6 @@ class IS1101Test(GenericTest):
         """
         Verify receivers (generic with/without outputs)
         """
-        valid, response = TestHelper.do_request("GET", self.compat_url + "receivers/")
-        if not valid:
-            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-        if response.status_code != 200:
-            return test.FAIL("The receiver's streamcompatibility request has failed: {}"
-                             .format(response.json()))
-        self.receivers = response.json()
         if len(self.receivers) == 0:
             return test.UNCLEAR("No IS-11 receivers")
         return test.PASS()
@@ -1929,7 +1890,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "receivers/" + receiver_id + "status/"
+                "GET", self.compat_url + "receivers/" + receiver_id + "/status/"
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
