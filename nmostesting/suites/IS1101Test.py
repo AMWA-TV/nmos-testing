@@ -97,14 +97,6 @@ class IS1101Test(GenericTest):
         self.inputs = self.is11_utils.get_inputs()
         self.outputs = self.is11_utils.get_outputs()
 
-    def remove_last_slash(self, id):
-        """
-        Check if the id comes with a slash at the end or not. If yes, the slash will be remove.
-        """
-        if (id[-1] == '/'):
-            return id[:-1]
-        return id
-
     # GENERAL TESTS
     def test_00_01(self, test):
         """At least one Device is showing an IS-11 control advertisement matching the API under test"""
