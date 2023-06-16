@@ -393,7 +393,7 @@ class IS1101Test(GenericTest):
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
                     data=file,
-                    headers={"Content-Type":"application/octet-stream"},
+                    headers={"Content-Type": "application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 204:
@@ -503,7 +503,7 @@ class IS1101Test(GenericTest):
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
                     data=file,
-                    headers={"Content-Type":"application/octet-stream"},
+                    headers={"Content-Type": "application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 400:
@@ -600,7 +600,7 @@ class IS1101Test(GenericTest):
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
                     data=file,
-                    headers={"Content-Type":"application/octet-stream"},
+                    headers={"Content-Type": "application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 205:
@@ -663,7 +663,7 @@ class IS1101Test(GenericTest):
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
                     data=file,
-                    headers={"Content-Type":"application/octet-stream"},
+                    headers={"Content-Type": "application/octet-stream"},
                 )
                 file.close()
                 if response.status_code != 204:
@@ -754,7 +754,7 @@ class IS1101Test(GenericTest):
                 response = requests.put(
                     self.compat_url + "inputs/" + input_id + "/edid/base/",
                     data=file,
-                    headers={"Content-Type":"application/octet-stream"},
+                    headers={"Content-Type": "application/octet-stream"},
                 )
                 file.close()
                 time.sleep(CONFIG.HTTP_TIMEOUT*3)
@@ -2502,7 +2502,7 @@ class IS1101Test(GenericTest):
                     response = requests.put(
                         self.compat_url + "inputs/" + input_id + "/edid/base/",
                         data=file,
-                        headers={"Content-Type":"application/octet-stream"},
+                        headers={"Content-Type": "application/octet-stream"},
                     )
                     file.close()
                     time.sleep(CONFIG.HTTP_TIMEOUT*3)
