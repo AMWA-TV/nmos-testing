@@ -15,6 +15,7 @@
 import time
 import re
 
+from requests.compat import json
 from ..NMOSUtils import NMOSUtils
 from ..GenericTest import GenericTest
 from .. import TestHelper
@@ -96,6 +97,9 @@ class IS1101Test(GenericTest):
         self.receivers = self.is11_utils.get_receivers()
         self.inputs = self.is11_utils.get_inputs()
         self.outputs = self.is11_utils.get_outputs()
+
+        self.state_no_essence = "no_essence"
+        self.state_awaiting_essence = "awaiting_essence"
 
     # GENERAL TESTS
     def test_00_01(self, test):
@@ -1914,3 +1918,237 @@ class IS1101Test(GenericTest):
             if len(self.caps["constraint_sets"]) == 0:
                 return test.WARNING("The receiver does not support BCP-004-01.")
         return test.PASS()
+
+    def test_06_01(self, test):
+        """A sender rejects Active Constraints with unsupported Parameter Constraint URN(s)"""
+
+        if len(self.senders) == 0:
+            return test.UNCLEAR("Not tested. No senders found.")
+
+        for senderId in self.is11_utils.sampled_list(self.senders):
+            try:
+                url = "senders/{}/constraints/active".format(senderId)
+                data = {"constraint_sets": [{"urn:x-nmos:cap:not:existing": {"enum": [""]}}]}
+                valid, response = self.is11_utils.checkCleanRequestJSON("PUT", url, data, 400)
+                if not valid:
+                    return test.FAIL(response)
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+        return test.PASS()
+
+    def test_06_02(self, test):
+        """
+        PUTting an empty 'constraint_sets' array to Active Constraints of a sender switches its state to 'unconstrained'
+        """
+
+        if len(self.senders) == 0:
+            return test.UNCLEAR("Not tested. No senders found.")
+
+        for senderId in self.is11_utils.sampled_list(self.senders):
+            try:
+                url = "senders/{}/constraints/active".format(senderId)
+                data = {"constraint_sets": []}
+                valid, response = self.is11_utils.checkCleanRequestJSON("PUT", url, data)
+                if not valid:
+                    return test.FAIL(response)
+
+                valid, response = self.is11_utils.checkCleanRequestJSON("GET", url)
+                if not valid:
+                    return test.FAIL(response)
+
+                if response != data:
+                    return test.FAIL("Sender {} has Active Constraints {} when {} is expected"
+                                     .format(senderId, response, data))
+
+                url = "senders/{}/status".format(senderId)
+                valid, response = self.is11_utils.checkCleanRequestJSON("GET", url)
+                if not valid:
+                    return test.FAIL(response)
+
+                state = response["state"]
+                state_expected = "unconstrained"
+                if state != state_expected:
+                    if state == self.state_awaiting_essence or state == self.state_no_essence:
+                        return test.UNCLEAR("Sender {} has state: {}".format(senderId, state))
+                    else:
+                        return test.FAIL("Sender {} has state: {}. Expected state: "
+                                         "{}".format(senderId, state, state_expected))
+
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+        return test.PASS()
+
+    def test_06_03(self, test):
+        """
+        DELETing Active Constrains of a sender switches its state to 'unconstrained'
+        """
+
+        if len(self.senders) == 0:
+            return test.UNCLEAR("Not tested. No senders found.")
+
+        for senderId in self.is11_utils.sampled_list(self.senders):
+            try:
+                url = "senders/{}/constraints/active".format(senderId)
+                data = {"constraint_sets": []}
+                valid, response = self.is11_utils.checkCleanRequestJSON("DELETE", url)
+                if not valid:
+                    return test.FAIL(response)
+
+                valid, response = self.is11_utils.checkCleanRequestJSON("GET", url)
+                if not valid:
+                    return test.FAIL(response)
+
+                if response != data:
+                    return test.FAIL("Sender {} has Active Constraints {} when {} is expected"
+                                     .format(senderId, response, data))
+
+                url = "senders/{}/status".format(senderId)
+                valid, response = self.is11_utils.checkCleanRequestJSON("GET", url)
+                if not valid:
+                    return test.FAIL(response)
+
+                state = response["state"]
+                state_expected = "unconstrained"
+                if state != state_expected:
+                    if state == self.state_awaiting_essence or state == self.state_no_essence:
+                        return test.UNCLEAR("Sender {} has state: {}".format(senderId, state))
+                    else:
+                        return test.FAIL("Sender {} has state: {}. Expected state: "
+                                         "{}".format(senderId, state, state_expected))
+
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+        return test.PASS()
+
+    def test_06_04(self, test):
+        """Effective EDID updates if Base EDID changes"""
+
+        if len(self.inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs found.")
+
+        inputs_tested = []
+
+        for inputId in self.is11_utils.sampled_list(self.inputs):
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+            if not valid or response.status_code != 200:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+
+            try:
+                input = response.json()
+                if not input["edid_support"]:
+                    continue
+
+                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                effective_edid_before = response.content
+
+                base_edid = bytearray([
+                    0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+                    0x04, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x0a, 0x01, 0x04, 0x80, 0x00, 0x00, 0x00,
+                    0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
+                    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+                    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
+                ])
+
+                valid, response = self.do_request("PUT",
+                                                  self.compat_url + "inputs/" + inputId + "/edid/base",
+                                                  headers={"Content-Type": "application/octet-stream"},
+                                                  data=base_edid)
+                if not valid or response.status_code != 204:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                if response.content == effective_edid_before:
+                    return test.FAIL("Effective EDID doesn't change when Base EDID changes")
+
+                inputs_tested.append(inputId)
+
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+        if len(inputs_tested) > 0:
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No inputs with EDID support found.")
+
+    def test_06_05(self, test):
+        """Effective EDID updates if Base EDID removed"""
+
+        if len(self.inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs found.")
+
+        inputs_tested = []
+
+        for inputId in self.is11_utils.sampled_list(self.inputs):
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+            if not valid or response.status_code != 200:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+
+            try:
+                input = response.json()
+                if not input["edid_support"]:
+                    continue
+
+                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                effective_edid_before = response.content
+
+                valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+                if not valid or response.status_code != 204:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                if response.content == effective_edid_before:
+                    return test.FAIL("Effective EDID doesn't change when Base EDID changes")
+
+                inputs_tested.append(inputId)
+
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+        if len(inputs_tested) > 0:
+            return test.PASS()
+        else:
+            return test.UNCLEAR("Not tested. No inputs with EDID support found.")
