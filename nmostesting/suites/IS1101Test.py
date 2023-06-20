@@ -21,7 +21,6 @@ from ..GenericTest import GenericTest
 from .. import TestHelper
 from .. import Config as CONFIG
 from ..IS04Utils import IS04Utils
-from ..IS05Utils import IS05Utils
 from ..IS11Utils import IS11Utils
 
 COMPAT_API_KEY = "streamcompatibility"
@@ -85,7 +84,6 @@ class IS1101Test(GenericTest):
         self.empty_constraints = {}
         self.sample_rate_constraints = {}
         self.constraints = {}
-        self.is05_utils = IS05Utils(self.conn_url)
         self.is11_utils = IS11Utils(self.compat_url)
 
     def build_constraints_active_url(self, sender_id):
