@@ -44,12 +44,13 @@ class NcMethodStatus(IntEnum):
     Timeout = 504
     ProtocolVersionError = 505
 
+
 class NcDatatypeType(IntEnum):
     Primitive = 0  # Primitive datatype
     Typedef = 1  # Simple alias of another datatype
     Struct = 2  # Data structure
     Enum = 3  # Enum datatype
-#};
+
 
 class IS12Utils(NMOSUtils):
     def __init__(self, url):
@@ -85,9 +86,9 @@ class IS12Utils(NMOSUtils):
                 'TOUCHPOINTS': {'level': 1, 'index': 7},
                 'RUNTIME_PROPERTY_CONSTRAINTS': {'level': 1, 'index': 8}
             },
-            'NCCLASSMANAGER':{
-                'CONTROL_CLASSES':{'level':3, 'index':1},
-                'DATATYPES':{'level':3, 'index':2}
+            'NCCLASSMANAGER': {
+                'CONTROL_CLASSES': {'level': 3, 'index': 1},
+                'DATATYPES': {'level': 3, 'index': 2}
             }
         }
 
@@ -135,7 +136,7 @@ class IS12Utils(NMOSUtils):
                 return False
 
     def descriptor_to_schema(self, descriptor):
-        variant_type = ['number','string','boolean','object','array', 'null']
+        variant_type = ['number', 'string', 'boolean', 'object', 'array', 'null']
 
         json_schema = {}
         json_schema['$schema'] = 'http://json-schema.org/draft-07/schema#'
@@ -154,7 +155,7 @@ class IS12Utils(NMOSUtils):
                     json_schema['type'] = json_primitive_type
             else:
                 json_schema['allOf'] = []
-                json_schema['allOf'].append({ '$ref': descriptor['parentType'] + '.json'})
+                json_schema['allOf'].append({'$ref': descriptor['parentType'] + '.json'})
 
         # Struct datatype
         if descriptor['type'] == NcDatatypeType.Struct and descriptor.get('fields'):
@@ -167,13 +168,13 @@ class IS12Utils(NMOSUtils):
 
                 property_type = {}
                 if self.ms05_primitive_to_JSON(field['typeName']):
-                    if(field['isNullable']):
+                    if field['isNullable']:
                         property_type = {'type': [self.ms05_primitive_to_JSON(field['typeName']), 'null']}
                     else:
                         property_type = {'type': self.ms05_primitive_to_JSON(field['typeName'])}
                 else:
                     if field.get('typeName'):
-                        if(field['isNullable']):
+                        if field['isNullable']:
                             property_type['anyOf'] = []
                             property_type['anyOf'].append({'$ref': field['typeName'] + '.json'})
                             property_type['anyOf'].append({'type': 'null'})
@@ -184,19 +185,19 @@ class IS12Utils(NMOSUtils):
                         property_type = {'type': variant_type}
 
                 if field.get('isSequence'):
-                    property_type = { 'type': 'array', 'items': property_type}
+                    property_type = {'type': 'array', 'items': property_type}
 
                 property_type['description'] = field['description']
                 properties[field['name']] = property_type
 
             json_schema['required'] = required
             json_schema['properties'] = properties
-           
+
         # Enum datatype
         if descriptor['type'] == NcDatatypeType.Enum and descriptor.get('items'):
             json_schema['enum'] = []
             for item in descriptor['items']:
                 json_schema['enum'].append(int(item['value']))
             json_schema['type'] = 'integer'
-            
+
         return json_schema
