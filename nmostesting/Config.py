@@ -287,6 +287,16 @@ SPECIFICATIONS = {
             },
         }
     },
+    "ms-05-02": {
+        "repo": "ms-05-02",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "controlframework": {
+                "name": "Control Framework"
+            },
+        }
+    },
     "bcp-002-01": {
         "repo": "bcp-002-01",
         "versions": ["v1.0"],
