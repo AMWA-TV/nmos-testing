@@ -13,15 +13,20 @@
 # limitations under the License.
 
 import json
+import os
 import time
 
-from .. import Config as CONFIG
+from jsonschema import ValidationError, SchemaError
+
+from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils, NcMethodStatus, MessageTypes
 from ..TestHelper import WebsocketWorker, load_resolved_schema
+from ..TestResult import Test
 
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
+MS05_API_KEY = "controlframework"
 
 
 class IS1201Test(GenericTest):
@@ -34,15 +39,7 @@ class IS1201Test(GenericTest):
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
         self.is12_utils = IS12Utils(self.node_url)
         self.ncp_websocket = None
-        self.load_schemas()
-
-    def load_schemas(self):
-        self.schemas = {}
-        schema_names = ["command-response-message"]
-
-        for schema_name in schema_names:
-            self.schemas[schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
-                                                             schema_name + ".json")
+        self.load_validation_resources()
 
     def set_up_tests(self):
         # Do nothing
@@ -52,6 +49,146 @@ class IS1201Test(GenericTest):
         # Clean up Websocket resources
         if self.ncp_websocket:
             self.ncp_websocket.close()
+
+    def execute_tests(self, test_names):
+        """Perform tests defined within this class"""
+        # Override to allow 'auto' testing of MS-05 types and classes
+
+        for test_name in test_names:
+            if test_name in ["auto", "all"] and not self.disable_auto:
+                # Validate all standard datatypes and classes advertised by the Class Manager
+                self.result += self.auto_tests()
+            self.execute_test(test_name)
+
+    def load_validation_resources(self):
+        # Load IS-12 schemas
+        self.schemas = {}
+        schema_names = ["command-response-message"]
+        for schema_name in schema_names:
+            self.schemas[schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
+                                                             schema_name + ".json")
+        # Calculate paths to MS-05 descriptors and destination for generated MS-05 schemas
+        spec_path = self.apis[MS05_API_KEY]["spec_path"]
+        datatype_path = os.path.join(spec_path, 'models/datatypes/')
+        base_datatype_path = os.path.abspath(datatype_path)
+
+        schema_path = os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/')
+        base_schema_path = os.path.abspath(schema_path)
+        if not os.path.exists(base_schema_path):
+            os.makedirs(base_schema_path)
+
+        # Generate MS-05 datatype schemas from MS-05 descriptors
+        # Load MS-05 descriptors
+        datatype_schema_names = []
+        self.datatype_descriptors = {}
+        for filename in os.listdir(base_datatype_path):
+            name, extension = os.path.splitext(filename)
+            if extension == ".json":
+                with open(os.path.join(base_datatype_path, filename), 'r') as json_file:
+                    ms05_datatype_model = json.load(json_file)
+                    self.datatype_descriptors[name] = ms05_datatype_model
+                    json_schema = self.is12_utils.descriptor_to_schema(ms05_datatype_model)
+                    with open(os.path.join(base_schema_path, filename), 'w') as output_file:
+                        json.dump(json_schema, output_file, indent=4)
+                        datatype_schema_names.append(name)
+
+        # Load resolved MS-05 datatype schemas
+        self.datatype_schemas = {}
+        for datatype_schema_name in datatype_schema_names:
+            self.datatype_schemas[datatype_schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
+                                                                               datatype_schema_name + '.json')
+
+    def auto_tests(self):
+        results = []
+        # Get Class Manager
+        test = Test("Get ClassManager", "auto_ClassManager")
+
+        if not self.create_ncp_socket(test):
+            results.append(test.FAIL("Failed to open WebSocket successfully"
+                                     + str(self.ncp_websocket.get_error_message())))
+        else:
+            results.append(test.PASS())
+
+            try:
+                class_manager = self.get_class_manager(test)
+            except NMOSTestException as e:
+                results.append(e.args[0])
+                return results
+
+            command_handle = 1001
+
+            # Get Datatypes
+            property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES']
+            get_datatypes_command = \
+                self.is12_utils.create_generic_get_command_JSON(command_handle,
+                                                                class_manager['oid'],
+                                                                property_id)
+            response = self.send_command(test, get_datatypes_command, command_handle)
+
+            # Create datatype dictionary from response array
+            datatypes = {r['name']: r for r in response["result"]["value"]}
+            datatype_keys = self.datatype_descriptors.keys()
+
+            for key in datatype_keys:
+                if datatypes.get(key):
+                    datatype = datatypes[key]
+                    test = Test("Validate " + datatype['name'] + " definition", "auto_" + datatype['name'])
+
+                    try:
+                        # Validate the JSON schema is correct
+                        self.validate_schema(datatype, self.datatype_schemas['NcDatatypeDescriptor'])
+                    except ValidationError as e:
+                        results.append(test.FAIL(e.message))
+                    except SchemaError as e:
+                        results.append(test.FAIL(e.message))
+
+                    # Validate the descriptor is correct
+                    success, message = self.validate_datatype(self.datatype_descriptors[datatype['name']], datatype)
+                    if success:
+                        results.append(test.PASS())
+                    else:
+                        results.append(test.FAIL(message))
+                else:
+                    results.append(test.WARNING("Not Implemented"))
+
+        return results
+
+    def validate_datatype(self, reference, value):
+        non_normative_keys = ['description']
+
+        if isinstance(reference, dict):
+            # cludge to get around missing constraints property
+            reference.pop('constraints', None)
+            value.pop('constraints', None)
+
+            reference_keys = set(reference.keys())
+            value_keys = set(value.keys())
+
+            # compare the keys to see if any extra/missing
+            key_diff = (set(reference_keys) | set(value_keys)) - (set(reference_keys) & set(value_keys))
+            if len(key_diff) > 0:
+                return False, 'Missing/additional keys ' + str(key_diff)
+
+            for key in reference_keys:
+                if key in non_normative_keys:
+                    continue
+                if key in value_keys:
+                    success, message = self.validate_datatype(reference[key], value[key])
+                    if not success:
+                        return False, message
+            return True, ""
+
+        elif isinstance(reference, list):
+            # Convert to dict and validate
+            references = {item['name']: item for item in reference}
+            values = {item['name']: item for item in value}
+
+            return self.validate_datatype(references, values)
+        else:
+            if reference == value:
+                return True, ""
+            else:
+                return False, 'Property ' + key + ': ' + str(value[key]) + ' not equal to ' + str(reference[key])
 
     def test_01(self, test):
         """At least one Device is showing an IS-12 control advertisement matching the API under test"""
@@ -78,15 +215,13 @@ class IS1201Test(GenericTest):
 
         # Give WebSocket client a chance to start and open its connection
         start_time = time.time()
-        while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
             if self.ncp_websocket.is_open():
                 break
             time.sleep(0.2)
 
         if self.ncp_websocket.did_error_occur():
-            raise NMOSTestException(test.FAIL("Error opening WebSocket connection to {}: {}"
-                                              .format(self.apis[CONTROL_API_KEY]["url"],
-                                                      self.ncp_websocket.get_error_message())))
+            return False
         else:
             return self.ncp_websocket.is_open()
 
@@ -96,7 +231,7 @@ class IS1201Test(GenericTest):
         # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
 
         if not self.create_ncp_socket(test):
-            return test.FAIL("Failed to open WebSocket successfully")
+            return test.FAIL("Failed to open WebSocket successfully: " + str(self.ncp_websocket.get_error_message()))
 
         return test.PASS()
 
@@ -114,7 +249,7 @@ class IS1201Test(GenericTest):
 
         # Wait for server to respond
         start_time = time.time()
-        while time.time() < start_time + CONFIG.WS_MESSAGE_TIMEOUT:
+        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
             if self.ncp_websocket.is_messages_received():
                 break
             time.sleep(0.2)
@@ -165,7 +300,7 @@ class IS1201Test(GenericTest):
         # https://github.com/AMWA-TV/ms-05-02/blob/v1.0-dev/docs/Blocks.md#blocks
 
         if not self.create_ncp_socket(test):
-            return test.FAIL("Failed to open WebSocket successfully")
+            return test.FAIL("Failed to open WebSocket successfully" + str(self.ncp_websocket.get_error_message()))
 
         command_handle = 1001
         get_role_command = \
@@ -183,14 +318,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_04(self, test):
-        """Class Manager exists in Root Block"""
-        # Referencing the Google sheet
-        # MS-05-02 (40) Class manager exists in root
-
-        if not self.create_ncp_socket(test):
-            return test.FAIL("Failed to open WebSocket successfully")
-
+    def get_class_manager(self, test):
         command_handle = 1000
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(command_handle, self.is12_utils.ROOT_BLOCK_OID)
@@ -198,21 +326,40 @@ class IS1201Test(GenericTest):
         response = self.send_command(test, get_member_descriptors_command, command_handle)
 
         class_manager_found = False
+        class_manager = None
 
         for value in response["result"]["value"]:
+            self.validate_schema(value, self.datatype_schemas["NcBlockMemberDescriptor"])
+
             if value["classId"] == [1, 3, 2]:
                 class_manager_found = True
+                class_manager = value
 
                 if value["role"] != 'ClassManager':
-                    return test.FAIL("Incorrect Role for Class Manager: " + value["role"],
-                                     "https://specs.amwa.tv/is-12/branches/{}"
-                                     "/docs/Managers.html"
-                                     .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+                    raise NMOSTestException(test.FAIL("Incorrect Role for Class Manager: " + value["role"],
+                                                      "https://specs.amwa.tv/is-12/branches/{}"
+                                                      "/docs/Managers.html"
+                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
         if not class_manager_found:
-            return test.FAIL("Class Manager not found in Root Block",
-                             "https://specs.amwa.tv/is-12/branches/{}"
-                             "/docs/Managers.html"
-                             .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+            raise NMOSTestException(test.FAIL("Class Manager not found in Root Block",
+                                              "https://specs.amwa.tv/is-12/branches/{}"
+                                              "/docs/Managers.html"
+                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
+
+        return class_manager
+
+    def test_04(self, test):
+        """Class Manager exists in Root Block"""
+        # Referencing the Google sheet
+        # MS-05-02 (40) Class manager exists in root
+
+        if not self.create_ncp_socket(test):
+            return test.FAIL("Failed to open WebSocket successfully" + str(self.ncp_websocket.get_error_message()))
+
+        try:
+            self.get_class_manager(test)
+        except NMOSTestException as e:
+            return e.args[0]
 
         return test.PASS()
