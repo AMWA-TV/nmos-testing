@@ -44,6 +44,12 @@ class NcMethodStatus(IntEnum):
     Timeout = 504
     ProtocolVersionError = 505
 
+class NcDatatypeType(IntEnum):
+    Primitive = 0  # Primitive datatype
+    Typedef = 1  # Simple alias of another datatype
+    Struct = 2  # Data structure
+    Enum = 3  # Enum datatype
+#};
 
 class IS12Utils(NMOSUtils):
     def __init__(self, url):
@@ -78,6 +84,10 @@ class IS12Utils(NMOSUtils):
                 'USER_LABEL': {'level': 1, 'index': 6},
                 'TOUCHPOINTS': {'level': 1, 'index': 7},
                 'RUNTIME_PROPERTY_CONSTRAINTS': {'level': 1, 'index': 8}
+            },
+            'NCCLASSMANAGER':{
+                'CONTROL_CLASSES':{'level':3, 'index':1},
+                'DATATYPES':{'level':3, 'index':2}
             }
         }
 
@@ -111,3 +121,82 @@ class IS12Utils(NMOSUtils):
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
                                         {'recurse': False})
+
+    def ms05_primitive_to_JSON(self, type):
+        """Convert MS-05 primitive type to corresponding JSON type"""
+        match type:
+            case "NcBoolean":
+                return "boolean"
+            case "NcInt16" | "NcInt32" | "NcInt64" | "NcUint16" | "NcUint32" | "NcUint64" | "NcFloat32" | "NcFloat64":
+                return "number"
+            case "NcString":
+                return "string"
+            case _:
+                return False
+
+    def descriptor_to_schema(self, descriptor):
+        variant_type = ['number','string','boolean','object','array', 'null']
+
+        json_schema = {}
+        json_schema['$schema'] = 'http://json-schema.org/draft-07/schema#'
+
+        json_schema['title'] = descriptor['name']
+        json_schema['description'] = descriptor['description']
+
+        # Inheritance of datatype
+        if descriptor.get('parentType'):
+            json_primitive_type = self.ms05_primitive_to_JSON(descriptor['parentType'])
+            if json_primitive_type:
+                if descriptor['isSequence']:
+                    json_schema['type'] = 'array'
+                    json_schema['items'] = {'type': json_primitive_type}
+                else:
+                    json_schema['type'] = json_primitive_type
+            else:
+                json_schema['allOf'] = []
+                json_schema['allOf'].append({ '$ref': descriptor['parentType'] + '.json'})
+
+        # Struct datatype
+        if descriptor['type'] == NcDatatypeType.Struct and descriptor.get('fields'):
+            json_schema['type'] = 'object'
+
+            required = []
+            properties = {}
+            for field in descriptor['fields']:
+                required.append(field['name'])
+
+                property_type = {}
+                if self.ms05_primitive_to_JSON(field['typeName']):
+                    if(field['isNullable']):
+                        property_type = {'type': [self.ms05_primitive_to_JSON(field['typeName']), 'null']}
+                    else:
+                        property_type = {'type': self.ms05_primitive_to_JSON(field['typeName'])}
+                else:
+                    if field.get('typeName'):
+                        if(field['isNullable']):
+                            property_type['anyOf'] = []
+                            property_type['anyOf'].append({'$ref': field['typeName'] + '.json'})
+                            property_type['anyOf'].append({'type': 'null'})
+                        else:
+                            property_type = {'$ref': field['typeName'] + '.json'}
+                    else:
+                        # variant
+                        property_type = {'type': variant_type}
+
+                if field.get('isSequence'):
+                    property_type = { 'type': 'array', 'items': property_type}
+
+                property_type['description'] = field['description']
+                properties[field['name']] = property_type
+
+            json_schema['required'] = required
+            json_schema['properties'] = properties
+           
+        # Enum datatype
+        if descriptor['type'] == NcDatatypeType.Enum and descriptor.get('items'):
+            json_schema['enum'] = []
+            for item in descriptor['items']:
+                json_schema['enum'].append(int(item['value']))
+            json_schema['type'] = 'integer'
+            
+        return json_schema
