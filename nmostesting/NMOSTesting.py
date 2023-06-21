@@ -351,6 +351,10 @@ TEST_DEFINITIONS = {
             "spec_key": "is-12",
             "api_key": "ncp",
             "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "selector"]
         }],
         "class": IS1201Test.IS1201Test,
         "selector": True
