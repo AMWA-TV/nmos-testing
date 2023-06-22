@@ -71,85 +71,145 @@ class IS1201Test(GenericTest):
         spec_path = self.apis[MS05_API_KEY]["spec_path"]
         datatype_path = os.path.join(spec_path, 'models/datatypes/')
         base_datatype_path = os.path.abspath(datatype_path)
+        classes_path = os.path.join(spec_path, 'models/classes/')
+        base_classes_path = os.path.abspath(classes_path)
 
-        schema_path = os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/')
-        base_schema_path = os.path.abspath(schema_path)
-        if not os.path.exists(base_schema_path):
-            os.makedirs(base_schema_path)
+        # Load MS-05 classes descriptors
+        self.classes_descriptors = {}
+        for filename in os.listdir(base_classes_path):
+            name, extension = os.path.splitext(filename)
+            if extension == ".json":
+                with open(os.path.join(base_classes_path, filename), 'r') as json_file:
+                    class_json = json.load(json_file)
+                    self.classes_descriptors[class_json['name']] = class_json
 
-        # Generate MS-05 datatype schemas from MS-05 descriptors
-        # Load MS-05 descriptors
-        datatype_schema_names = []
+        # Load MS-05 datatype descriptors
         self.datatype_descriptors = {}
         for filename in os.listdir(base_datatype_path):
             name, extension = os.path.splitext(filename)
             if extension == ".json":
                 with open(os.path.join(base_datatype_path, filename), 'r') as json_file:
-                    ms05_datatype_model = json.load(json_file)
-                    self.datatype_descriptors[name] = ms05_datatype_model
-                    json_schema = self.is12_utils.descriptor_to_schema(ms05_datatype_model)
-                    with open(os.path.join(base_schema_path, filename), 'w') as output_file:
-                        json.dump(json_schema, output_file, indent=4)
-                        datatype_schema_names.append(name)
+                    self.datatype_descriptors[name] = json.load(json_file)
+
+        # Generate MS-05 datatype schemas from MS-05 datatype descriptors
+        datatype_schema_names = []
+        schema_path = os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/')
+        base_schema_path = os.path.abspath(schema_path)
+        if not os.path.exists(base_schema_path):
+            os.makedirs(base_schema_path)
+
+        for name, descriptor in self.datatype_descriptors.items():
+            json_schema = self.is12_utils.descriptor_to_schema(descriptor)
+            with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
+                json.dump(json_schema, output_file, indent=4)
+                datatype_schema_names.append(name)
 
         # Load resolved MS-05 datatype schemas
         self.datatype_schemas = {}
-        for datatype_schema_name in datatype_schema_names:
-            self.datatype_schemas[datatype_schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
-                                                                               datatype_schema_name + '.json')
+        for name in datatype_schema_names:
+            self.datatype_schemas[name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
+                                                               name + '.json')
 
     def auto_tests(self):
-        results = []
+        results = list()
+
         # Get Class Manager
         test = Test("Get ClassManager", "auto_ClassManager")
 
         if not self.create_ncp_socket(test):
             results.append(test.FAIL("Failed to open WebSocket successfully"
                                      + str(self.ncp_websocket.get_error_message())))
-        else:
-            results.append(test.PASS())
+            return results
+        try:
+            class_manager = self.get_class_manager(test)
+            results += self.auto_classes_validation(class_manager)
+            results += self.auto_datatype_validation(class_manager)
 
-            try:
-                class_manager = self.get_class_manager(test)
-            except NMOSTestException as e:
-                results.append(e.args[0])
-                return results
+        except NMOSTestException as e:
+            results.append(e.args[0])
 
-            command_handle = 1001
+        return results
 
-            # Get Datatypes
-            property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES']
-            get_datatypes_command = \
-                self.is12_utils.create_generic_get_command_JSON(command_handle,
-                                                                class_manager['oid'],
-                                                                property_id)
-            response = self.send_command(test, get_datatypes_command, command_handle)
+    def auto_classes_validation(self, class_manager):
+        results = list()
+        command_handle = 1002
 
-            # Create datatype dictionary from response array
-            datatypes = {r['name']: r for r in response["result"]["value"]}
-            datatype_keys = self.datatype_descriptors.keys()
+        # Get Datatypes
+        property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES']
+        get_datatypes_command = \
+            self.is12_utils.create_generic_get_command_JSON(command_handle,
+                                                            class_manager['oid'],
+                                                            property_id)
+        test = Test("Send command", "auto_SendCommand")
+        response = self.send_command(test, get_datatypes_command, command_handle)
 
-            for key in datatype_keys:
-                if datatypes.get(key):
-                    datatype = datatypes[key]
-                    test = Test("Validate " + datatype['name'] + " definition", "auto_" + datatype['name'])
+        # Create classes dictionary from response array
+        classes = {r['name']: r for r in response["result"]["value"]}
+        classes_keys = sorted(self.classes_descriptors.keys())
 
-                    try:
-                        # Validate the JSON schema is correct
-                        self.validate_schema(datatype, self.datatype_schemas['NcDatatypeDescriptor'])
-                    except ValidationError as e:
-                        results.append(test.FAIL(e.message))
-                    except SchemaError as e:
-                        results.append(test.FAIL(e.message))
+        for key in classes_keys:
+            if classes.get(key):
+                control_class = classes[key]
+                test = Test("Validate " + control_class['name'] + " definition", "auto_" + control_class['name'])
 
-                    # Validate the descriptor is correct
-                    success, message = self.validate_datatype(self.datatype_descriptors[datatype['name']], datatype)
-                    if success:
-                        results.append(test.PASS())
-                    else:
-                        results.append(test.FAIL(message))
+                try:
+                    # Validate the JSON schema is correct
+                    self.validate_schema(control_class, self.datatype_schemas['NcClassDescriptor'])
+                except ValidationError as e:
+                    results.append(test.FAIL(e.message))
+                except SchemaError as e:
+                    results.append(test.FAIL(e.message))
+
+                # Validate the descriptor is correct
+                success, message = self.validate_datatype(self.classes_descriptors[control_class['name']],
+                                                          control_class)
+                if success:
+                    results.append(test.PASS())
                 else:
-                    results.append(test.WARNING("Not Implemented"))
+                    results.append(test.FAIL(message))
+            else:
+                results.append(test.WARNING("Not Implemented"))
+
+        return results
+
+    def auto_datatype_validation(self, class_manager):
+        results = list()
+        command_handle = 1001
+
+        # Get Datatypes
+        property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES']
+        get_datatypes_command = \
+            self.is12_utils.create_generic_get_command_JSON(command_handle,
+                                                            class_manager['oid'],
+                                                            property_id)
+        test = Test("Send command", "auto_SendCommand")
+        response = self.send_command(test, get_datatypes_command, command_handle)
+
+        # Create datatype dictionary from response array
+        datatypes = {r['name']: r for r in response["result"]["value"]}
+        datatype_keys = sorted(self.datatype_descriptors.keys())
+
+        for key in datatype_keys:
+            if datatypes.get(key):
+                datatype = datatypes[key]
+                test = Test("Validate " + datatype['name'] + " definition", "auto_" + datatype['name'])
+
+                try:
+                    # Validate the JSON schema is correct
+                    self.validate_schema(datatype, self.datatype_schemas['NcDatatypeDescriptor'])
+                except ValidationError as e:
+                    results.append(test.FAIL(e.message))
+                except SchemaError as e:
+                    results.append(test.FAIL(e.message))
+
+                # Validate the descriptor is correct
+                success, message = self.validate_datatype(self.datatype_descriptors[datatype['name']], datatype)
+                if success:
+                    results.append(test.PASS())
+                else:
+                    results.append(test.FAIL(message))
+            else:
+                results.append(test.WARNING("Not Implemented"))
 
         return results
 
@@ -173,9 +233,21 @@ class IS1201Test(GenericTest):
                 if key in non_normative_keys:
                     continue
                 if key in value_keys:
-                    success, message = self.validate_datatype(reference[key], value[key])
-                    if not success:
-                        return False, message
+                    # Check for class ID
+                    if key == 'identity' and isinstance(reference[key], list):
+                        if len(reference[key]) != len(value[key]):
+                            return False, "Unexpected ClassId. Expected: " \
+                                          + str(reference[key]) \
+                                          + " actual: " + str(value[key])
+                        for r, v in zip(reference[key], value[key]):
+                            if r != v:
+                                return False, "Unexpected ClassId. Expected: " \
+                                              + str(reference[key]) \
+                                              + " actual: " + str(value[key])
+                    else:
+                        success, message = self.validate_datatype(reference[key], value[key])
+                        if not success:
+                            return False, message
             return True, ""
 
         elif isinstance(reference, list):
