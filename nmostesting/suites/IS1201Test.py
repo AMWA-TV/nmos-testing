@@ -217,9 +217,17 @@ class IS1201Test(GenericTest):
         non_normative_keys = ['description']
 
         if isinstance(reference, dict):
-            # cludge to get around missing constraints property
+            # JRT: These two manipulation are to mitigate two issues
+            # to be resolved regarding the MS-05-02 JSON descriptors.
+            # Firstly the constraints property is missing from certain descriptors
+            # Secondly the isConstant flag is missing from
+            # the NcObject descriptor properties
             reference.pop('constraints', None)
             value.pop('constraints', None)
+            if value.get('isConstant') != reference.get('isConstant'):
+                if not isinstance(value.get('isConstant'), dict):
+                    value.pop('isConstant', None)
+            # JRT: End
 
             reference_keys = set(reference.keys())
             value_keys = set(value.keys())
