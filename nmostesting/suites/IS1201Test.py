@@ -61,6 +61,7 @@ class IS1201Test(GenericTest):
             self.execute_test(test_name)
 
     def load_validation_resources(self):
+        """Load datatype and control class decriptors and create datatype JSON schemas"""
         # Load IS-12 schemas
         self.schemas = {}
         schema_names = ["command-response-message"]
@@ -111,9 +112,10 @@ class IS1201Test(GenericTest):
                                                                name + '.json')
 
     def create_ncp_socket(self):
+        """Create a WebSocket client connection to Node under test and return success and error message"""
         # Reuse socket if connection already established
         if self.ncp_websocket and self.ncp_websocket.is_open():
-            return True, ""
+            return True, None
 
         # Create a WebSocket connection to NMOS Control Protocol endpoint
         self.ncp_websocket = WebsocketWorker(self.apis[CONTROL_API_KEY]["url"])
@@ -131,9 +133,10 @@ class IS1201Test(GenericTest):
                           + (": " + str(self.ncp_websocket.get_error_message())
                              if self.ncp_websocket.did_error_occur() else ".")
         else:
-            return True, ""
+            return True, None
 
     def send_command(self, command_handle, command_json):
+        """Send command to Node under test and return command response, error message and spec link"""
         # Referencing the Google sheet
         # IS-12 (9)  Check protocol version and message type
         # IS-12 (10) Check handle numeric identifier
@@ -164,8 +167,8 @@ class IS1201Test(GenericTest):
                 if parsed_message["protocolVersion"] != self.is12_utils.DEFAULT_PROTOCOL_VERSION:
                     return False, "Incorrect protocol version. Expected " \
                                   + self.is12_utils.DEFAULT_PROTOCOL_VERSION \
-                                  + ", received " + parsed_message["protocolVersion"] \
-                                  + "https://specs.amwa.tv/is-12/branches/{}" \
+                                  + ", received " + parsed_message["protocolVersion"], \
+                                  "https://specs.amwa.tv/is-12/branches/{}" \
                                   "/docs/Protocol_messaging.html" \
                                   .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
@@ -176,29 +179,31 @@ class IS1201Test(GenericTest):
                     if response["handle"] == command_handle:
                         if response["result"]["status"] != NcMethodStatus.OK:
                             return False, "Message status not OK: " \
-                                          + NcMethodStatus(response["result"]["status"]).name
+                                          + NcMethodStatus(response["result"]["status"]).name, \
+                                          None
                         results.append(response)
 
         if len(results) == 0:
-            return False, "No Command Message Response received. " \
+            return False, "No Command Message Response received.", \
                           "https://specs.amwa.tv/is-12/branches/{}" \
                           "/docs/Protocol_messaging.html#command-message-type" \
                           .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
         if len(results) > 1:
-            return False, "Received multiple responses : " + len(responses)
+            return False, "Received multiple responses : " + len(responses), None
 
-        return results[0], ""
+        return results[0], None, None
 
     def get_class_manager(self):
+        """Get ClassManager from Root Block are return ClassManager, error message and spec link"""
         command_handle = 1000
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(command_handle, self.is12_utils.ROOT_BLOCK_OID)
 
-        response, errorMsg = self.send_command(command_handle, get_member_descriptors_command)
+        response, errorMsg, link = self.send_command(command_handle, get_member_descriptors_command)
 
         if not response:
-            return False, errorMsg
+            return False, errorMsg, link
 
         class_manager_found = False
         class_manager = None
@@ -211,20 +216,21 @@ class IS1201Test(GenericTest):
                 class_manager = value
 
                 if value["role"] != 'ClassManager':
-                    return False, "Incorrect Role for Class Manager: " + value["role"] \
-                                  + "https://specs.amwa.tv/is-12/branches/{}" \
+                    return False, "Incorrect Role for Class Manager: " + value["role"], \
+                                  "https://specs.amwa.tv/ms-05-02/branches/{}" \
                                   "/docs/Managers.html" \
                                   .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
         if not class_manager_found:
-            return False, "Class Manager not found in Root Block" \
-                          + "https://specs.amwa.tv/is-12/branches/{}" \
+            return False, "Class Manager not found in Root Block", \
+                          "https://specs.amwa.tv/ms-05-02/branches/{}" \
                           "/docs/Managers.html" \
                           .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        return class_manager, ""
+        return class_manager, "", ""
 
     def validate_datatype(self, reference, value):
+        """Compare descriptor to reference descriptor. Return success and error message"""
         non_normative_keys = ['description']
 
         if isinstance(reference, dict):
@@ -282,6 +288,7 @@ class IS1201Test(GenericTest):
                 return False, 'Property ' + key + ': ' + str(value[key]) + ' not equal to ' + str(reference[key])
 
     def auto_tests(self):
+        """Automatically validate all standard datatypes and control classes"""
         results = list()
 
         # Get Class Manager
@@ -292,9 +299,10 @@ class IS1201Test(GenericTest):
             results.append(test.FAIL(errorMsg))
             return results
 
-        class_manager, errorMsg = self.get_class_manager()
+        class_manager, errorMsg, link = self.get_class_manager()
         if not class_manager:
-            results.append(test.FAIL(errorMsg))
+            results.append(test.FAIL(errorMsg, link))
+            return results
 
         results += self.auto_classes_validation(class_manager)
         results += self.auto_datatype_validation(class_manager)
@@ -302,6 +310,7 @@ class IS1201Test(GenericTest):
         return results
 
     def auto_classes_validation(self, class_manager):
+        """Validate control classes against MS-05-02 model descriptors"""
         results = list()
         command_handle = 1002
 
@@ -312,10 +321,10 @@ class IS1201Test(GenericTest):
                                                             class_manager['oid'],
                                                             property_id)
         test = Test("Send command", "auto_SendCommand")
-        response, errorMsg = self.send_command(command_handle, get_datatypes_command)
+        response, errorMsg, link = self.send_command(command_handle, get_datatypes_command)
 
         if not response:
-            results.append(test.FAIL(errorMsg))
+            results.append(test.FAIL(errorMsg, link))
             return results
 
         # Create classes dictionary from response array
@@ -348,6 +357,7 @@ class IS1201Test(GenericTest):
         return results
 
     def auto_datatype_validation(self, class_manager):
+        """Validate datatypes against MS-05-02 model descriptors"""
         results = list()
         command_handle = 1001
 
@@ -358,10 +368,10 @@ class IS1201Test(GenericTest):
                                                             class_manager['oid'],
                                                             property_id)
         test = Test("Send command", "auto_SendCommand")
-        response, errorMsg = self.send_command(command_handle, get_datatypes_command)
+        response, errorMsg, link = self.send_command(command_handle, get_datatypes_command)
 
         if not response:
-            results.append(test.FAIL(errorMsg))
+            results.append(test.FAIL(errorMsg, link))
             return results
 
         # Create datatype dictionary from response array
@@ -434,13 +444,13 @@ class IS1201Test(GenericTest):
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
 
-        response, errorMsg = self.send_command(command_handle, get_role_command)
+        response, errorMsg, link = self.send_command(command_handle, get_role_command)
         if not response:
-            return test.FAIL(errorMsg)
+            return test.FAIL(errorMsg, link)
 
         if response["result"]["value"] != "root":
             return test.FAIL("Unexpected role in root block: " + response["result"]["value"],
-                             "https://specs.amwa.tv/is-12/branches/{}"
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Blocks.html"
                              .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
 
@@ -455,8 +465,8 @@ class IS1201Test(GenericTest):
         if not success:
             return test.FAIL(errorMsg)
 
-        class_manager, errorMsg = self.get_class_manager()
+        class_manager, errorMsg, link = self.get_class_manager()
         if not class_manager:
-            return test.FAIL(errorMsg)
+            return test.FAIL(errorMsg, link)
 
         return test.PASS()
