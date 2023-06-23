@@ -141,7 +141,10 @@ class IS1201Test(GenericTest):
                                                             class_manager['oid'],
                                                             property_id)
         test = Test("Send command", "auto_SendCommand")
-        response = self.send_command(test, get_datatypes_command, command_handle)
+        response, errorMsg = self.send_command(test, get_datatypes_command, command_handle)
+
+        if not response:
+            test.FAIL(errorMsg)
 
         # Create classes dictionary from response array
         classes = {r['name']: r for r in response["result"]["value"]}
@@ -183,7 +186,10 @@ class IS1201Test(GenericTest):
                                                             class_manager['oid'],
                                                             property_id)
         test = Test("Send command", "auto_SendCommand")
-        response = self.send_command(test, get_datatypes_command, command_handle)
+        response, errorMsg = self.send_command(test, get_datatypes_command, command_handle)
+
+        if not response:
+            test.FAIL(errorMsg)
 
         # Create datatype dictionary from response array
         datatypes = {r['name']: r for r in response["result"]["value"]}
@@ -344,12 +350,12 @@ class IS1201Test(GenericTest):
                 self.validate_schema(parsed_message, self.schemas["command-response-message"])
 
                 if parsed_message["protocolVersion"] != self.is12_utils.DEFAULT_PROTOCOL_VERSION:
-                    raise NMOSTestException(test.FAIL("Incorrect protocol version. Expected "
-                                                      + self.is12_utils.DEFAULT_PROTOCOL_VERSION
-                                                      + ", received " + parsed_message["protocolVersion"],
-                                                      "https://specs.amwa.tv/is-12/branches/{}"
-                                                      "/docs/Protocol_messaging.html"
-                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
+                    return False, "Incorrect protocol version. Expected " \
+                                  + self.is12_utils.DEFAULT_PROTOCOL_VERSION \
+                                  + ", received " + parsed_message["protocolVersion"], \
+                                  + "https://specs.amwa.tv/is-12/branches/{}" \
+                                  + "/docs/Protocol_messaging.html" \
+                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
                 responses = parsed_message["responses"]
 
@@ -357,20 +363,20 @@ class IS1201Test(GenericTest):
                     # here it is!
                     if response["handle"] == command_handle:
                         if response["result"]["status"] != NcMethodStatus.OK:
-                            raise NMOSTestException(test.FAIL("Message status not OK: "
-                                                    + NcMethodStatus(response["result"]["status"]).name))
+                            return False, "Message status not OK: " \
+                                          + NcMethodStatus(response["result"]["status"]).name))
                         results.append(response)
 
         if len(results) == 0:
-            raise NMOSTestException(test.FAIL("No Command Message Response received. ",
-                                              "https://specs.amwa.tv/is-12/branches/{}"
-                                              "/docs/Protocol_messaging.html#command-message-type"
-                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
+            return False, "No Command Message Response received. ", \
+                          "https://specs.amwa.tv/is-12/branches/{}" \
+                          "/docs/Protocol_messaging.html#command-message-type" \
+                          .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
         if len(results) > 1:
-            raise NMOSTestException(test.FAIL("Received multiple responses : " + len(responses)))
+            return False, "Received multiple responses : " + len(responses)
 
-        return results[0]
+        return results[0], ""
 
     def test_03(self, test):
         """Root Block Exists with correct OID and Role"""
@@ -388,7 +394,10 @@ class IS1201Test(GenericTest):
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
 
-        response = self.send_command(test, get_role_command, command_handle)
+        response, errorMsg = self.send_command(test, get_role_command, command_handle)
+
+        if not response:
+            test.FAIL(errorMsg)
 
         if response["result"]["value"] != "root":
             return test.FAIL("Unexpected role in root block: " + response["result"]["value"],
@@ -403,7 +412,10 @@ class IS1201Test(GenericTest):
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(command_handle, self.is12_utils.ROOT_BLOCK_OID)
 
-        response = self.send_command(test, get_member_descriptors_command, command_handle)
+        response, errorMsg = self.send_command(test, get_member_descriptors_command, command_handle)
+
+        if not response:
+            test.FAIL(errorMsg)
 
         class_manager_found = False
         class_manager = None
