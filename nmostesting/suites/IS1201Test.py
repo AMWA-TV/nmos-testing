@@ -112,7 +112,7 @@ class IS1201Test(GenericTest):
                                                                name + '.json')
 
     def create_ncp_socket(self):
-        """Create a WebSocket client connection to Node under test and return success and error message"""
+        """Create a WebSocket client connection to Node under test. Returns [success, error message]"""
         # Reuse socket if connection already established
         if self.ncp_websocket and self.ncp_websocket.is_open():
             return True, None
@@ -136,7 +136,7 @@ class IS1201Test(GenericTest):
             return True, None
 
     def send_command(self, command_handle, command_json):
-        """Send command to Node under test and return command response, error message and spec link"""
+        """Send command to Node under test. Returns [command response, error message, spec link]"""
         # Referencing the Google sheet
         # IS-12 (9)  Check protocol version and message type
         # IS-12 (10) Check handle numeric identifier
@@ -195,7 +195,7 @@ class IS1201Test(GenericTest):
         return results[0], None, None
 
     def get_class_manager(self):
-        """Get ClassManager from Root Block are return ClassManager, error message and spec link"""
+        """Get ClassManager from Root Block. Returns [ClassManager, error message, spec link]"""
         command_handle = 1000
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(command_handle, self.is12_utils.ROOT_BLOCK_OID)
@@ -227,10 +227,10 @@ class IS1201Test(GenericTest):
                           "/docs/Managers.html" \
                           .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        return class_manager, "", ""
+        return class_manager, None, None
 
-    def validate_datatype(self, reference, value):
-        """Compare descriptor to reference descriptor. Return success and error message"""
+    def validate_descriptor(self, reference, descriptor):
+        """Compare descriptor to reference descriptor. Returns [success, error message]"""
         non_normative_keys = ['description']
 
         if isinstance(reference, dict):
@@ -240,55 +240,49 @@ class IS1201Test(GenericTest):
             # Secondly the isConstant flag is missing from
             # the NcObject descriptor properties
             reference.pop('constraints', None)
-            value.pop('constraints', None)
-            if value.get('isConstant') != reference.get('isConstant'):
-                if not isinstance(value.get('isConstant'), dict):
-                    value.pop('isConstant', None)
+            descriptor.pop('constraints', None)
+            if descriptor.get('isConstant') != reference.get('isConstant'):
+                if not isinstance(descriptor.get('isConstant'), dict):
+                    descriptor.pop('isConstant', None)
             # JRT: End
 
             reference_keys = set(reference.keys())
-            value_keys = set(value.keys())
+            descriptor_keys = set(descriptor.keys())
 
             # compare the keys to see if any extra/missing
-            key_diff = (set(reference_keys) | set(value_keys)) - (set(reference_keys) & set(value_keys))
+            key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
             if len(key_diff) > 0:
                 return False, 'Missing/additional keys ' + str(key_diff)
 
             for key in reference_keys:
                 if key in non_normative_keys:
                     continue
-                if key in value_keys:
-                    # Check for class ID
-                    if key == 'identity' and isinstance(reference[key], list):
-                        if len(reference[key]) != len(value[key]):
-                            return False, "Unexpected ClassId. Expected: " \
-                                          + str(reference[key]) \
-                                          + " actual: " + str(value[key])
-                        for r, v in zip(reference[key], value[key]):
-                            if r != v:
-                                return False, "Unexpected ClassId. Expected: " \
-                                              + str(reference[key]) \
-                                              + " actual: " + str(value[key])
-                    else:
-                        success, message = self.validate_datatype(reference[key], value[key])
-                        if not success:
-                            return False, message
-            return True, ""
+                # Check for class ID
+                if key == 'identity' and isinstance(reference[key], list):
+                    if reference[key] != descriptor[key]:
+                        return False, "Unexpected ClassId. Expected: " \
+                                      + str(reference[key]) \
+                                      + " actual: " + str(descriptor[key])
+                else:
+                    success, message = self.validate_descriptor(reference[key], descriptor[key])
+                    if not success:
+                        return False, message
+            return True, None
 
         elif isinstance(reference, list):
             # Convert to dict and validate
             references = {item['name']: item for item in reference}
-            values = {item['name']: item for item in value}
+            descriptors = {item['name']: item for item in descriptor}
 
-            return self.validate_datatype(references, values)
+            return self.validate_descriptor(references, descriptors)
         else:
-            if reference == value:
-                return True, ""
+            if reference == descriptor:
+                return True, None
             else:
-                return False, 'Property ' + key + ': ' + str(value[key]) + ' not equal to ' + str(reference[key])
+                return False, 'Property ' + key + ': ' + str(descriptor[key]) + ' not equal to ' + str(reference[key])
 
     def auto_tests(self):
-        """Automatically validate all standard datatypes and control classes"""
+        """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
         results = list()
 
         # Get Class Manager
@@ -310,7 +304,7 @@ class IS1201Test(GenericTest):
         return results
 
     def auto_classes_validation(self, class_manager):
-        """Validate control classes against MS-05-02 model descriptors"""
+        """Validate control classes against MS-05-02 model descriptors. Returns [test result array]"""
         results = list()
         command_handle = 1002
 
@@ -345,8 +339,8 @@ class IS1201Test(GenericTest):
                     results.append(test.FAIL(e.message))
 
                 # Validate the descriptor is correct
-                success, message = self.validate_datatype(self.classes_descriptors[control_class['name']],
-                                                          control_class)
+                success, message = self.validate_descriptor(self.classes_descriptors[control_class['name']],
+                                                            control_class)
                 if success:
                     results.append(test.PASS())
                 else:
@@ -357,7 +351,7 @@ class IS1201Test(GenericTest):
         return results
 
     def auto_datatype_validation(self, class_manager):
-        """Validate datatypes against MS-05-02 model descriptors"""
+        """Validate datatypes against MS-05-02 model descriptors. Returns [test result array]"""
         results = list()
         command_handle = 1001
 
@@ -392,7 +386,7 @@ class IS1201Test(GenericTest):
                     results.append(test.FAIL(e.message))
 
                 # Validate the descriptor is correct
-                success, message = self.validate_datatype(self.datatype_descriptors[datatype['name']], datatype)
+                success, message = self.validate_descriptor(self.datatype_descriptors[datatype['name']], datatype)
                 if success:
                     results.append(test.PASS())
                 else:
