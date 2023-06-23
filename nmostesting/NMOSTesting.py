@@ -387,7 +387,6 @@ TEST_DEFINITIONS = {
 
 
 def enumerate_tests(class_def, describe=False, disable_auto=False):
-    
     tests = ["all: Runs all tests in the suite" if describe else "all"]
     if not disable_auto:
         tests.append("auto: Basic API tests derived directly from the specification RAML" if describe else "auto")
@@ -461,8 +460,8 @@ class DataForm(Form):
                                                              disable_auto=TEST_DEFINITIONS[test_id]
                                                              .get("disable_auto"))
         test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True,
-                                                             disable_auto=TEST_DEFINITIONS[test_id]
-                                                             .get("disable_auto"))
+                                                                  disable_auto=TEST_DEFINITIONS[test_id]
+                                                                  .get("disable_auto"))
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
