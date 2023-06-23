@@ -76,7 +76,7 @@ class ControllerTest(GenericTest):
     """
     Testing initial set up of new test suite for controller testing
     """
-    def __init__(self, apis, registries, node, dns_server, disable_auto=True):
+    def __init__(self, apis, registries, node, dns_server, **kwargs):
         # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
         if CONFIG.ENABLE_HTTPS:
@@ -84,7 +84,7 @@ class ControllerTest(GenericTest):
             apis[CONTROLLER_TEST_API_KEY]["base_url"] \
                 = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
             apis[CONTROLLER_TEST_API_KEY]["url"] = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
-        GenericTest.__init__(self, apis, disable_auto=disable_auto)
+        GenericTest.__init__(self, apis, **kwargs)
         self.authorization = False
         self.primary_registry = registries[1]
         self.node = node
