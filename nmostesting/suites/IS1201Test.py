@@ -489,13 +489,13 @@ class IS1201Test(GenericTest):
                                                             command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-        
+
         response, errorMsg, link = self.send_command(command_handle, get_role_command)
 
         # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
         if not response.get('protocolVersion'):
             return test.FAIL("IS-12 protocol error expected", link)
-        
+
         if response:
             return test.FAIL("Incorrect Protocol Version error expected", link)
 
@@ -519,9 +519,9 @@ class IS1201Test(GenericTest):
                                                             command_handle,
                                                             illegal_oid,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-        
+
         response, errorMsg, link = self.send_command(command_handle, get_role_command)
-        
+
         # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
         if response.get('protocolVersion'):
             return test.FAIL("MS-05-02 error expected", link)
