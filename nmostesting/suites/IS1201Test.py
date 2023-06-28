@@ -292,18 +292,23 @@ class IS1201Test(GenericTest):
         # Get Class Manager
         test = Test("Get ClassManager", "auto_ClassManager")
 
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            results.append(test.FAIL(errorMsg))
-            return results
+        try:
+            success, errorMsg = self.create_ncp_socket()
+            if not success:
+                results.append(test.FAIL(errorMsg))
+                return results
 
-        class_manager, errorMsg, link = self.get_class_manager()
-        if not class_manager:
-            results.append(test.FAIL(errorMsg, link))
-            return results
+            class_manager, errorMsg, link = self.get_class_manager()
+            if not class_manager:
+                results.append(test.FAIL(errorMsg, link))
+                return results
 
-        results += self.auto_classes_validation(class_manager)
-        results += self.auto_datatype_validation(class_manager)
+            results += self.auto_classes_validation(class_manager)
+            results += self.auto_datatype_validation(class_manager)
+        except ValidationError as e:
+            results.append(test.FAIL(e.message))
+        except SchemaError as e:
+            results.append(test.FAIL(e.message))
 
         return results
 
@@ -436,29 +441,34 @@ class IS1201Test(GenericTest):
         # MS-05-02 (45) Verify oID and role of root block
         # https://github.com/AMWA-TV/ms-05-02/blob/v1.0-dev/docs/Blocks.md#blocks
 
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            return test.FAIL(errorMsg)
+        try:
+            success, errorMsg = self.create_ncp_socket()
+            if not success:
+                return test.FAIL(errorMsg)
 
-        command_handle = 1001
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        get_role_command = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
+            command_handle = 1001
+            version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+            get_role_command = \
+                self.is12_utils.create_generic_get_command_JSON(version,
+                                                                command_handle,
+                                                                self.is12_utils.ROOT_BLOCK_OID,
+                                                                self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
 
-        response, errorMsg, link = self.send_command(command_handle, get_role_command)
-        if not response:
-            return test.FAIL(errorMsg, link)
+            response, errorMsg, link = self.send_command(command_handle, get_role_command)
+            if not response:
+                return test.FAIL(errorMsg, link)
 
-        if response["result"]["value"] != "root":
-            return test.FAIL("Unexpected role in root block: " + response["result"]["value"],
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Blocks.html"
-                             .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+            if response["result"]["value"] != "root":
+                return test.FAIL("Unexpected role in root block: " + response["result"]["value"],
+                                 "https://specs.amwa.tv/ms-05-02/branches/{}"
+                                 "/docs/Blocks.html"
+                                 .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
 
-        return test.PASS()
+            return test.PASS()
+        except ValidationError as e:
+            return test.FAIL("JSON schema validation error: " + e.message)
+        except SchemaError as e:
+            return test.FAIL("JSON schema error: " + e.message)
 
     def test_04(self, test):
         """Class Manager exists in Root Block"""
@@ -475,62 +485,166 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_05(self, test):
-        """ IS-12 Protocol Error: Node handles command has incorrect IS-12 protocol version """
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            return test.FAIL(errorMsg)
+    def do_error_test(self, test, command_handle, command_json, expected_status, is12_error=True):
+        """ execute IS-12 command with expected error status """
 
-        command_handle = 1001
+        try:
+            success, errorMsg = self.create_ncp_socket()
+            if not success:
+                return test.FAIL(errorMsg)
+
+            response, errorMsg, link = self.send_command(command_handle, command_json)
+
+            if response:
+                return test.FAIL("Protocol error not handled")
+
+            # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
+            if is12_error != ('protocolVersion' in errorMsg):
+                spec = "IS-12 protocol" if is12_error else "MS-05-02"
+                return test.FAIL(spec + " error expected", link)
+
+            if not errorMsg.get('status'):
+                return test.FAIL("Command error: " + str(errorMsg))
+
+            if errorMsg['status'] != expected_status:
+                return test.FAIL("Unexpected status. Expected: " + expected_status.name
+                                 + " (" + str(expected_status) + ")"
+                                 + ", actual: " + NcMethodStatus(errorMsg['status']).name
+                                 + " (" + str(errorMsg['status']) + ")", link)
+
+            return test.PASS()
+        except ValidationError as e:
+            return test.FAIL("JSON schema validation error: " + e.message)
+        except SchemaError as e:
+            return test.FAIL("JSON schema error: " + e.message)
+
+    def test_05(self, test):
+        """ IS-12 Protocol Error: Node handles incorrect IS-12 protocol version """
+
+        command_handle = 1001  # should this be a random number??
         # Use incorrect protocol version
         version = 'DOES.NOT.EXIST'
-        get_role_command = \
+        command_json = \
             self.is12_utils.create_generic_get_command_JSON(version,
                                                             command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
 
-        response, errorMsg, link = self.send_command(command_handle, get_role_command)
-
-        # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
-        if not response.get('protocolVersion'):
-            return test.FAIL("IS-12 protocol error expected", link)
-
-        if response:
-            return test.FAIL("Incorrect Protocol Version error expected", link)
-
-        if errorMsg['status'] != NcMethodStatus.ProtocolVersionError:
-            return test.FAIL("Unexpected status. Expected " + str(NcMethodStatus.ProtocolVersionError)
-                             + ", actual: " + str(errorMsg['status']), link)
-
-        return test.PASS()
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  NcMethodStatus.ProtocolVersionError)
 
     def test_06(self, test):
-        """ MS-05-02 Error: Node handles command with illegal OID"""
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            return test.FAIL(errorMsg)
+        """ IS-12 Protocol Error: Node handles invalid command handle """
+
+        # Use invalid handle
+        invalid_command_handle = "NOT A HANDLE"
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            invalid_command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+
+        return self.do_error_test(test,
+                                  invalid_command_handle,
+                                  command_json, NcMethodStatus.BadCommandFormat)
+
+    def test_07(self, test):
+        """ IS-12 Protocol Error: Node handles invalid command type """
+        command_handle = 1007
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        # Use invalid message type
+        command_json['messageType'] = 7
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  NcMethodStatus.BadCommandFormat)
+
+    def test_08(self, test):
+        """ IS-12 Protocol Error: Node handles invalid JSON """
+        command_handle = 1007
+        # Use invalid JSON
+        command_json = {'not_a': 'valid_command'}
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  NcMethodStatus.BadCommandFormat)
+
+    def test_09(self, test):
+        """ MS-05-02 Error: Node handles invalid oid"""
 
         command_handle = 1001
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        illegal_oid = 1000
-        get_role_command = \
+        invalid_oid = 999999999
+        command_json = \
             self.is12_utils.create_generic_get_command_JSON(version,
                                                             command_handle,
-                                                            illegal_oid,
+                                                            invalid_oid,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
 
-        response, errorMsg, link = self.send_command(command_handle, get_role_command)
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  NcMethodStatus.BadOid,
+                                  is12_error=False)
 
-        # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
-        if response.get('protocolVersion'):
-            return test.FAIL("MS-05-02 error expected", link)
+    def test_10(self, test):
+        """ MS-05-02 Error: Node handles invalid property identifier"""
+        command_handle = 1001
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        invalid_property_identifier = {'level': 1, 'index': 999}
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            invalid_property_identifier)
 
-        if response:
-            return test.FAIL("Bad Oid error expected", link)
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  NcMethodStatus.PropertyNotImplemented,
+                                  is12_error=False)
 
-        if errorMsg['status'] != NcMethodStatus.BadOid:
-            return test.FAIL("Unexpected status. Expected " + str(NcMethodStatus.BadOid)
-                             + ", actual: " + str(errorMsg['status']), link)
+    def test_11(self, test):
+        """ MS-05-02 Error: Node handles invalid method identifier"""
+        command_handle = 1001
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        invalid_method_id = {'level': 1, 'index': 999}
+        command_json['commands'][0]['methodId'] = invalid_method_id
 
-        return test.PASS()
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  NcMethodStatus.MethodNotImplemented,
+                                  is12_error=False)
+
+    def test_12(self, test):
+        """ MS-05-02 Error: Node handles read only error"""
+        command_handle = 1001
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        command_json = \
+            self.is12_utils.create_generic_set_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'],
+                                                            "ROLE IS READ ONLY")
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  NcMethodStatus.Readonly,
+                                  is12_error=False)
