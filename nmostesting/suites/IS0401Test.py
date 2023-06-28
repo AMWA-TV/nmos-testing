@@ -24,13 +24,17 @@ from dnslib import QTYPE
 from copy import deepcopy
 from collections import defaultdict
 from pathlib import Path
-from zeroconf_monkey import ServiceBrowser, ServiceInfo, Zeroconf
+from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 
 from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, check_content_type
+
+# monkey patch zeroconf to allow us to advertise "_nmos-registration._tcp"
+from zeroconf import service_type_name
+service_type_name.__kwdefaults__['strict'] = False
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
