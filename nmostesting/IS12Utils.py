@@ -58,8 +58,6 @@ class IS12Utils(NMOSUtils):
         self.protocol_definitions()
 
     def protocol_definitions(self):
-        self.DEFAULT_PROTOCOL_VERSION = '1.0.0'
-
         self.ROOT_BLOCK_OID = 1
 
         self.METHOD_IDS = {
@@ -92,10 +90,10 @@ class IS12Utils(NMOSUtils):
             }
         }
 
-    def create_command_JSON(self, handle, oid, method_id, arguments):
+    def create_command_JSON(self, version, handle, oid, method_id, arguments):
         """Create command JSON for generic get of a property"""
         return {
-            'protocolVersion': self.DEFAULT_PROTOCOL_VERSION,
+            'protocolVersion': version,
             'messageType': MessageTypes.Command,
             'commands': [
                 {
@@ -107,18 +105,20 @@ class IS12Utils(NMOSUtils):
             ],
         }
 
-    def create_generic_get_command_JSON(self, handle, oid, property_id):
+    def create_generic_get_command_JSON(self, version, handle, oid, property_id):
         """Create command JSON for generic get of a property"""
 
-        return self.create_command_JSON(handle,
+        return self.create_command_JSON(version,
+                                        handle,
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
                                         {'id': property_id})
 
-    def create_get_member_descriptors_JSON(self, handle, oid):
+    def create_get_member_descriptors_JSON(self, version, handle, oid):
         """Create message that will request the member descriptors of the object with the given oid"""
 
-        return self.create_command_JSON(handle,
+        return self.create_command_JSON(version,
+                                        handle,
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
                                         {'recurse': False})
@@ -201,3 +201,10 @@ class IS12Utils(NMOSUtils):
             json_schema['type'] = 'integer'
 
         return json_schema
+
+    def format_version(self, version):
+        """ Formats the spec version to create IS-12 protocol version"""
+        # Currently IS-12 version format is inconsistant with other IS specs
+        # this helper converts from spec version to protocol version
+        # e.g. v1.0 ==> 1.0.0
+        return version.strip('v') + ".0"

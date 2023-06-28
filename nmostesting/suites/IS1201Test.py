@@ -21,6 +21,7 @@ from jsonschema import ValidationError, SchemaError
 from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest
 from ..IS12Utils import IS12Utils, NcMethodStatus, MessageTypes
+from ..NMOSUtils import NMOSUtils
 from ..TestHelper import WebsocketWorker, load_resolved_schema
 from ..TestResult import Test
 
@@ -64,7 +65,7 @@ class IS1201Test(GenericTest):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
         # Load IS-12 schemas
         self.schemas = {}
-        schema_names = ["command-response-message"]
+        schema_names = ['error-message', 'command-response-message']
         for schema_name in schema_names:
             self.schemas[schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
                                                              schema_name + ".json")
@@ -163,26 +164,26 @@ class IS1201Test(GenericTest):
 
             if parsed_message["messageType"] == MessageTypes.CommandResponse:
                 self.validate_schema(parsed_message, self.schemas["command-response-message"])
-
-                if parsed_message["protocolVersion"] != self.is12_utils.DEFAULT_PROTOCOL_VERSION:
+                if NMOSUtils.compare_api_version(parsed_message["protocolVersion"],
+                                                 self.apis[CONTROL_API_KEY]["version"]):
                     return False, "Incorrect protocol version. Expected " \
-                                  + self.is12_utils.DEFAULT_PROTOCOL_VERSION \
+                                  + self.apis[CONTROL_API_KEY]["version"] \
                                   + ", received " + parsed_message["protocolVersion"], \
                                   "https://specs.amwa.tv/is-12/branches/{}" \
                                   "/docs/Protocol_messaging.html" \
                                   .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
                 responses = parsed_message["responses"]
-
                 for response in responses:
-                    # here it is!
                     if response["handle"] == command_handle:
                         if response["result"]["status"] != NcMethodStatus.OK:
-                            return False, "Message status not OK: " \
-                                          + NcMethodStatus(response["result"]["status"]).name, \
-                                          None
+                            return False, response["result"], None
                         results.append(response)
-
+            if parsed_message["messageType"] == MessageTypes.Error:
+                self.validate_schema(parsed_message, self.schemas["error-message"])
+                return False, parsed_message, "https://specs.amwa.tv/is-12/branches/{}" \
+                                              "/docs/Protocol_messaging.html#error-messages" \
+                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])
         if len(results) == 0:
             return False, "No Command Message Response received.", \
                           "https://specs.amwa.tv/is-12/branches/{}" \
@@ -197,8 +198,9 @@ class IS1201Test(GenericTest):
     def get_class_manager(self):
         """Get ClassManager from Root Block. Returns [ClassManager, error message, spec link]"""
         command_handle = 1000
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         get_member_descriptors_command = \
-            self.is12_utils.create_get_member_descriptors_JSON(command_handle, self.is12_utils.ROOT_BLOCK_OID)
+            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, self.is12_utils.ROOT_BLOCK_OID)
 
         response, errorMsg, link = self.send_command(command_handle, get_member_descriptors_command)
 
@@ -283,6 +285,8 @@ class IS1201Test(GenericTest):
 
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
+        # Referencing the Google sheet
+        # MS-05-02 (75)  Model definitions
         results = list()
 
         # Get Class Manager
@@ -307,11 +311,13 @@ class IS1201Test(GenericTest):
         """Validate control classes against MS-05-02 model descriptors. Returns [test result array]"""
         results = list()
         command_handle = 1002
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         # Get Datatypes
         property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES']
         get_datatypes_command = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
                                                             class_manager['oid'],
                                                             property_id)
         test = Test("Send command", "auto_SendCommand")
@@ -354,11 +360,13 @@ class IS1201Test(GenericTest):
         """Validate datatypes against MS-05-02 model descriptors. Returns [test result array]"""
         results = list()
         command_handle = 1001
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         # Get Datatypes
         property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES']
         get_datatypes_command = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
                                                             class_manager['oid'],
                                                             property_id)
         test = Test("Send command", "auto_SendCommand")
@@ -401,7 +409,7 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # IS-12 (1) Control endpoint advertised in Node endpoint's Device controls array
 
-        control_type = "urn:x-nmos:control:ncp/" + self.apis[CONTROL_API_KEY]["version"].rstrip("-dev")
+        control_type = "urn:x-nmos:control:ncp/" + self.apis[CONTROL_API_KEY]["version"]
         return self.is12_utils.do_test_device_control(
             test,
             self.node_url,
@@ -433,8 +441,10 @@ class IS1201Test(GenericTest):
             return test.FAIL(errorMsg)
 
         command_handle = 1001
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         get_role_command = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
 
@@ -462,5 +472,65 @@ class IS1201Test(GenericTest):
         class_manager, errorMsg, link = self.get_class_manager()
         if not class_manager:
             return test.FAIL(errorMsg, link)
+
+        return test.PASS()
+
+    def test_05(self, test):
+        """ IS-12 Protocol Error: Node handles command has incorrect IS-12 protocol version """
+        success, errorMsg = self.create_ncp_socket()
+        if not success:
+            return test.FAIL(errorMsg)
+
+        command_handle = 1001
+        # Use incorrect protocol version
+        version = 'DOES.NOT.EXIST'
+        get_role_command = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        
+        response, errorMsg, link = self.send_command(command_handle, get_role_command)
+
+        # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
+        if not response.get('protocolVersion'):
+            return test.FAIL("IS-12 protocol error expected", link)
+        
+        if response:
+            return test.FAIL("Incorrect Protocol Version error expected", link)
+
+        if errorMsg['status'] != NcMethodStatus.ProtocolVersionError:
+            return test.FAIL("Unexpected status. Expected " + str(NcMethodStatus.ProtocolVersionError)
+                             + ", actual: " + str(errorMsg['status']), link)
+
+        return test.PASS()
+
+    def test_06(self, test):
+        """ MS-05-02 Error: Node handles command with illegal OID"""
+        success, errorMsg = self.create_ncp_socket()
+        if not success:
+            return test.FAIL(errorMsg)
+
+        command_handle = 1001
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        illegal_oid = 1000
+        get_role_command = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            illegal_oid,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        
+        response, errorMsg, link = self.send_command(command_handle, get_role_command)
+        
+        # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
+        if response.get('protocolVersion'):
+            return test.FAIL("MS-05-02 error expected", link)
+
+        if response:
+            return test.FAIL("Bad Oid error expected", link)
+
+        if errorMsg['status'] != NcMethodStatus.BadOid:
+            return test.FAIL("Unexpected status. Expected " + str(NcMethodStatus.BadOid)
+                             + ", actual: " + str(errorMsg['status']), link)
 
         return test.PASS()
