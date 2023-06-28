@@ -15,7 +15,7 @@
 import time
 import socket
 
-from zeroconf_monkey import ServiceBrowser, Zeroconf
+from zeroconf import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils

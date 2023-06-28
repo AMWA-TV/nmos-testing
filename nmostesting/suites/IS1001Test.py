@@ -21,7 +21,7 @@ from OpenSSL import crypto
 
 from ..GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from .. import Config as CONFIG
-from zeroconf_monkey import ServiceBrowser, Zeroconf
+from zeroconf import ServiceBrowser, Zeroconf
 from ..MdnsListener import MdnsListener
 from ..TestHelper import check_content_type
 
