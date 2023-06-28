@@ -114,6 +114,15 @@ class IS12Utils(NMOSUtils):
                                         self.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
                                         {'id': property_id})
 
+    def create_generic_set_command_JSON(self, version, handle, oid, property_id, value):
+        """Create command JSON for generic get of a property"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
+                                        {'id': property_id, 'value': value})
+
     def create_get_member_descriptors_JSON(self, version, handle, oid):
         """Create message that will request the member descriptors of the object with the given oid"""
 
