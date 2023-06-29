@@ -93,8 +93,8 @@ class IS1201Test(GenericTest):
                 with open(os.path.join(base_datatype_path, filename), 'r') as json_file:
                     self.datatype_descriptors[name] = json.load(json_file)
 
-        # Generate MS-05 datatype schemas from MS-05 datatype descriptors
-        datatype_schema_names = []
+        # Generate MS-05 schemas from MS-05 descriptors
+        ms05_schema_names = []
         schema_path = os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/')
         base_schema_path = os.path.abspath(schema_path)
         if not os.path.exists(base_schema_path):
@@ -104,13 +104,13 @@ class IS1201Test(GenericTest):
             json_schema = self.is12_utils.descriptor_to_schema(descriptor)
             with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
                 json.dump(json_schema, output_file, indent=4)
-                datatype_schema_names.append(name)
+                ms05_schema_names.append(name)
 
         # Load resolved MS-05 datatype schemas
-        self.datatype_schemas = {}
-        for name in datatype_schema_names:
-            self.datatype_schemas[name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
-                                                               name + '.json')
+        self.model_schemas = {}
+        for name in ms05_schema_names:
+            self.model_schemas[name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
+                                                            name + '.json')
 
     def create_ncp_socket(self):
         """Create a WebSocket client connection to Node under test. Returns [success, error message]"""
@@ -211,7 +211,7 @@ class IS1201Test(GenericTest):
         class_manager = None
 
         for value in response["result"]["value"]:
-            self.validate_schema(value, self.datatype_schemas["NcBlockMemberDescriptor"])
+            self.validate_schema(value, self.model_schemas["NcBlockMemberDescriptor"])
 
             if value["classId"] == [1, 3, 2]:
                 class_manager_found = True
@@ -283,130 +283,90 @@ class IS1201Test(GenericTest):
             else:
                 return False, 'Property ' + key + ': ' + str(descriptor[key]) + ' not equal to ' + str(reference[key])
 
+    def _validate_schema(self, payload, schema):
+        """ Delegates to validate_schema but handles any exceptions: Returns [success, error message] """
+        try:
+            # Validate the JSON schema is correct
+            self.validate_schema(payload, schema)
+        except ValidationError as e:
+            return False, e.message
+        except SchemaError as e:
+            return False, e.message
+
+        return True, None
+
+    def validate_model_definitions(self, class_manager_oid, property_id, schema_name, reference_descriptors):
+        """Validate class manager model definitions against MS-05-02 model descriptors. Returns [test result array]"""
+        results = list()
+        command_handle = 1001
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        get_descriptors_command = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            class_manager_oid,
+                                                            property_id)
+        test = Test("Send command", "auto_SendCommand")
+        response, errorMsg, link = self.send_command(command_handle, get_descriptors_command)
+
+        if not response:
+            results.append(test.FAIL(errorMsg, link))
+            return results
+
+        # Create descriptor dictionary from response array
+        descriptors = {r['name']: r for r in response["result"]["value"]}
+        reference_descriptor_keys = sorted(reference_descriptors.keys())
+
+        for key in reference_descriptor_keys:
+            test = Test("Validate " + str(key) + " definition", "auto_" + str(key))
+
+            if descriptors.get(key):
+                descriptor = descriptors[key]
+
+                # Validate the JSON schema is correct
+                success, errorMsg = self._validate_schema(descriptor, self.model_schemas[schema_name])
+                if not success:
+                    results.append(test.FAIL(errorMsg))
+                    continue
+
+                # Validate the descriptor is correct
+                success, errorMsg = self.validate_descriptor(reference_descriptors[descriptor['name']], descriptor)
+                if not success:
+                    results.append(test.FAIL(errorMsg))
+                    continue
+
+                results.append(test.PASS())
+            else:
+                results.append(test.WARNING("Not Implemented"))
+
+        return results
+
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
         # Referencing the Google sheet
         # MS-05-02 (75)  Model definitions
         results = list()
-
-        # Get Class Manager
         test = Test("Get ClassManager", "auto_ClassManager")
 
-        try:
-            success, errorMsg = self.create_ncp_socket()
-            if not success:
-                results.append(test.FAIL(errorMsg))
-                return results
+        success, errorMsg = self.create_ncp_socket()
+        if not success:
+            results.append(test.FAIL(errorMsg))
+            return results
 
-            class_manager, errorMsg, link = self.get_class_manager()
-            if not class_manager:
-                results.append(test.FAIL(errorMsg, link))
-                return results
-
-            results += self.auto_classes_validation(class_manager)
-            results += self.auto_datatype_validation(class_manager)
-        except ValidationError as e:
-            results.append(test.FAIL(e.message))
-        except SchemaError as e:
-            results.append(test.FAIL(e.message))
-
-        return results
-
-    def auto_classes_validation(self, class_manager):
-        """Validate control classes against MS-05-02 model descriptors. Returns [test result array]"""
-        results = list()
-        command_handle = 1002
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-
-        # Get Datatypes
-        property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES']
-        get_datatypes_command = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            class_manager['oid'],
-                                                            property_id)
-        test = Test("Send command", "auto_SendCommand")
-        response, errorMsg, link = self.send_command(command_handle, get_datatypes_command)
-
-        if not response:
+        class_manager, errorMsg, link = self.get_class_manager()
+        if not class_manager:
             results.append(test.FAIL(errorMsg, link))
             return results
 
-        # Create classes dictionary from response array
-        classes = {r['name']: r for r in response["result"]["value"]}
-        classes_keys = sorted(self.classes_descriptors.keys())
+        results += self.validate_model_definitions(class_manager['oid'],
+                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES'],
+                                                   'NcClassDescriptor',
+                                                   self.classes_descriptors)
 
-        for key in classes_keys:
-            if classes.get(key):
-                control_class = classes[key]
-                test = Test("Validate " + control_class['name'] + " definition", "auto_" + control_class['name'])
-
-                try:
-                    # Validate the JSON schema is correct
-                    self.validate_schema(control_class, self.datatype_schemas['NcClassDescriptor'])
-                except ValidationError as e:
-                    results.append(test.FAIL(e.message))
-                except SchemaError as e:
-                    results.append(test.FAIL(e.message))
-
-                # Validate the descriptor is correct
-                success, message = self.validate_descriptor(self.classes_descriptors[control_class['name']],
-                                                            control_class)
-                if success:
-                    results.append(test.PASS())
-                else:
-                    results.append(test.FAIL(message))
-            else:
-                results.append(test.WARNING("Not Implemented"))
-
-        return results
-
-    def auto_datatype_validation(self, class_manager):
-        """Validate datatypes against MS-05-02 model descriptors. Returns [test result array]"""
-        results = list()
-        command_handle = 1001
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-
-        # Get Datatypes
-        property_id = self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES']
-        get_datatypes_command = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            class_manager['oid'],
-                                                            property_id)
-        test = Test("Send command", "auto_SendCommand")
-        response, errorMsg, link = self.send_command(command_handle, get_datatypes_command)
-
-        if not response:
-            results.append(test.FAIL(errorMsg, link))
-            return results
-
-        # Create datatype dictionary from response array
-        datatypes = {r['name']: r for r in response["result"]["value"]}
-        datatype_keys = sorted(self.datatype_descriptors.keys())
-
-        for key in datatype_keys:
-            if datatypes.get(key):
-                datatype = datatypes[key]
-                test = Test("Validate " + datatype['name'] + " definition", "auto_" + datatype['name'])
-
-                try:
-                    # Validate the JSON schema is correct
-                    self.validate_schema(datatype, self.datatype_schemas['NcDatatypeDescriptor'])
-                except ValidationError as e:
-                    results.append(test.FAIL(e.message))
-                except SchemaError as e:
-                    results.append(test.FAIL(e.message))
-
-                # Validate the descriptor is correct
-                success, message = self.validate_descriptor(self.datatype_descriptors[datatype['name']], datatype)
-                if success:
-                    results.append(test.PASS())
-                else:
-                    results.append(test.FAIL(message))
-            else:
-                results.append(test.WARNING("Not Implemented"))
-
+        results += self.validate_model_definitions(class_manager['oid'],
+                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES'],
+                                                   'NcDatatypeDescriptor',
+                                                   self.datatype_descriptors)
         return results
 
     def test_01(self, test):
@@ -486,7 +446,7 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def do_error_test(self, test, command_handle, command_json, expected_status, is12_error=True):
-        """ execute command with expected error status """
+        """Execute command with expected error status"""
 
         try:
             success, errorMsg = self.create_ncp_socket()
@@ -525,7 +485,7 @@ class IS1201Test(GenericTest):
             return test.FAIL("JSON schema error: " + e.message)
 
     def test_05(self, test):
-        """ IS-12 Protocol Error: Node handles incorrect IS-12 protocol version """
+        """IS-12 Protocol Error: Node handles incorrect IS-12 protocol version"""
 
         command_handle = 1001  # should this be a random number??
         # Use incorrect protocol version
@@ -542,7 +502,7 @@ class IS1201Test(GenericTest):
                                   NcMethodStatus.ProtocolVersionError)
 
     def test_06(self, test):
-        """ IS-12 Protocol Error: Node handles invalid command handle """
+        """IS-12 Protocol Error: Node handles invalid command handle"""
 
         # Use invalid handle
         invalid_command_handle = "NOT A HANDLE"
@@ -558,7 +518,7 @@ class IS1201Test(GenericTest):
                                   command_json, NcMethodStatus.BadCommandFormat)
 
     def test_07(self, test):
-        """ IS-12 Protocol Error: Node handles invalid command type """
+        """IS-12 Protocol Error: Node handles invalid command type"""
         command_handle = 1007
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         command_json = \
@@ -575,7 +535,7 @@ class IS1201Test(GenericTest):
                                   NcMethodStatus.BadCommandFormat)
 
     def test_08(self, test):
-        """ IS-12 Protocol Error: Node handles invalid JSON """
+        """IS-12 Protocol Error: Node handles invalid JSON"""
         command_handle = 1007
         # Use invalid JSON
         command_json = {'not_a': 'valid_command'}
@@ -586,10 +546,11 @@ class IS1201Test(GenericTest):
                                   NcMethodStatus.BadCommandFormat)
 
     def test_09(self, test):
-        """ MS-05-02 Error: Node handles invalid oid"""
+        """MS-05-02 Error: Node handles invalid oid"""
 
         command_handle = 1001
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        # Use invalid oid
         invalid_oid = 999999999
         command_json = \
             self.is12_utils.create_generic_get_command_JSON(version,
@@ -604,9 +565,10 @@ class IS1201Test(GenericTest):
                                   is12_error=False)
 
     def test_10(self, test):
-        """ MS-05-02 Error: Node handles invalid property identifier"""
+        """MS-05-02 Error: Node handles invalid property identifier"""
         command_handle = 1001
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        # Use invalid property id
         invalid_property_identifier = {'level': 1, 'index': 999}
         command_json = \
             self.is12_utils.create_generic_get_command_JSON(version,
@@ -621,7 +583,7 @@ class IS1201Test(GenericTest):
                                   is12_error=False)
 
     def test_11(self, test):
-        """ MS-05-02 Error: Node handles invalid method identifier"""
+        """MS-05-02 Error: Node handles invalid method identifier"""
         command_handle = 1001
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         command_json = \
@@ -629,6 +591,7 @@ class IS1201Test(GenericTest):
                                                             command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        # Use invalid method id
         invalid_method_id = {'level': 1, 'index': 999}
         command_json['commands'][0]['methodId'] = invalid_method_id
 
@@ -639,9 +602,10 @@ class IS1201Test(GenericTest):
                                   is12_error=False)
 
     def test_12(self, test):
-        """ MS-05-02 Error: Node handles read only error"""
+        """MS-05-02 Error: Node handles read only error"""
         command_handle = 1001
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        # Try to set a read only property
         command_json = \
             self.is12_utils.create_generic_set_command_JSON(version,
                                                             command_handle,
