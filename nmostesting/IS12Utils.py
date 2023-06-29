@@ -132,7 +132,7 @@ class IS12Utils(NMOSUtils):
                                         self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
                                         {'recurse': False})
 
-    def ms05_primitive_to_JSON(self, type):
+    def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
         match type:
             case "NcBoolean":
@@ -155,7 +155,7 @@ class IS12Utils(NMOSUtils):
 
         # Inheritance of datatype
         if descriptor.get('parentType'):
-            json_primitive_type = self.ms05_primitive_to_JSON(descriptor['parentType'])
+            json_primitive_type = self.model_primitive_to_JSON(descriptor['parentType'])
             if json_primitive_type:
                 if descriptor['isSequence']:
                     json_schema['type'] = 'array'
@@ -176,11 +176,11 @@ class IS12Utils(NMOSUtils):
                 required.append(field['name'])
 
                 property_type = {}
-                if self.ms05_primitive_to_JSON(field['typeName']):
+                if self.model_primitive_to_JSON(field['typeName']):
                     if field['isNullable']:
-                        property_type = {'type': [self.ms05_primitive_to_JSON(field['typeName']), 'null']}
+                        property_type = {'type': [self.model_primitive_to_JSON(field['typeName']), 'null']}
                     else:
-                        property_type = {'type': self.ms05_primitive_to_JSON(field['typeName'])}
+                        property_type = {'type': self.model_primitive_to_JSON(field['typeName'])}
                 else:
                     if field.get('typeName'):
                         if field['isNullable']:

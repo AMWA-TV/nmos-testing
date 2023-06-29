@@ -93,8 +93,8 @@ class IS1201Test(GenericTest):
                 with open(os.path.join(base_datatype_path, filename), 'r') as json_file:
                     self.datatype_descriptors[name] = json.load(json_file)
 
-        # Generate MS-05 schemas from MS-05 descriptors
-        ms05_schema_names = []
+        # Generate MS-05 datatype schemas from MS-05 datatype descriptors
+        datatype_schema_names = []
         schema_path = os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/')
         base_schema_path = os.path.abspath(schema_path)
         if not os.path.exists(base_schema_path):
@@ -104,13 +104,13 @@ class IS1201Test(GenericTest):
             json_schema = self.is12_utils.descriptor_to_schema(descriptor)
             with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
                 json.dump(json_schema, output_file, indent=4)
-                ms05_schema_names.append(name)
+                datatype_schema_names.append(name)
 
         # Load resolved MS-05 datatype schemas
-        self.model_schemas = {}
-        for name in ms05_schema_names:
-            self.model_schemas[name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
-                                                            name + '.json')
+        self.datatype_schemas = {}
+        for name in datatype_schema_names:
+            self.datatype_schemas[name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
+                                                               name + '.json')
 
     def create_ncp_socket(self):
         """Create a WebSocket client connection to Node under test. Returns [success, error message]"""
@@ -211,7 +211,7 @@ class IS1201Test(GenericTest):
         class_manager = None
 
         for value in response["result"]["value"]:
-            self.validate_schema(value, self.model_schemas["NcBlockMemberDescriptor"])
+            self.validate_schema(value, self.datatype_schemas["NcBlockMemberDescriptor"])
 
             if value["classId"] == [1, 3, 2]:
                 class_manager_found = True
@@ -324,7 +324,7 @@ class IS1201Test(GenericTest):
                 descriptor = descriptors[key]
 
                 # Validate the JSON schema is correct
-                success, errorMsg = self._validate_schema(descriptor, self.model_schemas[schema_name])
+                success, errorMsg = self._validate_schema(descriptor, self.datatype_schemas[schema_name])
                 if not success:
                     results.append(test.FAIL(errorMsg))
                     continue
