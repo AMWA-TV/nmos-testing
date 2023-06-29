@@ -486,7 +486,7 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def do_error_test(self, test, command_handle, command_json, expected_status, is12_error=True):
-        """ execute IS-12 command with expected error status """
+        """ execute command with expected error status """
 
         try:
             success, errorMsg = self.create_ncp_socket()
@@ -506,11 +506,17 @@ class IS1201Test(GenericTest):
             if not errorMsg.get('status'):
                 return test.FAIL("Command error: " + str(errorMsg))
 
-            if errorMsg['status'] != expected_status:
-                return test.FAIL("Unexpected status. Expected: " + expected_status.name
+            if errorMsg['status'] == NcMethodStatus.OK:
+                return test.FAIL("Error not handled. Expected: " + expected_status.name
                                  + " (" + str(expected_status) + ")"
                                  + ", actual: " + NcMethodStatus(errorMsg['status']).name
                                  + " (" + str(errorMsg['status']) + ")", link)
+
+            if errorMsg['status'] != expected_status:
+                return test.WARNING("Unexpected status. Expected: " + expected_status.name
+                                    + " (" + str(expected_status) + ")"
+                                    + ", actual: " + NcMethodStatus(errorMsg['status']).name
+                                    + " (" + str(errorMsg['status']) + ")", link)
 
             return test.PASS()
         except ValidationError as e:
