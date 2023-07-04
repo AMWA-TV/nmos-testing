@@ -74,9 +74,7 @@ class IS1101Test(GenericTest):
         self.connected_outputs = []
         self.edid_connected_outputs = []
         self.not_edid_connected_outputs = []
-        self.outputs = []
         self.active_connected_outputs = []
-        self.receivers = ""
         self.reference_sender_id = ""
         self.receivers_outputs = ""
         self.no_output_receivers = []
@@ -94,6 +92,15 @@ class IS1101Test(GenericTest):
         self.empty_constraints = {}
         self.sample_rate_constraints = {}
         self.constraints = {}
+        self.some_input = {}
+        self.input_senders = []
+        self.connected_inputs = []
+        self.disconnected_input = []
+        self.not_active_connected_inputs = []
+        self.not_edid_connected_inputs = []
+        self.edid_connected_inputs = []
+        self.support_base_edid = {}
+        self.default_edid = {}
         self.is11_utils = IS11Utils(self.compat_url)
 
     def build_constraints_active_url(self, sender_id):
@@ -188,38 +195,29 @@ class IS1101Test(GenericTest):
         """
         Reset the active constraints of all the senders such that the base EDID is the effective EDID
         """
-        valid, response = TestHelper.do_request("GET", self.compat_url + "senders/")
-        if not valid:
-            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-        if response.status_code == 200:
-            self.senders = response.json()
+
+        if len(self.senders) > 0:
             for sender_id in self.senders:
                 valid, response = TestHelper.do_request(
                     "DELETE",
-                    self.compat_url + "senders/" + sender_id + "constraints/active/",
+                    self.build_constraints_active_url(sender_id),
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The sender {} constraints cannot be deleted".format(sender_id))
-            if len(self.senders) == 0:
-                return test.UNCLEAR("Could not find any senders to test")
             return test.PASS()
-        return test.FAIL("The sender's streamcompatibility request has failed: {}".format(response.json()))
+        return test.UNCLEAR("There are no IS-11 senders")
 
     def test_01_01(self, test):
         """
         Verify that the device supports the concept of Input.
         """
-        valid, response = TestHelper.do_request("GET", self.compat_url + "inputs/")
-        if not valid:
-            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-        if response.status_code == 200:
-            self.inputs = response.json()
-            if len(self.inputs) == 0:
-                return test.UNCLEAR("No inputs")
-            return test.PASS()
-        return test.FAIL("The input's streamcompatibility request has failed: {}".format(response.json()))
+
+        if len(self.inputs) == 0:
+            return test.UNCLEAR("No inputs")
+        return test.PASS()
+
 
     def test_01_02(self, test):
         """
@@ -228,15 +226,20 @@ class IS1101Test(GenericTest):
         if len(self.inputs) != 0:
             for input in self.inputs:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input + "properties/"
+                    "GET", self.compat_url + "inputs/" + input + "/properties/"
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input, response.json()))
-                if response.json()["connected"]:
-                    self.connected_inputs.append(response.json())
+                                     .format(input, response))
+                try:
+                    if response.json()["connected"]:
+                        self.connected_inputs.append(response.json())
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
             if len(self.connected_inputs) == 0:
                 return test.UNCLEAR("inputs are not connected")
             return test.PASS()
@@ -254,17 +257,22 @@ class IS1101Test(GenericTest):
                     if state == "awaiting_signal":
                         for i in range(0, 5):
                             valid, response = TestHelper.do_request(
-                                "GET", self.compat_url + "inputs/" + id + "properties/"
+                                "GET", self.compat_url + "inputs/" + id + "/properties/"
                             )
                             if not valid:
                                 return test.FAIL("Unexpected response from the streamcompatibility API: {}"
                                                  .format(response))
                             if response.status_code != 200:
                                 return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                                 .format(id, response.json()))
-                            state = response.json()["status"]["state"]
+                                                 .format(id, response))
+                            try:
+                                state = response.json()["status"]["state"]
+                            except json.JSONDecodeError:
+                                return test.FAIL("Non-JSON response returned from Node API")
+                            except KeyError as e:
+                                return test.FAIL("Unable to find expected key: {}".format(e))
                             if state == "awaiting_signal":
-                                time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                                time.sleep(CONFIG.STABLE_STATE_DELAY)
                             else:
                                 break
                         if state == "awaiting_signal":
@@ -292,9 +300,14 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(id, response.json()))
-                if response.json()["edid_support"]:
-                    self.edid_connected_inputs.append(response.json()["id"])
+                                     .format(id, response))
+                try:
+                    if response.json()["edid_support"]:
+                        self.edid_connected_inputs.append(response.json()["id"])
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
             if len(self.edid_connected_inputs) != 0:
                 self.test_01_04_pass = True
                 return test.PASS()
@@ -314,7 +327,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} edid streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
@@ -337,7 +350,7 @@ class IS1101Test(GenericTest):
                     and response.headers["Content-Type"] != "application/octet-stream"
                 ):
                     return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
                 self.default_edid[input_id] = response.content
             return test.PASS()
 
@@ -379,7 +392,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 204:
                     return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
@@ -397,7 +410,7 @@ class IS1101Test(GenericTest):
                 )
                 file.close()
                 if response.status_code != 204:
-                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response.json()))
+                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response))
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
@@ -414,7 +427,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
                 if response.content != open(VALID_EDID, "rb").read():
                     return test.FAIL("Edid files does'nt match")
             return test.PASS()
@@ -426,7 +439,7 @@ class IS1101Test(GenericTest):
         """
         if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
             for input_id in self.edid_connected_inputs:
-                time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
                 valid, response = TestHelper.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
                 )
@@ -434,7 +447,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
                 if response.content != open(VALID_EDID, "rb").read():
                     return test.FAIL("Edid files does'nt match")
             return test.PASS()
@@ -469,7 +482,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 204:
                     return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
@@ -479,7 +492,7 @@ class IS1101Test(GenericTest):
         """
         if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
             for input_id in self.edid_connected_inputs:
-                time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
                 valid, response = TestHelper.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
                 )
@@ -487,7 +500,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
                 if response.content != self.default_edid[input_id]:
                     return test.FAIL("Edid files does'nt match")
             return test.PASS()
@@ -507,7 +520,7 @@ class IS1101Test(GenericTest):
                 )
                 file.close()
                 if response.status_code != 400:
-                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response.json()))
+                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response))
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
@@ -526,8 +539,13 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
                                      .format(id, response.json()))
-                if not response.json()["edid_support"]:
-                    self.not_edid_connected_inputs.append(response.json()["id"])
+                try:
+                    if not response.json()["edid_support"]:
+                        self.not_edid_connected_inputs.append(response.json()["id"])
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
             if len(self.not_edid_connected_inputs) != 0:
                 return test.PASS()
             return test.UNCLEAR("No connected inputs not supporting EDID ")
@@ -546,7 +564,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 204:
                     return test.FAIL("The input {} edid streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
+                                     .format(input_id, response))
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
@@ -564,8 +582,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 204:
                     return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-
+                                     .format(input_id, response))
             return test.PASS()
 
         return test.UNCLEAR("No resources found to perform this test")
@@ -582,10 +599,9 @@ class IS1101Test(GenericTest):
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
+                if response.status_code != 405:
                     return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-
+                                     .format(input_id, response))
             return test.PASS()
 
         return test.UNCLEAR("No resources found to perform this test")
@@ -603,8 +619,8 @@ class IS1101Test(GenericTest):
                     headers={"Content-Type": "application/octet-stream"},
                 )
                 file.close()
-                if response.status_code != 205:
-                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response.json()))
+                if response.status_code != 405:
+                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response))
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
@@ -622,8 +638,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 204:
                     return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-
+                                     .format(input_id, response))
             return test.PASS()
 
         return test.UNCLEAR("No resources found to perform this test")
@@ -655,8 +670,13 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-                version = response.json()["version"]
+                                     .format(input_id, response))
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 self.version[input_id] = version
 
                 file = open(VALID_EDID, "rb")
@@ -668,7 +688,7 @@ class IS1101Test(GenericTest):
                 file.close()
                 if response.status_code != 204:
                     return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response.json()))
-                time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
                 valid, response = TestHelper.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                 )
@@ -676,10 +696,15 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-                version = response.json()["version"]
+                                     .format(input_id, response))
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 if version == self.version[input_id]:
-                    return test.FAIL("Version does'nt change")
+                    return test.FAIL("Version doesn't change")
                 self.version[input_id] = version
 
                 valid, response = TestHelper.do_request(
@@ -689,7 +714,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 204:
                     return test.FAIL("The input {} base edid cannot be deleted".format(input_id))
-                time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
                 valid, response = TestHelper.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                 )
@@ -698,7 +723,12 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
                                      .format(input_id, response.json()))
-                version = response.json()["version"]
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 if version == self.version[input_id]:
                     return test.FAIL("Version does'nt change")
             return test.PASS()
@@ -732,9 +762,14 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
                                      .format(input_id, response.json()))
-                input = response.json()
-                if not input["device_id"]:
-                    return test.FAIL("no device_id")
+                try:
+                    input = response.json()
+                    if not input["device_id"]:
+                        return test.FAIL("no device_id")
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 self.version[input_id] = input["version"]
 
                 valid, response = TestHelper.do_request(
@@ -745,9 +780,15 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The device {} Node API request has failed: {}"
                                      .format(input["device_id"], response.json()))
-                device = response.json()
-                if device["id"] != input["device_id"]:
-                    return test.FAIL("device_id does'nt match.")
+                try:
+                    device = response.json()
+                    if device["id"] != input["device_id"]:
+                        return test.FAIL("device_id does'nt match.")
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
                 self.version[device["id"]] = input["version"]
 
                 file = open(VALID_EDID, "rb")
@@ -757,7 +798,7 @@ class IS1101Test(GenericTest):
                     headers={"Content-Type": "application/octet-stream"},
                 )
                 file.close()
-                time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
                 valid, response = TestHelper.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                 )
@@ -766,7 +807,12 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
                                      .format(input_id, response.json()))
-                version = response.json()["version"]
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 if version == self.version[input_id]:
                     return test.FAIL("Version should not match.")
                 valid, response = TestHelper.do_request(
@@ -805,9 +851,13 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
                                      .format(input_id, response.json()))
-
-                if not response.json()["connected"]:
-                    self.disconnected_input.append(response.json())
+                try:
+                    if not response.json()["connected"]:
+                        self.disconnected_input.append(response.json())
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
             if len(self.disconnected_input) == 0:
                 return test.UNCLEAR("All inputs are  connected")
             return test.PASS()
@@ -2319,28 +2369,25 @@ class IS1101Test(GenericTest):
         """
         Verify senders supporting inputs
         """
-        valid, response = TestHelper.do_request("GET", self.compat_url + "senders/")
-        if not valid:
-            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-        if len(response.json()) == 0:
-            return test.UNCLEAR("No IS-11 senders")
-        if response.status_code == 200:
-            for input in response.json():
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "senders/" + input + "inputs/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The sender's inputs {} streamcompatibility request has failed: {}"
-                                     .format(input, response.json()))
+        for input in self.senders:
+            valid, response = TestHelper.do_request(
+                        "GET", self.compat_url + "senders/" + input + "/inputs/"
+                    )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL("The sender's inputs {} streamcompatibility request has failed: {}"
+                                        .format(input, response))
+            try:
                 if len(response.json()) != 0:
                     self.input_senders.append(input)
-                if len(self.input_senders) == 0:
-                    return test.UNCLEAR("No senders supporting inputs")
-                return test.PASS()
-        return test.FAIL("The sender's streamcompatibility request has failed: {}"
-                         .format(response.json()))
+            except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+        if len(self.input_senders) == 0:
+                return test.UNCLEAR("No senders supporting inputs")
+        return test.PASS()
 
     def test_02_03_01(self, test):
         """
@@ -2349,18 +2396,23 @@ class IS1101Test(GenericTest):
         if len(self.input_senders) != 0:
             for sender_id in self.input_senders:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "inputs/"
+                    "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The sender {} inputs streamcompatibility request has failed: {}"
-                                     .format(sender_id, response.json()))
-                inputs = response.json()
+                                     .format(sender_id, response))
+                try:
+                    inputs = response.json()
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 if len(inputs) == 0:
                     return test.UNCLEAR("No inputs")
                 for input_id in inputs:
-                    if input_id + "/" not in self.inputs:
+                    if input_id  not in self.inputs:
                         return test.FAIL("The input does not exist")
                 self.some_input[sender_id] = input_id
             return test.PASS()
@@ -2373,14 +2425,19 @@ class IS1101Test(GenericTest):
         if len(self.input_senders) != 0:
             for sender_id in self.input_senders:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "inputs/"
+                    "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The sender {} inputs streamcompatibility request has failed: {}"
-                                     .format(sender_id, response.json()))
-                inputs = response.json()
+                                     .format(sender_id, response))
+                try:
+                    inputs = response.json()
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 if len(inputs) == 0:
                     return test.UNCLEAR("No inputs")
                 for input_id in inputs:
@@ -2410,34 +2467,44 @@ class IS1101Test(GenericTest):
         if len(self.input_senders) != 0:
             for sender_id in self.input_senders:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "status/"
+                    "GET", self.compat_url + "senders/" + sender_id + "/status/"
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 200:
                     return test.FAIL("The sender {} status streamcompatibility request has failed: {}"
-                                     .format(sender_id, response.json()))
-                state = response.json()["state"]
+                                     .format(sender_id, response))
+                try:
+                    state = response.json()["state"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
 
                 if state != "unconstrained":
                     if state == "awating_essence" or state == "no_essence":
-                        time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                        time.sleep(CONFIG.STABLE_STATE_DELAY)
                         for i in range(0, 5):
                             valid, response = TestHelper.do_request(
                                 "GET",
-                                self.compat_url + "senders/" + sender_id + "status/",
+                                self.compat_url + "senders/" + sender_id + "/status/",
                             )
                             if not valid:
                                 return test.FAIL("Unexpected response from the streamcompatibility API: {}"
                                                  .format(response))
                             if response.status_code != 200:
                                 return test.FAIL("The sender {} status streamcompatibility request has failed: {}"
-                                                 .format(sender_id, response.json()))
-                            state = response.json()["state"]
+                                                 .format(sender_id, response))
+                            try:
+                                state = response.json()["state"]
+                            except json.JSONDecodeError:
+                                return test.FAIL("Non-JSON response returned from Node API")
+                            except KeyError as e:
+                                return test.FAIL("Unable to find expected key: {}".format(e))
                             if state == "unconstrained":
                                 return test.PASS()
                             else:
-                                time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                                time.sleep(CONFIG.STABLE_STATE_DELAY)
                         if state == "awating_essence" or state == "no_essence":
                             return test.FAIL("Inputs are unstable.")
                     return test.FAIL("State must be unconstrained")
@@ -2451,28 +2518,33 @@ class IS1101Test(GenericTest):
         if len(self.input_senders) != 0:
             for sender_id in self.input_senders:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "inputs/"
+                    "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}"
                                      .format(response))
                 if response.status_code != 200:
                     return test.FAIL("The sender {} inputs streamcompatibility request has failed: {}"
-                                     .format(sender_id, response.json()))
+                                     .format(sender_id, response))
                 inputs = []
-                for input_id in response.json():
-                    if (
-                        input_id in self.edid_connected_inputs
-                        and input_id in self.support_base_edid
-                    ):
-                        inputs.append(input_id)
-                    else:
-                        print(
-                            "Inputs {} are not connected or does'nt support base Edid".format(
-                                input_id
+                try:
+                    for input_id in response.json():
+                        if (
+                            input_id in self.edid_connected_inputs
+                            and input_id in self.support_base_edid
+                        ):
+                            inputs.append(input_id)
+                        else:
+                            print(
+                                "Inputs {} are not connected or does'nt support base Edid".format(
+                                    input_id
+                                )
                             )
-                        )
-                        break
+                            break
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
                 if len(inputs) == 0:
                     return test.UNCLEAR("No input supports changing the base EDID")
                 for input_id in inputs:
@@ -2483,8 +2555,13 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                     if response.status_code != 200:
                         return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                         .format(input_id, response.json()))
-                    version = response.json()["version"]
+                                         .format(input_id, response))
+                    try:
+                        version = response.json()["version"]
+                    except json.JSONDecodeError:
+                        return test.FAIL("Non-JSON response returned from Node API")
+                    except KeyError as e:
+                        return test.FAIL("Unable to find expected key: {}".format(e))
                     self.version[input_id] = version
 
                     valid, response = TestHelper.do_request(
@@ -2494,8 +2571,13 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unexpected response from the Node API: {}".format(response))
                     if response.status_code != 200:
                         return test.FAIL("The sender {} is not available in the Node API request: {}"
-                                         .format(sender_id, response.json()))
-                    version = response.json()["version"]
+                                         .format(sender_id, response))
+                    try:
+                        version = response.json()["version"]
+                    except json.JSONDecodeError:
+                        return test.FAIL("Non-JSON response returned from Node API")
+                    except KeyError as e:
+                        return test.FAIL("Unable to find expected key: {}".format(e))
                     self.version[sender_id] = version
 
                     file = open(VALID_EDID, "rb")
@@ -2505,7 +2587,7 @@ class IS1101Test(GenericTest):
                         headers={"Content-Type": "application/octet-stream"},
                     )
                     file.close()
-                    time.sleep(CONFIG.HTTP_TIMEOUT*3)
+                    time.sleep(CONFIG.STABLE_STATE_DELAY)
 
                     valid, response = TestHelper.do_request(
                         "GET", self.compat_url + "inputs/" + input_id + "/properties/"
@@ -2514,8 +2596,13 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                     if response.status_code != 200:
                         return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                         .format(input_id, response.json()))
-                    version = response.json()["version"]
+                                         .format(input_id, response))
+                    try:
+                        version = response.json()["version"]
+                    except json.JSONDecodeError:
+                        return test.FAIL("Non-JSON response returned from Node API")
+                    except KeyError as e:
+                        return test.FAIL("Unable to find expected key: {}".format(e))
                     if version == self.version[input_id]:
                         return test.FAIL("Version should change")
 
@@ -2526,8 +2613,13 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unexpected response from the Node API: {}".format(response))
                     if response.status_code != 200:
                         return test.FAIL("The sender {} is not available in the Node API request: {}"
-                                         .format(sender_id, response.json()))
-                    version = response.json()["version"]
+                                         .format(sender_id, response))
+                    try:
+                        version = response.json()["version"]
+                    except json.JSONDecodeError:
+                        return test.FAIL("Non-JSON response returned from Node API")
+                    except KeyError as e:
+                        return test.FAIL("Unable to find expected key: {}".format(e))
                     if version == self.version[input_id]:
                         return test.FAIL("Version should change")
 
