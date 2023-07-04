@@ -218,7 +218,6 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("No inputs")
         return test.PASS()
 
-
     def test_01_02(self, test):
         """
         Verify that some of the inputs of the device are connected
@@ -2377,16 +2376,16 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
             if response.status_code != 200:
                 return test.FAIL("The sender's inputs {} streamcompatibility request has failed: {}"
-                                        .format(input, response))
+                                 .format(input, response))
             try:
                 if len(response.json()) != 0:
                     self.input_senders.append(input)
             except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
+                return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
+                return test.FAIL("Unable to find expected key: {}".format(e))
         if len(self.input_senders) == 0:
-                return test.UNCLEAR("No senders supporting inputs")
+            return test.UNCLEAR("No senders supporting inputs")
         return test.PASS()
 
     def test_02_03_01(self, test):
@@ -2412,7 +2411,7 @@ class IS1101Test(GenericTest):
                 if len(inputs) == 0:
                     return test.UNCLEAR("No inputs")
                 for input_id in inputs:
-                    if input_id  not in self.inputs:
+                    if input_id not in self.inputs:
                         return test.FAIL("The input does not exist")
                 self.some_input[sender_id] = input_id
             return test.PASS()
