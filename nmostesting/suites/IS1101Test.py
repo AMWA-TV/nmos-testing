@@ -858,7 +858,7 @@ class IS1101Test(GenericTest):
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
             if len(self.disconnected_input) == 0:
-                return test.UNCLEAR("All inputs are  connected")
+                return test.UNCLEAR("All inputs are connected")
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
