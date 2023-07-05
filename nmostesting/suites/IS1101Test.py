@@ -92,21 +92,6 @@ class IS1101Test(GenericTest):
         self.constraints = {}
         self.is11_utils = IS11Utils(self.compat_url)
 
-    def build_constraints_active_url(self, sender_id):
-        return self.compat_url + "senders/" + sender_id + "/constraints/active/"
-
-    def build_sender_status_url(self, sender_id):
-        return self.compat_url + "senders/" + sender_id + "/status/"
-
-    def set_up_tests(self):
-        self.senders = self.is11_utils.get_senders()
-        self.receivers = self.is11_utils.get_receivers()
-        self.inputs = self.is11_utils.get_inputs()
-        self.outputs = self.is11_utils.get_outputs()
-
-        self.state_no_essence = "no_essence"
-        self.state_awaiting_essence = "awaiting_essence"
-
     def remove_last_slash(self, id):
         """
         Check if the id comes with a slash at the end or not. If yes, the slash will be remove.
