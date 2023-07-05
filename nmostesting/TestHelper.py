@@ -185,7 +185,6 @@ def do_request(method, url, headers=None, **kwargs):
     response = None
     try:
         s = requests.Session()
-
         if not headers:
             headers = {}
 

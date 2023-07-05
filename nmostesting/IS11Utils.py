@@ -96,3 +96,19 @@ class IS11Utils(NMOSUtils):
                 return False, "Invalid JSON received"
         else:
             return valid, response
+
+    def get_transportfile(self, url, sender_id):
+        """Get the transport file for a given Sender"""
+        toReturn = None
+        valid, r = TestHelper.do_request("GET", url + "single/senders/" + sender_id + "/transportfile/")
+        if valid and r.status_code == 200:
+            toReturn = r.text
+        return toReturn
+
+    def get_flows(self, url, sender_id):
+        """Get the flow for a given Sender"""
+        toReturn = None
+        valid, r = TestHelper.do_request("GET", url + "flows/" + sender_id)
+        if valid and r.status_code == 200:
+            toReturn = r.json()
+        return toReturn

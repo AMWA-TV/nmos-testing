@@ -70,8 +70,13 @@ class IS1101Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.conn_url = self.apis[CONN_API_KEY]["url"]
         self.connected_outputs = []
-        self.edid_connected_outputs = []
         self.not_edid_connected_outputs = []
+        self.edid_connected_outputs = []
+        self.reference_sender_id = ""
+        self.receivers_outputs = ""
+        self.no_output_receivers = []
+        self.sdp_transport_file = ""
+        self.flow = ""
         self.caps = ""
         self.flow_format = {}
         self.flow_format_audio = []
@@ -109,6 +114,21 @@ class IS1101Test(GenericTest):
         if (id[-1] == '/'):
             return id[:-1]
         return id
+
+    def build_constraints_active_url(self, sender_id):
+        return self.compat_url + "senders/" + sender_id + "/constraints/active/"
+
+    def build_sender_status_url(self, sender_id):
+        return self.compat_url + "senders/" + sender_id + "/status/"
+
+    def set_up_tests(self):
+        self.senders = self.is11_utils.get_senders()
+        self.receivers = self.is11_utils.get_receivers()
+        self.inputs = self.is11_utils.get_inputs()
+        self.outputs = self.is11_utils.get_outputs()
+
+        self.state_no_essence = "no_essence"
+        self.state_awaiting_essence = "awaiting_essence"
 
     # GENERAL TESTS
     def test_00_01(self, test):
@@ -326,26 +346,17 @@ class IS1101Test(GenericTest):
                     return test.FAIL(
                         "The sender {} must be inactive ".format(sender_id)
                     )
-                valid, response = TestHelper.do_request(
-                    "GET", self.node_url + "flows/" + sender_flow_id
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL(
-                        "The sender {} is not available in the Node API has an associated flow: {}"
-                        .format(sender_flow_id, response.json())
-                    )
-                flow_format = response.json()["format"]
+                self.flow = self.is11_utils.get_flows(self.node_url, sender_flow_id)
+                flow_format = self.flow["format"]
                 self.flow_format[sender_id] = flow_format
                 if flow_format == "urn:x-nmos:format:video":
                     self.flow_format_video.append(sender_id)
-                    self.flow_width[sender_id] = response.json()["frame_width"]
-                    self.flow_height[sender_id] = response.json()["frame_height"]
-                    self.flow_grain_rate[sender_id] = response.json()["grain_rate"]
+                    self.flow_width[sender_id] = self.flow["frame_width"]
+                    self.flow_height[sender_id] = self.flow["frame_height"]
+                    self.flow_grain_rate[sender_id] = self.flow["grain_rate"]
                 if flow_format == "urn:x-nmos:format:audio":
                     self.flow_format_audio.append(sender_id)
-                    self.flow_sample_rate[sender_id] = response.json()["sample_rate"]
+                    self.flow_sample_rate[sender_id] = self.flow["sample_rate"]
                 if (
                     flow_format != "urn:x-nmos:format:video"
                     and flow_format != "urn:x-nmos:format:audio"
@@ -747,22 +758,12 @@ class IS1101Test(GenericTest):
             sender_flow_id = response.json()["flow_id"]
             if sender_flow_id is None:
                 return test.FAIL("The sender {} must have a flow".format(sender_id))
-
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender_flow_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender_flow_id, response.json())
-                )
+            self.flow = self.is11_utils.get_flows(self.node_url, sender_flow_id)
 
             if (
-                self.flow_grain_rate[sender_id] != response.json()["grain_rate"]
-                or self.flow_width[sender_id] != response.json()["frame_width"]
-                or self.flow_height[sender_id] != response.json()["frame_height"]
+                self.flow_grain_rate[sender_id] != self.flow["grain_rate"]
+                or self.flow_width[sender_id] != self.flow["frame_width"]
+                or self.flow_height[sender_id] != self.flow["frame_height"]
             ):
                 return test.FAIL(
                     "The constraints on frame_width, frame_height\
@@ -891,18 +892,8 @@ class IS1101Test(GenericTest):
             sender_flow_id = response.json()["flow_id"]
             if sender_flow_id is None:
                 return test.FAIL("The sender {} must have a flow".format(sender_id))
-
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender_flow_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender_flow_id, response.json())
-                )
-            flow_sample_rate = response.json()["sample_rate"]
+            self.flow = self.is11_utils.get_flows(self.node_url, sender_flow_id)
+            flow_sample_rate = self.flow["sample_rate"]
             if self.flow_sample_rate[sender_id] != flow_sample_rate:
                 return test.FAIL("Different sample rate")
 
@@ -969,19 +960,8 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
             sender = response.json()
-
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the valid API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            flow = response.json()
-            color_sampling = IS04Utils.make_sampling(flow["components"])
+            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
+            color_sampling = IS04Utils.make_sampling(self.flow["components"])
             if color_sampling is None:
                 return test.FAIL("Invalid array of video components")
             constraint_set = {}
@@ -996,23 +976,23 @@ class IS1101Test(GenericTest):
                         constraint_set["urn:x-nmos:cap:meta:enabled"] = True
                     if item == "urn:x-nmos:cap:format:media_type":
                         constraint_set["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [flow["media_type"]]
+                            "enum": [self.flow["media_type"]]
                         }
                     if item == "urn:x-nmos:cap:format:grain_rate":
                         constraint_set["urn:x-nmos:cap:format:grain_rate"] = {
-                            "enum": [flow["grain_rate"]]
+                            "enum": [self.flow["grain_rate"]]
                         }
                     if item == "urn:x-nmos:cap:format:frame_width":
                         constraint_set["urn:x-nmos:cap:format:frame_width"] = {
-                            "enum": [flow["frame_width"]]
+                            "enum": [self.flow["frame_width"]]
                         }
                     if item == "urn:x-nmos:cap:format:frame_height":
                         constraint_set["urn:x-nmos:cap:format:frame_height"] = {
-                            "enum": [flow["frame_height"]]
+                            "enum": [self.flow["frame_height"]]
                         }
                     if item == "urn:x-nmos:cap:format:interlace_mode":
                         constraint_set["urn:x-nmos:cap:format:interlace_mode"] = {
-                            "enum": [flow["interlace_mode"]]
+                            "enum": [self.flow["interlace_mode"]]
                         }
                     if item == "urn:x-nmos:cap:format:color_sampling":
                         constraint_set["urn:x-nmos:cap:format:color_sampling"] = {
@@ -1020,7 +1000,7 @@ class IS1101Test(GenericTest):
                         }
                     if item == "urn:x-nmos:cap:format:component_depth":
                         constraint_set["urn:x-nmos:cap:format:component_depth"] = {
-                            "enum": [flow["components"][0]["bit_depth"]]
+                            "enum": [self.flow["components"][0]["bit_depth"]]
                         }
                 except Exception:
                     pass
@@ -1039,19 +1019,7 @@ class IS1101Test(GenericTest):
                     "The sender {} constraints change has failed: {}"
                     .format(sender_id, response.json())
                 )
-
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            new_flow = response.json()
-
+            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
             new_color_sampling = IS04Utils.make_sampling(new_flow["components"])
             if new_color_sampling is None:
                 return test.FAIL("Invalid array of video components")
@@ -1059,26 +1027,26 @@ class IS1101Test(GenericTest):
             for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
-                        if flow["media_type"] != new_flow["media_type"]:
+                        if self.flow["media_type"] != new_flow["media_type"]:
                             return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:grain_rate":
-                        if flow["grain_rate"] != new_flow["grain_rate"]:
+                        if self.flow["grain_rate"] != new_flow["grain_rate"]:
                             return test.FAIL("Different grain_rate")
                     if item == "urn:x-nmos:cap:format:frame_width":
-                        if flow["frame_width"] != new_flow["frame_width"]:
+                        if self.flow["frame_width"] != new_flow["frame_width"]:
                             return test.FAIL("Different frame_width")
                     if item == "urn:x-nmos:cap:format:frame_height":
-                        if flow["frame_height"] != new_flow["frame_height"]:
+                        if self.flow["frame_height"] != new_flow["frame_height"]:
                             return test.FAIL("Different frame_height")
                     if item == "urn:x-nmos:cap:format:interlace_mode":
-                        if flow["interlace_mode"] != new_flow["interlace_mode"]:
+                        if self.flow["interlace_mode"] != new_flow["interlace_mode"]:
                             return test.FAIL("Different interlace_mode")
                     if item == "urn:x-nmos:cap:format:color_sampling":
                         if color_sampling != new_color_sampling:
                             return test.FAIL("Different color_sampling")
                     if item == "urn:x-nmos:cap:format:component_depth":
                         if (
-                            flow["components"][0]["bit_depth"]
+                            self.flow["components"][0]["bit_depth"]
                             != new_flow["components"][0]["bit_depth"]
                         ):
                             return test.FAIL("Different component_depth")
@@ -1143,29 +1111,18 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
             sender = response.json()
-
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            flow = response.json()
+            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
             constraint_set = {}
 
             valid, response = TestHelper.do_request(
-                "GET", self.node_url + "sources/" + flow["source_id"]
+                "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             if response.status_code != 200:
                 return test.FAIL(
                     "The source {} is not available in the Node API: {}"
-                    .format(flow["source_id"], response.json())
+                    .format(self.flow["source_id"], response.json())
                 )
             source = response.json()
 
@@ -1180,11 +1137,11 @@ class IS1101Test(GenericTest):
                         constraint_set["urn:x-nmos:cap:meta:enabled"] = True
                     if item == "urn:x-nmos:cap:format:media_type":
                         constraint_set["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [flow["media_type"]]
+                            "enum": [self.flow["media_type"]]
                         }
                     if item == "urn:x-nmos:cap:format:sample_rate":
                         constraint_set["urn:x-nmos:cap:format:sample_rate"] = {
-                            "enum": [flow["sample_rate"]]
+                            "enum": [self.flow["sample_rate"]]
                         }
                     if item == "urn:x-nmos:cap:format:channel_count":
                         constraint_set["urn:x-nmos:cap:format:channel_count"] = {
@@ -1192,7 +1149,7 @@ class IS1101Test(GenericTest):
                         }
                     if item == "urn:x-nmos:cap:format:sample_depth":
                         constraint_set["urn:x-nmos:cap:format:sample_depth"] = {
-                            "enum": [flow["bit_depth"]]
+                            "enum": [self.flow["bit_depth"]]
                         }
                 except Exception:
                     pass
@@ -1209,44 +1166,33 @@ class IS1101Test(GenericTest):
                     "The sender {} constraints change has failed: {}"
                     .format(sender_id, response.json())
                 )
+            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
 
             valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            new_flow = response.json()
-
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "sources/" + flow["source_id"]
+                "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             if response.status_code != 200:
                 return test.FAIL(
                     "The source {} is not available in the Node API: {}"
-                    .format(flow["source_id"], response.json())
+                    .format(self.flow["source_id"], response.json())
                 )
             new_source = response.json()
 
             for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
-                        if flow["media_type"] != new_flow["media_type"]:
+                        if self.flow["media_type"] != new_flow["media_type"]:
                             return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:sample_rate":
-                        if flow["sample_rate"] != new_flow["sample_rate"]:
+                        if self.flow["sample_rate"] != new_flow["sample_rate"]:
                             return test.FAIL("Different sample_rate")
                     if item == "urn:x-nmos:cap:format:channel_count":
                         if len(source["channels"]) != len(new_source["channels"]):
                             return test.FAIL("Different channel_count")
                     if item == "urn:x-nmos:cap:format:sample_depth":
-                        if flow["bit_depth"] != new_flow["bit_depth"]:
+                        if self.flow["bit_depth"] != new_flow["bit_depth"]:
                             return test.FAIL("Different sample_depth")
                 except Exception:
                     pass
@@ -1311,19 +1257,8 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
             sender = response.json()
-
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            flow = response.json()
-            color_sampling = IS04Utils.make_sampling(flow["components"])
+            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
+            color_sampling = IS04Utils.make_sampling(self.flow["components"])
             if color_sampling is None:
                 return test.FAIL("Invalid array of video components")
             constraint_set0 = {}
@@ -1342,23 +1277,23 @@ class IS1101Test(GenericTest):
                         constraint_set0["urn:x-nmos:cap:meta:enabled"] = True
                     if item == "urn:x-nmos:cap:format:media_type":
                         constraint_set0["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [flow["media_type"]]
+                            "enum": [self.flow["media_type"]]
                         }
                     if item == "urn:x-nmos:cap:format:grain_rate":
                         constraint_set0["urn:x-nmos:cap:format:grain_rate"] = {
-                            "enum": [flow["grain_rate"]]
+                            "enum": [self.flow["grain_rate"]]
                         }
                     if item == "urn:x-nmos:cap:format:frame_width":
                         constraint_set0["urn:x-nmos:cap:format:frame_width"] = {
-                            "enum": [flow["frame_width"]]
+                            "enum": [self.flow["frame_width"]]
                         }
                     if item == "urn:x-nmos:cap:format:frame_height":
                         constraint_set0["urn:x-nmos:cap:format:frame_height"] = {
-                            "enum": [flow["frame_height"]]
+                            "enum": [self.flow["frame_height"]]
                         }
                     if item == "urn:x-nmos:cap:format:interlace_mode":
                         constraint_set0["urn:x-nmos:cap:format:interlace_mode"] = {
-                            "enum": [flow["interlace_mode"]]
+                            "enum": [self.flow["interlace_mode"]]
                         }
                     if item == "urn:x-nmos:cap:format:color_sampling":
                         constraint_set0["urn:x-nmos:cap:format:color_sampling"] = {
@@ -1366,7 +1301,7 @@ class IS1101Test(GenericTest):
                         }
                     if item == "urn:x-nmos:cap:format:component_depth":
                         constraint_set0["urn:x-nmos:cap:format:component_depth"] = {
-                            "enum": [flow["components"][0]["bit_depth"]]
+                            "enum": [self.flow["components"][0]["bit_depth"]]
                         }
                 except Exception:
                     pass
@@ -1383,23 +1318,23 @@ class IS1101Test(GenericTest):
                         constraint_set1["urn:x-nmos:cap:meta:enabled"] = True
                     if item == "urn:x-nmos:cap:format:media_type":
                         constraint_set1["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [flow["media_type"]]
+                            "enum": [self.flow["media_type"]]
                         }
                     if item == "urn:x-nmos:cap:format:grain_rate":
                         constraint_set1["urn:x-nmos:cap:format:grain_rate"] = {
-                            "enum": [self.get_another_grain_rate(flow["grain_rate"])]
+                            "enum": [self.get_another_grain_rate(self.flow["grain_rate"])]
                         }
                     if item == "urn:x-nmos:cap:format:frame_width":
                         constraint_set1["urn:x-nmos:cap:format:frame_width"] = {
-                            "enum": [flow["frame_width"]]
+                            "enum": [self.flow["frame_width"]]
                         }
                     if item == "urn:x-nmos:cap:format:frame_height":
                         constraint_set1["urn:x-nmos:cap:format:frame_height"] = {
-                            "enum": [flow["frame_height"]]
+                            "enum": [self.flow["frame_height"]]
                         }
                     if item == "urn:x-nmos:cap:format:interlace_mode":
                         constraint_set1["urn:x-nmos:cap:format:interlace_mode"] = {
-                            "enum": [flow["interlace_mode"]]
+                            "enum": [self.flow["interlace_mode"]]
                         }
                     if item == "urn:x-nmos:cap:format:color_sampling":
                         constraint_set1["urn:x-nmos:cap:format:color_sampling"] = {
@@ -1407,7 +1342,7 @@ class IS1101Test(GenericTest):
                         }
                     if item == "urn:x-nmos:cap:format:component_depth":
                         constraint_set1["urn:x-nmos:cap:format:component_depth"] = {
-                            "enum": [flow["components"][0]["bit_depth"]]
+                            "enum": [self.flow["components"][0]["bit_depth"]]
                         }
                 except Exception:
                     pass
@@ -1428,17 +1363,7 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
 
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            new_flow = response.json()
+            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
 
             new_color_sampling = IS04Utils.make_sampling(new_flow["components"])
             if new_color_sampling is None:
@@ -1447,26 +1372,26 @@ class IS1101Test(GenericTest):
             for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
-                        if flow["media_type"] != new_flow["media_type"]:
+                        if self.flow["media_type"] != new_flow["media_type"]:
                             return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:grain_rate":
-                        if flow["grain_rate"] != new_flow["grain_rate"]:
+                        if self.flow["grain_rate"] != new_flow["grain_rate"]:
                             return test.FAIL("Different grain_rate")
                     if item == "urn:x-nmos:cap:format:frame_width":
-                        if flow["frame_width"] != new_flow["frame_width"]:
+                        if self.flow["frame_width"] != new_flow["frame_width"]:
                             return test.FAIL("Different frame_width")
                     if item == "urn:x-nmos:cap:format:frame_height":
-                        if flow["frame_height"] != new_flow["frame_height"]:
+                        if self.flow["frame_height"] != new_flow["frame_height"]:
                             return test.FAIL("Different frame_height")
                     if item == "urn:x-nmos:cap:format:interlace_mode":
-                        if flow["interlace_mode"] != new_flow["interlace_mode"]:
+                        if self.flow["interlace_mode"] != new_flow["interlace_mode"]:
                             return test.FAIL("Different interlace_mode")
                     if item == "urn:x-nmos:cap:format:color_sampling":
                         if color_sampling != new_color_sampling:
                             return test.FAIL("Different color_sampling")
                     if item == "urn:x-nmos:cap:format:component_depth":
                         if (
-                            flow["components"][0]["bit_depth"]
+                            self.flow["components"][0]["bit_depth"]
                             != new_flow["components"][0]["bit_depth"]
                         ):
                             return test.FAIL("Different component_depth")
@@ -1531,27 +1456,16 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
             sender = response.json()
-
+            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
             valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            flow = response.json()
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "sources/" + flow["source_id"]
+                "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             if response.status_code != 200:
                 return test.FAIL(
                     "The source {} is not available in the Node API: {}"
-                    .format(flow["source_id"], response.json())
+                    .format(self.flow["source_id"], response.json())
                 )
             source = response.json()
 
@@ -1570,11 +1484,11 @@ class IS1101Test(GenericTest):
                         constraint_set0["urn:x-nmos:cap:meta:enabled"] = True
                     if item == "urn:x-nmos:cap:format:media_type":
                         constraint_set0["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [flow["media_type"]]
+                            "enum": [self.flow["media_type"]]
                         }
                     if item == "urn:x-nmos:cap:format:sample_rate":
                         constraint_set0["urn:x-nmos:cap:format:sample_rate"] = {
-                            "enum": [flow["sample_rate"]]
+                            "enum": [self.flow["sample_rate"]]
                         }
                     if item == "urn:x-nmos:cap:format:channel_count":
                         constraint_set0["urn:x-nmos:cap:format:channel_count"] = {
@@ -1582,7 +1496,7 @@ class IS1101Test(GenericTest):
                         }
                     if item == "urn:x-nmos:cap:format:sample_depth":
                         constraint_set0["urn:x-nmos:cap:format:sample_depth"] = {
-                            "enum": [flow["bit_depth"]]
+                            "enum": [self.flow["bit_depth"]]
                         }
                 except Exception:
                     pass
@@ -1599,11 +1513,11 @@ class IS1101Test(GenericTest):
                         constraint_set1["urn:x-nmos:cap:meta:enabled"] = True
                     if item == "urn:x-nmos:cap:format:media_type":
                         constraint_set1["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [flow["media_type"]]
+                            "enum": [self.flow["media_type"]]
                         }
                     if item == "urn:x-nmos:cap:format:sample_rate":
                         constraint_set1["urn:x-nmos:cap:format:sample_rate"] = {
-                            "enum": [self.get_another_sample_rate(flow["sample_rate"])]
+                            "enum": [self.get_another_sample_rate(self.flow["sample_rate"])]
                         }
                     if item == "urn:x-nmos:cap:format:channel_count":
                         constraint_set1["urn:x-nmos:cap:format:channel_count"] = {
@@ -1611,7 +1525,7 @@ class IS1101Test(GenericTest):
                         }
                     if item == "urn:x-nmos:cap:format:sample_depth":
                         constraint_set1["urn:x-nmos:cap:format:sample_depth"] = {
-                            "enum": [flow["bit_depth"]]
+                            "enum": [self.flow["bit_depth"]]
                         }
                 except Exception:
                     pass
@@ -1632,43 +1546,33 @@ class IS1101Test(GenericTest):
                     "The sender {} constraints change has failed: {}"
                     .format(sender_id, response.json())
                 )
-            valid, response = TestHelper.do_request(
-                "GET", self.node_url + "flows/" + sender["flow_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API has an associated flow: {}"
-                    .format(sender["flow_id"], response.json())
-                )
-            new_flow = response.json()
+            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
 
             valid, response = TestHelper.do_request(
-                "GET", self.node_url + "sources/" + flow["source_id"]
+                "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
                 return test.FAIL("Unexpected response from the Node API: {}".format(response))
             if response.status_code != 200:
                 return test.FAIL(
                     "The source {} is not available in the Node API: {}"
-                    .format(flow["source_id"], response.json())
+                    .format(self.flow["source_id"], response.json())
                 )
             new_source = response.json()
 
             for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
                 try:
                     if item == "urn:x-nmos:cap:format:media_type":
-                        if flow["media_type"] != new_flow["media_type"]:
+                        if self.flow["media_type"] != new_flow["media_type"]:
                             return test.FAIL("Different media_type")
                     if item == "urn:x-nmos:cap:format:sample_rate":
-                        if flow["sample_rate"] != new_flow["sample_rate"]:
+                        if self.flow["sample_rate"] != new_flow["sample_rate"]:
                             return test.FAIL("Different sample_rate")
                     if item == "urn:x-nmos:cap:format:channel_count":
                         if len(source["channels"]) != len(new_source["channels"]):
                             return test.FAIL("Different channel_count")
                     if item == "urn:x-nmos:cap:format:sample_depth":
-                        if flow["bit_depth"] != new_flow["bit_depth"]:
+                        if self.flow["bit_depth"] != new_flow["bit_depth"]:
                             return test.FAIL("Different sample_depth")
                 except Exception:
                     pass
@@ -1872,7 +1776,7 @@ class IS1101Test(GenericTest):
             if response.status_code != 200:
                 return test.FAIL("The Node API request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
-            if response.json()["id"] != receiver_id[:-1]:
+            if response.json()["id"] != receiver_id:
                 return test.UNCLEAR(
                     "The IS-11 Receiver doesn't exist on the Node API as receiver."
                 )
@@ -1925,7 +1829,7 @@ class IS1101Test(GenericTest):
             if "constraint_sets" not in self.caps:
                 return test.UNCLEAR("The receiver does not have constraint_sets in caps")
             if len(self.caps["constraint_sets"]) == 0:
-                return test.WARNING("The receiver does not support BCP-004-01.")
+                return test.WARNING("The receiver does not support BCP-004-01")
         return test.PASS()
 
     def test_04_03(self, test):
@@ -1983,14 +1887,8 @@ class IS1101Test(GenericTest):
 
                     for sender in self.senders:
                         if (sender["flow_id"]):
-                            valid, response = TestHelper.do_request('GET', url + "flows/" + sender["flow_id"])
-                            if not valid:
-                                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                            if response.status_code != 200:
-                                return test.FAIL("The sender {} is not available in the Node"
-                                                 "API has an associated flow: {}"
-                                                 .format(sender["flow_id"], response.json()))
-                            sender_format = response.json()["format"]
+                            self.flow = self.is11_utils.get_flows(url, sender["flow_id"])
+                            sender_format = self.flow["format"]
                             if ((sender_format == receiver_format) and
                                     (sender["transport"] == receiver_transport_file)):
                                 self.reference_sender_id = sender["id"]
@@ -2014,6 +1912,7 @@ class IS1101Test(GenericTest):
                                  " and IS11_REFERENCE_SENDER_CONNECTION_API_PORT in Config.py")
         if len(self.senders) == 0:
             return test.DISABLED("No IS-11 reference sender")
+        self.is_compatible_media_type = False
         for sender in self.senders:
             new_netloc = "{}:{}".format(CONFIG.IS11_REFERENCE_SENDER_NODE_API,
                                         CONFIG.IS11_REFERENCE_SENDER_NODE_API_PORT)
@@ -2027,13 +1926,8 @@ class IS1101Test(GenericTest):
             sender_flow_id = response.json()["flow_id"]
             if not sender_flow_id:
                 return test.UNCLEAR("There are no Flow id")
-            valid, flows_response = TestHelper.do_request('GET', url_node + "flows/" + sender_flow_id)
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(flows_response))
-            if response.status_code != 200:
-                return test.FAIL("The Node API request for flow {} has failed: {}"
-                                 .format(sender_flow_id, flows_response.json()))
-            sender_media_type = flows_response.json()["media_type"]
+            self.flow = self.is11_utils.get_flows(url_node, sender_flow_id)
+            sender_media_type = self.flow["media_type"]
             new_netloc = "{}:{}".format(CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API,
                                         CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_PORT)
             url = self.conn_url.replace(urlparse(self.conn_url).netloc, new_netloc)
@@ -2049,79 +1943,76 @@ class IS1101Test(GenericTest):
             if response.status_code != 200:
                 return test.FAIL("The patch request to {} has failed: {}"
                                  .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
-            if ("audio" not in sender_media_type and "video" not in sender_media_type):
-                return test.WARNING("Please use a sender with a video or"
-                                    "an audio format as a reference in the config file.")
-            valid, response = TestHelper.do_request('GET', url + "single/senders/" + sender["id"] + "/transportfile/")
-            if not valid:
-                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The connection request for sender {} transportfile has failed: {}"
-                                 .format(sender["id"], response.json()))
-            self.sdp_transport_file = response.text
-
-            for receiver_id in self.receivers_outputs:
-                valid, response = TestHelper.do_request('GET', self.node_url + "receivers/" + receiver_id)
-                if not valid:
-                    return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The Node API request for receiver {} has failed: {}"
-                                     .format(receiver_id, response.json()))
-                receiver_media_type = response.json()["caps"]["media_types"]
-                if (sender_media_type in receiver_media_type and len(self.sdp_transport_file.strip()) != 0):
-                    patchload = {
-                            "sender_id": sender["id"],
-                            "master_enable": True,
-                            "activation": {"mode": "activate_immediate"},
-                            "transport_file": {"type": "application/sdp",
-                                               "data": "{}".format(self.sdp_transport_file)}
-                            }
-                    valid_patch, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
-                                                                  + receiver_id + "staged/",
-                                                                  json=patchload, headers=headers)
-                    if not valid_patch:
-                        return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The patch request to {} has failed: {}"
-                                         .format(self.conn_url + "single/receivers/" +
-                                                 receiver_id + "staged/", response.json()))
-                    valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/" +
-                                                            receiver_id + "active/")
+            if ("audio" in sender_media_type or "video" in sender_media_type):
+                self.is_compatible_media_type = True
+                self.sdp_transport_file = self.is11_utils.get_transportfile(url, sender["id"])
+                for receiver_id in self.receivers_outputs:
+                    valid, response = TestHelper.do_request('GET', self.node_url + "receivers/" + receiver_id)
                     if not valid:
-                        return test.FAIL("Unexpected response from the Connection API: {}".format(response))
+                        return test.FAIL("Unexpected response from the Node API: {}".format(response))
                     if response.status_code != 200:
-                        return test.FAIL("The connection request for receiver {} has failed: {}"
+                        return test.FAIL("The Node API request for receiver {} has failed: {}"
                                          .format(receiver_id, response.json()))
-
-                    if (response.json()["master_enable"] is not True):
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                        valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
-                                                                + receiver_id + "active/")
+                    receiver_media_type = response.json()["caps"]["media_types"]
+                    if (sender_media_type in receiver_media_type and len(self.sdp_transport_file.strip()) != 0):
+                        patchload = {
+                                "sender_id": sender["id"],
+                                "master_enable": True,
+                                "activation": {"mode": "activate_immediate"},
+                                "transport_file": {"type": "application/sdp",
+                                                   "data": "{}".format(self.sdp_transport_file)}
+                                }
+                        valid_patch, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
+                                                                      + receiver_id + "staged/",
+                                                                      json=patchload, headers=headers)
+                        if not valid_patch:
+                            return test.FAIL("Unexpected response from the Connection API: {}".format(response))
+                        if response.status_code != 200:
+                            return test.FAIL("The patch request to {} has failed: {}"
+                                             .format(self.conn_url + "single/receivers/" +
+                                                     receiver_id + "staged/", response.json()))
+                        valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/" +
+                                                                receiver_id + "active/")
                         if not valid:
                             return test.FAIL("Unexpected response from the Connection API: {}".format(response))
                         if response.status_code != 200:
                             return test.FAIL("The connection request for receiver {} has failed: {}"
                                              .format(receiver_id, response.json()))
-                        if (response.json()["master_enable"] is not True):
-                            return test.FAIL("The master_enable still False")
-                    valid, response = TestHelper.do_request('GET', self.compat_url +
-                                                            "receivers/" + receiver_id + "status/")
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
-                                         .format(receiver_id, response.json()))
-                    if (response.json()["state"] != "compliant_stream"):
-                        return test.FAIL("The state should be compliant_stream")
 
-                    valid, response = TestHelper.do_request('GET', self.compat_url +
-                                                            "receivers/" + receiver_id + "outputs/")
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
-                                         .format(receiver_id, response.json()))
-                    self.outputs = response.json()
+                        if (response.json()["master_enable"] is not True):
+                            time.sleep(CONFIG.STABLE_STATE_DELAY)
+                            valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
+                                                                    + receiver_id + "active/")
+                            if not valid:
+                                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
+                            if response.status_code != 200:
+                                return test.FAIL("The connection request for receiver {} has failed: {}"
+                                                 .format(receiver_id, response.json()))
+                            if (response.json()["master_enable"] is not True):
+                                return test.FAIL("The master_enable still False")
+                        valid, response = TestHelper.do_request('GET', self.compat_url +
+                                                                "receivers/" + receiver_id + "status/")
+                        if not valid:
+                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                             .format(response))
+                        if response.status_code != 200:
+                            return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
+                                             .format(receiver_id, response.json()))
+                        if (response.json()["state"] != "compliant_stream"):
+                            return test.FAIL("The state should be compliant_stream")
+
+                        valid, response = TestHelper.do_request('GET', self.compat_url +
+                                                                "receivers/" + receiver_id + "outputs/")
+                        if not valid:
+                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                             .format(response))
+                        if response.status_code != 200:
+                            return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
+                                             .format(receiver_id, response.json()))
+                        self.outputs = response.json()
+            if not (self.is_compatible_media_type):
+                return test.WARNING("Please use a sender with a video or"
+                                    " an audio format as a reference in the config file.")
         return test.PASS()
 
     def test_04_03_01_01(self, test):
@@ -2198,14 +2089,8 @@ class IS1101Test(GenericTest):
                             return test.DISABLED("No IS-11 reference sender")
                         for sender in self.senders:
                             if (sender["flow_id"]):
-                                valid, response = TestHelper.do_request('GET', url + "flows/" + sender["flow_id"])
-                                if not valid:
-                                    return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                                if response.status_code != 200:
-                                    return test.FAIL("The sender {} is not available in the Node"
-                                                     " API has an associated flow: {}"
-                                                     .format(sender["flow_id"], response.json()))
-                                sender_format = response.json()["format"]
+                                self.flow = self.is11_utils.get_flows(url, sender["flow_id"])
+                                sender_format = self.flow["format"]
                                 if (sender_format == receiver_format and
                                         sender["transport"] == receiver_transport_file):
                                     self.reference_sender_id = sender["id"]
@@ -2227,6 +2112,7 @@ class IS1101Test(GenericTest):
         if not (CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API and CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_PORT):
             return test.DISABLED("Please configure IS11_REFERENCE_SENDER_CONNECTION_API"
                                  " and IS11_REFERENCE_SENDER_CONNECTION_API_PORT in Config.py")
+        self.is_compatible_media_type = False
         for sender in self.senders:
             new_netloc = "{}:{}".format(CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API,
                                         CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_PORT)
@@ -2241,100 +2127,94 @@ class IS1101Test(GenericTest):
             sender_flow_id = response.json()["flow_id"]
             if not sender_flow_id:
                 return test.UNCLEAR("There are no Flow id")
-            valid, flows_response = TestHelper.do_request('GET', url_node + "flows/" + sender_flow_id)
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(flows_response))
-            if response.status_code != 200:
-                return test.FAIL("The Node API request for flow {} has failed: {}"
-                                 .format(sender_flow_id, flows_response.json()))
-            sender_media_type = flows_response.json()["media_type"]
-            if ("audio" not in sender_media_type and "video" not in sender_media_type):
-                return test.WARNING("Please use a sender with a video or"
-                                    "an audio format as a reference in the config file.")
-            json_data = {
-                    "master_enable": True,
-                    "activation": {"mode": "activate_immediate"}
-                }
-            headers = {"Content-Type": "application/json"}
-            valid_patch, response = TestHelper.do_request('PATCH', url + "single/senders/"
-                                                          + sender["id"] + "/staged/", json=json_data, headers=headers)
-            if not valid_patch:
-                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The patch request to {} has failed: {}"
-                                 .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
-
-            valid, response = TestHelper.do_request('GET', url + "single/senders/" + sender["id"] + "/transportfile/")
-            if not valid:
-                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The connection request for sender {} transportfile has failed: {}"
-                                 .format(sender["id"], response.json()))
-            self.sdp_transport_file = response.text
-            if len(self.sdp_transport_file.strip()) == 0:
-                return test.FAIL("The IS-11 reference sender {} transport file is empty".format(sender["id"]))
-            for receiver_id in self.receivers_outputs:
-                valid, response = TestHelper.do_request('GET', self.node_url + "receivers/" + receiver_id)
-                if not valid:
-                    return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            self.flow = self.is11_utils.get_flows(url_node, sender_flow_id)
+            sender_media_type = self.flow["media_type"]
+            if ("audio" in sender_media_type or "video" in sender_media_type):
+                self.is_compatible_media_type = True
+                json_data = {
+                        "master_enable": True,
+                        "activation": {"mode": "activate_immediate"}
+                    }
+                headers = {"Content-Type": "application/json"}
+                valid_patch, response = TestHelper.do_request('PATCH', url + "single/senders/"
+                                                              + sender["id"] + "/staged/",
+                                                              json=json_data, headers=headers)
+                if not valid_patch:
+                    return test.FAIL("Unexpected response from the Connection API: {}".format(response))
                 if response.status_code != 200:
-                    return test.FAIL("The Node API request for receiver {} has failed: {}"
-                                     .format(receiver_id, response.json()))
-                receiver_media_type = response.json()["caps"]["media_types"]
-                if (sender_media_type in receiver_media_type and len(self.sdp_transport_file.strip()) != 0):
-                    patchload = {
-                            "sender_id": sender["id"],
-                            "master_enable": True,
-                            "activation": {"mode": "activate_immediate"},
-                            "transport_file": {"type": "application/sdp",
-                                               "data": "{}".format(self.sdp_transport_file.strip())}
-                            }
-                    valid_patch, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
-                                                                  + receiver_id + "staged/",
-                                                                  json=patchload, headers=headers)
-                    if not valid_patch:
-                        return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The patch request to {} has failed: {}"
-                                         .format(self.conn_url + "single/receivers/" + receiver_id + "staged/",
-                                                 response.json()))
+                    return test.FAIL("The patch request to {} has failed: {}"
+                                     .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
 
-                    valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/" +
-                                                            receiver_id + "active/")
+                self.sdp_transport_file = self.is11_utils.get_transportfile(url, sender["id"])
+                if len(self.sdp_transport_file.strip()) == 0:
+                    return test.FAIL("The IS-11 reference sender {} transport file is empty".format(sender["id"]))
+                for receiver_id in self.receivers_outputs:
+                    valid, response = TestHelper.do_request('GET', self.node_url + "receivers/" + receiver_id)
                     if not valid:
-                        return test.FAIL("Unexpected response from the Connection API: {}".format(response))
+                        return test.FAIL("Unexpected response from the Node API: {}".format(response))
                     if response.status_code != 200:
-                        return test.FAIL("The connection request for receiver {} has failed: {}"
+                        return test.FAIL("The Node API request for receiver {} has failed: {}"
                                          .format(receiver_id, response.json()))
+                    receiver_media_type = response.json()["caps"]["media_types"]
+                    if (sender_media_type in receiver_media_type and len(self.sdp_transport_file.strip()) != 0):
+                        patchload = {
+                                "sender_id": sender["id"],
+                                "master_enable": True,
+                                "activation": {"mode": "activate_immediate"},
+                                "transport_file": {"type": "application/sdp",
+                                                   "data": "{}".format(self.sdp_transport_file.strip())}
+                                }
+                        valid_patch, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
+                                                                      + receiver_id + "staged/",
+                                                                      json=patchload, headers=headers)
+                        if not valid_patch:
+                            return test.FAIL("Unexpected response from the Connection API: {}".format(response))
+                        if response.status_code != 200:
+                            return test.FAIL("The patch request to {} has failed: {}"
+                                             .format(self.conn_url + "single/receivers/"
+                                                     + receiver_id + "staged/", response.json()))
 
-                    if (response.json()["master_enable"] is not True):
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                        valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
-                                                                + receiver_id + "active/")
+                        valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/" +
+                                                                receiver_id + "active/")
                         if not valid:
                             return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The connection request for receiver {} has failed: {}"
-                                         .format(receiver_id, response.json()))
+                        if response.status_code != 200:
+                            return test.FAIL("The connection request for receiver {} has failed: {}"
+                                             .format(receiver_id, response.json()))
 
-                    valid, response = TestHelper.do_request('GET', self.compat_url + "receivers/"
-                                                            + receiver_id + "status/")
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
-                                         .format(receiver_id, response.json()))
-                    if (response.json()["state"] != "compliant_stream"):
-                        return test.FAIL("The state should be compliant_stream")
+                        if (response.json()["master_enable"] is not True):
+                            time.sleep(CONFIG.STABLE_STATE_DELAY)
+                            valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
+                                                                    + receiver_id + "active/")
+                            if not valid:
+                                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
+                        if response.status_code != 200:
+                            return test.FAIL("The connection request for receiver {} has failed: {}"
+                                             .format(receiver_id, response.json()))
 
-                    valid, response = TestHelper.do_request('GET', self.compat_url + "receivers/"
-                                                            + receiver_id + "outputs/")
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
-                                         .format(receiver_id, response.json()))
-                    self.outputs = response.json()
+                        valid, response = TestHelper.do_request('GET', self.compat_url + "receivers/"
+                                                                + receiver_id + "status/")
+                        if not valid:
+                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                             .format(response))
+                        if response.status_code != 200:
+                            return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
+                                             .format(receiver_id, response.json()))
+                        if (response.json()["state"] != "compliant_stream"):
+                            return test.FAIL("The state should be compliant_stream")
+
+                        valid, response = TestHelper.do_request('GET', self.compat_url + "receivers/"
+                                                                + receiver_id + "outputs/")
+                        if not valid:
+                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                             .format(response))
+                        if response.status_code != 200:
+                            return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
+                                             .format(receiver_id, response.json()))
+                        self.outputs = response.json()
+            if not (self.is_compatible_media_type):
+                return test.WARNING("Please use a sender with a video or "
+                                    "an audio format as a reference in the config file.")
         return test.PASS()
 
     def test_04_03_02_01(self, test):
@@ -2374,7 +2254,7 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL("The patch request to {} has failed: {}"
                                      .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
-                time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
         return test.PASS()
 
     def test_04_04(self, test):
@@ -2382,16 +2262,16 @@ class IS1101Test(GenericTest):
         Verify receivers not supporting outputs
         """
         if len(self.receivers) == 0:
-            return test.DISABLED("No IS-11 receivers")
+            return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
-            _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "outputs/")
+            _, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "/outputs/")
             if response.status_code != 200:
                 return test.FAIL("The streamcompatibility request for receiver {} outputs has failed: {}"
                                  .format(receiver_id, response.json()))
             if len(response.json()) == 0:
                 self.no_output_receivers.append(receiver_id)
             if len(self.no_output_receivers) == 0:
-                return test.FAIL("All IS-11 receivers support outputs")
+                return test.UNCLEAR("All IS-11 receivers support outputs")
         return test.PASS()
 
     def test_04_04_01(self, test):
@@ -2422,20 +2302,13 @@ class IS1101Test(GenericTest):
             if response.status_code != 200:
                 return test.FAIL("The patch request to {} has failed: {}"
                                  .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
-            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
-
-            valid, response = TestHelper.do_request('GET', url + "single/senders/" + sender["id"] + "/transportfile/")
-            if not valid:
-                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The connection request for sender {} transportfile has failed: {}"
-                                 .format(sender["id"], response.json()))
-            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
-            self.sdp_transport_file = response.text
+            time.sleep(CONFIG.STABLE_STATE_DELAY)
+            self.sdp_transport_file = self.is11_utils.get_transportfile(url, sender["id"])
+            time.sleep(CONFIG.STABLE_STATE_DELAY)
             if len(self.sdp_transport_file.strip()) == 0:
                 return test.FAIL("The IS-11 reference sender {} transport file is empty".format(sender["id"]))
             if len(self.no_output_receivers) == 0:
-                return test.FAIL("All IS-11 receivers support outputs")
+                return test.UNCLEAR("All IS-11 receivers support outputs")
             for receiver_id in self.no_output_receivers:
                 patchload = {
                         "sender_id": sender["id"],
@@ -2453,7 +2326,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The patch request{} to has failed: {}"
                                  .format(self.conn_url + "single/receivers/"
                                          + receiver_id + "staged/", response.json()))
-            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
+            time.sleep(CONFIG.STABLE_STATE_DELAY)
             valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
                                                     + receiver_id + "active/")
             if not valid:
@@ -2493,9 +2366,8 @@ class IS1101Test(GenericTest):
             if response.status_code != 200:
                 return test.FAIL("The patch to {} has failed: {}"
                                  .format(url + "single/senders/" + sender["id"] + "/staged/", response.json()))
-            time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
+            time.sleep(CONFIG.STABLE_STATE_DELAY)
         return test.PASS()
-
 
     def test_06_01(self, test):
         """A sender rejects Active Constraints with unsupported Parameter Constraint URN(s)"""
