@@ -666,8 +666,10 @@ class GenericTest(object):
         elif resource[1]['method'].upper() in ["HEAD", "OPTIONS"]:
             # For methods which don't return a payload, return immediately after the CORS header check
             return True, ""
+
         # For all other methods proceed to check the response against the schema
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
+
         if not schema:
             raise NMOSTestException(test.MANUAL("Test suite unable to locate schema"))
 

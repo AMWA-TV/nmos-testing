@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import re
 from copy import deepcopy
 from fractions import Fraction
@@ -168,9 +169,7 @@ class IS04Utils(NMOSUtils):
 
     def downgrade_resource(resource_type, resource_data, requested_version):
         """Downgrades given resource data to requested version"""
-        version_major, version_minor = [
-            int(x) for x in requested_version[1:].split(".")
-        ]
+        version_major, version_minor = [int(x) for x in requested_version[1:].split(".")]
 
         data = deepcopy(resource_data)
 
@@ -191,12 +190,19 @@ class IS04Utils(NMOSUtils):
                             if key in endpoint:
                                 del endpoint[key]
                 if version_minor <= 1:
-                    keys_to_remove = ["interfaces"]
+                    keys_to_remove = [
+                        "interfaces"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
                 if version_minor == 0:
-                    keys_to_remove = ["api", "clocks", "description", "tags"]
+                    keys_to_remove = [
+                        "api",
+                        "clocks",
+                        "description",
+                        "tags"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -212,7 +218,11 @@ class IS04Utils(NMOSUtils):
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
-                    keys_to_remove = ["controls", "description", "tags"]
+                    keys_to_remove = [
+                        "controls",
+                        "description",
+                        "tags"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -222,7 +232,11 @@ class IS04Utils(NMOSUtils):
                 if version_minor <= 2:
                     pass
                 if version_minor <= 1:
-                    keys_to_remove = ["caps", "interface_bindings", "subscription"]
+                    keys_to_remove = [
+                        "caps",
+                        "interface_bindings",
+                        "subscription"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -234,7 +248,9 @@ class IS04Utils(NMOSUtils):
                 if version_minor <= 2:
                     pass
                 if version_minor <= 1:
-                    keys_to_remove = ["interface_bindings"]
+                    keys_to_remove = [
+                        "interface_bindings"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -246,14 +262,20 @@ class IS04Utils(NMOSUtils):
 
             elif resource_type == "source":
                 if version_minor <= 2:
-                    keys_to_remove = ["event_type"]
+                    keys_to_remove = [
+                        "event_type"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
-                    keys_to_remove = ["channels", "clock_name", "grain_rate"]
+                    keys_to_remove = [
+                        "channels",
+                        "clock_name",
+                        "grain_rate"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -261,7 +283,9 @@ class IS04Utils(NMOSUtils):
 
             elif resource_type == "flow":
                 if version_minor <= 2:
-                    keys_to_remove = ["event_type"]
+                    keys_to_remove = [
+                        "event_type"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
@@ -280,7 +304,7 @@ class IS04Utils(NMOSUtils):
                         "interlace_mode",
                         "media_type",
                         "sample_rate",
-                        "transfer_characteristic",
+                        "transfer_characteristic"
                     ]
                     for key in keys_to_remove:
                         if key in data:
@@ -289,14 +313,18 @@ class IS04Utils(NMOSUtils):
 
             elif resource_type == "subscription":
                 if version_minor <= 2:
-                    keys_to_remove = ["authorization"]
+                    keys_to_remove = [
+                        "authorization"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
                 if version_minor <= 1:
                     pass
                 if version_minor == 0:
-                    keys_to_remove = ["secure"]
+                    keys_to_remove = [
+                        "secure"
+                    ]
                     for key in keys_to_remove:
                         if key in data:
                             del data[key]
