@@ -134,15 +134,21 @@ class IS12Utils(NMOSUtils):
 
     def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
-        match type:
-            case "NcBoolean":
-                return "boolean"
-            case "NcInt16" | "NcInt32" | "NcInt64" | "NcUint16" | "NcUint32" | "NcUint64" | "NcFloat32" | "NcFloat64":
-                return "number"
-            case "NcString":
-                return "string"
-            case _:
-                return False
+
+        primitive_to_JSON = {
+            "NcBoolean": "boolean",
+            "NcInt16": "number",
+            "NcInt32": "number",
+            "NcInt64": "number",
+            "NcUint16": "number",
+            "NcUint32": "number",
+            "NcUint64": "number",
+            "NcFloat32": "number",
+            "NcFloat64":  "number",
+            "NcString": "string"
+        }
+
+        return primitive_to_JSON.get(type, False)
 
     def descriptor_to_schema(self, descriptor):
         variant_type = ['number', 'string', 'boolean', 'object', 'array', 'null']
