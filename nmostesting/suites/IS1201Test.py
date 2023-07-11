@@ -243,9 +243,8 @@ class IS1201Test(GenericTest):
             # the NcObject descriptor properties
             reference.pop('constraints', None)
             descriptor.pop('constraints', None)
-            if descriptor.get('isConstant') != reference.get('isConstant'):
-                if not isinstance(descriptor.get('isConstant'), dict):
-                    descriptor.pop('isConstant', None)
+            reference.pop('isConstant', None)
+            descriptor.pop('isConstant', None)
             # JRT: End
 
             reference_keys = set(reference.keys())
@@ -268,7 +267,7 @@ class IS1201Test(GenericTest):
                 else:
                     success, message = self.validate_descriptor(reference[key], descriptor[key])
                     if not success:
-                        return False, message
+                        return False, key + "->" + message
             return True, None
 
         elif isinstance(reference, list):
@@ -281,7 +280,7 @@ class IS1201Test(GenericTest):
             if reference == descriptor:
                 return True, None
             else:
-                return False, 'Property ' + key + ': ' + str(descriptor[key]) + ' not equal to ' + str(reference[key])
+                return False, 'Expected value: ' + str(reference) + ', actual value: ' + str(descriptor)
 
     def _validate_schema(self, payload, schema):
         """ Delegates to validate_schema but handles any exceptions: Returns [success, error message] """
