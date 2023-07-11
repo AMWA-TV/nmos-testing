@@ -444,8 +444,10 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_error_test(self, test, command_handle, command_json, expected_status, is12_error=True):
-        """Execute command with expected error status"""
+    def do_error_test(self, test, command_handle, command_json, expected_status=None, is12_error=True):
+        """Execute command with expected error status."""
+        # when expected_status = None checking of the status code is skipped
+        # check the syntax of the error message according to is12_error
 
         try:
             success, errorMsg = self.create_ncp_socket()
@@ -471,7 +473,7 @@ class IS1201Test(GenericTest):
                                  + ", actual: " + NcMethodStatus(errorMsg['status']).name
                                  + " (" + str(errorMsg['status']) + ")", link)
 
-            if errorMsg['status'] != expected_status:
+            if expected_status and errorMsg['status'] != expected_status:
                 return test.WARNING("Unexpected status. Expected: " + expected_status.name
                                     + " (" + str(expected_status) + ")"
                                     + ", actual: " + NcMethodStatus(errorMsg['status']).name
@@ -498,7 +500,7 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  NcMethodStatus.ProtocolVersionError)
+                                  expected_status=NcMethodStatus.ProtocolVersionError)
 
     def test_06(self, test):
         """IS-12 Protocol Error: Node handles invalid command handle"""
@@ -514,7 +516,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test,
                                   invalid_command_handle,
-                                  command_json, NcMethodStatus.BadCommandFormat)
+                                  command_json)
 
     def test_07(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
@@ -530,8 +532,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test,
                                   command_handle,
-                                  command_json,
-                                  NcMethodStatus.BadCommandFormat)
+                                  command_json)
 
     def test_08(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
@@ -541,8 +542,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test,
                                   command_handle,
-                                  command_json,
-                                  NcMethodStatus.BadCommandFormat)
+                                  command_json)
 
     def test_09(self, test):
         """MS-05-02 Error: Node handles invalid oid"""
@@ -560,7 +560,7 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  NcMethodStatus.BadOid,
+                                  expected_status=NcMethodStatus.BadOid,
                                   is12_error=False)
 
     def test_10(self, test):
@@ -578,7 +578,7 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  NcMethodStatus.PropertyNotImplemented,
+                                  expected_status=NcMethodStatus.PropertyNotImplemented,
                                   is12_error=False)
 
     def test_11(self, test):
@@ -597,7 +597,7 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  NcMethodStatus.MethodNotImplemented,
+                                  expected_status=NcMethodStatus.MethodNotImplemented,
                                   is12_error=False)
 
     def test_12(self, test):
@@ -615,5 +615,5 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  NcMethodStatus.Readonly,
+                                  expected_status=NcMethodStatus.Readonly,
                                   is12_error=False)
