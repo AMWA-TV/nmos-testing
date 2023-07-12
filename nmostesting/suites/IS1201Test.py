@@ -48,6 +48,9 @@ class IS1201Test(GenericTest):
         self.unique_oids_error = False
         self.managers_are_singletons_error = False
         self.managers_members_root_block_error = False
+        self.organization_id_detected = False
+        self.organization_id_error = False
+        self.organization_id_error_msg = ""
         self.device_model_validated = False
         self.oid_cache = []
 
@@ -752,6 +755,10 @@ class IS1201Test(GenericTest):
             else:
                 self.oid_cache.append(child_object['oid'])
 
+            # check for non-standard classes
+            if self.is12_utils.is_non_standard_class(child_object['classId']):
+                self.organization_id_detected = True
+
             # detemine the standard base class name
             base_id = self.is12_utils.get_base_class_id(child_object['classId'])
             class_name = self.class_id_to_name.get(base_id, None)
@@ -769,6 +776,11 @@ class IS1201Test(GenericTest):
                 success, errorMsg, link = self.validate_object_properties(class_name, child_object['oid'])
                 if not success:
                     return False, errorMsg, None
+            else:
+                # Not a standard or non-standard class
+                self.organization_id_error = True
+                self.organization_id_error_msg = "Non-standard class id does not contain authority key: " \
+                                                 + str(child_object['classId']) + ". "
 
             # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object['classId']):
@@ -910,5 +922,30 @@ class IS1201Test(GenericTest):
             return test.FAIL("Unexpected version. Expected: "
                              + self.apis[MS05_API_KEY]["version"]
                              + ". Actual: " + str(response['result']['value']))
+
+        return test.PASS()
+
+    def test_19(self, test):
+        """Non-standard classes contain an authority key"""
+        # Referencing the Google sheet
+        # MS-05-02 (72) Non-standard Classes NcClassId
+        # MS-05-02 (73) Organization Identifier
+        # For organizations which own a unique CID or OUI the authority key MUST be the organization
+        # identifier as an integer which MUST be negated.
+        # For organizations which do not own a unique CID or OUI the authority key MUST be 0
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+
+        success, errorMsg, link = self.validate_device_model()
+        if not success:
+            return test.UNCLEAR(errorMsg, link)
+
+        if self.organization_id_error:
+            return test.FAIL(self.organization_id_error_msg,
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/Framework.html#ncclassid"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.organization_id_detected:
+            return test.UNCLEAR("No non-standard classes found.")
 
         return test.PASS()
