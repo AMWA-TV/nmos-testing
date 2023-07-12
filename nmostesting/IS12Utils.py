@@ -250,3 +250,7 @@ class IS12Utils(NMOSUtils):
     def is_block(self, class_id):
         """ Check class id to determine if this is a block """
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1
+
+    def is_manager(self, class_id):
+        """ Check class id to determine if this is a manager """
+        return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
