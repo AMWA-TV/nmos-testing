@@ -88,6 +88,9 @@ class IS12Utils(NMOSUtils):
             'NCCLASSMANAGER': {
                 'CONTROL_CLASSES': {'level': 3, 'index': 1},
                 'DATATYPES': {'level': 3, 'index': 2}
+            },
+            'NCDEVICEMANAGER': {
+                'NCVERSION': {'level': 3, 'index': 1}
             }
         }
 
