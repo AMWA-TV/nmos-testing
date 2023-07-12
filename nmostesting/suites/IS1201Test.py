@@ -154,6 +154,10 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html
         # IS-12 (11) Check Command message type
         # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html#command-message-type
+        # MS-05-02 (74) All methods MUST return a datatype which inherits from NcMethodResult.
+        #               When a method call encounters an error the return MUST be NcMethodResultError
+        #               or a derived datatype.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Framework.md#ncmethodresult
 
         results = []
 
@@ -629,7 +633,7 @@ class IS1201Test(GenericTest):
                                   is12_error=False)
 
     def validate_property_type(self, value, type, is_nullable):
-        if is_nullable and value == None:
+        if is_nullable and value is None:
             return True, None
 
         if self.is12_utils.primitive_to_python_type(type):
@@ -674,7 +678,7 @@ class IS1201Test(GenericTest):
                     return False, errorMsg, None
 
         return True, None, None
-    
+
     def validate_block(self, block_id):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
@@ -726,12 +730,15 @@ class IS1201Test(GenericTest):
 
     def test_13(self, test):
         """Validate device model property types"""
+        # Referencing the Google sheet
+        # MS-05-02 (34) All workers MUST inherit from NcWorker
+        # MS-05-02 (35) All managers MUST inherit from NcManager
 
         if not self.device_model_validated:
             success, errorMsg = self.create_ncp_socket()
             if not success:
                 return test.FAIL(errorMsg)
-        
+
             success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
             if not success:
                 return test.FAIL(errorMsg, link)
@@ -750,7 +757,7 @@ class IS1201Test(GenericTest):
             success, errorMsg = self.create_ncp_socket()
             if not success:
                 return test.FAIL(errorMsg)
-        
+
             success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
             if not success:
                 return test.UNCLEAR(errorMsg, link)
@@ -759,8 +766,8 @@ class IS1201Test(GenericTest):
 
         if self.unique_roles_error:
             return test.FAIL("Roles must be unique. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}" \
-                             "/docs/NcObject.html" \
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/NcObject.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
         return test.PASS()
@@ -775,7 +782,7 @@ class IS1201Test(GenericTest):
             success, errorMsg = self.create_ncp_socket()
             if not success:
                 return test.FAIL(errorMsg)
-        
+
             success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
             if not success:
                 return test.UNCLEAR(errorMsg, link)
@@ -784,8 +791,8 @@ class IS1201Test(GenericTest):
 
         if self.unique_oids_error:
             return test.FAIL("Oids must be unique. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}" \
-                             "/docs/NcObject.html" \
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/NcObject.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
         return test.PASS()
