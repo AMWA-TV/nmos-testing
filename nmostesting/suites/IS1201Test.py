@@ -247,6 +247,44 @@ class IS1201Test(GenericTest):
 
         return class_manager, None, None
 
+    def get_manager(self, type):
+        """Get Manager from Root Block. Returns [Manager, error message, spec link]"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        get_member_descriptors_command = \
+            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, self.is12_utils.ROOT_BLOCK_OID)
+
+        response, errorMsg, link = self.send_command(command_handle, get_member_descriptors_command)
+
+        if not response:
+            return False, errorMsg, link
+
+        manager_found = False
+        manager = None
+
+        class_descriptor = self.classes_descriptors[type]
+
+        for value in response["result"]["value"]:
+            self.validate_schema(value, self.datatype_schemas["NcBlockMemberDescriptor"])
+
+            if value["classId"] == class_descriptor["identity"]:
+                manager_found = True
+                manager = value
+
+                if value["role"] != class_descriptor["fixedRole"]:
+                    return False, "Incorrect Role for Class Manager: " + value["role"], \
+                                  "https://specs.amwa.tv/ms-05-02/branches/{}" \
+                                  "/docs/Managers.html" \
+                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"])
+
+        if not manager_found:
+            return False, str(type) + " Manager not found in Root Block", \
+                          "https://specs.amwa.tv/ms-05-02/branches/{}" \
+                          "/docs/Managers.html" \
+                          .format(self.apis[CONTROL_API_KEY]["spec_branch"])
+
+        return manager, None, None
+
     def validate_descriptor(self, reference, descriptor):
         """Compare descriptor to reference descriptor. Returns [success, error message]"""
         non_normative_keys = ['description']
@@ -368,7 +406,8 @@ class IS1201Test(GenericTest):
             results.append(test.FAIL(errorMsg))
             return results
 
-        class_manager, errorMsg, link = self.get_class_manager()
+        class_manager, errorMsg, link = self.get_manager("NcClassManager")
+
         if not class_manager:
             results.append(test.FAIL(errorMsg, link))
             return results
@@ -410,11 +449,11 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_03(self, test):
-        """Root Block Exists with correct OID and Role"""
+        """Root Block Exists with correct oid and Role"""
         # Referencing the Google sheet
-        # MS-05-02 (44)	Root block must exist
-        # MS-05-02 (45) Verify oID and role of root block
-        # https://github.com/AMWA-TV/ms-05-02/blob/v1.0-dev/docs/Blocks.md#blocks
+        # MS-05-02 (44)	Root Block must exist
+        # MS-05-02 (45) Verify oID and role of Root Block
+        # https://github.com/AMWA-TV/ms-05-02/blob/v1.0-dev/docs/Blocks.md#Blocks
 
         try:
             success, errorMsg = self.create_ncp_socket()
@@ -434,7 +473,7 @@ class IS1201Test(GenericTest):
                 return test.FAIL(errorMsg, link)
 
             if response["result"]["value"] != "root":
-                return test.FAIL("Unexpected role in root block: " + response["result"]["value"],
+                return test.FAIL("Unexpected role in Root Block: " + response["result"]["value"],
                                  "https://specs.amwa.tv/ms-05-02/branches/{}"
                                  "/docs/Blocks.html"
                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
@@ -454,7 +493,8 @@ class IS1201Test(GenericTest):
         if not success:
             return test.FAIL(errorMsg)
 
-        class_manager, errorMsg, link = self.get_class_manager()
+        class_manager, errorMsg, link = self.get_manager("NcClassManager")
+
         if not class_manager:
             return test.FAIL(errorMsg, link)
 
@@ -700,7 +740,7 @@ class IS1201Test(GenericTest):
             if not valid:
                 return False, errorMsg, None
 
-            # Check role is unique within containing block
+            # Check role is unique within containing Block
             if child_object['role'] in role_cache:
                 self.unique_roles_error = True
             else:
@@ -730,7 +770,7 @@ class IS1201Test(GenericTest):
                 if not success:
                     return False, errorMsg, None
 
-            # If this child object is a block, recurse
+            # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object['classId']):
                 success, errorMsg, link = self.validate_block(child_object['oid'])
 
@@ -766,9 +806,9 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_14(self, test):
-        """Device model roles are unique within a containing block"""
+        """Device model roles are unique within a containing Block"""
         # Referencing the Google sheet
-        # MS-05-02 (59) The role of an object MUST be unique within its containing block.
+        # MS-05-02 (59) The role of an object MUST be unique within its containing Block.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
         success, errorMsg, link = self.validate_device_model()
@@ -802,9 +842,9 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_16(self, test):
-        """Managers must be members of the root block"""
+        """Managers must be members of the Root Block"""
         # Referencing the Google sheet
-        # MS-05-02 (36) All managers MUST always exist as members in the root block and have a fixed role.
+        # MS-05-02 (36) All managers MUST always exist as members in the Root Block and have a fixed role.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         success, errorMsg, link = self.validate_device_model()
@@ -812,7 +852,7 @@ class IS1201Test(GenericTest):
             return test.UNCLEAR(errorMsg, link)
 
         if self.managers_members_root_block_error:
-            return test.FAIL("Managers must be members of root block. ",
+            return test.FAIL("Managers must be members of Root Block. ",
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Managers.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
@@ -834,5 +874,41 @@ class IS1201Test(GenericTest):
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Managers.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        return test.PASS()
+
+    def test_18(self, test):
+        """Device Manager exists in Root Block"""
+        # Referencing the Google sheet
+        # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
+
+        success, errorMsg = self.create_ncp_socket()
+        if not success:
+            return test.FAIL(errorMsg)
+
+        device_manager, errorMsg, link = self.get_manager("NcDeviceManager")
+
+        if not device_manager:
+            return test.FAIL(errorMsg, link)
+
+        # Check MS-05-02 Version
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        property_id = self.is12_utils.PROPERTY_IDS['NCDEVICEMANAGER']['NCVERSION']
+
+        get_descriptors_command = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            device_manager['oid'],
+                                                            property_id)
+        response, errorMsg, link = self.send_command(command_handle, get_descriptors_command)
+
+        if not response:
+            return test.FAIL(errorMsg, link)
+
+        if self.is12_utils.compare_api_version(response['result']['value'], self.apis[MS05_API_KEY]["version"]):
+            return test.FAIL("Unexpected version. Expected: "
+                             + self.apis[MS05_API_KEY]["version"]
+                             + ". Actual: " + str(response['result']['value']))
 
         return test.PASS()
