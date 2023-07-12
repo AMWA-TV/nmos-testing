@@ -46,6 +46,8 @@ class IS1201Test(GenericTest):
     def set_up_tests(self):
         self.unique_roles_error = False
         self.unique_oids_error = False
+        self.managers_are_singletons_error = False
+        self.managers_members_root_block_error = False
         self.device_model_validated = False
         self.oid_cache = []
 
@@ -691,6 +693,7 @@ class IS1201Test(GenericTest):
             return False, errorMsg, None
 
         role_cache = []
+        manager_cache = []
 
         for child_object in response["result"]["value"]:
             valid, errorMsg = self._validate_schema(child_object, self.datatype_schemas["NcBlockMemberDescriptor"])
@@ -709,10 +712,18 @@ class IS1201Test(GenericTest):
             else:
                 self.oid_cache.append(child_object['oid'])
 
-            # validate this Block
+            # detemine the standard base class name
             base_id = self.is12_utils.get_base_class_id(child_object['classId'])
-
             class_name = self.class_id_to_name.get(base_id, None)
+
+            # manager checks
+            if self.is12_utils.is_manager(child_object['classId']):
+                if child_object["owner"] != self.is12_utils.ROOT_BLOCK_OID:
+                    self.managers_members_root_block_error = True
+                if class_name in manager_cache:
+                    self.managers_are_singletons_error = True
+                else:
+                    manager_cache.append(class_name)
 
             if class_name:
                 success, errorMsg, link = self.validate_object_properties(class_name, child_object['oid'])
@@ -728,41 +739,41 @@ class IS1201Test(GenericTest):
 
         return True, None, None
 
+    def validate_device_model(self):
+        if not self.device_model_validated:
+            success, errorMsg = self.create_ncp_socket()
+            if not success:
+                return False, errorMsg, None
+
+            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
+            if not success:
+                return False, errorMsg, link
+
+            self.device_model_validated = True
+
+        return True, None, None
+
     def test_13(self, test):
         """Validate device model property types"""
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
 
-        if not self.device_model_validated:
-            success, errorMsg = self.create_ncp_socket()
-            if not success:
-                return test.FAIL(errorMsg)
-
-            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
-            if not success:
-                return test.FAIL(errorMsg, link)
-
-            self.device_model_validated = True
+        success, errorMsg, link = self.validate_device_model()
+        if not success:
+            return test.FAIL(errorMsg, link)
 
         return test.PASS()
 
     def test_14(self, test):
-        """Ensure device model roles are unique within a containing block"""
+        """Device model roles are unique within a containing block"""
         # Referencing the Google sheet
         # MS-05-02 (59) The role of an object MUST be unique within its containing block.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
-        if not self.device_model_validated:
-            success, errorMsg = self.create_ncp_socket()
-            if not success:
-                return test.FAIL(errorMsg)
-
-            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
-            if not success:
-                return test.UNCLEAR(errorMsg, link)
-
-            self.device_model_validated = True
+        success, errorMsg, link = self.validate_device_model()
+        if not success:
+            return test.UNCLEAR(errorMsg, link)
 
         if self.unique_roles_error:
             return test.FAIL("Roles must be unique. ",
@@ -773,26 +784,55 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_15(self, test):
-        """Ensure device model oids are globally unique"""
+        """Device model oids are globally unique"""
         # Referencing the Google sheet
         # MS-05-02 (60) Object ids (oid property) MUST uniquely identity objects in the device model.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
-        if not self.device_model_validated:
-            success, errorMsg = self.create_ncp_socket()
-            if not success:
-                return test.FAIL(errorMsg)
-
-            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
-            if not success:
-                return test.UNCLEAR(errorMsg, link)
-
-            self.device_model_validated = True
+        success, errorMsg, link = self.validate_device_model()
+        if not success:
+            return test.UNCLEAR(errorMsg, link)
 
         if self.unique_oids_error:
             return test.FAIL("Oids must be unique. ",
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/NcObject.html"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        return test.PASS()
+
+    def test_16(self, test):
+        """Managers must be members of the root block"""
+        # Referencing the Google sheet
+        # MS-05-02 (36) All managers MUST always exist as members in the root block and have a fixed role.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+
+        success, errorMsg, link = self.validate_device_model()
+        if not success:
+            return test.UNCLEAR(errorMsg, link)
+
+        if self.managers_members_root_block_error:
+            return test.FAIL("Managers must be members of root block. ",
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/Managers.html"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        return test.PASS()
+
+    def test_17(self, test):
+        """Managers are singletons"""
+        # Referencing the Google sheet
+        # MS-05-02 (63) Managers are singleton (MUST only be instantiated once) classes.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+
+        success, errorMsg, link = self.validate_device_model()
+        if not success:
+            return test.UNCLEAR(errorMsg, link)
+
+        if self.managers_members_root_block_error:
+            return test.FAIL("Managers must be singleton classes. ",
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/Managers.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
         return test.PASS()
