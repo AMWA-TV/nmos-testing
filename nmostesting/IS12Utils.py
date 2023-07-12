@@ -15,6 +15,7 @@
 from .NMOSUtils import NMOSUtils
 
 from enum import IntEnum
+from itertools import takewhile
 
 
 class MessageTypes(IntEnum):
@@ -135,7 +136,7 @@ class IS12Utils(NMOSUtils):
     def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
 
-        primitive_to_JSON = {
+        types = {
             "NcBoolean": "boolean",
             "NcInt16": "number",
             "NcInt32": "number",
@@ -148,7 +149,25 @@ class IS12Utils(NMOSUtils):
             "NcString": "string"
         }
 
-        return primitive_to_JSON.get(type, False)
+        return types.get(type, False)
+
+    def primitive_to_python_type(self, type):
+        """Convert MS-05 primitive type to corresponding Python type"""
+
+        types = {
+            "NcBoolean": bool,
+            "NcInt16": int,
+            "NcInt32": int,
+            "NcInt64": int,
+            "NcUint16": int,
+            "NcUint32": int,
+            "NcUint64": int,
+            "NcFloat32": float,
+            "NcFloat64":  float,
+            "NcString": str
+        }
+
+        return types.get(type, False)
 
     def descriptor_to_schema(self, descriptor):
         variant_type = ['number', 'string', 'boolean', 'object', 'array', 'null']
@@ -223,3 +242,11 @@ class IS12Utils(NMOSUtils):
         # this helper converts from spec version to protocol version
         # e.g. v1.0 ==> 1.0.0
         return version.strip('v') + ".0"
+
+    def get_base_class_id(self, class_id):
+        """ Given a class_id returns the standard base class id as a string"""
+        return '.'.join([str(v) for v in takewhile(lambda x: x > 0, class_id)])
+
+    def is_block(self, class_id):
+        """ Check class id to determine if this is a block """
+        return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1
