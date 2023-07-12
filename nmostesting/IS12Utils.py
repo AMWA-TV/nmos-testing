@@ -15,7 +15,7 @@
 from .NMOSUtils import NMOSUtils
 
 from enum import IntEnum
-from itertools import takewhile
+from itertools import takewhile, dropwhile
 
 
 class MessageTypes(IntEnum):
@@ -249,6 +249,11 @@ class IS12Utils(NMOSUtils):
     def get_base_class_id(self, class_id):
         """ Given a class_id returns the standard base class id as a string"""
         return '.'.join([str(v) for v in takewhile(lambda x: x > 0, class_id)])
+
+    def is_non_standard_class(self, class_id):
+        """ Check class_id to determine if it is for a non-standard class """
+        # Assumes at least one value follows the authority key
+        return len([v for v in dropwhile(lambda x: x > 0, class_id)]) > 1
 
     def is_block(self, class_id):
         """ Check class id to determine if this is a block """
