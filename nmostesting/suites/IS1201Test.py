@@ -41,10 +41,13 @@ class IS1201Test(GenericTest):
         self.is12_utils = IS12Utils(self.node_url)
         self.ncp_websocket = None
         self.load_validation_resources()
+        self.command_handle = 0
 
     def set_up_tests(self):
-        # Do nothing
-        pass
+        self.unique_roles_error = False
+        self.unique_oids_error = False
+        self.device_model_validated = False
+        self.oid_cache = []
 
     def tear_down_tests(self):
         # Clean up Websocket resources
@@ -76,14 +79,16 @@ class IS1201Test(GenericTest):
         classes_path = os.path.join(spec_path, 'models/classes/')
         base_classes_path = os.path.abspath(classes_path)
 
-        # Load MS-05 classes descriptors
+        # Load MS-05 class descriptors
         self.classes_descriptors = {}
+        self.class_id_to_name = {}
         for filename in os.listdir(base_classes_path):
             name, extension = os.path.splitext(filename)
             if extension == ".json":
                 with open(os.path.join(base_classes_path, filename), 'r') as json_file:
                     class_json = json.load(json_file)
                     self.classes_descriptors[class_json['name']] = class_json
+                    self.class_id_to_name[name] = class_json['name']
 
         # Load MS-05 datatype descriptors
         self.datatype_descriptors = {}
@@ -135,6 +140,11 @@ class IS1201Test(GenericTest):
                              if self.ncp_websocket.did_error_occur() else ".")
         else:
             return True, None
+
+    def get_command_handle(self):
+        """Get unique command handle"""
+        self.command_handle += 1
+        return self.command_handle
 
     def send_command(self, command_handle, command_json):
         """Send command to Node under test. Returns [command response, error message, spec link]"""
@@ -197,7 +207,7 @@ class IS1201Test(GenericTest):
 
     def get_class_manager(self):
         """Get ClassManager from Root Block. Returns [ClassManager, error message, spec link]"""
-        command_handle = 1000
+        command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, self.is12_utils.ROOT_BLOCK_OID)
@@ -297,7 +307,7 @@ class IS1201Test(GenericTest):
     def validate_model_definitions(self, class_manager_oid, property_id, schema_name, reference_descriptors):
         """Validate class manager model definitions against MS-05-02 model descriptors. Returns [test result array]"""
         results = list()
-        command_handle = 1001
+        command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         get_descriptors_command = \
@@ -405,7 +415,7 @@ class IS1201Test(GenericTest):
             if not success:
                 return test.FAIL(errorMsg)
 
-            command_handle = 1001
+            command_handle = self.get_command_handle()
             version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
             get_role_command = \
                 self.is12_utils.create_generic_get_command_JSON(version,
@@ -488,7 +498,7 @@ class IS1201Test(GenericTest):
     def test_05(self, test):
         """IS-12 Protocol Error: Node handles incorrect IS-12 protocol version"""
 
-        command_handle = 1001  # should this be a random number??
+        command_handle = self.get_command_handle()
         # Use incorrect protocol version
         version = 'DOES.NOT.EXIST'
         command_json = \
@@ -520,7 +530,7 @@ class IS1201Test(GenericTest):
 
     def test_07(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
-        command_handle = 1007
+        command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         command_json = \
             self.is12_utils.create_generic_get_command_JSON(version,
@@ -536,7 +546,7 @@ class IS1201Test(GenericTest):
 
     def test_08(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
-        command_handle = 1007
+        command_handle = self.get_command_handle()
         # Use invalid JSON
         command_json = {'not_a': 'valid_command'}
 
@@ -547,7 +557,7 @@ class IS1201Test(GenericTest):
     def test_09(self, test):
         """MS-05-02 Error: Node handles invalid oid"""
 
-        command_handle = 1001
+        command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         # Use invalid oid
         invalid_oid = 999999999
@@ -565,7 +575,7 @@ class IS1201Test(GenericTest):
 
     def test_10(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
-        command_handle = 1001
+        command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         # Use invalid property id
         invalid_property_identifier = {'level': 1, 'index': 999}
@@ -583,7 +593,7 @@ class IS1201Test(GenericTest):
 
     def test_11(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
-        command_handle = 1001
+        command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         command_json = \
             self.is12_utils.create_generic_get_command_JSON(version,
@@ -602,7 +612,7 @@ class IS1201Test(GenericTest):
 
     def test_12(self, test):
         """MS-05-02 Error: Node handles read only error"""
-        command_handle = 1001
+        command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         # Try to set a read only property
         command_json = \
@@ -617,3 +627,165 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly,
                                   is12_error=False)
+
+    def validate_property_type(self, value, type, is_nullable):
+        if is_nullable and value == None:
+            return True, None
+
+        if self.is12_utils.primitive_to_python_type(type):
+            if not isinstance(value, self.is12_utils.primitive_to_python_type(type)):
+                return False, str(value) + " not of type " + str(type)
+        else:
+            valid, errorMsg = self._validate_schema(value, self.datatype_schemas[type])
+            if not valid:
+                return False, errorMsg
+
+        return True, None
+
+    def validate_object_properties(self, class_name, oid):
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        reference_class_descriptor = self.classes_descriptors[class_name]
+
+        for class_property in reference_class_descriptor['properties']:
+            command_handle = self.get_command_handle()
+            get_property_command = \
+                self.is12_utils.create_generic_get_command_JSON(version,
+                                                                command_handle,
+                                                                oid,
+                                                                class_property['id'])
+            # get property
+            response, errorMsg, link = self.send_command(command_handle, get_property_command)
+            if not response:
+                return False, errorMsg, link
+
+            # validate property type
+            if class_property['isSequence']:
+                for property_value in response["result"]["value"]:
+                    success, errorMsg = self.validate_property_type(property_value,
+                                                                    class_property['typeName'],
+                                                                    class_property['isNullable'])
+                    if not success:
+                        return False, errorMsg, None
+            else:
+                success, errorMsg = self.validate_property_type(response["result"]["value"],
+                                                                class_property['typeName'],
+                                                                class_property['isNullable'])
+                if not success:
+                    return False, errorMsg, None
+
+        return True, None, None
+    
+    def validate_block(self, block_id):
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        get_member_descriptors_command = \
+            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, block_id)
+
+        response, errorMsg, link = self.send_command(command_handle, get_member_descriptors_command)
+        if not response:
+            return False, errorMsg, None
+
+        role_cache = []
+
+        for child_object in response["result"]["value"]:
+            valid, errorMsg = self._validate_schema(child_object, self.datatype_schemas["NcBlockMemberDescriptor"])
+            if not valid:
+                return False, errorMsg, None
+
+            # Check role is unique within containing block
+            if child_object['role'] in role_cache:
+                self.unique_roles_error = True
+            else:
+                role_cache.append(child_object['role'])
+
+            # Check oid is globally unique
+            if child_object['oid'] in self.oid_cache:
+                self.unique_oids_error = True
+            else:
+                self.oid_cache.append(child_object['oid'])
+
+            # validate this Block
+            base_id = self.is12_utils.get_base_class_id(child_object['classId'])
+
+            class_name = self.class_id_to_name.get(base_id, None)
+
+            if class_name:
+                success, errorMsg, link = self.validate_object_properties(class_name, child_object['oid'])
+                if not success:
+                    return False, errorMsg, None
+
+            # If this child object is a block, recurse
+            if self.is12_utils.is_block(child_object['classId']):
+                success, errorMsg, link = self.validate_block(child_object['oid'])
+
+                if not success:
+                    return False, errorMsg, link
+
+        return True, None, None
+
+    def test_13(self, test):
+        """Validate device model property types"""
+
+        if not self.device_model_validated:
+            success, errorMsg = self.create_ncp_socket()
+            if not success:
+                return test.FAIL(errorMsg)
+        
+            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
+            if not success:
+                return test.FAIL(errorMsg, link)
+
+            self.device_model_validated = True
+
+        return test.PASS()
+
+    def test_14(self, test):
+        """Ensure device model roles are unique within a containing block"""
+        # Referencing the Google sheet
+        # MS-05-02 (59) The role of an object MUST be unique within its containing block.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
+
+        if not self.device_model_validated:
+            success, errorMsg = self.create_ncp_socket()
+            if not success:
+                return test.FAIL(errorMsg)
+        
+            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
+            if not success:
+                return test.UNCLEAR(errorMsg, link)
+
+            self.device_model_validated = True
+
+        if self.unique_roles_error:
+            return test.FAIL("Roles must be unique. ",
+                             "https://specs.amwa.tv/ms-05-02/branches/{}" \
+                             "/docs/NcObject.html" \
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        return test.PASS()
+
+    def test_15(self, test):
+        """Ensure device model oids are globally unique"""
+        # Referencing the Google sheet
+        # MS-05-02 (60) Object ids (oid property) MUST uniquely identity objects in the device model.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
+
+        if not self.device_model_validated:
+            success, errorMsg = self.create_ncp_socket()
+            if not success:
+                return test.FAIL(errorMsg)
+        
+            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
+            if not success:
+                return test.UNCLEAR(errorMsg, link)
+
+            self.device_model_validated = True
+
+        if self.unique_oids_error:
+            return test.FAIL("Oids must be unique. ",
+                             "https://specs.amwa.tv/ms-05-02/branches/{}" \
+                             "/docs/NcObject.html" \
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        return test.PASS()
