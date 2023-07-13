@@ -297,6 +297,19 @@ SPECIFICATIONS = {
             },
         }
     },
+    "nmos-control-feature-sets": {
+        "repo": "nmos-control-feature-sets",
+        "versions": ["main"],
+        "default_version": "main",
+        "apis": {
+            "identification": {
+                "name": "Identification Featue Set"
+            },
+            "monitoring": {
+                "name": "Monitoring Feature Set"
+            }
+        }
+    },
     "bcp-002-01": {
         "repo": "bcp-002-01",
         "versions": ["v1.0"],

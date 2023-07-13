@@ -29,6 +29,9 @@ NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
 
+# Feature Sets
+IDENTIFICATION_FS_KEY = "identification"
+MONITORING_FS_KEY = "monitoring"
 
 class IS1201Test(GenericTest):
 
@@ -77,31 +80,40 @@ class IS1201Test(GenericTest):
         for schema_name in schema_names:
             self.schemas[schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
                                                              schema_name + ".json")
-        # Calculate paths to MS-05 descriptors and destination for generated MS-05 schemas
-        spec_path = self.apis[MS05_API_KEY]["spec_path"]
-        datatype_path = os.path.join(spec_path, 'models/datatypes/')
-        base_datatype_path = os.path.abspath(datatype_path)
-        classes_path = os.path.join(spec_path, 'models/classes/')
-        base_classes_path = os.path.abspath(classes_path)
+        # Calculate paths to MS-05 descriptors
+        spec_paths = [self.apis[MS05_API_KEY]["spec_path"],
+                      os.path.join(self.apis[IDENTIFICATION_FS_KEY]["spec_path"], IDENTIFICATION_FS_KEY),
+                      os.path.join(self.apis[MONITORING_FS_KEY]["spec_path"], MONITORING_FS_KEY)]
+        datatype_paths = []
+        classes_paths = []
+        for spec_path in spec_paths:
+            datatype_path = os.path.abspath(os.path.join(spec_path, 'models/datatypes/'))
+            if os.path.exists(datatype_path):
+                datatype_paths.append(datatype_path)
+            classes_path = os.path.abspath(os.path.join(spec_path, 'models/classes/'))
+            if os.path.exists(classes_path):
+                classes_paths.append(classes_path)
 
         # Load MS-05 class descriptors
         self.classes_descriptors = {}
         self.class_id_to_name = {}
-        for filename in os.listdir(base_classes_path):
-            name, extension = os.path.splitext(filename)
-            if extension == ".json":
-                with open(os.path.join(base_classes_path, filename), 'r') as json_file:
-                    class_json = json.load(json_file)
-                    self.classes_descriptors[class_json['name']] = class_json
-                    self.class_id_to_name[name] = class_json['name']
+        for classes_path in classes_paths:
+            for filename in os.listdir(classes_path):
+                name, extension = os.path.splitext(filename)
+                if extension == ".json":
+                    with open(os.path.join(classes_path, filename), 'r') as json_file:
+                        class_json = json.load(json_file)
+                        self.classes_descriptors[class_json['name']] = class_json
+                        self.class_id_to_name[name] = class_json['name']
 
         # Load MS-05 datatype descriptors
         self.datatype_descriptors = {}
-        for filename in os.listdir(base_datatype_path):
-            name, extension = os.path.splitext(filename)
-            if extension == ".json":
-                with open(os.path.join(base_datatype_path, filename), 'r') as json_file:
-                    self.datatype_descriptors[name] = json.load(json_file)
+        for datatype_path in datatype_paths:
+            for filename in os.listdir(datatype_path):
+                name, extension = os.path.splitext(filename)
+                if extension == ".json":
+                    with open(os.path.join(datatype_path, filename), 'r') as json_file:
+                        self.datatype_descriptors[name] = json.load(json_file)
 
         # Generate MS-05 datatype schemas from MS-05 datatype descriptors
         datatype_schema_names = []
@@ -678,12 +690,15 @@ class IS1201Test(GenericTest):
                                   is12_error=False)
 
     def validate_property_type(self, value, type, is_nullable):
-        if is_nullable and value is None:
-            return True, None
+        if value is None:
+            if is_nullable:
+                return True, None
+            else:
+                return False, "Non-nullable property set to null."
 
         if self.is12_utils.primitive_to_python_type(type):
             if not isinstance(value, self.is12_utils.primitive_to_python_type(type)):
-                return False, str(value) + " not of type " + str(type)
+                return False, str(value) + " is not of type " + str(type)
         else:
             valid, errorMsg = self._validate_schema(value, self.datatype_schemas[type])
             if not valid:
@@ -714,13 +729,13 @@ class IS1201Test(GenericTest):
                                                                     class_property['typeName'],
                                                                     class_property['isNullable'])
                     if not success:
-                        return False, errorMsg, None
+                        return False, class_property["name"] + ": " + errorMsg, None
             else:
                 success, errorMsg = self.validate_property_type(response["result"]["value"],
                                                                 class_property['typeName'],
                                                                 class_property['isNullable'])
                 if not success:
-                    return False, errorMsg, None
+                    return False, class_property["name"] + ": " + errorMsg, None
 
         return True, None, None
 
@@ -775,11 +790,12 @@ class IS1201Test(GenericTest):
             if class_name:
                 success, errorMsg, link = self.validate_object_properties(class_name, child_object['oid'])
                 if not success:
-                    return False, errorMsg, None
+                    return False, child_object['role'] + ': ' + errorMsg, None
             else:
                 # Not a standard or non-standard class
                 self.organization_id_error = True
-                self.organization_id_error_msg = "Non-standard class id does not contain authority key: " \
+                self.organization_id_error_msg =  child_object['role'] + ': ' \
+                                                 + "Non-standard class id does not contain authority key: " \
                                                  + str(child_object['classId']) + ". "
 
             # If this child object is a Block, recurse
@@ -787,7 +803,7 @@ class IS1201Test(GenericTest):
                 success, errorMsg, link = self.validate_block(child_object['oid'])
 
                 if not success:
-                    return False, errorMsg, link
+                    return False, child_object['role'] + ': ' + errorMsg, link
 
         return True, None, None
 

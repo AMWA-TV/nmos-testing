@@ -356,6 +356,13 @@ TEST_DEFINITIONS = {
             "api_key": "controlframework",
             "disable_fields": ["host", "port", "selector"]
         }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "identification"
+        }, {
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "monitoring"
+        }],
         "class": IS1201Test.IS1201Test,
         "selector": True
     },
