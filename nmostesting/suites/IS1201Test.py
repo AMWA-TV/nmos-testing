@@ -226,42 +226,6 @@ class IS1201Test(GenericTest):
 
         return results[0], None, None
 
-    def get_class_manager(self):
-        """Get ClassManager from Root Block. Returns [ClassManager, error message, spec link]"""
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        get_member_descriptors_command = \
-            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, self.is12_utils.ROOT_BLOCK_OID)
-
-        response, errorMsg, link = self.send_command(command_handle, get_member_descriptors_command)
-
-        if not response:
-            return False, errorMsg, link
-
-        class_manager_found = False
-        class_manager = None
-
-        for value in response["result"]["value"]:
-            self.validate_schema(value, self.datatype_schemas["NcBlockMemberDescriptor"])
-
-            if value["classId"] == [1, 3, 2]:
-                class_manager_found = True
-                class_manager = value
-
-                if value["role"] != 'ClassManager':
-                    return False, "Incorrect Role for Class Manager: " + value["role"], \
-                                  "https://specs.amwa.tv/ms-05-02/branches/{}" \
-                                  "/docs/Managers.html" \
-                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"])
-
-        if not class_manager_found:
-            return False, "Class Manager not found in Root Block", \
-                          "https://specs.amwa.tv/ms-05-02/branches/{}" \
-                          "/docs/Managers.html" \
-                          .format(self.apis[CONTROL_API_KEY]["spec_branch"])
-
-        return class_manager, None, None
-
     def get_manager(self, type):
         """Get Manager from Root Block. Returns [Manager, error message, spec link]"""
         command_handle = self.get_command_handle()
@@ -773,7 +737,7 @@ class IS1201Test(GenericTest):
             # check for non-standard classes
             if self.is12_utils.is_non_standard_class(child_object['classId']):
                 self.organization_id_detected = True
-
+                
             # detemine the standard base class name
             base_id = self.is12_utils.get_base_class_id(child_object['classId'])
             class_name = self.class_id_to_name.get(base_id, None)
