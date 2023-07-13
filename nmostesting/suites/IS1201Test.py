@@ -33,6 +33,7 @@ MS05_API_KEY = "controlframework"
 IDENTIFICATION_FS_KEY = "identification"
 MONITORING_FS_KEY = "monitoring"
 
+
 class IS1201Test(GenericTest):
 
     def __init__(self, apis, **kwargs):
@@ -737,7 +738,7 @@ class IS1201Test(GenericTest):
             # check for non-standard classes
             if self.is12_utils.is_non_standard_class(child_object['classId']):
                 self.organization_id_detected = True
-                
+
             # detemine the standard base class name
             base_id = self.is12_utils.get_base_class_id(child_object['classId'])
             class_name = self.class_id_to_name.get(base_id, None)
@@ -758,9 +759,9 @@ class IS1201Test(GenericTest):
             else:
                 # Not a standard or non-standard class
                 self.organization_id_error = True
-                self.organization_id_error_msg =  child_object['role'] + ': ' \
-                                                 + "Non-standard class id does not contain authority key: " \
-                                                 + str(child_object['classId']) + ". "
+                self.organization_id_error_msg = child_object['role'] + ': ' \
+                    + "Non-standard class id does not contain authority key: " \
+                    + str(child_object['classId']) + ". "
 
             # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object['classId']):
