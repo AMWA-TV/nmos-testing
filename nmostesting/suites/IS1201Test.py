@@ -29,6 +29,9 @@ NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
 
+CLASS_MANAGER_CLS_ID = "1.3.2"
+DEVICE_MANAGER_CLS_ID = "1.3.1"
+
 # Feature Sets
 IDENTIFICATION_FS_KEY = "identification"
 MONITORING_FS_KEY = "monitoring"
@@ -44,7 +47,7 @@ class IS1201Test(GenericTest):
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
         self.is12_utils = IS12Utils(self.node_url)
         self.ncp_websocket = None
-        self.load_validation_resources()
+        self.load_reference_resources()
         self.command_handle = 0
 
     def set_up_tests(self):
@@ -73,7 +76,27 @@ class IS1201Test(GenericTest):
                 self.result += self.auto_tests()
             self.execute_test(test_name)
 
-    def load_validation_resources(self):
+    def generate_json_schemas(self, datatype_descriptors, schema_path):
+        """Generate datatype schemas from datatype descriptors"""
+        datatype_schema_names = []
+        base_schema_path = os.path.abspath(schema_path)
+        if not os.path.exists(base_schema_path):
+            os.makedirs(base_schema_path)
+
+        for name, descriptor in datatype_descriptors.items():
+            json_schema = self.is12_utils.descriptor_to_schema(descriptor)
+            with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
+                json.dump(json_schema, output_file, indent=4)
+                datatype_schema_names.append(name)
+
+        # Load resolved MS-05 datatype schemas
+        datatype_schemas = {}
+        for name in datatype_schema_names:
+            datatype_schemas[name] = load_resolved_schema(schema_path, name + '.json', path_prefix=False)
+
+        return datatype_schemas
+
+    def load_reference_resources(self):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
         # Load IS-12 schemas
         self.schemas = {}
@@ -97,15 +120,12 @@ class IS1201Test(GenericTest):
 
         # Load MS-05 class descriptors
         self.classes_descriptors = {}
-        self.class_id_to_name = {}
         for classes_path in classes_paths:
             for filename in os.listdir(classes_path):
                 name, extension = os.path.splitext(filename)
                 if extension == ".json":
                     with open(os.path.join(classes_path, filename), 'r') as json_file:
-                        class_json = json.load(json_file)
-                        self.classes_descriptors[class_json['name']] = class_json
-                        self.class_id_to_name[name] = class_json['name']
+                        self.classes_descriptors[name] = json.load(json_file)
 
         # Load MS-05 datatype descriptors
         self.datatype_descriptors = {}
@@ -117,23 +137,9 @@ class IS1201Test(GenericTest):
                         self.datatype_descriptors[name] = json.load(json_file)
 
         # Generate MS-05 datatype schemas from MS-05 datatype descriptors
-        datatype_schema_names = []
-        schema_path = os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/')
-        base_schema_path = os.path.abspath(schema_path)
-        if not os.path.exists(base_schema_path):
-            os.makedirs(base_schema_path)
-
-        for name, descriptor in self.datatype_descriptors.items():
-            json_schema = self.is12_utils.descriptor_to_schema(descriptor)
-            with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
-                json.dump(json_schema, output_file, indent=4)
-                datatype_schema_names.append(name)
-
-        # Load resolved MS-05 datatype schemas
-        self.datatype_schemas = {}
-        for name in datatype_schema_names:
-            self.datatype_schemas[name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
-                                                               name + '.json')
+        self.datatype_schemas = self.generate_json_schemas(
+            datatype_descriptors=self.datatype_descriptors,
+            schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/'))
 
     def create_ncp_socket(self):
         """Create a WebSocket client connection to Node under test. Returns [success, error message]"""
@@ -227,7 +233,7 @@ class IS1201Test(GenericTest):
 
         return results[0], None, None
 
-    def get_manager(self, type):
+    def get_manager(self, class_id_str):
         """Get Manager from Root Block. Returns [Manager, error message, spec link]"""
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
@@ -242,7 +248,7 @@ class IS1201Test(GenericTest):
         manager_found = False
         manager = None
 
-        class_descriptor = self.classes_descriptors[type]
+        class_descriptor = self.classes_descriptors[class_id_str]
 
         for value in response["result"]["value"]:
             self.validate_schema(value, self.datatype_schemas["NcBlockMemberDescriptor"])
@@ -252,13 +258,13 @@ class IS1201Test(GenericTest):
                 manager = value
 
                 if value["role"] != class_descriptor["fixedRole"]:
-                    return False, "Incorrect Role for Class Manager: " + value["role"], \
+                    return False, "Incorrect Role for Manager: " + value["role"], \
                                   "https://specs.amwa.tv/ms-05-02/branches/{}" \
                                   "/docs/Managers.html" \
                                   .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
         if not manager_found:
-            return False, str(type) + " Manager not found in Root Block", \
+            return False, str(class_id_str) + " Manager not found in Root Block", \
                           "https://specs.amwa.tv/ms-05-02/branches/{}" \
                           "/docs/Managers.html" \
                           .format(self.apis[CONTROL_API_KEY]["spec_branch"])
@@ -328,9 +334,7 @@ class IS1201Test(GenericTest):
 
         return True, None
 
-    def validate_model_definitions(self, class_manager_oid, property_id, schema_name, reference_descriptors):
-        """Validate class manager model definitions against MS-05-02 model descriptors. Returns [test result array]"""
-        results = list()
+    def get_class_manager_descriptors(self, class_manager_oid, property_id):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
@@ -339,15 +343,29 @@ class IS1201Test(GenericTest):
                                                             command_handle,
                                                             class_manager_oid,
                                                             property_id)
-        test = Test("Send command", "auto_SendCommand")
         response, errorMsg, link = self.send_command(command_handle, get_descriptors_command)
 
         if not response:
-            results.append(test.FAIL(errorMsg, link))
-            return results
+            return False, errorMsg, link
 
         # Create descriptor dictionary from response array
-        descriptors = {r['name']: r for r in response["result"]["value"]}
+        # Use identity as key if present, otherwise use name
+        def key_lambda(identity, name): return ".".join(map(str, identity)) if identity else name
+        descriptors = {key_lambda(r.get('identity'), r['name']): r for r in response["result"]["value"]}
+
+        return descriptors, None, None
+
+    def validate_model_definitions(self, class_manager_oid, property_id, schema_name, reference_descriptors):
+        """Validate class manager model definitions against reference model descriptors. Returns [test result array]"""
+        results = list()
+
+        descriptors, error_msg, link = self.get_class_manager_descriptors(class_manager_oid, property_id)
+
+        if not descriptors:
+            test = Test("Validate model definitions", "auto_ValidateModel")
+            results.append(test.FAIL(error_msg, link))
+            return results
+
         reference_descriptor_keys = sorted(reference_descriptors.keys())
 
         for key in reference_descriptor_keys:
@@ -363,7 +381,7 @@ class IS1201Test(GenericTest):
                     continue
 
                 # Validate the descriptor is correct
-                success, errorMsg = self.validate_descriptor(reference_descriptors[descriptor['name']], descriptor)
+                success, errorMsg = self.validate_descriptor(reference_descriptors[key], descriptor)
                 if not success:
                     results.append(test.FAIL(errorMsg))
                     continue
@@ -386,7 +404,7 @@ class IS1201Test(GenericTest):
             results.append(test.FAIL(errorMsg))
             return results
 
-        class_manager, errorMsg, link = self.get_manager("NcClassManager")
+        class_manager, errorMsg, link = self.get_manager(CLASS_MANAGER_CLS_ID)
 
         if not class_manager:
             results.append(test.FAIL(errorMsg, link))
@@ -473,7 +491,7 @@ class IS1201Test(GenericTest):
         if not success:
             return test.FAIL(errorMsg)
 
-        class_manager, errorMsg, link = self.get_manager("NcClassManager")
+        class_manager, errorMsg, link = self.get_manager(CLASS_MANAGER_CLS_ID)
 
         if not class_manager:
             return test.FAIL(errorMsg, link)
@@ -654,7 +672,7 @@ class IS1201Test(GenericTest):
                                   expected_status=NcMethodStatus.Readonly,
                                   is12_error=False)
 
-    def validate_property_type(self, value, type, is_nullable):
+    def validate_property_type(self, value, type, is_nullable, datatype_schemas):
         if value is None:
             if is_nullable:
                 return True, None
@@ -662,18 +680,23 @@ class IS1201Test(GenericTest):
                 return False, "Non-nullable property set to null."
 
         if self.is12_utils.primitive_to_python_type(type):
+            # Special case: if this is a floating point value it
+            # can be intepreted as an int in the case of whole numbers
+            # e.g. 0.0 -> 0, 1.0 -> 1
+            if self.is12_utils.primitive_to_python_type(type) == float and isinstance(value, int):
+                return True, None
+
             if not isinstance(value, self.is12_utils.primitive_to_python_type(type)):
                 return False, str(value) + " is not of type " + str(type)
         else:
-            valid, errorMsg = self._validate_schema(value, self.datatype_schemas[type])
+            valid, errorMsg = self._validate_schema(value, datatype_schemas[type])
             if not valid:
                 return False, errorMsg
 
         return True, None
 
-    def validate_object_properties(self, class_name, oid):
+    def validate_object_properties(self, reference_class_descriptor, oid, datatype_schemas):
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        reference_class_descriptor = self.classes_descriptors[class_name]
 
         for class_property in reference_class_descriptor['properties']:
             command_handle = self.get_command_handle()
@@ -692,19 +715,21 @@ class IS1201Test(GenericTest):
                 for property_value in response["result"]["value"]:
                     success, errorMsg = self.validate_property_type(property_value,
                                                                     class_property['typeName'],
-                                                                    class_property['isNullable'])
+                                                                    class_property['isNullable'],
+                                                                    datatype_schemas)
                     if not success:
                         return False, class_property["name"] + ": " + errorMsg, None
             else:
                 success, errorMsg = self.validate_property_type(response["result"]["value"],
                                                                 class_property['typeName'],
-                                                                class_property['isNullable'])
+                                                                class_property['isNullable'],
+                                                                datatype_schemas)
                 if not success:
                     return False, class_property["name"] + ": " + errorMsg, None
 
         return True, None, None
 
-    def validate_block(self, block_id):
+    def validate_block(self, block_id, class_descriptors, datatype_schemas):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
@@ -719,7 +744,7 @@ class IS1201Test(GenericTest):
         manager_cache = []
 
         for child_object in response["result"]["value"]:
-            valid, errorMsg = self._validate_schema(child_object, self.datatype_schemas["NcBlockMemberDescriptor"])
+            valid, errorMsg = self._validate_schema(child_object, datatype_schemas["NcBlockMemberDescriptor"])
             if not valid:
                 return False, errorMsg, None
 
@@ -741,19 +766,23 @@ class IS1201Test(GenericTest):
 
             # detemine the standard base class name
             base_id = self.is12_utils.get_base_class_id(child_object['classId'])
-            class_name = self.class_id_to_name.get(base_id, None)
+            base_class_name = class_descriptors[base_id]["name"]
+
+            class_identifier = ".".join(map(str, child_object['classId']))
 
             # manager checks
             if self.is12_utils.is_manager(child_object['classId']):
                 if child_object["owner"] != self.is12_utils.ROOT_BLOCK_OID:
                     self.managers_members_root_block_error = True
-                if class_name in manager_cache:
+                if base_class_name in manager_cache:
                     self.managers_are_singletons_error = True
                 else:
-                    manager_cache.append(class_name)
+                    manager_cache.append(base_class_name)
 
-            if class_name:
-                success, errorMsg, link = self.validate_object_properties(class_name, child_object['oid'])
+            if class_identifier:
+                success, errorMsg, link = self.validate_object_properties(class_descriptors[class_identifier],
+                                                                          child_object['oid'],
+                                                                          datatype_schemas)
                 if not success:
                     return False, child_object['role'] + ': ' + errorMsg, None
             else:
@@ -765,7 +794,9 @@ class IS1201Test(GenericTest):
 
             # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object['classId']):
-                success, errorMsg, link = self.validate_block(child_object['oid'])
+                success, errorMsg, link = self.validate_block(child_object['oid'],
+                                                              class_descriptors,
+                                                              datatype_schemas)
 
                 if not success:
                     return False, child_object['role'] + ': ' + errorMsg, link
@@ -778,7 +809,31 @@ class IS1201Test(GenericTest):
             if not success:
                 return False, errorMsg, None
 
-            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID)
+            class_manager, errorMsg, link = self.get_manager(CLASS_MANAGER_CLS_ID)
+
+            if not class_manager:
+                return False, errorMsg, link
+
+            class_descriptors, error_msg, link = \
+                self.get_class_manager_descriptors(class_manager['oid'],
+                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES'])
+            if not class_descriptors:
+                return False, error_msg, link
+
+            datatype_descriptors, error_msg, link = \
+                self.get_class_manager_descriptors(class_manager['oid'],
+                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES'])
+            if not datatype_descriptors:
+                return False, error_msg, link
+
+            # Create JSON schemas for the queried datatypes
+            datatype_schemas = self.generate_json_schemas(
+                datatype_descriptors=datatype_descriptors,
+                schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
+
+            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID,
+                                                          class_descriptors,
+                                                          datatype_schemas)
             if not success:
                 return False, errorMsg, link
 
@@ -787,11 +842,10 @@ class IS1201Test(GenericTest):
         return True, None, None
 
     def test_13(self, test):
-        """Validate device model property types"""
+        """Validate device model against discovered classes and datatypes"""
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
-
         success, errorMsg, link = self.validate_device_model()
         if not success:
             return test.FAIL(errorMsg, link)
@@ -879,7 +933,7 @@ class IS1201Test(GenericTest):
         if not success:
             return test.FAIL(errorMsg)
 
-        device_manager, errorMsg, link = self.get_manager("NcDeviceManager")
+        device_manager, errorMsg, link = self.get_manager(DEVICE_MANAGER_CLS_ID)
 
         if not device_manager:
             return test.FAIL(errorMsg, link)
