@@ -302,11 +302,9 @@ SPECIFICATIONS = {
         "versions": ["main"],
         "default_version": "main",
         "apis": {
-            "identification": {
-                "name": "Identification Featue Set"
-            },
-            "monitoring": {
-                "name": "Monitoring Feature Set"
+            "featuresets": {
+                "name": "Control Feature Sets",
+                "repo_paths": ["identification", "monitoring"]
             }
         }
     },

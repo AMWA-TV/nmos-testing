@@ -28,13 +28,10 @@ from ..TestResult import Test
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
+FEATURE_SETS_KEY = "featuresets"
 
 CLASS_MANAGER_CLS_ID = "1.3.2"
 DEVICE_MANAGER_CLS_ID = "1.3.1"
-
-# Feature Sets
-IDENTIFICATION_FS_KEY = "identification"
-MONITORING_FS_KEY = "monitoring"
 
 
 class IS1201Test(GenericTest):
@@ -76,6 +73,17 @@ class IS1201Test(GenericTest):
                 self.result += self.auto_tests()
             self.execute_test(test_name)
 
+    def load_model_descriptors(self, descriptor_paths):
+        descriptors = {}
+        for descriptor_path in descriptor_paths:
+            for filename in os.listdir(descriptor_path):
+                name, extension = os.path.splitext(filename)
+                if extension == ".json":
+                    with open(os.path.join(descriptor_path, filename), 'r') as json_file:
+                        descriptors[name] = json.load(json_file)
+
+        return descriptors
+
     def generate_json_schemas(self, datatype_descriptors, schema_path):
         """Generate datatype schemas from datatype descriptors"""
         datatype_schema_names = []
@@ -105,9 +113,11 @@ class IS1201Test(GenericTest):
             self.schemas[schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
                                                              schema_name + ".json")
         # Calculate paths to MS-05 descriptors
-        spec_paths = [self.apis[MS05_API_KEY]["spec_path"],
-                      os.path.join(self.apis[IDENTIFICATION_FS_KEY]["spec_path"], IDENTIFICATION_FS_KEY),
-                      os.path.join(self.apis[MONITORING_FS_KEY]["spec_path"], MONITORING_FS_KEY)]
+        # including Feature Sets specified as additional_paths in test definition
+        spec_paths = [os.path.join(self.apis[FEATURE_SETS_KEY]["spec_path"], path)
+                      for path in self.apis[FEATURE_SETS_KEY]["repo_paths"]]
+        spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
+
         datatype_paths = []
         classes_paths = []
         for spec_path in spec_paths:
@@ -118,23 +128,11 @@ class IS1201Test(GenericTest):
             if os.path.exists(classes_path):
                 classes_paths.append(classes_path)
 
-        # Load MS-05 class descriptors
-        self.classes_descriptors = {}
-        for classes_path in classes_paths:
-            for filename in os.listdir(classes_path):
-                name, extension = os.path.splitext(filename)
-                if extension == ".json":
-                    with open(os.path.join(classes_path, filename), 'r') as json_file:
-                        self.classes_descriptors[name] = json.load(json_file)
+        # Load class and datatype descriptors
+        self.classes_descriptors = self.load_model_descriptors(classes_paths)
 
         # Load MS-05 datatype descriptors
-        self.datatype_descriptors = {}
-        for datatype_path in datatype_paths:
-            for filename in os.listdir(datatype_path):
-                name, extension = os.path.splitext(filename)
-                if extension == ".json":
-                    with open(os.path.join(datatype_path, filename), 'r') as json_file:
-                        self.datatype_descriptors[name] = json.load(json_file)
+        self.datatype_descriptors = self.load_model_descriptors(datatype_paths)
 
         # Generate MS-05 datatype schemas from MS-05 datatype descriptors
         self.datatype_schemas = self.generate_json_schemas(
