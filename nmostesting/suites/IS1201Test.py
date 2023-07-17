@@ -19,7 +19,7 @@ import time
 from jsonschema import ValidationError, SchemaError
 
 from ..Config import WS_MESSAGE_TIMEOUT
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils, NcMethodStatus, MessageTypes
 from ..NMOSUtils import NMOSUtils
 from ..TestHelper import WebsocketWorker, load_resolved_schema
@@ -70,7 +70,10 @@ class IS1201Test(GenericTest):
         for test_name in test_names:
             if test_name in ["auto", "all"] and not self.disable_auto:
                 # Validate all standard datatypes and classes advertised by the Class Manager
-                self.result += self.auto_tests()
+                try:
+                    self.result += self.auto_tests()
+                except NMOSTestException as e:
+                    self.result.append(e.args[0])
             self.execute_test(test_name)
 
     def load_model_descriptors(self, descriptor_paths):
@@ -139,11 +142,11 @@ class IS1201Test(GenericTest):
             datatype_descriptors=self.datatype_descriptors,
             schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/'))
 
-    def create_ncp_socket(self):
+    def create_ncp_socket(self, test):
         """Create a WebSocket client connection to Node under test. Returns [success, error message]"""
         # Reuse socket if connection already established
         if self.ncp_websocket and self.ncp_websocket.is_open():
-            return True, None
+            return
 
         # Create a WebSocket connection to NMOS Control Protocol endpoint
         self.ncp_websocket = WebsocketWorker(self.apis[CONTROL_API_KEY]["url"])
@@ -157,18 +160,16 @@ class IS1201Test(GenericTest):
             time.sleep(0.2)
 
         if self.ncp_websocket.did_error_occur() or not self.ncp_websocket.is_open():
-            return False, "Failed to open WebSocket successfully" \
-                          + (": " + str(self.ncp_websocket.get_error_message())
-                             if self.ncp_websocket.did_error_occur() else ".")
-        else:
-            return True, None
+            raise NMOSTestException(test.FAIL("Failed to open WebSocket successfully"
+                                    + (": " + str(self.ncp_websocket.get_error_message())
+                                       if self.ncp_websocket.did_error_occur() else ".")))
 
     def get_command_handle(self):
         """Get unique command handle"""
         self.command_handle += 1
         return self.command_handle
 
-    def send_command(self, command_handle, command_json):
+    def send_command(self, test, command_handle, command_json):
         """Send command to Node under test. Returns [command response, error message, spec link]"""
         # Referencing the Google sheet
         # IS-12 (9)  Check protocol version and message type
@@ -194,54 +195,56 @@ class IS1201Test(GenericTest):
 
         messages = self.ncp_websocket.get_messages()
 
-        # find the response to our request
-        for message in messages:
-            parsed_message = json.loads(message)
+        try:
+            # find the response to our request
+            for message in messages:
+                parsed_message = json.loads(message)
 
-            if parsed_message["messageType"] == MessageTypes.CommandResponse:
-                self.validate_schema(parsed_message, self.schemas["command-response-message"])
-                if NMOSUtils.compare_api_version(parsed_message["protocolVersion"],
-                                                 self.apis[CONTROL_API_KEY]["version"]):
-                    return False, "Incorrect protocol version. Expected " \
-                                  + self.apis[CONTROL_API_KEY]["version"] \
-                                  + ", received " + parsed_message["protocolVersion"], \
-                                  "https://specs.amwa.tv/is-12/branches/{}" \
-                                  "/docs/Protocol_messaging.html" \
-                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"])
+                if parsed_message["messageType"] == MessageTypes.CommandResponse:
+                    self.validate_schema(parsed_message, self.schemas["command-response-message"])
+                    if NMOSUtils.compare_api_version(parsed_message["protocolVersion"],
+                                                     self.apis[CONTROL_API_KEY]["version"]):
+                        raise NMOSTestException(test.FAIL("Incorrect protocol version. Expected "
+                                                          + self.apis[CONTROL_API_KEY]["version"]
+                                                          + ", received " + parsed_message["protocolVersion"],
+                                                          "https://specs.amwa.tv/is-12/branches/{}"
+                                                          "/docs/Protocol_messaging.html"
+                                                          .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
-                responses = parsed_message["responses"]
-                for response in responses:
-                    if response["handle"] == command_handle:
-                        if response["result"]["status"] != NcMethodStatus.OK:
-                            return False, response["result"], None
-                        results.append(response)
-            if parsed_message["messageType"] == MessageTypes.Error:
-                self.validate_schema(parsed_message, self.schemas["error-message"])
-                return False, parsed_message, "https://specs.amwa.tv/is-12/branches/{}" \
-                                              "/docs/Protocol_messaging.html#error-messages" \
-                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])
-        if len(results) == 0:
-            return False, "No Command Message Response received.", \
-                          "https://specs.amwa.tv/is-12/branches/{}" \
-                          "/docs/Protocol_messaging.html#command-message-type" \
-                          .format(self.apis[CONTROL_API_KEY]["spec_branch"])
+                    responses = parsed_message["responses"]
+                    for response in responses:
+                        if response["handle"] == command_handle:
+                            if response["result"]["status"] != NcMethodStatus.OK:
+                                raise NMOSTestException(test.FAIL(response["result"]))
+                            results.append(response)
+                if parsed_message["messageType"] == MessageTypes.Error:
+                    self.validate_schema(parsed_message, self.schemas["error-message"])
+                    raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
+                                                      "/docs/Protocol_messaging.html#error-messages"
+                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
+            if len(results) == 0:
+                raise NMOSTestException(test.FAIL("No Command Message Response received.",
+                                                  "https://specs.amwa.tv/is-12/branches/{}"
+                                                  "/docs/Protocol_messaging.html#command-message-type"
+                                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
-        if len(results) > 1:
-            return False, "Received multiple responses : " + len(responses), None
+            if len(results) > 1:
+                raise NMOSTestException(test.FAIL("Received multiple responses : " + len(responses)))
 
-        return results[0], None, None
+            return results[0]
+        except ValidationError as e:
+            raise NMOSTestException(test.FAIL("JSON schema validation error: " + e.message))
+        except SchemaError as e:
+            raise NMOSTestException(test.FAIL("JSON schema error: " + e.message))
 
-    def get_manager(self, class_id_str):
+    def get_manager(self, test, class_id_str):
         """Get Manager from Root Block. Returns [Manager, error message, spec link]"""
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, self.is12_utils.ROOT_BLOCK_OID)
 
-        response, errorMsg, link = self.send_command(command_handle, get_member_descriptors_command)
-
-        if not response:
-            return False, errorMsg, link
+        response = self.send_command(test, command_handle, get_member_descriptors_command)
 
         manager_found = False
         manager = None
@@ -256,20 +259,20 @@ class IS1201Test(GenericTest):
                 manager = value
 
                 if value["role"] != class_descriptor["fixedRole"]:
-                    return False, "Incorrect Role for Manager: " + value["role"], \
-                                  "https://specs.amwa.tv/ms-05-02/branches/{}" \
-                                  "/docs/Managers.html" \
-                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"])
+                    raise NMOSTestException(test.FAIL("Incorrect Role for Manager: " + value["role"],
+                                                      "https://specs.amwa.tv/ms-05-02/branches/{}"
+                                                      "/docs/Managers.html"
+                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
         if not manager_found:
-            return False, str(class_id_str) + " Manager not found in Root Block", \
-                          "https://specs.amwa.tv/ms-05-02/branches/{}" \
-                          "/docs/Managers.html" \
-                          .format(self.apis[CONTROL_API_KEY]["spec_branch"])
+            raise NMOSTestException(test.FAIL(str(class_id_str) + " Manager not found in Root Block",
+                                              "https://specs.amwa.tv/ms-05-02/branches/{}"
+                                              "/docs/Managers.html"
+                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
-        return manager, None, None
+        return manager
 
-    def validate_descriptor(self, reference, descriptor):
+    def validate_descriptor(self, test, reference, descriptor, context=""):
         """Compare descriptor to reference descriptor. Returns [success, error message]"""
         non_normative_keys = ['description']
 
@@ -291,7 +294,7 @@ class IS1201Test(GenericTest):
             # compare the keys to see if any extra/missing
             key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
             if len(key_diff) > 0:
-                return False, 'Missing/additional keys ' + str(key_diff)
+                raise NMOSTestException(test.FAIL(context + 'Missing/additional keys ' + str(key_diff)))
 
             for key in reference_keys:
                 if key in non_normative_keys:
@@ -299,26 +302,24 @@ class IS1201Test(GenericTest):
                 # Check for class ID
                 if key == 'identity' and isinstance(reference[key], list):
                     if reference[key] != descriptor[key]:
-                        return False, "Unexpected ClassId. Expected: " \
-                                      + str(reference[key]) \
-                                      + " actual: " + str(descriptor[key])
+                        raise NMOSTestException(test.FAIL(context + "Unexpected ClassId. Expected: "
+                                                          + str(reference[key])
+                                                          + " actual: " + str(descriptor[key])))
                 else:
-                    success, message = self.validate_descriptor(reference[key], descriptor[key])
-                    if not success:
-                        return False, key + "->" + message
-            return True, None
-
+                    self.validate_descriptor(test, reference[key], descriptor[key], context=key + "->")
         elif isinstance(reference, list):
             # Convert to dict and validate
             references = {item['name']: item for item in reference}
             descriptors = {item['name']: item for item in descriptor}
 
-            return self.validate_descriptor(references, descriptors)
+            return self.validate_descriptor(test, references, descriptors)
         else:
-            if reference == descriptor:
-                return True, None
-            else:
-                return False, 'Expected value: ' + str(reference) + ', actual value: ' + str(descriptor)
+            if reference != descriptor:
+                raise NMOSTestException(test.FAIL('Expected value: '
+                                                  + str(reference)
+                                                  + ', actual value: '
+                                                  + str(descriptor)))
+        return
 
     def _validate_schema(self, payload, schema):
         """ Delegates to validate_schema but handles any exceptions: Returns [success, error message] """
@@ -332,7 +333,7 @@ class IS1201Test(GenericTest):
 
         return True, None
 
-    def get_class_manager_descriptors(self, class_manager_oid, property_id):
+    def get_class_manager_descriptors(self, test, class_manager_oid, property_id):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
@@ -341,52 +342,45 @@ class IS1201Test(GenericTest):
                                                             command_handle,
                                                             class_manager_oid,
                                                             property_id)
-        response, errorMsg, link = self.send_command(command_handle, get_descriptors_command)
-
-        if not response:
-            return False, errorMsg, link
+        response = self.send_command(test, command_handle, get_descriptors_command)
 
         # Create descriptor dictionary from response array
         # Use identity as key if present, otherwise use name
         def key_lambda(identity, name): return ".".join(map(str, identity)) if identity else name
         descriptors = {key_lambda(r.get('identity'), r['name']): r for r in response["result"]["value"]}
 
-        return descriptors, None, None
+        return descriptors
 
     def validate_model_definitions(self, class_manager_oid, property_id, schema_name, reference_descriptors):
         """Validate class manager model definitions against reference model descriptors. Returns [test result array]"""
         results = list()
 
-        descriptors, error_msg, link = self.get_class_manager_descriptors(class_manager_oid, property_id)
-
-        if not descriptors:
-            test = Test("Validate model definitions", "auto_ValidateModel")
-            results.append(test.FAIL(error_msg, link))
-            return results
+        test = Test("Validate model definitions", "auto_ValidateModel")
+        descriptors = self.get_class_manager_descriptors(test, class_manager_oid, property_id)
 
         reference_descriptor_keys = sorted(reference_descriptors.keys())
 
         for key in reference_descriptor_keys:
             test = Test("Validate " + str(key) + " definition", "auto_" + str(key))
+            try:
+                if descriptors.get(key):
+                    descriptor = descriptors[key]
 
-            if descriptors.get(key):
-                descriptor = descriptors[key]
+                    # Validate the JSON schema is correct
+                    self.validate_schema(descriptor, self.datatype_schemas[schema_name])
 
-                # Validate the JSON schema is correct
-                success, errorMsg = self._validate_schema(descriptor, self.datatype_schemas[schema_name])
-                if not success:
-                    results.append(test.FAIL(errorMsg))
-                    continue
+                    # Validate the descriptor is correct
+                    self.validate_descriptor(test, reference_descriptors[key], descriptor)
 
-                # Validate the descriptor is correct
-                success, errorMsg = self.validate_descriptor(reference_descriptors[key], descriptor)
-                if not success:
-                    results.append(test.FAIL(errorMsg))
-                    continue
-
-                results.append(test.PASS())
-            else:
-                results.append(test.WARNING("Not Implemented"))
+                    results.append(test.PASS())
+                else:
+                    results.append(test.UNCLEAR("Not Implemented"))
+            except NMOSTestException as e:
+                results.append(e.args[0])
+            except ValidationError as e:
+                results.append(test.FAIL(e.message))
+            except SchemaError as e:
+                results.append(test.FAIL(e.message))
 
         return results
 
@@ -395,18 +389,11 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # MS-05-02 (75)  Model definitions
         results = list()
-        test = Test("Get ClassManager", "auto_ClassManager")
+        test = Test("Initialize auto tests", "auto_init")
 
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            results.append(test.FAIL(errorMsg))
-            return results
+        self.create_ncp_socket(test)
 
-        class_manager, errorMsg, link = self.get_manager(CLASS_MANAGER_CLS_ID)
-
-        if not class_manager:
-            results.append(test.FAIL(errorMsg, link))
-            return results
+        class_manager = self.get_manager(test, CLASS_MANAGER_CLS_ID)
 
         results += self.validate_model_definitions(class_manager['oid'],
                                                    self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES'],
@@ -438,9 +425,7 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
 
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            return test.FAIL(errorMsg)
+        self.create_ncp_socket(test)
 
         return test.PASS()
 
@@ -451,48 +436,34 @@ class IS1201Test(GenericTest):
         # MS-05-02 (45) Verify oID and role of Root Block
         # https://github.com/AMWA-TV/ms-05-02/blob/v1.0-dev/docs/Blocks.md#Blocks
 
-        try:
-            success, errorMsg = self.create_ncp_socket()
-            if not success:
-                return test.FAIL(errorMsg)
+        self.create_ncp_socket(test)
 
-            command_handle = self.get_command_handle()
-            version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-            get_role_command = \
-                self.is12_utils.create_generic_get_command_JSON(version,
-                                                                command_handle,
-                                                                self.is12_utils.ROOT_BLOCK_OID,
-                                                                self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        get_role_command = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
 
-            response, errorMsg, link = self.send_command(command_handle, get_role_command)
-            if not response:
-                return test.FAIL(errorMsg, link)
+        response = self.send_command(test, command_handle, get_role_command)
 
-            if response["result"]["value"] != "root":
-                return test.FAIL("Unexpected role in Root Block: " + response["result"]["value"],
-                                 "https://specs.amwa.tv/ms-05-02/branches/{}"
-                                 "/docs/Blocks.html"
-                                 .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+        if response["result"]["value"] != "root":
+            return test.FAIL("Unexpected role in Root Block: " + response["result"]["value"],
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/Blocks.html"
+                             .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
 
-            return test.PASS()
-        except ValidationError as e:
-            return test.FAIL("JSON schema validation error: " + e.message)
-        except SchemaError as e:
-            return test.FAIL("JSON schema error: " + e.message)
+        return test.PASS()
 
     def test_04(self, test):
         """Class Manager exists in Root Block"""
         # Referencing the Google sheet
         # MS-05-02 (40) Class manager exists in root
 
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            return test.FAIL(errorMsg)
+        self.create_ncp_socket(test)
 
-        class_manager, errorMsg, link = self.get_manager(CLASS_MANAGER_CLS_ID)
-
-        if not class_manager:
-            return test.FAIL(errorMsg, link)
+        self.get_manager(test, CLASS_MANAGER_CLS_ID)
 
         return test.PASS()
 
@@ -502,19 +473,24 @@ class IS1201Test(GenericTest):
         # check the syntax of the error message according to is12_error
 
         try:
-            success, errorMsg = self.create_ncp_socket()
-            if not success:
-                return test.FAIL(errorMsg)
+            self.create_ncp_socket(test)
 
-            response, errorMsg, link = self.send_command(command_handle, command_json)
+            self.send_command(test, command_handle, command_json)
 
-            if response:
-                return test.FAIL("Protocol error not handled")
+            return test.FAIL("Error expected")
+
+        except NMOSTestException as e:
+            errorMsg = e.args[0].detail
+
+            # Expecting an error status dictionary
+            if not isinstance(errorMsg, dict):
+                # It must be some other type of error so re-throw
+                raise e
 
             # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
             if is12_error != ('protocolVersion' in errorMsg):
                 spec = "IS-12 protocol" if is12_error else "MS-05-02"
-                return test.FAIL(spec + " error expected", link)
+                return test.FAIL(spec + " error expected")
 
             if not errorMsg.get('status'):
                 return test.FAIL("Command error: " + str(errorMsg))
@@ -523,19 +499,15 @@ class IS1201Test(GenericTest):
                 return test.FAIL("Error not handled. Expected: " + expected_status.name
                                  + " (" + str(expected_status) + ")"
                                  + ", actual: " + NcMethodStatus(errorMsg['status']).name
-                                 + " (" + str(errorMsg['status']) + ")", link)
+                                 + " (" + str(errorMsg['status']) + ")")
 
             if expected_status and errorMsg['status'] != expected_status:
                 return test.WARNING("Unexpected status. Expected: " + expected_status.name
                                     + " (" + str(expected_status) + ")"
                                     + ", actual: " + NcMethodStatus(errorMsg['status']).name
-                                    + " (" + str(errorMsg['status']) + ")", link)
+                                    + " (" + str(errorMsg['status']) + ")")
 
             return test.PASS()
-        except ValidationError as e:
-            return test.FAIL("JSON schema validation error: " + e.message)
-        except SchemaError as e:
-            return test.FAIL("JSON schema error: " + e.message)
 
     def test_05(self, test):
         """IS-12 Protocol Error: Node handles incorrect IS-12 protocol version"""
@@ -693,7 +665,7 @@ class IS1201Test(GenericTest):
 
         return True, None
 
-    def validate_object_properties(self, reference_class_descriptor, oid, datatype_schemas):
+    def validate_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         for class_property in reference_class_descriptor['properties']:
@@ -704,9 +676,7 @@ class IS1201Test(GenericTest):
                                                                 oid,
                                                                 class_property['id'])
             # get property
-            response, errorMsg, link = self.send_command(command_handle, get_property_command)
-            if not response:
-                return False, errorMsg, link
+            response = self.send_command(test, command_handle, get_property_command)
 
             # validate property type
             if class_property['isSequence']:
@@ -716,27 +686,25 @@ class IS1201Test(GenericTest):
                                                                     class_property['isNullable'],
                                                                     datatype_schemas)
                     if not success:
-                        return False, class_property["name"] + ": " + errorMsg, None
+                        raise NMOSTestException(test.FAIL(context + class_property["name"] + ": " + errorMsg))
             else:
                 success, errorMsg = self.validate_property_type(response["result"]["value"],
                                                                 class_property['typeName'],
                                                                 class_property['isNullable'],
                                                                 datatype_schemas)
                 if not success:
-                    return False, class_property["name"] + ": " + errorMsg, None
+                    raise NMOSTestException(test.FAIL(context + class_property["name"] + ": " + errorMsg))
 
-        return True, None, None
+        return
 
-    def validate_block(self, block_id, class_descriptors, datatype_schemas):
+    def validate_block(self, test, block_id, class_descriptors, datatype_schemas, context=""):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, block_id)
 
-        response, errorMsg, link = self.send_command(command_handle, get_member_descriptors_command)
-        if not response:
-            return False, errorMsg, None
+        response = self.send_command(test, command_handle, get_member_descriptors_command)
 
         role_cache = []
         manager_cache = []
@@ -744,7 +712,7 @@ class IS1201Test(GenericTest):
         for child_object in response["result"]["value"]:
             valid, errorMsg = self._validate_schema(child_object, datatype_schemas["NcBlockMemberDescriptor"])
             if not valid:
-                return False, errorMsg, None
+                raise NMOSTestException(test.FAIL(context + errorMsg))
 
             # Check role is unique within containing Block
             if child_object['role'] in role_cache:
@@ -778,11 +746,11 @@ class IS1201Test(GenericTest):
                     manager_cache.append(base_class_name)
 
             if class_identifier:
-                success, errorMsg, link = self.validate_object_properties(class_descriptors[class_identifier],
-                                                                          child_object['oid'],
-                                                                          datatype_schemas)
-                if not success:
-                    return False, child_object['role'] + ': ' + errorMsg, None
+                self.validate_object_properties(test,
+                                                class_descriptors[class_identifier],
+                                                child_object['oid'],
+                                                datatype_schemas,
+                                                context=context + child_object['role'] + ': ')
             else:
                 # Not a standard or non-standard class
                 self.organization_id_error = True
@@ -792,61 +760,46 @@ class IS1201Test(GenericTest):
 
             # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object['classId']):
-                success, errorMsg, link = self.validate_block(child_object['oid'],
-                                                              class_descriptors,
-                                                              datatype_schemas)
+                self.validate_block(test,
+                                    child_object['oid'],
+                                    class_descriptors,
+                                    datatype_schemas,
+                                    context=context + child_object['role'] + ': ')
+        return
 
-                if not success:
-                    return False, child_object['role'] + ': ' + errorMsg, link
-
-        return True, None, None
-
-    def validate_device_model(self):
+    def validate_device_model(self, test):
         if not self.device_model_validated:
-            success, errorMsg = self.create_ncp_socket()
-            if not success:
-                return False, errorMsg, None
+            self.create_ncp_socket(test)
 
-            class_manager, errorMsg, link = self.get_manager(CLASS_MANAGER_CLS_ID)
+            class_manager = self.get_manager(test, CLASS_MANAGER_CLS_ID)
 
-            if not class_manager:
-                return False, errorMsg, link
-
-            class_descriptors, error_msg, link = \
-                self.get_class_manager_descriptors(class_manager['oid'],
+            class_descriptors = \
+                self.get_class_manager_descriptors(test, class_manager['oid'],
                                                    self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES'])
-            if not class_descriptors:
-                return False, error_msg, link
-
-            datatype_descriptors, error_msg, link = \
-                self.get_class_manager_descriptors(class_manager['oid'],
+            datatype_descriptors = \
+                self.get_class_manager_descriptors(test, class_manager['oid'],
                                                    self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES'])
-            if not datatype_descriptors:
-                return False, error_msg, link
 
             # Create JSON schemas for the queried datatypes
             datatype_schemas = self.generate_json_schemas(
                 datatype_descriptors=datatype_descriptors,
                 schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
 
-            success, errorMsg, link = self.validate_block(self.is12_utils.ROOT_BLOCK_OID,
-                                                          class_descriptors,
-                                                          datatype_schemas)
-            if not success:
-                return False, errorMsg, link
+            self.validate_block(test,
+                                self.is12_utils.ROOT_BLOCK_OID,
+                                class_descriptors,
+                                datatype_schemas)
 
             self.device_model_validated = True
 
-        return True, None, None
+        return
 
     def test_13(self, test):
         """Validate device model against discovered classes and datatypes"""
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
-        success, errorMsg, link = self.validate_device_model()
-        if not success:
-            return test.FAIL(errorMsg, link)
+        self.validate_device_model(test)
 
         return test.PASS()
 
@@ -856,9 +809,11 @@ class IS1201Test(GenericTest):
         # MS-05-02 (59) The role of an object MUST be unique within its containing Block.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
-        success, errorMsg, link = self.validate_device_model()
-        if not success:
-            return test.UNCLEAR(errorMsg, link)
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].description)
 
         if self.unique_roles_error:
             return test.FAIL("Roles must be unique. ",
@@ -874,9 +829,11 @@ class IS1201Test(GenericTest):
         # MS-05-02 (60) Object ids (oid property) MUST uniquely identity objects in the device model.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
-        success, errorMsg, link = self.validate_device_model()
-        if not success:
-            return test.UNCLEAR(errorMsg, link)
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].description)
 
         if self.unique_oids_error:
             return test.FAIL("Oids must be unique. ",
@@ -892,9 +849,11 @@ class IS1201Test(GenericTest):
         # MS-05-02 (36) All managers MUST always exist as members in the Root Block and have a fixed role.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
-        success, errorMsg, link = self.validate_device_model()
-        if not success:
-            return test.UNCLEAR(errorMsg, link)
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].description)
 
         if self.managers_members_root_block_error:
             return test.FAIL("Managers must be members of Root Block. ",
@@ -910,9 +869,11 @@ class IS1201Test(GenericTest):
         # MS-05-02 (63) Managers are singleton (MUST only be instantiated once) classes.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
-        success, errorMsg, link = self.validate_device_model()
-        if not success:
-            return test.UNCLEAR(errorMsg, link)
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].description)
 
         if self.managers_members_root_block_error:
             return test.FAIL("Managers must be singleton classes. ",
@@ -927,14 +888,9 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
 
-        success, errorMsg = self.create_ncp_socket()
-        if not success:
-            return test.FAIL(errorMsg)
+        self.create_ncp_socket(test)
 
-        device_manager, errorMsg, link = self.get_manager(DEVICE_MANAGER_CLS_ID)
-
-        if not device_manager:
-            return test.FAIL(errorMsg, link)
+        device_manager = self.get_manager(test, DEVICE_MANAGER_CLS_ID)
 
         # Check MS-05-02 Version
         command_handle = self.get_command_handle()
@@ -946,10 +902,7 @@ class IS1201Test(GenericTest):
                                                             command_handle,
                                                             device_manager['oid'],
                                                             property_id)
-        response, errorMsg, link = self.send_command(command_handle, get_descriptors_command)
-
-        if not response:
-            return test.FAIL(errorMsg, link)
+        response = self.send_command(test, command_handle, get_descriptors_command)
 
         if self.is12_utils.compare_api_version(response['result']['value'], self.apis[MS05_API_KEY]["version"]):
             return test.FAIL("Unexpected version. Expected: "
@@ -968,9 +921,11 @@ class IS1201Test(GenericTest):
         # For organizations which do not own a unique CID or OUI the authority key MUST be 0
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
-        success, errorMsg, link = self.validate_device_model()
-        if not success:
-            return test.UNCLEAR(errorMsg, link)
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].description)
 
         if self.organization_id_error:
             return test.FAIL(self.organization_id_error_msg,
