@@ -339,21 +339,42 @@ class IS1201Test(GenericTest):
 
         return
 
-    def get_class_manager_descriptors(self, test, class_manager_oid, property_id):
+    def _get_property(self, test, oid, property_id):
+        """Get property from object. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
-        get_descriptors_command = \
+        get_property_command = \
             self.is12_utils.create_generic_get_command_JSON(version,
                                                             command_handle,
-                                                            class_manager_oid,
+                                                            oid,
                                                             property_id)
-        response = self.send_command(test, command_handle, get_descriptors_command)
+        response = self.send_command(test, command_handle, get_property_command)
+
+        return response["result"]["value"]
+
+    def _set_property(self, test, oid, property_id, argument):
+        """Get property from object. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        set_property_command = \
+            self.is12_utils.create_generic_set_command_JSON(version,
+                                                            command_handle,
+                                                            oid,
+                                                            property_id,
+                                                            argument)
+        response = self.send_command(test, command_handle, set_property_command)
+
+        return response["result"]
+
+    def get_class_manager_descriptors(self, test, class_manager_oid, property_id):
+        response = self._get_property(test, class_manager_oid, property_id)
 
         # Create descriptor dictionary from response array
         # Use identity as key if present, otherwise use name
         def key_lambda(identity, name): return ".".join(map(str, identity)) if identity else name
-        descriptors = {key_lambda(r.get('identity'), r['name']): r for r in response["result"]["value"]}
+        descriptors = {key_lambda(r.get('identity'), r['name']): r for r in response}
 
         return descriptors
 
@@ -440,18 +461,12 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        get_role_command = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
+        role = self._get_property(test,
+                                  self.is12_utils.ROOT_BLOCK_OID,
+                                  self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
 
-        response = self.send_command(test, command_handle, get_role_command)
-
-        if response["result"]["value"] != "root":
-            return test.FAIL("Unexpected role in Root Block: " + response["result"]["value"],
+        if role != "root":
+            return test.FAIL("Unexpected role in Root Block: " + role,
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Blocks.html"
                              .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
@@ -666,21 +681,12 @@ class IS1201Test(GenericTest):
         return
 
     def validate_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-
         for class_property in reference_class_descriptor['properties']:
-            command_handle = self.get_command_handle()
-            get_property_command = \
-                self.is12_utils.create_generic_get_command_JSON(version,
-                                                                command_handle,
-                                                                oid,
-                                                                class_property['id'])
-            # get property
-            response = self.send_command(test, command_handle, get_property_command)
+            response = self._get_property(test, oid, class_property['id'])
 
             # validate property type
             if class_property['isSequence']:
-                for property_value in response["result"]["value"]:
+                for property_value in response:
                     self.validate_property_type(test,
                                                 property_value,
                                                 class_property['typeName'],
@@ -689,7 +695,7 @@ class IS1201Test(GenericTest):
                                                 context=context + class_property["name"] + ": ")
             else:
                 self.validate_property_type(test,
-                                            response["result"]["value"],
+                                            response,
                                             class_property['typeName'],
                                             class_property['isNullable'],
                                             datatype_schemas,
@@ -767,7 +773,7 @@ class IS1201Test(GenericTest):
                                     context=context + child_object['role'] + ': ')
         return
 
-    def validate_device_model(self, test):
+    def validate_device_model_properties(self, test):
         if not self.device_model_validated:
             self.create_ncp_socket(test)
 
@@ -795,11 +801,11 @@ class IS1201Test(GenericTest):
         return
 
     def test_13(self, test):
-        """Validate device model against discovered classes and datatypes"""
+        """Validate device model properties against discovered classes and datatypes"""
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
-        self.validate_device_model(test)
+        self.validate_device_model_properties(test)
 
         return test.PASS()
 
@@ -810,7 +816,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
         try:
-            self.validate_device_model(test)
+            self.validate_device_model_properties(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -830,7 +836,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
         try:
-            self.validate_device_model(test)
+            self.validate_device_model_properties(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -850,7 +856,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model(test)
+            self.validate_device_model_properties(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -870,7 +876,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model(test)
+            self.validate_device_model_properties(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -893,21 +899,14 @@ class IS1201Test(GenericTest):
         device_manager = self.get_manager(test, DEVICE_MANAGER_CLS_ID)
 
         # Check MS-05-02 Version
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         property_id = self.is12_utils.PROPERTY_IDS['NCDEVICEMANAGER']['NCVERSION']
 
-        get_descriptors_command = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            device_manager['oid'],
-                                                            property_id)
-        response = self.send_command(test, command_handle, get_descriptors_command)
+        version = self._get_property(test, device_manager['oid'], property_id)
 
-        if self.is12_utils.compare_api_version(response['result']['value'], self.apis[MS05_API_KEY]["version"]):
+        if self.is12_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
             return test.FAIL("Unexpected version. Expected: "
                              + self.apis[MS05_API_KEY]["version"]
-                             + ". Actual: " + str(response['result']['value']))
+                             + ". Actual: " + str(version))
 
         return test.PASS()
 
@@ -922,7 +921,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model(test)
+            self.validate_device_model_properties(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -935,5 +934,47 @@ class IS1201Test(GenericTest):
 
         if not self.organization_id_detected:
             return test.UNCLEAR("No non-standard classes found.")
+
+        return test.PASS()
+
+    def test_20(self, test):
+        """Set user label on Root Block"""
+        # Referencing the Google sheet
+        # MS-05-02 (39) Generic getter and setter
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#generic-getter-and-setter
+
+        link = "https://specs.amwa.tv/ms-05-02/branches/{}" \
+               "/docs/NcObject.html#generic-getter-and-setter" \
+               .format(self.apis[MS05_API_KEY]["spec_branch"])
+
+        # Attempt to set labels
+        self.create_ncp_socket(test)
+
+        property_id = self.is12_utils.PROPERTY_IDS['NCOBJECT']['USER_LABEL']
+
+        old_user_label = self._get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+
+        # Set user label
+        new_user_label = "NMOS Testing Tool"
+        self._set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, new_user_label)
+
+        # Check user label
+        label = self._get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        if label != new_user_label:
+            if label == old_user_label:
+                return test.FAIL("Unable to set user label", link)
+            else:
+                return test.FAIL("Unexpected user label: " + str(label), link)
+
+        # Reset user label
+        self._set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, old_user_label)
+
+        # Check user label
+        label = self._get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        if label != old_user_label:
+            if label == new_user_label:
+                return test.FAIL("Unable to set user label", link)
+            else:
+                return test.FAIL("Unexpected user label: " + str(label), link)
 
         return test.PASS()
