@@ -744,9 +744,12 @@ class IS1201Test(GenericTest):
             self.touchpoints_validated = True
             try:
                 for touchpoint in touchpoints:
+                    schema = datatype_schemas["NcTouchpointNmos"] \
+                        if touchpoint["contextNamespace"] == "x-nmos" \
+                        else datatype_schemas["NcTouchpointNmosChannelMapping"]
                     self._validate_schema(test,
                                           touchpoint,
-                                          datatype_schemas["NcTouchpointNmos"],
+                                          schema,
                                           context="NcTouchpointNmos: ")
             except NMOSTestException as e:
                 self.touchpoints_error = True
@@ -971,7 +974,7 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_20(self, test):
-        """Set user label on Root Block"""
+        """Get/Set properties on Root Block"""
         # Referencing the Google sheet
         # MS-05-02 (39) Generic getter and setter
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#generic-getter-and-setter
