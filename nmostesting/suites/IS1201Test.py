@@ -200,7 +200,8 @@ class IS1201Test(GenericTest):
             parsed_message = json.loads(message)
 
             if parsed_message["messageType"] == MessageTypes.CommandResponse:
-                self._validate_schema(parsed_message,
+                self._validate_schema(test,
+                                      parsed_message,
                                       self.schemas["command-response-message"],
                                       context="command-response-message: ")
                 if NMOSUtils.compare_api_version(parsed_message["protocolVersion"],
@@ -219,7 +220,8 @@ class IS1201Test(GenericTest):
                             raise NMOSTestException(test.FAIL(response["result"]))
                         results.append(response)
             if parsed_message["messageType"] == MessageTypes.Error:
-                self._validate_schema(parsed_message,
+                self._validate_schema(test,
+                                      parsed_message,
                                       self.schemas["error-message"],
                                       context="error-message: ")
                 raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
@@ -251,7 +253,8 @@ class IS1201Test(GenericTest):
         class_descriptor = self.classes_descriptors[class_id_str]
 
         for value in response["result"]["value"]:
-            self._validate_schema(value,
+            self._validate_schema(test,
+                                  value,
                                   self.datatype_schemas["NcBlockMemberDescriptor"],
                                   context="NcBlockMemberDescriptor: ")
 
@@ -324,15 +327,15 @@ class IS1201Test(GenericTest):
                                                   + str(descriptor)))
         return
 
-    def _validate_schema(self, payload, schema, context=""):
+    def _validate_schema(self, test, payload, schema, context=""):
         """Delegates to validate_schema. Raises NMOSTestExceptions on error"""
         try:
             # Validate the JSON schema is correct
             self.validate_schema(payload, schema)
         except ValidationError as e:
-            raise NMOSTestException(context + "Schema validation error: " + e.message)
+            raise NMOSTestException(test.FAIL(context + "Schema validation error: " + e.message))
         except SchemaError as e:
-            raise NMOSTestException(context + "Schema error: " + e.message)
+            raise NMOSTestException(test.FAIL(context + "Schema error: " + e.message))
 
         return
 
@@ -370,7 +373,7 @@ class IS1201Test(GenericTest):
                     descriptor = descriptors[key]
 
                     # Validate the JSON schema is correct
-                    self._validate_schema(descriptor, self.datatype_schemas[schema_name])
+                    self._validate_schema(test, descriptor, self.datatype_schemas[schema_name])
 
                     # Validate the descriptor is correct
                     self.validate_descriptor(test, reference_descriptors[key], descriptor)
@@ -641,12 +644,12 @@ class IS1201Test(GenericTest):
                                   expected_status=NcMethodStatus.Readonly,
                                   is12_error=False)
 
-    def validate_property_type(self, value, type, is_nullable, datatype_schemas, context=""):
+    def validate_property_type(self, test, value, type, is_nullable, datatype_schemas, context=""):
         if value is None:
             if is_nullable:
                 return
             else:
-                raise NMOSTestException(context + "Non-nullable property set to null.")
+                raise NMOSTestException(test.FAIL(context + "Non-nullable property set to null."))
 
         if self.is12_utils.primitive_to_python_type(type):
             # Special case: if this is a floating point value it
@@ -656,9 +659,9 @@ class IS1201Test(GenericTest):
                 return
 
             if not isinstance(value, self.is12_utils.primitive_to_python_type(type)):
-                raise NMOSTestException(context + str(value) + " is not of type " + str(type))
+                raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(type)))
         else:
-            self._validate_schema(value, datatype_schemas[type], context)
+            self._validate_schema(test, value, datatype_schemas[type], context)
 
         return
 
@@ -678,13 +681,15 @@ class IS1201Test(GenericTest):
             # validate property type
             if class_property['isSequence']:
                 for property_value in response["result"]["value"]:
-                    self.validate_property_type(property_value,
+                    self.validate_property_type(test,
+                                                property_value,
                                                 class_property['typeName'],
                                                 class_property['isNullable'],
                                                 datatype_schemas,
                                                 context=context + class_property["name"] + ": ")
             else:
-                self.validate_property_type(response["result"]["value"],
+                self.validate_property_type(test,
+                                            response["result"]["value"],
                                             class_property['typeName'],
                                             class_property['isNullable'],
                                             datatype_schemas,
@@ -704,7 +709,8 @@ class IS1201Test(GenericTest):
         manager_cache = []
 
         for child_object in response["result"]["value"]:
-            self._validate_schema(child_object,
+            self._validate_schema(test,
+                                  child_object,
                                   datatype_schemas["NcBlockMemberDescriptor"],
                                   context="NcBlockMemberDescriptor: ")
 
