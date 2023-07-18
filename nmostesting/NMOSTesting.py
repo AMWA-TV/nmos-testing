@@ -351,6 +351,14 @@ TEST_DEFINITIONS = {
             "spec_key": "is-12",
             "api_key": "ncp",
             "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "selector"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
         }],
         "class": IS1201Test.IS1201Test,
         "selector": True
@@ -620,6 +628,9 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "spec": None,  # Used inside GenericTest
                 "spec_path": CONFIG.CACHE_PATH + '/' + spec_key
             }
+            # extra path metadata used by nmos-feature-sets-register
+            if "repo_paths" in CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]:
+                apis[api_key]["repo_paths"] = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]["repo_paths"]
             if CONFIG.SPECIFICATIONS[spec_key]["repo"] is not None \
                     and api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
                 spec_api = CONFIG.SPECIFICATIONS[spec_key]["apis"][api_key]

@@ -287,6 +287,27 @@ SPECIFICATIONS = {
             },
         }
     },
+    "ms-05-02": {
+        "repo": "ms-05-02",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "controlframework": {
+                "name": "Control Framework"
+            },
+        }
+    },
+    "nmos-control-feature-sets": {
+        "repo": "nmos-control-feature-sets",
+        "versions": ["main"],
+        "default_version": "main",
+        "apis": {
+            "featuresets": {
+                "name": "Control Feature Sets",
+                "repo_paths": ["identification", "monitoring"]
+            }
+        }
+    },
     "bcp-002-01": {
         "repo": "bcp-002-01",
         "versions": ["v1.0"],
