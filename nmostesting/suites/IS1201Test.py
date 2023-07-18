@@ -56,6 +56,10 @@ class IS1201Test(GenericTest):
         self.organization_id_error = False
         self.organization_id_error_msg = ""
         self.device_model_validated = False
+        self.touchpoints_validated = False
+        self.touchpoints_error = False
+        self.touchpoints_error_msg = ""
+
         self.oid_cache = []
 
     def tear_down_tests(self):
@@ -702,6 +706,52 @@ class IS1201Test(GenericTest):
                                             context=context + class_property["name"] + ": ")
         return
 
+    def check_unique_roles(self, role, role_cache):
+        """Check role is unique within containing Block"""
+        if role in role_cache:
+            self.unique_roles_error = True
+        else:
+            role_cache.append(role)
+
+    def check_unique_oid(self, oid):
+        """Check oid is globally unique"""
+        if oid in self.oid_cache:
+            self.unique_oids_error = True
+        else:
+            self.oid_cache.append(oid)
+
+    def check_manager(self, class_id, owner, class_descriptors, manager_cache):
+        """Check manager is singleton and that it inherits from NcManager"""
+        # detemine the standard base class name
+        base_id = self.is12_utils.get_base_class_id(class_id)
+        base_class_name = class_descriptors[base_id]["name"]
+
+        # manager checks
+        if self.is12_utils.is_manager(class_id):
+            if owner != self.is12_utils.ROOT_BLOCK_OID:
+                self.managers_members_root_block_error = True
+            if base_class_name in manager_cache:
+                self.managers_are_singletons_error = True
+            else:
+                manager_cache.append(base_class_name)
+
+    def check_touchpoints(self, test, oid, datatype_schemas):
+        """Touchpoint checks"""
+        touchpoints = self._get_property(test,
+                                         oid,
+                                         self.is12_utils.PROPERTY_IDS["NCOBJECT"]["TOUCHPOINTS"])
+        if touchpoints is not None:
+            self.touchpoints_validated = True
+            try:
+                for touchpoint in touchpoints:
+                    self._validate_schema(test,
+                                          touchpoint,
+                                          datatype_schemas["NcTouchpointNmos"],
+                                          context="NcTouchpointNmos: ")
+            except NMOSTestException as e:
+                self.touchpoints_error = True
+                self.touchpoints_error_msg = e.args[0].detail
+
     def validate_block(self, test, block_id, class_descriptors, datatype_schemas, context=""):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
@@ -720,36 +770,19 @@ class IS1201Test(GenericTest):
                                   datatype_schemas["NcBlockMemberDescriptor"],
                                   context="NcBlockMemberDescriptor: ")
 
-            # Check role is unique within containing Block
-            if child_object['role'] in role_cache:
-                self.unique_roles_error = True
-            else:
-                role_cache.append(child_object['role'])
+            self.check_unique_roles(child_object['role'], role_cache)
 
-            # Check oid is globally unique
-            if child_object['oid'] in self.oid_cache:
-                self.unique_oids_error = True
-            else:
-                self.oid_cache.append(child_object['oid'])
+            self.check_unique_oid(child_object['oid'])
 
             # check for non-standard classes
             if self.is12_utils.is_non_standard_class(child_object['classId']):
                 self.organization_id_detected = True
 
-            # detemine the standard base class name
-            base_id = self.is12_utils.get_base_class_id(child_object['classId'])
-            base_class_name = class_descriptors[base_id]["name"]
+            self.check_manager(child_object['classId'], child_object["owner"], class_descriptors, manager_cache)
+
+            self.check_touchpoints(test, child_object['oid'], datatype_schemas)
 
             class_identifier = ".".join(map(str, child_object['classId']))
-
-            # manager checks
-            if self.is12_utils.is_manager(child_object['classId']):
-                if child_object["owner"] != self.is12_utils.ROOT_BLOCK_OID:
-                    self.managers_members_root_block_error = True
-                if base_class_name in manager_cache:
-                    self.managers_are_singletons_error = True
-                else:
-                    manager_cache.append(base_class_name)
 
             if class_identifier:
                 self.validate_object_properties(test,
@@ -977,4 +1010,27 @@ class IS1201Test(GenericTest):
             else:
                 return test.FAIL("Unexpected user label: " + str(label), link)
 
+        return test.PASS()
+
+    def test_21(self, test):
+        """Validate touchpoints"""
+        # Referencing the Google sheet
+        # MS-05-02 (39) For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
+        # which has a resource of type NcTouchpointResourceNmos.
+        # For IS-08 Audio Channel Mapping the NcTouchpointResourceNmosChannelMapping datatype MUST be used
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#touchpoints
+        try:
+            self.validate_device_model_properties(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.touchpoints_error:
+            return test.FAIL(self.touchpoints_error_msg,
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/NcObject.html#touchpoints"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.touchpoints_validated:
+            return test.UNCLEAR("No Touchpoints found.")
         return test.PASS()
