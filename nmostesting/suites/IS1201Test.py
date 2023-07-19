@@ -52,13 +52,13 @@ class IS1201Test(GenericTest):
         self.unique_oids_error = False
         self.managers_are_singletons_error = False
         self.managers_members_root_block_error = False
-        self.organization_id_detected = False
-        self.organization_id_error = False
-        self.organization_id_error_msg = ""
         self.device_model_validated = False
-        self.touchpoints_validated = False
-        self.touchpoints_error = False
-        self.touchpoints_error_msg = ""
+        self.organization_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.touchpoints_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.set_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.add_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.remove_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
 
         self.oid_cache = []
 
@@ -369,6 +369,67 @@ class IS1201Test(GenericTest):
                                                             property_id,
                                                             argument)
         response = self.send_command(test, command_handle, set_property_command)
+
+        return response["result"]
+
+    def _get_sequence_item(self, test, oid, property_id, index):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        get_sequence_item_command = \
+            self.is12_utils.create_get_sequence_item_command_JSON(version,
+                                                                  command_handle,
+                                                                  oid,
+                                                                  property_id,
+                                                                  index)
+        response = self.send_command(test, command_handle, get_sequence_item_command)
+
+        return response["result"]["value"]
+
+    def _set_sequence_item(self, test, oid, property_id, index, value):
+        """Add value to a sequence property. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        add_sequence_item_command = \
+            self.is12_utils.create_set_sequence_item_command_JSON(version,
+                                                                  command_handle,
+                                                                  oid,
+                                                                  property_id,
+                                                                  index,
+                                                                  value)
+        response = self.send_command(test, command_handle, add_sequence_item_command)
+
+        return response["result"]
+
+    def _add_sequence_item(self, test, oid, property_id, value):
+        """Add value to a sequence property. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        add_sequence_item_command = \
+            self.is12_utils.create_add_sequence_item_command_JSON(version,
+                                                                  command_handle,
+                                                                  oid,
+                                                                  property_id,
+                                                                  value)
+        response = self.send_command(test, command_handle, add_sequence_item_command)
+
+        return response["result"]
+
+    def _remove_sequence_item(self, test, oid, property_id, index):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        get_sequence_item_command = \
+            self.is12_utils.create_remove_sequence_item_command_JSON(version,
+                                                                     command_handle,
+                                                                     oid,
+                                                                     property_id,
+                                                                     index)
+        response = self.send_command(test, command_handle, get_sequence_item_command)
 
         return response["result"]
 
@@ -684,6 +745,97 @@ class IS1201Test(GenericTest):
 
         return
 
+    def check_get_sequence_item(self, test, oid, sequence_values, property_metadata, context=""):
+        try:
+            # GetSequenceItem
+            self.get_sequence_item_metadata["checked"] = True
+            sequence_index = 0
+            for property_value in sequence_values:
+                value = self._get_sequence_item(test, oid, property_metadata['id'], sequence_index)
+                if property_value != value:
+                    self.get_sequence_item_metadata["error"] = True
+                    self.get_sequence_item_metadata["error_msg"] += \
+                        context + property_metadata["name"] \
+                        + ": Expected: " + str(property_value) + ", Actual: " + str(value) \
+                        + " at index " + sequence_index + ", "
+                sequence_index += 1
+            return True
+        except NMOSTestException as e:
+            self.get_sequence_item_metadata["error"] = True
+            self.get_sequence_item_metadata["error_msg"] += \
+                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_add_sequence_item(self, test, oid, property_metadata, sequence_length, context=""):
+        try:
+            self.add_sequence_item_metadata["checked"] = True
+            # Add a value to the end of the sequence
+            new_item = self._get_sequence_item(test, oid, property_metadata['id'], index=0)
+
+            self._add_sequence_item(test, oid, property_metadata['id'], new_item)
+
+            # check the value
+            value = self._get_sequence_item(test, oid, property_metadata['id'], index=sequence_length)
+            if value != new_item:
+                self.add_sequence_item_metadata["error"] = True
+                self.add_sequence_item_metadata["error_msg"] += \
+                    context + property_metadata["name"] \
+                    + ": Expected: " + str(new_item) + ", Actual: " + str(value) + ", "
+            return True
+        except NMOSTestException as e:
+            self.add_sequence_item_metadata["error"] = True
+            self.add_sequence_item_metadata["error_msg"] += \
+                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_set_sequence_item(self, test, oid, property_metadata, sequence_length, context=""):
+        try:
+            self.set_sequence_item_metadata["checked"] = True
+            new_value = self._get_sequence_item(test, oid, property_metadata['id'], index=sequence_length - 1)
+
+            # set to another value
+            self._set_sequence_item(test, oid, property_metadata['id'], index=sequence_length, value=new_value)
+
+            # check the value
+            value = self._get_sequence_item(test, oid, property_metadata['id'], index=sequence_length)
+            if value != new_value:
+                self.set_sequence_item_metadata["error"] = True
+                self.set_sequence_item_metadata["error_msg"] += \
+                    context + property_metadata["name"] \
+                    + ": Expected: " + str(new_value) + ", Actual: " + str(value) + ", "
+            return True
+        except NMOSTestException as e:
+            self.set_sequence_item_metadata["error"] = True
+            self.set_sequence_item_metadata["error_msg"] += \
+                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_remove_sequence_item(self, test, oid, property_metadata, sequence_length, context=""):
+        try:
+            # remove item
+            self.remove_sequence_item_metadata["checked"] = True
+            self._remove_sequence_item(test, oid, property_metadata['id'], index=sequence_length)
+            return True
+        except NMOSTestException as e:
+            self.remove_sequence_item_metadata["error"] = True
+            self.remove_sequence_item_metadata["error_msg"] += \
+                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_sequence_methods(self, test, oid, sequence_values, property_metadata, context=""):
+        """Check that sequence manipulation methods work correctly"""
+        self.check_get_sequence_item(test, oid, sequence_values, property_metadata, context)
+
+        if not property_metadata['isReadOnly']:
+            sequence_length = len(sequence_values)
+
+            if not self.check_add_sequence_item(test, oid, property_metadata, sequence_length, context=context):
+                return
+
+            self.check_set_sequence_item(test, oid, property_metadata, sequence_length, context=context)
+
+            self.check_remove_sequence_item(test, oid, property_metadata, sequence_length, context)
+
     def validate_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
         for class_property in reference_class_descriptor['properties']:
             response = self._get_property(test, oid, class_property['id'])
@@ -697,6 +849,7 @@ class IS1201Test(GenericTest):
                                                 class_property['isNullable'],
                                                 datatype_schemas,
                                                 context=context + class_property["name"] + ": ")
+                self.check_sequence_methods(test, oid, response, class_property, context=context)
             else:
                 self.validate_property_type(test,
                                             response,
@@ -735,13 +888,13 @@ class IS1201Test(GenericTest):
             else:
                 manager_cache.append(base_class_name)
 
-    def check_touchpoints(self, test, oid, datatype_schemas):
+    def check_touchpoints(self, test, oid, datatype_schemas, context):
         """Touchpoint checks"""
         touchpoints = self._get_property(test,
                                          oid,
                                          self.is12_utils.PROPERTY_IDS["NCOBJECT"]["TOUCHPOINTS"])
         if touchpoints is not None:
-            self.touchpoints_validated = True
+            self.touchpoints_metadata["checked"] = True
             try:
                 for touchpoint in touchpoints:
                     schema = datatype_schemas["NcTouchpointNmos"] \
@@ -750,10 +903,10 @@ class IS1201Test(GenericTest):
                     self._validate_schema(test,
                                           touchpoint,
                                           schema,
-                                          context="NcTouchpointNmos: ")
+                                          context=context + schema["title"] + ": ")
             except NMOSTestException as e:
-                self.touchpoints_error = True
-                self.touchpoints_error_msg = e.args[0].detail
+                self.touchpoints_metadata["error"] = True
+                self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
     def validate_block(self, test, block_id, class_descriptors, datatype_schemas, context=""):
         command_handle = self.get_command_handle()
@@ -779,11 +932,12 @@ class IS1201Test(GenericTest):
 
             # check for non-standard classes
             if self.is12_utils.is_non_standard_class(child_object['classId']):
-                self.organization_id_detected = True
+                self.organization_metadata["checked"] = True
 
             self.check_manager(child_object['classId'], child_object["owner"], class_descriptors, manager_cache)
 
-            self.check_touchpoints(test, child_object['oid'], datatype_schemas)
+            self.check_touchpoints(test, child_object['oid'], datatype_schemas,
+                                   context=context + child_object['role'] + ': ')
 
             class_identifier = ".".join(map(str, child_object['classId']))
 
@@ -795,8 +949,8 @@ class IS1201Test(GenericTest):
                                                 context=context + child_object['role'] + ': ')
             else:
                 # Not a standard or non-standard class
-                self.organization_id_error = True
-                self.organization_id_error_msg = child_object['role'] + ': ' \
+                self.organization_metadata["error"] = True
+                self.organization_metadata["error_msg"] = child_object['role'] + ': ' \
                     + "Non-standard class id does not contain authority key: " \
                     + str(child_object['classId']) + ". "
 
@@ -809,7 +963,7 @@ class IS1201Test(GenericTest):
                                     context=context + child_object['role'] + ': ')
         return
 
-    def validate_device_model_properties(self, test):
+    def validate_device_model(self, test):
         if not self.device_model_validated:
             self.create_ncp_socket(test)
 
@@ -841,7 +995,7 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
-        self.validate_device_model_properties(test)
+        self.validate_device_model(test)
 
         return test.PASS()
 
@@ -852,7 +1006,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
         try:
-            self.validate_device_model_properties(test)
+            self.validate_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -872,7 +1026,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
         try:
-            self.validate_device_model_properties(test)
+            self.validate_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -892,7 +1046,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model_properties(test)
+            self.validate_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -912,7 +1066,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model_properties(test)
+            self.validate_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -957,18 +1111,18 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model_properties(test)
+            self.validate_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
-        if self.organization_id_error:
-            return test.FAIL(self.organization_id_error_msg,
+        if self.organization_metadata["error"]:
+            return test.FAIL(self.organization_metadata["error_msg"],
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Framework.html#ncclassid"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.organization_id_detected:
+        if not self.organization_metadata["checked"]:
             return test.UNCLEAR("No non-standard classes found.")
 
         return test.PASS()
@@ -1023,17 +1177,81 @@ class IS1201Test(GenericTest):
         # For IS-08 Audio Channel Mapping the NcTouchpointResourceNmosChannelMapping datatype MUST be used
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#touchpoints
         try:
-            self.validate_device_model_properties(test)
+            self.validate_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
-        if self.touchpoints_error:
-            return test.FAIL(self.touchpoints_error_msg,
+        if self.touchpoints_metadata["error"]:
+            return test.FAIL(self.touchpoints_metadata["error_msg"],
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/NcObject.html#touchpoints"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.touchpoints_validated:
+        if not self.touchpoints_metadata["checked"]:
             return test.UNCLEAR("No Touchpoints found.")
+        return test.PASS()
+
+    def test_22(self, test):
+        """Get Sequence Item"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.get_sequence_item_metadata["error"]:
+            return test.FAIL(self.get_sequence_item_metadata["error_msg"])
+
+        if not self.get_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("GetSequenceItem not tested.")
+
+        return test.PASS()
+
+    def test_23(self, test):
+        """Set Sequence Item"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.set_sequence_item_metadata["error"]:
+            return test.FAIL(self.set_sequence_item_metadata["error_msg"])
+
+        if not self.set_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("SetSequenceItem not tested.")
+
+        return test.PASS()
+
+    def test_24(self, test):
+        """Add Sequence Item"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.add_sequence_item_metadata["error"]:
+            return test.FAIL(self.add_sequence_item_metadata["error_msg"])
+
+        if not self.add_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("AddSequenceItem not tested.")
+
+        return test.PASS()
+
+    def test_25(self, test):
+        """Remove Sequence Item"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.remove_sequence_item_metadata["error"]:
+            return test.FAIL(self.remove_sequence_item_metadata["error_msg"])
+
+        if not self.remove_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("RemoveSequenceItem not tested.")
+
         return test.PASS()
