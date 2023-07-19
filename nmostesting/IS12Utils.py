@@ -64,7 +64,11 @@ class IS12Utils(NMOSUtils):
         self.METHOD_IDS = {
             'NCOBJECT': {
                 'GENERIC_GET': {'level': 1, 'index': 1},
-                'GENERIC_SET': {'level': 1, 'index': 2}
+                'GENERIC_SET': {'level': 1, 'index': 2},
+                'GET_SEQUENCE_ITEM': {'level': 1, 'index': 3},
+                'SET_SEQUENCE_ITEM': {'level': 1, 'index': 4},
+                'ADD_SEQUENCE_ITEM': {'level': 1, 'index': 5},
+                'REMOVE_SEQUENCE_ITEM': {'level': 1, 'index': 6}
             },
             'NCBLOCK': {
                 'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1}
@@ -135,6 +139,42 @@ class IS12Utils(NMOSUtils):
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
                                         {'recurse': False})
+
+    def create_get_sequence_item_command_JSON(self, version, handle, oid, property_id, index):
+        """Create message that will request the sequence item value given an oid and index"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_ITEM"],
+                                        {'id': property_id, 'index': index})
+
+    def create_set_sequence_item_command_JSON(self, version, handle, oid, property_id, index, value):
+        """Create message that will add a sequence item value"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCOBJECT"]["SET_SEQUENCE_ITEM"],
+                                        {'id': property_id, 'index': index, 'value': value})
+
+    def create_add_sequence_item_command_JSON(self, version, handle, oid, property_id, value):
+        """Create message that will add a sequence item value"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCOBJECT"]["ADD_SEQUENCE_ITEM"],
+                                        {'id': property_id, 'value': value})
+
+    def create_remove_sequence_item_command_JSON(self, version, handle, oid, property_id, index):
+        """Create message that will request the sequence item value given an oid and index"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCOBJECT"]["REMOVE_SEQUENCE_ITEM"],
+                                        {'id': property_id, 'index': index})
 
     def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
