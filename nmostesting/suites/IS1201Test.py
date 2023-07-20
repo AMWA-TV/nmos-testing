@@ -20,7 +20,7 @@ from jsonschema import ValidationError, SchemaError
 
 from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
-from ..IS12Utils import IS12Utils, NcMethodStatus, MessageTypes
+from ..IS12Utils import IS12Utils, NcMethodStatus, MessageTypes, NcObject
 from ..NMOSUtils import NMOSUtils
 from ..TestHelper import WebsocketWorker, load_resolved_schema
 from ..TestResult import Test
@@ -46,6 +46,7 @@ class IS1201Test(GenericTest):
         self.ncp_websocket = None
         self.load_reference_resources()
         self.command_handle = 0
+        self.root_block = None
 
     def set_up_tests(self):
         self.unique_roles_error = False
@@ -432,6 +433,20 @@ class IS1201Test(GenericTest):
         response = self.send_command(test, command_handle, get_sequence_item_command)
 
         return response["result"]
+
+    def _find_members_by_path(self, test, oid, role_path):
+        """Query members based on role path. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        get_sequence_item_command = \
+            self.is12_utils.create_find_members_by_path_command_JSON(version,
+                                                                     command_handle,
+                                                                     oid,
+                                                                     role_path)
+        response = self.send_command(test, command_handle, get_sequence_item_command)
+
+        return response["result"]["value"]
 
     def get_class_manager_descriptors(self, test, class_manager_oid, property_id):
         response = self._get_property(test, class_manager_oid, property_id)
@@ -908,7 +923,7 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error"] = True
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
-    def validate_block(self, test, block_id, class_descriptors, datatype_schemas, context=""):
+    def validate_block(self, test, block_id, class_descriptors, datatype_schemas, block, context=""):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
@@ -921,6 +936,8 @@ class IS1201Test(GenericTest):
         manager_cache = []
 
         for child_object in response["result"]["value"]:
+            child_block = NcObject(child_object['classId'], child_object['oid'], child_object['role'])
+
             self._validate_schema(test,
                                   child_object,
                                   datatype_schemas["NcBlockMemberDescriptor"],
@@ -960,7 +977,10 @@ class IS1201Test(GenericTest):
                                     child_object['oid'],
                                     class_descriptors,
                                     datatype_schemas,
+                                    child_block,
                                     context=context + child_object['role'] + ': ')
+
+            block.add_child_object(child_block)
         return
 
     def validate_device_model(self, test):
@@ -981,13 +1001,15 @@ class IS1201Test(GenericTest):
                 datatype_descriptors=datatype_descriptors,
                 schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
 
+            self.root_block = NcObject(self.is12_utils.CLASS_IDS["NCBLOCK"], self.is12_utils.ROOT_BLOCK_OID, "root")
+
             self.validate_block(test,
                                 self.is12_utils.ROOT_BLOCK_OID,
                                 class_descriptors,
-                                datatype_schemas)
+                                datatype_schemas,
+                                self.root_block)
 
             self.device_model_validated = True
-
         return
 
     def test_13(self, test):
@@ -1254,4 +1276,35 @@ class IS1201Test(GenericTest):
         if not self.remove_sequence_item_metadata["checked"]:
             return test.UNCLEAR("RemoveSequenceItem not tested.")
 
+        return test.PASS()
+
+    def test_26(self, test):
+        """Find member by role"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        role_paths = self.root_block.get_role_paths()
+
+        for role_path in role_paths:
+            # Get ground truth data from local device model object tree
+            child_object = self.root_block.find_members_by_path(role_path)
+
+            queried_members = self._find_members_by_path(test, self.root_block.oid, role_path)
+
+            for queried_member in queried_members:
+                self._validate_schema(test,
+                                      queried_member,
+                                      self.datatype_schemas["NcBlockMemberDescriptor"],
+                                      context="NcBlockMemberDescriptor: ")
+
+            queried_member_oids = [m['oid'] for m in queried_members]
+
+            if child_object.oid not in queried_member_oids:
+                return test.FAIL("Unsuccessful attempt to find member by role path: " + str(role_path))
+
+            if len(queried_members) > 1:
+                return test.FAIL("Incorrect member found by role path: " + str(role_path))
         return test.PASS()

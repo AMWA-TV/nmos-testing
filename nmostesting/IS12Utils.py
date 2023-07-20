@@ -71,7 +71,8 @@ class IS12Utils(NMOSUtils):
                 'REMOVE_SEQUENCE_ITEM': {'level': 1, 'index': 6}
             },
             'NCBLOCK': {
-                'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1}
+                'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1},
+                'FIND_MEMBERS_BY_PATH': {'level': 2, 'index': 2}
             },
             'NCCLASSMANAGER': {
                 'GET_CONTROL_CLASS': {'level': 3, 'index': 1}
@@ -97,6 +98,11 @@ class IS12Utils(NMOSUtils):
                 'NCVERSION': {'level': 3, 'index': 1}
             }
         }
+
+        self.CLASS_IDS = {
+            'NCOBJECT': [1],
+            'NCBLOCK': [1, 1]
+            }
 
     def create_command_JSON(self, version, handle, oid, method_id, arguments):
         """Create command JSON for generic get of a property"""
@@ -175,6 +181,15 @@ class IS12Utils(NMOSUtils):
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["REMOVE_SEQUENCE_ITEM"],
                                         {'id': property_id, 'index': index})
+
+    def create_find_members_by_path_command_JSON(self, version, handle, oid, role_path):
+        """Create JSON message for FindMembersByPath method from NcBlock"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_PATH"],
+                                        {'path': role_path})
 
     def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
@@ -302,3 +317,34 @@ class IS12Utils(NMOSUtils):
     def is_manager(self, class_id):
         """ Check class id to determine if this is a manager """
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
+
+
+class NcObject():
+    def __init__(self, class_id, oid, role):
+        self.class_id = class_id
+        self.oid = oid
+        self.role = role
+        self.child_objects = {}
+
+    def add_child_object(self, nc_object):
+        self.child_objects[nc_object.oid] = nc_object
+
+    def get_role_paths(self, root=True):
+        role_paths = [[self.role]] if not root else []
+        for _, child_object in self.child_objects.items():
+            child_paths = child_object.get_role_paths(False)
+            for child_path in child_paths:
+                role_path = [self.role] if not root else []
+                role_path += child_path
+                role_paths.append(role_path)
+        return role_paths
+
+    def find_members_by_path(self, role_path):
+        query_role = role_path[0]
+        for _, child_object in self.child_objects.items():
+            if child_object.role == query_role:
+                if len(role_path[1:]):
+                    return child_object.find_members_by_path(role_path[1:])
+                else:
+                    return child_object
+        return None
