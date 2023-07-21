@@ -16,12 +16,12 @@ import json
 import os
 import time
 
+from itertools import product
 from jsonschema import ValidationError, SchemaError
 
 from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils, NcMethodStatus, MessageTypes, NcObject
-from ..NMOSUtils import NMOSUtils
 from ..TestHelper import WebsocketWorker, load_resolved_schema
 from ..TestResult import Test
 
@@ -209,7 +209,7 @@ class IS1201Test(GenericTest):
                                       parsed_message,
                                       self.schemas["command-response-message"],
                                       context="command-response-message: ")
-                if NMOSUtils.compare_api_version(parsed_message["protocolVersion"],
+                if IS12Utils.compare_api_version(parsed_message["protocolVersion"],
                                                  self.apis[CONTROL_API_KEY]["version"]):
                     raise NMOSTestException(test.FAIL("Incorrect protocol version. Expected "
                                                       + self.apis[CONTROL_API_KEY]["version"]
@@ -439,12 +439,29 @@ class IS1201Test(GenericTest):
         command_handle = self.get_command_handle()
         version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
-        get_sequence_item_command = \
+        find_members_by_path_command = \
             self.is12_utils.create_find_members_by_path_command_JSON(version,
                                                                      command_handle,
                                                                      oid,
                                                                      role_path)
-        response = self.send_command(test, command_handle, get_sequence_item_command)
+        response = self.send_command(test, command_handle, find_members_by_path_command)
+
+        return response["result"]["value"]
+
+    def _find_members_by_role(self, test, oid, role, case_sensitive, match_whole_string, recurse):
+        """Query members based on role. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        find_members_by_role_command = \
+            self.is12_utils.create_find_members_by_role_command_JSON(version,
+                                                                     command_handle,
+                                                                     oid,
+                                                                     role,
+                                                                     case_sensitive,
+                                                                     match_whole_string,
+                                                                     recurse)
+        response = self.send_command(test, command_handle, find_members_by_role_command)
 
         return response["result"]["value"]
 
@@ -1279,12 +1296,13 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def do_role_path_test(self, test, block):
-        # Get ground truth role paths
-        role_paths = block.get_role_paths()
-
+        # Recurse through the child blocks
         for child_object in block.child_objects:
             if self.is12_utils.is_block(child_object.class_id):
                 self.do_role_path_test(test, child_object)
+
+        # Get ground truth role paths
+        role_paths = block.get_role_paths()
 
         for role_path in role_paths:
             # Get ground truth data from local device model object tree
@@ -1308,7 +1326,7 @@ class IS1201Test(GenericTest):
                                                   + str(role_path)))
 
     def test_26(self, test):
-        """Find member by role"""
+        """Find member by path"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1317,5 +1335,63 @@ class IS1201Test(GenericTest):
 
         # Recursively check each block in Device Model
         self.do_role_path_test(test, self.root_block)
+
+        return test.PASS()
+
+    def do_role_test(self, test, block):
+        # Recurse through the child blocks
+        for child_object in block.child_objects:
+            if self.is12_utils.is_block(child_object.class_id):
+                self.do_role_test(test, child_object)
+
+        role_paths = IS12Utils.sampled_list(block.get_role_paths())
+        # Generate every combination of case_sensitive, match_whole_string and recurse
+        truth_table = IS12Utils.sampled_list(list(product([False, True], repeat=3)))
+        search_conditions = []
+        for state in truth_table:
+            search_conditions += [{"case_sensitive": state[0], "match_whole_string": state[1], "recurse": state[2]}]
+
+        for role_path in role_paths:
+            role = role_path[-1]
+            # Case sensitive role, case insensitive role, CS role substring and CI role substring
+            query_strings = [role, role.upper(), role[-4:], role[-4:].upper()]
+
+            for condition in search_conditions:
+                for query_string in query_strings:
+                    # Get ground truth result
+                    expected_results = \
+                        block.find_members_by_role(query_string,
+                                                   case_sensitive=condition["case_sensitive"],
+                                                   match_whole_string=condition["match_whole_string"],
+                                                   recurse=condition["recurse"])
+                    actual_results = self._find_members_by_role(test,
+                                                                block.oid,
+                                                                query_string,
+                                                                case_sensitive=condition["case_sensitive"],
+                                                                match_whole_string=condition["match_whole_string"],
+                                                                recurse=condition["recurse"])
+
+                    expected_results_oids = [m.oid for m in expected_results]
+
+                    if len(actual_results) != len(expected_results):
+                        raise NMOSTestException(test.FAIL("Expected "
+                                                          + str(len(expected_results))
+                                                          + ", but got "
+                                                          + str(len(actual_results))))
+
+                    for actual_result in actual_results:
+                        if actual_result["oid"] not in expected_results_oids:
+                            raise NMOSTestException(test.FAIL("Unexpected search result. " + str(actual_result)))
+
+    def test_27(self, test):
+        """Find member by role"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        # Recursively check each block in Device Model
+        self.do_role_test(test, self.root_block)
 
         return test.PASS()

@@ -72,7 +72,8 @@ class IS12Utils(NMOSUtils):
             },
             'NCBLOCK': {
                 'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1},
-                'FIND_MEMBERS_BY_PATH': {'level': 2, 'index': 2}
+                'FIND_MEMBERS_BY_PATH': {'level': 2, 'index': 2},
+                'FIND_MEMBERS_BY_ROLE': {'level': 2, 'index': 3}
             },
             'NCCLASSMANAGER': {
                 'GET_CONTROL_CLASS': {'level': 3, 'index': 1}
@@ -190,6 +191,19 @@ class IS12Utils(NMOSUtils):
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_PATH"],
                                         {'path': role_path})
+
+    def create_find_members_by_role_command_JSON(self, version, handle, oid, role,
+                                                 case_sensitive, match_whole_string, recurse):
+        """Create JSON message for FindMembersByPath method from NcBlock"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_ROLE"],
+                                        {'role': role,
+                                         'caseSensitive': case_sensitive,
+                                         'matchWholeString': match_whole_string,
+                                         'recurse': recurse})
 
     def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
@@ -348,3 +362,20 @@ class NcObject():
                 else:
                     return child_object
         return None
+
+    def find_members_by_role(self, role, case_sensitive=False, match_whole_string=False, recurse=False):
+        def match(query_role, role, case_sensitive, match_whole_string):
+            if case_sensitive:
+                return query_role == role if match_whole_string else query_role in role
+            return query_role.lower() == role.lower() if match_whole_string else query_role.lower() in role.lower()
+
+        query_results = []
+        for child_object in self.child_objects:
+            if match(role, child_object.role, case_sensitive, match_whole_string):
+                query_results.append(child_object)
+            if recurse:
+                query_results += child_object.find_members_by_role(role,
+                                                                   case_sensitive,
+                                                                   match_whole_string,
+                                                                   recurse)
+        return query_results
