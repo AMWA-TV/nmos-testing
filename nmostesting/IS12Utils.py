@@ -324,14 +324,14 @@ class NcObject():
         self.class_id = class_id
         self.oid = oid
         self.role = role
-        self.child_objects = {}
+        self.child_objects = []
 
     def add_child_object(self, nc_object):
-        self.child_objects[nc_object.oid] = nc_object
+        self.child_objects.append(nc_object)
 
     def get_role_paths(self, root=True):
         role_paths = [[self.role]] if not root else []
-        for _, child_object in self.child_objects.items():
+        for child_object in self.child_objects:
             child_paths = child_object.get_role_paths(False)
             for child_path in child_paths:
                 role_path = [self.role] if not root else []
@@ -341,7 +341,7 @@ class NcObject():
 
     def find_members_by_path(self, role_path):
         query_role = role_path[0]
-        for _, child_object in self.child_objects.items():
+        for child_object in self.child_objects:
             if child_object.role == query_role:
                 if len(role_path[1:]):
                     return child_object.find_members_by_path(role_path[1:])

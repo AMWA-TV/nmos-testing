@@ -1278,6 +1278,35 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
+    def do_role_path_test(self, test, block):
+        # Get ground truth role paths
+        role_paths = block.get_role_paths()
+
+        for child_object in block.child_objects:
+            if self.is12_utils.is_block(child_object.class_id):
+                self.do_role_path_test(test, child_object)
+
+        for role_path in role_paths:
+            # Get ground truth data from local device model object tree
+            expected_member = block.find_members_by_path(role_path)
+
+            queried_members = self._find_members_by_path(test, block.oid, role_path)
+
+            for queried_member in queried_members:
+                self._validate_schema(test,
+                                      queried_member,
+                                      self.datatype_schemas["NcBlockMemberDescriptor"],
+                                      context="NcBlockMemberDescriptor: ")
+
+            if len(queried_members) != 1:
+                raise NMOSTestException(test.FAIL("Incorrect member found by role path: " + str(role_path)))
+
+            queried_member_oids = [m['oid'] for m in queried_members]
+
+            if expected_member.oid not in queried_member_oids:
+                raise NMOSTestException(test.FAIL("Unsuccessful attempt to find member by role path: "
+                                                  + str(role_path)))
+
     def test_26(self, test):
         """Find member by role"""
         try:
@@ -1286,25 +1315,7 @@ class IS1201Test(GenericTest):
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
-        role_paths = self.root_block.get_role_paths()
+        # Recursively check each block in Device Model
+        self.do_role_path_test(test, self.root_block)
 
-        for role_path in role_paths:
-            # Get ground truth data from local device model object tree
-            child_object = self.root_block.find_members_by_path(role_path)
-
-            queried_members = self._find_members_by_path(test, self.root_block.oid, role_path)
-
-            for queried_member in queried_members:
-                self._validate_schema(test,
-                                      queried_member,
-                                      self.datatype_schemas["NcBlockMemberDescriptor"],
-                                      context="NcBlockMemberDescriptor: ")
-
-            queried_member_oids = [m['oid'] for m in queried_members]
-
-            if child_object.oid not in queried_member_oids:
-                return test.FAIL("Unsuccessful attempt to find member by role path: " + str(role_path))
-
-            if len(queried_members) > 1:
-                return test.FAIL("Incorrect member found by role path: " + str(role_path))
         return test.PASS()
