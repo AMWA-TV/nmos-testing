@@ -465,6 +465,22 @@ class IS1201Test(GenericTest):
 
         return response["result"]["value"]
 
+    def _find_members_by_class_id(self, test, oid, class_id, include_derived, recurse):
+        """Query members based on class id. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        find_members_by_class_id_command = \
+            self.is12_utils.create_find_members_by_class_id_command_JSON(version,
+                                                                         command_handle,
+                                                                         oid,
+                                                                         class_id,
+                                                                         include_derived,
+                                                                         recurse)
+        response = self.send_command(test, command_handle, find_members_by_class_id_command)
+
+        return response["result"]["value"]
+
     def get_class_manager_descriptors(self, test, class_manager_oid, property_id):
         response = self._get_property(test, class_manager_oid, property_id)
 
@@ -1295,11 +1311,11 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_role_path_test(self, test, block):
+    def do_find_member_by_path_test(self, test, block):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if self.is12_utils.is_block(child_object.class_id):
-                self.do_role_path_test(test, child_object)
+                self.do_find_member_by_path_test(test, child_object)
 
         # Get ground truth role paths
         role_paths = block.get_role_paths()
@@ -1334,15 +1350,15 @@ class IS1201Test(GenericTest):
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
         # Recursively check each block in Device Model
-        self.do_role_path_test(test, self.root_block)
+        self.do_find_member_by_path_test(test, self.root_block)
 
         return test.PASS()
 
-    def do_role_test(self, test, block):
+    def do_find_member_by_role_test(self, test, block):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if self.is12_utils.is_block(child_object.class_id):
-                self.do_role_test(test, child_object)
+                self.do_find_member_by_role_test(test, child_object)
 
         role_paths = IS12Utils.sampled_list(block.get_role_paths())
         # Generate every combination of case_sensitive, match_whole_string and recurse
@@ -1384,7 +1400,7 @@ class IS1201Test(GenericTest):
                             raise NMOSTestException(test.FAIL("Unexpected search result. " + str(actual_result)))
 
     def test_27(self, test):
-        """Find member by role"""
+        """Find members by role"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1392,6 +1408,56 @@ class IS1201Test(GenericTest):
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
         # Recursively check each block in Device Model
-        self.do_role_test(test, self.root_block)
+        self.do_find_member_by_role_test(test, self.root_block)
+
+        return test.PASS()
+
+    def do_find_members_by_class_id_test(self, test, block):
+        # Recurse through the child blocks
+        for child_object in block.child_objects:
+            if self.is12_utils.is_block(child_object.class_id):
+                self.do_find_members_by_class_id_test(test, child_object)
+
+        class_ids = [class_id for _, class_id in self.is12_utils.CLASS_IDS.items()]
+
+        truth_table = IS12Utils.sampled_list(list(product([False, True], repeat=2)))
+        search_conditions = []
+        for state in truth_table:
+            search_conditions += [{"include_derived": state[0], "recurse": state[1]}]
+
+        for class_id in class_ids:
+            for condition in search_conditions:
+                # Recursively check each block in Device Model
+                expected_results = block.find_members_by_class_id(class_id,
+                                                                  condition["include_derived"],
+                                                                  condition["recurse"])
+
+                actual_results = self._find_members_by_class_id(test,
+                                                                block.oid,
+                                                                class_id,
+                                                                condition["include_derived"],
+                                                                condition["recurse"])
+
+                expected_results_oids = [m.oid for m in expected_results]
+
+                if len(actual_results) != len(expected_results):
+                    raise NMOSTestException(test.FAIL("Expected "
+                                                      + str(len(expected_results))
+                                                      + ", but got "
+                                                      + str(len(actual_results))))
+
+                for actual_result in actual_results:
+                    if actual_result["oid"] not in expected_results_oids:
+                        raise NMOSTestException(test.FAIL("Unexpected search result. " + str(actual_result)))
+
+    def test_28(self, test):
+        """Find members by class id"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        self.do_find_members_by_class_id_test(test, self.root_block)
 
         return test.PASS()

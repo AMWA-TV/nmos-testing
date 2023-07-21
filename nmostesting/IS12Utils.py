@@ -73,7 +73,8 @@ class IS12Utils(NMOSUtils):
             'NCBLOCK': {
                 'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1},
                 'FIND_MEMBERS_BY_PATH': {'level': 2, 'index': 2},
-                'FIND_MEMBERS_BY_ROLE': {'level': 2, 'index': 3}
+                'FIND_MEMBERS_BY_ROLE': {'level': 2, 'index': 3},
+                'FIND_MEMBERS_BY_CLASS_ID': {'level': 2, 'index': 4}
             },
             'NCCLASSMANAGER': {
                 'GET_CONTROL_CLASS': {'level': 3, 'index': 1}
@@ -102,7 +103,11 @@ class IS12Utils(NMOSUtils):
 
         self.CLASS_IDS = {
             'NCOBJECT': [1],
-            'NCBLOCK': [1, 1]
+            'NCBLOCK': [1, 1],
+            'NCWORKER': [1, 2],
+            'NCMANAGER': [1, 3],
+            'NCDEVICEMANAGER': [1, 3, 1],
+            'NCCLASSMANAGER': [1, 3, 2]
             }
 
     def create_command_JSON(self, version, handle, oid, method_id, arguments):
@@ -203,6 +208,17 @@ class IS12Utils(NMOSUtils):
                                         {'role': role,
                                          'caseSensitive': case_sensitive,
                                          'matchWholeString': match_whole_string,
+                                         'recurse': recurse})
+
+    def create_find_members_by_class_id_command_JSON(self, version, handle, oid, class_id, include_derived, recurse):
+        """Create JSON message for FindMembersByClassId method from NcBlock"""
+
+        return self.create_command_JSON(version,
+                                        handle,
+                                        oid,
+                                        self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_CLASS_ID"],
+                                        {'id': class_id,
+                                         'includeDerived': include_derived,
                                          'recurse': recurse})
 
     def model_primitive_to_JSON(self, type):
@@ -378,4 +394,20 @@ class NcObject():
                                                                    case_sensitive,
                                                                    match_whole_string,
                                                                    recurse)
+        return query_results
+
+    def find_members_by_class_id(self, class_id, include_derived=False, recurse=False):
+        def match(query_class_id, class_id, include_derived):
+            if query_class_id == (class_id[:len(query_class_id)] if include_derived else class_id):
+                return True
+            return False
+
+        query_results = []
+        for child_object in self.child_objects:
+            if match(class_id, child_object.class_id, include_derived):
+                query_results.append(child_object)
+            if recurse:
+                query_results += child_object.find_members_by_class_id(class_id,
+                                                                       include_derived,
+                                                                       recurse)
         return query_results
