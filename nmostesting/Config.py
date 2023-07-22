@@ -201,6 +201,7 @@ IS11_REFERENCE_SENDER_NODE_API_PORT = ""
 
 # Stability delay for any request on IS-11
 STABLE_STATE_DELAY = 3
+STABLE_STATE_ATTEMPTS = 5
 
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {

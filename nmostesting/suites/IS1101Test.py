@@ -118,6 +118,9 @@ class IS1101Test(GenericTest):
     def build_sender_status_url(self, sender_id):
         return self.compat_url + "senders/" + sender_id + "/status/"
 
+    def build_output_properties_url(self, id):
+        return self.compat_url + "outputs/" + id + "/properties/"
+
     def set_up_tests(self):
         self.senders = self.is11_utils.get_senders()
         self.receivers = self.is11_utils.get_receivers()
@@ -265,7 +268,7 @@ class IS1101Test(GenericTest):
                 id = connectedInput["id"]
                 if state == "no_signal" or state == "awaiting_signal":
                     if state == "awaiting_signal":
-                        for i in range(0, 5):
+                        for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                             valid, response = TestHelper.do_request(
                                 "GET", self.compat_url + "inputs/" + id + "/properties/"
                             )
@@ -286,7 +289,8 @@ class IS1101Test(GenericTest):
                             else:
                                 break
                         if state == "awaiting_signal":
-                            return test.FAIL("Inputs are unstable.")
+                            return test.FAIL("Expected state of input {} is \"awaiting_signal\", got \"{}\""
+                                             .format(id, state))
                         self.not_active_connected_inputs.append(connectedInput)
             if len(self.not_active_connected_inputs) != 0:
                 for input in self.not_active_connected_inputs:
@@ -343,7 +347,7 @@ class IS1101Test(GenericTest):
 
     def test_01_04_02(self, test):
         """
-        A revoir Verify that a valid EDID can be retrieved from the device;\
+        Verify that a valid EDID can be retrieved from the device;
         this EDID represents the default EDID of the device
         """
 
@@ -564,18 +568,21 @@ class IS1101Test(GenericTest):
     def test_01_05_01(self, test):
         """
         Verify that there is no EDID support
+        TODO: Remove, duplicates test_01_05_02
         """
         if len(self.connected_inputs) != 0 and len(self.not_edid_connected_inputs) != 0:
+
             for input_id in self.not_edid_connected_inputs:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/"
+                    "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                 if response.status_code != 204:
-                    return test.FAIL("The input {} edid streamcompatibility request has failed: {}"
+                    return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
                                      .format(input_id, response))
             return test.PASS()
+
         return test.UNCLEAR("No resources found to perform this test")
 
     def test_01_05_02(self, test):
@@ -605,7 +612,7 @@ class IS1101Test(GenericTest):
 
             for input_id in self.not_edid_connected_inputs:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/base/"
+                    "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
                 )
                 if not valid:
                     return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -953,22 +960,31 @@ class IS1101Test(GenericTest):
         return test.PASS()
 
     def test_02_02_01(self, test):
-        "Verify that the status is unconstrained as per our pre-conditions"
+        """
+        Verify that the status is "unconstrained" as per our pre-conditions
+        """
         if len(self.senders) > 0:
             for sender_id in self.senders:
                 valid, response = TestHelper.do_request(
                     "GET", self.build_sender_status_url(sender_id)
                 )
                 if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+                    return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
+                                     .format(response))
                 if response.status_code != 200:
                     return test.FAIL(
                         "The streamcompatibility request for sender {} status has failed: {}"
                         .format(sender_id, response.json())
                     )
-                state = response.json()["state"]
-                if state in ["awating_essence", "no_essence"]:
-                    for i in range(0, 5):
+                try:
+                    state = response.json()["state"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if state in ["awaiting_essence", "no_essence"]:
+                    for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                         valid, response = TestHelper.do_request(
                             "GET", self.build_sender_status_url(sender_id)
                         )
@@ -980,13 +996,20 @@ class IS1101Test(GenericTest):
                                 "The streamcompatibility request for sender {} status has failed: {}"
                                 .format(sender_id, response.json())
                             )
-                        state = response.json()["state"]
-                        if state in ["awating_essence", "no_essence"]:
+                        try:
+                            state = response.json()["state"]
+                        except json.JSONDecodeError:
+                            return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+                        except KeyError as e:
+                            return test.FAIL("Unable to find expected key: {}".format(e))
+
+                        if state in ["awaiting_essence", "no_essence"]:
                             time.sleep(CONFIG.STABLE_STATE_DELAY)
                         else:
                             break
                 if state != "unconstrained":
-                    return test.FAIL("Inputs are unstable")
+                    return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                     .format(sender_id, state))
             return test.PASS()
         return test.UNCLEAR("There are no IS-11 senders")
 
@@ -1332,8 +1355,8 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -1345,12 +1368,13 @@ class IS1101Test(GenericTest):
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("Inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                 .format(sender_id, state))
 
             self.constraints[sender_id] = {
                 "constraint_sets": [
@@ -1397,8 +1421,8 @@ class IS1101Test(GenericTest):
                 )
             state = response.json()["state"]
 
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -1410,12 +1434,12 @@ class IS1101Test(GenericTest):
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "constrained":
-                return test.FAIL("Inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\"".format(sender_id, state))
 
             valid, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
@@ -1476,8 +1500,8 @@ class IS1101Test(GenericTest):
                 )
             state = response.json()["state"]
 
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -1489,12 +1513,13 @@ class IS1101Test(GenericTest):
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("Inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                 .format(sender_id, state))
 
             self.constraints[sender_id] = {
                 "constraint_sets": [
@@ -1530,8 +1555,8 @@ class IS1101Test(GenericTest):
                 )
             state = response.json()["state"]
 
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -1543,12 +1568,12 @@ class IS1101Test(GenericTest):
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "constrained":
-                return test.FAIL("Inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\"".format(sender_id, state))
 
             valid, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
@@ -1600,8 +1625,8 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -1613,12 +1638,13 @@ class IS1101Test(GenericTest):
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("Inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                 .format(sender_id, state))
 
             valid, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
@@ -1752,8 +1778,8 @@ class IS1101Test(GenericTest):
                 test.FAIL("The streamcompatibility request for sender {} status has failed: {}"
                           .format(sender_id, response.json()))
             state = response.json()["state"]
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -1765,12 +1791,13 @@ class IS1101Test(GenericTest):
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("Inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                 .format(sender_id, state))
             valid, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
@@ -1896,8 +1923,8 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
             state = response.json()["state"]
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -1910,12 +1937,13 @@ class IS1101Test(GenericTest):
                         )
                     state = response.json()["state"]
 
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                 .format(sender_id, state))
 
             valid, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
@@ -2096,8 +2124,8 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The streamcompatibility request for sender {} status has failed: {}"
                                  .format(sender_id, response.json()))
             state = response.json()["state"]
-            if state in ["awating_essence", "no_essence"]:
-                for i in range(0, 5):
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
                     valid, response = TestHelper.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
@@ -2109,12 +2137,13 @@ class IS1101Test(GenericTest):
                             .format(sender_id, response.json())
                         )
                     state = response.json()["state"]
-                    if state in ["awating_essence", "no_essence"]:
+                    if state in ["awaiting_essence", "no_essence"]:
                         time.sleep(CONFIG.STABLE_STATE_DELAY)
                     else:
                         break
             if state != "unconstrained":
-                return test.FAIL("inputs are unstable")
+                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                 .format(sender_id, state))
 
             valid, response = TestHelper.do_request(
                 "GET", self.node_url + "senders/" + sender_id
@@ -2358,52 +2387,55 @@ class IS1101Test(GenericTest):
         Verify that the status is "unconstrained" as per our pre-conditions
         """
 
-        if len(self.input_senders) != 0:
+        if len(self.input_senders) > 0:
             for sender_id in self.input_senders:
                 valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "/status/"
+                    "GET", self.build_sender_status_url(sender_id)
                 )
                 if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+                    return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
+                                     .format(response))
                 if response.status_code != 200:
-                    return test.FAIL("The sender {} status streamcompatibility request has failed: {}"
-                                     .format(sender_id, response))
+                    return test.FAIL(
+                        "The streamcompatibility request for sender {} status has failed: {}"
+                        .format(sender_id, response.json())
+                    )
                 try:
                     state = response.json()["state"]
                 except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
+                    return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
 
-                if state != "unconstrained":
-                    if state == "awating_essence" or state == "no_essence":
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                        for i in range(0, 5):
-                            valid, response = TestHelper.do_request(
-                                "GET",
-                                self.compat_url + "senders/" + sender_id + "/status/",
+                if state in ["awaiting_essence", "no_essence"]:
+                    for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
+                        valid, response = TestHelper.do_request(
+                            "GET", self.build_sender_status_url(sender_id)
+                        )
+                        if not valid:
+                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                             .format(response))
+                        if response.status_code != 200:
+                            return test.FAIL(
+                                "The streamcompatibility request for sender {} status has failed: {}"
+                                .format(sender_id, response.json())
                             )
-                            if not valid:
-                                return test.FAIL("Unexpected response from the streamcompatibility API: {}"
-                                                 .format(response))
-                            if response.status_code != 200:
-                                return test.FAIL("The sender {} status streamcompatibility request has failed: {}"
-                                                 .format(sender_id, response))
-                            try:
-                                state = response.json()["state"]
-                            except json.JSONDecodeError:
-                                return test.FAIL("Non-JSON response returned from Node API")
-                            except KeyError as e:
-                                return test.FAIL("Unable to find expected key: {}".format(e))
-                            if state == "unconstrained":
-                                return test.PASS()
-                            else:
-                                time.sleep(CONFIG.STABLE_STATE_DELAY)
-                        if state == "awating_essence" or state == "no_essence":
-                            return test.FAIL("Inputs are unstable.")
-                    return test.FAIL("State must be unconstrained")
+                        try:
+                            state = response.json()["state"]
+                        except json.JSONDecodeError:
+                            return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+                        except KeyError as e:
+                            return test.FAIL("Unable to find expected key: {}".format(e))
+
+                        if state in ["awaiting_essence", "no_essence"]:
+                            time.sleep(CONFIG.STABLE_STATE_DELAY)
+                        else:
+                            break
+                if state != "unconstrained":
+                    return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                     .format(sender_id, state))
             return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+        return test.UNCLEAR("There are no IS-11 senders with associated Inputs")
 
     def test_02_03_04(self, test):
         """
@@ -2746,7 +2778,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The streamcompatibility request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
             if response.json()["state"] not in ["unknown", "non_compliant_stream"]:
-                return test.FAIL("Receiver {}: expected states: \"unknown\" and \"non_compliant_stream\", got {}"
+                return test.FAIL("Receiver {}: expected states: \"unknown\" and \"non_compliant_stream\", got \"{}\""
                                  .format(receiver_id, response.json()["state"]))
         return test.PASS()
 
@@ -3407,7 +3439,7 @@ class IS1101Test(GenericTest):
                                          "{}".format(senderId, state, state_expected))
 
             except json.JSONDecodeError:
-                return test.FAIL("Non-JSON response returned from Node API")
+                return test.FAIL("Non-JSON response returned from Stream Compatibility Management API")
             except KeyError as e:
                 return test.FAIL("Unable to find expected key: {}".format(e))
 
