@@ -92,6 +92,10 @@ class IS12Utils(NMOSUtils):
                 'TOUCHPOINTS': {'level': 1, 'index': 7},
                 'RUNTIME_PROPERTY_CONSTRAINTS': {'level': 1, 'index': 8}
             },
+            'NCBLOCK': {
+                'ENABLED': {'level': 2, 'index': 1},
+                'MEMBERS': {'level': 2, 'index': 2}
+            },
             'NCCLASSMANAGER': {
                 'CONTROL_CLASSES': {'level': 3, 'index': 1},
                 'DATATYPES': {'level': 3, 'index': 2}
@@ -143,14 +147,14 @@ class IS12Utils(NMOSUtils):
                                         self.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
                                         {'id': property_id, 'value': value})
 
-    def create_get_member_descriptors_JSON(self, version, handle, oid):
+    def create_get_member_descriptors_JSON(self, version, handle, oid, recurse):
         """Create message that will request the member descriptors of the object with the given oid"""
 
         return self.create_command_JSON(version,
                                         handle,
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
-                                        {'recurse': False})
+                                        {'recurse': recurse})
 
     def create_get_sequence_item_command_JSON(self, version, handle, oid, property_id, index):
         """Create message that will request the sequence item value given an oid and index"""
@@ -355,9 +359,13 @@ class NcObject():
         self.oid = oid
         self.role = role
         self.child_objects = []
+        self.member_descriptors = []
 
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
+
+    def add_member_descriptors(self, member_descriptors):
+        self.member_descriptors = member_descriptors
 
     def get_role_paths(self, root=True):
         role_paths = [[self.role]] if not root else []
@@ -368,6 +376,14 @@ class NcObject():
                 role_path += child_path
                 role_paths.append(role_path)
         return role_paths
+
+    def get_member_descriptors(self, recurse=False):
+        query_results = []
+        query_results += self.member_descriptors
+        if recurse:
+            for child_object in self.child_objects:
+                query_results += child_object.get_member_descriptors(recurse)
+        return query_results
 
     def find_members_by_path(self, role_path):
         query_role = role_path[0]

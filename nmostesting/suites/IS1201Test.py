@@ -245,19 +245,16 @@ class IS1201Test(GenericTest):
 
     def get_manager(self, test, class_id_str):
         """Get Manager from Root Block. Returns [Manager]. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        get_member_descriptors_command = \
-            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, self.is12_utils.ROOT_BLOCK_OID)
-
-        response = self.send_command(test, command_handle, get_member_descriptors_command)
+        response = self._get_property(test,
+                                      self.is12_utils.ROOT_BLOCK_OID,
+                                      self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
 
         manager_found = False
         manager = None
 
         class_descriptor = self.classes_descriptors[class_id_str]
 
-        for value in response["result"]["value"]:
+        for value in response:
             self._validate_schema(test,
                                   value,
                                   self.datatype_schemas["NcBlockMemberDescriptor"],
@@ -434,6 +431,18 @@ class IS1201Test(GenericTest):
 
         return response["result"]
 
+    def _get_member_descriptors(self, test, oid, recurse):
+        """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+
+        get_member_descriptors_command = \
+            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, oid, recurse)
+
+        response = self.send_command(test, command_handle, get_member_descriptors_command)
+
+        return response["result"]["value"]
+
     def _find_members_by_path(self, test, oid, role_path):
         """Query members based on role path. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
@@ -596,181 +605,6 @@ class IS1201Test(GenericTest):
         self.get_manager(test, CLASS_MANAGER_CLS_ID)
 
         return test.PASS()
-
-    def do_error_test(self, test, command_handle, command_json, expected_status=None, is12_error=True):
-        """Execute command with expected error status."""
-        # when expected_status = None checking of the status code is skipped
-        # check the syntax of the error message according to is12_error
-
-        try:
-            self.create_ncp_socket(test)
-
-            self.send_command(test, command_handle, command_json)
-
-            return test.FAIL("Error expected")
-
-        except NMOSTestException as e:
-            error_msg = e.args[0].detail
-
-            # Expecting an error status dictionary
-            if not isinstance(error_msg, dict):
-                # It must be some other type of error so re-throw
-                raise e
-
-            # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
-            if is12_error != ('protocolVersion' in error_msg):
-                spec = "IS-12 protocol" if is12_error else "MS-05-02"
-                return test.FAIL(spec + " error expected")
-
-            if not error_msg.get('status'):
-                return test.FAIL("Command error: " + str(error_msg))
-
-            if error_msg['status'] == NcMethodStatus.OK:
-                return test.FAIL("Error not handled. Expected: " + expected_status.name
-                                 + " (" + str(expected_status) + ")"
-                                 + ", actual: " + NcMethodStatus(error_msg['status']).name
-                                 + " (" + str(error_msg['status']) + ")")
-
-            if expected_status and error_msg['status'] != expected_status:
-                return test.WARNING("Unexpected status. Expected: " + expected_status.name
-                                    + " (" + str(expected_status) + ")"
-                                    + ", actual: " + NcMethodStatus(error_msg['status']).name
-                                    + " (" + str(error_msg['status']) + ")")
-
-            return test.PASS()
-
-    def test_05(self, test):
-        """IS-12 Protocol Error: Node handles incorrect IS-12 protocol version"""
-
-        command_handle = self.get_command_handle()
-        # Use incorrect protocol version
-        version = 'DOES.NOT.EXIST'
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json,
-                                  expected_status=NcMethodStatus.ProtocolVersionError)
-
-    def test_06(self, test):
-        """IS-12 Protocol Error: Node handles invalid command handle"""
-
-        # Use invalid handle
-        invalid_command_handle = "NOT A HANDLE"
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            invalid_command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-
-        return self.do_error_test(test,
-                                  invalid_command_handle,
-                                  command_json)
-
-    def test_07(self, test):
-        """IS-12 Protocol Error: Node handles invalid command type"""
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-        # Use invalid message type
-        command_json['messageType'] = 7
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json)
-
-    def test_08(self, test):
-        """IS-12 Protocol Error: Node handles invalid JSON"""
-        command_handle = self.get_command_handle()
-        # Use invalid JSON
-        command_json = {'not_a': 'valid_command'}
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json)
-
-    def test_09(self, test):
-        """MS-05-02 Error: Node handles invalid oid"""
-
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        # Use invalid oid
-        invalid_oid = 999999999
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            invalid_oid,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json,
-                                  expected_status=NcMethodStatus.BadOid,
-                                  is12_error=False)
-
-    def test_10(self, test):
-        """MS-05-02 Error: Node handles invalid property identifier"""
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        # Use invalid property id
-        invalid_property_identifier = {'level': 1, 'index': 999}
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            invalid_property_identifier)
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json,
-                                  expected_status=NcMethodStatus.PropertyNotImplemented,
-                                  is12_error=False)
-
-    def test_11(self, test):
-        """MS-05-02 Error: Node handles invalid method identifier"""
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-        # Use invalid method id
-        invalid_method_id = {'level': 1, 'index': 999}
-        command_json['commands'][0]['methodId'] = invalid_method_id
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json,
-                                  expected_status=NcMethodStatus.MethodNotImplemented,
-                                  is12_error=False)
-
-    def test_12(self, test):
-        """MS-05-02 Error: Node handles read only error"""
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-        # Try to set a read only property
-        command_json = \
-            self.is12_utils.create_generic_set_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'],
-                                                            "ROLE IS READ ONLY")
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json,
-                                  expected_status=NcMethodStatus.Readonly,
-                                  is12_error=False)
 
     def validate_property_type(self, test, value, type, is_nullable, datatype_schemas, context=""):
         if value is None:
@@ -957,20 +791,14 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
     def validate_block(self, test, block_id, class_descriptors, datatype_schemas, block, context=""):
-        command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
-
-        get_member_descriptors_command = \
-            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, block_id)
-
-        response = self.send_command(test, command_handle, get_member_descriptors_command)
+        response = self._get_property(test, block_id, self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
 
         role_cache = []
         manager_cache = []
 
-        for child_object in response["result"]["value"]:
-            child_block = NcObject(child_object['classId'], child_object['oid'], child_object['role'])
+        block.add_member_descriptors(response)
 
+        for child_object in response:
             self._validate_schema(test,
                                   child_object,
                                   datatype_schemas["NcBlockMemberDescriptor"],
@@ -1003,6 +831,8 @@ class IS1201Test(GenericTest):
                 self.organization_metadata["error_msg"] = child_object['role'] + ': ' \
                     + "Non-standard class id does not contain authority key: " \
                     + str(child_object['classId']) + ". "
+
+            child_block = NcObject(child_object['classId'], child_object['oid'], child_object['role'])
 
             # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object['classId']):
@@ -1045,7 +875,7 @@ class IS1201Test(GenericTest):
             self.device_model_validated = True
         return
 
-    def test_13(self, test):
+    def test_05(self, test):
         """Validate device model properties against discovered classes and datatypes"""
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
@@ -1054,7 +884,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_14(self, test):
+    def test_06(self, test):
         """Device model roles are unique within a containing Block"""
         # Referencing the Google sheet
         # MS-05-02 (59) The role of an object MUST be unique within its containing Block.
@@ -1074,7 +904,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_15(self, test):
+    def test_07(self, test):
         """Device model oids are globally unique"""
         # Referencing the Google sheet
         # MS-05-02 (60) Object ids (oid property) MUST uniquely identity objects in the device model.
@@ -1094,7 +924,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_16(self, test):
+    def test_08(self, test):
         """Managers must be members of the Root Block"""
         # Referencing the Google sheet
         # MS-05-02 (36) All managers MUST always exist as members in the Root Block and have a fixed role.
@@ -1114,7 +944,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_17(self, test):
+    def test_09(self, test):
         """Managers are singletons"""
         # Referencing the Google sheet
         # MS-05-02 (63) Managers are singleton (MUST only be instantiated once) classes.
@@ -1134,7 +964,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_18(self, test):
+    def test_10(self, test):
         """Device Manager exists in Root Block"""
         # Referencing the Google sheet
         # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
@@ -1155,7 +985,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_19(self, test):
+    def test_11(self, test):
         """Non-standard classes contain an authority key"""
         # Referencing the Google sheet
         # MS-05-02 (72) Non-standard Classes NcClassId
@@ -1182,8 +1012,31 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_20(self, test):
-        """Get/Set properties on Root Block"""
+    def test_12(self, test):
+        """Validate touchpoints"""
+        # Referencing the Google sheet
+        # MS-05-02 (39) For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
+        # which has a resource of type NcTouchpointResourceNmos.
+        # For IS-08 Audio Channel Mapping the NcTouchpointResourceNmosChannelMapping datatype MUST be used
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#touchpoints
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.touchpoints_metadata["error"]:
+            return test.FAIL(self.touchpoints_metadata["error_msg"],
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/NcObject.html#touchpoints"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.touchpoints_metadata["checked"]:
+            return test.UNCLEAR("No Touchpoints found.")
+        return test.PASS()
+
+    def test_13(self, test):
+        """NcObject method: Get/Set"""
         # Referencing the Google sheet
         # MS-05-02 (39) Generic getter and setter
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#generic-getter-and-setter
@@ -1224,31 +1077,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_21(self, test):
-        """Validate touchpoints"""
-        # Referencing the Google sheet
-        # MS-05-02 (39) For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
-        # which has a resource of type NcTouchpointResourceNmos.
-        # For IS-08 Audio Channel Mapping the NcTouchpointResourceNmosChannelMapping datatype MUST be used
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#touchpoints
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
-
-        if self.touchpoints_metadata["error"]:
-            return test.FAIL(self.touchpoints_metadata["error_msg"],
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/NcObject.html#touchpoints"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
-
-        if not self.touchpoints_metadata["checked"]:
-            return test.UNCLEAR("No Touchpoints found.")
-        return test.PASS()
-
-    def test_22(self, test):
-        """Get Sequence Item"""
+    def test_14(self, test):
+        """NcObject method: GetSequenceItem"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1263,8 +1093,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_23(self, test):
-        """Set Sequence Item"""
+    def test_15(self, test):
+        """NcObject method: SetSequenceItem"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1279,8 +1109,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_24(self, test):
-        """Add Sequence Item"""
+    def test_16(self, test):
+        """NcObject method: AddSequenceItem"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1295,8 +1125,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_25(self, test):
-        """Remove Sequence Item"""
+    def test_17(self, test):
+        """NcObject method: RemoveSequenceItem"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1311,11 +1141,58 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_find_member_by_path_test(self, test, block):
+    def do_get_member_descriptors_test(self, test, block, context=""):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if self.is12_utils.is_block(child_object.class_id):
-                self.do_find_member_by_path_test(test, child_object)
+                self.do_get_member_descriptors_test(test, child_object, context + block.role + ": ")
+
+        search_conditions = [{"recurse": True}, {"recurse": False}]
+
+        for search_condition in search_conditions:
+            expected_members = block.get_member_descriptors(search_condition["recurse"])
+
+            queried_members = self._get_member_descriptors(test, block.oid, search_condition["recurse"])
+
+            if len(queried_members) != len(expected_members):
+                raise NMOSTestException(test.FAIL(context
+                                                  + block.role
+                                                  + ": Unexpected number of block members found. Expected: "
+                                                  + str(len(expected_members)) + ", Actual: "
+                                                  + str(len(queried_members))))
+
+            expected_members_oids = [m["oid"] for m in expected_members]
+
+            for queried_member in queried_members:
+                self._validate_schema(test,
+                                      queried_member,
+                                      self.datatype_schemas["NcBlockMemberDescriptor"],
+                                      context=context
+                                      + block.role
+                                      + ": NcBlockMemberDescriptor: ")
+
+                if queried_member["oid"] not in expected_members_oids:
+                    raise NMOSTestException(test.FAIL(context
+                                                      + block.role
+                                                      + ": Unsuccessful attempt to get member descriptors."))
+
+    def test_18(self, test):
+        """NcBlock method: GetMemberDescriptors"""
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        self.do_get_member_descriptors_test(test, self.root_block)
+
+        return test.PASS()
+
+    def do_find_member_by_path_test(self, test, block, context=""):
+        # Recurse through the child blocks
+        for child_object in block.child_objects:
+            if self.is12_utils.is_block(child_object.class_id):
+                self.do_find_member_by_path_test(test, child_object, context + block.role + ": ")
 
         # Get ground truth role paths
         role_paths = block.get_role_paths()
@@ -1330,19 +1207,25 @@ class IS1201Test(GenericTest):
                 self._validate_schema(test,
                                       queried_member,
                                       self.datatype_schemas["NcBlockMemberDescriptor"],
-                                      context="NcBlockMemberDescriptor: ")
+                                      context=context
+                                      + block.role
+                                      + ": NcBlockMemberDescriptor: ")
 
             if len(queried_members) != 1:
-                raise NMOSTestException(test.FAIL("Incorrect member found by role path: " + str(role_path)))
+                raise NMOSTestException(test.FAIL(context
+                                                  + block.role
+                                                  + ": Incorrect member found by role path: " + str(role_path)))
 
             queried_member_oids = [m['oid'] for m in queried_members]
 
             if expected_member.oid not in queried_member_oids:
-                raise NMOSTestException(test.FAIL("Unsuccessful attempt to find member by role path: "
+                raise NMOSTestException(test.FAIL(context
+                                                  + block.role
+                                                  + ": Unsuccessful attempt to find member by role path: "
                                                   + str(role_path)))
 
-    def test_26(self, test):
-        """Find member by path"""
+    def test_19(self, test):
+        """NcBlock method: FindMemberByPath"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1354,11 +1237,11 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_find_member_by_role_test(self, test, block):
+    def do_find_member_by_role_test(self, test, block, context=""):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if self.is12_utils.is_block(child_object.class_id):
-                self.do_find_member_by_role_test(test, child_object)
+                self.do_find_member_by_role_test(test, child_object, context + block.role + ": ")
 
         role_paths = IS12Utils.sampled_list(block.get_role_paths())
         # Generate every combination of case_sensitive, match_whole_string and recurse
@@ -1390,17 +1273,22 @@ class IS1201Test(GenericTest):
                     expected_results_oids = [m.oid for m in expected_results]
 
                     if len(actual_results) != len(expected_results):
-                        raise NMOSTestException(test.FAIL("Expected "
+                        raise NMOSTestException(test.FAIL(context
+                                                          + block.role
+                                                          + ": Expected "
                                                           + str(len(expected_results))
                                                           + ", but got "
                                                           + str(len(actual_results))))
 
                     for actual_result in actual_results:
                         if actual_result["oid"] not in expected_results_oids:
-                            raise NMOSTestException(test.FAIL("Unexpected search result. " + str(actual_result)))
+                            raise NMOSTestException(test.FAIL(context
+                                                              + block.role
+                                                              + ": Unexpected search result. "
+                                                              + str(actual_result)))
 
-    def test_27(self, test):
-        """Find members by role"""
+    def test_20(self, test):
+        """NcBlock method: FindMembersByRole"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1412,11 +1300,11 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_find_members_by_class_id_test(self, test, block):
+    def do_find_members_by_class_id_test(self, test, block, context=""):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if self.is12_utils.is_block(child_object.class_id):
-                self.do_find_members_by_class_id_test(test, child_object)
+                self.do_find_members_by_class_id_test(test, child_object, context + block.role + ": ")
 
         class_ids = [class_id for _, class_id in self.is12_utils.CLASS_IDS.items()]
 
@@ -1441,17 +1329,21 @@ class IS1201Test(GenericTest):
                 expected_results_oids = [m.oid for m in expected_results]
 
                 if len(actual_results) != len(expected_results):
-                    raise NMOSTestException(test.FAIL("Expected "
+                    raise NMOSTestException(test.FAIL(context
+                                                      + block.role
+                                                      + ": Expected "
                                                       + str(len(expected_results))
                                                       + ", but got "
                                                       + str(len(actual_results))))
 
                 for actual_result in actual_results:
                     if actual_result["oid"] not in expected_results_oids:
-                        raise NMOSTestException(test.FAIL("Unexpected search result. " + str(actual_result)))
+                        raise NMOSTestException(test.FAIL(context
+                                                          + block.role
+                                                          + ": Unexpected search result. " + str(actual_result)))
 
-    def test_28(self, test):
-        """Find members by class id"""
+    def test_21(self, test):
+        """NcBlock method: FindMembersByClassId"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1461,3 +1353,178 @@ class IS1201Test(GenericTest):
         self.do_find_members_by_class_id_test(test, self.root_block)
 
         return test.PASS()
+
+    def do_error_test(self, test, command_handle, command_json, expected_status=None, is12_error=True):
+        """Execute command with expected error status."""
+        # when expected_status = None checking of the status code is skipped
+        # check the syntax of the error message according to is12_error
+
+        try:
+            self.create_ncp_socket(test)
+
+            self.send_command(test, command_handle, command_json)
+
+            return test.FAIL("Error expected")
+
+        except NMOSTestException as e:
+            error_msg = e.args[0].detail
+
+            # Expecting an error status dictionary
+            if not isinstance(error_msg, dict):
+                # It must be some other type of error so re-throw
+                raise e
+
+            # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
+            if is12_error != ('protocolVersion' in error_msg):
+                spec = "IS-12 protocol" if is12_error else "MS-05-02"
+                return test.FAIL(spec + " error expected")
+
+            if not error_msg.get('status'):
+                return test.FAIL("Command error: " + str(error_msg))
+
+            if error_msg['status'] == NcMethodStatus.OK:
+                return test.FAIL("Error not handled. Expected: " + expected_status.name
+                                 + " (" + str(expected_status) + ")"
+                                 + ", actual: " + NcMethodStatus(error_msg['status']).name
+                                 + " (" + str(error_msg['status']) + ")")
+
+            if expected_status and error_msg['status'] != expected_status:
+                return test.WARNING("Unexpected status. Expected: " + expected_status.name
+                                    + " (" + str(expected_status) + ")"
+                                    + ", actual: " + NcMethodStatus(error_msg['status']).name
+                                    + " (" + str(error_msg['status']) + ")")
+
+            return test.PASS()
+
+    def test_22(self, test):
+        """IS-12 Protocol Error: Node handles incorrect IS-12 protocol version"""
+
+        command_handle = self.get_command_handle()
+        # Use incorrect protocol version
+        version = 'DOES.NOT.EXIST'
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  expected_status=NcMethodStatus.ProtocolVersionError)
+
+    def test_23(self, test):
+        """IS-12 Protocol Error: Node handles invalid command handle"""
+
+        # Use invalid handle
+        invalid_command_handle = "NOT A HANDLE"
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            invalid_command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+
+        return self.do_error_test(test,
+                                  invalid_command_handle,
+                                  command_json)
+
+    def test_24(self, test):
+        """IS-12 Protocol Error: Node handles invalid command type"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        # Use invalid message type
+        command_json['messageType'] = 7
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json)
+
+    def test_25(self, test):
+        """IS-12 Protocol Error: Node handles invalid JSON"""
+        command_handle = self.get_command_handle()
+        # Use invalid JSON
+        command_json = {'not_a': 'valid_command'}
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json)
+
+    def test_26(self, test):
+        """MS-05-02 Error: Node handles invalid oid"""
+
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        # Use invalid oid
+        invalid_oid = 999999999
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            invalid_oid,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  expected_status=NcMethodStatus.BadOid,
+                                  is12_error=False)
+
+    def test_27(self, test):
+        """MS-05-02 Error: Node handles invalid property identifier"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        # Use invalid property id
+        invalid_property_identifier = {'level': 1, 'index': 999}
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            invalid_property_identifier)
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  expected_status=NcMethodStatus.PropertyNotImplemented,
+                                  is12_error=False)
+
+    def test_28(self, test):
+        """MS-05-02 Error: Node handles invalid method identifier"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        command_json = \
+            self.is12_utils.create_generic_get_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        # Use invalid method id
+        invalid_method_id = {'level': 1, 'index': 999}
+        command_json['commands'][0]['methodId'] = invalid_method_id
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  expected_status=NcMethodStatus.MethodNotImplemented,
+                                  is12_error=False)
+
+    def test_29(self, test):
+        """MS-05-02 Error: Node handles read only error"""
+        command_handle = self.get_command_handle()
+        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
+        # Try to set a read only property
+        command_json = \
+            self.is12_utils.create_generic_set_command_JSON(version,
+                                                            command_handle,
+                                                            self.is12_utils.ROOT_BLOCK_OID,
+                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'],
+                                                            "ROLE IS READ ONLY")
+
+        return self.do_error_test(test,
+                                  command_handle,
+                                  command_json,
+                                  expected_status=NcMethodStatus.Readonly,
+                                  is12_error=False)
