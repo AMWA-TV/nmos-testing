@@ -192,7 +192,7 @@ TEST_SSL_BASH = "bash"
 
 # URLs of Node API and Connection API of a Node with reference Senders
 # for testing IS-11 Receivers under live streaming conditions.
-# Expected URL format is "{http|https}://{api_ip}:{api_port}/x-nmos/{api_name}/v{api_version}/"
+# Expected URL format is "{http|https}://{api_host}:{api_port}/x-nmos/{api_name}/v{api_version}/"
 IS11_REFERENCE_SENDER_NODE_API_URL = ""
 IS11_REFERENCE_SENDER_CONNECTION_API_URL = ""
 
