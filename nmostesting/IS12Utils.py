@@ -17,7 +17,7 @@ from .NMOSUtils import NMOSUtils
 import json
 import time
 
-from enum import IntEnum
+from enum import IntEnum, Enum
 from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 from .Config import WS_MESSAGE_TIMEOUT
@@ -60,71 +60,69 @@ class NcDatatypeType(IntEnum):
     Enum = 3  # Enum datatype
 
 
+class NcObjectProperties(Enum):
+    CLASS_ID = {'level': 1, 'index': 1}
+    OID = {'level': 1, 'index': 2}
+    CONSTANT_OID = {'level': 1, 'index': 3}
+    OWNER = {'level': 1, 'index': 4}
+    ROLE = {'level': 1, 'index': 5}
+    USER_LABEL = {'level': 1, 'index': 6}
+    TOUCHPOINTS = {'level': 1, 'index': 7}
+    RUNTIME_PROPERTY_CONSTRAINTS = {'level': 1, 'index': 8}
+
+
+class NcObjectMethods(Enum):
+    GENERIC_GET = {'level': 1, 'index': 1}
+    GENERIC_SET = {'level': 1, 'index': 2}
+    GET_SEQUENCE_ITEM = {'level': 1, 'index': 3}
+    SET_SEQUENCE_ITEM = {'level': 1, 'index': 4}
+    ADD_SEQUENCE_ITEM = {'level': 1, 'index': 5}
+    REMOVE_SEQUENCE_ITEM = {'level': 1, 'index': 6}
+    GET_SEQUENCE_LENGTH = {'level': 1, 'index': 7}
+
+
+class NcBlockProperties(Enum):
+    ENABLED = {'level': 2, 'index': 1}
+    MEMBERS = {'level': 2, 'index': 2}
+
+
+class NcBlockMethods(Enum):
+    GET_MEMBERS_DESCRIPTOR = {'level': 2, 'index': 1}
+    FIND_MEMBERS_BY_PATH = {'level': 2, 'index': 2}
+    FIND_MEMBERS_BY_ROLE = {'level': 2, 'index': 3}
+    FIND_MEMBERS_BY_CLASS_ID = {'level': 2, 'index': 4}
+
+
+class NcClassManagerProperties(Enum):
+    CONTROL_CLASSES = {'level': 3, 'index': 1}
+    DATATYPES = {'level': 3, 'index': 2}
+
+
+class NcClassManagerMethods(Enum):
+    GET_CONTROL_CLASS = {'level': 3, 'index': 1}
+
+
+class NcDeviceManagerProperties(Enum):
+    NCVERSION = {'level': 3, 'index': 1}
+
+
+class StandardClassIds(Enum):
+    NCOBJECT = [1]
+    NCBLOCK = [1, 1]
+    NCWORKER = [1, 2]
+    NCMANAGER = [1, 3]
+    NCDEVICEMANAGER = [1, 3, 1]
+    NCCLASSMANAGER = [1, 3, 2]
+
+
 class IS12Utils(NMOSUtils):
     def __init__(self, url, spec_path, spec_branch):
         NMOSUtils.__init__(self, url)
         self.spec_branch = spec_branch
-        self.protocol_definitions()
         self.load_is12_schemas(spec_path)
+        self.ROOT_BLOCK_OID = 1
         self.ncp_websocket = None
         self.command_handle = 0
-
-    def protocol_definitions(self):
-        self.ROOT_BLOCK_OID = 1
-
-        self.METHOD_IDS = {
-            'NCOBJECT': {
-                'GENERIC_GET': {'level': 1, 'index': 1},
-                'GENERIC_SET': {'level': 1, 'index': 2},
-                'GET_SEQUENCE_ITEM': {'level': 1, 'index': 3},
-                'SET_SEQUENCE_ITEM': {'level': 1, 'index': 4},
-                'ADD_SEQUENCE_ITEM': {'level': 1, 'index': 5},
-                'REMOVE_SEQUENCE_ITEM': {'level': 1, 'index': 6},
-                'GET_SEQUENCE_LENGTH': {'level': 1, 'index': 7}
-            },
-            'NCBLOCK': {
-                'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1},
-                'FIND_MEMBERS_BY_PATH': {'level': 2, 'index': 2},
-                'FIND_MEMBERS_BY_ROLE': {'level': 2, 'index': 3},
-                'FIND_MEMBERS_BY_CLASS_ID': {'level': 2, 'index': 4}
-            },
-            'NCCLASSMANAGER': {
-                'GET_CONTROL_CLASS': {'level': 3, 'index': 1}
-            },
-        }
-
-        self.PROPERTY_IDS = {
-            'NCOBJECT': {
-                'CLASS_ID': {'level': 1, 'index': 1},
-                'OID': {'level': 1, 'index': 2},
-                'CONSTANT_OID': {'level': 1, 'index': 3},
-                'OWNER': {'level': 1, 'index': 4},
-                'ROLE': {'level': 1, 'index': 5},
-                'USER_LABEL': {'level': 1, 'index': 6},
-                'TOUCHPOINTS': {'level': 1, 'index': 7},
-                'RUNTIME_PROPERTY_CONSTRAINTS': {'level': 1, 'index': 8}
-            },
-            'NCBLOCK': {
-                'ENABLED': {'level': 2, 'index': 1},
-                'MEMBERS': {'level': 2, 'index': 2}
-            },
-            'NCCLASSMANAGER': {
-                'CONTROL_CLASSES': {'level': 3, 'index': 1},
-                'DATATYPES': {'level': 3, 'index': 2}
-            },
-            'NCDEVICEMANAGER': {
-                'NCVERSION': {'level': 3, 'index': 1}
-            }
-        }
-
-        self.CLASS_IDS = {
-            'NCOBJECT': [1],
-            'NCBLOCK': [1, 1],
-            'NCWORKER': [1, 2],
-            'NCMANAGER': [1, 3],
-            'NCDEVICEMANAGER': [1, 3, 1],
-            'NCCLASSMANAGER': [1, 3, 2]
-            }
 
     def load_is12_schemas(self, spec_path):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
@@ -259,61 +257,61 @@ class IS12Utils(NMOSUtils):
     def get_property(self, test, oid, property_id):
         """Get property from object. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                     NcObjectMethods.GENERIC_GET.value,
                                      {'id': property_id})["value"]
 
     def set_property(self, test, oid, property_id, argument):
         """Get property from object. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
+                                     NcObjectMethods.GENERIC_SET.value,
                                      {'id': property_id, 'value': argument})
 
     def get_sequence_item(self, test, oid, property_id, index):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_ITEM"],
+                                     NcObjectMethods.GET_SEQUENCE_ITEM.value,
                                      {'id': property_id, 'index': index})["value"]
 
     def set_sequence_item(self, test, oid, property_id, index, value):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCOBJECT"]["SET_SEQUENCE_ITEM"],
+                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
                                      {'id': property_id, 'index': index, 'value': value})
 
     def add_sequence_item(self, test, oid, property_id, value):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCOBJECT"]["ADD_SEQUENCE_ITEM"],
+                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,
                                      {'id': property_id, 'value': value})
 
     def remove_sequence_item(self, test, oid, property_id, index):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCOBJECT"]["REMOVE_SEQUENCE_ITEM"],
+                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
                                      {'id': property_id, 'index': index})
 
     def get_sequence_length(self, test, oid, property_id):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_LENGTH"],
+                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
                                      {'id': property_id})["value"]
 
     def get_member_descriptors(self, test, oid, recurse):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
+                                     NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value,
                                      {'recurse': recurse})["value"]
 
     def find_members_by_path(self, test, oid, role_path):
         """Query members based on role path. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_PATH"],
+                                     NcBlockMethods.FIND_MEMBERS_BY_PATH.value,
                                      {'path': role_path})["value"]
 
     def find_members_by_role(self, test, oid, role, case_sensitive, match_whole_string, recurse):
         """Query members based on role. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_ROLE"],
+                                     NcBlockMethods.FIND_MEMBERS_BY_ROLE.value,
                                      {'role': role,
                                       'caseSensitive': case_sensitive,
                                       'matchWholeString': match_whole_string,
@@ -322,7 +320,7 @@ class IS12Utils(NMOSUtils):
     def find_members_by_class_id(self, test, oid, class_id, include_derived, recurse):
         """Query members based on class id. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
-                                     self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_CLASS_ID"],
+                                     NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value,
                                      {'classId': class_id,
                                       'includeDerived': include_derived,
                                       'recurse': recurse})["value"]

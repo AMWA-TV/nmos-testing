@@ -19,7 +19,8 @@ from itertools import product
 from jsonschema import ValidationError, SchemaError
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..IS12Utils import IS12Utils, NcMethodStatus, NcObject
+from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcObjectMethods, NcObjectProperties, \
+    NcClassManagerProperties, NcDeviceManagerProperties, StandardClassIds
 from ..TestHelper import load_resolved_schema
 from ..TestResult import Test
 
@@ -27,9 +28,6 @@ NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
 FEATURE_SETS_KEY = "featuresets"
-
-CLASS_MANAGER_CLS_ID = "1.3.2"
-DEVICE_MANAGER_CLS_ID = "1.3.1"
 
 
 class IS1201Test(GenericTest):
@@ -140,11 +138,12 @@ class IS1201Test(GenericTest):
         """Create a WebSocket client connection to Node under test. Raises NMOSTestException on error"""
         self.is12_utils.open_ncp_websocket(test, self.apis[CONTROL_API_KEY]["url"])
 
-    def get_manager(self, test, class_id_str):
+    def get_manager(self, test, class_id):
         """Get Manager from Root Block. Returns [Manager]. Raises NMOSTestException on error"""
+        class_id_str = ".".join(map(str, class_id))
         response = self.is12_utils.get_property(test,
                                                 self.is12_utils.ROOT_BLOCK_OID,
-                                                self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
+                                                NcBlockProperties.MEMBERS.value)
 
         manager_found = False
         manager = None
@@ -286,15 +285,15 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        class_manager = self.get_manager(test, CLASS_MANAGER_CLS_ID)
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
         results += self.validate_model_definitions(class_manager['oid'],
-                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES'],
+                                                   NcClassManagerProperties.CONTROL_CLASSES.value,
                                                    'NcClassDescriptor',
                                                    self.classes_descriptors)
 
         results += self.validate_model_definitions(class_manager['oid'],
-                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES'],
+                                                   NcClassManagerProperties.DATATYPES.value,
                                                    'NcDatatypeDescriptor',
                                                    self.datatype_descriptors)
         return results
@@ -333,7 +332,7 @@ class IS1201Test(GenericTest):
 
         role = self.is12_utils.get_property(test,
                                             self.is12_utils.ROOT_BLOCK_OID,
-                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
+                                            NcObjectProperties.ROLE.value)
 
         if role != "root":
             return test.FAIL("Unexpected role in Root Block: " + role,
@@ -350,7 +349,7 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        self.get_manager(test, CLASS_MANAGER_CLS_ID)
+        self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
         return test.PASS()
 
@@ -473,7 +472,7 @@ class IS1201Test(GenericTest):
         """Touchpoint checks"""
         touchpoints = self.is12_utils.get_property(test,
                                                    oid,
-                                                   self.is12_utils.PROPERTY_IDS["NCOBJECT"]["TOUCHPOINTS"])
+                                                   NcObjectProperties.TOUCHPOINTS.value)
         if touchpoints is not None:
             self.touchpoints_metadata["checked"] = True
             try:
@@ -490,7 +489,7 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
     def validate_block(self, test, block_id, class_descriptors, datatype_schemas, block, context=""):
-        response = self.is12_utils.get_property(test, block_id, self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
+        response = self.is12_utils.get_property(test, block_id, NcBlockProperties.MEMBERS.value)
 
         role_cache = []
         manager_cache = []
@@ -549,21 +548,21 @@ class IS1201Test(GenericTest):
         if not self.device_model_validated:
             self.create_ncp_socket(test)
 
-            class_manager = self.get_manager(test, CLASS_MANAGER_CLS_ID)
+            class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
             class_descriptors = \
                 self.get_class_manager_descriptors(test, class_manager['oid'],
-                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['CONTROL_CLASSES'])
+                                                   NcClassManagerProperties.CONTROL_CLASSES.value)
             datatype_descriptors = \
                 self.get_class_manager_descriptors(test, class_manager['oid'],
-                                                   self.is12_utils.PROPERTY_IDS['NCCLASSMANAGER']['DATATYPES'])
+                                                   NcClassManagerProperties.DATATYPES.value)
 
             # Create JSON schemas for the queried datatypes
             datatype_schemas = self.generate_json_schemas(
                 datatype_descriptors=datatype_descriptors,
                 schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
 
-            self.root_block = NcObject(self.is12_utils.CLASS_IDS["NCBLOCK"], self.is12_utils.ROOT_BLOCK_OID, "root")
+            self.root_block = NcObject(StandardClassIds.NCBLOCK.value, self.is12_utils.ROOT_BLOCK_OID, "root")
 
             self.validate_block(test,
                                 self.is12_utils.ROOT_BLOCK_OID,
@@ -670,10 +669,10 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        device_manager = self.get_manager(test, DEVICE_MANAGER_CLS_ID)
+        device_manager = self.get_manager(test, StandardClassIds.NCDEVICEMANAGER.value)
 
         # Check MS-05-02 Version
-        property_id = self.is12_utils.PROPERTY_IDS['NCDEVICEMANAGER']['NCVERSION']
+        property_id = NcDeviceManagerProperties.NCVERSION.value
 
         version = self.is12_utils.get_property(test, device_manager['oid'], property_id)
 
@@ -747,7 +746,7 @@ class IS1201Test(GenericTest):
         # Attempt to set labels
         self.create_ncp_socket(test)
 
-        property_id = self.is12_utils.PROPERTY_IDS['NCOBJECT']['USER_LABEL']
+        property_id = NcObjectProperties.USER_LABEL.value
 
         old_user_label = self.is12_utils.get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
 
@@ -989,7 +988,7 @@ class IS1201Test(GenericTest):
             if self.is12_utils.is_block(child_object.class_id):
                 self.do_find_members_by_class_id_test(test, child_object, context + block.role + ": ")
 
-        class_ids = [class_id for _, class_id in self.is12_utils.CLASS_IDS.items()]
+        class_ids = [e.value for e in StandardClassIds]
 
         truth_table = IS12Utils.sampled_list(list(product([False, True], repeat=2)))
         search_conditions = []
@@ -1078,8 +1077,8 @@ class IS1201Test(GenericTest):
         """IS-12 Protocol Error: Node handles invalid command handle"""
 
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
-                                                           self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
-                                                           {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
+                                                           NcObjectMethods.GENERIC_GET.value,
+                                                           {'id': NcObjectProperties.OID.value})
 
         # Use invalid handle
         invalid_command_handle = "NOT A HANDLE"
@@ -1091,8 +1090,8 @@ class IS1201Test(GenericTest):
         """IS-12 Protocol Error: Node handles invalid command type"""
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
-                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
-                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
+                                                NcObjectMethods.GENERIC_GET.value,
+                                                {'id': NcObjectProperties.OID.value})
         # Use invalid message type
         command_json['messageType'] = 7
 
@@ -1112,8 +1111,8 @@ class IS1201Test(GenericTest):
         invalid_oid = 999999999
         command_json = \
             self.is12_utils.create_command_JSON(invalid_oid,
-                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
-                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
+                                                NcObjectMethods.GENERIC_GET.value,
+                                                {'id': NcObjectProperties.OID.value})
 
         return self.do_error_test(test,
                                   command_json,
@@ -1125,7 +1124,7 @@ class IS1201Test(GenericTest):
         invalid_property_identifier = {'level': 1, 'index': 999}
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
-                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                                NcObjectMethods.GENERIC_GET.value,
                                                 {'id': invalid_property_identifier})
         return self.do_error_test(test,
                                   command_json,
@@ -1135,8 +1134,8 @@ class IS1201Test(GenericTest):
         """MS-05-02 Error: Node handles invalid method identifier"""
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
-                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
-                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
+                                                NcObjectMethods.GENERIC_GET.value,
+                                                {'id': NcObjectProperties.OID.value})
 
         # Use invalid method id
         invalid_method_id = {'level': 1, 'index': 999}
@@ -1151,8 +1150,8 @@ class IS1201Test(GenericTest):
         # Try to set a read only property
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
-                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
-                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'],
+                                                NcObjectMethods.GENERIC_SET.value,
+                                                {'id': NcObjectProperties.ROLE.value,
                                                  'value': "ROLE IS READ ONLY"})
 
         return self.do_error_test(test,
