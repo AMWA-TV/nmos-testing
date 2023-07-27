@@ -68,7 +68,8 @@ class IS12Utils(NMOSUtils):
                 'GET_SEQUENCE_ITEM': {'level': 1, 'index': 3},
                 'SET_SEQUENCE_ITEM': {'level': 1, 'index': 4},
                 'ADD_SEQUENCE_ITEM': {'level': 1, 'index': 5},
-                'REMOVE_SEQUENCE_ITEM': {'level': 1, 'index': 6}
+                'REMOVE_SEQUENCE_ITEM': {'level': 1, 'index': 6},
+                'GET_SEQUENCE_LENGTH': {'level': 1, 'index': 7}
             },
             'NCBLOCK': {
                 'GET_MEMBERS_DESCRIPTOR': {'level': 2, 'index': 1},
@@ -183,6 +184,14 @@ class IS12Utils(NMOSUtils):
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["REMOVE_SEQUENCE_ITEM"],
                                         {'id': property_id, 'index': index})
+
+    def create_get_sequence_length_command_JSON(self, handle, oid, property_id):
+        """Create message that will request the sequence length value given an oid"""
+
+        return self.create_command_JSON(handle,
+                                        oid,
+                                        self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_LENGTH"],
+                                        {'id': property_id})
 
     def create_find_members_by_path_command_JSON(self, handle, oid, role_path):
         """Create JSON message for FindMembersByPath method from NcBlock"""

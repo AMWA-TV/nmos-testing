@@ -57,9 +57,7 @@ class IS1201Test(GenericTest):
         self.organization_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.touchpoints_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.set_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.add_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.remove_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.get_sequence_length_metadata = {"checked": False, "error": False, "error_msg": ""}
 
         self.oid_cache = []
 
@@ -410,6 +408,18 @@ class IS1201Test(GenericTest):
 
         return response["result"]
 
+    def _get_sequence_length(self, test, oid, property_id):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        command_handle = self.get_command_handle()
+
+        get_sequence_length_command = \
+            self.is12_utils.create_get_sequence_length_command_JSON(command_handle,
+                                                                    oid,
+                                                                    property_id)
+        response = self.send_command(test, command_handle, get_sequence_length_command)
+
+        return response["result"]["value"]
+
     def _get_member_descriptors(self, test, oid, recurse):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
@@ -620,75 +630,26 @@ class IS1201Test(GenericTest):
                 context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
         return False
 
-    def check_add_sequence_item(self, test, oid, property_metadata, sequence_length, context=""):
+    def check_get_sequence_length(self, test, oid, sequence_values, property_metadata, context=""):
         try:
-            self.add_sequence_item_metadata["checked"] = True
-            # Add a value to the end of the sequence
-            new_item = self._get_sequence_item(test, oid, property_metadata['id'], index=0)
+            length = self._get_sequence_length(test, oid, property_metadata['id'])
 
-            self._add_sequence_item(test, oid, property_metadata['id'], new_item)
-
-            # check the value
-            value = self._get_sequence_item(test, oid, property_metadata['id'], index=sequence_length)
-            if value != new_item:
-                self.add_sequence_item_metadata["error"] = True
-                self.add_sequence_item_metadata["error_msg"] += \
-                    context + property_metadata["name"] \
-                    + ": Expected: " + str(new_item) + ", Actual: " + str(value) + ", "
-            return True
+            if length == len(sequence_values):
+                return True
+            self.get_sequence_length_metadata["error_msg"] += \
+                context + property_metadata["name"] \
+                + ": GetSequenceLength error. Expected: " \
+                + str(len(sequence_values)) + ", Actual: " + str(length) + ", "
         except NMOSTestException as e:
-            self.add_sequence_item_metadata["error"] = True
-            self.add_sequence_item_metadata["error_msg"] += \
+            self.get_sequence_length_metadata["error_msg"] += \
                 context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
-        return False
-
-    def check_set_sequence_item(self, test, oid, property_metadata, sequence_length, context=""):
-        try:
-            self.set_sequence_item_metadata["checked"] = True
-            new_value = self._get_sequence_item(test, oid, property_metadata['id'], index=sequence_length - 1)
-
-            # set to another value
-            self._set_sequence_item(test, oid, property_metadata['id'], index=sequence_length, value=new_value)
-
-            # check the value
-            value = self._get_sequence_item(test, oid, property_metadata['id'], index=sequence_length)
-            if value != new_value:
-                self.set_sequence_item_metadata["error"] = True
-                self.set_sequence_item_metadata["error_msg"] += \
-                    context + property_metadata["name"] \
-                    + ": Expected: " + str(new_value) + ", Actual: " + str(value) + ", "
-            return True
-        except NMOSTestException as e:
-            self.set_sequence_item_metadata["error"] = True
-            self.set_sequence_item_metadata["error_msg"] += \
-                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
-        return False
-
-    def check_remove_sequence_item(self, test, oid, property_metadata, sequence_length, context=""):
-        try:
-            # remove item
-            self.remove_sequence_item_metadata["checked"] = True
-            self._remove_sequence_item(test, oid, property_metadata['id'], index=sequence_length)
-            return True
-        except NMOSTestException as e:
-            self.remove_sequence_item_metadata["error"] = True
-            self.remove_sequence_item_metadata["error_msg"] += \
-                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
+        self.get_sequence_length_metadata["error"] = True
         return False
 
     def check_sequence_methods(self, test, oid, sequence_values, property_metadata, context=""):
         """Check that sequence manipulation methods work correctly"""
         self.check_get_sequence_item(test, oid, sequence_values, property_metadata, context)
-
-        if not property_metadata['isReadOnly']:
-            sequence_length = len(sequence_values)
-
-            if not self.check_add_sequence_item(test, oid, property_metadata, sequence_length, context=context):
-                return
-
-            self.check_set_sequence_item(test, oid, property_metadata, sequence_length, context=context)
-
-            self.check_remove_sequence_item(test, oid, property_metadata, sequence_length, context)
+        self.check_get_sequence_length(test, oid, sequence_values, property_metadata, context)
 
     def validate_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
         for class_property in reference_class_descriptor['properties']:
@@ -1067,49 +1028,32 @@ class IS1201Test(GenericTest):
 
     def test_15(self, test):
         """NcObject method: SetSequenceItem"""
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
-        if self.set_sequence_item_metadata["error"]:
-            return test.FAIL(self.set_sequence_item_metadata["error_msg"])
-
-        if not self.set_sequence_item_metadata["checked"]:
-            return test.UNCLEAR("SetSequenceItem not tested.")
-
-        return test.PASS()
+        return test.DISABLED()
 
     def test_16(self, test):
         """NcObject method: AddSequenceItem"""
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
-        if self.add_sequence_item_metadata["error"]:
-            return test.FAIL(self.add_sequence_item_metadata["error_msg"])
-
-        if not self.add_sequence_item_metadata["checked"]:
-            return test.UNCLEAR("AddSequenceItem not tested.")
-
-        return test.PASS()
+        return test.DISABLED()
 
     def test_17(self, test):
         """NcObject method: RemoveSequenceItem"""
+
+        return test.DISABLED()
+
+    def test_17_1(self, test):
+        """NcObject method: GetSequenceLength"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
-        if self.remove_sequence_item_metadata["error"]:
-            return test.FAIL(self.remove_sequence_item_metadata["error_msg"])
+        if self.get_sequence_length_metadata["error"]:
+            return test.FAIL(self.get_sequence_length_metadata["error_msg"])
 
-        if not self.remove_sequence_item_metadata["checked"]:
-            return test.UNCLEAR("RemoveSequenceItem not tested.")
+        if not self.get_sequence_length_metadata["checked"]:
+            return test.UNCLEAR("GetSequenceItem not tested.")
 
         return test.PASS()
 
