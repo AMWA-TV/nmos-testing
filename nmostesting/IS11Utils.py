@@ -96,31 +96,6 @@ class IS11Utils(NMOSUtils):
                 pass
         return toReturn
 
-    # TODO: Remove the duplication (IS05Utils)
-    def checkCleanRequest(self, method, dest, data=None, code=200):
-        """Checks a request can be made and the resulting json can be parsed"""
-        status, response = TestHelper.do_request(method, self.url + dest, json=data)
-        if not status:
-            return status, response
-
-        message = "Expected status code {} from {}, got {}.".format(code, dest, response.status_code)
-        if response.status_code == code:
-            return True, response
-        else:
-            return False, message
-
-    # TODO: Remove the duplication (IS05Utils)
-    def checkCleanRequestJSON(self, method, dest, data=None, code=200):
-        valid, response = self.checkCleanRequest(method, dest, data, code)
-        if valid:
-            try:
-                return True, response.json()
-            except Exception:
-                # Failed parsing JSON
-                return False, "Invalid JSON received"
-        else:
-            return valid, response
-
     def get_transportfile(self, url, sender_id):
         """Get the transport file for a given Sender"""
         toReturn = None
