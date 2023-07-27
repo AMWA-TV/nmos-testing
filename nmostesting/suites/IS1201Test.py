@@ -177,7 +177,7 @@ class IS1201Test(GenericTest):
     def send_command(self, test, command_handle, command_json):
         """Send command to Node under test. Returns [command response]. Raises NMOSTestException on error"""
         # Referencing the Google sheet
-        # IS-12 (9)  Check protocol version and message type
+        # IS-12 (9)  Check message type
         # IS-12 (10) Check handle numeric identifier
         # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html
         # IS-12 (11) Check Command message type
@@ -209,15 +209,6 @@ class IS1201Test(GenericTest):
                                       parsed_message,
                                       self.schemas["command-response-message"],
                                       context="command-response-message: ")
-                if IS12Utils.compare_api_version(parsed_message["protocolVersion"],
-                                                 self.apis[CONTROL_API_KEY]["version"]):
-                    raise NMOSTestException(test.FAIL("Incorrect protocol version. Expected "
-                                                      + self.apis[CONTROL_API_KEY]["version"]
-                                                      + ", received " + parsed_message["protocolVersion"],
-                                                      "https://specs.amwa.tv/is-12/branches/{}"
-                                                      "/docs/Protocol_messaging.html"
-                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
-
                 responses = parsed_message["responses"]
                 for response in responses:
                     if response["handle"] == command_handle:
@@ -260,7 +251,7 @@ class IS1201Test(GenericTest):
                                   self.datatype_schemas["NcBlockMemberDescriptor"],
                                   context="NcBlockMemberDescriptor: ")
 
-            if value["classId"] == class_descriptor["identity"]:
+            if value["classId"] == class_descriptor["classId"]:
                 manager_found = True
                 manager = value
 
@@ -308,7 +299,7 @@ class IS1201Test(GenericTest):
                 if key in non_normative_keys:
                     continue
                 # Check for class ID
-                if key == 'identity' and isinstance(reference[key], list):
+                if key == 'classId' and isinstance(reference[key], list):
                     if reference[key] != descriptor[key]:
                         raise NMOSTestException(test.FAIL(context + "Unexpected ClassId. Expected: "
                                                           + str(reference[key])
@@ -344,11 +335,9 @@ class IS1201Test(GenericTest):
     def _get_property(self, test, oid, property_id):
         """Get property from object. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         get_property_command = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
+            self.is12_utils.create_generic_get_command_JSON(command_handle,
                                                             oid,
                                                             property_id)
         response = self.send_command(test, command_handle, get_property_command)
@@ -358,11 +347,9 @@ class IS1201Test(GenericTest):
     def _set_property(self, test, oid, property_id, argument):
         """Get property from object. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         set_property_command = \
-            self.is12_utils.create_generic_set_command_JSON(version,
-                                                            command_handle,
+            self.is12_utils.create_generic_set_command_JSON(command_handle,
                                                             oid,
                                                             property_id,
                                                             argument)
@@ -373,11 +360,9 @@ class IS1201Test(GenericTest):
     def _get_sequence_item(self, test, oid, property_id, index):
         """Get value from sequence property. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         get_sequence_item_command = \
-            self.is12_utils.create_get_sequence_item_command_JSON(version,
-                                                                  command_handle,
+            self.is12_utils.create_get_sequence_item_command_JSON(command_handle,
                                                                   oid,
                                                                   property_id,
                                                                   index)
@@ -388,11 +373,9 @@ class IS1201Test(GenericTest):
     def _set_sequence_item(self, test, oid, property_id, index, value):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         add_sequence_item_command = \
-            self.is12_utils.create_set_sequence_item_command_JSON(version,
-                                                                  command_handle,
+            self.is12_utils.create_set_sequence_item_command_JSON(command_handle,
                                                                   oid,
                                                                   property_id,
                                                                   index,
@@ -404,11 +387,9 @@ class IS1201Test(GenericTest):
     def _add_sequence_item(self, test, oid, property_id, value):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         add_sequence_item_command = \
-            self.is12_utils.create_add_sequence_item_command_JSON(version,
-                                                                  command_handle,
+            self.is12_utils.create_add_sequence_item_command_JSON(command_handle,
                                                                   oid,
                                                                   property_id,
                                                                   value)
@@ -419,11 +400,9 @@ class IS1201Test(GenericTest):
     def _remove_sequence_item(self, test, oid, property_id, index):
         """Get value from sequence property. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         get_sequence_item_command = \
-            self.is12_utils.create_remove_sequence_item_command_JSON(version,
-                                                                     command_handle,
+            self.is12_utils.create_remove_sequence_item_command_JSON(command_handle,
                                                                      oid,
                                                                      property_id,
                                                                      index)
@@ -434,10 +413,9 @@ class IS1201Test(GenericTest):
     def _get_member_descriptors(self, test, oid, recurse):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         get_member_descriptors_command = \
-            self.is12_utils.create_get_member_descriptors_JSON(version, command_handle, oid, recurse)
+            self.is12_utils.create_get_member_descriptors_JSON(command_handle, oid, recurse)
 
         response = self.send_command(test, command_handle, get_member_descriptors_command)
 
@@ -446,11 +424,9 @@ class IS1201Test(GenericTest):
     def _find_members_by_path(self, test, oid, role_path):
         """Query members based on role path. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         find_members_by_path_command = \
-            self.is12_utils.create_find_members_by_path_command_JSON(version,
-                                                                     command_handle,
+            self.is12_utils.create_find_members_by_path_command_JSON(command_handle,
                                                                      oid,
                                                                      role_path)
         response = self.send_command(test, command_handle, find_members_by_path_command)
@@ -460,11 +436,9 @@ class IS1201Test(GenericTest):
     def _find_members_by_role(self, test, oid, role, case_sensitive, match_whole_string, recurse):
         """Query members based on role. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         find_members_by_role_command = \
-            self.is12_utils.create_find_members_by_role_command_JSON(version,
-                                                                     command_handle,
+            self.is12_utils.create_find_members_by_role_command_JSON(command_handle,
                                                                      oid,
                                                                      role,
                                                                      case_sensitive,
@@ -477,11 +451,9 @@ class IS1201Test(GenericTest):
     def _find_members_by_class_id(self, test, oid, class_id, include_derived, recurse):
         """Query members based on class id. Raises NMOSTestException on error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
 
         find_members_by_class_id_command = \
-            self.is12_utils.create_find_members_by_class_id_command_JSON(version,
-                                                                         command_handle,
+            self.is12_utils.create_find_members_by_class_id_command_JSON(command_handle,
                                                                          oid,
                                                                          class_id,
                                                                          include_derived,
@@ -494,9 +466,9 @@ class IS1201Test(GenericTest):
         response = self._get_property(test, class_manager_oid, property_id)
 
         # Create descriptor dictionary from response array
-        # Use identity as key if present, otherwise use name
-        def key_lambda(identity, name): return ".".join(map(str, identity)) if identity else name
-        descriptors = {key_lambda(r.get('identity'), r['name']): r for r in response}
+        # Use classId as key if present, otherwise use name
+        def key_lambda(classId, name): return ".".join(map(str, classId)) if classId else name
+        descriptors = {key_lambda(r.get('classId'), r['name']): r for r in response}
 
         return descriptors
 
@@ -1354,7 +1326,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_error_test(self, test, command_handle, command_json, expected_status=None, is12_error=True):
+    def do_error_test(self, test, command_handle, command_json, expected_status=None):
         """Execute command with expected error status."""
         # when expected_status = None checking of the status code is skipped
         # check the syntax of the error message according to is12_error
@@ -1374,11 +1346,6 @@ class IS1201Test(GenericTest):
                 # It must be some other type of error so re-throw
                 raise e
 
-            # 'protocolVersion' key is found in IS-12 protocol errors, but not in MS-05-02 errors
-            if is12_error != ('protocolVersion' in error_msg):
-                spec = "IS-12 protocol" if is12_error else "MS-05-02"
-                return test.FAIL(spec + " error expected")
-
             if not error_msg.get('status'):
                 return test.FAIL("Command error: " + str(error_msg))
 
@@ -1396,32 +1363,13 @@ class IS1201Test(GenericTest):
 
             return test.PASS()
 
-    def test_22(self, test):
-        """IS-12 Protocol Error: Node handles incorrect IS-12 protocol version"""
-
-        command_handle = self.get_command_handle()
-        # Use incorrect protocol version
-        version = 'DOES.NOT.EXIST'
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
-
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json,
-                                  expected_status=NcMethodStatus.ProtocolVersionError)
-
     def test_23(self, test):
         """IS-12 Protocol Error: Node handles invalid command handle"""
 
         # Use invalid handle
         invalid_command_handle = "NOT A HANDLE"
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            invalid_command_handle,
+            self.is12_utils.create_generic_get_command_JSON(invalid_command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
 
@@ -1432,10 +1380,8 @@ class IS1201Test(GenericTest):
     def test_24(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
+            self.is12_utils.create_generic_get_command_JSON(command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
         # Use invalid message type
@@ -1459,46 +1405,38 @@ class IS1201Test(GenericTest):
         """MS-05-02 Error: Node handles invalid oid"""
 
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         # Use invalid oid
         invalid_oid = 999999999
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
+            self.is12_utils.create_generic_get_command_JSON(command_handle,
                                                             invalid_oid,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
 
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  expected_status=NcMethodStatus.BadOid,
-                                  is12_error=False)
+                                  expected_status=NcMethodStatus.BadOid)
 
     def test_27(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         # Use invalid property id
         invalid_property_identifier = {'level': 1, 'index': 999}
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
+            self.is12_utils.create_generic_get_command_JSON(command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             invalid_property_identifier)
 
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  expected_status=NcMethodStatus.PropertyNotImplemented,
-                                  is12_error=False)
+                                  expected_status=NcMethodStatus.PropertyNotImplemented)
 
     def test_28(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(version,
-                                                            command_handle,
+            self.is12_utils.create_generic_get_command_JSON(command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
         # Use invalid method id
@@ -1508,17 +1446,14 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  expected_status=NcMethodStatus.MethodNotImplemented,
-                                  is12_error=False)
+                                  expected_status=NcMethodStatus.MethodNotImplemented)
 
     def test_29(self, test):
         """MS-05-02 Error: Node handles read only error"""
         command_handle = self.get_command_handle()
-        version = self.is12_utils.format_version(self.apis[CONTROL_API_KEY]["version"])
         # Try to set a read only property
         command_json = \
-            self.is12_utils.create_generic_set_command_JSON(version,
-                                                            command_handle,
+            self.is12_utils.create_generic_set_command_JSON(command_handle,
                                                             self.is12_utils.ROOT_BLOCK_OID,
                                                             self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'],
                                                             "ROLE IS READ ONLY")
@@ -1526,5 +1461,4 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_handle,
                                   command_json,
-                                  expected_status=NcMethodStatus.Readonly,
-                                  is12_error=False)
+                                  expected_status=NcMethodStatus.Readonly)

@@ -36,6 +36,7 @@ class NcMethodStatus(IntEnum):
     InvalidRequest = 406
     Conflict = 409
     BufferOverflow = 413
+    IndexOutOfBounds = 414
     ParameterError = 417
     Locked = 423
     DeviceError = 500
@@ -43,7 +44,6 @@ class NcMethodStatus(IntEnum):
     PropertyNotImplemented = 502
     NotReady = 503
     Timeout = 504
-    ProtocolVersionError = 505
 
 
 class NcDatatypeType(IntEnum):
@@ -114,10 +114,9 @@ class IS12Utils(NMOSUtils):
             'NCCLASSMANAGER': [1, 3, 2]
             }
 
-    def create_command_JSON(self, version, handle, oid, method_id, arguments):
+    def create_command_JSON(self, handle, oid, method_id, arguments):
         """Create command JSON for generic get of a property"""
         return {
-            'protocolVersion': version,
             'messageType': MessageTypes.Command,
             'commands': [
                 {
@@ -129,84 +128,75 @@ class IS12Utils(NMOSUtils):
             ],
         }
 
-    def create_generic_get_command_JSON(self, version, handle, oid, property_id):
+    def create_generic_get_command_JSON(self, handle, oid, property_id):
         """Create command JSON for generic get of a property"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
                                         {'id': property_id})
 
-    def create_generic_set_command_JSON(self, version, handle, oid, property_id, value):
+    def create_generic_set_command_JSON(self, handle, oid, property_id, value):
         """Create command JSON for generic get of a property"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
                                         {'id': property_id, 'value': value})
 
-    def create_get_member_descriptors_JSON(self, version, handle, oid, recurse):
+    def create_get_member_descriptors_JSON(self, handle, oid, recurse):
         """Create message that will request the member descriptors of the object with the given oid"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
                                         {'recurse': recurse})
 
-    def create_get_sequence_item_command_JSON(self, version, handle, oid, property_id, index):
+    def create_get_sequence_item_command_JSON(self, handle, oid, property_id, index):
         """Create message that will request the sequence item value given an oid and index"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_ITEM"],
                                         {'id': property_id, 'index': index})
 
-    def create_set_sequence_item_command_JSON(self, version, handle, oid, property_id, index, value):
+    def create_set_sequence_item_command_JSON(self, handle, oid, property_id, index, value):
         """Create message that will add a sequence item value"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["SET_SEQUENCE_ITEM"],
                                         {'id': property_id, 'index': index, 'value': value})
 
-    def create_add_sequence_item_command_JSON(self, version, handle, oid, property_id, value):
+    def create_add_sequence_item_command_JSON(self, handle, oid, property_id, value):
         """Create message that will add a sequence item value"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["ADD_SEQUENCE_ITEM"],
                                         {'id': property_id, 'value': value})
 
-    def create_remove_sequence_item_command_JSON(self, version, handle, oid, property_id, index):
+    def create_remove_sequence_item_command_JSON(self, handle, oid, property_id, index):
         """Create message that will request the sequence item value given an oid and index"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCOBJECT"]["REMOVE_SEQUENCE_ITEM"],
                                         {'id': property_id, 'index': index})
 
-    def create_find_members_by_path_command_JSON(self, version, handle, oid, role_path):
+    def create_find_members_by_path_command_JSON(self, handle, oid, role_path):
         """Create JSON message for FindMembersByPath method from NcBlock"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_PATH"],
                                         {'path': role_path})
 
-    def create_find_members_by_role_command_JSON(self, version, handle, oid, role,
+    def create_find_members_by_role_command_JSON(self, handle, oid, role,
                                                  case_sensitive, match_whole_string, recurse):
         """Create JSON message for FindMembersByPath method from NcBlock"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_ROLE"],
                                         {'role': role,
@@ -214,14 +204,13 @@ class IS12Utils(NMOSUtils):
                                          'matchWholeString': match_whole_string,
                                          'recurse': recurse})
 
-    def create_find_members_by_class_id_command_JSON(self, version, handle, oid, class_id, include_derived, recurse):
+    def create_find_members_by_class_id_command_JSON(self, handle, oid, class_id, include_derived, recurse):
         """Create JSON message for FindMembersByClassId method from NcBlock"""
 
-        return self.create_command_JSON(version,
-                                        handle,
+        return self.create_command_JSON(handle,
                                         oid,
                                         self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_CLASS_ID"],
-                                        {'id': class_id,
+                                        {'classId': class_id,
                                          'includeDerived': include_derived,
                                          'recurse': recurse})
 
@@ -327,13 +316,6 @@ class IS12Utils(NMOSUtils):
             json_schema['type'] = 'integer'
 
         return json_schema
-
-    def format_version(self, version):
-        """ Formats the spec version to create IS-12 protocol version"""
-        # Currently IS-12 version format is inconsistant with other IS specs
-        # this helper converts from spec version to protocol version
-        # e.g. v1.0 ==> 1.0.0
-        return version.strip('v') + ".0"
 
     def get_base_class_id(self, class_id):
         """ Given a class_id returns the standard base class id as a string"""
