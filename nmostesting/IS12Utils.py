@@ -14,8 +14,15 @@
 
 from .NMOSUtils import NMOSUtils
 
+import json
+import time
+
 from enum import IntEnum
 from itertools import takewhile, dropwhile
+from jsonschema import FormatChecker, SchemaError, validate, ValidationError
+from .Config import WS_MESSAGE_TIMEOUT
+from .GenericTest import NMOSTestException
+from .TestHelper import WebsocketWorker, load_resolved_schema
 
 
 class MessageTypes(IntEnum):
@@ -54,9 +61,12 @@ class NcDatatypeType(IntEnum):
 
 
 class IS12Utils(NMOSUtils):
-    def __init__(self, url):
+    def __init__(self, url, spec_path, spec_branch):
         NMOSUtils.__init__(self, url)
+        self.spec_branch = spec_branch
         self.protocol_definitions()
+        self.load_is12_schemas(spec_path)
+        self.ncp_websocket = None
 
     def protocol_definitions(self):
         self.ROOT_BLOCK_OID = 1
@@ -114,6 +124,114 @@ class IS12Utils(NMOSUtils):
             'NCDEVICEMANAGER': [1, 3, 1],
             'NCCLASSMANAGER': [1, 3, 2]
             }
+
+    def load_is12_schemas(self, spec_path):
+        """Load datatype and control class decriptors and create datatype JSON schemas"""
+        # Load IS-12 schemas
+        self.schemas = {}
+        schema_names = ['error-message', 'command-response-message']
+        for schema_name in schema_names:
+            self.schemas[schema_name] = load_resolved_schema(spec_path, schema_name + ".json")
+
+    def open_ncp_websocket(self, test, url):
+        """Create a WebSocket client connection to Node under test. Raises NMOSTestException on error"""
+        # Reuse socket if connection already established
+        if self.ncp_websocket and self.ncp_websocket.is_open():
+            return
+
+        # Create a WebSocket connection to NMOS Control Protocol endpoint
+        self.ncp_websocket = WebsocketWorker(url)
+        self.ncp_websocket.start()
+
+        # Give WebSocket client a chance to start and open its connection
+        start_time = time.time()
+        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
+            if self.ncp_websocket.is_open():
+                break
+            time.sleep(0.2)
+
+        if self.ncp_websocket.did_error_occur() or not self.ncp_websocket.is_open():
+            raise NMOSTestException(test.FAIL("Failed to open WebSocket successfully"
+                                    + (": " + str(self.ncp_websocket.get_error_message())
+                                       if self.ncp_websocket.did_error_occur() else ".")))
+
+    def close_ncp_websocket(self):
+        # Clean up Websocket resources
+        if self.ncp_websocket:
+            self.ncp_websocket.close()
+
+    def validate_is12_schema(self, test, payload, schema_name, context=""):
+        """Delegates to validate_schema. Raises NMOSTestExceptions on error"""
+        try:
+            # Validate the JSON schema is correct
+            checker = FormatChecker(["ipv4", "ipv6", "uri"])
+            validate(payload, self.schemas[schema_name], format_checker=checker)
+        except ValidationError as e:
+            raise NMOSTestException(test.FAIL(context + "Schema validation error: " + e.message))
+        except SchemaError as e:
+            raise NMOSTestException(test.FAIL(context + "Schema error: " + e.message))
+
+        return
+
+    def send_command(self, test, command_handle, command_json):
+        """Send command to Node under test. Returns [command response]. Raises NMOSTestException on error"""
+        # Referencing the Google sheet
+        # IS-12 (9)  Check message type
+        # IS-12 (10) Check handle numeric identifier
+        # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html
+        # IS-12 (11) Check Command message type
+        # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html#command-message-type
+        # MS-05-02 (74) All methods MUST return a datatype which inherits from NcMethodResult.
+        #               When a method call encounters an error the return MUST be NcMethodResultError
+        #               or a derived datatype.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Framework.html#ncmethodresult
+
+        results = []
+
+        self.ncp_websocket.send(json.dumps(command_json))
+
+        # Wait for server to respond
+        start_time = time.time()
+        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
+            if self.ncp_websocket.is_messages_received():
+                break
+            time.sleep(0.2)
+
+        messages = self.ncp_websocket.get_messages()
+
+        # find the response to our request
+        for message in messages:
+            parsed_message = json.loads(message)
+
+            if parsed_message["messageType"] == MessageTypes.CommandResponse:
+                self.validate_is12_schema(test,
+                                          parsed_message,
+                                          "command-response-message",
+                                          context="command-response-message: ")
+                responses = parsed_message["responses"]
+                for response in responses:
+                    if response["handle"] == command_handle:
+                        if response["result"]["status"] != NcMethodStatus.OK:
+                            raise NMOSTestException(test.FAIL(response["result"]))
+                        results.append(response)
+            if parsed_message["messageType"] == MessageTypes.Error:
+                self.validate_is12_schema(test,
+                                          parsed_message,
+                                          "error-message",
+                                          context="error-message: ")
+                raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
+                                                  "/docs/Protocol_messaging.html#error-messages"
+                                                  .format(self.spec_branch)))
+        if len(results) == 0:
+            raise NMOSTestException(test.FAIL("No Command Message Response received.",
+                                              "https://specs.amwa.tv/is-12/branches/{}"
+                                              "/docs/Protocol_messaging.html#command-message-type"
+                                              .format(self.spec_branch)))
+
+        if len(results) > 1:
+            raise NMOSTestException(test.FAIL("Received multiple responses : " + len(responses)))
+
+        return results[0]
 
     def create_command_JSON(self, handle, oid, method_id, arguments):
         """Create command JSON for generic get of a property"""

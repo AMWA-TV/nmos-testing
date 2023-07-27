@@ -14,15 +14,13 @@
 
 import json
 import os
-import time
 
 from itertools import product
 from jsonschema import ValidationError, SchemaError
 
-from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
-from ..IS12Utils import IS12Utils, NcMethodStatus, MessageTypes, NcObject
-from ..TestHelper import WebsocketWorker, load_resolved_schema
+from ..IS12Utils import IS12Utils, NcMethodStatus, NcObject
+from ..TestHelper import load_resolved_schema
 from ..TestResult import Test
 
 NODE_API_KEY = "node"
@@ -42,8 +40,9 @@ class IS1201Test(GenericTest):
         GenericTest.__init__(self, apis, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
-        self.is12_utils = IS12Utils(self.node_url)
-        self.ncp_websocket = None
+        self.is12_utils = IS12Utils(self.node_url,
+                                    self.apis[CONTROL_API_KEY]["spec_path"],
+                                    self.apis[CONTROL_API_KEY]["spec_branch"])
         self.load_reference_resources()
         self.command_handle = 0
         self.root_block = None
@@ -63,8 +62,7 @@ class IS1201Test(GenericTest):
 
     def tear_down_tests(self):
         # Clean up Websocket resources
-        if self.ncp_websocket:
-            self.ncp_websocket.close()
+        self.is12_utils.close_ncp_websocket()
 
     def execute_tests(self, test_names):
         """Perform tests defined within this class"""
@@ -147,90 +145,12 @@ class IS1201Test(GenericTest):
 
     def create_ncp_socket(self, test):
         """Create a WebSocket client connection to Node under test. Raises NMOSTestException on error"""
-        # Reuse socket if connection already established
-        if self.ncp_websocket and self.ncp_websocket.is_open():
-            return
-
-        # Create a WebSocket connection to NMOS Control Protocol endpoint
-        self.ncp_websocket = WebsocketWorker(self.apis[CONTROL_API_KEY]["url"])
-        self.ncp_websocket.start()
-
-        # Give WebSocket client a chance to start and open its connection
-        start_time = time.time()
-        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
-            if self.ncp_websocket.is_open():
-                break
-            time.sleep(0.2)
-
-        if self.ncp_websocket.did_error_occur() or not self.ncp_websocket.is_open():
-            raise NMOSTestException(test.FAIL("Failed to open WebSocket successfully"
-                                    + (": " + str(self.ncp_websocket.get_error_message())
-                                       if self.ncp_websocket.did_error_occur() else ".")))
+        self.is12_utils.open_ncp_websocket(test, self.apis[CONTROL_API_KEY]["url"])
 
     def get_command_handle(self):
         """Get unique command handle"""
         self.command_handle += 1
         return self.command_handle
-
-    def send_command(self, test, command_handle, command_json):
-        """Send command to Node under test. Returns [command response]. Raises NMOSTestException on error"""
-        # Referencing the Google sheet
-        # IS-12 (9)  Check message type
-        # IS-12 (10) Check handle numeric identifier
-        # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html
-        # IS-12 (11) Check Command message type
-        # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html#command-message-type
-        # MS-05-02 (74) All methods MUST return a datatype which inherits from NcMethodResult.
-        #               When a method call encounters an error the return MUST be NcMethodResultError
-        #               or a derived datatype.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Framework.html#ncmethodresult
-
-        results = []
-
-        self.ncp_websocket.send(json.dumps(command_json))
-
-        # Wait for server to respond
-        start_time = time.time()
-        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
-            if self.ncp_websocket.is_messages_received():
-                break
-            time.sleep(0.2)
-
-        messages = self.ncp_websocket.get_messages()
-
-        # find the response to our request
-        for message in messages:
-            parsed_message = json.loads(message)
-
-            if parsed_message["messageType"] == MessageTypes.CommandResponse:
-                self._validate_schema(test,
-                                      parsed_message,
-                                      self.schemas["command-response-message"],
-                                      context="command-response-message: ")
-                responses = parsed_message["responses"]
-                for response in responses:
-                    if response["handle"] == command_handle:
-                        if response["result"]["status"] != NcMethodStatus.OK:
-                            raise NMOSTestException(test.FAIL(response["result"]))
-                        results.append(response)
-            if parsed_message["messageType"] == MessageTypes.Error:
-                self._validate_schema(test,
-                                      parsed_message,
-                                      self.schemas["error-message"],
-                                      context="error-message: ")
-                raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
-                                                  "/docs/Protocol_messaging.html#error-messages"
-                                                  .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
-        if len(results) == 0:
-            raise NMOSTestException(test.FAIL("No Command Message Response received.",
-                                              "https://specs.amwa.tv/is-12/branches/{}"
-                                              "/docs/Protocol_messaging.html#command-message-type"
-                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
-
-        if len(results) > 1:
-            raise NMOSTestException(test.FAIL("Received multiple responses : " + len(responses)))
-
-        return results[0]
 
     def get_manager(self, test, class_id_str):
         """Get Manager from Root Block. Returns [Manager]. Raises NMOSTestException on error"""
@@ -338,7 +258,7 @@ class IS1201Test(GenericTest):
             self.is12_utils.create_generic_get_command_JSON(command_handle,
                                                             oid,
                                                             property_id)
-        response = self.send_command(test, command_handle, get_property_command)
+        response = self.is12_utils.send_command(test, command_handle, get_property_command)
 
         return response["result"]["value"]
 
@@ -351,7 +271,7 @@ class IS1201Test(GenericTest):
                                                             oid,
                                                             property_id,
                                                             argument)
-        response = self.send_command(test, command_handle, set_property_command)
+        response = self.is12_utils.send_command(test, command_handle, set_property_command)
 
         return response["result"]
 
@@ -364,7 +284,7 @@ class IS1201Test(GenericTest):
                                                                   oid,
                                                                   property_id,
                                                                   index)
-        response = self.send_command(test, command_handle, get_sequence_item_command)
+        response = self.is12_utils.send_command(test, command_handle, get_sequence_item_command)
 
         return response["result"]["value"]
 
@@ -378,7 +298,7 @@ class IS1201Test(GenericTest):
                                                                   property_id,
                                                                   index,
                                                                   value)
-        response = self.send_command(test, command_handle, add_sequence_item_command)
+        response = self.is12_utils.send_command(test, command_handle, add_sequence_item_command)
 
         return response["result"]
 
@@ -391,7 +311,7 @@ class IS1201Test(GenericTest):
                                                                   oid,
                                                                   property_id,
                                                                   value)
-        response = self.send_command(test, command_handle, add_sequence_item_command)
+        response = self.is12_utils.send_command(test, command_handle, add_sequence_item_command)
 
         return response["result"]
 
@@ -404,7 +324,7 @@ class IS1201Test(GenericTest):
                                                                      oid,
                                                                      property_id,
                                                                      index)
-        response = self.send_command(test, command_handle, get_sequence_item_command)
+        response = self.is12_utils.send_command(test, command_handle, get_sequence_item_command)
 
         return response["result"]
 
@@ -416,7 +336,7 @@ class IS1201Test(GenericTest):
             self.is12_utils.create_get_sequence_length_command_JSON(command_handle,
                                                                     oid,
                                                                     property_id)
-        response = self.send_command(test, command_handle, get_sequence_length_command)
+        response = self.is12_utils.send_command(test, command_handle, get_sequence_length_command)
 
         return response["result"]["value"]
 
@@ -427,7 +347,7 @@ class IS1201Test(GenericTest):
         get_member_descriptors_command = \
             self.is12_utils.create_get_member_descriptors_JSON(command_handle, oid, recurse)
 
-        response = self.send_command(test, command_handle, get_member_descriptors_command)
+        response = self.is12_utils.send_command(test, command_handle, get_member_descriptors_command)
 
         return response["result"]["value"]
 
@@ -439,7 +359,7 @@ class IS1201Test(GenericTest):
             self.is12_utils.create_find_members_by_path_command_JSON(command_handle,
                                                                      oid,
                                                                      role_path)
-        response = self.send_command(test, command_handle, find_members_by_path_command)
+        response = self.is12_utils.send_command(test, command_handle, find_members_by_path_command)
 
         return response["result"]["value"]
 
@@ -454,7 +374,7 @@ class IS1201Test(GenericTest):
                                                                      case_sensitive,
                                                                      match_whole_string,
                                                                      recurse)
-        response = self.send_command(test, command_handle, find_members_by_role_command)
+        response = self.is12_utils.send_command(test, command_handle, find_members_by_role_command)
 
         return response["result"]["value"]
 
@@ -468,7 +388,7 @@ class IS1201Test(GenericTest):
                                                                          class_id,
                                                                          include_derived,
                                                                          recurse)
-        response = self.send_command(test, command_handle, find_members_by_class_id_command)
+        response = self.is12_utils.send_command(test, command_handle, find_members_by_class_id_command)
 
         return response["result"]["value"]
 
@@ -1278,7 +1198,7 @@ class IS1201Test(GenericTest):
         try:
             self.create_ncp_socket(test)
 
-            self.send_command(test, command_handle, command_json)
+            self.is12_utils.send_command(test, command_handle, command_json)
 
             return test.FAIL("Error expected")
 
