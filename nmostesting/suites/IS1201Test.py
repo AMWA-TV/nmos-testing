@@ -44,7 +44,6 @@ class IS1201Test(GenericTest):
                                     self.apis[CONTROL_API_KEY]["spec_path"],
                                     self.apis[CONTROL_API_KEY]["spec_branch"])
         self.load_reference_resources()
-        self.command_handle = 0
         self.root_block = None
 
     def set_up_tests(self):
@@ -110,12 +109,6 @@ class IS1201Test(GenericTest):
 
     def load_reference_resources(self):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
-        # Load IS-12 schemas
-        self.schemas = {}
-        schema_names = ['error-message', 'command-response-message']
-        for schema_name in schema_names:
-            self.schemas[schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
-                                                             schema_name + ".json")
         # Calculate paths to MS-05 descriptors
         # including Feature Sets specified as additional_paths in test definition
         spec_paths = [os.path.join(self.apis[FEATURE_SETS_KEY]["spec_path"], path)
@@ -147,16 +140,11 @@ class IS1201Test(GenericTest):
         """Create a WebSocket client connection to Node under test. Raises NMOSTestException on error"""
         self.is12_utils.open_ncp_websocket(test, self.apis[CONTROL_API_KEY]["url"])
 
-    def get_command_handle(self):
-        """Get unique command handle"""
-        self.command_handle += 1
-        return self.command_handle
-
     def get_manager(self, test, class_id_str):
         """Get Manager from Root Block. Returns [Manager]. Raises NMOSTestException on error"""
-        response = self._get_property(test,
-                                      self.is12_utils.ROOT_BLOCK_OID,
-                                      self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
+        response = self.is12_utils.get_property(test,
+                                                self.is12_utils.ROOT_BLOCK_OID,
+                                                self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
 
         manager_found = False
         manager = None
@@ -250,150 +238,8 @@ class IS1201Test(GenericTest):
 
         return
 
-    def _get_property(self, test, oid, property_id):
-        """Get property from object. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        get_property_command = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
-                                                            oid,
-                                                            property_id)
-        response = self.is12_utils.send_command(test, command_handle, get_property_command)
-
-        return response["result"]["value"]
-
-    def _set_property(self, test, oid, property_id, argument):
-        """Get property from object. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        set_property_command = \
-            self.is12_utils.create_generic_set_command_JSON(command_handle,
-                                                            oid,
-                                                            property_id,
-                                                            argument)
-        response = self.is12_utils.send_command(test, command_handle, set_property_command)
-
-        return response["result"]
-
-    def _get_sequence_item(self, test, oid, property_id, index):
-        """Get value from sequence property. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        get_sequence_item_command = \
-            self.is12_utils.create_get_sequence_item_command_JSON(command_handle,
-                                                                  oid,
-                                                                  property_id,
-                                                                  index)
-        response = self.is12_utils.send_command(test, command_handle, get_sequence_item_command)
-
-        return response["result"]["value"]
-
-    def _set_sequence_item(self, test, oid, property_id, index, value):
-        """Add value to a sequence property. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        add_sequence_item_command = \
-            self.is12_utils.create_set_sequence_item_command_JSON(command_handle,
-                                                                  oid,
-                                                                  property_id,
-                                                                  index,
-                                                                  value)
-        response = self.is12_utils.send_command(test, command_handle, add_sequence_item_command)
-
-        return response["result"]
-
-    def _add_sequence_item(self, test, oid, property_id, value):
-        """Add value to a sequence property. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        add_sequence_item_command = \
-            self.is12_utils.create_add_sequence_item_command_JSON(command_handle,
-                                                                  oid,
-                                                                  property_id,
-                                                                  value)
-        response = self.is12_utils.send_command(test, command_handle, add_sequence_item_command)
-
-        return response["result"]
-
-    def _remove_sequence_item(self, test, oid, property_id, index):
-        """Get value from sequence property. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        get_sequence_item_command = \
-            self.is12_utils.create_remove_sequence_item_command_JSON(command_handle,
-                                                                     oid,
-                                                                     property_id,
-                                                                     index)
-        response = self.is12_utils.send_command(test, command_handle, get_sequence_item_command)
-
-        return response["result"]
-
-    def _get_sequence_length(self, test, oid, property_id):
-        """Get value from sequence property. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        get_sequence_length_command = \
-            self.is12_utils.create_get_sequence_length_command_JSON(command_handle,
-                                                                    oid,
-                                                                    property_id)
-        response = self.is12_utils.send_command(test, command_handle, get_sequence_length_command)
-
-        return response["result"]["value"]
-
-    def _get_member_descriptors(self, test, oid, recurse):
-        """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        get_member_descriptors_command = \
-            self.is12_utils.create_get_member_descriptors_JSON(command_handle, oid, recurse)
-
-        response = self.is12_utils.send_command(test, command_handle, get_member_descriptors_command)
-
-        return response["result"]["value"]
-
-    def _find_members_by_path(self, test, oid, role_path):
-        """Query members based on role path. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        find_members_by_path_command = \
-            self.is12_utils.create_find_members_by_path_command_JSON(command_handle,
-                                                                     oid,
-                                                                     role_path)
-        response = self.is12_utils.send_command(test, command_handle, find_members_by_path_command)
-
-        return response["result"]["value"]
-
-    def _find_members_by_role(self, test, oid, role, case_sensitive, match_whole_string, recurse):
-        """Query members based on role. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        find_members_by_role_command = \
-            self.is12_utils.create_find_members_by_role_command_JSON(command_handle,
-                                                                     oid,
-                                                                     role,
-                                                                     case_sensitive,
-                                                                     match_whole_string,
-                                                                     recurse)
-        response = self.is12_utils.send_command(test, command_handle, find_members_by_role_command)
-
-        return response["result"]["value"]
-
-    def _find_members_by_class_id(self, test, oid, class_id, include_derived, recurse):
-        """Query members based on class id. Raises NMOSTestException on error"""
-        command_handle = self.get_command_handle()
-
-        find_members_by_class_id_command = \
-            self.is12_utils.create_find_members_by_class_id_command_JSON(command_handle,
-                                                                         oid,
-                                                                         class_id,
-                                                                         include_derived,
-                                                                         recurse)
-        response = self.is12_utils.send_command(test, command_handle, find_members_by_class_id_command)
-
-        return response["result"]["value"]
-
     def get_class_manager_descriptors(self, test, class_manager_oid, property_id):
-        response = self._get_property(test, class_manager_oid, property_id)
+        response = self.is12_utils.get_property(test, class_manager_oid, property_id)
 
         # Create descriptor dictionary from response array
         # Use classId as key if present, otherwise use name
@@ -485,9 +331,9 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        role = self._get_property(test,
-                                  self.is12_utils.ROOT_BLOCK_OID,
-                                  self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
+        role = self.is12_utils.get_property(test,
+                                            self.is12_utils.ROOT_BLOCK_OID,
+                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'])
 
         if role != "root":
             return test.FAIL("Unexpected role in Root Block: " + role,
@@ -535,7 +381,7 @@ class IS1201Test(GenericTest):
             self.get_sequence_item_metadata["checked"] = True
             sequence_index = 0
             for property_value in sequence_values:
-                value = self._get_sequence_item(test, oid, property_metadata['id'], sequence_index)
+                value = self.is12_utils.get_sequence_item(test, oid, property_metadata['id'], sequence_index)
                 if property_value != value:
                     self.get_sequence_item_metadata["error"] = True
                     self.get_sequence_item_metadata["error_msg"] += \
@@ -552,7 +398,7 @@ class IS1201Test(GenericTest):
 
     def check_get_sequence_length(self, test, oid, sequence_values, property_metadata, context=""):
         try:
-            length = self._get_sequence_length(test, oid, property_metadata['id'])
+            length = self.is12_utils.get_sequence_length(test, oid, property_metadata['id'])
 
             if length == len(sequence_values):
                 return True
@@ -573,7 +419,7 @@ class IS1201Test(GenericTest):
 
     def validate_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
         for class_property in reference_class_descriptor['properties']:
-            response = self._get_property(test, oid, class_property['id'])
+            response = self.is12_utils.get_property(test, oid, class_property['id'])
 
             # validate property type
             if class_property['isSequence']:
@@ -625,9 +471,9 @@ class IS1201Test(GenericTest):
 
     def check_touchpoints(self, test, oid, datatype_schemas, context):
         """Touchpoint checks"""
-        touchpoints = self._get_property(test,
-                                         oid,
-                                         self.is12_utils.PROPERTY_IDS["NCOBJECT"]["TOUCHPOINTS"])
+        touchpoints = self.is12_utils.get_property(test,
+                                                   oid,
+                                                   self.is12_utils.PROPERTY_IDS["NCOBJECT"]["TOUCHPOINTS"])
         if touchpoints is not None:
             self.touchpoints_metadata["checked"] = True
             try:
@@ -644,7 +490,7 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
     def validate_block(self, test, block_id, class_descriptors, datatype_schemas, block, context=""):
-        response = self._get_property(test, block_id, self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
+        response = self.is12_utils.get_property(test, block_id, self.is12_utils.PROPERTY_IDS['NCBLOCK']['MEMBERS'])
 
         role_cache = []
         manager_cache = []
@@ -829,7 +675,7 @@ class IS1201Test(GenericTest):
         # Check MS-05-02 Version
         property_id = self.is12_utils.PROPERTY_IDS['NCDEVICEMANAGER']['NCVERSION']
 
-        version = self._get_property(test, device_manager['oid'], property_id)
+        version = self.is12_utils.get_property(test, device_manager['oid'], property_id)
 
         if self.is12_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
             return test.FAIL("Unexpected version. Expected: "
@@ -903,14 +749,14 @@ class IS1201Test(GenericTest):
 
         property_id = self.is12_utils.PROPERTY_IDS['NCOBJECT']['USER_LABEL']
 
-        old_user_label = self._get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        old_user_label = self.is12_utils.get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
 
         # Set user label
         new_user_label = "NMOS Testing Tool"
-        self._set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, new_user_label)
+        self.is12_utils.set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, new_user_label)
 
         # Check user label
-        label = self._get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        label = self.is12_utils.get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
         if label != new_user_label:
             if label == old_user_label:
                 return test.FAIL("Unable to set user label", link)
@@ -918,10 +764,10 @@ class IS1201Test(GenericTest):
                 return test.FAIL("Unexpected user label: " + str(label), link)
 
         # Reset user label
-        self._set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, old_user_label)
+        self.is12_utils.set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, old_user_label)
 
         # Check user label
-        label = self._get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        label = self.is12_utils.get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
         if label != old_user_label:
             if label == new_user_label:
                 return test.FAIL("Unable to set user label", link)
@@ -988,7 +834,7 @@ class IS1201Test(GenericTest):
         for search_condition in search_conditions:
             expected_members = block.get_member_descriptors(search_condition["recurse"])
 
-            queried_members = self._get_member_descriptors(test, block.oid, search_condition["recurse"])
+            queried_members = self.is12_utils.get_member_descriptors(test, block.oid, search_condition["recurse"])
 
             if len(queried_members) != len(expected_members):
                 raise NMOSTestException(test.FAIL(context
@@ -1037,7 +883,7 @@ class IS1201Test(GenericTest):
             # Get ground truth data from local device model object tree
             expected_member = block.find_members_by_path(role_path)
 
-            queried_members = self._find_members_by_path(test, block.oid, role_path)
+            queried_members = self.is12_utils.find_members_by_path(test, block.oid, role_path)
 
             for queried_member in queried_members:
                 self._validate_schema(test,
@@ -1099,12 +945,13 @@ class IS1201Test(GenericTest):
                                                    case_sensitive=condition["case_sensitive"],
                                                    match_whole_string=condition["match_whole_string"],
                                                    recurse=condition["recurse"])
-                    actual_results = self._find_members_by_role(test,
-                                                                block.oid,
-                                                                query_string,
-                                                                case_sensitive=condition["case_sensitive"],
-                                                                match_whole_string=condition["match_whole_string"],
-                                                                recurse=condition["recurse"])
+                    actual_results = \
+                        self.is12_utils.find_members_by_role(test,
+                                                             block.oid,
+                                                             query_string,
+                                                             case_sensitive=condition["case_sensitive"],
+                                                             match_whole_string=condition["match_whole_string"],
+                                                             recurse=condition["recurse"])
 
                     expected_results_oids = [m.oid for m in expected_results]
 
@@ -1156,11 +1003,11 @@ class IS1201Test(GenericTest):
                                                                   condition["include_derived"],
                                                                   condition["recurse"])
 
-                actual_results = self._find_members_by_class_id(test,
-                                                                block.oid,
-                                                                class_id,
-                                                                condition["include_derived"],
-                                                                condition["recurse"])
+                actual_results = self.is12_utils.find_members_by_class_id(test,
+                                                                          block.oid,
+                                                                          class_id,
+                                                                          condition["include_derived"],
+                                                                          condition["recurse"])
 
                 expected_results_oids = [m.oid for m in expected_results]
 
@@ -1190,7 +1037,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_error_test(self, test, command_handle, command_json, expected_status=None):
+    def do_error_test(self, test, command_json, expected_status=None):
         """Execute command with expected error status."""
         # when expected_status = None checking of the status code is skipped
         # check the syntax of the error message according to is12_error
@@ -1198,7 +1045,7 @@ class IS1201Test(GenericTest):
         try:
             self.create_ncp_socket(test)
 
-            self.is12_utils.send_command(test, command_handle, command_json)
+            self.is12_utils.send_command(test, command_json)
 
             return test.FAIL("Error expected")
 
@@ -1230,99 +1077,84 @@ class IS1201Test(GenericTest):
     def test_23(self, test):
         """IS-12 Protocol Error: Node handles invalid command handle"""
 
+        command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
+                                                           self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                                           {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
+
         # Use invalid handle
         invalid_command_handle = "NOT A HANDLE"
-        command_json = \
-            self.is12_utils.create_generic_get_command_JSON(invalid_command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+        command_json['commands'][0]['handle'] = invalid_command_handle
 
-        return self.do_error_test(test,
-                                  invalid_command_handle,
-                                  command_json)
+        return self.do_error_test(test, command_json)
 
     def test_24(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
-        command_handle = self.get_command_handle()
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+            self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
+                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
         # Use invalid message type
         command_json['messageType'] = 7
 
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json)
+        return self.do_error_test(test, command_json)
 
     def test_25(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
-        command_handle = self.get_command_handle()
         # Use invalid JSON
         command_json = {'not_a': 'valid_command'}
 
-        return self.do_error_test(test,
-                                  command_handle,
-                                  command_json)
+        return self.do_error_test(test, command_json)
 
     def test_26(self, test):
         """MS-05-02 Error: Node handles invalid oid"""
 
-        command_handle = self.get_command_handle()
         # Use invalid oid
         invalid_oid = 999999999
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
-                                                            invalid_oid,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+            self.is12_utils.create_command_JSON(invalid_oid,
+                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
 
         return self.do_error_test(test,
-                                  command_handle,
                                   command_json,
                                   expected_status=NcMethodStatus.BadOid)
 
     def test_27(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
-        command_handle = self.get_command_handle()
         # Use invalid property id
         invalid_property_identifier = {'level': 1, 'index': 999}
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            invalid_property_identifier)
-
+            self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
+                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                                {'id': invalid_property_identifier})
         return self.do_error_test(test,
-                                  command_handle,
                                   command_json,
                                   expected_status=NcMethodStatus.PropertyNotImplemented)
 
     def test_28(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
-        command_handle = self.get_command_handle()
         command_json = \
-            self.is12_utils.create_generic_get_command_JSON(command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID'])
+            self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
+                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['OID']})
+
         # Use invalid method id
         invalid_method_id = {'level': 1, 'index': 999}
         command_json['commands'][0]['methodId'] = invalid_method_id
 
         return self.do_error_test(test,
-                                  command_handle,
                                   command_json,
                                   expected_status=NcMethodStatus.MethodNotImplemented)
 
     def test_29(self, test):
         """MS-05-02 Error: Node handles read only error"""
-        command_handle = self.get_command_handle()
         # Try to set a read only property
         command_json = \
-            self.is12_utils.create_generic_set_command_JSON(command_handle,
-                                                            self.is12_utils.ROOT_BLOCK_OID,
-                                                            self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'],
-                                                            "ROLE IS READ ONLY")
+            self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
+                                                self.is12_utils.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
+                                                {'id': self.is12_utils.PROPERTY_IDS['NCOBJECT']['ROLE'],
+                                                 'value': "ROLE IS READ ONLY"})
 
         return self.do_error_test(test,
-                                  command_handle,
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)

@@ -67,6 +67,7 @@ class IS12Utils(NMOSUtils):
         self.protocol_definitions()
         self.load_is12_schemas(spec_path)
         self.ncp_websocket = None
+        self.command_handle = 0
 
     def protocol_definitions(self):
         self.ROOT_BLOCK_OID = 1
@@ -173,7 +174,7 @@ class IS12Utils(NMOSUtils):
 
         return
 
-    def send_command(self, test, command_handle, command_json):
+    def send_command(self, test, command_json):
         """Send command to Node under test. Returns [command response]. Raises NMOSTestException on error"""
         # Referencing the Google sheet
         # IS-12 (9)  Check message type
@@ -186,7 +187,8 @@ class IS12Utils(NMOSUtils):
         #               or a derived datatype.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Framework.html#ncmethodresult
 
-        results = []
+        # Assume single command
+        command_handle = command_json['commands'][0]['handle'] if command_json.get('commands') else 0
 
         self.ncp_websocket.send(json.dumps(command_json))
 
@@ -199,6 +201,7 @@ class IS12Utils(NMOSUtils):
 
         messages = self.ncp_websocket.get_messages()
 
+        results = []
         # find the response to our request
         for message in messages:
             parsed_message = json.loads(message)
@@ -233,13 +236,14 @@ class IS12Utils(NMOSUtils):
 
         return results[0]
 
-    def create_command_JSON(self, handle, oid, method_id, arguments):
+    def create_command_JSON(self, oid, method_id, arguments):
         """Create command JSON for generic get of a property"""
+        self.command_handle += 1
         return {
             'messageType': MessageTypes.Command,
             'commands': [
                 {
-                    'handle': handle,
+                    'handle': self.command_handle,
                     'oid': oid,
                     'methodId': method_id,
                     'arguments': arguments
@@ -247,99 +251,81 @@ class IS12Utils(NMOSUtils):
             ],
         }
 
-    def create_generic_get_command_JSON(self, handle, oid, property_id):
-        """Create command JSON for generic get of a property"""
+    def _execute_command(self, test, oid, method_id, arguments):
+        command_JSON = self.create_command_JSON(oid, method_id, arguments)
+        response = self.send_command(test, command_JSON)
+        return response["result"]
 
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
-                                        {'id': property_id})
+    def get_property(self, test, oid, property_id):
+        """Get property from object. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCOBJECT"]["GENERIC_GET"],
+                                     {'id': property_id})["value"]
 
-    def create_generic_set_command_JSON(self, handle, oid, property_id, value):
-        """Create command JSON for generic get of a property"""
+    def set_property(self, test, oid, property_id, argument):
+        """Get property from object. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
+                                     {'id': property_id, 'value': argument})
 
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCOBJECT"]["GENERIC_SET"],
-                                        {'id': property_id, 'value': value})
+    def get_sequence_item(self, test, oid, property_id, index):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_ITEM"],
+                                     {'id': property_id, 'index': index})["value"]
 
-    def create_get_member_descriptors_JSON(self, handle, oid, recurse):
-        """Create message that will request the member descriptors of the object with the given oid"""
+    def set_sequence_item(self, test, oid, property_id, index, value):
+        """Add value to a sequence property. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCOBJECT"]["SET_SEQUENCE_ITEM"],
+                                     {'id': property_id, 'index': index, 'value': value})
 
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
-                                        {'recurse': recurse})
+    def add_sequence_item(self, test, oid, property_id, value):
+        """Add value to a sequence property. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCOBJECT"]["ADD_SEQUENCE_ITEM"],
+                                     {'id': property_id, 'value': value})
 
-    def create_get_sequence_item_command_JSON(self, handle, oid, property_id, index):
-        """Create message that will request the sequence item value given an oid and index"""
+    def remove_sequence_item(self, test, oid, property_id, index):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCOBJECT"]["REMOVE_SEQUENCE_ITEM"],
+                                     {'id': property_id, 'index': index})
 
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_ITEM"],
-                                        {'id': property_id, 'index': index})
+    def get_sequence_length(self, test, oid, property_id):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_LENGTH"],
+                                     {'id': property_id})["value"]
 
-    def create_set_sequence_item_command_JSON(self, handle, oid, property_id, index, value):
-        """Create message that will add a sequence item value"""
+    def get_member_descriptors(self, test, oid, recurse):
+        """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCBLOCK"]["GET_MEMBERS_DESCRIPTOR"],
+                                     {'recurse': recurse})["value"]
 
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCOBJECT"]["SET_SEQUENCE_ITEM"],
-                                        {'id': property_id, 'index': index, 'value': value})
+    def find_members_by_path(self, test, oid, role_path):
+        """Query members based on role path. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_PATH"],
+                                     {'path': role_path})["value"]
 
-    def create_add_sequence_item_command_JSON(self, handle, oid, property_id, value):
-        """Create message that will add a sequence item value"""
+    def find_members_by_role(self, test, oid, role, case_sensitive, match_whole_string, recurse):
+        """Query members based on role. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_ROLE"],
+                                     {'role': role,
+                                      'caseSensitive': case_sensitive,
+                                      'matchWholeString': match_whole_string,
+                                      'recurse': recurse})["value"]
 
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCOBJECT"]["ADD_SEQUENCE_ITEM"],
-                                        {'id': property_id, 'value': value})
-
-    def create_remove_sequence_item_command_JSON(self, handle, oid, property_id, index):
-        """Create message that will request the sequence item value given an oid and index"""
-
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCOBJECT"]["REMOVE_SEQUENCE_ITEM"],
-                                        {'id': property_id, 'index': index})
-
-    def create_get_sequence_length_command_JSON(self, handle, oid, property_id):
-        """Create message that will request the sequence length value given an oid"""
-
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCOBJECT"]["GET_SEQUENCE_LENGTH"],
-                                        {'id': property_id})
-
-    def create_find_members_by_path_command_JSON(self, handle, oid, role_path):
-        """Create JSON message for FindMembersByPath method from NcBlock"""
-
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_PATH"],
-                                        {'path': role_path})
-
-    def create_find_members_by_role_command_JSON(self, handle, oid, role,
-                                                 case_sensitive, match_whole_string, recurse):
-        """Create JSON message for FindMembersByPath method from NcBlock"""
-
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_ROLE"],
-                                        {'role': role,
-                                         'caseSensitive': case_sensitive,
-                                         'matchWholeString': match_whole_string,
-                                         'recurse': recurse})
-
-    def create_find_members_by_class_id_command_JSON(self, handle, oid, class_id, include_derived, recurse):
-        """Create JSON message for FindMembersByClassId method from NcBlock"""
-
-        return self.create_command_JSON(handle,
-                                        oid,
-                                        self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_CLASS_ID"],
-                                        {'classId': class_id,
-                                         'includeDerived': include_derived,
-                                         'recurse': recurse})
+    def find_members_by_class_id(self, test, oid, class_id, include_derived, recurse):
+        """Query members based on class id. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     self.METHOD_IDS["NCBLOCK"]["FIND_MEMBERS_BY_CLASS_ID"],
+                                     {'classId': class_id,
+                                      'includeDerived': include_derived,
+                                      'recurse': recurse})["value"]
 
     def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
