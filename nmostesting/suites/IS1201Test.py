@@ -1158,3 +1158,12 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)
+
+
+    def test_30(self, test):
+        """Subscriptions"""
+        self.create_ncp_socket(test)
+
+        self.is12_utils.update_subscritions(test, [1])
+
+        return test.PASS()

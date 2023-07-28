@@ -128,7 +128,7 @@ class IS12Utils(NMOSUtils):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
         # Load IS-12 schemas
         self.schemas = {}
-        schema_names = ['error-message', 'command-response-message']
+        schema_names = ["error-message", "command-response-message", "subscription-response-message"]
         for schema_name in schema_names:
             self.schemas[schema_name] = load_resolved_schema(spec_path, schema_name + ".json")
 
@@ -172,6 +172,17 @@ class IS12Utils(NMOSUtils):
 
         return
 
+    def message_type_to_schema_name(self, type):
+        """Convert MessageType to corresponding JSON schema name"""
+
+        types = {
+            MessageTypes.CommandResponse: "command-response-message",
+            MessageTypes.SubscriptionResponse: "subscription-response-message",
+            MessageTypes.Error: "error-message",
+        }
+
+        return types.get(type, False)
+
     def send_command(self, test, command_json):
         """Send command to Node under test. Returns [command response]. Raises NMOSTestException on error"""
         # Referencing the Google sheet
@@ -204,27 +215,33 @@ class IS12Utils(NMOSUtils):
         for message in messages:
             parsed_message = json.loads(message)
 
+            if self.message_type_to_schema_name(parsed_message["messageType"]):
+                self.validate_is12_schema(
+                    test,
+                    parsed_message,
+                    self.message_type_to_schema_name(parsed_message["messageType"]),
+                    context=self.message_type_to_schema_name(parsed_message["messageType"]) + ": ")
+            else:
+                raise NMOSTestException(test.FAIL("Unrecognised message type: " + parsed_message["messageType"],
+                                                  "https://specs.amwa.tv/is-12/branches/{}"
+                                                  "/docs/Protocol_messaging.html#command-message-type"
+                                                  .format(self.spec_branch)))
+
             if parsed_message["messageType"] == MessageTypes.CommandResponse:
-                self.validate_is12_schema(test,
-                                          parsed_message,
-                                          "command-response-message",
-                                          context="command-response-message: ")
                 responses = parsed_message["responses"]
                 for response in responses:
                     if response["handle"] == command_handle:
                         if response["result"]["status"] != NcMethodStatus.OK:
                             raise NMOSTestException(test.FAIL(response["result"]))
                         results.append(response)
+            if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
+                results.append(parsed_message["subscriptions"])
             if parsed_message["messageType"] == MessageTypes.Error:
-                self.validate_is12_schema(test,
-                                          parsed_message,
-                                          "error-message",
-                                          context="error-message: ")
                 raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
                                                   "/docs/Protocol_messaging.html#error-messages"
                                                   .format(self.spec_branch)))
         if len(results) == 0:
-            raise NMOSTestException(test.FAIL("No Command Message Response received.",
+            raise NMOSTestException(test.FAIL("No Message Response received.",
                                               "https://specs.amwa.tv/is-12/branches/{}"
                                               "/docs/Protocol_messaging.html#command-message-type"
                                               .format(self.spec_branch)))
@@ -235,7 +252,7 @@ class IS12Utils(NMOSUtils):
         return results[0]
 
     def create_command_JSON(self, oid, method_id, arguments):
-        """Create command JSON for generic get of a property"""
+        """for sending over websocket"""
         self.command_handle += 1
         return {
             'messageType': MessageTypes.Command,
@@ -324,6 +341,19 @@ class IS12Utils(NMOSUtils):
                                      {'classId': class_id,
                                       'includeDerived': include_derived,
                                       'recurse': recurse})["value"]
+
+    def create_subscription_JSON(self, subscriptions):
+        """for sending over websocket"""
+        return {
+            'messageType': MessageTypes.Subscription,
+            'subscriptions': subscriptions
+        }
+
+    def update_subscritions(self, test, subscriptions):
+        """update Nodes subscriptions"""
+        command_JSON = self.create_subscription_JSON(subscriptions)
+        response = self.send_command(test, command_JSON)
+        return response
 
     def model_primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
