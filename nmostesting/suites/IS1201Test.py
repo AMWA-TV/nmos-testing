@@ -386,6 +386,7 @@ class IS1201Test(GenericTest):
 
     def check_get_sequence_length(self, test, oid, sequence_values, property_metadata, context=""):
         try:
+            self.get_sequence_length_metadata["checked"] = True
             length = self.is12_utils.get_sequence_length(test, oid, property_metadata['id'])
 
             if length == len(sequence_values):
