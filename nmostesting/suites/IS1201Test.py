@@ -19,8 +19,9 @@ from itertools import product
 from jsonschema import ValidationError, SchemaError
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcObjectMethods, NcObjectProperties, \
-    NcClassManagerProperties, NcDeviceManagerProperties, StandardClassIds
+from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType,\
+    NcObjectMethods, NcObjectProperties, NcObjectEvents, NcClassManagerProperties, NcDeviceManagerProperties,\
+    StandardClassIds
 from ..TestHelper import load_resolved_schema
 from ..TestResult import Test
 
@@ -1159,11 +1160,59 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)
 
-
     def test_30(self, test):
-        """Subscriptions"""
+        """Subscriptions and notifications"""
         self.create_ncp_socket(test)
 
-        self.is12_utils.update_subscritions(test, [1])
+        oid = self.is12_utils.ROOT_BLOCK_OID
 
+        self.is12_utils.update_subscritions(test, [oid])
+
+        self.is12_utils.reset_notifications()
+
+        new_user_label = "NMOS Testing Tool"
+
+        old_user_label = self.is12_utils.get_property(test, 1, NcObjectProperties.USER_LABEL.value)
+
+        self.is12_utils.set_property(test, 1, NcObjectProperties.USER_LABEL.value, new_user_label)
+
+        error = False
+        error_message = ""
+
+        if len(self.is12_utils.get_notifications()) == 0:
+            error = True
+            error_message = "No notification recieved"
+
+        for notification in self.is12_utils.get_notifications():
+            if notification['oid'] != oid:
+                error = True
+                error_message += "Unexpected Oid " + str(notification['oid']) + ", "
+
+            if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
+                error = True
+                error_message += "Unexpected event type: " + str(notification['eventId']) + ", "
+
+            if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
+                error = True
+                error_message += "Unexpected property id: " \
+                    + str(NcObjectProperties(notification["eventData"]["propertyId"]).name) + ", "
+
+            if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
+                error = True
+                error_message += "Unexpected change type: " \
+                    + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
+
+            if notification["eventData"]["value"] != new_user_label:
+                error = True
+                error_message += "Unexpected value: " + str(notification["eventData"]["value"]) + ", "
+
+            if notification["eventData"]["sequenceItemIndex"] is not None:
+                error = True
+                error_message += "Unexpected sequence item index: " \
+                    + str(notification["eventData"]["sequenceItemIndex"]) + ", "
+
+        self.is12_utils.set_property(test, 1, NcObjectProperties.USER_LABEL.value, old_user_label)
+
+        if error:
+            return test.FAIL(error_message)
         return test.PASS()

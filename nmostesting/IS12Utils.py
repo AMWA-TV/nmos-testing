@@ -51,6 +51,11 @@ class NcMethodStatus(IntEnum):
     PropertyNotImplemented = 502
     NotReady = 503
     Timeout = 504
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
 class NcDatatypeType(IntEnum):
@@ -58,6 +63,18 @@ class NcDatatypeType(IntEnum):
     Typedef = 1  # Simple alias of another datatype
     Struct = 2  # Data structure
     Enum = 3  # Enum datatype
+
+
+class NcPropertyChangeType(IntEnum):
+    ValueChanged = 0  # Current value changed
+    SequenceItemAdded = 1  # Sequence item added
+    SequenceItemChanged = 2  # Sequence item changed
+    SequenceItemRemoved = 3  # Sequence item removed
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
 class NcObjectProperties(Enum):
@@ -69,6 +86,11 @@ class NcObjectProperties(Enum):
     USER_LABEL = {'level': 1, 'index': 6}
     TOUCHPOINTS = {'level': 1, 'index': 7}
     RUNTIME_PROPERTY_CONSTRAINTS = {'level': 1, 'index': 8}
+    UNKNOWN = {'level': 9999, 'index': 9999}
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
 class NcObjectMethods(Enum):
@@ -79,6 +101,10 @@ class NcObjectMethods(Enum):
     ADD_SEQUENCE_ITEM = {'level': 1, 'index': 5}
     REMOVE_SEQUENCE_ITEM = {'level': 1, 'index': 6}
     GET_SEQUENCE_LENGTH = {'level': 1, 'index': 7}
+
+
+class NcObjectEvents(Enum):
+    PROPERTY_CHANGED = {'level': 1, 'index': 1}
 
 
 class NcBlockProperties(Enum):
@@ -123,12 +149,16 @@ class IS12Utils(NMOSUtils):
         self.ROOT_BLOCK_OID = 1
         self.ncp_websocket = None
         self.command_handle = 0
+        self.notifications = []
 
     def load_is12_schemas(self, spec_path):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
         # Load IS-12 schemas
         self.schemas = {}
-        schema_names = ["error-message", "command-response-message", "subscription-response-message"]
+        schema_names = ["error-message",
+                        "command-response-message",
+                        "subscription-response-message",
+                        "notification-message"]
         for schema_name in schema_names:
             self.schemas[schema_name] = load_resolved_schema(spec_path, schema_name + ".json")
 
@@ -177,6 +207,7 @@ class IS12Utils(NMOSUtils):
 
         types = {
             MessageTypes.CommandResponse: "command-response-message",
+            MessageTypes.Notification: "notification-message",
             MessageTypes.SubscriptionResponse: "subscription-response-message",
             MessageTypes.Error: "error-message",
         }
@@ -236,6 +267,8 @@ class IS12Utils(NMOSUtils):
                         results.append(response)
             if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
                 results.append(parsed_message["subscriptions"])
+            if parsed_message["messageType"] == MessageTypes.Notification:
+                self.notifications += parsed_message["notifications"]
             if parsed_message["messageType"] == MessageTypes.Error:
                 raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
                                                   "/docs/Protocol_messaging.html#error-messages"
@@ -250,6 +283,12 @@ class IS12Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL("Received multiple responses : " + len(responses)))
 
         return results[0]
+
+    def get_notifications(self):
+        return self.notifications
+
+    def reset_notifications(self):
+        self.notifications = []
 
     def create_command_JSON(self, oid, method_id, arguments):
         """for sending over websocket"""
