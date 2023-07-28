@@ -299,7 +299,7 @@ class IS1201Test(GenericTest):
         return results
 
     def test_01(self, test):
-        """At least one Device is showing an IS-12 control advertisement matching the API under test"""
+        """Control Endpoint: Node under test advertising IS-12 control endpoint matching API under test"""
         # Referencing the Google sheet
         # IS-12 (1) Control endpoint advertised in Node endpoint's Device controls array
 
@@ -313,7 +313,7 @@ class IS1201Test(GenericTest):
         )
 
     def test_02(self, test):
-        """WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint"""
+        """WebSocket: successfully opened endpoint"""
         # Referencing the Google sheet
         # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
 
@@ -322,7 +322,7 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_03(self, test):
-        """Root Block Exists with correct oid and Role"""
+        """Device Model: Root Block exists with correct oid and role"""
         # Referencing the Google sheet
         # MS-05-02 (44)	Root Block must exist
         # MS-05-02 (45) Verify oID and role of Root Block
@@ -339,17 +339,6 @@ class IS1201Test(GenericTest):
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Blocks.html"
                              .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
-
-        return test.PASS()
-
-    def test_04(self, test):
-        """Class Manager exists in Root Block"""
-        # Referencing the Google sheet
-        # MS-05-02 (40) Class manager exists in root
-
-        self.create_ncp_socket(test)
-
-        self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
         return test.PASS()
 
@@ -573,8 +562,8 @@ class IS1201Test(GenericTest):
             self.device_model_validated = True
         return
 
-    def test_05(self, test):
-        """Validate device model properties against discovered classes and datatypes"""
+    def test_04(self, test):
+        """Device Model: check Device Model against classes and datatypes discovered from Class Manager"""
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
@@ -582,8 +571,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_06(self, test):
-        """Device model roles are unique within a containing Block"""
+    def test_05(self, test):
+        """Device Model: roles are unique within a containing Block"""
         # Referencing the Google sheet
         # MS-05-02 (59) The role of an object MUST be unique within its containing Block.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
@@ -602,8 +591,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_07(self, test):
-        """Device model oids are globally unique"""
+    def test_06(self, test):
+        """Device Model: oids are globally unique"""
         # Referencing the Google sheet
         # MS-05-02 (60) Object ids (oid property) MUST uniquely identity objects in the device model.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
@@ -622,69 +611,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_08(self, test):
-        """Managers must be members of the Root Block"""
-        # Referencing the Google sheet
-        # MS-05-02 (36) All managers MUST always exist as members in the Root Block and have a fixed role.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
-
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
-
-        if self.managers_members_root_block_error:
-            return test.FAIL("Managers must be members of Root Block. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Managers.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
-
-        return test.PASS()
-
-    def test_09(self, test):
-        """Managers are singletons"""
-        # Referencing the Google sheet
-        # MS-05-02 (63) Managers are singleton (MUST only be instantiated once) classes.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
-
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
-
-        if self.managers_members_root_block_error:
-            return test.FAIL("Managers must be singleton classes. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Managers.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
-
-        return test.PASS()
-
-    def test_10(self, test):
-        """Device Manager exists in Root Block"""
-        # Referencing the Google sheet
-        # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
-
-        self.create_ncp_socket(test)
-
-        device_manager = self.get_manager(test, StandardClassIds.NCDEVICEMANAGER.value)
-
-        # Check MS-05-02 Version
-        property_id = NcDeviceManagerProperties.NCVERSION.value
-
-        version = self.is12_utils.get_property(test, device_manager['oid'], property_id)
-
-        if self.is12_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
-            return test.FAIL("Unexpected version. Expected: "
-                             + self.apis[MS05_API_KEY]["version"]
-                             + ". Actual: " + str(version))
-
-        return test.PASS()
-
-    def test_11(self, test):
-        """Non-standard classes contain an authority key"""
+    def test_07(self, test):
+        """Device Model: non-standard classes contain an authority key"""
         # Referencing the Google sheet
         # MS-05-02 (72) Non-standard Classes NcClassId
         # MS-05-02 (73) Organization Identifier
@@ -710,8 +638,8 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_12(self, test):
-        """Validate touchpoints"""
+    def test_08(self, test):
+        """Device Model: check touchpoint datatypes"""
         # Referencing the Google sheet
         # MS-05-02 (39) For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
         # which has a resource of type NcTouchpointResourceNmos.
@@ -733,8 +661,80 @@ class IS1201Test(GenericTest):
             return test.UNCLEAR("No Touchpoints found.")
         return test.PASS()
 
+    def test_09(self, test):
+        """Managers: managers are members of the Root Block"""
+        # Referencing the Google sheet
+        # MS-05-02 (36) All managers MUST always exist as members in the Root Block and have a fixed role.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.managers_members_root_block_error:
+            return test.FAIL("Managers must be members of Root Block. ",
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/Managers.html"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        return test.PASS()
+
+    def test_10(self, test):
+        """Managers: managers are singletons"""
+        # Referencing the Google sheet
+        # MS-05-02 (63) Managers are singleton (MUST only be instantiated once) classes.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+
+        try:
+            self.validate_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.managers_members_root_block_error:
+            return test.FAIL("Managers must be singleton classes. ",
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/Managers.html"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        return test.PASS()
+
+    def test_11(self, test):
+        """Managers: Class Manager exists with correct role"""
+        # Referencing the Google sheet
+        # MS-05-02 (40) Class manager exists in root
+
+        self.create_ncp_socket(test)
+
+        self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        return test.PASS()
+
+    def test_12(self, test):
+        """Managers: Device Manager exists with correct Role"""
+        # Referencing the Google sheet
+        # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
+
+        self.create_ncp_socket(test)
+
+        device_manager = self.get_manager(test, StandardClassIds.NCDEVICEMANAGER.value)
+
+        # Check MS-05-02 Version
+        property_id = NcDeviceManagerProperties.NCVERSION.value
+
+        version = self.is12_utils.get_property(test, device_manager['oid'], property_id)
+
+        if self.is12_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
+            return test.FAIL("Unexpected version. Expected: "
+                             + self.apis[MS05_API_KEY]["version"]
+                             + ". Actual: " + str(version))
+
+        return test.PASS()
+
     def test_13(self, test):
-        """NcObject method: Get/Set"""
+        """NcObject: check Get/Set method"""
         # Referencing the Google sheet
         # MS-05-02 (39) Generic getter and setter
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#generic-getter-and-setter
@@ -776,7 +776,7 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_14(self, test):
-        """NcObject method: GetSequenceItem"""
+        """NcObject: check GetSequenceItem method"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -792,22 +792,22 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_15(self, test):
-        """NcObject method: SetSequenceItem"""
+        """NcObject: check SetSequenceItem method"""
 
         return test.DISABLED()
 
     def test_16(self, test):
-        """NcObject method: AddSequenceItem"""
+        """NcObject: check AddSequenceItem method"""
 
         return test.DISABLED()
 
     def test_17(self, test):
-        """NcObject method: RemoveSequenceItem"""
+        """NcObject: check RemoveSequenceItem method"""
 
         return test.DISABLED()
 
-    def test_17_1(self, test):
-        """NcObject method: GetSequenceLength"""
+    def test_18(self, test):
+        """NcObject: check GetSequenceLength method"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -857,8 +857,8 @@ class IS1201Test(GenericTest):
                                                       + block.role
                                                       + ": Unsuccessful attempt to get member descriptors."))
 
-    def test_18(self, test):
-        """NcBlock method: GetMemberDescriptors"""
+    def test_19(self, test):
+        """NcBlock: check GetMemberDescriptors method"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -905,8 +905,8 @@ class IS1201Test(GenericTest):
                                                   + ": Unsuccessful attempt to find member by role path: "
                                                   + str(role_path)))
 
-    def test_19(self, test):
-        """NcBlock method: FindMemberByPath"""
+    def test_20(self, test):
+        """NcBlock: check FindMemberByPath method"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -969,8 +969,8 @@ class IS1201Test(GenericTest):
                                                               + ": Unexpected search result. "
                                                               + str(actual_result)))
 
-    def test_20(self, test):
-        """NcBlock method: FindMembersByRole"""
+    def test_21(self, test):
+        """NcBlock: check FindMembersByRole method"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
@@ -1024,8 +1024,8 @@ class IS1201Test(GenericTest):
                                                           + block.role
                                                           + ": Unexpected search result. " + str(actual_result)))
 
-    def test_21(self, test):
-        """NcBlock method: FindMembersByClassId"""
+    def test_22(self, test):
+        """NcBlock: check FindMembersByClassId method"""
         try:
             self.validate_device_model(test)
         except NMOSTestException as e:
