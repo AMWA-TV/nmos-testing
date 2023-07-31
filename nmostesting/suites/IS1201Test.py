@@ -205,7 +205,7 @@ class IS1201Test(GenericTest):
                 type_name = descriptor.get("typeName") + ": " if descriptor.get("typeName") else ""
                 raise NMOSTestException(test.FAIL(context + type_name + error_description + str(key_diff)))
             for key in reference_keys:
-                if key in non_normative_keys:
+                if key in non_normative_keys and not isinstance(reference[key], dict):
                     continue
                 # Check for class ID
                 if key == 'classId' and isinstance(reference[key], list):
