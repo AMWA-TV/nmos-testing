@@ -191,6 +191,8 @@ class IS1201Test(GenericTest):
             descriptor.pop('constraints', None)
             reference.pop('isConstant', None)
             descriptor.pop('isConstant', None)
+            reference.pop('isPersistent', None)
+            descriptor.pop('isPersistent', None)
             # JRT: End
 
             reference_keys = set(reference.keys())
@@ -199,8 +201,9 @@ class IS1201Test(GenericTest):
             # compare the keys to see if any extra/missing
             key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
             if len(key_diff) > 0:
-                raise NMOSTestException(test.FAIL(context + 'Missing/additional keys ' + str(key_diff)))
-
+                error_description = "Missing keys " if key_diff in reference_keys else "Additional keys "
+                type_name = descriptor.get("typeName") + ": " if descriptor.get("typeName") else ""
+                raise NMOSTestException(test.FAIL(context + type_name + error_description + str(key_diff)))
             for key in reference_keys:
                 if key in non_normative_keys:
                     continue
@@ -336,7 +339,7 @@ class IS1201Test(GenericTest):
                                             NcObjectProperties.ROLE.value)
 
         if role != "root":
-            return test.FAIL("Unexpected role in Root Block: " + role,
+            return test.FAIL("Unexpected role in Root Block: " + str(role),
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Blocks.html"
                              .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
@@ -502,7 +505,7 @@ class IS1201Test(GenericTest):
             self.check_manager(child_object['classId'], child_object["owner"], class_descriptors, manager_cache)
 
             self.check_touchpoints(test, child_object['oid'], datatype_schemas,
-                                   context=context + child_object['role'] + ': ')
+                                   context=context + str(child_object['role']) + ': ')
 
             class_identifier = ".".join(map(str, child_object['classId']))
 
@@ -511,11 +514,11 @@ class IS1201Test(GenericTest):
                                                 class_descriptors[class_identifier],
                                                 child_object['oid'],
                                                 datatype_schemas,
-                                                context=context + child_object['role'] + ': ')
+                                                context=context + str(child_object['role']) + ': ')
             else:
                 # Not a standard or non-standard class
                 self.organization_metadata["error"] = True
-                self.organization_metadata["error_msg"] = child_object['role'] + ': ' \
+                self.organization_metadata["error_msg"] = str(child_object['role']) + ': ' \
                     + "Non-standard class id does not contain authority key: " \
                     + str(child_object['classId']) + ". "
 
@@ -525,7 +528,7 @@ class IS1201Test(GenericTest):
                                     child_object['oid'],
                                     class_descriptors,
                                     datatype_schemas,
-                                    context=context + child_object['role'] + ': ')
+                                    context=context + str(child_object['role']) + ': ')
 
     def validate_device_model(self, test):
         if not self.device_model_validated:
