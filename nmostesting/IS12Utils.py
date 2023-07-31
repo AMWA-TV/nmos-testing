@@ -437,7 +437,7 @@ class IS12Utils(NMOSUtils):
         json_schema['$schema'] = 'http://json-schema.org/draft-07/schema#'
 
         json_schema['title'] = descriptor['name']
-        json_schema['description'] = descriptor['description']
+        json_schema['description'] = descriptor['description'] if descriptor['description'] else ""
 
         # Inheritance of datatype
         if descriptor.get('parentType'):
@@ -482,7 +482,7 @@ class IS12Utils(NMOSUtils):
                 if field.get('isSequence'):
                     property_type = {'type': 'array', 'items': property_type}
 
-                property_type['description'] = field['description']
+                property_type['description'] = field['description'] if descriptor['description'] else ""
                 properties[field['name']] = property_type
 
             json_schema['required'] = required
