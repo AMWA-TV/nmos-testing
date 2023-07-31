@@ -516,18 +516,15 @@ class IS12Utils(NMOSUtils):
 
 
 class NcObject():
-    def __init__(self, class_id, oid, role):
+    def __init__(self, class_id, oid, role, descriptors):
         self.class_id = class_id
         self.oid = oid
         self.role = role
         self.child_objects = []
-        self.member_descriptors = []
+        self.member_descriptors = descriptors
 
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
-
-    def add_member_descriptors(self, member_descriptors):
-        self.member_descriptors = member_descriptors
 
     def get_role_paths(self, root=True):
         role_paths = [[self.role]] if not root else []

@@ -43,7 +43,7 @@ class IS1201Test(GenericTest):
                                     self.apis[CONTROL_API_KEY]["spec_path"],
                                     self.apis[CONTROL_API_KEY]["spec_branch"])
         self.load_reference_resources()
-        self.root_block = None
+        self.device_model = None
 
     def set_up_tests(self):
         self.unique_roles_error = False
@@ -479,13 +479,11 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error"] = True
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
-    def validate_block(self, test, block_id, class_descriptors, datatype_schemas, block, context=""):
+    def validate_block(self, test, block_id, class_descriptors, datatype_schemas, context=""):
         response = self.is12_utils.get_property(test, block_id, NcBlockProperties.MEMBERS.value)
 
         role_cache = []
         manager_cache = []
-
-        block.add_member_descriptors(response)
 
         for child_object in response:
             self._validate_schema(test,
@@ -521,19 +519,13 @@ class IS1201Test(GenericTest):
                     + "Non-standard class id does not contain authority key: " \
                     + str(child_object['classId']) + ". "
 
-            child_block = NcObject(child_object['classId'], child_object['oid'], child_object['role'])
-
             # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object['classId']):
                 self.validate_block(test,
                                     child_object['oid'],
                                     class_descriptors,
                                     datatype_schemas,
-                                    child_block,
                                     context=context + child_object['role'] + ': ')
-
-            block.add_child_object(child_block)
-        return
 
     def validate_device_model(self, test):
         if not self.device_model_validated:
@@ -553,16 +545,33 @@ class IS1201Test(GenericTest):
                 datatype_descriptors=datatype_descriptors,
                 schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
 
-            self.root_block = NcObject(StandardClassIds.NCBLOCK.value, self.is12_utils.ROOT_BLOCK_OID, "root")
-
             self.validate_block(test,
                                 self.is12_utils.ROOT_BLOCK_OID,
                                 class_descriptors,
-                                datatype_schemas,
-                                self.root_block)
+                                datatype_schemas)
 
             self.device_model_validated = True
         return
+
+    def create_nc_object(self, test, class_id, oid, role):
+        """Create NcObject and child NcObjects"""
+
+        member_descriptors = self.is12_utils.get_property(test, oid, NcBlockProperties.MEMBERS.value) \
+            if self.is12_utils.is_block(class_id) else []
+        nc_object = NcObject(class_id, oid, role, member_descriptors)
+
+        for m in member_descriptors:
+            nc_object.add_child_object(self.create_nc_object(test, m["classId"], m["oid"], m["role"]))
+
+        return nc_object
+
+    def query_device_model(self, test):
+        self.create_ncp_socket(test)
+        if not self.device_model:
+            self.device_model = self.create_nc_object(test,
+                                                      StandardClassIds.NCBLOCK.value,
+                                                      self.is12_utils.ROOT_BLOCK_OID,
+                                                      "root")
 
     def test_04(self, test):
         """Device Model: check Device Model against classes and datatypes discovered from Class Manager"""
@@ -754,6 +763,7 @@ class IS1201Test(GenericTest):
 
         # Set user label
         new_user_label = "NMOS Testing Tool"
+
         self.is12_utils.set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, new_user_label)
 
         # Check user label
@@ -861,13 +871,9 @@ class IS1201Test(GenericTest):
 
     def test_19(self, test):
         """NcBlock: check GetMemberDescriptors method"""
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+        self.query_device_model(test)
 
-        self.do_get_member_descriptors_test(test, self.root_block)
+        self.do_get_member_descriptors_test(test, self.device_model)
 
         return test.PASS()
 
@@ -909,14 +915,10 @@ class IS1201Test(GenericTest):
 
     def test_20(self, test):
         """NcBlock: check FindMemberByPath method"""
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+        self.query_device_model(test)
 
         # Recursively check each block in Device Model
-        self.do_find_member_by_path_test(test, self.root_block)
+        self.do_find_member_by_path_test(test, self.device_model)
 
         return test.PASS()
 
@@ -973,14 +975,10 @@ class IS1201Test(GenericTest):
 
     def test_21(self, test):
         """NcBlock: check FindMembersByRole method"""
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+        self.query_device_model(test)
 
         # Recursively check each block in Device Model
-        self.do_find_member_by_role_test(test, self.root_block)
+        self.do_find_member_by_role_test(test, self.device_model)
 
         return test.PASS()
 
@@ -1028,13 +1026,9 @@ class IS1201Test(GenericTest):
 
     def test_22(self, test):
         """NcBlock: check FindMembersByClassId method"""
-        try:
-            self.validate_device_model(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+        self.query_device_model(test)
 
-        self.do_find_members_by_class_id_test(test, self.root_block)
+        self.do_find_members_by_class_id_test(test, self.device_model)
 
         return test.PASS()
 
@@ -1162,56 +1156,61 @@ class IS1201Test(GenericTest):
 
     def test_30(self, test):
         """Subscriptions and notifications"""
-        self.create_ncp_socket(test)
+        self.query_device_model(test)
 
-        oid = self.is12_utils.ROOT_BLOCK_OID
+        # Get all oids for objects in this Device Model
+        device_model_objects = self.device_model.find_members_by_class_id(class_id=StandardClassIds.NCOBJECT.value,
+                                                                          include_derived=True,
+                                                                          recurse=True)
 
-        self.is12_utils.update_subscritions(test, [oid])
+        oids = [self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects]
 
-        self.is12_utils.reset_notifications()
-
-        new_user_label = "NMOS Testing Tool"
-
-        old_user_label = self.is12_utils.get_property(test, 1, NcObjectProperties.USER_LABEL.value)
-
-        self.is12_utils.set_property(test, 1, NcObjectProperties.USER_LABEL.value, new_user_label)
+        self.is12_utils.update_subscritions(test, oids)
 
         error = False
         error_message = ""
 
-        if len(self.is12_utils.get_notifications()) == 0:
-            error = True
-            error_message = "No notification recieved"
+        for oid in oids:
+            new_user_label = "NMOS Testing Tool " + str(oid)
+            old_user_label = self.is12_utils.get_property(test, oid, NcObjectProperties.USER_LABEL.value)
 
-        for notification in self.is12_utils.get_notifications():
-            if notification['oid'] != oid:
-                error = True
-                error_message += "Unexpected Oid " + str(notification['oid']) + ", "
+            context = "oid: " + str(oid) + ", "
 
-            if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
-                error = True
-                error_message += "Unexpected event type: " + str(notification['eventId']) + ", "
+            for label in [new_user_label, old_user_label]:
+                self.is12_utils.reset_notifications()
+                self.is12_utils.set_property(test, oid, NcObjectProperties.USER_LABEL.value, label)
 
-            if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
-                error = True
-                error_message += "Unexpected property id: " \
-                    + str(NcObjectProperties(notification["eventData"]["propertyId"]).name) + ", "
+                if len(self.is12_utils.get_notifications()) == 0:
+                    error = True
+                    error_message = context + "No notification recieved"
 
-            if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
-                error = True
-                error_message += "Unexpected change type: " \
-                    + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
+                for notification in self.is12_utils.get_notifications():
+                    if notification['oid'] != oid:
+                        error = True
+                        error_message += context + "Unexpected Oid " + str(notification['oid']) + ", "
 
-            if notification["eventData"]["value"] != new_user_label:
-                error = True
-                error_message += "Unexpected value: " + str(notification["eventData"]["value"]) + ", "
+                    if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
+                        error = True
+                        error_message += context + "Unexpected event type: " + str(notification['eventId']) + ", "
 
-            if notification["eventData"]["sequenceItemIndex"] is not None:
-                error = True
-                error_message += "Unexpected sequence item index: " \
-                    + str(notification["eventData"]["sequenceItemIndex"]) + ", "
+                    if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
+                        error = True
+                        error_message += context + "Unexpected property id: " \
+                            + str(NcObjectProperties(notification["eventData"]["propertyId"]).name) + ", "
 
-        self.is12_utils.set_property(test, 1, NcObjectProperties.USER_LABEL.value, old_user_label)
+                    if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
+                        error = True
+                        error_message += context + "Unexpected change type: " \
+                            + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
+
+                    if notification["eventData"]["value"] != label:
+                        error = True
+                        error_message += context + "Unexpected value: " + str(notification["eventData"]["value"]) + ", "
+
+                    if notification["eventData"]["sequenceItemIndex"] is not None:
+                        error = True
+                        error_message += context + "Unexpected sequence item index: " \
+                            + str(notification["eventData"]["sequenceItemIndex"]) + ", "
 
         if error:
             return test.FAIL(error_message)
