@@ -264,6 +264,32 @@ class IS1201Test(GenericTest):
 
         return results
 
+    def query_device_model(self, test):
+        self.create_ncp_socket(test)
+        if not self.device_model:
+            self.device_model = self.create_nc_object(test,
+                                                      StandardClassIds.NCBLOCK.value,
+                                                      self.is12_utils.ROOT_BLOCK_OID,
+                                                      "root")
+        return self.device_model
+
+    def query_class_manager(self, test):
+        """Query class manager to use as source of ground truths"""
+        if not self.class_manager:
+            self.create_ncp_socket(test)
+
+            class_manager_oid = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)["oid"]
+
+            class_descriptors = self.get_class_manager_descriptors(test,
+                                                                   class_manager_oid,
+                                                                   NcClassManagerProperties.CONTROL_CLASSES.value)
+            datatype_descriptors = self.get_class_manager_descriptors(test,
+                                                                      class_manager_oid,
+                                                                      NcClassManagerProperties.DATATYPES.value)
+            self.class_manager = NcClassManager(class_manager_oid, class_descriptors, datatype_descriptors)
+
+        return self.class_manager
+
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
         # Referencing the Google sheet
@@ -273,13 +299,13 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        self.query_class_manager(test)
+        class_manager = self.query_class_manager(test)
 
-        results += self.validate_model_definitions(self.class_manager.class_descriptors,
+        results += self.validate_model_definitions(class_manager.class_descriptors,
                                                    'NcClassDescriptor',
                                                    self.classes_descriptors)
 
-        results += self.validate_model_definitions(self.class_manager.datatype_descriptors,
+        results += self.validate_model_definitions(class_manager.datatype_descriptors,
                                                    'NcDatatypeDescriptor',
                                                    self.datatype_descriptors)
         return results
@@ -518,16 +544,16 @@ class IS1201Test(GenericTest):
         if not self.device_model_validated:
             self.create_ncp_socket(test)
 
-            self.query_class_manager(test)
+            class_manager = self.query_class_manager(test)
 
             # Create JSON schemas for the queried datatypes
             datatype_schemas = self.generate_json_schemas(
-                datatype_descriptors=self.class_manager.datatype_descriptors,
+                datatype_descriptors=class_manager.datatype_descriptors,
                 schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
 
             self.validate_block(test,
                                 self.is12_utils.ROOT_BLOCK_OID,
-                                self.class_manager.class_descriptors,
+                                class_manager.class_descriptors,
                                 datatype_schemas)
 
             self.device_model_validated = True
@@ -544,29 +570,6 @@ class IS1201Test(GenericTest):
             nc_object.add_child_object(self.create_nc_object(test, m["classId"], m["oid"], m["role"]))
 
         return nc_object
-
-    def query_device_model(self, test):
-        self.create_ncp_socket(test)
-        if not self.device_model:
-            self.device_model = self.create_nc_object(test,
-                                                      StandardClassIds.NCBLOCK.value,
-                                                      self.is12_utils.ROOT_BLOCK_OID,
-                                                      "root")
-
-    def query_class_manager(self, test):
-        """Query class manager to use as source of ground truths"""
-        if not self.class_manager:
-            self.create_ncp_socket(test)
-
-            class_manager_oid = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)["oid"]
-
-            class_descriptors = self.get_class_manager_descriptors(test,
-                                                                   class_manager_oid,
-                                                                   NcClassManagerProperties.CONTROL_CLASSES.value)
-            datatype_descriptors = self.get_class_manager_descriptors(test,
-                                                                      class_manager_oid,
-                                                                      NcClassManagerProperties.DATATYPES.value)
-            self.class_manager = NcClassManager(class_manager_oid, class_descriptors, datatype_descriptors)
 
     def test_04(self, test):
         """Device Model: check Device Model against classes and datatypes discovered from Class Manager"""
@@ -866,9 +869,9 @@ class IS1201Test(GenericTest):
 
     def test_19(self, test):
         """NcBlock: check GetMemberDescriptors method"""
-        self.query_device_model(test)
+        device_model = self.query_device_model(test)
 
-        self.do_get_member_descriptors_test(test, self.device_model)
+        self.do_get_member_descriptors_test(test, device_model)
 
         return test.PASS()
 
@@ -910,10 +913,10 @@ class IS1201Test(GenericTest):
 
     def test_20(self, test):
         """NcBlock: check FindMemberByPath method"""
-        self.query_device_model(test)
+        device_model = self.query_device_model(test)
 
         # Recursively check each block in Device Model
-        self.do_find_member_by_path_test(test, self.device_model)
+        self.do_find_member_by_path_test(test, device_model)
 
         return test.PASS()
 
@@ -970,10 +973,10 @@ class IS1201Test(GenericTest):
 
     def test_21(self, test):
         """NcBlock: check FindMembersByRole method"""
-        self.query_device_model(test)
+        device_model = self.query_device_model(test)
 
         # Recursively check each block in Device Model
-        self.do_find_member_by_role_test(test, self.device_model)
+        self.do_find_member_by_role_test(test, device_model)
 
         return test.PASS()
 
@@ -1021,9 +1024,9 @@ class IS1201Test(GenericTest):
 
     def test_22(self, test):
         """NcBlock: check FindMembersByClassId method"""
-        self.query_device_model(test)
+        device_model = self.query_device_model(test)
 
-        self.do_find_members_by_class_id_test(test, self.device_model)
+        self.do_find_members_by_class_id_test(test, device_model)
 
         return test.PASS()
 
@@ -1151,12 +1154,12 @@ class IS1201Test(GenericTest):
 
     def test_30(self, test):
         """Subscriptions and notifications"""
-        self.query_device_model(test)
+        device_model = self.query_device_model(test)
 
         # Get all oids for objects in this Device Model
-        device_model_objects = self.device_model.find_members_by_class_id(class_id=StandardClassIds.NCOBJECT.value,
-                                                                          include_derived=True,
-                                                                          recurse=True)
+        device_model_objects = device_model.find_members_by_class_id(class_id=StandardClassIds.NCOBJECT.value,
+                                                                     include_derived=True,
+                                                                     recurse=True)
 
         oids = [self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects]
 
@@ -1213,16 +1216,16 @@ class IS1201Test(GenericTest):
 
     def test_31(self, test):
         """Class Manager: check GetControlClass"""
-        self.query_class_manager(test)
+        class_manager = self.query_class_manager(test)
 
-        for _, class_descriptor in self.class_manager.class_descriptors.items():
+        for _, class_descriptor in class_manager.class_descriptors.items():
             for include_inherited in [False, True]:
                 actual_descriptor = self.is12_utils.get_control_class(test,
-                                                                      self.class_manager.oid,
+                                                                      class_manager.oid,
                                                                       class_descriptor["classId"],
                                                                       include_inherited)
-                expected_descriptor = self.class_manager.get_control_class(class_descriptor["classId"],
-                                                                           include_inherited)
+                expected_descriptor = class_manager.get_control_class(class_descriptor["classId"],
+                                                                      include_inherited)
                 self.validate_descriptor(test,
                                          expected_descriptor,
                                          actual_descriptor,
@@ -1232,16 +1235,16 @@ class IS1201Test(GenericTest):
 
     def test_32(self, test):
         """Class Manager: check GetDatatype"""
-        self.query_class_manager(test)
+        class_manager = self.query_class_manager(test)
 
-        for _, datatype_descriptor in self.class_manager.datatype_descriptors.items():
+        for _, datatype_descriptor in class_manager.datatype_descriptors.items():
             for include_inherited in [False, True]:
                 actual_descriptor = self.is12_utils.get_datatype(test,
-                                                                 self.class_manager.oid,
+                                                                 class_manager.oid,
                                                                  datatype_descriptor["name"],
                                                                  include_inherited)
-                expected_descriptor = self.class_manager.get_datatype(datatype_descriptor["name"],
-                                                                      include_inherited)
+                expected_descriptor = class_manager.get_datatype(datatype_descriptor["name"],
+                                                                 include_inherited)
                 self.validate_descriptor(test,
                                          expected_descriptor,
                                          actual_descriptor,
