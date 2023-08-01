@@ -21,7 +21,7 @@ from jsonschema import ValidationError, SchemaError
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType,\
     NcObjectMethods, NcObjectProperties, NcObjectEvents, NcClassManagerProperties, NcDeviceManagerProperties,\
-    StandardClassIds
+    StandardClassIds, NcClassManager
 from ..TestHelper import load_resolved_schema
 from ..TestResult import Test
 
@@ -182,28 +182,14 @@ class IS1201Test(GenericTest):
         non_normative_keys = ['description']
 
         if isinstance(reference, dict):
-            # JRT: These two manipulation are to mitigate two issues
-            # to be resolved regarding the MS-05-02 JSON descriptors.
-            # Firstly the constraints property is missing from certain descriptors
-            # Secondly the isConstant flag is missing from
-            # the NcObject descriptor properties
-            reference.pop('constraints', None)
-            descriptor.pop('constraints', None)
-            reference.pop('isConstant', None)
-            descriptor.pop('isConstant', None)
-            reference.pop('isPersistent', None)
-            descriptor.pop('isPersistent', None)
-            # JRT: End
-
             reference_keys = set(reference.keys())
             descriptor_keys = set(descriptor.keys())
 
             # compare the keys to see if any extra/missing
             key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
             if len(key_diff) > 0:
-                error_description = "Missing keys " if key_diff in reference_keys else "Additional keys "
-                type_name = descriptor.get("typeName") + ": " if descriptor.get("typeName") else ""
-                raise NMOSTestException(test.FAIL(context + type_name + error_description + str(key_diff)))
+                error_description = "Missing keys " if set(key_diff) <= set(reference_keys) else "Additional keys "
+                raise NMOSTestException(test.FAIL(context + error_description + str(key_diff)))
             for key in reference_keys:
                 if key in non_normative_keys and not isinstance(reference[key], dict):
                     continue
@@ -422,7 +408,8 @@ class IS1201Test(GenericTest):
                                                 class_property['typeName'],
                                                 class_property['isNullable'],
                                                 datatype_schemas,
-                                                context=context + class_property["name"] + ": ")
+                                                context=context + class_property["typeName"]
+                                                + ": " + class_property["name"] + ": ")
                 self.check_sequence_methods(test, oid, response, class_property, context=context)
             else:
                 self.validate_property_type(test,
@@ -430,7 +417,8 @@ class IS1201Test(GenericTest):
                                             class_property['typeName'],
                                             class_property['isNullable'],
                                             datatype_schemas,
-                                            context=context + class_property["name"] + ": ")
+                                            context=context + class_property["typeName"]
+                                            + class_property["name"] + ": ")
         return
 
     def check_unique_roles(self, role, role_cache):
@@ -1217,4 +1205,64 @@ class IS1201Test(GenericTest):
 
         if error:
             return test.FAIL(error_message)
+        return test.PASS()
+
+    def test_31(self, test):
+        """Class Manager: check GetControlClass"""
+        self.create_ncp_socket(test)
+
+        class_manager_oid = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)["oid"]
+
+        class_descriptors = self.get_class_manager_descriptors(test,
+                                                               class_manager_oid,
+                                                               NcClassManagerProperties.CONTROL_CLASSES.value)
+        datatype_descriptors = self.get_class_manager_descriptors(test,
+                                                                  class_manager_oid,
+                                                                  NcClassManagerProperties.DATATYPES.value)
+        # Construct local class manager to use as source of ground truths
+        class_manager = NcClassManager(class_manager_oid, class_descriptors, datatype_descriptors)
+
+        for _, class_descriptor in class_descriptors.items():
+            for include_inherited in [False, True]:
+                actual_descriptor = self.is12_utils.get_control_class(test,
+                                                                      class_manager.oid,
+                                                                      class_descriptor["classId"],
+                                                                      include_inherited)
+                expected_descriptor = class_manager.get_control_class(class_descriptor["classId"],
+                                                                      include_inherited)
+                self.validate_descriptor(test,
+                                         expected_descriptor,
+                                         actual_descriptor,
+                                         context=str(class_descriptor["classId"]) + ": ")
+
+        return test.PASS()
+
+    def test_32(self, test):
+        """Class Manager: check GetDatatype"""
+        self.create_ncp_socket(test)
+
+        class_manager_oid = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)["oid"]
+
+        class_descriptors = self.get_class_manager_descriptors(test,
+                                                               class_manager_oid,
+                                                               NcClassManagerProperties.CONTROL_CLASSES.value)
+        datatype_descriptors = self.get_class_manager_descriptors(test,
+                                                                  class_manager_oid,
+                                                                  NcClassManagerProperties.DATATYPES.value)
+        # Construct local class manager to use as source of ground truths
+        class_manager = NcClassManager(class_manager_oid, class_descriptors, datatype_descriptors)
+
+        for _, datatype_descriptor in datatype_descriptors.items():
+            for include_inherited in [False, True]:
+                actual_descriptor = self.is12_utils.get_datatype(test,
+                                                                 class_manager.oid,
+                                                                 datatype_descriptor["name"],
+                                                                 include_inherited)
+                expected_descriptor = class_manager.get_datatype(datatype_descriptor["name"],
+                                                                 include_inherited)
+                self.validate_descriptor(test,
+                                         expected_descriptor,
+                                         actual_descriptor,
+                                         context=datatype_descriptor["name"] + ": ")
+
         return test.PASS()
