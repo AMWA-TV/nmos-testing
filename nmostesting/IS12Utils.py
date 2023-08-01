@@ -17,6 +17,7 @@ from .NMOSUtils import NMOSUtils
 import json
 import time
 
+from copy import deepcopy
 from enum import IntEnum, Enum
 from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
@@ -126,6 +127,7 @@ class NcClassManagerProperties(Enum):
 
 class NcClassManagerMethods(Enum):
     GET_CONTROL_CLASS = {'level': 3, 'index': 1}
+    GET_DATATYPE = {'level': 3, 'index': 2}
 
 
 class NcDeviceManagerProperties(Enum):
@@ -381,6 +383,20 @@ class IS12Utils(NMOSUtils):
                                       'includeDerived': include_derived,
                                       'recurse': recurse})["value"]
 
+    def get_control_class(self, test, oid, class_id, include_inherited):
+        """Query Class Manager for control class. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     NcClassManagerMethods.GET_CONTROL_CLASS.value,
+                                     {'classId': class_id,
+                                      'includeInherited': include_inherited})["value"]
+
+    def get_datatype(self, test, oid, name, include_inherited):
+        """Query Class Manager for datatype. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     NcClassManagerMethods.GET_DATATYPE.value,
+                                     {'name': name,
+                                      'includeInherited': include_inherited})["value"]
+
     def create_subscription_JSON(self, subscriptions):
         """for sending over websocket"""
         return {
@@ -586,3 +602,47 @@ class NcObject():
                                                                        include_derived,
                                                                        recurse)
         return query_results
+
+
+class NcClassManager():
+    def __init__(self, oid, class_descriptors, datatype_descriptors):
+        self.oid = oid
+        self.class_descriptors = class_descriptors
+        self.datatype_descriptors = datatype_descriptors
+
+    def get_control_class(self, class_id, include_inherited):
+        class_id_str = ".".join(map(str, class_id))
+        descriptor = self.class_descriptors[class_id_str]
+
+        if not include_inherited:
+            return descriptor
+
+        parent_class = class_id[:-1]
+        inherited_descriptor = deepcopy(descriptor)
+
+        # add inherited classes
+        while len(parent_class) > 0:
+            if parent_class[-1] > 0:  # Ignore Authority Keys
+                class_id_str = ".".join(map(str, parent_class))
+                parent_descriptor = self.class_descriptors[class_id_str]
+                inherited_descriptor["properties"] += parent_descriptor["properties"]
+                inherited_descriptor["methods"] += parent_descriptor["methods"]
+                inherited_descriptor["events"] += parent_descriptor["events"]
+            parent_class.pop()
+
+        return inherited_descriptor
+
+    def get_datatype(self, name, include_inherited):
+        descriptor = self.datatype_descriptors[name]
+
+        if not include_inherited or descriptor["type"] != NcDatatypeType.Struct:
+            return descriptor
+
+        inherited_descriptor = deepcopy(descriptor)
+
+        while descriptor.get("parentType"):
+            parent_type = descriptor.get("parentType")
+            descriptor = self.datatype_descriptors[parent_type]
+            inherited_descriptor["fields"] += descriptor["fields"]
+
+        return inherited_descriptor
