@@ -54,9 +54,9 @@ if __name__ == "__main__":
     response = requests.get(url)
     mac_addresses = response.json()["interfaces"]
     for address in mac_addresses:
-        if type(address["port_id"]) == str:
+        if isinstance(address["port_id"], str):
             address["port_id"] = address["port_id"].replace("-", ":")
-        if type(address["chassis_id"]) == str:
+        if isinstance(address["chassis_id"], str):
             address["chassis_id"] = address["chassis_id"].replace("-", ":")
     node_id = response.json()["id"]
     print("Host: {}".format(response.json()["description"]))
