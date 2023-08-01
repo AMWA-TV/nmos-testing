@@ -492,53 +492,45 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error"] = True
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
-    def validate_block(self, test, block_id, class_descriptors, datatype_schemas, context=""):
-        response = self.is12_utils.get_property(test, block_id, NcBlockProperties.MEMBERS.value)
-
+    def validate_block(self, test, block, class_descriptors, datatype_schemas, context=""):
+        for child_object in block.child_objects:
+            # If this child object is a Block, recurse
+            if self.is12_utils.is_block(child_object.class_id):
+                self.validate_block(test,
+                                    child_object,
+                                    class_descriptors,
+                                    datatype_schemas,
+                                    context=context + str(child_object.role) + ': ')
         role_cache = []
         manager_cache = []
-
-        for child_object in response:
+        for descriptor in block.member_descriptors:
             self._validate_schema(test,
-                                  child_object,
+                                  descriptor,
                                   datatype_schemas["NcBlockMemberDescriptor"],
                                   context="NcBlockMemberDescriptor: ")
 
-            self.check_unique_roles(child_object['role'], role_cache)
-
-            self.check_unique_oid(child_object['oid'])
-
+            self.check_unique_roles(descriptor['role'], role_cache)
+            self.check_unique_oid(descriptor['oid'])
             # check for non-standard classes
-            if self.is12_utils.is_non_standard_class(child_object['classId']):
+            if self.is12_utils.is_non_standard_class(descriptor['classId']):
                 self.organization_metadata["checked"] = True
+            self.check_manager(descriptor['classId'], descriptor["owner"], class_descriptors, manager_cache)
+            self.check_touchpoints(test, descriptor['oid'], datatype_schemas,
+                                   context=context + str(descriptor['role']) + ': ')
 
-            self.check_manager(child_object['classId'], child_object["owner"], class_descriptors, manager_cache)
-
-            self.check_touchpoints(test, child_object['oid'], datatype_schemas,
-                                   context=context + str(child_object['role']) + ': ')
-
-            class_identifier = ".".join(map(str, child_object['classId']))
-
+            class_identifier = ".".join(map(str, descriptor['classId']))
             if class_identifier:
                 self.validate_object_properties(test,
                                                 class_descriptors[class_identifier],
-                                                child_object['oid'],
+                                                descriptor['oid'],
                                                 datatype_schemas,
-                                                context=context + str(child_object['role']) + ': ')
+                                                context=context + str(descriptor['role']) + ': ')
             else:
                 # Not a standard or non-standard class
                 self.organization_metadata["error"] = True
-                self.organization_metadata["error_msg"] = str(child_object['role']) + ': ' \
+                self.organization_metadata["error_msg"] = str(descriptor['role']) + ': ' \
                     + "Non-standard class id does not contain authority key: " \
-                    + str(child_object['classId']) + ". "
-
-            # If this child object is a Block, recurse
-            if self.is12_utils.is_block(child_object['classId']):
-                self.validate_block(test,
-                                    child_object['oid'],
-                                    class_descriptors,
-                                    datatype_schemas,
-                                    context=context + str(child_object['role']) + ': ')
+                    + str(descriptor['classId']) + ". "
 
     def validate_device_model(self, test):
         if not self.device_model_validated:
@@ -546,13 +538,15 @@ class IS1201Test(GenericTest):
 
             class_manager = self.query_class_manager(test)
 
+            device_model = self.query_device_model(test)
+
             # Create JSON schemas for the queried datatypes
             datatype_schemas = self.generate_json_schemas(
                 datatype_descriptors=class_manager.datatype_descriptors,
                 schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
 
             self.validate_block(test,
-                                self.is12_utils.ROOT_BLOCK_OID,
+                                device_model,
                                 class_manager.class_descriptors,
                                 datatype_schemas)
 
