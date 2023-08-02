@@ -1107,10 +1107,24 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test, command_json)
 
     def test_26(self, test):
-        """MS-05-02 Error: Node handles invalid oid"""
-
-        # Use invalid oid
+        """MS-05-02 Error: Node handles illegal oid"""
+        # Oid should be between 1 and 65535
         invalid_oid = 999999999
+        command_json = \
+            self.is12_utils.create_command_JSON(invalid_oid,
+                                                NcObjectMethods.GENERIC_GET.value,
+                                                {'id': NcObjectProperties.OID.value})
+
+        return self.do_error_test(test,
+                                  command_json)
+
+    def test_26_1(self, test):
+        """MS-05-02 Error: Node handles oid not in Device Model"""
+        device_model = self.query_device_model(test)
+        # Calculate invalid oid from the max oid value in device model
+        oids = device_model.get_oids()
+        invalid_oid = max(oids) + 1
+
         command_json = \
             self.is12_utils.create_command_JSON(invalid_oid,
                                                 NcObjectMethods.GENERIC_GET.value,
