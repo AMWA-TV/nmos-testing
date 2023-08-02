@@ -14,10 +14,12 @@
 
 import json
 import os
+import time
 
 from itertools import product
 from jsonschema import ValidationError, SchemaError
 
+from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType,\
     NcObjectMethods, NcObjectProperties, NcObjectEvents, NcClassManagerProperties, NcDeviceManagerProperties,\
@@ -330,6 +332,22 @@ class IS1201Test(GenericTest):
         # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
 
         self.create_ncp_socket(test)
+
+        return test.PASS()
+
+    def test_02_1(self, test):
+        """WebSocket: socket is kept open until client closes"""
+        # Referencing the Google sheet
+        # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
+
+        self.create_ncp_socket(test)
+
+        # Ensure WebSocket remains open
+        start_time = time.time()
+        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
+            if not self.is12_utils.ncp_websocket.is_open():
+                return test.FAIL("Node failed to keep WebSocket open")
+            time.sleep(0.2)
 
         return test.PASS()
 
@@ -1183,6 +1201,24 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test,
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)
+
+    def test_29_1(self, test):
+        """MS-05-02 Error: Node handles GetSequence index out of bounds """
+        self.create_ncp_socket(test)
+
+        length = self.is12_utils.get_sequence_length(test,
+                                                     self.is12_utils.ROOT_BLOCK_OID,
+                                                     NcBlockProperties.MEMBERS.value)
+        out_of_bounds_index = length + 10
+
+        command_json = \
+            self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
+                                                NcObjectMethods.GET_SEQUENCE_ITEM.value,
+                                                {'id': NcBlockProperties.MEMBERS.value,
+                                                 'index': out_of_bounds_index})
+        return self.do_error_test(test,
+                                  command_json,
+                                  expected_status=NcMethodStatus.IndexOutOfBounds)
 
     def test_30(self, test):
         """Subscriptions and notifications"""
