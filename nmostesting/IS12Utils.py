@@ -543,16 +543,25 @@ class NcBlock(NcObject):
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
 
-    def get_role_paths(self, root=True):
-        role_paths = [[self.role]] if not root else []
+    def get_role_paths(self):
+        role_paths = []
         for child_object in self.child_objects:
+            role_paths.append([child_object.role])
             if type(child_object) is NcBlock:
-                child_paths = child_object.get_role_paths(False)
+                child_paths = child_object.get_role_paths()
                 for child_path in child_paths:
-                    role_path = [self.role] if not root else []
+                    role_path = [child_object.role]
                     role_path += child_path
                     role_paths.append(role_path)
         return role_paths
+
+    def get_oids(self, root=True):
+        oids = [self.oid] if root else []
+        for child_object in self.child_objects:
+            oids.append(child_object.oid)
+            if type(child_object) is NcBlock:
+                oids += child_object.get_oids(False)
+        return oids
 
     def get_member_descriptors(self, recurse=False):
         query_results = []
