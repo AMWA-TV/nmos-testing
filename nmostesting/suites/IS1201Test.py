@@ -1076,8 +1076,19 @@ class IS1201Test(GenericTest):
             return test.PASS()
 
     def test_23(self, test):
-        """IS-12 Protocol Error: Node handles invalid command handle"""
+        """IS-12 Protocol Error: Node handles command handle not in range 1 to 65535"""
+        command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
+                                                           NcObjectMethods.GENERIC_GET.value,
+                                                           {'id': NcObjectProperties.OID.value})
 
+        # Handle should be between 1 and 65535
+        illegal_command_handle = 999999999
+        command_json['commands'][0]['handle'] = illegal_command_handle
+
+        return self.do_error_test(test, command_json)
+
+    def test_23_1(self, test):
+        """IS-12 Protocol Error: Node handles command handle not a number"""
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
                                                            {'id': NcObjectProperties.OID.value})
@@ -1107,7 +1118,7 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test, command_json)
 
     def test_26(self, test):
-        """MS-05-02 Error: Node handles illegal oid"""
+        """MS-05-02 Error: Node handles oid not in range 1 to 65535"""
         # Oid should be between 1 and 65535
         invalid_oid = 999999999
         command_json = \
@@ -1115,11 +1126,10 @@ class IS1201Test(GenericTest):
                                                 NcObjectMethods.GENERIC_GET.value,
                                                 {'id': NcObjectProperties.OID.value})
 
-        return self.do_error_test(test,
-                                  command_json)
+        return self.do_error_test(test, command_json)
 
     def test_26_1(self, test):
-        """MS-05-02 Error: Node handles oid not in Device Model"""
+        """MS-05-02 Error: Node handles oid of object not in Device Model"""
         device_model = self.query_device_model(test)
         # Calculate invalid oid from the max oid value in device model
         oids = device_model.get_oids()
