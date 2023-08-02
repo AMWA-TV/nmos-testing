@@ -338,7 +338,7 @@ class IS1201Test(GenericTest):
     def test_03(self, test):
         """WebSocket: socket is kept open until client closes"""
         # Referencing the Google sheet
-        # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
+        # IS-12 (3) Socket is kept open until client closes
 
         self.create_ncp_socket(test)
 
