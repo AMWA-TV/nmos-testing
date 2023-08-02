@@ -313,7 +313,7 @@ class IS1201Test(GenericTest):
         return results
 
     def test_01(self, test):
-        """Control Endpoint: Node under test advertising IS-12 control endpoint matching API under test"""
+        """Control Endpoint: Node under test advertises IS-12 control endpoint matching API under test"""
         # Referencing the Google sheet
         # IS-12 (1) Control endpoint advertised in Node endpoint's Device controls array
 
@@ -327,7 +327,7 @@ class IS1201Test(GenericTest):
         )
 
     def test_02(self, test):
-        """WebSocket: successfully opened endpoint"""
+        """WebSocket: endpoint successfully opened"""
         # Referencing the Google sheet
         # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
 
@@ -335,7 +335,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_02_1(self, test):
+    def test_03(self, test):
         """WebSocket: socket is kept open until client closes"""
         # Referencing the Google sheet
         # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
@@ -351,7 +351,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_03(self, test):
+    def test_04(self, test):
         """Device Model: Root Block exists with correct oid and role"""
         # Referencing the Google sheet
         # MS-05-02 (44)	Root Block must exist
@@ -597,16 +597,17 @@ class IS1201Test(GenericTest):
         else:
             return NcObject(class_id, oid, role)
 
-    def test_04(self, test):
-        """Device Model: check Device Model against classes and datatypes discovered from Class Manager"""
+    def test_05(self, test):
+        """Device Model: Device Model is correct according to classes and datatypes advertised by Class Manager"""
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
+
         self.check_device_model(test)
 
         return test.PASS()
 
-    def test_05(self, test):
+    def test_06(self, test):
         """Device Model: roles are unique within a containing Block"""
         # Referencing the Google sheet
         # MS-05-02 (59) The role of an object MUST be unique within its containing Block.
@@ -626,7 +627,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_06(self, test):
+    def test_07(self, test):
         """Device Model: oids are globally unique"""
         # Referencing the Google sheet
         # MS-05-02 (60) Object ids (oid property) MUST uniquely identity objects in the device model.
@@ -646,7 +647,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_07(self, test):
+    def test_08(self, test):
         """Device Model: non-standard classes contain an authority key"""
         # Referencing the Google sheet
         # MS-05-02 (72) Non-standard Classes NcClassId
@@ -673,13 +674,14 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_08(self, test):
-        """Device Model: check touchpoint datatypes"""
+    def test_09(self, test):
+        """Device Model: touchpoint datatypes are correct"""
         # Referencing the Google sheet
-        # MS-05-02 (39) For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
+        # MS-05-02 (56) For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
         # which has a resource of type NcTouchpointResourceNmos.
         # For IS-08 Audio Channel Mapping the NcTouchpointResourceNmosChannelMapping datatype MUST be used
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#touchpoints
+
         try:
             self.check_device_model(test)
         except NMOSTestException as e:
@@ -696,7 +698,7 @@ class IS1201Test(GenericTest):
             return test.UNCLEAR("No Touchpoints found.")
         return test.PASS()
 
-    def test_09(self, test):
+    def test_10(self, test):
         """Managers: managers are members of the Root Block"""
         # Referencing the Google sheet
         # MS-05-02 (36) All managers MUST always exist as members in the Root Block and have a fixed role.
@@ -716,7 +718,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_10(self, test):
+    def test_11(self, test):
         """Managers: managers are singletons"""
         # Referencing the Google sheet
         # MS-05-02 (63) Managers are singleton (MUST only be instantiated once) classes.
@@ -736,7 +738,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_11(self, test):
+    def test_12(self, test):
         """Managers: Class Manager exists with correct role"""
         # Referencing the Google sheet
         # MS-05-02 (40) Class manager exists in root
@@ -747,7 +749,7 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_12(self, test):
+    def test_13(self, test):
         """Managers: Device Manager exists with correct Role"""
         # Referencing the Google sheet
         # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
@@ -768,10 +770,57 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_13(self, test):
-        """NcObject: check Get/Set method"""
+    def test_14(self, test):
+        """Class Manager: GetControlClass method is correct"""
         # Referencing the Google sheet
-        # MS-05-02 (39) Generic getter and setter
+        # MS-05-02 (93)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
+        class_manager = self.query_class_manager(test)
+
+        for _, class_descriptor in class_manager.class_descriptors.items():
+            for include_inherited in [False, True]:
+                actual_descriptor = self.is12_utils.get_control_class(test,
+                                                                      class_manager.oid,
+                                                                      class_descriptor["classId"],
+                                                                      include_inherited)
+                expected_descriptor = class_manager.get_control_class(class_descriptor["classId"],
+                                                                      include_inherited)
+                self.validate_descriptor(test,
+                                         expected_descriptor,
+                                         actual_descriptor,
+                                         context=str(class_descriptor["classId"]) + ": ")
+
+        return test.PASS()
+
+    def test_15(self, test):
+        """Class Manager: GetDatatype method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (94)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
+        class_manager = self.query_class_manager(test)
+
+        for _, datatype_descriptor in class_manager.datatype_descriptors.items():
+            for include_inherited in [False, True]:
+                actual_descriptor = self.is12_utils.get_datatype(test,
+                                                                 class_manager.oid,
+                                                                 datatype_descriptor["name"],
+                                                                 include_inherited)
+                expected_descriptor = class_manager.get_datatype(datatype_descriptor["name"],
+                                                                 include_inherited)
+                self.validate_descriptor(test,
+                                         expected_descriptor,
+                                         actual_descriptor,
+                                         context=datatype_descriptor["name"] + ": ")
+
+        return test.PASS()
+
+    def test_16(self, test):
+        """NcObject: Get and Set methods are correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (39) Generic getter and setter. The value of any property of a control class MUST be retrievable
+        # using the Get method.
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#generic-getter-and-setter
 
         link = "https://specs.amwa.tv/ms-05-02/branches/{}" \
@@ -811,8 +860,12 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_14(self, test):
-        """NcObject: check GetSequenceItem method"""
+    def test_17(self, test):
+        """NcObject: GetSequenceItem method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (76)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
         try:
             self.check_device_model(test)
         except NMOSTestException as e:
@@ -827,23 +880,36 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def test_15(self, test):
-        """NcObject: check SetSequenceItem method"""
-
-        return test.DISABLED()
-
-    def test_16(self, test):
-        """NcObject: check AddSequenceItem method"""
-
-        return test.DISABLED()
-
-    def test_17(self, test):
-        """NcObject: check RemoveSequenceItem method"""
-
-        return test.DISABLED()
-
     def test_18(self, test):
-        """NcObject: check GetSequenceLength method"""
+        """NcObject: SetSequenceItem method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (77)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
+        return test.DISABLED()
+
+    def test_19(self, test):
+        """NcObject: AddSequenceItem method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (78)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
+        return test.DISABLED()
+
+    def test_20(self, test):
+        """NcObject: RemoveSequenceItem method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (79)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
+        return test.DISABLED()
+
+    def test_21(self, test):
+        """NcObject: GetSequenceLength method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (80)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
         try:
             self.check_device_model(test)
         except NMOSTestException as e:
@@ -893,8 +959,12 @@ class IS1201Test(GenericTest):
                                                       + block.role
                                                       + ": Unsuccessful attempt to get member descriptors."))
 
-    def test_19(self, test):
-        """NcBlock: check GetMemberDescriptors method"""
+    def test_22(self, test):
+        """NcBlock: GetMemberDescriptors method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (91)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
         device_model = self.query_device_model(test)
 
         self.do_get_member_descriptors_test(test, device_model)
@@ -937,8 +1007,12 @@ class IS1201Test(GenericTest):
                                                   + ": Unsuccessful attempt to find member by role path: "
                                                   + str(role_path)))
 
-    def test_20(self, test):
-        """NcBlock: check FindMemberByPath method"""
+    def test_23(self, test):
+        """NcBlock: FindMemberByPath method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (52)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
         device_model = self.query_device_model(test)
 
         # Recursively check each block in Device Model
@@ -997,8 +1071,12 @@ class IS1201Test(GenericTest):
                                                               + ": Unexpected search result. "
                                                               + str(actual_result)))
 
-    def test_21(self, test):
-        """NcBlock: check FindMembersByRole method"""
+    def test_24(self, test):
+        """NcBlock: FindMembersByRole method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (52)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
         device_model = self.query_device_model(test)
 
         # Recursively check each block in Device Model
@@ -1048,8 +1126,12 @@ class IS1201Test(GenericTest):
                                                           + block.role
                                                           + ": Unexpected search result. " + str(actual_result)))
 
-    def test_22(self, test):
-        """NcBlock: check FindMembersByClassId method"""
+    def test_25(self, test):
+        """NcBlock: FindMembersByClassId method is correct"""
+        # Referencing the Google sheet
+        # MS-05-02 (52)  Where the functionality of a device uses control classes and datatypes listed in this
+        # specification it MUST comply with the model definitions published
+
         device_model = self.query_device_model(test)
 
         self.do_find_members_by_class_id_test(test, device_model)
@@ -1093,8 +1175,12 @@ class IS1201Test(GenericTest):
 
             return test.PASS()
 
-    def test_23(self, test):
-        """IS-12 Protocol Error: Node handles command handle not in range 1 to 65535"""
+    def test_26(self, test):
+        """IS-12 Protocol Error: Node handles command handle that is not in range 1 to 65535"""
+        # Referencing the Google sheet
+        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # responses cannot be returned
+
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
                                                            {'id': NcObjectProperties.OID.value})
@@ -1105,8 +1191,12 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_23_1(self, test):
-        """IS-12 Protocol Error: Node handles command handle not a number"""
+    def test_27(self, test):
+        """IS-12 Protocol Error: Node handles command handle that is not a number"""
+        # Referencing the Google sheet
+        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # responses cannot be returned
+
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
                                                            {'id': NcObjectProperties.OID.value})
@@ -1117,8 +1207,12 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_24(self, test):
+    def test_28(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
+        # Referencing the Google sheet
+        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # responses cannot be returned
+
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
@@ -1128,15 +1222,23 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_25(self, test):
+    def test_29(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
+        # Referencing the Google sheet
+        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # responses cannot be returned
+
         # Use invalid JSON
         command_json = {'not_a': 'valid_command'}
 
         return self.do_error_test(test, command_json)
 
-    def test_26(self, test):
-        """MS-05-02 Error: Node handles oid not in range 1 to 65535"""
+    def test_30(self, test):
+        """IS-12 Protocol Error: Node handles oid not in range 1 to 65535"""
+        # Referencing the Google sheet
+        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # responses cannot be returned
+
         # Oid should be between 1 and 65535
         invalid_oid = 999999999
         command_json = \
@@ -1146,8 +1248,12 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_26_1(self, test):
-        """MS-05-02 Error: Node handles oid of object not in Device Model"""
+    def test_31(self, test):
+        """MS-05-02 Error: Node handles oid of object not found in Device Model"""
+        # Referencing the Google sheet
+        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # for the following scenarios...
+
         device_model = self.query_device_model(test)
         # Calculate invalid oid from the max oid value in device model
         oids = device_model.get_oids()
@@ -1162,8 +1268,12 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.BadOid)
 
-    def test_27(self, test):
+    def test_32(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
+        # Referencing the Google sheet
+        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # for the following scenarios...
+
         # Use invalid property id
         invalid_property_identifier = {'level': 1, 'index': 999}
         command_json = \
@@ -1174,8 +1284,12 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.PropertyNotImplemented)
 
-    def test_28(self, test):
+    def test_33(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
+        # Referencing the Google sheet
+        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # for the following scenarios...
+
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
@@ -1189,9 +1303,13 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.MethodNotImplemented)
 
-    def test_29(self, test):
+    def test_34(self, test):
         """MS-05-02 Error: Node handles read only error"""
         # Try to set a read only property
+        # Referencing the Google sheet
+        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # for the following scenarios...
+
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_SET.value,
@@ -1202,8 +1320,12 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)
 
-    def test_29_1(self, test):
-        """MS-05-02 Error: Node handles GetSequence index out of bounds """
+    def test_35(self, test):
+        """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
+        # Referencing the Google sheet
+        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # for the following scenarios...
+
         self.create_ncp_socket(test)
 
         length = self.is12_utils.get_sequence_length(test,
@@ -1220,8 +1342,15 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.IndexOutOfBounds)
 
-    def test_30(self, test):
-        """Subscriptions and notifications"""
+    def test_36(self, test):
+        """Node implements subscription and notification mechanism"""
+        # Referencing the Google sheet
+        # MS-05-02 (12) Notification message type
+        # MS-05-02 (13) Subscription message type
+        # MS-05-02 (14) Subscription response message type
+        # MS-05-02 (17) Property Changed events
+        # MS-05-02 (21) Check notification is received
+
         device_model = self.query_device_model(test)
 
         # Get all oids for objects in this Device Model
@@ -1280,42 +1409,4 @@ class IS1201Test(GenericTest):
 
         if error:
             return test.FAIL(error_message)
-        return test.PASS()
-
-    def test_31(self, test):
-        """Class Manager: check GetControlClass"""
-        class_manager = self.query_class_manager(test)
-
-        for _, class_descriptor in class_manager.class_descriptors.items():
-            for include_inherited in [False, True]:
-                actual_descriptor = self.is12_utils.get_control_class(test,
-                                                                      class_manager.oid,
-                                                                      class_descriptor["classId"],
-                                                                      include_inherited)
-                expected_descriptor = class_manager.get_control_class(class_descriptor["classId"],
-                                                                      include_inherited)
-                self.validate_descriptor(test,
-                                         expected_descriptor,
-                                         actual_descriptor,
-                                         context=str(class_descriptor["classId"]) + ": ")
-
-        return test.PASS()
-
-    def test_32(self, test):
-        """Class Manager: check GetDatatype"""
-        class_manager = self.query_class_manager(test)
-
-        for _, datatype_descriptor in class_manager.datatype_descriptors.items():
-            for include_inherited in [False, True]:
-                actual_descriptor = self.is12_utils.get_datatype(test,
-                                                                 class_manager.oid,
-                                                                 datatype_descriptor["name"],
-                                                                 include_inherited)
-                expected_descriptor = class_manager.get_datatype(datatype_descriptor["name"],
-                                                                 include_inherited)
-                self.validate_descriptor(test,
-                                         expected_descriptor,
-                                         actual_descriptor,
-                                         context=datatype_descriptor["name"] + ": ")
-
         return test.PASS()
