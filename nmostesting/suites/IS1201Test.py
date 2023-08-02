@@ -51,7 +51,7 @@ class IS1201Test(GenericTest):
         self.unique_oids_error = False
         self.managers_are_singletons_error = False
         self.managers_members_root_block_error = False
-        self.device_model_validated = False
+        self.device_model_checked = False
         self.organization_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.touchpoints_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
@@ -126,14 +126,14 @@ class IS1201Test(GenericTest):
                 classes_paths.append(classes_path)
 
         # Load class and datatype descriptors
-        self.classes_descriptors = self.load_model_descriptors(classes_paths)
+        self.reference_class_descriptors = self.load_model_descriptors(classes_paths)
 
         # Load MS-05 datatype descriptors
-        self.datatype_descriptors = self.load_model_descriptors(datatype_paths)
+        self.reference_datatype_descriptors = self.load_model_descriptors(datatype_paths)
 
         # Generate MS-05 datatype schemas from MS-05 datatype descriptors
         self.datatype_schemas = self.generate_json_schemas(
-            datatype_descriptors=self.datatype_descriptors,
+            datatype_descriptors=self.reference_datatype_descriptors,
             schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/'))
 
     def create_ncp_socket(self, test):
@@ -150,7 +150,7 @@ class IS1201Test(GenericTest):
         manager_found = False
         manager = None
 
-        class_descriptor = self.classes_descriptors[class_id_str]
+        class_descriptor = self.reference_class_descriptors[class_id_str]
 
         for value in response:
             self._validate_schema(test,
@@ -303,11 +303,11 @@ class IS1201Test(GenericTest):
 
         results += self.validate_model_definitions(class_manager.class_descriptors,
                                                    'NcClassDescriptor',
-                                                   self.classes_descriptors)
+                                                   self.reference_class_descriptors)
 
         results += self.validate_model_definitions(class_manager.datatype_descriptors,
                                                    'NcDatatypeDescriptor',
-                                                   self.datatype_descriptors)
+                                                   self.reference_datatype_descriptors)
         return results
 
     def test_01(self, test):
@@ -376,6 +376,11 @@ class IS1201Test(GenericTest):
         return
 
     def check_get_sequence_item(self, test, oid, sequence_values, property_metadata, context=""):
+        if sequence_values is None and not property_metadata["isNullable"]:
+            self.get_sequence_item_metadata["error"] = True
+            self.get_sequence_item_metadata["error_msg"] += \
+                context + property_metadata["name"] + ": Non-nullable property set to null, "
+            return
         try:
             # GetSequenceItem
             self.get_sequence_item_metadata["checked"] = True
@@ -397,6 +402,12 @@ class IS1201Test(GenericTest):
         return False
 
     def check_get_sequence_length(self, test, oid, sequence_values, property_metadata, context=""):
+        if sequence_values is None and not property_metadata["isNullable"]:
+            self.get_sequence_length_metadata["error"] = True
+            self.get_sequence_length_metadata["error_msg"] += \
+                context + property_metadata["name"] + ": Non-nullable property set to null, "
+            return
+
         try:
             self.get_sequence_length_metadata["checked"] = True
             length = self.is12_utils.get_sequence_length(test, oid, property_metadata['id'])
@@ -432,7 +443,11 @@ class IS1201Test(GenericTest):
                                                 datatype_schemas,
                                                 context=context + class_property["typeName"]
                                                 + ": " + class_property["name"] + ": ")
-                self.check_sequence_methods(test, oid, response, class_property, context=context)
+                self.check_sequence_methods(test,
+                                            oid,
+                                            response,
+                                            class_property,
+                                            context=context)
             else:
                 self.validate_property_type(test,
                                             response,
@@ -492,15 +507,15 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error"] = True
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
-    def validate_block(self, test, block, class_descriptors, datatype_schemas, context=""):
+    def check_block(self, test, block, class_descriptors, datatype_schemas, context=""):
         for child_object in block.child_objects:
             # If this child object is a Block, recurse
             if self.is12_utils.is_block(child_object.class_id):
-                self.validate_block(test,
-                                    child_object,
-                                    class_descriptors,
-                                    datatype_schemas,
-                                    context=context + str(child_object.role) + ': ')
+                self.check_block(test,
+                                 child_object,
+                                 class_descriptors,
+                                 datatype_schemas,
+                                 context=context + str(child_object.role) + ': ')
         role_cache = []
         manager_cache = []
         for descriptor in block.member_descriptors:
@@ -532,12 +547,10 @@ class IS1201Test(GenericTest):
                     + "Non-standard class id does not contain authority key: " \
                     + str(descriptor['classId']) + ". "
 
-    def validate_device_model(self, test):
-        if not self.device_model_validated:
+    def check_device_model(self, test):
+        if not self.device_model_checked:
             self.create_ncp_socket(test)
-
             class_manager = self.query_class_manager(test)
-
             device_model = self.query_device_model(test)
 
             # Create JSON schemas for the queried datatypes
@@ -545,12 +558,12 @@ class IS1201Test(GenericTest):
                 datatype_descriptors=class_manager.datatype_descriptors,
                 schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
 
-            self.validate_block(test,
-                                device_model,
-                                class_manager.class_descriptors,
-                                datatype_schemas)
+            self.check_block(test,
+                             device_model,
+                             class_manager.class_descriptors,
+                             datatype_schemas)
 
-            self.device_model_validated = True
+            self.device_model_checked = True
         return
 
     def create_nc_object(self, test, class_id, oid, role):
@@ -570,7 +583,7 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # MS-05-02 (34) All workers MUST inherit from NcWorker
         # MS-05-02 (35) All managers MUST inherit from NcManager
-        self.validate_device_model(test)
+        self.check_device_model(test)
 
         return test.PASS()
 
@@ -581,7 +594,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -601,7 +614,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
 
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -625,7 +638,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -649,7 +662,7 @@ class IS1201Test(GenericTest):
         # For IS-08 Audio Channel Mapping the NcTouchpointResourceNmosChannelMapping datatype MUST be used
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#touchpoints
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -671,7 +684,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -691,7 +704,7 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
 
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -782,7 +795,7 @@ class IS1201Test(GenericTest):
     def test_14(self, test):
         """NcObject: check GetSequenceItem method"""
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
@@ -813,7 +826,7 @@ class IS1201Test(GenericTest):
     def test_18(self, test):
         """NcObject: check GetSequenceLength method"""
         try:
-            self.validate_device_model(test)
+            self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
