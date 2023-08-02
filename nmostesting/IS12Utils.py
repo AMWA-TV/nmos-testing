@@ -522,20 +522,21 @@ class IS12Utils(NMOSUtils):
         # Assumes at least one value follows the authority key
         return len([v for v in dropwhile(lambda x: x > 0, class_id)]) > 1
 
-    def is_block(self, class_id):
-        """ Check class id to determine if this is a block """
-        return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1
-
     def is_manager(self, class_id):
         """ Check class id to determine if this is a manager """
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
 
 
 class NcObject():
-    def __init__(self, class_id, oid, role, descriptors):
+    def __init__(self, class_id, oid, role):
         self.class_id = class_id
         self.oid = oid
         self.role = role
+
+
+class NcBlock(NcObject):
+    def __init__(self, class_id, oid, role, descriptors):
+        NcObject.__init__(self, class_id, oid, role)
         self.child_objects = []
         self.member_descriptors = descriptors
 
@@ -545,11 +546,12 @@ class NcObject():
     def get_role_paths(self, root=True):
         role_paths = [[self.role]] if not root else []
         for child_object in self.child_objects:
-            child_paths = child_object.get_role_paths(False)
-            for child_path in child_paths:
-                role_path = [self.role] if not root else []
-                role_path += child_path
-                role_paths.append(role_path)
+            if type(child_object) is NcBlock:
+                child_paths = child_object.get_role_paths(False)
+                for child_path in child_paths:
+                    role_path = [self.role] if not root else []
+                    role_path += child_path
+                    role_paths.append(role_path)
         return role_paths
 
     def get_member_descriptors(self, recurse=False):
@@ -557,14 +559,15 @@ class NcObject():
         query_results += self.member_descriptors
         if recurse:
             for child_object in self.child_objects:
-                query_results += child_object.get_member_descriptors(recurse)
+                if type(child_object) is NcBlock:
+                    query_results += child_object.get_member_descriptors(recurse)
         return query_results
 
     def find_members_by_path(self, role_path):
         query_role = role_path[0]
         for child_object in self.child_objects:
             if child_object.role == query_role:
-                if len(role_path[1:]):
+                if len(role_path[1:]) and type(child_object) is NcBlock:
                     return child_object.find_members_by_path(role_path[1:])
                 else:
                     return child_object
@@ -580,7 +583,7 @@ class NcObject():
         for child_object in self.child_objects:
             if match(role, child_object.role, case_sensitive, match_whole_string):
                 query_results.append(child_object)
-            if recurse:
+            if recurse and type(child_object) is NcBlock:
                 query_results += child_object.find_members_by_role(role,
                                                                    case_sensitive,
                                                                    match_whole_string,
@@ -597,7 +600,7 @@ class NcObject():
         for child_object in self.child_objects:
             if match(class_id, child_object.class_id, include_derived):
                 query_results.append(child_object)
-            if recurse:
+            if recurse and type(child_object) is NcBlock:
                 query_results += child_object.find_members_by_class_id(class_id,
                                                                        include_derived,
                                                                        recurse)

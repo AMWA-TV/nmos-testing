@@ -21,7 +21,7 @@ from jsonschema import ValidationError, SchemaError
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType,\
     NcObjectMethods, NcObjectProperties, NcObjectEvents, NcClassManagerProperties, NcDeviceManagerProperties,\
-    StandardClassIds, NcClassManager
+    StandardClassIds, NcClassManager, NcBlock
 from ..TestHelper import load_resolved_schema
 from ..TestResult import Test
 
@@ -267,10 +267,10 @@ class IS1201Test(GenericTest):
     def query_device_model(self, test):
         self.create_ncp_socket(test)
         if not self.device_model:
-            self.device_model = self.create_nc_object(test,
-                                                      StandardClassIds.NCBLOCK.value,
-                                                      self.is12_utils.ROOT_BLOCK_OID,
-                                                      "root")
+            self.device_model = self.nc_object_factory(test,
+                                                       StandardClassIds.NCBLOCK.value,
+                                                       self.is12_utils.ROOT_BLOCK_OID,
+                                                       "root")
         return self.device_model
 
     def query_class_manager(self, test):
@@ -510,7 +510,7 @@ class IS1201Test(GenericTest):
     def check_block(self, test, block, class_descriptors, datatype_schemas, context=""):
         for child_object in block.child_objects:
             # If this child object is a Block, recurse
-            if self.is12_utils.is_block(child_object.class_id):
+            if type(child_object) is NcBlock:
                 self.check_block(test,
                                  child_object,
                                  class_descriptors,
@@ -566,17 +566,18 @@ class IS1201Test(GenericTest):
             self.device_model_checked = True
         return
 
-    def create_nc_object(self, test, class_id, oid, role):
-        """Create NcObject and child NcObjects"""
+    def nc_object_factory(self, test, class_id, oid, role):
+        """Create NcObject or NcBlock based on class_id"""
+        # Check class id to determine if this is a block
+        if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
+            member_descriptors = self.is12_utils.get_property(test, oid, NcBlockProperties.MEMBERS.value)
+            nc_block = NcBlock(class_id, oid, role, member_descriptors)
 
-        member_descriptors = self.is12_utils.get_property(test, oid, NcBlockProperties.MEMBERS.value) \
-            if self.is12_utils.is_block(class_id) else []
-        nc_object = NcObject(class_id, oid, role, member_descriptors)
-
-        for m in member_descriptors:
-            nc_object.add_child_object(self.create_nc_object(test, m["classId"], m["oid"], m["role"]))
-
-        return nc_object
+            for m in member_descriptors:
+                nc_block.add_child_object(self.nc_object_factory(test, m["classId"], m["oid"], m["role"]))
+            return nc_block
+        else:
+            return NcObject(class_id, oid, role)
 
     def test_04(self, test):
         """Device Model: check Device Model against classes and datatypes discovered from Class Manager"""
@@ -842,7 +843,7 @@ class IS1201Test(GenericTest):
     def do_get_member_descriptors_test(self, test, block, context=""):
         # Recurse through the child blocks
         for child_object in block.child_objects:
-            if self.is12_utils.is_block(child_object.class_id):
+            if type(child_object) is NcBlock:
                 self.do_get_member_descriptors_test(test, child_object, context + block.role + ": ")
 
         search_conditions = [{"recurse": True}, {"recurse": False}]
@@ -885,7 +886,7 @@ class IS1201Test(GenericTest):
     def do_find_member_by_path_test(self, test, block, context=""):
         # Recurse through the child blocks
         for child_object in block.child_objects:
-            if self.is12_utils.is_block(child_object.class_id):
+            if type(child_object) is NcBlock:
                 self.do_find_member_by_path_test(test, child_object, context + block.role + ": ")
 
         # Get ground truth role paths
@@ -930,7 +931,7 @@ class IS1201Test(GenericTest):
     def do_find_member_by_role_test(self, test, block, context=""):
         # Recurse through the child blocks
         for child_object in block.child_objects:
-            if self.is12_utils.is_block(child_object.class_id):
+            if type(child_object) is NcBlock:
                 self.do_find_member_by_role_test(test, child_object, context + block.role + ": ")
 
         role_paths = IS12Utils.sampled_list(block.get_role_paths())
@@ -990,7 +991,7 @@ class IS1201Test(GenericTest):
     def do_find_members_by_class_id_test(self, test, block, context=""):
         # Recurse through the child blocks
         for child_object in block.child_objects:
-            if self.is12_utils.is_block(child_object.class_id):
+            if type(child_object) is NcBlock:
                 self.do_find_members_by_class_id_test(test, child_object, context + block.role + ": ")
 
         class_ids = [e.value for e in StandardClassIds]
