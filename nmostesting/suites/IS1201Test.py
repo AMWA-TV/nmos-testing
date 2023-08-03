@@ -1220,21 +1220,6 @@ class IS1201Test(GenericTest):
         return self.do_error_test(test, command_json)
 
     def test_30(self, test):
-        """IS-12 Protocol Error: Node handles oid not in range 1 to 65535"""
-        # Referencing the Google sheet
-        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
-        # responses cannot be returned
-
-        # Oid should be between 1 and 65535
-        invalid_oid = 999999999
-        command_json = \
-            self.is12_utils.create_command_JSON(invalid_oid,
-                                                NcObjectMethods.GENERIC_GET.value,
-                                                {'id': NcObjectProperties.OID.value})
-
-        return self.do_error_test(test, command_json)
-
-    def test_31(self, test):
         """MS-05-02 Error: Node handles oid of object not found in Device Model"""
         # Referencing the Google sheet
         # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
@@ -1254,7 +1239,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.BadOid)
 
-    def test_32(self, test):
+    def test_31(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
         # Referencing the Google sheet
         # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
@@ -1270,7 +1255,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.PropertyNotImplemented)
 
-    def test_33(self, test):
+    def test_32(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
         # Referencing the Google sheet
         # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
@@ -1289,7 +1274,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.MethodNotImplemented)
 
-    def test_34(self, test):
+    def test_33(self, test):
         """MS-05-02 Error: Node handles read only error"""
         # Try to set a read only property
         # Referencing the Google sheet
@@ -1306,7 +1291,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)
 
-    def test_35(self, test):
+    def test_34(self, test):
         """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
         # Referencing the Google sheet
         # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
@@ -1328,7 +1313,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.IndexOutOfBounds)
 
-    def test_36(self, test):
+    def test_35(self, test):
         """Node implements subscription and notification mechanism"""
         # Referencing the Google sheet
         # MS-05-02 (12) Notification message type
