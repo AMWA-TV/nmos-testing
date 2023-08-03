@@ -540,6 +540,7 @@ class NcBlock(NcObject):
         self.child_objects = []
         self.member_descriptors = descriptors
 
+    # Utility Methods
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
 
@@ -563,6 +564,20 @@ class NcBlock(NcObject):
                 oids += child_object.get_oids(False)
         return oids
 
+    def get_manager(self, test, spec_branch, class_id):
+        members = self.find_members_by_class_id(class_id, include_derived=True)
+
+        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html".format(spec_branch)
+
+        if len(members) == 0:
+            raise NMOSTestException(test.FAIL("Manager not found in Root Block.", spec_link))
+
+        if len(members) > 1:
+            raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
+
+        return members[0]
+
+    # NcBlock Methods
     def get_member_descriptors(self, recurse=False):
         query_results = []
         query_results += self.member_descriptors
@@ -616,9 +631,14 @@ class NcBlock(NcObject):
         return query_results
 
 
-class NcClassManager():
-    def __init__(self, oid, class_descriptors, datatype_descriptors):
-        self.oid = oid
+class NcManager(NcObject):
+    def __init__(self, class_id, oid, role):
+        NcObject.__init__(self, class_id, oid, role)
+
+
+class NcClassManager(NcManager):
+    def __init__(self, class_id, oid, role, class_descriptors, datatype_descriptors):
+        NcObject.__init__(self, class_id, oid, role)
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors
 

@@ -46,7 +46,6 @@ class IS1201Test(GenericTest):
                                     self.apis[CONTROL_API_KEY]["spec_branch"])
         self.load_reference_resources()
         self.device_model = None
-        self.class_manager = None
 
     def set_up_tests(self):
         self.unique_roles_error = False
@@ -141,44 +140,6 @@ class IS1201Test(GenericTest):
     def create_ncp_socket(self, test):
         """Create a WebSocket client connection to Node under test. Raises NMOSTestException on error"""
         self.is12_utils.open_ncp_websocket(test, self.apis[CONTROL_API_KEY]["url"])
-
-    def get_manager(self, test, class_id):
-        """Get Manager from Root Block. Returns [Manager]. Raises NMOSTestException on error"""
-        class_id_str = ".".join(map(str, class_id))
-        response = self.is12_utils.get_property(test,
-                                                self.is12_utils.ROOT_BLOCK_OID,
-                                                NcBlockProperties.MEMBERS.value)
-
-        manager_found = False
-        manager = None
-
-        class_descriptor = self.reference_class_descriptors[class_id_str]
-
-        for value in response:
-            self._validate_schema(test,
-                                  value,
-                                  self.datatype_schemas["NcBlockMemberDescriptor"],
-                                  context="NcBlockMemberDescriptor: ")
-
-            if value["classId"] == class_descriptor["classId"]:
-                manager_found = True
-                manager = value
-
-                if value["role"] != class_descriptor["fixedRole"]:
-                    raise NMOSTestException(test.FAIL("Incorrect Role for Manager " + class_id_str + ": "
-                                                      + value["role"],
-                                                      "https://specs.amwa.tv/ms-05-02/branches/{}"
-                                                      "/docs/Managers.html"
-                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
-
-        if not manager_found:
-            raise NMOSTestException(test.FAIL(str(class_id_str) + " Manager "
-                                              + class_id_str + " not found in Root Block",
-                                              "https://specs.amwa.tv/ms-05-02/branches/{}"
-                                              "/docs/Managers.html"
-                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
-
-        return manager
 
     def validate_descriptor(self, test, reference, descriptor, context=""):
         """Validate descriptor against reference descriptor. Raises NMOSTestException on error"""
@@ -277,20 +238,23 @@ class IS1201Test(GenericTest):
 
     def query_class_manager(self, test):
         """Query class manager to use as source of ground truths"""
-        if not self.class_manager:
-            self.create_ncp_socket(test)
 
-            class_manager_oid = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)["oid"]
+        self.create_ncp_socket(test)
+        device_model = self.query_device_model(test)
 
-            class_descriptors = self.get_class_manager_descriptors(test,
-                                                                   class_manager_oid,
-                                                                   NcClassManagerProperties.CONTROL_CLASSES.value)
-            datatype_descriptors = self.get_class_manager_descriptors(test,
-                                                                      class_manager_oid,
-                                                                      NcClassManagerProperties.DATATYPES.value)
-            self.class_manager = NcClassManager(class_manager_oid, class_descriptors, datatype_descriptors)
+        return device_model.get_manager(test,
+                                        self.apis[CONTROL_API_KEY]["spec_branch"],
+                                        StandardClassIds.NCCLASSMANAGER.value)
 
-        return self.class_manager
+    def query_device_manager(self, test):
+        """Query class manager to use as source of ground truths"""
+
+        self.create_ncp_socket(test)
+        device_model = self.query_device_model(test)
+
+        return device_model.get_manager(test,
+                                        self.apis[CONTROL_API_KEY]["spec_branch"],
+                                        StandardClassIds.NCDEVICEMANAGER.value)
 
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
@@ -595,6 +559,15 @@ class IS1201Test(GenericTest):
                 nc_block.add_child_object(self.nc_object_factory(test, m["classId"], m["oid"], m["role"]))
             return nc_block
         else:
+            # Check to determine if this is a Class Manager
+            if len(class_id) > 2 and class_id[0] == 1 and class_id[1] == 3 and class_id[2] == 2:
+                class_descriptors = self.get_class_manager_descriptors(test,
+                                                                       oid,
+                                                                       NcClassManagerProperties.CONTROL_CLASSES.value)
+                datatype_descriptors = self.get_class_manager_descriptors(test,
+                                                                          oid,
+                                                                          NcClassManagerProperties.DATATYPES.value)
+                return NcClassManager(class_id, oid, role, class_descriptors, datatype_descriptors)
             return NcObject(class_id, oid, role)
 
     def test_05(self, test):
@@ -730,7 +703,7 @@ class IS1201Test(GenericTest):
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
-        if self.managers_members_root_block_error:
+        if self.managers_are_singletons_error:
             return test.FAIL("Managers must be singleton classes. ",
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Managers.html"
@@ -743,9 +716,16 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # MS-05-02 (40) Class manager exists in root
 
-        self.create_ncp_socket(test)
+        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
+            .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.query_class_manager(test)
+
+        class_id_str = ".".join(map(str, StandardClassIds.NCCLASSMANAGER.value))
+        class_descriptor = self.reference_class_descriptors[class_id_str]
+
+        if class_manager.role != class_descriptor["fixedRole"]:
+            return test.FAIL("Class Manager MUST have a role of ClassManager.", spec_link)
 
         return test.PASS()
 
@@ -754,20 +734,26 @@ class IS1201Test(GenericTest):
         # Referencing the Google sheet
         # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
 
-        self.create_ncp_socket(test)
+        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
+            .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        device_manager = self.get_manager(test, StandardClassIds.NCDEVICEMANAGER.value)
+        device_manager = self.query_device_manager(test)
+
+        class_id_str = ".".join(map(str, StandardClassIds.NCDEVICEMANAGER.value))
+        class_descriptor = self.reference_class_descriptors[class_id_str]
+
+        if device_manager.role != class_descriptor["fixedRole"]:
+            return test.FAIL("Device Manager MUST have a role of DeviceManager.", spec_link)
 
         # Check MS-05-02 Version
         property_id = NcDeviceManagerProperties.NCVERSION.value
 
-        version = self.is12_utils.get_property(test, device_manager['oid'], property_id)
+        version = self.is12_utils.get_property(test, device_manager.oid, property_id)
 
         if self.is12_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
             return test.FAIL("Unexpected version. Expected: "
                              + self.apis[MS05_API_KEY]["version"]
                              + ". Actual: " + str(version))
-
         return test.PASS()
 
     def test_14(self, test):
