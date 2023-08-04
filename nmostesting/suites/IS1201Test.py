@@ -236,25 +236,21 @@ class IS1201Test(GenericTest):
                                                        "root")
         return self.device_model
 
-    def query_class_manager(self, test):
-        """Query class manager to use as source of ground truths"""
-
+    def get_manager(self, test, class_id):
         self.create_ncp_socket(test)
         device_model = self.query_device_model(test)
+        members = device_model.find_members_by_class_id(class_id, include_derived=True)
 
-        return device_model.get_manager(test,
-                                        self.apis[CONTROL_API_KEY]["spec_branch"],
-                                        StandardClassIds.NCCLASSMANAGER.value)
+        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
+            .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-    def query_device_manager(self, test):
-        """Query class manager to use as source of ground truths"""
+        if len(members) == 0:
+            raise NMOSTestException(test.FAIL("Manager not found in Root Block.", spec_link))
 
-        self.create_ncp_socket(test)
-        device_model = self.query_device_model(test)
+        if len(members) > 1:
+            raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
 
-        return device_model.get_manager(test,
-                                        self.apis[CONTROL_API_KEY]["spec_branch"],
-                                        StandardClassIds.NCDEVICEMANAGER.value)
+        return members[0]
 
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
@@ -265,7 +261,7 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        class_manager = self.query_class_manager(test)
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
         results += self.validate_model_definitions(class_manager.class_descriptors,
                                                    'NcClassDescriptor',
@@ -532,7 +528,7 @@ class IS1201Test(GenericTest):
     def check_device_model(self, test):
         if not self.device_model_checked:
             self.create_ncp_socket(test)
-            class_manager = self.query_class_manager(test)
+            class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
             device_model = self.query_device_model(test)
 
             # Create JSON schemas for the queried datatypes
@@ -719,7 +715,7 @@ class IS1201Test(GenericTest):
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
             .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        class_manager = self.query_class_manager(test)
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
         class_id_str = ".".join(map(str, StandardClassIds.NCCLASSMANAGER.value))
         class_descriptor = self.reference_class_descriptors[class_id_str]
@@ -737,7 +733,7 @@ class IS1201Test(GenericTest):
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
             .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        device_manager = self.query_device_manager(test)
+        device_manager = self.get_manager(test, StandardClassIds.NCDEVICEMANAGER.value)
 
         class_id_str = ".".join(map(str, StandardClassIds.NCDEVICEMANAGER.value))
         class_descriptor = self.reference_class_descriptors[class_id_str]
@@ -762,7 +758,7 @@ class IS1201Test(GenericTest):
         # MS-05-02 (93)  Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
 
-        class_manager = self.query_class_manager(test)
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
         for _, class_descriptor in class_manager.class_descriptors.items():
             for include_inherited in [False, True]:
@@ -785,7 +781,7 @@ class IS1201Test(GenericTest):
         # MS-05-02 (94)  Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
 
-        class_manager = self.query_class_manager(test)
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
         for _, datatype_descriptor in class_manager.datatype_descriptors.items():
             for include_inherited in [False, True]:

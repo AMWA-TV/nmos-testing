@@ -564,19 +564,6 @@ class NcBlock(NcObject):
                 oids += child_object.get_oids(False)
         return oids
 
-    def get_manager(self, test, spec_branch, class_id):
-        members = self.find_members_by_class_id(class_id, include_derived=True)
-
-        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html".format(spec_branch)
-
-        if len(members) == 0:
-            raise NMOSTestException(test.FAIL("Manager not found in Root Block.", spec_link))
-
-        if len(members) > 1:
-            raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
-
-        return members[0]
-
     # NcBlock Methods
     def get_member_descriptors(self, recurse=False):
         query_results = []
