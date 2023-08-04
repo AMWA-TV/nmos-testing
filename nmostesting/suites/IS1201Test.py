@@ -254,8 +254,8 @@ class IS1201Test(GenericTest):
 
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
-        # Referencing the Google sheet
-        # MS-05-02 (75)  Model definitions
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html
+
         results = list()
         test = Test("Initialize auto tests", "auto_init")
 
@@ -274,8 +274,7 @@ class IS1201Test(GenericTest):
 
     def test_01(self, test):
         """Control Endpoint: Node under test advertises IS-12 control endpoint matching API under test"""
-        # Referencing the Google sheet
-        # IS-12 (1) Control endpoint advertised in Node endpoint's Device controls array
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/IS-04_interactions.html
 
         control_type = "urn:x-nmos:control:ncp/" + self.apis[CONTROL_API_KEY]["version"]
         return self.is12_utils.do_test_device_control(
@@ -288,8 +287,7 @@ class IS1201Test(GenericTest):
 
     def test_02(self, test):
         """WebSocket: endpoint successfully opened"""
-        # Referencing the Google sheet
-        # IS-12 (2) WebSocket successfully opened on advertised urn:x-nmos:control:ncp endpoint
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Transport_and_message_encoding.html
 
         self.create_ncp_socket(test)
 
@@ -297,8 +295,7 @@ class IS1201Test(GenericTest):
 
     def test_03(self, test):
         """WebSocket: socket is kept open until client closes"""
-        # Referencing the Google sheet
-        # IS-12 (3) Socket is kept open until client closes
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#control-session
 
         self.create_ncp_socket(test)
 
@@ -313,10 +310,7 @@ class IS1201Test(GenericTest):
 
     def test_04(self, test):
         """Device Model: Root Block exists with correct oid and role"""
-        # Referencing the Google sheet
-        # MS-05-02 (44)	Root Block must exist
-        # MS-05-02 (45) Verify oID and role of Root Block
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Blocks.html
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Blocks.html
 
         self.create_ncp_socket(test)
 
@@ -568,9 +562,8 @@ class IS1201Test(GenericTest):
 
     def test_05(self, test):
         """Device Model: Device Model is correct according to classes and datatypes advertised by Class Manager"""
-        # Referencing the Google sheet
-        # MS-05-02 (34) All workers MUST inherit from NcWorker
-        # MS-05-02 (35) All managers MUST inherit from NcManager
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Managers.html
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Workers.html
 
         self.check_device_model(test)
 
@@ -578,9 +571,7 @@ class IS1201Test(GenericTest):
 
     def test_06(self, test):
         """Device Model: roles are unique within a containing Block"""
-        # Referencing the Google sheet
-        # MS-05-02 (59) The role of an object MUST be unique within its containing Block.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/NcObject.html
 
         try:
             self.check_device_model(test)
@@ -598,9 +589,7 @@ class IS1201Test(GenericTest):
 
     def test_07(self, test):
         """Device Model: oids are globally unique"""
-        # Referencing the Google sheet
-        # MS-05-02 (60) Object ids (oid property) MUST uniquely identity objects in the device model.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/NcObject.html
 
         try:
             self.check_device_model(test)
@@ -618,13 +607,10 @@ class IS1201Test(GenericTest):
 
     def test_08(self, test):
         """Device Model: non-standard classes contain an authority key"""
-        # Referencing the Google sheet
-        # MS-05-02 (72) Non-standard Classes NcClassId
-        # MS-05-02 (73) Organization Identifier
         # For organizations which own a unique CID or OUI the authority key MUST be the organization
         # identifier as an integer which MUST be negated.
         # For organizations which do not own a unique CID or OUI the authority key MUST be 0
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncclassid
 
         try:
             self.check_device_model(test)
@@ -645,11 +631,10 @@ class IS1201Test(GenericTest):
 
     def test_09(self, test):
         """Device Model: touchpoint datatypes are correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (56) For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
+        # For general NMOS contexts (IS-04, IS-05 and IS-07) the NcTouchpointNmos datatype MUST be used
         # which has a resource of type NcTouchpointResourceNmos.
         # For IS-08 Audio Channel Mapping the NcTouchpointResourceNmosChannelMapping datatype MUST be used
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#touchpoints
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/NcObject.html#touchpoints
 
         try:
             self.check_device_model(test)
@@ -669,9 +654,8 @@ class IS1201Test(GenericTest):
 
     def test_10(self, test):
         """Managers: managers are members of the Root Block"""
-        # Referencing the Google sheet
-        # MS-05-02 (36) All managers MUST always exist as members in the Root Block and have a fixed role.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+        # All managers MUST always exist as members in the Root Block and have a fixed role.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Managers.html
 
         try:
             self.check_device_model(test)
@@ -689,9 +673,8 @@ class IS1201Test(GenericTest):
 
     def test_11(self, test):
         """Managers: managers are singletons"""
-        # Referencing the Google sheet
-        # MS-05-02 (63) Managers are singleton (MUST only be instantiated once) classes.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Managers.html
+        # Managers are singleton (MUST only be instantiated once) classes.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Managers.html
 
         try:
             self.check_device_model(test)
@@ -709,8 +692,8 @@ class IS1201Test(GenericTest):
 
     def test_12(self, test):
         """Managers: Class Manager exists with correct role"""
-        # Referencing the Google sheet
-        # MS-05-02 (40) Class manager exists in root
+        # Class manager exists in root
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Managers.html
 
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
             .format(self.apis[CONTROL_API_KEY]["spec_branch"])
@@ -727,8 +710,8 @@ class IS1201Test(GenericTest):
 
     def test_13(self, test):
         """Managers: Device Manager exists with correct Role"""
-        # Referencing the Google sheet
-        # MS-05-02 (37) A minimal device implementation MUST have a device manager in the Root Block.
+        # A minimal device implementation MUST have a device manager in the Root Block.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Managers.html
 
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
             .format(self.apis[CONTROL_API_KEY]["spec_branch"])
@@ -754,9 +737,9 @@ class IS1201Test(GenericTest):
 
     def test_14(self, test):
         """Class Manager: GetControlClass method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (93)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncclassmanager
 
         class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
@@ -777,9 +760,9 @@ class IS1201Test(GenericTest):
 
     def test_15(self, test):
         """Class Manager: GetDatatype method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (94)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncclassmanager
 
         class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
@@ -800,10 +783,9 @@ class IS1201Test(GenericTest):
 
     def test_16(self, test):
         """NcObject: Get and Set methods are correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (39) Generic getter and setter. The value of any property of a control class MUST be retrievable
+        # Generic getter and setter. The value of any property of a control class MUST be retrievable
         # using the Get method.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/NcObject.html#generic-getter-and-setter
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/NcObject.html#generic-getter-and-setter
 
         link = "https://specs.amwa.tv/ms-05-02/branches/{}" \
                "/docs/NcObject.html#generic-getter-and-setter" \
@@ -844,9 +826,9 @@ class IS1201Test(GenericTest):
 
     def test_17(self, test):
         """NcObject: GetSequenceItem method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (76)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
 
         try:
             self.check_device_model(test)
@@ -864,33 +846,33 @@ class IS1201Test(GenericTest):
 
     def test_18(self, test):
         """NcObject: SetSequenceItem method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (77)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
 
         return test.DISABLED()
 
     def test_19(self, test):
         """NcObject: AddSequenceItem method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (78)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
 
         return test.DISABLED()
 
     def test_20(self, test):
         """NcObject: RemoveSequenceItem method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (79)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
 
         return test.DISABLED()
 
     def test_21(self, test):
         """NcObject: GetSequenceLength method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (80)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
 
         try:
             self.check_device_model(test)
@@ -943,9 +925,9 @@ class IS1201Test(GenericTest):
 
     def test_22(self, test):
         """NcBlock: GetMemberDescriptors method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (91)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncblock
 
         device_model = self.query_device_model(test)
 
@@ -991,9 +973,9 @@ class IS1201Test(GenericTest):
 
     def test_23(self, test):
         """NcBlock: FindMemberByPath method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (52)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncblock
 
         device_model = self.query_device_model(test)
 
@@ -1055,9 +1037,9 @@ class IS1201Test(GenericTest):
 
     def test_24(self, test):
         """NcBlock: FindMembersByRole method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (52)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncblock
 
         device_model = self.query_device_model(test)
 
@@ -1110,9 +1092,9 @@ class IS1201Test(GenericTest):
 
     def test_25(self, test):
         """NcBlock: FindMembersByClassId method is correct"""
-        # Referencing the Google sheet
-        # MS-05-02 (52)  Where the functionality of a device uses control classes and datatypes listed in this
+        # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncblock
 
         device_model = self.query_device_model(test)
 
@@ -1130,7 +1112,10 @@ class IS1201Test(GenericTest):
 
             self.is12_utils.send_command(test, command_json)
 
-            return test.FAIL("Error expected")
+            return test.FAIL("Error not handled.",
+                             "https://specs.amwa.tv/is-12/branches/{}"
+                             "/docs/Protocol_messaging.html#error-messages"
+                             .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
 
         except NMOSTestException as e:
             error_msg = e.args[0].detail
@@ -1147,21 +1132,27 @@ class IS1201Test(GenericTest):
                 return test.FAIL("Error not handled. Expected: " + expected_status.name
                                  + " (" + str(expected_status) + ")"
                                  + ", actual: " + NcMethodStatus(error_msg['status']).name
-                                 + " (" + str(error_msg['status']) + ")")
+                                 + " (" + str(error_msg['status']) + ")",
+                                 "https://specs.amwa.tv/is-12/branches/{}"
+                                 "/docs/Protocol_messaging.html#error-messages"
+                                 .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
 
             if expected_status and error_msg['status'] != expected_status:
                 return test.WARNING("Unexpected status. Expected: " + expected_status.name
                                     + " (" + str(expected_status) + ")"
                                     + ", actual: " + NcMethodStatus(error_msg['status']).name
-                                    + " (" + str(error_msg['status']) + ")")
+                                    + " (" + str(error_msg['status']) + ")",
+                                    "https://specs.amwa.tv/ms-05-02/branches/{}"
+                                    "/docs/Framework.html#ncmethodresult"
+                                    .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
 
             return test.PASS()
 
     def test_26(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not in range 1 to 65535"""
-        # Referencing the Google sheet
-        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#error-messages
 
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
@@ -1175,9 +1166,9 @@ class IS1201Test(GenericTest):
 
     def test_27(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not a number"""
-        # Referencing the Google sheet
-        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#error-messages
 
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
@@ -1191,9 +1182,9 @@ class IS1201Test(GenericTest):
 
     def test_28(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
-        # Referencing the Google sheet
-        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#error-messages
 
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
@@ -1206,9 +1197,9 @@ class IS1201Test(GenericTest):
 
     def test_29(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
-        # Referencing the Google sheet
-        # IS-12 (5) Error messages MUST be used by devices to return general error messages when more specific
+        # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#error-messages
 
         # Use invalid JSON
         command_json = {'not_a': 'valid_command'}
@@ -1237,9 +1228,9 @@ class IS1201Test(GenericTest):
 
     def test_31(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
-        # Referencing the Google sheet
-        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncmethodresult
 
         # Use invalid property id
         invalid_property_identifier = {'level': 1, 'index': 999}
@@ -1253,9 +1244,9 @@ class IS1201Test(GenericTest):
 
     def test_32(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
-        # Referencing the Google sheet
-        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncmethodresult
 
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
@@ -1272,10 +1263,9 @@ class IS1201Test(GenericTest):
 
     def test_33(self, test):
         """MS-05-02 Error: Node handles read only error"""
-        # Try to set a read only property
-        # Referencing the Google sheet
-        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncmethodresult
 
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
@@ -1289,9 +1279,9 @@ class IS1201Test(GenericTest):
 
     def test_34(self, test):
         """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
-        # Referencing the Google sheet
-        # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
+        # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncmethodresult
 
         self.create_ncp_socket(test)
 
@@ -1311,12 +1301,10 @@ class IS1201Test(GenericTest):
 
     def test_35(self, test):
         """Node implements subscription and notification mechanism"""
-        # Referencing the Google sheet
-        # MS-05-02 (12) Notification message type
-        # MS-05-02 (13) Subscription message type
-        # MS-05-02 (14) Subscription response message type
-        # MS-05-02 (17) Property Changed events
-        # MS-05-02 (21) Check notification is received
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/NcObject.html#propertychanged-event
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#notification-message-type
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#subscription-message-type
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#subscription-response-message-type
 
         device_model = self.query_device_model(test)
 
