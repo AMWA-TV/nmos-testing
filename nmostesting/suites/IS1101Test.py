@@ -23,6 +23,7 @@ from .. import Config as CONFIG
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 import requests
+import datetime
 from ..IS11Utils import IS11Utils, SND_RCV_SUBSET
 
 COMPAT_API_KEY = "streamcompatibility"
@@ -101,6 +102,9 @@ class IS1101Test(GenericTest):
         self.edid_connected_inputs = []
         self.support_base_edid = {}
         self.default_edid = {}
+        self.another_grain_rate_constraints = {}
+        self.another_sample_rate_constraints = {}
+        self.not_input_senders = []
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.conn_url)
         self.is11_utils = IS11Utils(self.compat_url)
@@ -2558,6 +2562,790 @@ class IS1101Test(GenericTest):
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test.")
 
+    def test_02_03_05_01(self, test):
+        """
+        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints
+        """
+        if len(self.flow_format_video) == 0:
+            return test.UNCLEAR("There is no video format")
+
+        for sender_id in self.flow_format_video:
+            valid, response = TestHelper.do_request(
+                "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
+            )
+            if not valid:
+                return test.FAIL(
+                    "Unexpected response from the streamcompatibility API: {}".format(
+                        response
+                    )
+                )
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} inputs streamcompatibility request has failed: {}".format(
+                        sender_id, response
+                    )
+                )
+            inputs = []
+            try:
+                for input_id in response.json():
+                    if (
+                        input_id in self.edid_connected_inputs
+                        and input_id in self.support_base_edid
+                    ):
+                        inputs.append(input_id)
+                    else:
+                        print(
+                            "Inputs {} are not connected or does'nt support base Edid".format(
+                                input_id
+                            )
+                        )
+                        break
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+            if len(inputs) == 0:
+                return test.UNCLEAR("No input supports changing the base EDID")
+            for input_id in inputs:
+                valid, response = TestHelper.do_request(
+                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The input {} properties streamcompatibility request has failed: {}".format(
+                            input_id, response
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                self.version[input_id] = version
+
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "senders/" + sender_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response.json()
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                self.version[sender_id] = version
+
+                self.another_grain_rate_constraints[sender_id] = {
+                    "constraint_sets": [
+                        {
+                            "urn:x-nmos:cap:format:grain_rate": {
+                                "enum": [
+                                    self.get_another_grain_rate(
+                                        self.flow_grain_rate[sender_id]
+                                    )
+                                ]
+                            }
+                        }
+                    ]
+                }
+                valid, response = TestHelper.do_request(
+                    "PUT",
+                    self.compat_url + "senders/" + sender_id + "/constraints/active/",
+                    json=self.another_grain_rate_constraints[sender_id],
+                )
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response
+                        )
+                    )
+                if response.status_code == 422:
+                    print("Device does not accept grain_rate constraint")
+
+                valid, response = TestHelper.do_request(
+                    "GET",
+                    self.compat_url + "inputs/" + input_id + "/edid/effective/",
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The input {} properties streamcompatibility request has failed: {}".format(
+                            input_id, response
+                        )
+                    )
+                if response.content == self.default_edid[input_id]:
+                    print("Grain rate constraint are not changing effective EDID")
+
+                valid, response = TestHelper.do_request(
+                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The input {} properties streamcompatibility request has failed: {}".format(
+                            input_id, response
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if version == self.version[input_id]:
+                    return test.FAIL("Version should change")
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "senders/" + sender_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response.json()
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if version == self.version[input_id]:
+                    return test.FAIL("Version should change")
+
+                stable_count = 0
+                time_start = datetime.datetime.now()
+                while stable_count < 5:
+                    if datetime.datetime.now() > time_start + datetime.timedelta(
+                        seconds=15
+                    ):
+                        time.sleep(CONFIG.HTTP_TIMEOUT)
+                    valid, response = TestHelper.do_request(
+                        "GET", self.node_url + "senders/" + sender_id
+                    )
+                    if not valid:
+                        return test.FAIL(
+                            "Unexpected response from the Node API: {}".format(response)
+                        )
+                    if response.status_code != 200:
+                        return test.FAIL(
+                            "The sender {} is not available in the Node API request: {}".format(
+                                sender_id, response.json()
+                            )
+                        )
+                    try:
+                        version = response.json()["version"]
+                    except json.JSONDecodeError:
+                        return test.FAIL("Non-JSON response returned from Node API")
+                    except KeyError as e:
+                        return test.FAIL("Unable to find expected key: {}".format(e))
+                    if version != self.version[sender_id]:
+                        stable_count = 0
+                        self.version[sender_id] = version
+                    else:
+                        stable_count += 1
+
+                valid, response = TestHelper.do_request(
+                    "GET",
+                    self.compat_url + "senders/" + sender_id + "/status/",
+                    time.sleep(20),
+                )
+
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response
+                        )
+                    )
+
+                try:
+                    state = response.json()["state"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if state == "active_constraints_violation":
+                    return test.UNCLEAR("This device can not constraint grain_rate")
+
+                if state in ["awaiting_essence", "no_essence"]:
+                    for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
+                        valid, response = TestHelper.do_request(
+                            "GET", self.build_sender_status_url(sender_id)
+                        )
+                        if not valid:
+                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                             .format(response))
+                        if response.status_code != 200:
+                            return test.FAIL(
+                                "The streamcompatibility request for sender {} status has failed: {}"
+                                .format(sender_id, response.json())
+                            )
+                        try:
+                            state = response.json()["state"]
+                        except json.JSONDecodeError:
+                            return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+                        except KeyError as e:
+                            return test.FAIL("Unable to find expected key: {}".format(e))
+
+                        if state in ["awaiting_essence", "no_essence"]:
+                            time.sleep(CONFIG.STABLE_STATE_DELAY)
+                        else:
+                            break
+                if state != "constrained":
+                    return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\""
+                                     .format(sender_id, state))
+
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "senders/" + sender_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The streamcompatibility request for sender {} status has failed: {}".format(
+                            sender_id, response
+                        )
+                    )
+
+                try:
+                    flow_id = response.json()["flow_id"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if flow_id is None:
+                    return test.FAIL("flow_id is null")
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "flows/" + flow_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The streamcompatibility request for sender {} status has failed: {}".format(
+                            sender_id, response
+                        )
+                    )
+                try:
+                    grain_rate = response.json()["grain_rate"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if grain_rate != self.get_another_grain_rate(
+                    self.flow_grain_rate[sender_id]
+                ):
+                    return test.FAIL(
+                        "The flow_grain_rate does not match the constraint"
+                    )
+                valid, response = TestHelper.do_request(
+                    "DELETE",
+                    self.compat_url + "senders/" + sender_id + "/constraints/active/",
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The streamcompatibility request for sender {} status has failed: {}".format(
+                            sender_id, response
+                        )
+                    )
+            return test.PASS()
+        return test.UNCLEAR("No resources found to perform this test.")
+
+    def test_02_03_05_02(self, test):
+        """
+        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints
+        """
+        if len(self.flow_format_audio) == 0:
+            return test.UNCLEAR("There is no audio format")
+
+        for sender_id in self.flow_format_audio:
+            valid, response = TestHelper.do_request(
+                "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
+            )
+            if not valid:
+                return test.FAIL(
+                    "Unexpected response from the streamcompatibility API: {}".format(
+                        response
+                    )
+                )
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} inputs streamcompatibility request has failed: {}".format(
+                        sender_id, response
+                    )
+                )
+            inputs = []
+            try:
+                for input_id in response.json():
+                    if (
+                        input_id in self.edid_connected_inputs
+                        and input_id in self.support_base_edid
+                    ):
+                        inputs.append(input_id)
+                    else:
+                        print(
+                            "Inputs {} are not connected or does'nt support base Edid".format(
+                                input_id
+                            )
+                        )
+                        break
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+            if len(inputs) == 0:
+                return test.UNCLEAR("No input supports changing the base EDID")
+            for input_id in inputs:
+                valid, response = TestHelper.do_request(
+                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The input {} properties streamcompatibility request has failed: {}".format(
+                            input_id, response
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+                self.version[input_id] = version
+
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "senders/" + sender_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+                self.version[sender_id] = version
+
+                self.another_sample_rate_constraints[sender_id] = {
+                    "constraint_sets": [
+                        {
+                            "urn:x-nmos:cap:format:sample_rate": {
+                                "enum": [
+                                    self.get_another_sample_rate(
+                                        self.flow_sample_rate[sender_id]
+                                    )
+                                ]
+                            }
+                        }
+                    ]
+                }
+                valid, response = TestHelper.do_request(
+                    "PUT",
+                    self.compat_url + "senders/" + sender_id + "/constraints/active/",
+                    json=self.another_sample_rate_constraints[sender_id],
+                )
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response
+                        )
+                    )
+                if response.status_code == 422:
+                    print("Device does not accept grain_rate constraint")
+
+                valid, response = TestHelper.do_request(
+                    "GET",
+                    self.compat_url + "inputs/" + input_id + "/edid/effective/",
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The input {} properties streamcompatibility request has failed: {}".format(
+                            input_id, response
+                        )
+                    )
+                if response.content == self.default_edid[input_id]:
+                    print("Grain rate constraint are not changing effective EDID")
+
+                valid, response = TestHelper.do_request(
+                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The input {} properties streamcompatibility request has failed: {}".format(
+                            input_id, response
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if version == self.version[input_id]:
+                    return test.FAIL("Version should change")
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "senders/" + sender_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response
+                        )
+                    )
+                try:
+                    version = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+                if version == self.version[input_id]:
+                    return test.FAIL("Version should change")
+
+                stable_count = 0
+                time_start = datetime.datetime.now()
+                while stable_count < 5:
+                    if datetime.datetime.now() > time_start + datetime.timedelta(
+                        seconds=15
+                    ):
+                        time.sleep(CONFIG.HTTP_TIMEOUT)
+                    valid, response = TestHelper.do_request(
+                        "GET", self.node_url + "senders/" + sender_id
+                    )
+                    if not valid:
+                        return test.FAIL(
+                            "Unexpected response from the Node API: {}".format(response)
+                        )
+                    if response.status_code != 200:
+                        return test.FAIL(
+                            "The sender {} is not available in the Node API request: {}".format(
+                                sender_id, response.json()
+                            )
+                        )
+                    try:
+                        version = response.json()["version"]
+                    except json.JSONDecodeError:
+                        return test.FAIL("Non-JSON response returned from Node API")
+                    except KeyError as e:
+                        return test.FAIL("Unable to find expected key: {}".format(e))
+                    if version != self.version[sender_id]:
+                        stable_count = 0
+                        self.version[sender_id] = version
+                    else:
+                        stable_count += 1
+
+                valid, response = TestHelper.do_request(
+                    "GET",
+                    self.compat_url + "senders/" + sender_id + "/status/", time.sleep(20)
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the Node API: {}".format(response)
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The sender {} is not available in the Node API request: {}".format(
+                            sender_id, response
+                        )
+                    )
+
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
+                try:
+                    state = response.json()["state"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+                if state == "active_constraints_violation":
+                    return test.UNCLEAR("This device can not constraint grain_rate")
+
+                if state in ["awaiting_essence", "no_essence"]:
+                    for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
+                        valid, response = TestHelper.do_request(
+                            "GET", self.build_sender_status_url(sender_id)
+                        )
+                        if not valid:
+                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                             .format(response))
+                        if response.status_code != 200:
+                            return test.FAIL(
+                                "The streamcompatibility request for sender {} status has failed: {}"
+                                .format(sender_id, response.json())
+                            )
+                        try:
+                            state = response.json()["state"]
+                        except json.JSONDecodeError:
+                            return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+                        except KeyError as e:
+                            return test.FAIL("Unable to find expected key: {}".format(e))
+
+                        if state in ["awaiting_essence", "no_essence"]:
+                            time.sleep(CONFIG.STABLE_STATE_DELAY)
+                        else:
+                            break
+                if state != "constrained":
+                    return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\""
+                                     .format(sender_id, state))
+
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "senders/" + sender_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The streamcompatibility request for sender {} status has failed: {}".format(
+                            sender_id, response.json()
+                        )
+                    )
+                try:
+                    flow_id = response.json()["flow_id"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+                if flow_id is None:
+                    return test.FAIL("flow_id is null")
+                valid, response = TestHelper.do_request(
+                    "GET", self.node_url + "flows/" + flow_id
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The streamcompatibility request for sender {} status has failed: {}".format(
+                            sender_id, response
+                        )
+                    )
+                try:
+                    sample_rate = response.json()["sample_rate"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+                if sample_rate != self.get_another_sample_rate(
+                    self.flow_sample_rate[sender_id]
+                ):
+                    return test.FAIL(
+                        "The flow_grain_rate does not match the constraint"
+                    )
+                valid, response = TestHelper.do_request(
+                    "DELETE",
+                    self.compat_url + "senders/" + sender_id + "/constraints/active/",
+                )
+                if not valid:
+                    return test.FAIL(
+                        "Unexpected response from the streamcompatibility API: {}".format(
+                            response
+                        )
+                    )
+                if response.status_code != 200:
+                    return test.FAIL(
+                        "The streamcompatibility request for sender {} status has failed: {}".format(
+                            sender_id, response
+                        )
+                    )
+            return test.PASS()
+        return test.UNCLEAR("No resources found to perform this test.")
+
+    def test_02_04(self, test):
+        """
+        Verify senders not supporting inputs
+        """
+        for input in self.senders:
+            valid, response = TestHelper.do_request(
+                "GET", self.compat_url + "senders/" + input + "/inputs/"
+                )
+            if not valid:
+                return test.FAIL(
+                     "Unexpected response from the streamcompatibility API: {}".format(
+                         response
+                        )
+                    )
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender's inputs {} streamcompatibility request has failed: {}".format(
+                         input, response
+                        )
+                    )
+            try:
+                if len(response.json()) == 0:
+                    self.not_input_senders.append(input)
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+        if len(self.not_input_senders) == 0:
+            return test.UNCLEAR("All senders support inputs")
+        return test.PASS()
+
+    def test_02_04_01(self, test):
+        """
+        Verify that the status is "unconstrained" as per our pre-conditions
+        """
+        if len(self.not_input_senders) == 0:
+            return test.UNCLEAR("All senders support inputs")
+        for sender_id in self.not_input_senders:
+            valid, response = TestHelper.do_request(
+                "GET",
+                self.compat_url + "senders/" + sender_id + "/status/",
+            )
+            if not valid:
+                return test.FAIL(
+                    "Unexpected response from the Node API: {}".format(response)
+                )
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} is not available in the Node API request: {}".format(
+                        sender_id, response
+                    )
+                )
+
+            time.sleep(CONFIG.STABLE_STATE_DELAY)
+            try:
+                state = response.json()["state"]
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+            if state != "OK":
+                return test.FAIL("The status is incorrect")
+
+            if state in ["awaiting_essence", "no_essence"]:
+                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
+                    valid, response = TestHelper.do_request(
+                        "GET", self.build_sender_status_url(sender_id)
+                        )
+                    if not valid:
+                        return test.FAIL("Unexpected response from the streamcompatibility API: {}"
+                                         .format(response))
+                    if response.status_code != 200:
+                        return test.FAIL(
+                                "The streamcompatibility request for sender {} status has failed: {}"
+                                .format(sender_id, response.json())
+                            )
+                    try:
+                        state = response.json()["state"]
+                    except json.JSONDecodeError:
+                        return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+                    except KeyError as e:
+                        return test.FAIL("Unable to find expected key: {}".format(e))
+
+                    if state in ["awaiting_essence", "no_essence"]:
+                        time.sleep(CONFIG.STABLE_STATE_DELAY)
+                    else:
+                        break
+            if state != "unconstrained":
+                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
+                                 .format(sender_id, state))
+        return test.PASS()
+
     # OUTPUTS TESTS
     def test_03_01(self, test):
         """
@@ -3559,6 +4347,8 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from "
                                      "the Stream Compatibility Management API: {}".format(response))
 
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
+
                 valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
                 if not valid or response.status_code != 200:
                     return test.FAIL("Unexpected response from "
@@ -3609,6 +4399,8 @@ class IS1101Test(GenericTest):
                 if not valid or response.status_code != 204:
                     return test.FAIL("Unexpected response from "
                                      "the Stream Compatibility Management API: {}".format(response))
+
+                time.sleep(CONFIG.STABLE_STATE_DELAY)
 
                 valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
                 if not valid or response.status_code != 200:
