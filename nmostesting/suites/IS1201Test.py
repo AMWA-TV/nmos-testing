@@ -21,8 +21,8 @@ from jsonschema import ValidationError, SchemaError
 
 from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
-from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType,\
-    NcObjectMethods, NcObjectProperties, NcObjectEvents, NcClassManagerProperties, NcDeviceManagerProperties,\
+from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType, \
+    NcObjectMethods, NcObjectProperties, NcObjectEvents, NcClassManagerProperties, NcDeviceManagerProperties, \
     StandardClassIds, NcClassManager, NcBlock
 from ..TestHelper import load_resolved_schema
 from ..TestResult import Test
