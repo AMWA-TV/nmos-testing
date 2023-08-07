@@ -500,7 +500,7 @@ def index_page():
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
                         disable_fields = []
-                        disable_fields += spec.get("disable_fields", {})
+                        disable_fields += spec.get("disable_fields", [])
                         # selector and urlpath must be explicitly enabled on the test suite
                         disable_fields += ["selector"] if not test_def.get("selector") else []
                         disable_fields += ["urlpath"] if not test_def.get("urlpath") else []
