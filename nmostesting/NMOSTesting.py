@@ -505,8 +505,8 @@ def index_page():
                         disable_fields += ["selector"] if not test_def.get("selector") else []
                         disable_fields += ["urlpath"] if not test_def.get("urlpath") else []
                         fields = ["host", "port", "version", "selector", "urlpath"]
-                        ignore_endpoint = {field:None for field in disable_fields}
-                        endpoint = {field:request.form.get("endpoints-{}-{}".format(index, field), None)
+                        ignore_endpoint = {field: None for field in disable_fields}
+                        endpoint = {field: request.form.get("endpoints-{}-{}".format(index, field), None)
                                     for field in fields if field not in disable_fields}
                         endpoints.append({**endpoint, **ignore_endpoint})
 
