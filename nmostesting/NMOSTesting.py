@@ -346,7 +346,7 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node",
-            "disable_fields": ["selector"]
+            "disable_fields": ["urlpath"]
         }, {
             "spec_key": "is-12",
             "api_key": "ncp",
@@ -354,14 +354,14 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "ms-05-02",
             "api_key": "controlframework",
-            "disable_fields": ["host", "port", "selector"]
+            "disable_fields": ["host", "port", "urlpath"]
         }],
         "extra_specs": [{
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
         }],
         "class": IS1201Test.IS1201Test,
-        "selector": True
+        "urlpath": True
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
@@ -451,6 +451,8 @@ class EndpointForm(Form):
                                                                       ("v1.3", "v1.3")])
     selector = StringField(label="API Selector:", validators=[validators.optional()])
 
+    urlpath = StringField(label="URL Path:", validators=[validators.optional()])
+
 
 class DataForm(Form):
     # Define the primary test selection dropdown
@@ -495,19 +497,18 @@ def index_page():
             try:
                 if test in TEST_DEFINITIONS:
                     test_def = TEST_DEFINITIONS[test]
-                    # selectors must be explicitly enabled on the test suite
-                    selector = "selector" in test_def and test_def["selector"]
                     endpoints = []
                     for index, spec in enumerate(test_def["specs"]):
-                        # "disable_fields" is optional, none are disabled by default
-                        disable_fields = spec["disable_fields"] if "disable_fields" in spec else []
-                        endpoint = {}
-                        for field in ["host", "port", "version", "selector"]:
-                            if field in disable_fields or (field == "selector" and not selector):
-                                endpoint[field] = None
-                            else:
-                                endpoint[field] = request.form.get("endpoints-{}-{}".format(index, field), None)
-                        endpoints.append(endpoint)
+                        disable_fields = []
+                        disable_fields += spec.get("disable_fields", {})
+                        # selector and urlpath must be explicitly enabled on the test suite
+                        disable_fields += ["selector"] if not test_def.get("selector") else []
+                        disable_fields += ["urlpath"] if not test_def.get("urlpath") else []
+                        fields = ["host", "port", "version", "selector", "urlpath"]
+                        ignore_endpoint = {field:None for field in disable_fields}
+                        endpoint = {field:request.form.get("endpoints-{}-{}".format(index, field), None)
+                                    for field in fields if field not in disable_fields}
+                        endpoints.append({**endpoint, **ignore_endpoint})
 
                     test_selection = request.form.getlist("test_selection")
                     results = run_tests(test, endpoints, test_selection)
@@ -580,12 +581,15 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 base_url = None
             if base_url is not None:
                 url = base_url + "/"
-                if api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
-                    url += "x-nmos/{}/".format(api_key)
-                    if endpoints[index]["version"] is not None:
-                        url += "{}/".format(endpoints[index]["version"])
-                if endpoints[index]["selector"] not in [None, ""]:
-                    url += "{}/".format(endpoints[index]["selector"])
+                if test_def.get("urlpath") and "urlpath" not in spec.get("disable_fields", []):
+                    url = os.path.join(url, endpoints[index]["urlpath"])
+                else:
+                    if api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
+                        url += "x-nmos/{}/".format(api_key)
+                        if endpoints[index]["version"] is not None:
+                            url += "{}/".format(endpoints[index]["version"])
+                    if endpoints[index]["selector"] not in [None, ""]:
+                        url += "{}/".format(endpoints[index]["selector"])
                 tested_urls.append(url)
             else:
                 url = None
@@ -609,6 +613,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
                 "url": url,
                 "version": endpoints[index]["version"],
                 "selector": endpoints[index]["selector"],
+                "urlpath": endpoints[index]["urlpath"],
                 "spec": None,  # Used inside GenericTest
                 "spec_path": CONFIG.CACHE_PATH + '/' + spec_key
             }
@@ -843,6 +848,8 @@ def parse_arguments():
                               help="space separated versions of the APIs under test")
     suite_parser.add_argument('--selector', default=DEFAULT_ARGS["selector"], nargs="*",
                               help="space separated device selector names of the APIs under test")
+    suite_parser.add_argument('--urlpaths', default=DEFAULT_ARGS["urlpath"], nargs="*",
+                              help="space separated device urlpaths of the APIs under test")
     suite_parser.add_argument('--ignore', default=DEFAULT_ARGS["ignore"], nargs="*",
                               help="space separated test names to ignore the results from")
     suite_parser.add_argument('--output', default=DEFAULT_ARGS["output"],
@@ -890,6 +897,15 @@ def validate_args(args, access_type="cli"):
         elif "selector" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["selector"] is True and \
                 len(args.host) != len(args.selector):
             msg = "ERROR: Hostname(s)/IP address(es), Port(s), Version(s) and Selector(s) must contain the same " \
+                  "number of elements"
+            return_type = ExitCodes.ERROR
+        elif "urlpath" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["urlpath"] is True and not \
+                args.urlpath:
+            msg = "ERROR: No Override URL(s) specified"
+            return_type = ExitCodes.ERROR
+        elif "urlpath" in TEST_DEFINITIONS[args.suite] and TEST_DEFINITIONS[args.suite]["urlpath"] is True and \
+                len(args.host) != len(args.urlpath):
+            msg = "ERROR: Hostname(s)/IP address(es), Port(s), Version(s) and Override URL(s) must contain the same " \
                   "number of elements"
             return_type = ExitCodes.ERROR
         elif len(args.host) != len(TEST_DEFINITIONS[args.suite]["specs"]):
@@ -979,8 +995,11 @@ def run_noninteractive_tests(args):
         selector = None
         if len(args.selector) == len(args.host) and args.selector[i] != "null":
             selector = args.selector[i]
+        urlpath = None
+        if len(args.urlpath) == len(args.host) and args.urlpath[i] != "null":
+            urlpath = args.override[i]
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
-                          "selector": selector})
+                          "selector": selector, "urlpath": urlpath})
     try:
         results = run_tests(args.suite, endpoints, [args.selection])
         if args.output:
@@ -1044,6 +1063,7 @@ def api():
         example_dict["port"] = [80]
         example_dict["version"] = ["v1.2"]
         example_dict["selector"] = [None]
+        example_dict["urlpath"] = [None]
         example_dict["output"] = "xml"
         example_dict["ignore"] = ["test_23"]
         return jsonify(example_dict), 200
@@ -1105,8 +1125,11 @@ def run_api_tests(args, data_format):
         selector = None
         if len(args.selector) == len(args.host):
             selector = args.selector[i]
+        urlpath = None
+        if len(args.urlpath) == len(args.host):
+            urlpath = args.urlpath[i]
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
-                          "selector": selector})
+                          "selector": selector, "urlpath": urlpath})
     results = run_tests(args.suite, endpoints, [args.selection])
     if data_format == "xml":
         formatted_test_results = format_test_results(results, endpoints, "junit", args)
