@@ -29,7 +29,7 @@ from urllib.parse import parse_qs
 from ..Config import PORT_BASE, KEYS_MOCKS, ENABLE_HTTPS, CERT_TRUST_ROOT_CA, JWKS_URI, REDIRECT_URI, SCOPE, CACHE_PATH
 from ..TestHelper import get_default_ip, get_mocks_hostname, load_resolved_schema, check_content_type
 from ..IS10Utils import IS10Utils
-from zeroconf_monkey import ServiceInfo
+from zeroconf import ServiceInfo
 from enum import Enum
 from werkzeug.serving import make_server
 from http import HTTPStatus

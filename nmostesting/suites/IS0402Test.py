@@ -22,7 +22,7 @@ from copy import deepcopy
 from time import sleep
 from jsonschema import ValidationError
 from urllib.parse import urlparse
-from zeroconf_monkey import ServiceBrowser, Zeroconf
+from zeroconf import ServiceBrowser, Zeroconf
 
 from .. import Config as CONFIG
 from ..MdnsListener import MdnsListener
