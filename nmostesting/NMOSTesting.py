@@ -582,7 +582,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
             if base_url is not None:
                 url = base_url + "/"
                 if test_def.get("urlpath") and "urlpath" not in spec.get("disable_fields", []):
-                    url = os.path.join(url, endpoints[index]["urlpath"])
+                    url = os.path.join(url, endpoints[index]["urlpath"].lstrip("/\\"))
                 else:
                     if api_key in CONFIG.SPECIFICATIONS[spec_key]["apis"]:
                         url += "x-nmos/{}/".format(api_key)
