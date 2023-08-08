@@ -14,7 +14,6 @@
 
 from .NMOSUtils import NMOSUtils
 
-import itertools
 import json
 import time
 
@@ -565,14 +564,10 @@ class NcBlock(NcObject):
     def get_member_descriptors(self, recurse=False):
         query_results = []
         query_results += self.member_descriptors
-        other_results = []
-        other_results += self.member_descriptors
         if recurse:
             for child_object in self.child_objects:
                 if type(child_object) is NcBlock:
                     query_results += child_object.get_member_descriptors(recurse)
-            other_results += itertools.chain([child_object.get_member_descriptors(recurse) for child_object in self.child_objects if type(child_object) is NcBlock])
-        print(other_results)
         return query_results
 
     def find_members_by_path(self, role_path):
