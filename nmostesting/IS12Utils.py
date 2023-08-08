@@ -14,6 +14,7 @@
 
 from .NMOSUtils import NMOSUtils
 
+import itertools
 import json
 import time
 
@@ -218,16 +219,12 @@ class IS12Utils(NMOSUtils):
 
     def send_command(self, test, command_json):
         """Send command to Node under test. Returns [command response]. Raises NMOSTestException on error"""
-        # Referencing the Google sheet
-        # IS-12 (9)  Check message type
-        # IS-12 (10) Check handle numeric identifier
-        # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html
-        # IS-12 (11) Check Command message type
-        # https://specs.amwa.tv/is-12/branches/v1.0-dev/docs/Protocol_messaging.html#command-message-type
-        # MS-05-02 (74) All methods MUST return a datatype which inherits from NcMethodResult.
-        #               When a method call encounters an error the return MUST be NcMethodResultError
-        #               or a derived datatype.
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0-dev/docs/Framework.html#ncmethodresult
+        # IS-12 Check message type, check handle numeric identifier
+        # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#command-message-type
+        # MS-05-02 All methods MUST return a datatype which inherits from NcMethodResult.
+        # When a method call encounters an error the return MUST be NcMethodResultError
+        # or a derived datatype.
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncmethodresult
 
         # Assume single command
         command_handle = command_json['commands'][0]['handle'] if command_json.get('commands') else 0
@@ -410,7 +407,7 @@ class IS12Utils(NMOSUtils):
         response = self.send_command(test, command_JSON)
         return response
 
-    def model_primitive_to_JSON(self, type):
+    def _primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
 
         types = {
@@ -457,7 +454,7 @@ class IS12Utils(NMOSUtils):
 
         # Inheritance of datatype
         if descriptor.get('parentType'):
-            json_primitive_type = self.model_primitive_to_JSON(descriptor['parentType'])
+            json_primitive_type = self._primitive_to_JSON(descriptor['parentType'])
             if json_primitive_type:
                 if descriptor['isSequence']:
                     json_schema['type'] = 'array'
@@ -478,11 +475,11 @@ class IS12Utils(NMOSUtils):
                 required.append(field['name'])
 
                 property_type = {}
-                if self.model_primitive_to_JSON(field['typeName']):
+                if self._primitive_to_JSON(field['typeName']):
                     if field['isNullable']:
-                        property_type = {'type': [self.model_primitive_to_JSON(field['typeName']), 'null']}
+                        property_type = {'type': [self._primitive_to_JSON(field['typeName']), 'null']}
                     else:
-                        property_type = {'type': self.model_primitive_to_JSON(field['typeName'])}
+                        property_type = {'type': self._primitive_to_JSON(field['typeName'])}
                 else:
                     if field.get('typeName'):
                         if field['isNullable']:
@@ -568,10 +565,14 @@ class NcBlock(NcObject):
     def get_member_descriptors(self, recurse=False):
         query_results = []
         query_results += self.member_descriptors
+        other_results = []
+        other_results += self.member_descriptors
         if recurse:
             for child_object in self.child_objects:
                 if type(child_object) is NcBlock:
                     query_results += child_object.get_member_descriptors(recurse)
+            other_results += itertools.chain([child_object.get_member_descriptors(recurse) for child_object in self.child_objects if type(child_object) is NcBlock])
+        print(other_results)
         return query_results
 
     def find_members_by_path(self, role_path):
