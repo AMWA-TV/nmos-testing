@@ -901,6 +901,11 @@ class IS1201Test(GenericTest):
 
             queried_members = self.is12_utils.get_member_descriptors(test, block.oid, search_condition["recurse"])
 
+            if not isinstance(queried_members, list):
+                raise NMOSTestException(test.FAIL(context
+                                                  + block.role
+                                                  + ": Did not return an array of results."))
+
             if len(queried_members) != len(expected_members):
                 raise NMOSTestException(test.FAIL(context
                                                   + block.role
@@ -949,6 +954,12 @@ class IS1201Test(GenericTest):
             expected_member = block.find_members_by_path(role_path)
 
             queried_members = self.is12_utils.find_members_by_path(test, block.oid, role_path)
+
+            if not isinstance(queried_members, list):
+                raise NMOSTestException(test.FAIL(context
+                                                  + block.role
+                                                  + ": Did not return an array of results for query: "
+                                                  + str(role_path)))
 
             for queried_member in queried_members:
                 self._validate_schema(test,
