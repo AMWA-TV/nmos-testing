@@ -1,4 +1,4 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 
 WORKDIR /home/nmos-testing
 ADD . .
@@ -7,9 +7,9 @@ ADD .git .git
 RUN apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y wget \
-    && wget https://deb.nodesource.com/setup_14.x \
-    && chmod 755 setup_14.x \
-    && /home/nmos-testing/setup_14.x \
+    && wget https://deb.nodesource.com/setup_16.x \
+    && chmod 755 setup_16.x \
+    && /home/nmos-testing/setup_16.x \
     && apt-get install -y --no-install-recommends \
     gcc openssl libssl-dev wget ca-certificates avahi-daemon avahi-utils libnss-mdns libavahi-compat-libdnssd-dev \
     python3 python3-pip python3-dev nodejs \
@@ -26,7 +26,7 @@ RUN apt-get update \
     && rm v3.0.7.tar.gz \
     && npm config set unsafe-perm true \
     && npm install -g AMWA-TV/sdpoker#v0.3.0 \
-    && rm /home/nmos-testing/setup_14.x \
+    && rm /home/nmos-testing/setup_16.x \
     && apt-get remove -y wget \
     && apt-get clean -y --no-install-recommends \
     && apt-get autoclean -y --no-install-recommends \
