@@ -52,7 +52,7 @@ class IS1201Test(GenericTest):
         self.unique_oids_error = False
         self.managers_are_singletons_error = False
         self.managers_members_root_block_error = False
-        self.device_model_checked = False
+        self.device_model_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.organization_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.touchpoints_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
@@ -506,21 +506,30 @@ class IS1201Test(GenericTest):
                                    context=context + str(descriptor['role']) + ': ')
 
             class_identifier = ".".join(map(str, descriptor['classId']))
-            if class_identifier:
+            if class_identifier and class_identifier in class_descriptors:
                 self.validate_object_properties(test,
                                                 class_descriptors[class_identifier],
                                                 descriptor['oid'],
                                                 datatype_schemas,
                                                 context=context + str(descriptor['role']) + ': ')
             else:
-                # Not a standard or non-standard class
-                self.organization_metadata["error"] = True
-                self.organization_metadata["error_msg"] = str(descriptor['role']) + ': ' \
-                    + "Non-standard class id does not contain authority key: " \
-                    + str(descriptor['classId']) + ". "
+                if class_identifier not in class_descriptors:
+                    self.device_model_metadata["error"] = True
+                    self.device_model_metadata["error_msg"] = str(descriptor['role']) + ': ' \
+                        + "Class not advertised by Class Manager: " \
+                        + str(descriptor['classId']) + ". "
+
+                if not self.is12_utils.is_non_standard_class(descriptor['classId']):
+                    self.organization_metadata["error"] = True
+                    # Not a standard or non-standard class
+                    self.organization_metadata["error_msg"] = str(descriptor['role']) + ': ' \
+                        + "Non-standard class id does not contain authority key: " \
+                        + str(descriptor['classId']) + ". "
 
     def check_device_model(self, test):
-        if not self.device_model_checked:
+        if not self.device_model_metadata["checked"]:
+            self.device_model_metadata["checked"] = True
+
             self.create_ncp_socket(test)
             class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
             device_model = self.query_device_model(test)
@@ -535,7 +544,6 @@ class IS1201Test(GenericTest):
                              class_manager.class_descriptors,
                              datatype_schemas)
 
-            self.device_model_checked = True
         return
 
     def nc_object_factory(self, test, class_id, oid, role):
@@ -566,6 +574,9 @@ class IS1201Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Workers.html
 
         self.check_device_model(test)
+
+        if self.device_model_metadata["error"]:
+            return test.FAIL(self.device_model_metadata["error_msg"])
 
         return test.PASS()
 
