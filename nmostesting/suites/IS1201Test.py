@@ -401,13 +401,27 @@ class IS1201Test(GenericTest):
         self.check_get_sequence_item(test, oid, sequence_values, property_metadata, context)
         self.check_get_sequence_length(test, oid, sequence_values, property_metadata, context)
 
-    def validate_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
+    def get_property(self, test, oid, property_id, context):
+        try:
+            return self.is12_utils.get_property(test, oid, property_id)
+        except NMOSTestException as e:
+            self.device_model_metadata["error"] = True
+            self.device_model_metadata["error_msg"] = context + ': ' \
+                + "Error getting property: " \
+                + str(property_id) + ": " \
+                + str(e.args[0].detail)
+        return None
+
+    def check_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
         for class_property in reference_class_descriptor['properties']:
-            response = self.is12_utils.get_property(test, oid, class_property['id'])
+            object_property = self.get_property(test, oid, class_property.get('id'), context)
+
+            if not object_property:
+                continue
 
             # validate property type
             if class_property['isSequence']:
-                for property_value in response:
+                for property_value in object_property:
                     self.validate_property_type(test,
                                                 property_value,
                                                 class_property['typeName'],
@@ -417,12 +431,12 @@ class IS1201Test(GenericTest):
                                                 + ": " + class_property["name"] + ": ")
                 self.check_sequence_methods(test,
                                             oid,
-                                            response,
+                                            object_property,
                                             class_property,
                                             context=context)
             else:
                 self.validate_property_type(test,
-                                            response,
+                                            object_property,
                                             class_property['typeName'],
                                             class_property['isNullable'],
                                             datatype_schemas,
@@ -507,11 +521,11 @@ class IS1201Test(GenericTest):
 
             class_identifier = ".".join(map(str, descriptor['classId']))
             if class_identifier and class_identifier in class_descriptors:
-                self.validate_object_properties(test,
-                                                class_descriptors[class_identifier],
-                                                descriptor['oid'],
-                                                datatype_schemas,
-                                                context=context + str(descriptor['role']) + ': ')
+                self.check_object_properties(test,
+                                             class_descriptors[class_identifier],
+                                             descriptor['oid'],
+                                             datatype_schemas,
+                                             context=context + str(descriptor['role']) + ': ')
             else:
                 self.device_model_metadata["error"] = True
                 self.device_model_metadata["error_msg"] = str(descriptor['role']) + ': ' \
