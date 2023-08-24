@@ -513,18 +513,18 @@ class IS1201Test(GenericTest):
                                                 datatype_schemas,
                                                 context=context + str(descriptor['role']) + ': ')
             else:
-                if class_identifier not in class_descriptors:
-                    self.device_model_metadata["error"] = True
-                    self.device_model_metadata["error_msg"] = str(descriptor['role']) + ': ' \
-                        + "Class not advertised by Class Manager: " \
-                        + str(descriptor['classId']) + ". "
+                self.device_model_metadata["error"] = True
+                self.device_model_metadata["error_msg"] = str(descriptor['role']) + ': ' \
+                    + "Class not advertised by Class Manager: " \
+                    + str(descriptor['classId']) + ". "
 
-                if not self.is12_utils.is_non_standard_class(descriptor['classId']):
-                    self.organization_metadata["error"] = True
-                    # Not a standard or non-standard class
-                    self.organization_metadata["error_msg"] = str(descriptor['role']) + ': ' \
-                        + "Non-standard class id does not contain authority key: " \
-                        + str(descriptor['classId']) + ". "
+            if class_identifier not in self.reference_class_descriptors and \
+                    not self.is12_utils.is_non_standard_class(descriptor['classId']):
+                # Not a standard or non-standard class
+                self.organization_metadata["error"] = True
+                self.organization_metadata["error_msg"] = str(descriptor['role']) + ': ' \
+                    + "Non-standard class id does not contain authority key: " \
+                    + str(descriptor['classId']) + ". "
 
     def check_device_model(self, test):
         if not self.device_model_metadata["checked"]:
