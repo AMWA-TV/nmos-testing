@@ -181,6 +181,8 @@ class IS1201Test(GenericTest):
 
     def _validate_schema(self, test, payload, schema, context=""):
         """Delegates to validate_schema. Raises NMOSTestExceptions on error"""
+        if not schema:
+            raise NMOSTestException(test.FAIL(context + "Missing schema. "))
         try:
             # Validate the JSON schema is correct
             self.validate_schema(payload, schema)
@@ -191,8 +193,11 @@ class IS1201Test(GenericTest):
 
         return
 
-    def get_class_manager_descriptors(self, test, class_manager_oid, property_id):
-        response = self.is12_utils.get_property(test, class_manager_oid, property_id)
+    def get_class_manager_descriptors(self, test, class_manager_oid, property_id, role):
+        response = self.get_property(test, class_manager_oid, property_id, role)
+
+        if not response:
+            return None
 
         # Create descriptor dictionary from response array
         # Use classId as key if present, otherwise use name
@@ -343,7 +348,7 @@ class IS1201Test(GenericTest):
             if not isinstance(value, self.is12_utils.primitive_to_python_type(type)):
                 raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(type)))
         else:
-            self._validate_schema(test, value, datatype_schemas[type], context)
+            self._validate_schema(test, value, datatype_schemas.get(type), context)
 
         return
 
@@ -406,10 +411,11 @@ class IS1201Test(GenericTest):
             return self.is12_utils.get_property(test, oid, property_id)
         except NMOSTestException as e:
             self.device_model_metadata["error"] = True
-            self.device_model_metadata["error_msg"] = context + ': ' \
+            self.device_model_metadata["error_msg"] += context \
                 + "Error getting property: " \
                 + str(property_id) + ": " \
-                + str(e.args[0].detail)
+                + str(e.args[0].detail) \
+                + "; "
         return None
 
     def check_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
@@ -475,16 +481,17 @@ class IS1201Test(GenericTest):
 
     def check_touchpoints(self, test, oid, datatype_schemas, context):
         """Touchpoint checks"""
-        touchpoints = self.is12_utils.get_property(test,
-                                                   oid,
-                                                   NcObjectProperties.TOUCHPOINTS.value)
+        touchpoints = self.get_property(test,
+                                        oid,
+                                        NcObjectProperties.TOUCHPOINTS.value,
+                                        context)
         if touchpoints is not None:
             self.touchpoints_metadata["checked"] = True
             try:
                 for touchpoint in touchpoints:
-                    schema = datatype_schemas["NcTouchpointNmos"] \
+                    schema = datatype_schemas.get("NcTouchpointNmos") \
                         if touchpoint["contextNamespace"] == "x-nmos" \
-                        else datatype_schemas["NcTouchpointNmosChannelMapping"]
+                        else datatype_schemas.get("NcTouchpointNmosChannelMapping")
                     self._validate_schema(test,
                                           touchpoint,
                                           schema,
@@ -507,7 +514,7 @@ class IS1201Test(GenericTest):
         for descriptor in block.member_descriptors:
             self._validate_schema(test,
                                   descriptor,
-                                  datatype_schemas["NcBlockMemberDescriptor"],
+                                  datatype_schemas.get("NcBlockMemberDescriptor"),
                                   context="NcBlockMemberDescriptor: ")
 
             self.check_unique_roles(descriptor['role'], role_cache)
@@ -528,7 +535,7 @@ class IS1201Test(GenericTest):
                                              context=context + str(descriptor['role']) + ': ')
             else:
                 self.device_model_metadata["error"] = True
-                self.device_model_metadata["error_msg"] = str(descriptor['role']) + ': ' \
+                self.device_model_metadata["error_msg"] += str(descriptor['role']) + ': ' \
                     + "Class not advertised by Class Manager: " \
                     + str(descriptor['classId']) + ". "
 
@@ -564,21 +571,33 @@ class IS1201Test(GenericTest):
         """Create NcObject or NcBlock based on class_id"""
         # Check class id to determine if this is a block
         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
-            member_descriptors = self.is12_utils.get_property(test, oid, NcBlockProperties.MEMBERS.value)
+            member_descriptors = self.get_property(test, oid, NcBlockProperties.MEMBERS.value, role)
+            if not member_descriptors:
+                # An error has likely occured
+                return None
+
             nc_block = NcBlock(class_id, oid, role, member_descriptors)
 
             for m in member_descriptors:
-                nc_block.add_child_object(self.nc_object_factory(test, m["classId"], m["oid"], m["role"]))
+                child_object = self.nc_object_factory(test, m["classId"], m["oid"], m["role"])
+                if child_object:
+                    nc_block.add_child_object(child_object)
             return nc_block
         else:
             # Check to determine if this is a Class Manager
             if len(class_id) > 2 and class_id[0] == 1 and class_id[1] == 3 and class_id[2] == 2:
                 class_descriptors = self.get_class_manager_descriptors(test,
                                                                        oid,
-                                                                       NcClassManagerProperties.CONTROL_CLASSES.value)
+                                                                       NcClassManagerProperties.CONTROL_CLASSES.value,
+                                                                       role)
                 datatype_descriptors = self.get_class_manager_descriptors(test,
                                                                           oid,
-                                                                          NcClassManagerProperties.DATATYPES.value)
+                                                                          NcClassManagerProperties.DATATYPES.value,
+                                                                          role)
+                if not class_descriptors or not datatype_descriptors:
+                    # An error has likely occured
+                    return None
+
                 return NcClassManager(class_id, oid, role, class_descriptors, datatype_descriptors)
             return NcObject(class_id, oid, role)
 
