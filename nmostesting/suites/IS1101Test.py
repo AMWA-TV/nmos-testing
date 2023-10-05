@@ -107,7 +107,7 @@ class IS1101Test(GenericTest):
         self.not_input_senders = []
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.conn_url)
-        self.is11_utils = IS11Utils(self.compat_url)
+        self.is11_utils = IS11Utils(self.compat_url, self.apis)
 
         if CONFIG.IS11_REFERENCE_SENDER_NODE_API_URL:
             self.reference_is04_utils = IS04Utils(CONFIG.IS11_REFERENCE_SENDER_NODE_API_URL)
@@ -3557,7 +3557,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
             valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "receivers/" + receiver_id + "/status/"
+                "GET",  self.compat_url + "receivers/" + receiver_id + "/status/"
             )
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
@@ -3627,7 +3627,6 @@ class IS1101Test(GenericTest):
                         self.reference_senders[format].append(sender_id)
                     else:
                         self.reference_senders[format] = [sender_id]
-
         if (len(self.reference_senders["urn:x-nmos:format:video"]) > 0 or
            len(self.reference_senders["urn:x-nmos:format:audio"]) > 0):
             return test.PASS()
@@ -3650,122 +3649,36 @@ class IS1101Test(GenericTest):
         if not (CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL and CONFIG.IS11_REFERENCE_SENDER_NODE_API_URL):
             return test.DISABLED("Please configure IS11_REFERENCE_SENDER_NODE_API_URL"
                                  " and IS11_REFERENCE_SENDER_CONNECTION_API_URL in Config.py")
-
-        video_receivers_with_outputs = []
+        format = "urn:x-nmos:format:video"
         activated_receivers = 0
-
-        for receiver_id in self.receivers_with_outputs:
-            valid, response = self.is04_utils.checkCleanRequestJSON("GET", "receivers/" + receiver_id)
-            if not valid:
-                return test.FAIL(response)
-
-            if response["format"] == "urn:x-nmos:format:video":
-                video_receivers_with_outputs.append(receiver_id)
-
-        for receiver_id in video_receivers_with_outputs:
+        valid, response = self.is11_utils.get_receivers_with_or_without_outputs_id(self.receivers, format)
+        if not valid:
+            return test.FAIL(response)
+        for receiver_id in self.is11_utils.receivers_with_or_without_outputs:
             valid, response = self.is04_utils.checkCleanRequestJSON("GET", "receivers/" + receiver_id)
             if not valid:
                 return test.FAIL(response)
 
             receiver = response
 
-            if "urn:x-nmos:format:video" not in self.reference_senders:
+            if format not in self.reference_senders:
                 return test.UNCLEAR("No reference video senders found")
 
-            for sender_id in self.reference_senders["urn:x-nmos:format:video"]:
-                valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "senders/" + sender_id)
-                if not valid:
-                    return test.FAIL(response)
-
-                sender = response
-
-                if sender["transport"] != receiver["transport"]:
-                    continue
-
-                if response["flow_id"] is None:
-                    return test.UNCLEAR("\"flow_id\" of sender {} is null".format(sender_id))
-
-                valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "flows/" + sender["flow_id"])
-                if not valid:
-                    return test.FAIL(response)
-
-                if response["media_type"] not in receiver["caps"]["media_types"]:
-                    continue
-
-                valid, response = self.reference_is05_utils.checkCleanRequestJSON(
-                    "GET",
-                    "single/senders/" + sender_id + "/active"
-                )
-                if not valid:
-                    return test.FAIL(response)
-
-                json_data = {
-                    "master_enable": True,
-                    "activation": {"mode": "activate_immediate"}
-                }
-
-                valid, response = self.reference_is05_utils.checkCleanRequestJSON(
-                    "PATCH",
-                    "single/senders/" + sender_id + "/staged",
-                    json_data
-                )
-                if not valid:
-                    return test.FAIL(response)
-
-                sdp_transport_file = self.is11_utils.get_transportfile(
-                    CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL,
-                    sender_id
-                )
-
-                if len(sdp_transport_file.strip()) == 0:
-                    continue
-
-                json_data = {
-                    "sender_id": sender_id,
-                    "master_enable": True,
-                    "activation": {"mode": "activate_immediate"},
-                    "transport_file": {"type": "application/sdp",
-                                       "data": "{}".format(sdp_transport_file)}
-                }
-                valid, response = self.is05_utils.checkCleanRequestJSON(
-                    "PATCH",
-                    "single/receivers/" + receiver_id + "/staged",
-                    json_data)
-                if not valid:
-                    return test.FAIL(response)
-
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.is05_utils.checkCleanRequestJSON(
-                        "GET",
-                        "single/receivers/" + receiver_id + "/active"
-                    )
-                    if not valid:
-                        return test.FAIL(response)
-
-                    master_enable = response["master_enable"]
-
-                    valid, response = self.is11_utils.checkCleanRequestJSON(
-                        "GET",
-                        "receivers/" + receiver_id + "/status"
-                    )
-                    if not valid:
-                        return test.FAIL(response)
-
-                    state = response["state"]
-
-                    if master_enable and state == "compliant_stream":
-                        break
-                    elif i == CONFIG.STABLE_STATE_ATTEMPTS - 1:
-                        test.FAIL("Expected positive \"master_enable\" and "
-                                  "\"compliant_stream\" state of receiver {}, got {} and {}"
-                                  .format(receiver_id, master_enable, state))
-
-                activated_receivers += 1
-                break
-
-        if (activated_receivers < len(video_receivers_with_outputs)):
-            return test.WARNING("There are no compatible senders for {} receivers"
-                                .format(len(video_receivers_with_outputs) - activated_receivers))
+            valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
+                                                                                     receiver, receiver_id)
+            if not valid:
+                return test.FAIL(response)
+            valid, response = self.is11_utils.stable_state_request(receiver_id, activated_receivers)
+            if not valid:
+                return test.FAIL(response)
+            activated_receivers = response
+            break
+        try:
+            if (activated_receivers < len(self.receivers_with_outputs)):
+                return test.WARNING("There are no compatible senders for {} receivers"
+                                    .format(len(self.receivers_with_outputs) - activated_receivers))
+        except Exception:
+            return test.UNCLEAR("No activated receivers")
 
         return test.PASS()
 
@@ -3871,124 +3784,36 @@ class IS1101Test(GenericTest):
         if not (CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL and CONFIG.IS11_REFERENCE_SENDER_NODE_API_URL):
             return test.DISABLED("Please configure IS11_REFERENCE_SENDER_NODE_API_URL"
                                  " and IS11_REFERENCE_SENDER_CONNECTION_API_URL in Config.py")
-
-        audio_receivers_with_outputs = []
+        format = "urn:x-nmos:format:audio"
         activated_receivers = 0
-
-        for receiver_id in self.receivers_with_outputs:
-            valid, response = self.is04_utils.checkCleanRequestJSON("GET", "receivers/" + receiver_id)
-            if not valid:
-                return test.FAIL(response)
-
-            if response["format"] == "urn:x-nmos:format:audio":
-                audio_receivers_with_outputs.append(receiver_id)
-
-        for receiver_id in audio_receivers_with_outputs:
+        valid, response = self.is11_utils.get_receivers_with_or_without_outputs_id(self.receivers, format)
+        if not valid:
+            return test.FAIL(response)
+        for receiver_id in self.is11_utils.receivers_with_or_without_outputs:
             valid, response = self.is04_utils.checkCleanRequestJSON("GET", "receivers/" + receiver_id)
             if not valid:
                 return test.FAIL(response)
 
             receiver = response
 
-            if "urn:x-nmos:format:audio" not in self.reference_senders:
+            if format not in self.reference_senders:
                 return test.UNCLEAR("No reference audio senders found")
 
-            for sender_id in self.reference_senders["urn:x-nmos:format:audio"]:
-                valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "senders/" + sender_id)
-                if not valid:
-                    return test.FAIL(response)
-
-                sender = response
-
-                if sender["transport"] != receiver["transport"]:
-                    continue
-
-                if response["flow_id"] is None:
-                    return test.UNCLEAR("\"flow_id\" of sender {} is null".format(sender_id))
-
-                valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "flows/" + sender["flow_id"])
-                if not valid:
-                    return test.FAIL(response)
-
-                if response["media_type"] not in receiver["caps"]["media_types"]:
-                    continue
-
-                valid, response = self.reference_is05_utils.checkCleanRequestJSON(
-                    "GET",
-                    "single/senders/" + sender_id + "/active"
-                )
-                if not valid:
-                    return test.FAIL(response)
-
-                if not response["master_enable"]:
-                    json_data = {
-                        "master_enable": True,
-                        "activation": {"mode": "activate_immediate"}
-                    }
-
-                    valid, response = self.reference_is05_utils.checkCleanRequestJSON(
-                        "PATCH",
-                        "single/senders/" + sender_id + "/staged",
-                        json_data
-                    )
-                    if not valid:
-                        return test.FAIL(response)
-
-                sdp_transport_file = self.is11_utils.get_transportfile(
-                    CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL,
-                    sender_id
-                )
-
-                if len(sdp_transport_file.strip()) == 0:
-                    continue
-
-                json_data = {
-                    "sender_id": sender_id,
-                    "master_enable": True,
-                    "activation": {"mode": "activate_immediate"},
-                    "transport_file": {"type": "application/sdp",
-                                       "data": "{}".format(sdp_transport_file)}
-                }
-                valid, response = self.is05_utils.checkCleanRequestJSON(
-                    "PATCH",
-                    "single/receivers/" + receiver_id + "/staged",
-                    json_data
-                )
-                if not valid:
-                    return test.FAIL(response)
-
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.is05_utils.checkCleanRequestJSON(
-                        "GET",
-                        "single/receivers/" + receiver_id + "/active"
-                    )
-                    if not valid:
-                        return test.FAIL(response)
-
-                    master_enable = response["master_enable"]
-
-                    valid, response = self.is11_utils.checkCleanRequestJSON(
-                        "GET",
-                        "receivers/" + receiver_id + "/status"
-                    )
-                    if not valid:
-                        return test.FAIL(response)
-
-                    state = response["state"]
-
-                    if master_enable and state == "compliant_stream":
-                        break
-                    elif i == CONFIG.STABLE_STATE_ATTEMPTS - 1:
-                        test.FAIL("Expected positive \"master_enable\" "
-                                  "and \"compliant_stream\" state of receiver {}, got {} and {}"
-                                  .format(receiver_id, master_enable, state))
-
-                activated_receivers += 1
-                break
-
-        if activated_receivers < len(audio_receivers_with_outputs):
-            return test.WARNING("There are no compatible senders for {} receivers"
-                                .format(len(audio_receivers_with_outputs) - activated_receivers))
+            valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
+                                                                                     receiver, receiver_id)
+            if not valid:
+                return test.FAIL(response)
+            valid, response = self.is11_utils.stable_state_request(receiver_id, activated_receivers)
+            if not valid:
+                return test.FAIL(response)
+            activated_receivers = response
+            break
+        try:
+            if (activated_receivers < len(self.receivers_with_outputs)):
+                return test.WARNING("There are no compatible senders for {} receivers"
+                                    .format(len(self.receivers_with_outputs) - activated_receivers))
+        except Exception:
+            return test.UNCLEAR("No activated receivers")
 
         return test.PASS()
 
@@ -4047,7 +3872,6 @@ class IS1101Test(GenericTest):
             if state != "signal_present":
                 return test.FAIL("Expected state of output {} is \"signal_present\", got \"{}\""
                                  .format(output_id, state))
-
         if len(self.reference_senders["urn:x-nmos:format:audio"]) == 0:
             return test.DISABLED("No IS-11 audio reference senders")
 
@@ -4084,104 +3908,123 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("No IS-11 receivers")
         if len(self.receivers_without_outputs) == 0:
             return test.UNCLEAR("All IS-11 receivers support outputs")
-        return test.PASS()
+        """
+        The test requires streaming from a Sender in
+        order to verify the state of the Receiver.
+        """
+        if not (CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL and CONFIG.IS11_REFERENCE_SENDER_NODE_API_URL):
+            return test.DISABLED("Please configure IS11_REFERENCE_SENDER_NODE_API_URL"
+                                 " and IS11_REFERENCE_SENDER_CONNECTION_API_URL in Config.py")
+        connection_api_senders = IS05Utils(CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL).get_senders()
+        for format in ["urn:x-nmos:format:video", "urn:x-nmos:format:audio"]:
+            for sender_id in connection_api_senders:
+                valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "senders/" + sender_id)
+                if not valid:
+                    return test.FAIL(response)
+
+                if response["flow_id"] is None:
+                    return test.UNCLEAR("\"flow_id\" of sender {} is null".format(sender_id))
+
+                valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "flows/" + response["flow_id"])
+                if not valid:
+                    return test.FAIL(response)
+
+                if response["format"] == format:
+                    if format in self.reference_senders:
+                        self.reference_senders[format].append(sender_id)
+                    else:
+                        self.reference_senders[format] = [sender_id]
+        if (len(self.reference_senders["urn:x-nmos:format:video"]) > 0 or
+           len(self.reference_senders["urn:x-nmos:format:audio"]) > 0):
+            return test.PASS()
+
+        return test.UNCLEAR("Video and audio reference senders weren't found")
 
     def test_04_04_01(self, test):
         """
         Verify the status of the Receiver.
-        The test requires streaming from a Sender
+        The test requires video  streaming from a Sender
         in order to verify the state of the Receiver.
         """
-        if len(self.receivers) == 0:
-            return test.UNCLEAR("No IS-11 receivers")
-        if not (CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL):
-            return test.DISABLED("Please configure IS11_REFERENCE_SENDER_CONNECTION_API in Config.py")
-        if len(self.reference_senders) == 0:
-            return test.DISABLED("No IS-11 reference sender")
-        for sender_id in self.reference_senders:
-            url = CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL
-
-            sdp_transport_file = self.is11_utils.get_transportfile(url, sender_id)
-            if sdp_transport_file is None:
-                continue
-
-            json_data = {
-                    "master_enable": True,
-                    "activation": {"mode": "activate_immediate"}
-                }
-            headers = {"Content-Type": "application/json"}
-            valid_patch, response = TestHelper.do_request('PATCH', url + "single/senders/"
-                                                          + sender_id + "/staged/", json=json_data, headers=headers)
-            if not valid_patch:
-                return test.FAIL("Unexpected response from the connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The patch request to {} has failed: {}"
-                                 .format(url + "single/senders/" + sender_id + "/staged/", response.json()))
-            time.sleep(CONFIG.STABLE_STATE_DELAY)
-            sdp_transport_file = self.is11_utils.get_transportfile(url, sender_id)
-            time.sleep(CONFIG.STABLE_STATE_DELAY)
-            if len(sdp_transport_file.strip()) == 0:
-                return test.FAIL("The IS-11 reference sender {} transport file is empty".format(sender_id))
-            if len(self.receivers_without_outputs) == 0:
-                return test.UNCLEAR("All IS-11 receivers support outputs")
-            for receiver_id in self.receivers_without_outputs:
-                patchload = {
-                        "sender_id": sender_id,
-                        "master_enable": True,
-                        "activation": {"mode": "activate_immediate"},
-                        "transport_file": {"type": "application/sdp",
-                                           "data": "{}".format(sdp_transport_file)}
-                    }
-
-            valid_patch, response = TestHelper.do_request('PATCH', self.conn_url + "single/receivers/"
-                                                          + receiver_id + "staged/", json=patchload, headers=headers)
-            if not valid_patch:
-                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The patch request{} to has failed: {}"
-                                 .format(self.conn_url + "single/receivers/"
-                                         + receiver_id + "staged/", response.json()))
-            time.sleep(CONFIG.STABLE_STATE_DELAY)
-            valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
-                                                    + receiver_id + "active/")
+        if len(self.receivers_without_outputs) == 0:
+            return test.UNCLEAR("All IS-11 receivers support outputs")
+        if not (CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL and CONFIG.IS11_REFERENCE_SENDER_NODE_API_URL):
+            return test.DISABLED("Please configure IS11_REFERENCE_SENDER_NODE_API_URL"
+                                 " and IS11_REFERENCE_SENDER_CONNECTION_API_URL in Config.py")
+        format = "urn:x-nmos:format:video"
+        activated_receivers = 0
+        valid, response = self.is11_utils.get_receivers_with_or_without_outputs_id(self.receivers, format)
+        if not valid:
+            return test.FAIL(response)
+        for receiver_id in self.is11_utils.receivers_with_or_without_outputs:
+            valid, response = self.is04_utils.checkCleanRequestJSON("GET", "receivers/" + receiver_id)
             if not valid:
-                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The connection request for receiver {} has failed: {}"
-                                 .format(receiver_id, response.json()))
+                return test.FAIL(response)
 
-            if (response.json()["master_enable"] is not True):
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-                valid, response = TestHelper.do_request('GET', self.conn_url + "single/receivers/"
-                                                        + receiver_id + "active/")
-                if not valid:
-                    return test.FAIL("Unexpected response from the Connnection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The connection request for receiver {} has failed: {}"
-                                 .format(receiver_id, response.json()))
+            receiver = response
 
-            valid, response = TestHelper.do_request('GET', self.compat_url + "receivers/" + receiver_id + "status/")
+            if format not in self.reference_senders:
+                return test.UNCLEAR("No reference video senders found")
+
+            valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
+                                                                                     receiver, receiver_id)
             if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The streamcompatibility request for receiver {} status has failed: {}"
-                                 .format(receiver_id, response.json()))
-            if (response.json()["state"] != "compliant_stream"):
-                return test.FAIL("The state should be compliant_stream")
+                return test.FAIL(response)
+            valid, response = self.is11_utils.stable_state_request(receiver_id, activated_receivers)
+            if not valid:
+                return test.FAIL(response)
+            activated_receivers = response
+            break
+        try:
+            if (activated_receivers < len(self.receivers_without_outputs)):
+                return test.WARNING("There are no compatible senders for {} receivers"
+                                    .format(len(self.receivers_without_outputs) - activated_receivers))
+        except Exception:
+            return test.UNCLEAR("No activated receivers")
+        return test.PASS()
 
-            json_data = {
-                    "master_enable": False,
-                    "activation": {"mode": "activate_immediate"}
-                }
-            headers = {"Content-Type": "application/json"}
-            valid_patch, response = TestHelper.do_request('PATCH', url + "single/senders/"
-                                                          + sender_id + "/staged/", json=json_data, headers=headers)
-            if not valid_patch:
-                return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The patch to {} has failed: {}"
-                                 .format(url + "single/senders/" + sender_id + "/staged/", response.json()))
-            time.sleep(CONFIG.STABLE_STATE_DELAY)
+    def test_04_04_02(self, test):
+        """
+        Verify the status of the Receiver.
+        The test requires audio  streaming from a Sender
+        in order to verify the state of the Receiver.
+        """
+        if len(self.receivers_without_outputs) == 0:
+            return test.UNCLEAR("All IS-11 receivers support outputs")
+
+        if not (CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL and CONFIG.IS11_REFERENCE_SENDER_NODE_API_URL):
+            return test.DISABLED("Please configure IS11_REFERENCE_SENDER_NODE_API_URL"
+                                 " and IS11_REFERENCE_SENDER_CONNECTION_API_URL in Config.py")
+        format = "urn:x-nmos:format:audio"
+        activated_receivers = 0
+        valid, response = self.is11_utils.get_receivers_with_or_without_outputs_id(self.receivers, format)
+        if not valid:
+            return test.FAIL(response)
+        for receiver_id in self.is11_utils.receivers_with_or_without_outputs:
+            valid, response = self.is04_utils.checkCleanRequestJSON("GET", "receivers/" + receiver_id)
+            if not valid:
+                return test.FAIL(response)
+
+            receiver = response
+
+            if format not in self.reference_senders:
+                return test.UNCLEAR("No reference video senders found")
+
+            valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
+                                                                                     receiver, receiver_id)
+            if not valid:
+                return test.FAIL(response)
+            valid, response = self.is11_utils.stable_state_request(receiver_id, activated_receivers)
+            if not valid:
+                return test.FAIL(response)
+            activated_receivers = response
+            break
+        try:
+            if (activated_receivers < len(self.receivers_without_outputs)):
+                return test.WARNING("There are no compatible senders for {} receivers"
+                                    .format(len(self.receivers_without_outputs) - activated_receivers))
+        except Exception:
+            return test.UNCLEAR("No activated receivers")
         return test.PASS()
 
     def test_06_01(self, test):
