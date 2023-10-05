@@ -1189,6 +1189,13 @@ def main(args):
     print(" * Testing tool running on 'http://{}:{}'. Version '{}'"
           .format(get_default_ip(), core_app.config['PORT'], TOOL_VERSION))
 
+    # Give an API or client that is already running a chance to use the mock services
+    # before running any test cases
+    if CONFIG.MOCK_SERVICES_WARM_UP_DELAY:
+        print(" * Warm up your engines, testing begins in {} seconds..."
+              .format(CONFIG.MOCK_SERVICES_WARM_UP_DELAY))
+        time.sleep(CONFIG.MOCK_SERVICES_WARM_UP_DELAY)
+
     exit_code = 0
     if "suite" not in vars(CMD_ARGS):
         # Interactive testing mode. Await user input.
