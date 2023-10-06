@@ -239,6 +239,9 @@ class IS1201Test(GenericTest):
                                                        StandardClassIds.NCBLOCK.value,
                                                        self.is12_utils.ROOT_BLOCK_OID,
                                                        "root")
+            if not self.device_model:
+                raise NMOSTestException(test.FAIL("Unable to query Device Model: "
+                                                  + self.device_model_metadata["error_msg"]))
         return self.device_model
 
     def get_manager(self, test, class_id):
@@ -571,7 +574,7 @@ class IS1201Test(GenericTest):
         """Create NcObject or NcBlock based on class_id"""
         # Check class id to determine if this is a block
         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
-            member_descriptors = self.get_property(test, oid, NcBlockProperties.MEMBERS.value, role)
+            member_descriptors = self.get_property(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
             if not member_descriptors:
                 # An error has likely occured
                 return None
@@ -589,11 +592,11 @@ class IS1201Test(GenericTest):
                 class_descriptors = self.get_class_manager_descriptors(test,
                                                                        oid,
                                                                        NcClassManagerProperties.CONTROL_CLASSES.value,
-                                                                       role)
+                                                                       role + ": ")
                 datatype_descriptors = self.get_class_manager_descriptors(test,
                                                                           oid,
                                                                           NcClassManagerProperties.DATATYPES.value,
-                                                                          role)
+                                                                          role + ": ")
                 if not class_descriptors or not datatype_descriptors:
                     # An error has likely occured
                     return None
