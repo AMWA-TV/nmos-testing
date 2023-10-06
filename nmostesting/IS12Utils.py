@@ -151,6 +151,7 @@ class IS12Utils(NMOSUtils):
         self.ROOT_BLOCK_OID = 1
         self.ncp_websocket = None
         self.command_handle = 0
+        self.expect_notifications = False
         self.notifications = []
 
     def load_is12_schemas(self, spec_path):
@@ -230,47 +231,50 @@ class IS12Utils(NMOSUtils):
 
         self.ncp_websocket.send(json.dumps(command_json))
 
-        # Wait for server to respond
+        results = []
         start_time = time.time()
         while time.time() < start_time + WS_MESSAGE_TIMEOUT:
-            if self.ncp_websocket.is_messages_received():
+            if not self.ncp_websocket.is_messages_received():
+                time.sleep(0.2)
+                continue
+
+            # find the response to our request
+            for message in self.ncp_websocket.get_messages():
+                parsed_message = json.loads(message)
+
+                if self.message_type_to_schema_name(parsed_message.get("messageType")):
+                    self.validate_is12_schema(
+                        test,
+                        parsed_message,
+                        self.message_type_to_schema_name(parsed_message["messageType"]),
+                        context=self.message_type_to_schema_name(parsed_message["messageType"]) + ": ")
+                else:
+                    raise NMOSTestException(test.FAIL("Unrecognised message type: " + parsed_message.get("messageType"),
+                                                      "https://specs.amwa.tv/is-12/branches/{}"
+                                                      "/docs/Protocol_messaging.html#command-message-type"
+                                                      .format(self.spec_branch)))
+
+                if parsed_message["messageType"] == MessageTypes.CommandResponse:
+                    responses = parsed_message["responses"]
+                    for response in responses:
+                        if response["handle"] == command_handle:
+                            if response["result"]["status"] != NcMethodStatus.OK:
+                                raise NMOSTestException(test.FAIL(response["result"]))
+                            results.append(response)
+                if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
+                    results.append(parsed_message["subscriptions"])
+                if parsed_message["messageType"] == MessageTypes.Notification:
+                    self.notifications += parsed_message["notifications"]
+                if parsed_message["messageType"] == MessageTypes.Error:
+                    raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
+                                                      "/docs/Protocol_messaging.html#error-messages"
+                                                      .format(self.spec_branch)))
+
+            if not self.expect_notifications and len(results) != 0:
                 break
-            time.sleep(0.2)
+            if self.expect_notifications and len(results) != 0 and len(self.notifications) != 0:
+                break
 
-        messages = self.ncp_websocket.get_messages()
-
-        results = []
-        # find the response to our request
-        for message in messages:
-            parsed_message = json.loads(message)
-
-            if self.message_type_to_schema_name(parsed_message["messageType"]):
-                self.validate_is12_schema(
-                    test,
-                    parsed_message,
-                    self.message_type_to_schema_name(parsed_message["messageType"]),
-                    context=self.message_type_to_schema_name(parsed_message["messageType"]) + ": ")
-            else:
-                raise NMOSTestException(test.FAIL("Unrecognised message type: " + parsed_message["messageType"],
-                                                  "https://specs.amwa.tv/is-12/branches/{}"
-                                                  "/docs/Protocol_messaging.html#command-message-type"
-                                                  .format(self.spec_branch)))
-
-            if parsed_message["messageType"] == MessageTypes.CommandResponse:
-                responses = parsed_message["responses"]
-                for response in responses:
-                    if response["handle"] == command_handle:
-                        if response["result"]["status"] != NcMethodStatus.OK:
-                            raise NMOSTestException(test.FAIL(response["result"]))
-                        results.append(response)
-            if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
-                results.append(parsed_message["subscriptions"])
-            if parsed_message["messageType"] == MessageTypes.Notification:
-                self.notifications += parsed_message["notifications"]
-            if parsed_message["messageType"] == MessageTypes.Error:
-                raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
-                                                  "/docs/Protocol_messaging.html#error-messages"
-                                                  .format(self.spec_branch)))
         if len(results) == 0:
             raise NMOSTestException(test.FAIL("No Message Response received.",
                                               "https://specs.amwa.tv/is-12/branches/{}"
@@ -285,8 +289,12 @@ class IS12Utils(NMOSUtils):
     def get_notifications(self):
         return self.notifications
 
-    def reset_notifications(self):
+    def start_logging_notifications(self):
+        self.expect_notifications = True
         self.notifications = []
+
+    def stop_logging_notifications(self):
+        self.expect_notifications = False
 
     def create_command_JSON(self, oid, method_id, arguments):
         """for sending over websocket"""
