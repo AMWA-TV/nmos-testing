@@ -1385,8 +1385,9 @@ class IS1201Test(GenericTest):
             context = "oid: " + str(oid) + ", "
 
             for label in [new_user_label, old_user_label]:
-                self.is12_utils.reset_notifications()
+                self.is12_utils.start_logging_notifications()
                 self.is12_utils.set_property(test, oid, NcObjectProperties.USER_LABEL.value, label)
+                self.is12_utils.stop_logging_notifications()
 
                 if len(self.is12_utils.get_notifications()) == 0:
                     error = True
