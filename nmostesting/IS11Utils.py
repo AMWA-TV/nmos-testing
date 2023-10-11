@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
-
 from . import TestHelper
 from .NMOSUtils import NMOSUtils
-
-SND_RCV_SUBSET = Enum('SndRcvSubset', ['ALL', 'WITH_I_O', 'WITHOUT_I_O'])
 
 
 class IS11Utils(NMOSUtils):
@@ -25,47 +21,27 @@ class IS11Utils(NMOSUtils):
         NMOSUtils.__init__(self, url)
 
     # TODO: Remove the duplication (IS05Utils)
-    def get_senders(self, filter=SND_RCV_SUBSET.ALL):
+    def get_senders(self):
         """Gets a list of the available senders on the API"""
         toReturn = []
         valid, r = TestHelper.do_request("GET", self.url + "senders/")
         if valid and r.status_code == 200:
             try:
                 for value in r.json():
-                    if filter == SND_RCV_SUBSET.ALL:
-                        toReturn.append(value[:-1])
-                    else:
-                        valid_io, r_io = TestHelper.do_request("GET", self.url + "senders/" + value + "inputs/")
-                        if valid_io and r_io.status_code == 200:
-                            try:
-                                if len(r_io.json()) > 0 and filter == SND_RCV_SUBSET.WITH_I_O or \
-                                   len(r_io.json()) == 0 and filter == SND_RCV_SUBSET.WITHOUT_I_O:
-                                    toReturn.append(value[:-1])
-                            except ValueError:
-                                pass
+                    toReturn.append(value[:-1])
             except ValueError:
                 pass
         return toReturn
 
     # TODO: Remove the duplication (IS05Utils)
-    def get_receivers(self, filter=SND_RCV_SUBSET.ALL):
+    def get_receivers(self):
         """Gets a list of the available receivers on the API"""
         toReturn = []
         valid, r = TestHelper.do_request("GET", self.url + "receivers/")
         if valid and r.status_code == 200:
             try:
                 for value in r.json():
-                    if filter == SND_RCV_SUBSET.ALL:
-                        toReturn.append(value[:-1])
-                    else:
-                        valid_io, r_io = TestHelper.do_request("GET", self.url + "receivers/" + value + "outputs/")
-                        if valid_io and r_io.status_code == 200:
-                            try:
-                                if len(r_io.json()) > 0 and filter == SND_RCV_SUBSET.WITH_I_O or \
-                                   len(r_io.json()) == 0 and filter == SND_RCV_SUBSET.WITHOUT_I_O:
-                                    toReturn.append(value[:-1])
-                            except ValueError:
-                                pass
+                    toReturn.append(value[:-1])
             except ValueError:
                 pass
         return toReturn

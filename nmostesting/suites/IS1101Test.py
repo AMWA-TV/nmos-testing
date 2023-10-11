@@ -17,21 +17,19 @@ import re
 
 from requests.compat import json
 from ..NMOSUtils import NMOSUtils
-from ..GenericTest import GenericTest
+from ..GenericTest import GenericTest, NMOSInitException, NMOSTestException
 from .. import TestHelper
 from .. import Config as CONFIG
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
 import requests
 import datetime
-from ..IS11Utils import IS11Utils, SND_RCV_SUBSET
+from ..IS11Utils import IS11Utils
 
 COMPAT_API_KEY = "streamcompatibility"
 CONTROLS = "controls"
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
-VALID_EDID = "test_data/IS1101/valid_edid.bin"
-INVALID_EDID = "test_data/IS1101/invalid_edid.bin"
 
 REF_SUPPORTED_CONSTRAINTS_VIDEO = [
     "urn:x-nmos:cap:meta:label",
@@ -55,6 +53,44 @@ REF_SUPPORTED_CONSTRAINTS_AUDIO = [
     "urn:x-nmos:cap:format:sample_depth"
 ]
 
+VALID_EDID = bytearray([
+    0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+    0x04, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x0a, 0x01, 0x04, 0x80, 0x00, 0x00, 0x00,
+    0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
+])
+
+INVALID_EDID = bytearray([
+    0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
+])
+
 
 class IS1101Test(GenericTest):
     """
@@ -64,7 +100,6 @@ class IS1101Test(GenericTest):
         # Don't auto-test paths responding with an EDID binary as they don't have a JSON Schema
         omit_paths = [
             "/single/senders/{senderId}/transportfile",
-            "/inputs/{inputId}/edid",
             "/inputs/{inputId}/edid/base",
             "/inputs/{inputId}/edid/effective",
             "/outputs/{outputId}/edid"
@@ -77,8 +112,6 @@ class IS1101Test(GenericTest):
         self.not_edid_connected_outputs = []
         self.edid_connected_outputs = []
         self.reference_senders = {}
-        self.receivers_with_outputs = []
-        self.receivers_without_outputs = []
         self.flow = ""
         self.caps = ""
         self.flow_format = {}
@@ -95,13 +128,7 @@ class IS1101Test(GenericTest):
         self.constraints = {}
         self.some_input = {}
         self.input_senders = []
-        self.connected_inputs = []
-        self.disconnected_input = []
         self.not_active_connected_inputs = []
-        self.not_edid_connected_inputs = []
-        self.edid_connected_inputs = []
-        self.support_base_edid = {}
-        self.default_edid = {}
         self.another_grain_rate_constraints = {}
         self.another_sample_rate_constraints = {}
         self.not_input_senders = []
@@ -127,16 +154,35 @@ class IS1101Test(GenericTest):
     def set_up_tests(self):
         self.senders = self.is11_utils.get_senders()
         self.receivers = self.is11_utils.get_receivers()
-        self.receivers_with_outputs = self.is11_utils.get_receivers(SND_RCV_SUBSET.WITH_I_O)
-        self.receivers_without_outputs = self.is11_utils.get_receivers(SND_RCV_SUBSET.WITHOUT_I_O)
+
+        self.receivers_with_outputs = list(filter(self.receiver_has_i_o, self.receivers))
+        self.receivers_without_outputs = list(set(self.receivers) - set(self.receivers_with_outputs))
+
         self.inputs = self.is11_utils.get_inputs()
         self.outputs = self.is11_utils.get_outputs()
+
+        self.connected_inputs = list(filter(self.is_input_connected, self.inputs))
+        self.disconnected_inputs = list(set(self.inputs) - set(self.connected_inputs))
+
+        self.edid_connected_inputs = list(filter(self.has_input_edid_support, self.connected_inputs))
+        self.not_edid_connected_inputs = list(set(self.connected_inputs) - set(self.edid_connected_inputs))
+
+        self.edid_inputs = list(filter(self.has_input_edid_support, self.inputs))
+        self.non_edid_inputs = list(set(self.inputs) - set(self.edid_inputs))
+
+        self.base_edid_inputs = list(filter(self.has_input_base_edid_support, self.edid_inputs))
 
         self.state_no_essence = "no_essence"
         self.state_awaiting_essence = "awaiting_essence"
 
+        self.deactivate_connection_resources("sender")
+        self.deactivate_connection_resources("receiver")
+
+        self.delete_active_constraints()
+        self.delete_base_edid()
+
     # GENERAL TESTS
-    def test_00_01(self, test):
+    def test_1(self, test):
         """At least one Device is showing an IS-11 control advertisement matching the API under test"""
 
         control_type = "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]
@@ -148,127 +194,16 @@ class IS1101Test(GenericTest):
             self.authorization
         )
 
-    def test_00_02(self, test):
-        "Put all senders into inactive state"
-        senders_url = self.conn_url + "single/senders/"
-        valid, response = TestHelper.do_request("GET", senders_url)
-        if not valid:
-            return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-        if response.status_code != 200:
-            return test.FAIL("The request {} has failed {}".format(senders_url, response.json()))
-        senders = response.json()
-        if len(senders) > 0:
-            for sender in senders:
-                url = senders_url + sender + "staged/"
-                deactivate_json = {
-                    "master_enable": False,
-                    "activation": {"mode": "activate_immediate"},
-                }
-
-                valid_patch, response = TestHelper.do_request("PATCH", url, json=deactivate_json)
-                if not valid_patch:
-                    return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-                if (
-                    response.status_code != 200
-                    or response.json()["master_enable"]
-                    or response.json()["activation"]["mode"] != "activate_immediate"
-                ):
-                    return test.FAIL("The patch request to {} has failed: {}".format(url, response.json()))
-            return test.PASS()
-        return test.UNCLEAR("Could not find any senders to test")
-
-    def test_00_03(self, test):
-        "Put all the receivers into inactive state"
-        receivers_url = self.conn_url + "single/receivers/"
-        valid, response = TestHelper.do_request("GET", receivers_url)
-        if not valid:
-            return test.FAIL("Unexpected response from the connection API: {}".format(response))
-        if response.status_code != 200:
-            return test.FAIL("The connection request {} has failed: {}".format(receivers_url, response.json()))
-        receivers = response.json()
-        if len(receivers) > 0:
-            for receiver in receivers:
-                url = receivers_url + receiver + "staged/"
-                deactivate_json = {
-                    "master_enable": False,
-                    "activation": {"mode": "activate_immediate"},
-                }
-                valid_patch, response = TestHelper.do_request("PATCH", url, json=deactivate_json)
-                if not valid_patch:
-                    return test.FAIL("Unexpected response from the Connection API: {}".format(response))
-                if (
-                    response.status_code != 200
-                    or response.json()["master_enable"]
-                    or response.json()["activation"]["mode"] != "activate_immediate"
-                ):
-                    return test.FAIL("The patch request to {} has failed: {}".format(url, response.json()))
-
-            return test.PASS()
-
-        return test.UNCLEAR("Could not find any receivers to test")
-
     # INPUTS TESTS
-    def test_01_00(self, test):
-        """
-        Reset the active constraints of all the senders such that the base EDID is the effective EDID
-        """
-
-        if len(self.senders) > 0:
-            for sender_id in self.senders:
-                valid, response = TestHelper.do_request(
-                    "DELETE",
-                    self.build_constraints_active_url(sender_id),
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The sender {} constraints cannot be deleted".format(sender_id))
-            return test.PASS()
-        return test.UNCLEAR("There are no IS-11 senders")
-
-    def test_01_01(self, test):
-        """
-        Verify that the device supports the concept of Input.
-        """
-
-        if len(self.inputs) == 0:
-            return test.UNCLEAR("No inputs")
-        return test.PASS()
-
-    def test_01_02(self, test):
-        """
-        Verify that some of the inputs of the device are connected
-        """
-        if len(self.inputs) != 0:
-            for input in self.inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input, response))
-                try:
-                    if response.json()["connected"]:
-                        self.connected_inputs.append(response.json())
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-            if len(self.connected_inputs) == 0:
-                return test.UNCLEAR("inputs are not connected")
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
-
     def test_01_03(self, test):
         """
         Verify that all connected inputs have a signal
         """
         if len(self.connected_inputs) != 0:
             for connectedInput in self.connected_inputs:
-                state = connectedInput["status"]["state"]
-                id = connectedInput["id"]
+                input = self.get_json(test, self.compat_url + "inputs/" + connectedInput + "/properties/")
+                state = input["status"]["state"]
+                id = input["id"]
                 if state == "no_signal" or state == "awaiting_signal":
                     if state == "awaiting_signal":
                         for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
@@ -294,7 +229,7 @@ class IS1101Test(GenericTest):
                         if state == "awaiting_signal":
                             return test.FAIL("Expected state of input {} is \"awaiting_signal\", got \"{}\""
                                              .format(id, state))
-                        self.not_active_connected_inputs.append(connectedInput)
+                        self.not_active_connected_inputs.append(input)
             if len(self.not_active_connected_inputs) != 0:
                 for input in self.not_active_connected_inputs:
                     self.connected_inputs.remove(input)
@@ -303,585 +238,236 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("No connected input have a signal")
         return test.UNCLEAR("No resources found to perform this test")
 
-    def test_01_04_00(self, test):
-        """
-        Verify that connected inputs supporting EDID behave according to the RAML file
-        """
-        if len(self.connected_inputs) != 0:
-            for connectedInput in self.connected_inputs:
-                id = connectedInput["id"]
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(id, response))
-                try:
-                    if response.json()["edid_support"]:
-                        self.edid_connected_inputs.append(response.json()["id"])
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-            if len(self.edid_connected_inputs) != 0:
-                self.test_01_04_pass = True
-                return test.PASS()
-            return test.UNCLEAR("No resources found to perform this test")
-        return test.UNCLEAR("No resources found to perform this test")
+    def test_2(self, test):
+        """Inputs with EDID support return the Effective EDID"""
+        if len(self.edid_inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs with EDID support found.")
 
-    def test_01_04_01(self, test):
-        """
-        Verify that an input indicating EDID support behaves according to the RAML file.
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} edid streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+        for inputId in self.is11_utils.sampled_list(self.edid_inputs):
+            self.get_effective_edid(test, inputId)
 
-    def test_01_04_02(self, test):
-        """
-        Verify that a valid EDID can be retrieved from the device;
-        this EDID represents the default EDID of the device
-        """
+        return test.PASS()
 
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
+    def test_3(self, test):
+        """Inputs with Base EDID support handles PUTting and DELETing the Base EDID"""
+        if len(self.base_edid_inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
 
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if (
-                    response.status_code != 200
-                    and response.headers["Content-Type"] != "application/octet-stream"
-                ):
-                    return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-                self.default_edid[input_id] = response.content
-            return test.PASS()
+        for inputId in self.is11_utils.sampled_list(self.base_edid_inputs):
+            # Save the default value of the Effective EDID
+            default_edid = self.get_effective_edid(test, inputId)
 
-        return test.UNCLEAR("No resources found to perform this test")
+            # PUT the Base EDID to the Input
+            valid, response = self.do_request("PUT",
+                                              self.compat_url + "inputs/" + inputId + "/edid/base",
+                                              headers={"Content-Type": "application/octet-stream"},
+                                              data=VALID_EDID)
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
 
-    def test_01_04_03(self, test):
-        """
-        Verify if the device supports changing the base EDID
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code == 405:
-                    return test.UNCLEAR(
-                        "device does not support changing the base EDID"
-                    )
-                if response.status_code == 204:
-                    self.support_base_edid[input_id] = True
-                else:
-                    return test.FAIL("The input {} base edid cannot be deleted".format(input_id))
+            # Verify that /edid/base returns the last Base EDID put
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/base")
+            if (
+                not valid
+                or response.status_code != 200
+                or response.headers["Content-Type"] != "application/octet-stream"
+            ):
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+            if response.content != VALID_EDID:
+                return test.FAIL("The Base EDID of Input {}"
+                                 "doesn't match the Base EDID that has been put".format(inputId))
 
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+            # Verify that /edid/effective returns the last Base EDID put
+            if self.get_effective_edid(test, inputId) != VALID_EDID:
+                return test.FAIL("The Effective EDID of Input {}"
+                                 "doesn't match the Base EDID that has been put".format(inputId))
 
-    def test_01_04_04(self, test):
-        """
-        Verify that there is no base EDID after a delete
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+            # Delete the Base EDID
+            valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
 
-    def test_01_04_05(self, test):
-        """
-        Verify that a valid base EDID can be put
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                file = open(VALID_EDID, "rb")
-                response = requests.put(
-                    self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=file,
-                    headers={"Content-Type": "application/octet-stream"},
-                )
-                file.close()
-                if response.status_code != 204:
-                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+            # Verify that the Base EDID is properly deleted
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/base")
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
 
-    def test_01_04_06(self, test):
-        """
-        Verify that the last PUT base EDID can be retrieved
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-                if response.content != open(VALID_EDID, "rb").read():
-                    return test.FAIL("Edid files does'nt match")
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+            # Verify that /edid/effective returned to its defaults
+            if self.get_effective_edid(test, inputId) != default_edid:
+                return test.FAIL("The Effective EDID of Input {}"
+                                 "doesn't match its initial value".format(inputId))
 
-    def test_01_04_07(self, test):
-        """
-        Verify that the base EDID without constraints is visible as the effective EDID
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-                if response.content != open(VALID_EDID, "rb").read():
-                    return test.FAIL("Edid files does'nt match")
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+        return test.PASS()
 
-    def test_01_04_08(self, test):
-        """
-        Verify that the base EDID can be deleted
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} base edid cannot be deleted".format(input_id))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+    def test_4(self, test):
+        """Inputs with Base EDID support reject an invalid EDID"""
+        if len(self.base_edid_inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
 
-    def test_01_04_09(self, test):
-        """
-        Verify that the base EDID is properly deleted
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+        for inputId in self.is11_utils.sampled_list(self.base_edid_inputs):
+            valid, response = self.do_request("PUT",
+                                              self.compat_url + "inputs/" + inputId + "/edid/base",
+                                              headers={"Content-Type": "application/octet-stream"},
+                                              data=INVALID_EDID)
+            if not valid or response.status_code != 400:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+        return test.PASS()
 
-    def test_01_04_10(self, test):
-        """
-        Verify that the default EDID becomes visible again after deleting the base EDID
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-                if response.content != self.default_edid[input_id]:
-                    return test.FAIL("Edid files does'nt match")
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+    def test_5(self, test):
+        """Inputs without EDID support reject requests to /edid/*"""
+        if len(self.non_edid_inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs without EDID support found.")
 
-    def test_01_04_11(self, test):
-        """
-        Verify that a put of an invalid EDID fail
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                file = open(INVALID_EDID, "rb")
-                response = requests.put(
-                    self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=file,
-                    headers={"Content-Type": "application/octet-stream"},
-                )
-                file.close()
-                if response.status_code != 400:
-                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+        for inputId in self.is11_utils.sampled_list(self.non_edid_inputs):
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response "
+                                 "for GET /edid/effective: {}".format(response))
 
-    def test_01_05_00(self, test):
-        """
-        Verify that connected inputs not supporting EDID behave according to the RAML file
-        """
-        if len(self.connected_inputs) != 0:
-            for connectedInput in self.connected_inputs:
-                id = connectedInput["id"]
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(id, response.json()))
-                try:
-                    if not response.json()["edid_support"]:
-                        self.not_edid_connected_inputs.append(response.json()["id"])
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-            if len(self.not_edid_connected_inputs) != 0:
-                return test.PASS()
-            return test.UNCLEAR("No connected inputs not supporting EDID ")
-        return test.UNCLEAR("No resources found to perform this test")
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/base")
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response "
+                                 "for GET /edid/base: {}".format(response))
 
-    def test_01_05_01(self, test):
+            valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+            if not valid or response.status_code != 405:
+                return test.FAIL("Unexpected response "
+                                 "for DELETE /edid/base: {}".format(response))
+
+            valid, response = self.do_request("PUT",
+                                              self.compat_url + "inputs/" + inputId + "/edid/base",
+                                              headers={"Content-Type": "application/octet-stream"},
+                                              data=VALID_EDID)
+            if not valid or response.status_code != 405:
+                return test.FAIL("Unexpected response "
+                                 "for PUT /edid/base: {}".format(response))
+        return test.PASS()
+
+    def test_6(self, test):
         """
-        Verify that there is no EDID support
-        TODO: Remove, duplicates test_01_05_02
+        Inputs with Base EDID increment their version and versions of associated Senders
+        after the Base EDID gets modified
         """
-        if len(self.connected_inputs) != 0 and len(self.not_edid_connected_inputs) != 0:
+        if len(self.base_edid_inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
 
-            for input_id in self.not_edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-            return test.PASS()
+        for inputId in self.is11_utils.sampled_list(self.base_edid_inputs):
+            sender_ids = self.get_inputs_senders(test, inputId)
 
-        return test.UNCLEAR("No resources found to perform this test")
+            in_version_1 = ""
+            in_version_2 = ""
+            in_version_3 = ""
 
-    def test_01_05_02(self, test):
-        """
-        Verify that there is no effective EDID
-        """
-        if len(self.connected_inputs) != 0 and len(self.not_edid_connected_inputs) != 0:
+            snd_versions_1 = {}
+            snd_versions_2 = {}
+            snd_versions_3 = {}
 
-            for input_id in self.not_edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/effective/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} edid effective streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-            return test.PASS()
+            for sender_id in sender_ids:
+                snd_versions_1[sender_id] = ""
+                snd_versions_2[sender_id] = ""
+                snd_versions_3[sender_id] = ""
 
-        return test.UNCLEAR("No resources found to perform this test")
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+            if not valid or response.status_code != 200:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+            try:
+                in_version_1 = response.json()["version"]
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
 
-    def test_01_05_03(self, test):
-        """
-        Verify that there is no base EDID (DELETE failure)
-        """
-        if len(self.connected_inputs) != 0 and len(self.not_edid_connected_inputs) != 0:
-
-            for input_id in self.not_edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 405:
-                    return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-            return test.PASS()
-
-        return test.UNCLEAR("No resources found to perform this test")
-
-    def test_01_05_04(self, test):
-        """
-        Verify that there is no base EDID (PUT failure)
-        """
-        if len(self.connected_inputs) != 0 and len(self.not_edid_connected_inputs) != 0:
-            for input_id in self.not_edid_connected_inputs:
-                file = open(VALID_EDID, "rb")
-                response = requests.put(
-                    self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=file,
-                    headers={"Content-Type": "application/octet-stream"},
-                )
-                file.close()
-                if response.status_code != 405:
-                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
-
-    def test_01_05_05(self, test):
-        """
-        Verify that there is no base EDID (GET failure)
-        """
-        if len(self.connected_inputs) != 0 and len(self.not_edid_connected_inputs) != 0:
-
-            for input_id in self.not_edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} edid base streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-            return test.PASS()
-
-        return test.UNCLEAR("No resources found to perform this test")
-
-    def test_01_06_01(self, test):
-        """
-        Verify that the input supports changing the base EDID which is optional from the specification.
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                if (
-                    input_id in self.support_base_edid
-                    and not self.support_base_edid[input_id]
-                ):
-                    continue
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
-
-    def test_01_06_02(self, test):
-        """
-        Verify that the Input resource version changes when putting/deleting base EDID
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-                try:
-                    version = response.json()["version"]
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                self.version[input_id] = version
-
-                file = open(VALID_EDID, "rb")
-                response = requests.put(
-                    self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=file,
-                    headers={"Content-Type": "application/octet-stream"},
-                )
-                file.close()
-                if response.status_code != 204:
-                    return test.FAIL("The input {} edid base change has failed: {}".format(input_id, response.json()))
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response))
-                try:
-                    version = response.json()["version"]
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                if version == self.version[input_id]:
-                    return test.FAIL("Version doesn't change")
-                self.version[input_id] = version
-
-                valid, response = TestHelper.do_request(
-                    "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} base edid cannot be deleted".format(input_id))
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-                try:
-                    version = response.json()["version"]
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                if version == self.version[input_id]:
-                    return test.FAIL("Version does'nt change")
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
-
-    def test_01_07_01(self, test):
-        """
-        Verify that the input supports changing the base EDID
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                if (
-                    input_id in self.support_base_edid
-                    and not self.support_base_edid[input_id]
-                ):
-                    continue
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
-
-    def test_01_07_02(self, test):
-        """
-        Verify that the input is associated with a device
-        """
-        if len(self.connected_inputs) != 0 and len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-                try:
-                    input = response.json()
-                    if not input["device_id"]:
-                        return test.FAIL("no device_id")
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                self.version[input_id] = input["version"]
-
-                valid, response = TestHelper.do_request(
-                    "GET", self.node_url + "devices/" + input["device_id"]
-                )
-                if not valid:
+            for sender_id in sender_ids:
+                valid, response = self.do_request("GET", self.node_url + "senders/" + sender_id)
+                if not valid or response.status_code != 200:
                     return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The device {} Node API request has failed: {}"
-                                     .format(input["device_id"], response.json()))
                 try:
-                    device = response.json()
-                    if device["id"] != input["device_id"]:
-                        return test.FAIL("device_id does'nt match.")
+                    snd_versions_1[sender_id] = response.json()["version"]
                 except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
+                    return test.FAIL("Non-JSON response returned from the Node API")
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
 
-                self.version[device["id"]] = input["version"]
+            # PUT the Base EDID to the Input
+            valid, response = self.do_request("PUT",
+                                              self.compat_url + "inputs/" + inputId + "/edid/base",
+                                              headers={"Content-Type": "application/octet-stream"},
+                                              data=VALID_EDID)
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
 
-                file = open(VALID_EDID, "rb")
-                response = requests.put(
-                    self.compat_url + "inputs/" + input_id + "/edid/base/",
-                    data=file,
-                    headers={"Content-Type": "application/octet-stream"},
-                )
-                file.close()
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
-                try:
-                    version = response.json()["version"]
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                if version == self.version[input_id]:
-                    return test.FAIL("Version should not match.")
-                valid, response = TestHelper.do_request(
-                    "GET", self.node_url + "devices/" + device["id"]
-                )
-                if not valid:
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+            if not valid or response.status_code != 200:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+            try:
+                in_version_2 = response.json()["version"]
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+            for sender_id in sender_ids:
+                valid, response = self.do_request("GET", self.node_url + "senders/" + sender_id)
+                if not valid or response.status_code != 200:
                     return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The device {} Node API request has failed: {}"
-                                     .format(device["id"], response.json()))
-                version = response.json()["version"]
-                if version == self.version[device["id"]]:
-                    return test.FAIL("Version should not match.")
-                valid, response = TestHelper.do_request(
-                    "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 204:
-                    return test.FAIL("The input {} base edid cannot be deleted".format(input_id))
-
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
-
-    def test_01_08(self, test):
-        """
-        Verify that disconnected inputs have a minimum of functionality
-        """
-        if len(self.edid_connected_inputs) != 0:
-            for input_id in self.edid_connected_inputs:
-                valid, response = TestHelper.do_request(
-                    "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                     .format(input_id, response.json()))
                 try:
-                    if not response.json()["connected"]:
-                        self.disconnected_input.append(response.json())
+                    snd_versions_2[sender_id] = response.json()["version"]
                 except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
+                    return test.FAIL("Non-JSON response returned from the Node API")
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
-            if len(self.disconnected_input) == 0:
-                return test.UNCLEAR("All inputs are connected")
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+
+            if in_version_2 == in_version_1:
+                return test.FAIL("Input {} didn't increment its version after PUTting the Base EDID".format(inputId))
+            for sender_id in sender_ids:
+                if snd_versions_2[sender_id] == snd_versions_1[sender_id]:
+                    return test.FAIL("Sender {} didn't increment its version "
+                                     "after PUTting the Base EDID to Input {}".format(sender_id, inputId))
+
+            # DELETE the Base EDID of the Input
+            valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+
+            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
+            if not valid or response.status_code != 200:
+                return test.FAIL("Unexpected response from "
+                                 "the Stream Compatibility Management API: {}".format(response))
+            try:
+                in_version_3 = response.json()["version"]
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+
+            for sender_id in sender_ids:
+                valid, response = self.do_request("GET", self.node_url + "senders/" + sender_id)
+                if not valid or response.status_code != 200:
+                    return test.FAIL("Unexpected response from the Node API: {}".format(response))
+                try:
+                    snd_versions_3[sender_id] = response.json()["version"]
+                except json.JSONDecodeError:
+                    return test.FAIL("Non-JSON response returned from the Node API")
+                except KeyError as e:
+                    return test.FAIL("Unable to find expected key: {}".format(e))
+
+            if in_version_3 == in_version_2:
+                return test.FAIL("Input {} didn't increment its version after DELETing the Base EDID".format(inputId))
+            for sender_id in sender_ids:
+                if snd_versions_3[sender_id] == snd_versions_2[sender_id]:
+                    return test.FAIL("Sender {} didn't increment its version "
+                                     "after PUTting the Base EDID to Input {}".format(sender_id, inputId))
+
+        return test.PASS()
 
     # SENDERS TESTS
     """
@@ -2344,7 +1930,7 @@ class IS1101Test(GenericTest):
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test")
 
-    def test_02_03_02(self, test):
+    def _test_02_03_02(self, test):
         """
         Verify that the input passed its test suite
         """
@@ -2460,7 +2046,7 @@ class IS1101Test(GenericTest):
                     for input_id in response.json():
                         if (
                             input_id in self.edid_connected_inputs
-                            and input_id in self.support_base_edid
+                            and input_id in self.base_edid_inputs
                         ):
                             inputs.append(input_id)
                         else:
@@ -2509,13 +2095,11 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unable to find expected key: {}".format(e))
                     self.version[sender_id] = version
 
-                    file = open(VALID_EDID, "rb")
                     response = requests.put(
                         self.compat_url + "inputs/" + input_id + "/edid/base/",
-                        data=file,
+                        data=VALID_EDID,
                         headers={"Content-Type": "application/octet-stream"},
                     )
-                    file.close()
                     time.sleep(CONFIG.STABLE_STATE_DELAY)
 
                     valid, response = TestHelper.do_request(
@@ -2590,7 +2174,7 @@ class IS1101Test(GenericTest):
                 for input_id in response.json():
                     if (
                         input_id in self.edid_connected_inputs
-                        and input_id in self.support_base_edid
+                        and input_id in self.base_edid_inputs
                     ):
                         inputs.append(input_id)
                     else:
@@ -2654,6 +2238,8 @@ class IS1101Test(GenericTest):
 
                 self.version[sender_id] = version
 
+                default_edid = self.get_effective_edid(test, input_id)
+
                 self.another_grain_rate_constraints[sender_id] = {
                     "constraint_sets": [
                         {
@@ -2702,7 +2288,7 @@ class IS1101Test(GenericTest):
                             input_id, response
                         )
                     )
-                if response.content == self.default_edid[input_id]:
+                if response.content == default_edid:
                     print("Grain rate constraint are not changing effective EDID")
 
                 valid, response = TestHelper.do_request(
@@ -2939,7 +2525,7 @@ class IS1101Test(GenericTest):
                 for input_id in response.json():
                     if (
                         input_id in self.edid_connected_inputs
-                        and input_id in self.support_base_edid
+                        and input_id in self.base_edid_inputs
                     ):
                         inputs.append(input_id)
                     else:
@@ -3049,7 +2635,7 @@ class IS1101Test(GenericTest):
                             input_id, response
                         )
                     )
-                if response.content == self.default_edid[input_id]:
+                if response.content == default_edid:
                     print("Grain rate constraint are not changing effective EDID")
 
                 valid, response = TestHelper.do_request(
@@ -4297,103 +3883,25 @@ class IS1101Test(GenericTest):
     def test_06_04(self, test):
         """Effective EDID updates if Base EDID changes"""
 
-        if len(self.inputs) == 0:
-            return test.UNCLEAR("Not tested. No inputs found.")
+        if len(self.base_edid_inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
 
-        inputs_tested = []
-
-        for inputId in self.is11_utils.sampled_list(self.inputs):
-            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
-            if not valid or response.status_code != 200:
-                return test.FAIL("Unexpected response from "
-                                 "the Stream Compatibility Management API: {}".format(response))
-
+        for inputId in self.is11_utils.sampled_list(self.base_edid_inputs):
             try:
-                input = response.json()
-                if not input["edid_support"]:
-                    continue
-
-                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
-                if not valid or response.status_code != 200:
-                    return test.FAIL("Unexpected response from "
-                                     "the Stream Compatibility Management API: {}".format(response))
-
-                effective_edid_before = response.content
-
-                base_edid = bytearray([
-                    0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-                    0x04, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x0a, 0x01, 0x04, 0x80, 0x00, 0x00, 0x00,
-                    0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
-                    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-                    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
-                    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
-                ])
+                effective_edid_before = self.get_effective_edid(test, inputId)
 
                 valid, response = self.do_request("PUT",
                                                   self.compat_url + "inputs/" + inputId + "/edid/base",
                                                   headers={"Content-Type": "application/octet-stream"},
-                                                  data=base_edid)
+                                                  data=VALID_EDID)
                 if not valid or response.status_code != 204:
                     return test.FAIL("Unexpected response from "
                                      "the Stream Compatibility Management API: {}".format(response))
 
                 time.sleep(CONFIG.STABLE_STATE_DELAY)
 
-                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
-                if not valid or response.status_code != 200:
-                    return test.FAIL("Unexpected response from "
-                                     "the Stream Compatibility Management API: {}".format(response))
-
-                if response.content == effective_edid_before:
+                if self.get_effective_edid(test, inputId) == effective_edid_before:
                     return test.FAIL("Effective EDID doesn't change when Base EDID changes")
-
-                inputs_tested.append(inputId)
-
-            except json.JSONDecodeError:
-                return test.FAIL("Non-JSON response returned from Node API")
-            except KeyError as e:
-                return test.FAIL("Unable to find expected key: {}".format(e))
-
-        if len(inputs_tested) > 0:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("Not tested. No inputs with EDID support found.")
-
-    def test_06_05(self, test):
-        """Effective EDID updates if Base EDID removed"""
-
-        if len(self.inputs) == 0:
-            return test.UNCLEAR("Not tested. No inputs found.")
-
-        inputs_tested = []
-
-        for inputId in self.is11_utils.sampled_list(self.inputs):
-            valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/properties")
-            if not valid or response.status_code != 200:
-                return test.FAIL("Unexpected response from "
-                                 "the Stream Compatibility Management API: {}".format(response))
-
-            try:
-                input = response.json()
-                if not input["edid_support"]:
-                    continue
-
-                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
-                if not valid or response.status_code != 200:
-                    return test.FAIL("Unexpected response from "
-                                     "the Stream Compatibility Management API: {}".format(response))
-
-                effective_edid_before = response.content
 
                 valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
                 if not valid or response.status_code != 204:
@@ -4402,22 +3910,152 @@ class IS1101Test(GenericTest):
 
                 time.sleep(CONFIG.STABLE_STATE_DELAY)
 
-                valid, response = self.do_request("GET", self.compat_url + "inputs/" + inputId + "/edid/effective")
-                if not valid or response.status_code != 200:
-                    return test.FAIL("Unexpected response from "
-                                     "the Stream Compatibility Management API: {}".format(response))
-
-                if response.content == effective_edid_before:
-                    return test.FAIL("Effective EDID doesn't change when Base EDID changes")
-
-                inputs_tested.append(inputId)
+                if self.get_effective_edid(test, inputId) != effective_edid_before:
+                    return test.FAIL("Effective EDID doesn't restore after Base EDID DELETion")
 
             except json.JSONDecodeError:
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
                 return test.FAIL("Unable to find expected key: {}".format(e))
+        return test.PASS()
 
-        if len(inputs_tested) > 0:
-            return test.PASS()
+    def deactivate_connection_resources(self, port):
+        url = self.conn_url + "single/" + port + "s/"
+        valid, response = TestHelper.do_request("GET", url)
+        if not valid:
+            raise NMOSInitException("Unexpected response from the Connection API: {}".format(response))
+        if response.status_code != 200:
+            raise NMOSInitException("The request {} has failed: {}".format(url, response))
+
+        for myPort in response.json():
+            if myPort == "9dd466cb-36c3-5a4e-82d0-b422b119ba69/":
+                continue
+            staged_url = url + myPort + "staged/"
+            deactivate_json = {
+                "master_enable": False,
+                "activation": {"mode": "activate_immediate"},
+            }
+
+            valid_patch, response = TestHelper.do_request("PATCH", staged_url, json=deactivate_json)
+            if not valid_patch:
+                raise NMOSInitException("Unexpected response from the Connection API: {}".format(response))
+            if (
+                response.status_code != 200
+                or response.json()["master_enable"]
+                or response.json()["activation"]["mode"] != "activate_immediate"
+            ):
+                raise NMOSInitException("The patch request to {} has failed: {}"
+                                        .format(staged_url, response))
+
+    def has_i_o(self, id, type):
+        connector = "senders/" if type == "sender" else "receivers/"
+        i_o = "/inputs/" if type == "sender" else "/outputs/"
+        url = self.compat_url + connector + id + i_o
+
+        valid, r = TestHelper.do_request("GET", url)
+        if valid and r.status_code == 200:
+            return len(r.json()) > 0
         else:
-            return test.UNCLEAR("Not tested. No inputs with EDID support found.")
+            raise NMOSInitException("The request {} has failed: {}".format(url, r))
+
+    def receiver_has_i_o(self, id):
+        return self.has_i_o(id, "receiver")
+
+    def has_boolean_property_true(self, id, type, property):
+        i_o = "inputs/" if type == "input" else "outputs/"
+        url = self.compat_url + i_o + id + "/properties/"
+
+        valid, r = TestHelper.do_request("GET", url)
+        if valid and r.status_code == 200:
+            if r.json()[property]:
+                return True
+            else:
+                return False
+        else:
+            raise NMOSInitException("The request {} has failed: {}".format(url, r))
+
+    def is_input_connected(self, id):
+        return self.has_boolean_property_true(id, "input", "connected")
+
+    def has_input_edid_support(self, id):
+        return self.has_boolean_property_true(id, "input", "edid_support")
+
+    def has_input_base_edid_support(self, id):
+        return self.has_boolean_property_true(id, "input", "base_edid_support")
+
+    def is_output_connected(self, id):
+        return self.has_boolean_property_true(id, "output", "connected")
+
+    def delete_active_constraints(self):
+        """
+        Reset the active constraints of all the senders such that the base EDID is the effective EDID
+        """
+
+        for sender_id in self.senders:
+            url = self.compat_url + "senders/" + sender_id + "/constraints/active/"
+            valid, response = TestHelper.do_request("DELETE", url)
+
+            if not valid:
+                raise NMOSInitException("Unexpected response from the Stream Compatibility API: {}".format(response))
+            if response.status_code != 200:
+                raise NMOSInitException("The request {} has failed: {}".format(url, response))
+
+    def delete_base_edid(self):
+        for id in self.base_edid_inputs:
+            url = self.compat_url + "inputs/" + id + "/edid/base/"
+            valid, response = TestHelper.do_request("DELETE", url)
+
+            if not valid:
+                raise NMOSInitException("Unexpected response from the Stream Compatibility API: {}".format(response))
+            if response.status_code != 204:
+                raise NMOSInitException("The request {} has failed: {}".format(url, response))
+
+    def get_inputs_senders(self, test, input_id):
+        sender_ids = []
+
+        for sender_id in self.senders:
+            url = self.compat_url + "senders/" + sender_id + "/inputs"
+            valid, response = TestHelper.do_request("GET", url)
+
+            if not valid:
+                raise NMOSTestException(
+                    test.FAIL("Unexpected response from the Stream Compatibility API: {}".format(response))
+                )
+            if response.status_code != 200:
+                raise NMOSTestException(test.FAIL("The request {} has failed: {}".format(url, response)))
+            try:
+                response_json = response.json()
+                if input_id in response_json:
+                    sender_ids.append(sender_id)
+            except json.JSONDecodeError:
+                raise NMOSTestException(
+                    test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
+                )
+
+        return sender_ids
+
+    def get_json(self, test, url):
+        valid, response = self.do_request("GET", url)
+        if not valid or response.status_code != 200:
+            raise NMOSTestException(
+                test.FAIL("Unexpected response from {}: {}".format(url, response))
+            )
+        try:
+            return response.json()
+        except json.JSONDecodeError:
+            raise NMOSTestException(
+                test.FAIL("Non-JSON response returned from Node API")
+            )
+
+    def get_effective_edid(self, test, input_id):
+        valid, response = self.do_request("GET", self.compat_url + "inputs/" + input_id + "/edid/effective")
+        if (
+            not valid
+            or response.status_code != 200
+            or response.headers["Content-Type"] != "application/octet-stream"
+        ):
+            raise NMOSTestException(
+                test.FAIL("Unexpected response from "
+                          "the Stream Compatibility Management API: {}".format(response))
+            )
+        return response.content
