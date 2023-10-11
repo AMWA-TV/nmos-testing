@@ -31,7 +31,7 @@ class BCP00301Test(GenericTest):
     Runs BCP-003-01-Test
     """
     def __init__(self, apis, **kwargs):
-        GenericTest.__init__(self, apis)
+        GenericTest.__init__(self, apis, **kwargs)
         if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("BCP-003-01 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
         self.authorization = False  # Don't send tokens in every request
