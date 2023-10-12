@@ -172,6 +172,15 @@ class IS1101Test(GenericTest):
 
         self.base_edid_inputs = list(filter(self.has_input_base_edid_support, self.edid_inputs))
 
+        self.connected_outputs = list(filter(self.is_output_connected, self.outputs))
+        self.disconnected_outputs = list(set(self.outputs) - set(self.connected_outputs))
+
+        self.edid_outputs = list(filter(self.has_output_edid_support, self.outputs))
+        self.non_edid_outputs = list(set(self.outputs) - set(self.edid_outputs))
+
+        self.edid_connected_outputs = list(filter(self.has_output_edid_support, self.connected_outputs))
+        self.edid_disconnected_outputs = list(filter(self.has_output_edid_support, self.disconnected_outputs))
+
         self.state_no_essence = "no_essence"
         self.state_awaiting_essence = "awaiting_essence"
 
@@ -2935,167 +2944,32 @@ class IS1101Test(GenericTest):
         return test.PASS()
 
     # OUTPUTS TESTS
-    def test_03_01(self, test):
-        """
-        Verify that the device supports the concept of Output.
-        """
-        if len(self.outputs) == 0:
-            return test.UNCLEAR("No outputs")
-        return test.PASS()
-
-    def test_03_02(self, test):
-        """
-        Verify that some of the outputs of the device are connected.
-        """
-        if len(self.outputs) == 0:
-            return test.UNCLEAR("No IS-11 outputs")
-        for output in self.outputs:
-            valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output + "/properties/"
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code == 200:
-                outputs_properties_json = []
-                outputs_properties_json.append(response.json())
-                for output in outputs_properties_json:
-                    if output["connected"]:
-                        self.connected_outputs.append(output["id"])
-            else:
-                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
-                                 .format(output, response.json()))
-        if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs")
-        return test.PASS()
-
-    def test_03_03(self, test):
-        """
-        Verify that all connected outputs do not have
-        a signal as test 0 put all of the receivers inactive.
-        """
-        if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs")
-
-        active_connected_outputs = []
-
-        for output_id in self.connected_outputs:
-            valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output_id + "/properties/"
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code == 200:
-                if response.json()["status"]["state"] == "signal_present":
-                    active_connected_outputs.append(response.json())
-            else:
-                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
-                                 .format(output_id, response.json()))
-        if len(active_connected_outputs) != 0:
-            return test.UNCLEAR(
-                "Connected output have a signal while all receivers are inactive."
-            )
-        return test.PASS()
-
-    def test_03_04(self, test):
-        """
-        Verify that connected outputs supporting EDID behave according to the RAML file.
-        """
-        if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs")
-        for output_id in self.connected_outputs:
-            valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output_id + "/properties/"
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code == 200:
-                if response.json()["edid_support"]:
-                    self.edid_connected_outputs.append(response.json()["id"])
-            else:
-                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
-                                 .format(output_id, response.json()))
-        if self.edid_connected_outputs == 0:
-            return test.UNCLEAR("Outputs not supporting edid")
-        return test.PASS()
-
-    def test_03_04_01(self, test):
-        """
-        Verify that an output indicating EDID support behaves according to the RAML file.
-        """
+    def test_7(self, test):
+        """Connected Outputs with EDID support return the EDID"""
         if len(self.edid_connected_outputs) == 0:
-            return test.UNCLEAR("No edid connected outputs")
-        for output_id in self.edid_connected_outputs:
-            valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The streamcompatibility request for output {} has failed: {}"
-                                 .format(output_id, response.json()))
+            return test.UNCLEAR("Not tested. No connected Outputs with EDID support found.")
+
+        for id in self.is11_utils.sampled_list(self.edid_connected_outputs):
+            self.get_outputs_edid(test, id)
+
         return test.PASS()
 
-    def test_03_04_02(self, test):
+    def test_8(self, test):
         """
-        Verify that a valid EDID can be retrieved from the device;
-        this EDID represents the default EDID of the device.
+        Disconnected Outputs with EDID support and Outputs without EDID support return the EDID
         """
-        is_valid_response = True
-        if len(self.edid_connected_outputs) == 0:
-            return test.UNCLEAR("No edid connected outputs")
-        for output_id in self.edid_connected_outputs:
-            valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output_id + "/edid/"
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if (
-                response.status_code != 200
-                or response.headers["Content-Type"] != "application/octet-stream"
-            ):
-                is_valid_response = False
-            break
-        if is_valid_response:
-            return test.PASS()
-        return test.FAIL("The output {} edid streamcompatibility request has failed: {}"
-                         .format(output_id, response.json()))
+        target_outputs = self.non_edid_outputs + self.edid_disconnected_outputs
 
-    def test_03_05(self, test):
-        """
-        Verify that connected outputs not supporting EDID behave according to the RAML file.
-        """
-        if len(self.connected_outputs) == 0:
-            return test.UNCLEAR("No connected outputs")
-        for output_id in self.connected_outputs:
-            valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output_id + "/properties/"
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code == 200:
-                if not response.json()["edid_support"]:
-                    self.not_edid_connected_outputs.append(response.json()["id"])
-            else:
-                return test.FAIL("The output {} properties streamcompatibility request has failed: {}"
-                                 .format(output_id, response.json()))
-        if len(self.not_edid_connected_outputs) == 0:
-            return test.UNCLEAR("Outputs supporting edid")
-        return test.PASS()
+        if len(target_outputs) == 0:
+            return test.UNCLEAR("Not tested. No disconnected Outputs with EDID support "
+                                "and Outputs without EDID support found.")
 
-    def test_03_05_01(self, test):
-        """
-        Verify that there is no EDID support.
-        """
-        if len(self.not_edid_connected_outputs) == 0:
-            return test.UNCLEAR("None of not edid connected outputs")
-        for output_id in self.not_edid_connected_outputs:
-            valid, response = TestHelper.do_request(
-                "GET", self.compat_url + "outputs/" + output_id + "/edid/"
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 204:
-                return test.FAIL("Status code should be 204")
+        for id in self.is11_utils.sampled_list(target_outputs):
+            valid, response = self.do_request("GET", self.compat_url + "outputs/" + id + "/edid")
+            if not valid or response.status_code != 204:
+                return test.FAIL("Unexpected response "
+                                 "for GET /edid: {}".format(response))
+
         return test.PASS()
 
     # RECEIVERS TESTS
@@ -3988,6 +3862,9 @@ class IS1101Test(GenericTest):
     def is_output_connected(self, id):
         return self.has_boolean_property_true(id, "output", "connected")
 
+    def has_output_edid_support(self, id):
+        return self.has_boolean_property_true(id, "output", "edid_support")
+
     def delete_active_constraints(self):
         """
         Reset the active constraints of all the senders such that the base EDID is the effective EDID
@@ -4051,6 +3928,19 @@ class IS1101Test(GenericTest):
 
     def get_effective_edid(self, test, input_id):
         valid, response = self.do_request("GET", self.compat_url + "inputs/" + input_id + "/edid/effective")
+        if (
+            not valid
+            or response.status_code != 200
+            or response.headers["Content-Type"] != "application/octet-stream"
+        ):
+            raise NMOSTestException(
+                test.FAIL("Unexpected response from "
+                          "the Stream Compatibility Management API: {}".format(response))
+            )
+        return response.content
+
+    def get_outputs_edid(self, test, output_id):
+        valid, response = self.do_request("GET", self.compat_url + "outputs/" + output_id + "/edid")
         if (
             not valid
             or response.status_code != 200
