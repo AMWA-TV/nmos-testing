@@ -2587,6 +2587,8 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unable to find expected key: {}".format(e))
                 self.version[sender_id] = version
 
+                default_edid = self.get_effective_edid(test, input_id)
+
                 self.another_sample_rate_constraints[sender_id] = {
                     "constraint_sets": [
                         {
