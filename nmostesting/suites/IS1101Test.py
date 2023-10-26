@@ -30,6 +30,8 @@ COMPAT_API_KEY = "streamcompatibility"
 CONTROLS = "controls"
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
+VALID_EDID_PATH = "test_data/IS1101/valid_edid.bin"
+INVALID_EDID_PATH = "test_data/IS1101/invalid_edid.bin"
 
 REF_SUPPORTED_CONSTRAINTS_VIDEO = [
     "urn:x-nmos:cap:meta:label",
@@ -52,44 +54,6 @@ REF_SUPPORTED_CONSTRAINTS_AUDIO = [
     "urn:x-nmos:cap:format:sample_rate",
     "urn:x-nmos:cap:format:sample_depth"
 ]
-
-VALID_EDID = bytearray([
-    0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-    0x04, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x0a, 0x01, 0x04, 0x80, 0x00, 0x00, 0x00,
-    0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
-    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
-])
-
-INVALID_EDID = bytearray([
-    0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xde
-])
 
 
 class IS1101Test(GenericTest):
@@ -152,6 +116,12 @@ class IS1101Test(GenericTest):
         return self.compat_url + "outputs/" + id + "/properties/"
 
     def set_up_tests(self):
+        with open(INVALID_EDID_PATH, "rb") as f:
+            self.invalid_edid = f.read()
+
+        with open(VALID_EDID_PATH, "rb") as f:
+            self.valid_edid = f.read()
+
         self.senders = self.is11_utils.get_senders()
         self.receivers = self.is11_utils.get_receivers()
 
@@ -270,7 +240,7 @@ class IS1101Test(GenericTest):
             valid, response = self.do_request("PUT",
                                               self.compat_url + "inputs/" + inputId + "/edid/base",
                                               headers={"Content-Type": "application/octet-stream"},
-                                              data=VALID_EDID)
+                                              data=self.valid_edid)
             if not valid or response.status_code != 204:
                 return test.FAIL("Unexpected response from "
                                  "the Stream Compatibility Management API: {}".format(response))
@@ -284,12 +254,12 @@ class IS1101Test(GenericTest):
             ):
                 return test.FAIL("Unexpected response from "
                                  "the Stream Compatibility Management API: {}".format(response))
-            if response.content != VALID_EDID:
+            if response.content != self.valid_edid:
                 return test.FAIL("The Base EDID of Input {}"
                                  "doesn't match the Base EDID that has been put".format(inputId))
 
             # Verify that /edid/effective returns the last Base EDID put
-            if self.get_effective_edid(test, inputId) != VALID_EDID:
+            if self.get_effective_edid(test, inputId) != self.valid_edid:
                 return test.FAIL("The Effective EDID of Input {}"
                                  "doesn't match the Base EDID that has been put".format(inputId))
 
@@ -321,7 +291,7 @@ class IS1101Test(GenericTest):
             valid, response = self.do_request("PUT",
                                               self.compat_url + "inputs/" + inputId + "/edid/base",
                                               headers={"Content-Type": "application/octet-stream"},
-                                              data=INVALID_EDID)
+                                              data=self.invalid_edid)
             if not valid or response.status_code != 400:
                 return test.FAIL("Unexpected response from "
                                  "the Stream Compatibility Management API: {}".format(response))
@@ -351,7 +321,7 @@ class IS1101Test(GenericTest):
             valid, response = self.do_request("PUT",
                                               self.compat_url + "inputs/" + inputId + "/edid/base",
                                               headers={"Content-Type": "application/octet-stream"},
-                                              data=VALID_EDID)
+                                              data=self.valid_edid)
             if not valid or response.status_code != 405:
                 return test.FAIL("Unexpected response "
                                  "for PUT /edid/base: {}".format(response))
@@ -407,7 +377,7 @@ class IS1101Test(GenericTest):
             valid, response = self.do_request("PUT",
                                               self.compat_url + "inputs/" + inputId + "/edid/base",
                                               headers={"Content-Type": "application/octet-stream"},
-                                              data=VALID_EDID)
+                                              data=self.valid_edid)
             if not valid or response.status_code != 204:
                 return test.FAIL("Unexpected response from "
                                  "the Stream Compatibility Management API: {}".format(response))
@@ -2106,7 +2076,7 @@ class IS1101Test(GenericTest):
 
                     response = requests.put(
                         self.compat_url + "inputs/" + input_id + "/edid/base/",
-                        data=VALID_EDID,
+                        data=self.valid_edid,
                         headers={"Content-Type": "application/octet-stream"},
                     )
                     time.sleep(CONFIG.STABLE_STATE_DELAY)
@@ -3769,7 +3739,7 @@ class IS1101Test(GenericTest):
                 valid, response = self.do_request("PUT",
                                                   self.compat_url + "inputs/" + inputId + "/edid/base",
                                                   headers={"Content-Type": "application/octet-stream"},
-                                                  data=VALID_EDID)
+                                                  data=self.valid_edid)
                 if not valid or response.status_code != 204:
                     return test.FAIL("Unexpected response from "
                                      "the Stream Compatibility Management API: {}".format(response))
