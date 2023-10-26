@@ -3767,38 +3767,39 @@ class IS1101Test(GenericTest):
 
     def deactivate_connection_resources(self, port):
         url = self.conn_url + "single/" + port + "s/"
-        valid, response = TestHelper.do_request("GET", url)
+        valid, response = self.do_request("GET", url)
         if not valid:
             raise NMOSInitException("Unexpected response from the Connection API: {}".format(response))
         if response.status_code != 200:
             raise NMOSInitException("The request {} has failed: {}".format(url, response))
 
-        for myPort in response.json():
-            if myPort == "9dd466cb-36c3-5a4e-82d0-b422b119ba69/":
-                continue
-            staged_url = url + myPort + "staged/"
-            deactivate_json = {
-                "master_enable": False,
-                "activation": {"mode": "activate_immediate"},
-            }
+        try:
+            for myPort in response.json():
+                staged_url = url + myPort + "staged/"
+                deactivate_json = {
+                    "master_enable": False,
+                    "activation": {"mode": "activate_immediate"},
+                }
 
-            valid_patch, response = TestHelper.do_request("PATCH", staged_url, json=deactivate_json)
-            if not valid_patch:
-                raise NMOSInitException("Unexpected response from the Connection API: {}".format(response))
-            if (
-                response.status_code != 200
-                or response.json()["master_enable"]
-                or response.json()["activation"]["mode"] != "activate_immediate"
-            ):
-                raise NMOSInitException("The patch request to {} has failed: {}"
-                                        .format(staged_url, response))
+                valid_patch, patch_response = self.do_request("PATCH", staged_url, json=deactivate_json)
+                if not valid_patch:
+                    raise NMOSInitException("Unexpected response from the Connection API: {}".format(patch_response))
+                if (
+                    patch_response.status_code != 200
+                    or patch_response.json()["master_enable"]
+                    or patch_response.json()["activation"]["mode"] != "activate_immediate"
+                ):
+                    raise NMOSInitException("The patch request to {} has failed: {}"
+                                            .format(staged_url, patch_response))
+        except json.JSONDecodeError:
+            raise NMOSInitException("Non-JSON response returned from the Connection API")
 
     def has_i_o(self, id, type):
         connector = "senders/" if type == "sender" else "receivers/"
         i_o = "/inputs/" if type == "sender" else "/outputs/"
         url = self.compat_url + connector + id + i_o
 
-        valid, r = TestHelper.do_request("GET", url)
+        valid, r = self.do_request("GET", url)
         if valid and r.status_code == 200:
             return len(r.json()) > 0
         else:
@@ -3811,7 +3812,7 @@ class IS1101Test(GenericTest):
         i_o = "inputs/" if type == "input" else "outputs/"
         url = self.compat_url + i_o + id + "/properties/"
 
-        valid, r = TestHelper.do_request("GET", url)
+        valid, r = self.do_request("GET", url)
         if valid and r.status_code == 200:
             if r.json()[property]:
                 return True
@@ -3842,7 +3843,7 @@ class IS1101Test(GenericTest):
 
         for sender_id in self.senders:
             url = self.compat_url + "senders/" + sender_id + "/constraints/active/"
-            valid, response = TestHelper.do_request("DELETE", url)
+            valid, response = self.do_request("DELETE", url)
 
             if not valid:
                 raise NMOSInitException("Unexpected response from the Stream Compatibility API: {}".format(response))
@@ -3852,7 +3853,7 @@ class IS1101Test(GenericTest):
     def delete_base_edid(self):
         for id in self.base_edid_inputs:
             url = self.compat_url + "inputs/" + id + "/edid/base/"
-            valid, response = TestHelper.do_request("DELETE", url)
+            valid, response = self.do_request("DELETE", url)
 
             if not valid:
                 raise NMOSInitException("Unexpected response from the Stream Compatibility API: {}".format(response))
@@ -3864,7 +3865,7 @@ class IS1101Test(GenericTest):
 
         for sender_id in self.senders:
             url = self.compat_url + "senders/" + sender_id + "/inputs"
-            valid, response = TestHelper.do_request("GET", url)
+            valid, response = self.do_request("GET", url)
 
             if not valid:
                 raise NMOSTestException(
