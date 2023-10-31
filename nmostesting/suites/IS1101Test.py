@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
 import time
 import re
 
@@ -228,7 +229,10 @@ class IS1101Test(GenericTest):
         return test.PASS()
 
     def test_01_02(self, test):
-        """Inputs with Base EDID support handles PUTting and DELETing the Base EDID"""
+        """Inputs with Base EDID support handle PUTting and DELETing the Base EDID"""
+        def is_edid_equal_to_effective_edid(self, test, inputId, edid):
+            return self.get_effective_edid(test, inputId) == edid
+
         if len(self.base_edid_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
 
@@ -259,7 +263,10 @@ class IS1101Test(GenericTest):
                                  "doesn't match the Base EDID that has been put".format(inputId))
 
             # Verify that /edid/effective returns the last Base EDID put
-            if self.get_effective_edid(test, inputId) != self.valid_edid:
+            result = self.wait_until_true(
+                partial(is_edid_equal_to_effective_edid, self, test, inputId, self.valid_edid)
+            )
+            if not result:
                 return test.FAIL("The Effective EDID of Input {}"
                                  "doesn't match the Base EDID that has been put".format(inputId))
 
@@ -276,7 +283,8 @@ class IS1101Test(GenericTest):
                                  "the Stream Compatibility Management API: {}".format(response))
 
             # Verify that /edid/effective returned to its defaults
-            if self.get_effective_edid(test, inputId) != default_edid:
+            result = self.wait_until_true(partial(is_edid_equal_to_effective_edid, self, test, inputId, default_edid))
+            if not result:
                 return test.FAIL("The Effective EDID of Input {}"
                                  "doesn't match its initial value".format(inputId))
 
@@ -3729,6 +3737,12 @@ class IS1101Test(GenericTest):
     def test_06_04(self, test):
         """Effective EDID updates if Base EDID changes"""
 
+        def is_edid_equal_to_effective_edid(self, test, inputId, edid):
+            return self.get_effective_edid(test, inputId) == edid
+
+        def is_edid_inequal_to_effective_edid(self, test, inputId, edid):
+            return self.get_effective_edid(test, inputId) != edid
+
         if len(self.base_edid_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
 
@@ -3744,9 +3758,10 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from "
                                      "the Stream Compatibility Management API: {}".format(response))
 
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-
-                if self.get_effective_edid(test, inputId) == effective_edid_before:
+                result = self.wait_until_true(
+                    partial(is_edid_inequal_to_effective_edid, self, test, inputId, effective_edid_before)
+                )
+                if not result:
                     return test.FAIL("Effective EDID doesn't change when Base EDID changes")
 
                 valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
@@ -3754,9 +3769,10 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unexpected response from "
                                      "the Stream Compatibility Management API: {}".format(response))
 
-                time.sleep(CONFIG.STABLE_STATE_DELAY)
-
-                if self.get_effective_edid(test, inputId) != effective_edid_before:
+                result = self.wait_until_true(
+                    partial(is_edid_equal_to_effective_edid, self, test, inputId, effective_edid_before)
+                )
+                if not result:
                     return test.FAIL("Effective EDID doesn't restore after Base EDID DELETion")
 
             except json.JSONDecodeError:
@@ -3922,3 +3938,10 @@ class IS1101Test(GenericTest):
                           "the Stream Compatibility Management API: {}".format(response))
             )
         return response.content
+
+    def wait_until_true(self, predicate):
+        for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
+            if predicate():
+                return True
+            time.sleep(CONFIG.STABLE_STATE_DELAY)
+        return False
