@@ -161,7 +161,7 @@ class IS1101Test(GenericTest):
         self.delete_base_edid()
 
     # GENERAL TESTS
-    def test_1(self, test):
+    def test_00_00(self, test):
         """At least one Device is showing an IS-11 control advertisement matching the API under test"""
 
         control_type = "urn:x-nmos:control:stream-compat/" + self.apis[COMPAT_API_KEY]["version"]
@@ -174,7 +174,7 @@ class IS1101Test(GenericTest):
         )
 
     # INPUTS TESTS
-    def test_01_03(self, test):
+    def test_01_00(self, test):
         """
         Verify that all connected inputs have a signal
         """
@@ -217,7 +217,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("No connected input have a signal")
         return test.UNCLEAR("No resources found to perform this test")
 
-    def test_2(self, test):
+    def test_01_01(self, test):
         """Inputs with EDID support return the Effective EDID"""
         if len(self.edid_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs with EDID support found.")
@@ -227,7 +227,7 @@ class IS1101Test(GenericTest):
 
         return test.PASS()
 
-    def test_3(self, test):
+    def test_01_02(self, test):
         """Inputs with Base EDID support handles PUTting and DELETing the Base EDID"""
         if len(self.base_edid_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
@@ -282,7 +282,7 @@ class IS1101Test(GenericTest):
 
         return test.PASS()
 
-    def test_4(self, test):
+    def test_01_03(self, test):
         """Inputs with Base EDID support reject an invalid EDID"""
         if len(self.base_edid_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
@@ -297,7 +297,7 @@ class IS1101Test(GenericTest):
                                  "the Stream Compatibility Management API: {}".format(response))
         return test.PASS()
 
-    def test_5(self, test):
+    def test_01_04(self, test):
         """Inputs without EDID support reject requests to /edid/*"""
         if len(self.non_edid_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs without EDID support found.")
@@ -327,7 +327,7 @@ class IS1101Test(GenericTest):
                                  "for PUT /edid/base: {}".format(response))
         return test.PASS()
 
-    def test_6(self, test):
+    def test_01_05(self, test):
         """
         Inputs with Base EDID increment their version and versions of associated Senders
         after the Base EDID gets modified
@@ -2914,7 +2914,7 @@ class IS1101Test(GenericTest):
         return test.PASS()
 
     # OUTPUTS TESTS
-    def test_7(self, test):
+    def test_03_00(self, test):
         """Connected Outputs with EDID support return the EDID"""
         if len(self.edid_connected_outputs) == 0:
             return test.UNCLEAR("Not tested. No connected Outputs with EDID support found.")
@@ -2924,7 +2924,7 @@ class IS1101Test(GenericTest):
 
         return test.PASS()
 
-    def test_8(self, test):
+    def test_03_01(self, test):
         """
         Disconnected Outputs with EDID support and Outputs without EDID support return the EDID
         """
