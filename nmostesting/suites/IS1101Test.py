@@ -162,6 +162,11 @@ class IS1101Test(GenericTest):
         self.delete_active_constraints()
         self.delete_base_edid()
 
+    def tear_down_tests(self):
+        for inputId in self.is11_utils.sampled_list(self.base_edid_inputs):
+            # DELETE the Base EDID of the Input
+            self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+
     # GENERAL TESTS
     def test_00_00(self, test):
         """At least one Device is showing an IS-11 control advertisement matching the API under test"""
@@ -260,7 +265,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Unexpected response from "
                                  "the Stream Compatibility Management API: {}".format(response))
             if response.content != self.valid_edid:
-                return test.FAIL("The Base EDID of Input {}"
+                return test.FAIL("The Base EDID of Input {} "
                                  "doesn't match the Base EDID that has been put".format(inputId))
 
             # Verify that /edid/effective returns the last Base EDID put
@@ -268,7 +273,7 @@ class IS1101Test(GenericTest):
                 partial(is_edid_equal_to_effective_edid, self, test, inputId, self.valid_edid)
             )
             if not result:
-                return test.FAIL("The Effective EDID of Input {}"
+                return test.FAIL("The Effective EDID of Input {} "
                                  "doesn't match the Base EDID that has been put".format(inputId))
 
             # Delete the Base EDID
@@ -286,7 +291,7 @@ class IS1101Test(GenericTest):
             # Verify that /edid/effective returned to its defaults
             result = self.wait_until_true(partial(is_edid_equal_to_effective_edid, self, test, inputId, default_edid))
             if not result:
-                return test.FAIL("The Effective EDID of Input {}"
+                return test.FAIL("The Effective EDID of Input {} "
                                  "doesn't match its initial value".format(inputId))
 
         return test.PASS()
