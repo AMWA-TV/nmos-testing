@@ -1092,7 +1092,7 @@ class IS1101Test(GenericTest):
         return test.PASS()
 
     def test_02_02_03_02(self, test):
-        "Verify that the video sender supports the minimum set of video constraints"
+        "Verify that the audio sender supports the minimum set of audio constraints"
 
         sample = "^urn:x-nmos:cap:"
 
@@ -3610,6 +3610,7 @@ class IS1101Test(GenericTest):
         connection_api_senders = IS05Utils(CONFIG.IS11_REFERENCE_SENDER_CONNECTION_API_URL).get_senders()
 
         for format in ["urn:x-nmos:format:video", "urn:x-nmos:format:audio"]:
+            self.reference_senders[format] = []
             for sender_id in connection_api_senders:
                 valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "senders/" + sender_id)
                 if not valid:
@@ -3674,9 +3675,10 @@ class IS1101Test(GenericTest):
             activated_receivers = response
             break
         try:
-            if (activated_receivers < len(self.receivers_with_outputs)):
+            if (activated_receivers < len(self.is11_utils.receivers_with_or_without_outputs)):
                 return test.WARNING("There are no compatible senders for {} receivers"
-                                    .format(len(self.receivers_with_outputs) - activated_receivers))
+                                    .format(len(self.is11_utils.receivers_with_or_without_outputs)
+                                            - activated_receivers))
         except Exception:
             return test.UNCLEAR("No activated receivers")
 
@@ -3809,9 +3811,10 @@ class IS1101Test(GenericTest):
             activated_receivers = response
             break
         try:
-            if (activated_receivers < len(self.receivers_with_outputs)):
+            if (activated_receivers < len(self.is11_utils.receivers_with_or_without_outputs)):
                 return test.WARNING("There are no compatible senders for {} receivers"
-                                    .format(len(self.receivers_with_outputs) - activated_receivers))
+                                    .format(len(self.is11_utils.receivers_with_or_without_outputs)
+                                            - activated_receivers))
         except Exception:
             return test.UNCLEAR("No activated receivers")
 
@@ -3976,9 +3979,10 @@ class IS1101Test(GenericTest):
             activated_receivers = response
             break
         try:
-            if (activated_receivers < len(self.receivers_without_outputs)):
+            if (activated_receivers < len(self.is11_utils.receivers_with_or_without_outputs)):
                 return test.WARNING("There are no compatible senders for {} receivers"
-                                    .format(len(self.receivers_without_outputs) - activated_receivers))
+                                    .format(len(self.is11_utils.receivers_with_or_without_outputs)
+                                            - activated_receivers))
         except Exception:
             return test.UNCLEAR("No activated receivers")
         return test.PASS()
@@ -4020,9 +4024,10 @@ class IS1101Test(GenericTest):
             activated_receivers = response
             break
         try:
-            if (activated_receivers < len(self.receivers_without_outputs)):
+            if (activated_receivers < len(self.is11_utils.receivers_with_or_without_outputs)):
                 return test.WARNING("There are no compatible senders for {} receivers"
-                                    .format(len(self.receivers_without_outputs) - activated_receivers))
+                                    .format(len(self.is11_utils.receivers_with_or_without_outputs)
+                                            - activated_receivers))
         except Exception:
             return test.UNCLEAR("No activated receivers")
         return test.PASS()

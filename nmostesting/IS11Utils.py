@@ -170,6 +170,7 @@ class IS11Utils(NMOSUtils, GenericTest):
         return valid, activated_receivers
 
     def activate_reference_sender_and_receiver(self, reference_senders, format, receiver, receiver_id):
+        valid = False
         for sender_id in reference_senders[format]:
             valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "senders/" + sender_id)
             if not valid:
