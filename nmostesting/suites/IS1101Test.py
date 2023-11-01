@@ -142,6 +142,7 @@ class IS1101Test(GenericTest):
         self.non_edid_inputs = list(set(self.inputs) - set(self.edid_inputs))
 
         self.base_edid_inputs = list(filter(self.has_input_base_edid_support, self.edid_inputs))
+        self.adjust_to_caps_inputs = list(filter(self.is_input_adjust_to_caps, self.base_edid_inputs))
 
         self.connected_outputs = list(filter(self.is_output_connected, self.outputs))
         self.disconnected_outputs = list(set(self.outputs) - set(self.connected_outputs))
@@ -454,6 +455,54 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Sender {} didn't increment its version "
                                      "after PUTting the Base EDID to Input {}".format(sender_id, inputId))
 
+        return test.PASS()
+
+    def test_01_06(self, test):
+        """Effective EDID updates if Base EDID changes with 'adjust_to_caps'"""
+
+        def is_edid_equal_to_effective_edid(self, test, inputId, edid):
+            return self.get_effective_edid(test, inputId) == edid
+
+        def is_edid_inequal_to_effective_edid(self, test, inputId, edid):
+            return self.get_effective_edid(test, inputId) != edid
+
+        if len(self.adjust_to_caps_inputs) == 0:
+            return test.UNCLEAR("Not tested. No inputs with 'adjust_to_caps' support found.")
+
+        for inputId in self.is11_utils.sampled_list(self.adjust_to_caps_inputs):
+            try:
+                effective_edid_before = self.get_effective_edid(test, inputId)
+
+                valid, response = self.do_request("PUT",
+                                                  self.compat_url + "inputs/" + inputId + "/edid/base",
+                                                  headers={"Content-Type": "application/octet-stream"},
+                                                  data=self.valid_edid,
+                                                  params={"adjust_to_caps": "true"})
+                if not valid or response.status_code != 204:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                result = self.wait_until_true(
+                    partial(is_edid_inequal_to_effective_edid, self, test, inputId, effective_edid_before)
+                )
+                if not result:
+                    return test.FAIL("Effective EDID doesn't change when Base EDID changes")
+
+                valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+                if not valid or response.status_code != 204:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
+
+                result = self.wait_until_true(
+                    partial(is_edid_equal_to_effective_edid, self, test, inputId, effective_edid_before)
+                )
+                if not result:
+                    return test.FAIL("Effective EDID doesn't restore after Base EDID DELETion")
+
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
         return test.PASS()
 
     # SENDERS TESTS
@@ -3734,53 +3783,6 @@ class IS1101Test(GenericTest):
 
         return test.PASS()
 
-    def test_06_04(self, test):
-        """Effective EDID updates if Base EDID changes"""
-
-        def is_edid_equal_to_effective_edid(self, test, inputId, edid):
-            return self.get_effective_edid(test, inputId) == edid
-
-        def is_edid_inequal_to_effective_edid(self, test, inputId, edid):
-            return self.get_effective_edid(test, inputId) != edid
-
-        if len(self.base_edid_inputs) == 0:
-            return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
-
-        for inputId in self.is11_utils.sampled_list(self.base_edid_inputs):
-            try:
-                effective_edid_before = self.get_effective_edid(test, inputId)
-
-                valid, response = self.do_request("PUT",
-                                                  self.compat_url + "inputs/" + inputId + "/edid/base",
-                                                  headers={"Content-Type": "application/octet-stream"},
-                                                  data=self.valid_edid)
-                if not valid or response.status_code != 204:
-                    return test.FAIL("Unexpected response from "
-                                     "the Stream Compatibility Management API: {}".format(response))
-
-                result = self.wait_until_true(
-                    partial(is_edid_inequal_to_effective_edid, self, test, inputId, effective_edid_before)
-                )
-                if not result:
-                    return test.FAIL("Effective EDID doesn't change when Base EDID changes")
-
-                valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
-                if not valid or response.status_code != 204:
-                    return test.FAIL("Unexpected response from "
-                                     "the Stream Compatibility Management API: {}".format(response))
-
-                result = self.wait_until_true(
-                    partial(is_edid_equal_to_effective_edid, self, test, inputId, effective_edid_before)
-                )
-                if not result:
-                    return test.FAIL("Effective EDID doesn't restore after Base EDID DELETion")
-
-            except json.JSONDecodeError:
-                return test.FAIL("Non-JSON response returned from Node API")
-            except KeyError as e:
-                return test.FAIL("Unable to find expected key: {}".format(e))
-        return test.PASS()
-
     def deactivate_connection_resources(self, port):
         url = self.conn_url + "single/" + port + "s/"
         valid, response = self.do_request("GET", url)
@@ -3823,6 +3825,22 @@ class IS1101Test(GenericTest):
 
     def receiver_has_i_o(self, id):
         return self.has_i_o(id, "receiver")
+
+    def is_input_adjust_to_caps(self, id):
+        return self.has_property(id, "input", "adjust_to_caps")
+
+    def has_property(self, id, type, property):
+        i_o = "inputs/" if type == "input" else "outputs/"
+        url = self.compat_url + i_o + id + "/properties/"
+
+        valid, r = self.do_request("GET", url)
+        if valid and r.status_code == 200:
+            if property in r.json():
+                return True
+            else:
+                return False
+        else:
+            raise NMOSInitException("The request {} has failed: {}".format(url, r))
 
     def has_boolean_property_true(self, id, type, property):
         i_o = "inputs/" if type == "input" else "outputs/"
