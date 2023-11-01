@@ -56,7 +56,9 @@ class BCP00301Test(GenericTest):
                                       "--openssl-timeout",
                                       str(CONFIG.HTTP_TIMEOUT),
                                       "--add-ca",
-                                      CONFIG.CERT_TRUST_ROOT_CA
+                                      CONFIG.CERT_TRUST_ROOT_CA,
+                                      "--ip",
+                                      self.apis[SECURE_API_KEY]["ip"]
                                       ] + args + ["{}:{}".format(self.apis[SECURE_API_KEY]["hostname"],
                                                                  self.apis[SECURE_API_KEY]["port"])]
                                      )

@@ -32,10 +32,6 @@ from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, check_content_type
 
-# monkey patch zeroconf to allow us to advertise "_nmos-registration._tcp"
-from zeroconf import service_type_name
-service_type_name.__kwdefaults__['strict'] = False
-
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
 CAPS_REGISTER_KEY = "caps-register"
@@ -93,6 +89,10 @@ class IS0401Test(GenericTest):
             self.zc = None
         if self.dns_server:
             self.dns_server.reset()
+
+    def _strict_service_name(self, info):
+        # avoid zeroconf._exceptions.BadTypeInNameException: Service name (nmos-registration) must be <= 15 bytes
+        return len(info.type[1:info.type.find('.')]) <= 15
 
     def _mdns_info(self, port, service_type, txt={}, api_ver=None, api_proto=None, api_auth=None, ip=None):
         """Get an mDNS ServiceInfo object in order to create an advertisement"""
@@ -192,9 +192,9 @@ class IS0401Test(GenericTest):
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
             if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
-                self.zc.register_service(registry_mdns[0])
-                self.zc.register_service(registry_mdns[1])
-            self.zc.register_service(registry_mdns[2])
+                self.zc.register_service(registry_mdns[0], strict=self._strict_service_name(registry_mdns[0]))
+                self.zc.register_service(registry_mdns[1], strict=self._strict_service_name(registry_mdns[1]))
+            self.zc.register_service(registry_mdns[2], strict=self._strict_service_name(registry_mdns[2]))
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         start_time = time.time()
@@ -226,7 +226,7 @@ class IS0401Test(GenericTest):
 
             if CONFIG.DNS_SD_MODE == "multicast":
                 for info in registry_mdns[3:]:
-                    self.zc.register_service(info)
+                    self.zc.register_service(info, strict=self._strict_service_name(info))
 
             # Kill registries one by one to collect data around failover
             self.invalid_registry.disable()
@@ -1455,7 +1455,7 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
-            self.zc.register_service(registry_info)
+            self.zc.register_service(registry_info, strict=self._strict_service_name(registry_info))
 
         # Wait for n seconds after advertising the service for the first POST and then DELETE from a Node
         self.primary_registry.wait_for_registration(CONFIG.DNS_SD_ADVERT_TIMEOUT)
@@ -2160,7 +2160,7 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
-            self.zc.register_service(registry_info)
+            self.zc.register_service(registry_info, strict=self._strict_service_name(registry_info))
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         self.primary_registry.wait_for_registration(CONFIG.DNS_SD_ADVERT_TIMEOUT)
