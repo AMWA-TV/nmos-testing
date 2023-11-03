@@ -19,6 +19,9 @@ import sys
 # Please consult the documentation for instructions on how to adjust these values for common testing setups including
 # unicast DNS-SD and HTTPS testing.
 
+# Number of seconds to wait after starting the mock DNS server, authorization server, etc. before running tests.
+# This gives the API or client under test a chance to use these services before any test case is run.
+MOCK_SERVICES_WARM_UP_DELAY = 0
 
 # Enable or disable DNS-SD advertisements. Browsing is always permitted.
 # The IS-04 Node tests create a mock registry on the network unless the `ENABLE_DNS_SD` parameter is set to `False`.
