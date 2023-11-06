@@ -1379,6 +1379,7 @@ class IS1201Test(GenericTest):
 
         error = False
         error_message = ""
+        received_oids = dict.fromkeys(oids, 0)
 
         for oid in oids:
             new_user_label = "NMOS Testing Tool " + str(oid)
@@ -1391,37 +1392,45 @@ class IS1201Test(GenericTest):
                 self.is12_utils.set_property(test, oid, NcObjectProperties.USER_LABEL.value, label)
                 self.is12_utils.stop_logging_notifications()
 
-                if len(self.is12_utils.get_notifications()) == 0:
+                notifications = self.is12_utils.get_notifications()
+
+                if len(notifications) == 0:
                     error = True
                     error_message = context + "No notification recieved"
 
-                for notification in self.is12_utils.get_notifications():
-                    if notification['oid'] != oid:
-                        error = True
-                        error_message += context + "Unexpected Oid " + str(notification['oid']) + ", "
+                for notification in notifications:
+                    if notification['oid'] == oid:
 
-                    if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
-                        error = True
-                        error_message += context + "Unexpected event type: " + str(notification['eventId']) + ", "
+                        if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
+                            error = True
+                            error_message += context + "Unexpected event type: " + str(notification['eventId']) + ", "
 
-                    if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
-                        error = True
-                        error_message += context + "Unexpected property id: " \
-                            + str(NcObjectProperties(notification["eventData"]["propertyId"]).name) + ", "
+                        if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
+                            continue
 
-                    if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
-                        error = True
-                        error_message += context + "Unexpected change type: " \
-                            + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
+                        if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
+                            error = True
+                            error_message += context + "Unexpected change type: " \
+                                + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
 
-                    if notification["eventData"]["value"] != label:
-                        error = True
-                        error_message += context + "Unexpected value: " + str(notification["eventData"]["value"]) + ", "
+                        if notification["eventData"]["value"] != label:
+                            error = True
+                            error_message += context + "Unexpected value: " \
+                                + str(notification["eventData"]["value"]) + ", "
 
-                    if notification["eventData"]["sequenceItemIndex"] is not None:
-                        error = True
-                        error_message += context + "Unexpected sequence item index: " \
-                            + str(notification["eventData"]["sequenceItemIndex"]) + ", "
+                        if notification["eventData"]["sequenceItemIndex"] is not None:
+                            error = True
+                            error_message += context + "Unexpected sequence item index: " \
+                                + str(notification["eventData"]["sequenceItemIndex"]) + ", "
+
+                        received_oids[oid] += 1
+
+        if not all(received_oids.values()):
+            error = True
+            error_message += "No expected notifications received"
+        elif not any(received_oids.values()):
+            error = True
+            error_message += "Not all the expected Oid notifications received"
 
         if error:
             return test.FAIL(error_message)
