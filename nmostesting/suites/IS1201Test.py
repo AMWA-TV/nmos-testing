@@ -1415,7 +1415,8 @@ class IS1201Test(GenericTest):
 
                         if notification["eventData"]["value"] != label:
                             error = True
-                            error_message += context + "Unexpected value: " + str(notification["eventData"]["value"]) + ", "
+                            error_message += context + "Unexpected value: " \
+                                + str(notification["eventData"]["value"]) + ", "
 
                         if notification["eventData"]["sequenceItemIndex"] is not None:
                             error = True
