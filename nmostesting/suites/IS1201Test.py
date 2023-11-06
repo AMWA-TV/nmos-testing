@@ -1373,15 +1373,14 @@ class IS1201Test(GenericTest):
                                                                      include_derived=True,
                                                                      recurse=True)
 
-        oids = [self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects]
+        oids = dict.fromkeys([self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects], 0)
 
-        self.is12_utils.update_subscritions(test, oids)
+        self.is12_utils.update_subscritions(test, list(oids.keys()))
 
         error = False
         error_message = ""
-        received_oids = dict.fromkeys(oids, 0)
 
-        for oid in oids:
+        for oid in oids.keys():
             new_user_label = "NMOS Testing Tool " + str(oid)
             old_user_label = self.is12_utils.get_property(test, oid, NcObjectProperties.USER_LABEL.value)
 
@@ -1392,13 +1391,7 @@ class IS1201Test(GenericTest):
                 self.is12_utils.set_property(test, oid, NcObjectProperties.USER_LABEL.value, label)
                 self.is12_utils.stop_logging_notifications()
 
-                notifications = self.is12_utils.get_notifications()
-
-                if len(notifications) == 0:
-                    error = True
-                    error_message = context + "No notification recieved"
-
-                for notification in notifications:
+                for notification in self.is12_utils.get_notifications():
                     if notification['oid'] == oid:
 
                         if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
@@ -1423,14 +1416,15 @@ class IS1201Test(GenericTest):
                             error_message += context + "Unexpected sequence item index: " \
                                 + str(notification["eventData"]["sequenceItemIndex"]) + ", "
 
-                        received_oids[oid] += 1
+                        oids[oid] += 1
 
-        if not all(received_oids.values()):
+        if not all(v == 2 for v in oids.values()):
             error = True
-            error_message += "No expected notifications received"
-        elif not any(received_oids.values()):
+            error_message += "Notifications not received for Oids " \
+                + str(sorted([i for i, v in oids.items() if v != 2]))
+        elif not any(v == 2 for v in oids.values()):
             error = True
-            error_message += "Not all the expected Oid notifications received"
+            error_message += "No notifications received"
 
         if error:
             return test.FAIL(error_message)
