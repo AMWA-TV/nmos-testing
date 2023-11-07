@@ -46,10 +46,10 @@ FEATURE_SETS_KEY = "featuresets"
 
 class IS1202Test(ControllerTest):
 
-    def __init__(self, apis, registries, node, dns_server, **kwargs):
+    def __init__(self, apis, **kwargs):
         # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
-        ControllerTest.__init__(self, apis, registries, node, dns_server)
+        ControllerTest.__init__(self, apis, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
         self.is12_utils = IS12Utils(self.node_url,
@@ -59,6 +59,7 @@ class IS1202Test(ControllerTest):
         self.device_model = None
         self.constraint_error = False
         self.constraint_error_msg = ""
+        self.device_model_metadata = {"checked": False, "error": False, "error_msg": ""}
 
     def set_up_tests(self):
         # Don't set up mock resources as not needed
