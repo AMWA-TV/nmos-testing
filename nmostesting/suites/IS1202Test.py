@@ -47,8 +47,6 @@ FEATURE_SETS_KEY = "featuresets"
 class IS1202Test(ControllerTest):
 
     def __init__(self, apis, **kwargs):
-        # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
-        apis[NODE_API_KEY].pop("raml", None)
         ControllerTest.__init__(self, apis, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
