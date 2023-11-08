@@ -350,7 +350,7 @@ class IS1202Test(ControllerTest):
 
         return members[0]
 
-    def _findConstrainedProperties(self, test, block, get_constraints=True, get_sequences=False, context=""):
+    def _findProperties(self, test, block, get_constraints=True, get_sequences=False, context=""):
         results = []
         context += block.role
 
@@ -392,7 +392,7 @@ class IS1202Test(ControllerTest):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                results += (self._findConstrainedProperties(test, child_object, get_constraints, get_sequences, context + ": "))
+                results += (self._findProperties(test, child_object, get_constraints, get_sequences, context + ": "))
 
         return results
     
@@ -413,7 +413,7 @@ class IS1202Test(ControllerTest):
         maximum = parameter_constraint.maximum if parameter_constraint.maximum else sys.maxsize
         step = parameter_constraint.step if parameter_constraint.step else 1
                 
-        new_value = floor((((maximum - minimum) / 2) + minimum) / step) * step
+        new_value = floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
 
         # Expect this to work OK
         self.is12_utils.set_property(test, constrained_property['oid'], constrained_property['property_id'], new_value)
@@ -432,7 +432,7 @@ class IS1202Test(ControllerTest):
         """Test all writable properties with constraints"""
         device_model = self.query_device_model(test)        
 
-        constrained_properties = self._findConstrainedProperties(test, device_model);
+        constrained_properties = self._findProperties(test, device_model, get_constraints=True, get_sequences=False);
 
         possible_properties = [{'answer_id': 'answer_'+str(i), 'display_answer': p['name'], 'resource': p} for i, p in enumerate(constrained_properties)]
 
@@ -472,46 +472,182 @@ class IS1202Test(ControllerTest):
             parameter_constraint = self.is12_utils.upcast_parameter_constraint(constraints)
 
             # Cache original property value
-            original_value = self.is12_utils.get_property(test, constrained_property['oid'], constrained_property['property_id'])
+            try:
+                original_value = self.is12_utils.get_property(test, constrained_property['oid'], constrained_property['property_id'])
             
+                if parameter_constraint.constraint_type == "NcParameterConstraintsNumber":
+                    self._check_parameter_constraints_number(test, parameter_constraint, constraint_type, constrained_property)
+
+                if parameter_constraint.constraint_type == "NcParameterConstraintsString":
+
+                    if parameter_constraint.pattern:
+                        # Check legal case
+                        x = Xeger(limit=parameter_constraint.max_characters - len(parameter_constraint.pattern) if parameter_constraint.max_characters > len(parameter_constraint.pattern) else 1)
+                        new_value = x.xeger(parameter_constraint.pattern)
+                    
+                        # Expect this to work OK
+                        self.is12_utils.set_property(test, constrained_property['oid'], constrained_property['property_id'], new_value)
+
+                    if parameter_constraint.pattern:
+                        # Possible negative example strings
+                        # Ideally we would compute a negative string based on the regex.
+                        # In the meantime, some strings that might possibly violate the regex
+                        negative_examples = ['!$%^&*()+_:;/', '*********', '000000000', 'AAAAAAAA']
+                    
+                        for negative_example in negative_examples:
+                            # Verify this string violates constraint
+                            if not re.search(parameter_constraint.pattern, negative_example):
+                                self._check_constrained_parameter(test, constraint_type, "Pattern", constrained_property, new_value)
+                            
+                        # Exceed max character limit
+                    if parameter_constraint.max_characters:
+                        if parameter_constraint.pattern:
+                            x = Xeger(limit=parameter_constraint.max_characters * 2)
+                            new_value = x.xeger(parameter_constraint.pattern)
+                        else:
+                            new_value = '*' * parameter_constraint.max_characters * 2
+                    
+                        # Verfiy this string violates constraint
+                        if len(new_value) > parameter_constraint.max_characters:
+                            self._check_constrained_parameter(test, constraint_type, "Max characters", constrained_property, new_value)
+
+                # Reset to original value
+                self.is12_utils.set_property(test, constrained_property['oid'], constrained_property['property_id'], original_value)
+            except NMOSTestException as e:
+                test.FAIL(constrained_property.get("name") + ": error setting property")
+                
+        if self.constraint_error:
+            return test.FAIL(self.constraint_error_msg)
+        
+        return test.PASS()
+    
+    def _check_constrained_sequence(self, test, constraint_type, constraint, constrained_property, value):
+        index = self.is12_utils.get_sequence_length(test, constrained_property['oid'], constrained_property['property_id'])
+        try:
+            # Expect an error
+            self.is12_utils.set_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], index - 1, value)
+            self.constraint_error = True
+            self.constraint_error_msg += constraint + " " + constraint_type + " constraint not enforced for set " + constrained_property['name'] + "; "
+        except NMOSTestException as e:
+            # Expecting a parameter constraint violation
+            # What kind of error should we be expecting
+            pass
+        try:
+            # Expect an error
+            self.is12_utils.add_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], value)
+            self.constraint_error = True
+            self.constraint_error_msg += constraint + " " + constraint_type + " constraint not enforced for add " + constrained_property['name'] + "; "
+        except NMOSTestException as e:
+            # Expecting a parameter constraint violation
+            # What kind of error should we be expecting
+            pass
+
+    def _check_sequence_constraints_number(self, test, parameter_constraint, constraint_type, constrained_property):
+        # Attempt to set to a "legal" value
+        minimum = parameter_constraint.minimum if parameter_constraint.minimum else 0
+        maximum = parameter_constraint.maximum if parameter_constraint.maximum else sys.maxsize
+        step = parameter_constraint.step if parameter_constraint.step else 1
+                
+        new_value = floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
+
+        # Expect this to work OK
+        index = self.is12_utils.get_sequence_length(test, constrained_property['oid'], constrained_property['property_id'])
+        self.is12_utils.add_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], new_value)
+        self.is12_utils.set_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], index, new_value)
+                
+        # Attempt to set to an "illegal" value
+        if parameter_constraint.minimum is not None:
+            self._check_constrained_sequence(test, constraint_type, "Minimum", constrained_property, minimum - step)
+
+        if parameter_constraint.maximum is not None:                
+            self._check_constrained_sequence(test, constraint_type, "Maximum", constrained_property, maximum + step)
+
+        if parameter_constraint.step is not None:
+            self._check_constrained_sequence(test, constraint_type, "Step", constrained_property, new_value + step / 2)
+
+    def test_02(self, test):
+        """Test all writable sequences with constraints"""
+        device_model = self.query_device_model(test)        
+
+        constrained_properties = self._findProperties(test, device_model, get_constraints=True, get_sequences=True);
+
+        possible_properties = [{'answer_id': 'answer_'+str(i), 'display_answer': p['name'], 'resource': p} for i, p in enumerate(constrained_properties)]
+
+        if len(possible_properties) == 0:
+            
+            return test.UNCLEAR("No sequences with ParameterConstraints in Device Model.")
+
+        if IS12_INTERATIVE_TESTING:
+            question = """\
+                        From this list of sequences with parameter constraints\
+                        carefully select those that can be safely altered by this test.
+
+                        Once you have made you selection please press the 'Submit' button.
+                        """
+            
+            selected_ids = self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
+        
+            selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
+        
+            if len(selected_properties) == 0:
+                return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+        else:
+            # If non interactive test all properties
+            selected_properties = [p["resource"] for p in possible_properties]
+
+        self.constraint_error = False
+        self.constraint_error_msg = ""
+
+        for constrained_property in selected_properties:
+            constraints = constrained_property.get('runtime_constraints') if constrained_property.get('runtime_constraints') else \
+                constrained_property.get('property_constraints') if constrained_property.get('property_constraints') else \
+                constrained_property.get('datatype_constraints')
+            
+            constraint_type = 'runtime' if constrained_property.get('runtime_constraints') else \
+                'property' if constrained_property.get('property_constraints') else 'datatype'
+            
+            parameter_constraint = self.is12_utils.upcast_parameter_constraint(constraints)
+
+            sequence_length = self.is12_utils.get_sequence_length(test, constrained_property['oid'], constrained_property['property_id'])
+
             if parameter_constraint.constraint_type == "NcParameterConstraintsNumber":
-                self._check_parameter_constraints_number(test, parameter_constraint, constraint_type, constrained_property)
+                self._check_sequence_constraints_number(test, parameter_constraint, constraint_type, constrained_property)
 
             if parameter_constraint.constraint_type == "NcParameterConstraintsString":
-
-                if parameter_constraint.pattern:
-                    # Check legal case
-                    x = Xeger(limit=parameter_constraint.max_characters if parameter_constraint.max_characters else 10)
-                    new_value = x.xeger(parameter_constraint.pattern)
+                pass
+                # if parameter_constraint.pattern:
+                #     # Check legal case
+                #     x = Xeger(limit=parameter_constraint.max_characters if parameter_constraint.max_characters else 10)
+                #     new_value = x.xeger(parameter_constraint.pattern)
                     
-                    # Expect this to work OK
-                    self.is12_utils.set_property(test, constrained_property['oid'], constrained_property['property_id'], new_value)
+                #     # Expect this to work OK
+                #     self.is12_utils.set_property(test, constrained_property['oid'], constrained_property['property_id'], new_value)
 
-                if parameter_constraint.pattern:
-                    # Possible negative example strings
-                    # Ideally we would compute a negative string based on the regex.
-                    # In the meantime, some strings that might possibly violate the regex
-                    negative_examples = ['!$%^&*()+_:;/', '*********', '000000000', 'AAAAAAAA']
+                # if parameter_constraint.pattern:
+                #     # Possible negative example strings
+                #     # Ideally we would compute a negative string based on the regex.
+                #     # In the meantime, some strings that might possibly violate the regex
+                #     negative_examples = ['!$%^&*()+_:;/', '*********', '000000000', 'AAAAAAAA']
                     
-                    for negative_example in negative_examples:
-                        # Verify this string violates constraint
-                        if not re.search(parameter_constraint.pattern, negative_example):
-                            self._check_constrained_parameter(test, constraint_type, "Pattern", constrained_property, new_value)
+                #     for negative_example in negative_examples:
+                #         # Verify this string violates constraint
+                #         if not re.search(parameter_constraint.pattern, negative_example):
+                #             self._check_constrained_parameter(test, constraint_type, "Pattern", constrained_property, new_value)
                             
-                    # Exceed max character limit
-                if parameter_constraint.max_characters:
-                    if parameter_constraint.pattern:
-                        x = Xeger(limit=parameter_constraint.max_characters * 2)
-                        new_value = x.xeger(parameter_constraint.pattern)
-                    else:
-                        new_value = '*' * parameter_constraint.max_characters * 2
+                #     # Exceed max character limit
+                # if parameter_constraint.max_characters:
+                #     if parameter_constraint.pattern:
+                #         x = Xeger(limit=parameter_constraint.max_characters * 2)
+                #         new_value = x.xeger(parameter_constraint.pattern)
+                #     else:
+                #         new_value = '*' * parameter_constraint.max_characters * 2
                     
-                    # Verfiy this string violates constraint
-                    if len(new_value) > parameter_constraint.max_characters:
-                        self._check_constrained_parameter(test, constraint_type, "Max characters", constrained_property, new_value)
+                #     # Verfiy this string violates constraint
+                #     if len(new_value) > parameter_constraint.max_characters:
+                #         self._check_constrained_parameter(test, constraint_type, "Max characters", constrained_property, new_value)
 
-            # Reset to original value
-            self.is12_utils.set_property(test, constrained_property['oid'], constrained_property['property_id'], original_value)
+            # Remove added sequence value
+            self.is12_utils.remove_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], sequence_length)
 
         if self.constraint_error:
             return test.FAIL(self.constraint_error_msg)
@@ -614,7 +750,7 @@ class IS1202Test(ControllerTest):
         """Test all writable sequences"""
         device_model = self.query_device_model(test)        
 
-        constrained_properties = self._findConstrainedProperties(test, device_model, get_constraints=False, get_sequences=True);
+        constrained_properties = self._findProperties(test, device_model, get_constraints=False, get_sequences=True);
 
         possible_properties = [{'answer_id': 'answer_'+str(i), 'display_answer': p['name'], 'resource': p} for i, p in enumerate(constrained_properties)]
 
@@ -645,7 +781,7 @@ class IS1202Test(ControllerTest):
 
         self.sequences_checked = True
 
-    def test_02(self, test):
+    def test_03(self, test):
         """NcObject method: GetSequenceItem"""
         try:
             if not self.sequences_checked:
@@ -662,7 +798,7 @@ class IS1202Test(ControllerTest):
 
         return test.PASS()
 
-    def test_03(self, test):
+    def test_04(self, test):
         """NcObject method: SetSequenceItem"""
         try:
             if not self.sequences_checked:
@@ -679,7 +815,7 @@ class IS1202Test(ControllerTest):
 
         return test.PASS()
 
-    def test_04(self, test):
+    def test_05(self, test):
         """NcObject method: AddSequenceItem"""
         try:
             if not self.sequences_checked:
@@ -696,7 +832,7 @@ class IS1202Test(ControllerTest):
 
         return test.PASS()
 
-    def test_05(self, test):
+    def test_06(self, test):
         """NcObject method: RemoveSequenceItem"""
         try:
             if not self.sequences_checked:
@@ -712,3 +848,4 @@ class IS1202Test(ControllerTest):
             return test.UNCLEAR("RemoveSequenceItem not tested.")
 
         return test.PASS()
+   
