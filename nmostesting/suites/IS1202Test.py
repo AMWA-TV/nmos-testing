@@ -58,6 +58,11 @@ class IS1202Test(ControllerTest):
         self.constraint_error = False
         self.constraint_error_msg = ""
         self.device_model_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.sequences_checked = False
+        self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.set_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.add_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.remove_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
 
     def set_up_tests(self):
         # Don't set up mock resources as not needed
@@ -75,7 +80,7 @@ class IS1202Test(ControllerTest):
             return
 
         # In order to give the tests some context, a pre tests message is displayed
-        # on the Testing Façade prior to the tests starting. This communicates any
+        # on the Testing Facade prior to the tests starting. This communicates any
         # pre-requisites or setup required by the Test User. 
         question = textwrap.dedent(f"""\
                    These tests validate a Node under test's MS-05 Device Model using IS-12.
@@ -282,7 +287,7 @@ class IS1202Test(ControllerTest):
                 + str(e.args[0].detail) \
                 + "; "
         return None
-
+    
     def nc_object_factory(self, test, class_id, oid, role):
         """Create NcObject or NcBlock based on class_id"""
         # Check class id to determine if this is a block
@@ -345,7 +350,7 @@ class IS1202Test(ControllerTest):
 
         return members[0]
 
-    def _findConstrainedProperties(self, test, block, context=""):
+    def _findConstrainedProperties(self, test, block, get_constraints=True, get_sequences=False, context=""):
         results = []
         context += block.role
 
@@ -365,6 +370,8 @@ class IS1202Test(ControllerTest):
             object_runtime_constraints = self.is12_utils.get_property(test, descriptor['oid'], NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value)
 
             for class_property in class_descriptor.get('properties'):
+                if class_property['isReadOnly']:
+                    continue
                 datatype_constraints = None
                 property_constraints = None
                 runtime_constraint = None
@@ -372,21 +379,20 @@ class IS1202Test(ControllerTest):
                 if class_property.get('typeName'):
                     datatype_constraints = class_manager.datatype_descriptors.get(class_property['typeName']).get('constraints')
                 # Level 1: Property constraints
-                if not class_property['isReadOnly']:
-                    property_constraints = class_property.get('constraints')
+                property_constraints = class_property.get('constraints')
                 # Level 3: Runtime constraints
                 if object_runtime_constraints:
                     for object_runtime_constraint in object_runtime_constraints:
                         if object_runtime_constraint['propertyId']['level'] == class_property['id']['level'] and \
                             object_runtime_constraint['propertyId']['index'] == class_property['id']['index']:
                             runtime_constraint = object_runtime_constraint
-                if datatype_constraints or property_constraints or runtime_constraint:
+                if class_property.get('isSequence') == get_sequences and bool(datatype_constraints or property_constraints or runtime_constraint) == get_constraints:
                      results.append({'oid': descriptor['oid'], 'name': context + ": " + class_descriptor['name'] + ": " + class_property['name'], 'property_id': class_property['id'], 'property_constraints': property_constraints, 'datatype_constraints': datatype_constraints, 'runtime_constraint': runtime_constraint})
         
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                results += (self._findConstrainedProperties(test, child_object, context + ": "))
+                results += (self._findConstrainedProperties(test, child_object, get_constraints, get_sequences, context + ": "))
 
         return results
     
@@ -512,3 +518,197 @@ class IS1202Test(ControllerTest):
         
         return test.PASS()
 
+    def check_get_sequence_item(self, test, oid, sequence_values, property_id, property_name, context=""):
+        try:
+            # GetSequenceItem
+            self.get_sequence_item_metadata["checked"] = True
+            sequence_index = 0
+            for property_value in sequence_values:
+                value = self.is12_utils.get_sequence_item(test, oid, property_id, sequence_index)
+                if property_value != value:
+                    self.get_sequence_item_metadata["error"] = True
+                    self.get_sequence_item_metadata["error_msg"] += \
+                        context + property_name \
+                        + ": Expected: " + str(property_value) + ", Actual: " + str(value) \
+                        + " at index " + sequence_index + ", "
+                sequence_index += 1
+            return True
+        except NMOSTestException as e:
+            self.get_sequence_item_metadata["error"] = True
+            self.get_sequence_item_metadata["error_msg"] += \
+                context + property_name + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_add_sequence_item(self, test, oid, property_id, property_name, sequence_length, context=""):
+        try:
+            self.add_sequence_item_metadata["checked"] = True
+            # Add a value to the end of the sequence
+            new_item = self.is12_utils.get_sequence_item(test, oid, property_id, index=0)
+
+            self.is12_utils.add_sequence_item(test, oid, property_id, new_item)
+
+            # check the value
+            value = self.is12_utils.get_sequence_item(test, oid, property_id, index=sequence_length)
+            if value != new_item:
+                self.add_sequence_item_metadata["error"] = True
+                self.add_sequence_item_metadata["error_msg"] += \
+                    context + property_name \
+                    + ": Expected: " + str(new_item) + ", Actual: " + str(value) + ", "
+            return True
+        except NMOSTestException as e:
+            self.add_sequence_item_metadata["error"] = True
+            self.add_sequence_item_metadata["error_msg"] += \
+                context + property_name + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_set_sequence_item(self, test, oid, property_id, property_name, sequence_length, context=""):
+        try:
+            self.set_sequence_item_metadata["checked"] = True
+            new_value = self.is12_utils.get_sequence_item(test, oid, property_id, index=sequence_length - 1)
+
+            # set to another value
+            self.is12_utils.set_sequence_item(test, oid, property_id, index=sequence_length, value=new_value)
+
+            # check the value
+            value = self.is12_utils.get_sequence_item(test, oid, property_id, index=sequence_length)
+            if value != new_value:
+                self.set_sequence_item_metadata["error"] = True
+                self.set_sequence_item_metadata["error_msg"] += \
+                    context + property_name \
+                    + ": Expected: " + str(new_value) + ", Actual: " + str(value) + ", "
+            return True
+        except NMOSTestException as e:
+            self.set_sequence_item_metadata["error"] = True
+            self.set_sequence_item_metadata["error_msg"] += \
+                context + property_name + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_remove_sequence_item(self, test, oid, property_id, property_name, sequence_length, context=""):
+        try:
+            # remove item
+            self.remove_sequence_item_metadata["checked"] = True
+            self.is12_utils.remove_sequence_item(test, oid, property_id, index=sequence_length)
+            return True
+        except NMOSTestException as e:
+            self.remove_sequence_item_metadata["error"] = True
+            self.remove_sequence_item_metadata["error_msg"] += \
+                context + property_name + ": " + str(e.args[0].detail) + ", "
+        return False
+
+    def check_sequence_methods(self, test, oid, property_id, property_name, context=""):
+        """Check that sequence manipulation methods work correctly"""
+        response = self.is12_utils.get_property(test, oid, property_id)
+        
+        self.check_get_sequence_item(test, oid, response, property_id, property_name, context)
+
+        sequence_length = len(response)
+
+        if not self.check_add_sequence_item(test, oid, property_id, property_name, sequence_length, context=context):
+            return
+
+        self.check_set_sequence_item(test, oid, property_id, property_name, sequence_length, context=context)
+
+        self.check_remove_sequence_item(test, oid, property_id, property_name, sequence_length, context)
+            
+    def validate_sequences(self, test):
+        """Test all writable sequences"""
+        device_model = self.query_device_model(test)        
+
+        constrained_properties = self._findConstrainedProperties(test, device_model, get_constraints=False, get_sequences=True);
+
+        possible_properties = [{'answer_id': 'answer_'+str(i), 'display_answer': p['name'], 'resource': p} for i, p in enumerate(constrained_properties)]
+
+        if len(possible_properties) == 0:
+            
+            return test.UNCLEAR("No properties with ParameterConstraints in Device Model.")
+
+        if IS12_INTERATIVE_TESTING:
+            question = """\
+                        From this list of sequences\
+                        carefully select those that can be safely altered by this test.
+
+                        Once you have made you selection please press the 'Submit' button.
+                        """
+            
+            selected_ids = self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
+        
+            selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
+        
+            if len(selected_properties) == 0:
+                return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+        else:
+            # If non interactive test all properties
+            selected_properties = [p["resource"] for p in possible_properties]
+
+        for constrained_property in selected_properties:
+            self.check_sequence_methods(test, constrained_property['oid'], constrained_property['property_id'], constrained_property['name'])
+
+        self.sequences_checked = True
+
+    def test_02(self, test):
+        """NcObject method: GetSequenceItem"""
+        try:
+            if not self.sequences_checked:
+                self.validate_sequences(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.get_sequence_item_metadata["error"]:
+            return test.FAIL(self.get_sequence_item_metadata["error_msg"])
+
+        if not self.get_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("GetSequenceItem not tested.")
+
+        return test.PASS()
+
+    def test_03(self, test):
+        """NcObject method: SetSequenceItem"""
+        try:
+            if not self.sequences_checked:
+                self.validate_sequences(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.set_sequence_item_metadata["error"]:
+            return test.FAIL(self.set_sequence_item_metadata["error_msg"])
+
+        if not self.set_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("SetSequenceItem not tested.")
+
+        return test.PASS()
+
+    def test_04(self, test):
+        """NcObject method: AddSequenceItem"""
+        try:
+            if not self.sequences_checked:
+                self.validate_sequences(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.add_sequence_item_metadata["error"]:
+            return test.FAIL(self.add_sequence_item_metadata["error_msg"])
+
+        if not self.add_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("AddSequenceItem not tested.")
+
+        return test.PASS()
+
+    def test_05(self, test):
+        """NcObject method: RemoveSequenceItem"""
+        try:
+            if not self.sequences_checked:
+                self.validate_sequences(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.remove_sequence_item_metadata["error"]:
+            return test.FAIL(self.remove_sequence_item_metadata["error_msg"])
+
+        if not self.remove_sequence_item_metadata["checked"]:
+            return test.UNCLEAR("RemoveSequenceItem not tested.")
+
+        return test.PASS()
