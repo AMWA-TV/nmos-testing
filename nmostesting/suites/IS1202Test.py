@@ -497,7 +497,7 @@ class IS1202Test(ControllerTest):
                         for negative_example in negative_examples:
                             # Verify this string violates constraint
                             if not re.search(parameter_constraint.pattern, negative_example):
-                                self._check_constrained_parameter(test, constraint_type, "Pattern", constrained_property, new_value)
+                                self._check_constrained_parameter(test, constraint_type, "Pattern", constrained_property, negative_example)
                             
                         # Exceed max character limit
                     if parameter_constraint.max_characters:
@@ -738,13 +738,23 @@ class IS1202Test(ControllerTest):
         self.check_get_sequence_item(test, oid, response, property_id, property_name, context)
 
         sequence_length = len(response)
-
+        
+        if sequence_length != self.is12_utils.get_sequence_length(test, oid, property_id):
+            self.get_sequence_item_metadata["error"] = True
+            self.get_sequence_item_metadata["error_msg"] = property_name + ": get_sequence_length method returned an inconsistant sequence length."
         if not self.check_add_sequence_item(test, oid, property_id, property_name, sequence_length, context=context):
             return
-
+        if sequence_length + 1 != self.is12_utils.get_sequence_length(test, oid, property_id):
+            self.add_sequence_item_metadata["error"] = True
+            self.add_sequence_item_metadata["error_msg"] = property_name + ": add_sequence_item resulted in unexpected sequence length."
         self.check_set_sequence_item(test, oid, property_id, property_name, sequence_length, context=context)
-
+        if sequence_length + 1 != self.is12_utils.get_sequence_length(test, oid, property_id):
+            self.set_sequence_item_metadata["error"] = True
+            self.set_sequence_item_metadata["error_msg"] = property_name + ": set_sequence_item resulted in unexpected sequence length."
         self.check_remove_sequence_item(test, oid, property_id, property_name, sequence_length, context)
+        if sequence_length != self.is12_utils.get_sequence_length(test, oid, property_id):
+            self.remove_sequence_item_metadata["error"] = True
+            self.remove_sequence_item_metadata["error_msg"] = property_name + ": remove_sequence_item resulted in unexpected sequence length."
             
     def validate_sequences(self, test):
         """Test all writable sequences"""
