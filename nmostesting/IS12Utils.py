@@ -461,16 +461,15 @@ class IS12Utils(NMOSUtils):
 
         # Inheritance of datatype
         if descriptor.get('parentType'):
-            json_primitive_type = self._primitive_to_JSON(descriptor['parentType'])
-            if json_primitive_type:
-                if descriptor['isSequence']:
-                    json_schema['type'] = 'array'
-                    json_schema['items'] = {'type': json_primitive_type}
-                else:
-                    json_schema['type'] = json_primitive_type
+            if descriptor.get('isSequence'):
+                json_schema['type'] = 'array'
+                json_schema['items'] = {'$ref': descriptor['parentType'] + '.json'}
             else:
                 json_schema['allOf'] = []
                 json_schema['allOf'].append({'$ref': descriptor['parentType'] + '.json'})
+        # Primitive datatype
+        elif descriptor['type'] == NcDatatypeType.Primitive:
+            json_schema['type'] = self._primitive_to_JSON(descriptor['name'])
 
         # Struct datatype
         if descriptor['type'] == NcDatatypeType.Struct and descriptor.get('fields'):
@@ -532,15 +531,16 @@ class IS12Utils(NMOSUtils):
 
 
 class NcObject():
-    def __init__(self, class_id, oid, role):
+    def __init__(self, class_id, oid, role, runtime_constraints):
         self.class_id = class_id
         self.oid = oid
         self.role = role
+        self.runtime_constraints = runtime_constraints
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id, oid, role, descriptors):
-        NcObject.__init__(self, class_id, oid, role)
+    def __init__(self, class_id, oid, role, descriptors, runtime_constraints):
+        NcObject.__init__(self, class_id, oid, role, runtime_constraints)
         self.child_objects = []
         self.member_descriptors = descriptors
 
@@ -623,13 +623,13 @@ class NcBlock(NcObject):
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id, oid, role):
-        NcObject.__init__(self, class_id, oid, role)
+    def __init__(self, class_id, oid, role, runtime_constraints):
+        NcObject.__init__(self, class_id, oid, role, runtime_constraints)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id, oid, role, class_descriptors, datatype_descriptors):
-        NcObject.__init__(self, class_id, oid, role)
+    def __init__(self, class_id, oid, role, class_descriptors, datatype_descriptors, runtime_constraints):
+        NcObject.__init__(self, class_id, oid, role, runtime_constraints)
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors
 
