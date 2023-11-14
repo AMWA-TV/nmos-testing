@@ -46,6 +46,7 @@ class IS1201Test(GenericTest):
                                     self.apis[CONTROL_API_KEY]["spec_branch"])
         self.load_reference_resources()
         self.device_model = None
+        self.datatype_schemas = None
 
     def set_up_tests(self):
         self.unique_roles_error = False
@@ -138,7 +139,7 @@ class IS1201Test(GenericTest):
         self.reference_datatype_descriptors = self.load_model_descriptors(datatype_paths)
 
         # Generate MS-05 datatype schemas from MS-05 datatype descriptors
-        self.datatype_schemas = self.generate_json_schemas(
+        self.reference_datatype_schemas = self.generate_json_schemas(
             datatype_descriptors=self.reference_datatype_descriptors,
             schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/'))
 
@@ -224,7 +225,7 @@ class IS1201Test(GenericTest):
                     descriptor = descriptors[key]
 
                     # Validate the JSON schema is correct
-                    self._validate_schema(test, descriptor, self.datatype_schemas[schema_name])
+                    self._validate_schema(test, descriptor, self.reference_datatype_schemas[schema_name])
 
                     # Validate the descriptor is correct
                     self.validate_descriptor(test, reference_descriptors[key], descriptor)
@@ -339,24 +340,24 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def validate_property_type(self, test, value, type, is_nullable, datatype_schemas, context=""):
+    def validate_property_type(self, test, value, data_type, is_nullable, context=""):
         if value is None:
             if is_nullable:
                 return
             else:
                 raise NMOSTestException(test.FAIL(context + "Non-nullable property set to null."))
 
-        if self.is12_utils.primitive_to_python_type(type):
+        if self.is12_utils.primitive_to_python_type(data_type):
             # Special case: if this is a floating point value it
             # can be intepreted as an int in the case of whole numbers
             # e.g. 0.0 -> 0, 1.0 -> 1
-            if self.is12_utils.primitive_to_python_type(type) == float and isinstance(value, int):
+            if self.is12_utils.primitive_to_python_type(data_type) == float and isinstance(value, int):
                 return
 
-            if not isinstance(value, self.is12_utils.primitive_to_python_type(type)):
-                raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(type)))
+            if not isinstance(value, self.is12_utils.primitive_to_python_type(data_type)):
+                raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(data_type)))
         else:
-            self._validate_schema(test, value, datatype_schemas.get(type), context)
+            self._validate_schema(test, value, self.datatype_schemas.get(data_type), context)
 
         return
 
@@ -426,7 +427,7 @@ class IS1201Test(GenericTest):
                 + "; "
         return None
 
-    def check_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
+    def check_object_properties(self, test, reference_class_descriptor, oid, context):
         for class_property in reference_class_descriptor['properties']:
             object_property = self.get_property(test, oid, class_property.get('id'), context)
 
@@ -440,7 +441,6 @@ class IS1201Test(GenericTest):
                                                 property_value,
                                                 class_property['typeName'],
                                                 class_property['isNullable'],
-                                                datatype_schemas,
                                                 context=context + class_property["typeName"]
                                                 + ": " + class_property["name"] + ": ")
                 self.check_sequence_methods(test,
@@ -453,7 +453,6 @@ class IS1201Test(GenericTest):
                                             object_property,
                                             class_property['typeName'],
                                             class_property['isNullable'],
-                                            datatype_schemas,
                                             context=context + class_property["typeName"]
                                             + class_property["name"] + ": ")
         return
@@ -487,7 +486,7 @@ class IS1201Test(GenericTest):
             else:
                 manager_cache.append(base_class_name)
 
-    def check_touchpoints(self, test, oid, datatype_schemas, context):
+    def check_touchpoints(self, test, oid, context):
         """Touchpoint checks"""
         touchpoints = self.get_property(test,
                                         oid,
@@ -497,9 +496,9 @@ class IS1201Test(GenericTest):
             self.touchpoints_metadata["checked"] = True
             try:
                 for touchpoint in touchpoints:
-                    schema = datatype_schemas.get("NcTouchpointNmos") \
+                    schema = self.datatype_schemas.get("NcTouchpointNmos") \
                         if touchpoint["contextNamespace"] == "x-nmos" \
-                        else datatype_schemas.get("NcTouchpointNmosChannelMapping")
+                        else self.datatype_schemas.get("NcTouchpointNmosChannelMapping")
                     self._validate_schema(test,
                                           touchpoint,
                                           schema,
@@ -508,21 +507,20 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error"] = True
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
-    def check_block(self, test, block, class_descriptors, datatype_schemas, context=""):
+    def check_block(self, test, block, class_descriptors, context=""):
         for child_object in block.child_objects:
             # If this child object is a Block, recurse
             if type(child_object) is NcBlock:
                 self.check_block(test,
                                  child_object,
                                  class_descriptors,
-                                 datatype_schemas,
                                  context=context + str(child_object.role) + ': ')
         role_cache = []
         manager_cache = []
         for descriptor in block.member_descriptors:
             self._validate_schema(test,
                                   descriptor,
-                                  datatype_schemas.get("NcBlockMemberDescriptor"),
+                                  self.datatype_schemas.get("NcBlockMemberDescriptor"),
                                   context="NcBlockMemberDescriptor: ")
 
             self.check_unique_roles(descriptor['role'], role_cache)
@@ -531,15 +529,13 @@ class IS1201Test(GenericTest):
             if self.is12_utils.is_non_standard_class(descriptor['classId']):
                 self.organization_metadata["checked"] = True
             self.check_manager(descriptor['classId'], descriptor["owner"], class_descriptors, manager_cache)
-            self.check_touchpoints(test, descriptor['oid'], datatype_schemas,
-                                   context=context + str(descriptor['role']) + ': ')
+            self.check_touchpoints(test, descriptor['oid'], context=context + str(descriptor['role']) + ': ')
 
             class_identifier = ".".join(map(str, descriptor['classId']))
             if class_identifier and class_identifier in class_descriptors:
                 self.check_object_properties(test,
                                              class_descriptors[class_identifier],
                                              descriptor['oid'],
-                                             datatype_schemas,
                                              context=context + str(descriptor['role']) + ': ')
             else:
                 self.device_model_metadata["error"] = True
@@ -555,6 +551,21 @@ class IS1201Test(GenericTest):
                     + "Non-standard class id does not contain authority key: " \
                     + str(descriptor['classId']) + ". "
 
+    def generate_device_model_datatype_schemas(self, test):
+        # Generate datatype schemas based on the datatype decriptors
+        # queried from the Node under test's Device Model.
+        # This will include any Non-standard data types
+        if self.datatype_schemas:
+            return
+        
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+    
+        # Create JSON schemas for the queried datatypes
+        self.datatype_schemas = self.generate_json_schemas(
+            datatype_descriptors=class_manager.datatype_descriptors,
+            schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
+        
+
     def check_device_model(self, test):
         if not self.device_model_metadata["checked"]:
             self.device_model_metadata["checked"] = True
@@ -563,15 +574,11 @@ class IS1201Test(GenericTest):
             class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
             device_model = self.query_device_model(test)
 
-            # Create JSON schemas for the queried datatypes
-            datatype_schemas = self.generate_json_schemas(
-                datatype_descriptors=class_manager.datatype_descriptors,
-                schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
-
+            self.generate_device_model_datatype_schemas(test)
+            
             self.check_block(test,
                              device_model,
-                             class_manager.class_descriptors,
-                             datatype_schemas)
+                             class_manager.class_descriptors)
 
         return
 
@@ -951,7 +958,7 @@ class IS1201Test(GenericTest):
             for queried_member in queried_members:
                 self._validate_schema(test,
                                       queried_member,
-                                      self.datatype_schemas["NcBlockMemberDescriptor"],
+                                      self.reference_datatype_schemas["NcBlockMemberDescriptor"],
                                       context=context
                                       + block.role
                                       + ": NcBlockMemberDescriptor: ")
@@ -997,7 +1004,7 @@ class IS1201Test(GenericTest):
             for queried_member in queried_members:
                 self._validate_schema(test,
                                       queried_member,
-                                      self.datatype_schemas["NcBlockMemberDescriptor"],
+                                      self.reference_datatype_schemas["NcBlockMemberDescriptor"],
                                       context=context
                                       + block.role
                                       + ": NcBlockMemberDescriptor: ")
@@ -1419,8 +1426,8 @@ class IS1201Test(GenericTest):
             return self.resolve_datatype(self, datatype_descriptors[datatype].get("parentType"), datatype_descriptors)
         return datatype
 
-    def check_constraint(self, test, constraint, datatype, datatype_schema,
-                         is_sequence, constraint_type, test_metadata, context):
+    def check_constraint(self, test, constraint, type_name, datatype_descriptors, datatype_schema, is_sequence, constraint_type,
+                         test_metadata, context):
         if constraint.get("defaultValue"):
             if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
                 test_metadata["error"] = True
@@ -1431,8 +1438,13 @@ class IS1201Test(GenericTest):
                 for value in constraint.get("defaultValue"):
                     self._validate_schema(test, value, datatype_schema, context + ": defaultValue ")
             else:
-                self._validate_schema(test, constraint.get("defaultValue"),
-                                      datatype_schema, context + ": defaultValue ")
+                self._validate_schema(test,
+                                      constraint.get("defaultValue"),
+                                      datatype_schema,
+                                      context + ": defaultValue ")
+        
+        datatype = self.resolve_datatype(type_name, datatype_descriptors)
+                
         # check NcXXXConstraintsNumber
         if constraint.get("minimum") or constraint.get("maximum") or constraint.get("step"):
             if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
@@ -1448,7 +1460,7 @@ class IS1201Test(GenericTest):
                     " can not be constrainted by " + constraint_type + "."
 
     def do_validate_runtime_constraints_test(self, test, nc_object, class_descriptors, datatype_descriptors,
-                                             datatype_schemas, context=""):
+                                             context=""):
         if nc_object.runtime_constraints:
             self.validate_runtime_constraints_metadata["checked"] = True
             for constraint in nc_object.runtime_constraints:
@@ -1457,9 +1469,9 @@ class IS1201Test(GenericTest):
                     if class_property["id"] == constraint["propertyId"]:
                         message_root = context + nc_object.role + ": " + class_property["name"] + \
                             ": " + class_property.get("typeName")
-                        datatype = self.resolve_datatype(class_property.get("typeName"), datatype_descriptors)
-                        self.check_constraint(test, constraint, datatype,
-                                              datatype_schemas.get(class_property.get("typeName")),
+                        #datatype = self.resolve_datatype(class_property.get("typeName"), datatype_descriptors)
+                        self.check_constraint(test, constraint, class_property.get("typeName"), datatype_descriptors,
+                                              self.datatype_schemas.get(class_property.get("typeName")),
                                               class_property["isSequence"],
                                               "NcPropertyConstraintsNumber",
                                               self.validate_runtime_constraints_metadata,
@@ -1469,7 +1481,7 @@ class IS1201Test(GenericTest):
         if type(nc_object) is NcBlock:
             for child_object in nc_object.child_objects:
                 self.do_validate_runtime_constraints_test(test, child_object, class_descriptors, datatype_descriptors,
-                                                          datatype_schemas, context + nc_object.role + ": ")
+                                                          context + nc_object.role + ": ")
 
     def test_33(self, test):
         """Constraints: validate runtime constraints"""
@@ -1477,13 +1489,10 @@ class IS1201Test(GenericTest):
         device_model = self.query_device_model(test)
         class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
-        # Create JSON schemas for the queried datatypes
-        datatype_schemas = self.generate_json_schemas(
-            datatype_descriptors=class_manager.datatype_descriptors,
-            schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
+        self.generate_device_model_datatype_schemas(test)
 
         self.do_validate_runtime_constraints_test(test, device_model, class_manager.class_descriptors,
-                                                  class_manager.datatype_descriptors, datatype_schemas)
+                                                  class_manager.datatype_descriptors)
 
         if self.validate_runtime_constraints_metadata["error"]:
             return test.FAIL(self.validate_runtime_constraints_metadata["error_msg"])
@@ -1494,7 +1503,7 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def do_validate_property_constraints_test(self, test, nc_object, class_descriptors, datatype_descriptors,
-                                              datatype_schemas, context=""):
+                                              context=""):
         class_descriptor = class_descriptors[".".join(map(str, nc_object.class_id))]
 
         for class_property in class_descriptor["properties"]:
@@ -1503,9 +1512,9 @@ class IS1201Test(GenericTest):
                 # constraints = class_property["constraints"]
                 message_root = context + nc_object.role + ": " + class_property["name"] + \
                     ": " + class_property.get("typeName")
-                datatype = self.resolve_datatype(class_property.get("typeName"), datatype_descriptors)
-                self.check_constraint(test, class_property["constraints"], datatype,
-                                      datatype_schemas.get(class_property.get("typeName")),
+                #datatype = self.resolve_datatype(class_property.get("typeName"), datatype_descriptors)
+                self.check_constraint(test, class_property["constraints"], class_property.get("typeName"), datatype_descriptors,
+                                      self.datatype_schemas.get(class_property.get("typeName")),
                                       class_property["isSequence"],
                                       "NcParameterConstraintsNumber",
                                       self.validate_property_constraints_metadata, message_root)
@@ -1513,7 +1522,7 @@ class IS1201Test(GenericTest):
         if type(nc_object) is NcBlock:
             for child_object in nc_object.child_objects:
                 self.do_validate_property_constraints_test(test, child_object, class_descriptors, datatype_descriptors,
-                                                           datatype_schemas, context + nc_object.role + ": ")
+                                                           context + nc_object.role + ": ")
 
     def test_34(self, test):
         """Constraints: validate property constraints"""
@@ -1521,13 +1530,10 @@ class IS1201Test(GenericTest):
         device_model = self.query_device_model(test)
         class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
-        # Create JSON schemas for the queried datatypes
-        datatype_schemas = self.generate_json_schemas(
-            datatype_descriptors=class_manager.datatype_descriptors,
-            schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
+        self.generate_device_model_datatype_schemas(test)
 
         self.do_validate_property_constraints_test(test, device_model, class_manager.class_descriptors,
-                                                   class_manager.datatype_descriptors, datatype_schemas)
+                                                   class_manager.datatype_descriptors)
 
         if self.validate_property_constraints_metadata["error"]:
             return test.FAIL(self.validate_property_constraints_metadata["error_msg"])
@@ -1538,19 +1544,18 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def do_validate_datatype_constraints_test(self, test, datatype, type_name, datatype_descriptors,
-                                              datatype_schemas, context=""):
+                                              context=""):
         if datatype.get("constraints"):
             self.validate_datatype_constraints_metadata["checked"] = True
-            base_datatype = self.resolve_datatype(type_name, datatype_descriptors)
-            self.check_constraint(test, datatype.get("constraints"), base_datatype,
-                                  datatype_schemas.get(type_name),
+            #base_datatype = self.resolve_datatype(type_name, datatype_descriptors)
+            self.check_constraint(test, datatype.get("constraints"), type_name, datatype_descriptors,
+                                  self.datatype_schemas.get(type_name),
                                   datatype.get("isSequence", False),
                                   "NcParameterConstraintsNumber",
                                   self.validate_datatype_constraints_metadata, context + ": " + type_name)
         if datatype.get("type") == NcDatatypeType.Struct.value:
             for field in datatype.get("fields"):
                 self.do_validate_datatype_constraints_test(test, field, field["typeName"], datatype_descriptors,
-                                                           datatype_schemas,
                                                            context + ": " + type_name + ": " + field["name"])
 
     def test_35(self, test):
@@ -1558,14 +1563,11 @@ class IS1201Test(GenericTest):
 
         class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
 
-        # Create JSON schemas for the queried datatypes
-        datatype_schemas = self.generate_json_schemas(
-            datatype_descriptors=class_manager.datatype_descriptors,
-            schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
+        self.generate_device_model_datatype_schemas(test)
 
         for _, datatype in class_manager.datatype_descriptors.items():
             self.do_validate_datatype_constraints_test(test, datatype, datatype["name"],
-                                                       class_manager.datatype_descriptors, datatype_schemas)
+                                                       class_manager.datatype_descriptors)
 
         if self.validate_datatype_constraints_metadata["error"]:
             return test.FAIL(self.validate_datatype_constraints_metadata["error_msg"])
