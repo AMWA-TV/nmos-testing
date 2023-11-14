@@ -562,14 +562,13 @@ class IS1201Test(GenericTest):
         # This will include any Non-standard data types
         if self.datatype_schemas:
             return
-        
+
         class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
-    
+
         # Create JSON schemas for the queried datatypes
         self.datatype_schemas = self.generate_json_schemas(
             datatype_descriptors=class_manager.datatype_descriptors,
             schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
-        
 
     def check_device_model(self, test):
         if not self.device_model_metadata["checked"]:
@@ -580,7 +579,7 @@ class IS1201Test(GenericTest):
             device_model = self.query_device_model(test)
 
             self.generate_device_model_datatype_schemas(test)
-            
+
             self.check_block(test,
                              device_model,
                              class_manager.class_descriptors)
@@ -1431,8 +1430,8 @@ class IS1201Test(GenericTest):
             return self.resolve_datatype(self, datatype_descriptors[datatype].get("parentType"), datatype_descriptors)
         return datatype
 
-    def check_constraint(self, test, constraint, type_name, datatype_descriptors, datatype_schema, is_sequence, constraint_type,
-                         test_metadata, context):
+    def check_constraint(self, test, constraint, type_name, datatype_descriptors, datatype_schema, is_sequence,
+                         constraint_type, test_metadata, context):
         if constraint.get("defaultValue"):
             if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
                 test_metadata["error"] = True
@@ -1447,9 +1446,9 @@ class IS1201Test(GenericTest):
                                       constraint.get("defaultValue"),
                                       datatype_schema,
                                       context + ": defaultValue ")
-        
+
         datatype = self.resolve_datatype(type_name, datatype_descriptors)
-                
+
         # check NcXXXConstraintsNumber
         if constraint.get("minimum") or constraint.get("maximum") or constraint.get("step"):
             if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
@@ -1474,7 +1473,6 @@ class IS1201Test(GenericTest):
                     if class_property["id"] == constraint["propertyId"]:
                         message_root = context + nc_object.role + ": " + class_property["name"] + \
                             ": " + class_property.get("typeName")
-                        #datatype = self.resolve_datatype(class_property.get("typeName"), datatype_descriptors)
                         self.check_constraint(test, constraint, class_property.get("typeName"), datatype_descriptors,
                                               self.datatype_schemas.get(class_property.get("typeName")),
                                               class_property["isSequence"],
@@ -1514,11 +1512,10 @@ class IS1201Test(GenericTest):
         for class_property in class_descriptor["properties"]:
             if class_property["constraints"]:
                 self.validate_property_constraints_metadata["checked"] = True
-                # constraints = class_property["constraints"]
                 message_root = context + nc_object.role + ": " + class_property["name"] + \
                     ": " + class_property.get("typeName")
-                #datatype = self.resolve_datatype(class_property.get("typeName"), datatype_descriptors)
-                self.check_constraint(test, class_property["constraints"], class_property.get("typeName"), datatype_descriptors,
+                self.check_constraint(test, class_property["constraints"], class_property.get("typeName"),
+                                      datatype_descriptors,
                                       self.datatype_schemas.get(class_property.get("typeName")),
                                       class_property["isSequence"],
                                       "NcParameterConstraintsNumber",
@@ -1552,7 +1549,6 @@ class IS1201Test(GenericTest):
                                               context=""):
         if datatype.get("constraints"):
             self.validate_datatype_constraints_metadata["checked"] = True
-            #base_datatype = self.resolve_datatype(type_name, datatype_descriptors)
             self.check_constraint(test, datatype.get("constraints"), type_name, datatype_descriptors,
                                   self.datatype_schemas.get(type_name),
                                   datatype.get("isSequence", False),
