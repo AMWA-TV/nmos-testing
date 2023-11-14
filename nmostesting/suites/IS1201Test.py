@@ -46,6 +46,7 @@ class IS1201Test(GenericTest):
                                     self.apis[CONTROL_API_KEY]["spec_branch"])
         self.load_reference_resources()
         self.device_model = None
+        self.class_manager = None
         self.datatype_schemas = None
 
     def set_up_tests(self):
@@ -271,6 +272,12 @@ class IS1201Test(GenericTest):
 
         return members[0]
 
+    def get_class_manager(self, test):
+        if not self.class_manager:
+            self.class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        return self.class_manager
+
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html
@@ -280,7 +287,7 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         results += self.validate_model_definitions(class_manager.class_descriptors,
                                                    'NcClassDescriptor',
@@ -563,7 +570,7 @@ class IS1201Test(GenericTest):
         if self.datatype_schemas:
             return
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         # Create JSON schemas for the queried datatypes
         self.datatype_schemas = self.generate_json_schemas(
@@ -575,7 +582,7 @@ class IS1201Test(GenericTest):
             self.device_model_metadata["checked"] = True
 
             self.create_ncp_socket(test)
-            class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+            class_manager = self.get_class_manager(test)
             device_model = self.query_device_model(test)
 
             self.generate_device_model_datatype_schemas(test)
@@ -766,7 +773,7 @@ class IS1201Test(GenericTest):
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
             .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         class_id_str = ".".join(map(str, StandardClassIds.NCCLASSMANAGER.value))
         class_descriptor = self.reference_class_descriptors[class_id_str]
@@ -809,7 +816,7 @@ class IS1201Test(GenericTest):
         # specification it MUST comply with the model definitions published
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncclassmanager
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         for _, class_descriptor in class_manager.class_descriptors.items():
             for include_inherited in [False, True]:
@@ -832,7 +839,7 @@ class IS1201Test(GenericTest):
         # specification it MUST comply with the model definitions published
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncclassmanager
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         for _, datatype_descriptor in class_manager.datatype_descriptors.items():
             for include_inherited in [False, True]:
@@ -1425,14 +1432,15 @@ class IS1201Test(GenericTest):
             return test.FAIL(error_message)
         return test.PASS()
 
-    def resolve_datatype(self, datatype, datatype_descriptors):
-        if datatype_descriptors[datatype].get("parentType"):
-            return self.resolve_datatype(self, datatype_descriptors[datatype].get("parentType"), datatype_descriptors)
+    def resolve_datatype(self, test, datatype):
+        class_manager = self.get_class_manager(test)
+        if class_manager.datatype_descriptors[datatype].get("parentType"):
+            return self.resolve_datatype(test, class_manager.datatype_descriptors[datatype].get("parentType"))
         return datatype
 
-    def check_constraint(self, test, constraint, type_name, datatype_descriptors, datatype_schema, is_sequence,
-                         constraint_type, test_metadata, context):
+    def check_constraint(self, test, constraint, type_name, is_sequence, test_metadata, context):
         if constraint.get("defaultValue"):
+            datatype_schema = self.datatype_schemas.get(type_name)
             if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
                 test_metadata["error"] = True
                 test_metadata["error_msg"] = context + (" a default value sequence was expected"
@@ -1447,7 +1455,9 @@ class IS1201Test(GenericTest):
                                       datatype_schema,
                                       context + ": defaultValue ")
 
-        datatype = self.resolve_datatype(type_name, datatype_descriptors)
+        datatype = self.resolve_datatype(test, type_name)
+        constraint_type = "NcPropertyConstraintsNumber" \
+            if constraint.get("propertyId") else "NcParameterConstraintsNumber"
 
         # check NcXXXConstraintsNumber
         if constraint.get("minimum") or constraint.get("maximum") or constraint.get("step"):
@@ -1463,39 +1473,39 @@ class IS1201Test(GenericTest):
                 test_metadata["error_msg"] = context + "of type " + datatype + \
                     " can not be constrainted by " + constraint_type + "."
 
-    def do_validate_runtime_constraints_test(self, test, nc_object, class_descriptors, datatype_descriptors,
-                                             context=""):
+    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, context=""):
         if nc_object.runtime_constraints:
             self.validate_runtime_constraints_metadata["checked"] = True
             for constraint in nc_object.runtime_constraints:
-                class_descriptor = class_descriptors[".".join(map(str, nc_object.class_id))]
+                class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
                 for class_property in class_descriptor["properties"]:
                     if class_property["id"] == constraint["propertyId"]:
                         message_root = context + nc_object.role + ": " + class_property["name"] + \
                             ": " + class_property.get("typeName")
-                        self.check_constraint(test, constraint, class_property.get("typeName"), datatype_descriptors,
-                                              self.datatype_schemas.get(class_property.get("typeName")),
+                        self.check_constraint(test,
+                                              constraint,
+                                              class_property.get("typeName"),
                                               class_property["isSequence"],
-                                              "NcPropertyConstraintsNumber",
                                               self.validate_runtime_constraints_metadata,
                                               message_root)
 
         # Recurse through the child blocks
         if type(nc_object) is NcBlock:
             for child_object in nc_object.child_objects:
-                self.do_validate_runtime_constraints_test(test, child_object, class_descriptors, datatype_descriptors,
+                self.do_validate_runtime_constraints_test(test,
+                                                          child_object,
+                                                          class_manager,
                                                           context + nc_object.role + ": ")
 
     def test_33(self, test):
         """Constraints: validate runtime constraints"""
 
         device_model = self.query_device_model(test)
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         self.generate_device_model_datatype_schemas(test)
 
-        self.do_validate_runtime_constraints_test(test, device_model, class_manager.class_descriptors,
-                                                  class_manager.datatype_descriptors)
+        self.do_validate_runtime_constraints_test(test, device_model, class_manager)
 
         if self.validate_runtime_constraints_metadata["error"]:
             return test.FAIL(self.validate_runtime_constraints_metadata["error_msg"])
@@ -1505,37 +1515,37 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_validate_property_constraints_test(self, test, nc_object, class_descriptors, datatype_descriptors,
-                                              context=""):
-        class_descriptor = class_descriptors[".".join(map(str, nc_object.class_id))]
+    def do_validate_property_constraints_test(self, test, nc_object, class_manager, context=""):
+        class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
 
         for class_property in class_descriptor["properties"]:
             if class_property["constraints"]:
                 self.validate_property_constraints_metadata["checked"] = True
                 message_root = context + nc_object.role + ": " + class_property["name"] + \
                     ": " + class_property.get("typeName")
-                self.check_constraint(test, class_property["constraints"], class_property.get("typeName"),
-                                      datatype_descriptors,
-                                      self.datatype_schemas.get(class_property.get("typeName")),
+                self.check_constraint(test,
+                                      class_property["constraints"],
+                                      class_property.get("typeName"),
                                       class_property["isSequence"],
-                                      "NcParameterConstraintsNumber",
-                                      self.validate_property_constraints_metadata, message_root)
+                                      self.validate_property_constraints_metadata,
+                                      message_root)
         # Recurse through the child blocks
         if type(nc_object) is NcBlock:
             for child_object in nc_object.child_objects:
-                self.do_validate_property_constraints_test(test, child_object, class_descriptors, datatype_descriptors,
+                self.do_validate_property_constraints_test(test,
+                                                           child_object,
+                                                           class_manager,
                                                            context + nc_object.role + ": ")
 
     def test_34(self, test):
         """Constraints: validate property constraints"""
 
         device_model = self.query_device_model(test)
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         self.generate_device_model_datatype_schemas(test)
 
-        self.do_validate_property_constraints_test(test, device_model, class_manager.class_descriptors,
-                                                   class_manager.datatype_descriptors)
+        self.do_validate_property_constraints_test(test, device_model, class_manager)
 
         if self.validate_property_constraints_metadata["error"]:
             return test.FAIL(self.validate_property_constraints_metadata["error_msg"])
@@ -1545,30 +1555,31 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def do_validate_datatype_constraints_test(self, test, datatype, type_name, datatype_descriptors,
-                                              context=""):
+    def do_validate_datatype_constraints_test(self, test, datatype, type_name, context=""):
         if datatype.get("constraints"):
             self.validate_datatype_constraints_metadata["checked"] = True
-            self.check_constraint(test, datatype.get("constraints"), type_name, datatype_descriptors,
-                                  self.datatype_schemas.get(type_name),
+            self.check_constraint(test,
+                                  datatype.get("constraints"),
+                                  type_name,
                                   datatype.get("isSequence", False),
-                                  "NcParameterConstraintsNumber",
-                                  self.validate_datatype_constraints_metadata, context + ": " + type_name)
+                                  self.validate_datatype_constraints_metadata,
+                                  context + ": " + type_name)
         if datatype.get("type") == NcDatatypeType.Struct.value:
             for field in datatype.get("fields"):
-                self.do_validate_datatype_constraints_test(test, field, field["typeName"], datatype_descriptors,
+                self.do_validate_datatype_constraints_test(test,
+                                                           field,
+                                                           field["typeName"],
                                                            context + ": " + type_name + ": " + field["name"])
 
     def test_35(self, test):
         """Constraints: validate datatype constraints"""
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         self.generate_device_model_datatype_schemas(test)
 
         for _, datatype in class_manager.datatype_descriptors.items():
-            self.do_validate_datatype_constraints_test(test, datatype, datatype["name"],
-                                                       class_manager.datatype_descriptors)
+            self.do_validate_datatype_constraints_test(test, datatype, datatype["name"])
 
         if self.validate_datatype_constraints_metadata["error"]:
             return test.FAIL(self.validate_datatype_constraints_metadata["error_msg"])
