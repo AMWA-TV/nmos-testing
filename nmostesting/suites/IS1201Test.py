@@ -902,30 +902,6 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_18(self, test):
-        """NcObject: SetSequenceItem method is correct"""
-        # Where the functionality of a device uses control classes and datatypes listed in this
-        # specification it MUST comply with the model definitions published
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
-
-        return test.DISABLED()
-
-    def test_19(self, test):
-        """NcObject: AddSequenceItem method is correct"""
-        # Where the functionality of a device uses control classes and datatypes listed in this
-        # specification it MUST comply with the model definitions published
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
-
-        return test.DISABLED()
-
-    def test_20(self, test):
-        """NcObject: RemoveSequenceItem method is correct"""
-        # Where the functionality of a device uses control classes and datatypes listed in this
-        # specification it MUST comply with the model definitions published
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
-
-        return test.DISABLED()
-
-    def test_21(self, test):
         """NcObject: GetSequenceLength method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -985,7 +961,7 @@ class IS1201Test(GenericTest):
                                                       + block.role
                                                       + ": Unsuccessful attempt to get member descriptors."))
 
-    def test_22(self, test):
+    def test_19(self, test):
         """NcBlock: GetMemberDescriptors method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1039,7 +1015,7 @@ class IS1201Test(GenericTest):
                                                   + ": Unsuccessful attempt to find member by role path: "
                                                   + str(role_path)))
 
-    def test_23(self, test):
+    def test_20(self, test):
         """NcBlock: FindMemberByPath method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1103,7 +1079,7 @@ class IS1201Test(GenericTest):
                                                               + ": Unexpected search result. "
                                                               + str(actual_result)))
 
-    def test_24(self, test):
+    def test_21(self, test):
         """NcBlock: FindMembersByRole method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1158,7 +1134,7 @@ class IS1201Test(GenericTest):
                                                           + block.role
                                                           + ": Unexpected search result. " + str(actual_result)))
 
-    def test_25(self, test):
+    def test_22(self, test):
         """NcBlock: FindMembersByClassId method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1216,7 +1192,7 @@ class IS1201Test(GenericTest):
 
             return test.PASS()
 
-    def test_26(self, test):
+    def test_23(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not in range 1 to 65535"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1232,7 +1208,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_27(self, test):
+    def test_24(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not a number"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1248,7 +1224,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_28(self, test):
+    def test_25(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1263,7 +1239,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_29(self, test):
+    def test_26(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1274,7 +1250,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_30(self, test):
+    def test_27(self, test):
         """MS-05-02 Error: Node handles oid of object not found in Device Model"""
         # Referencing the Google sheet
         # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
@@ -1294,7 +1270,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.BadOid)
 
-    def test_31(self, test):
+    def test_28(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1310,7 +1286,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.PropertyNotImplemented)
 
-    def test_32(self, test):
+    def test_29(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1329,7 +1305,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.MethodNotImplemented)
 
-    def test_33(self, test):
+    def test_30(self, test):
         """MS-05-02 Error: Node handles read only error"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1345,7 +1321,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)
 
-    def test_34(self, test):
+    def test_31(self, test):
         """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1367,7 +1343,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.IndexOutOfBounds)
 
-    def test_35(self, test):
+    def test_32(self, test):
         """Node implements subscription and notification mechanism"""
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/NcObject.html#propertychanged-event
         # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#notification-message-type
@@ -1495,7 +1471,7 @@ class IS1201Test(GenericTest):
                 self.do_validate_runtime_constraints_test(test, child_object, class_descriptors, datatype_descriptors,
                                                           datatype_schemas, context + nc_object.role + ": ")
 
-    def test_36(self, test):
+    def test_33(self, test):
         """Constraints: validate runtime constraints"""
 
         device_model = self.query_device_model(test)
@@ -1539,7 +1515,7 @@ class IS1201Test(GenericTest):
                 self.do_validate_property_constraints_test(test, child_object, class_descriptors, datatype_descriptors,
                                                            datatype_schemas, context + nc_object.role + ": ")
 
-    def test_37(self, test):
+    def test_34(self, test):
         """Constraints: validate property constraints"""
 
         device_model = self.query_device_model(test)
@@ -1577,7 +1553,7 @@ class IS1201Test(GenericTest):
                                                            datatype_schemas,
                                                            context + ": " + type_name + ": " + field["name"])
 
-    def test_38(self, test):
+    def test_35(self, test):
         """Constraints: validate datatype constraints"""
 
         class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
