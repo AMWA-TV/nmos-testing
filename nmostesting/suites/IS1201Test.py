@@ -172,11 +172,16 @@ class IS1201Test(GenericTest):
                 else:
                     self.validate_descriptor(test, reference[key], descriptor[key], context=context + key + "->")
         elif isinstance(reference, list):
-            # Convert to dict and validate
-            references = {item['name']: item for item in reference}
-            descriptors = {item['name']: item for item in descriptor}
+            if len(reference) > 0 and isinstance(reference[0], dict):
+                # Convert to dict and validate
+                references = {item['name']: item for item in reference}
+                descriptors = {item['name']: item for item in descriptor}
 
-            return self.validate_descriptor(test, references, descriptors, context)
+                self.validate_descriptor(test, references, descriptors, context)
+            elif reference != descriptor:
+                raise NMOSTestException(test.FAIL(context + "Unexpected sequence. Expected: "
+                                                  + str(reference)
+                                                  + " actual: " + str(descriptor)))
         else:
             if reference != descriptor:
                 raise NMOSTestException(test.FAIL(context + 'Expected value: '
