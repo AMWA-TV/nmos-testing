@@ -23,7 +23,7 @@ from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils, NcObject, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType, \
     NcObjectMethods, NcObjectProperties, NcObjectEvents, NcClassManagerProperties, NcDeviceManagerProperties, \
-    StandardClassIds, NcClassManager, NcBlock
+    StandardClassIds, NcClassManager, NcBlock, NcDatatypeType
 from ..TestHelper import load_resolved_schema
 from ..TestResult import Test
 
@@ -46,6 +46,8 @@ class IS1201Test(GenericTest):
                                     self.apis[CONTROL_API_KEY]["spec_branch"])
         self.load_reference_resources()
         self.device_model = None
+        self.class_manager = None
+        self.datatype_schemas = None
 
     def set_up_tests(self):
         self.unique_roles_error = False
@@ -57,6 +59,9 @@ class IS1201Test(GenericTest):
         self.touchpoints_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.get_sequence_length_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.validate_runtime_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.validate_property_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.validate_datatype_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
 
         self.oid_cache = []
 
@@ -115,6 +120,8 @@ class IS1201Test(GenericTest):
         spec_paths = [os.path.join(self.apis[FEATURE_SETS_KEY]["spec_path"], path)
                       for path in self.apis[FEATURE_SETS_KEY]["repo_paths"]]
         spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
+        # Root path for primitive datatypes
+        spec_paths.append('test_data/IS1201')
 
         datatype_paths = []
         classes_paths = []
@@ -133,7 +140,7 @@ class IS1201Test(GenericTest):
         self.reference_datatype_descriptors = self.load_model_descriptors(datatype_paths)
 
         # Generate MS-05 datatype schemas from MS-05 datatype descriptors
-        self.datatype_schemas = self.generate_json_schemas(
+        self.reference_datatype_schemas = self.generate_json_schemas(
             datatype_descriptors=self.reference_datatype_descriptors,
             schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/'))
 
@@ -166,11 +173,16 @@ class IS1201Test(GenericTest):
                 else:
                     self.validate_descriptor(test, reference[key], descriptor[key], context=context + key + "->")
         elif isinstance(reference, list):
-            # Convert to dict and validate
-            references = {item['name']: item for item in reference}
-            descriptors = {item['name']: item for item in descriptor}
+            if len(reference) > 0 and isinstance(reference[0], dict):
+                # Convert to dict and validate
+                references = {item['name']: item for item in reference}
+                descriptors = {item['name']: item for item in descriptor}
 
-            return self.validate_descriptor(test, references, descriptors, context)
+                self.validate_descriptor(test, references, descriptors, context)
+            elif reference != descriptor:
+                raise NMOSTestException(test.FAIL(context + "Unexpected sequence. Expected: "
+                                                  + str(reference)
+                                                  + " actual: " + str(descriptor)))
         else:
             if reference != descriptor:
                 raise NMOSTestException(test.FAIL(context + 'Expected value: '
@@ -219,7 +231,7 @@ class IS1201Test(GenericTest):
                     descriptor = descriptors[key]
 
                     # Validate the JSON schema is correct
-                    self._validate_schema(test, descriptor, self.datatype_schemas[schema_name])
+                    self._validate_schema(test, descriptor, self.reference_datatype_schemas[schema_name])
 
                     # Validate the descriptor is correct
                     self.validate_descriptor(test, reference_descriptors[key], descriptor)
@@ -260,6 +272,12 @@ class IS1201Test(GenericTest):
 
         return members[0]
 
+    def get_class_manager(self, test):
+        if not self.class_manager:
+            self.class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        return self.class_manager
+
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html
@@ -269,7 +287,7 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         results += self.validate_model_definitions(class_manager.class_descriptors,
                                                    'NcClassDescriptor',
@@ -334,24 +352,24 @@ class IS1201Test(GenericTest):
 
         return test.PASS()
 
-    def validate_property_type(self, test, value, type, is_nullable, datatype_schemas, context=""):
+    def validate_property_type(self, test, value, data_type, is_nullable, context=""):
         if value is None:
             if is_nullable:
                 return
             else:
                 raise NMOSTestException(test.FAIL(context + "Non-nullable property set to null."))
 
-        if self.is12_utils.primitive_to_python_type(type):
+        if self.is12_utils.primitive_to_python_type(data_type):
             # Special case: if this is a floating point value it
             # can be intepreted as an int in the case of whole numbers
             # e.g. 0.0 -> 0, 1.0 -> 1
-            if self.is12_utils.primitive_to_python_type(type) == float and isinstance(value, int):
+            if self.is12_utils.primitive_to_python_type(data_type) == float and isinstance(value, int):
                 return
 
-            if not isinstance(value, self.is12_utils.primitive_to_python_type(type)):
-                raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(type)))
+            if not isinstance(value, self.is12_utils.primitive_to_python_type(data_type)):
+                raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(data_type)))
         else:
-            self._validate_schema(test, value, datatype_schemas.get(type), context)
+            self._validate_schema(test, value, self.datatype_schemas.get(data_type), context)
 
         return
 
@@ -421,7 +439,7 @@ class IS1201Test(GenericTest):
                 + "; "
         return None
 
-    def check_object_properties(self, test, reference_class_descriptor, oid, datatype_schemas, context):
+    def check_object_properties(self, test, reference_class_descriptor, oid, context):
         for class_property in reference_class_descriptor['properties']:
             object_property = self.get_property(test, oid, class_property.get('id'), context)
 
@@ -435,7 +453,6 @@ class IS1201Test(GenericTest):
                                                 property_value,
                                                 class_property['typeName'],
                                                 class_property['isNullable'],
-                                                datatype_schemas,
                                                 context=context + class_property["typeName"]
                                                 + ": " + class_property["name"] + ": ")
                 self.check_sequence_methods(test,
@@ -448,7 +465,6 @@ class IS1201Test(GenericTest):
                                             object_property,
                                             class_property['typeName'],
                                             class_property['isNullable'],
-                                            datatype_schemas,
                                             context=context + class_property["typeName"]
                                             + class_property["name"] + ": ")
         return
@@ -482,7 +498,7 @@ class IS1201Test(GenericTest):
             else:
                 manager_cache.append(base_class_name)
 
-    def check_touchpoints(self, test, oid, datatype_schemas, context):
+    def check_touchpoints(self, test, oid, context):
         """Touchpoint checks"""
         touchpoints = self.get_property(test,
                                         oid,
@@ -492,9 +508,9 @@ class IS1201Test(GenericTest):
             self.touchpoints_metadata["checked"] = True
             try:
                 for touchpoint in touchpoints:
-                    schema = datatype_schemas.get("NcTouchpointNmos") \
+                    schema = self.datatype_schemas.get("NcTouchpointNmos") \
                         if touchpoint["contextNamespace"] == "x-nmos" \
-                        else datatype_schemas.get("NcTouchpointNmosChannelMapping")
+                        else self.datatype_schemas.get("NcTouchpointNmosChannelMapping")
                     self._validate_schema(test,
                                           touchpoint,
                                           schema,
@@ -503,21 +519,20 @@ class IS1201Test(GenericTest):
                 self.touchpoints_metadata["error"] = True
                 self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
 
-    def check_block(self, test, block, class_descriptors, datatype_schemas, context=""):
+    def check_block(self, test, block, class_descriptors, context=""):
         for child_object in block.child_objects:
             # If this child object is a Block, recurse
             if type(child_object) is NcBlock:
                 self.check_block(test,
                                  child_object,
                                  class_descriptors,
-                                 datatype_schemas,
                                  context=context + str(child_object.role) + ': ')
         role_cache = []
         manager_cache = []
         for descriptor in block.member_descriptors:
             self._validate_schema(test,
                                   descriptor,
-                                  datatype_schemas.get("NcBlockMemberDescriptor"),
+                                  self.datatype_schemas.get("NcBlockMemberDescriptor"),
                                   context="NcBlockMemberDescriptor: ")
 
             self.check_unique_roles(descriptor['role'], role_cache)
@@ -526,15 +541,13 @@ class IS1201Test(GenericTest):
             if self.is12_utils.is_non_standard_class(descriptor['classId']):
                 self.organization_metadata["checked"] = True
             self.check_manager(descriptor['classId'], descriptor["owner"], class_descriptors, manager_cache)
-            self.check_touchpoints(test, descriptor['oid'], datatype_schemas,
-                                   context=context + str(descriptor['role']) + ': ')
+            self.check_touchpoints(test, descriptor['oid'], context=context + str(descriptor['role']) + ': ')
 
             class_identifier = ".".join(map(str, descriptor['classId']))
             if class_identifier and class_identifier in class_descriptors:
                 self.check_object_properties(test,
                                              class_descriptors[class_identifier],
                                              descriptor['oid'],
-                                             datatype_schemas,
                                              context=context + str(descriptor['role']) + ': ')
             else:
                 self.device_model_metadata["error"] = True
@@ -550,28 +563,43 @@ class IS1201Test(GenericTest):
                     + "Non-standard class id does not contain authority key: " \
                     + str(descriptor['classId']) + ". "
 
+    def generate_device_model_datatype_schemas(self, test):
+        # Generate datatype schemas based on the datatype decriptors
+        # queried from the Node under test's Device Model.
+        # This will include any Non-standard data types
+        if self.datatype_schemas:
+            return
+
+        class_manager = self.get_class_manager(test)
+
+        # Create JSON schemas for the queried datatypes
+        self.datatype_schemas = self.generate_json_schemas(
+            datatype_descriptors=class_manager.datatype_descriptors,
+            schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
+
     def check_device_model(self, test):
         if not self.device_model_metadata["checked"]:
             self.device_model_metadata["checked"] = True
 
             self.create_ncp_socket(test)
-            class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+            class_manager = self.get_class_manager(test)
             device_model = self.query_device_model(test)
 
-            # Create JSON schemas for the queried datatypes
-            datatype_schemas = self.generate_json_schemas(
-                datatype_descriptors=class_manager.datatype_descriptors,
-                schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/tmp_schemas/'))
+            self.generate_device_model_datatype_schemas(test)
 
             self.check_block(test,
                              device_model,
-                             class_manager.class_descriptors,
-                             datatype_schemas)
+                             class_manager.class_descriptors)
 
         return
 
     def nc_object_factory(self, test, class_id, oid, role):
         """Create NcObject or NcBlock based on class_id"""
+        runtime_constraints = self.get_property(test,
+                                                oid,
+                                                NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
+                                                role + ": ")
+
         # Check class id to determine if this is a block
         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
             member_descriptors = self.get_property(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
@@ -579,7 +607,7 @@ class IS1201Test(GenericTest):
                 # An error has likely occured
                 return None
 
-            nc_block = NcBlock(class_id, oid, role, member_descriptors)
+            nc_block = NcBlock(class_id, oid, role, member_descriptors, runtime_constraints)
 
             for m in member_descriptors:
                 child_object = self.nc_object_factory(test, m["classId"], m["oid"], m["role"])
@@ -601,8 +629,8 @@ class IS1201Test(GenericTest):
                     # An error has likely occured
                     return None
 
-                return NcClassManager(class_id, oid, role, class_descriptors, datatype_descriptors)
-            return NcObject(class_id, oid, role)
+                return NcClassManager(class_id, oid, role, class_descriptors, datatype_descriptors, runtime_constraints)
+            return NcObject(class_id, oid, role, runtime_constraints)
 
     def test_05(self, test):
         """Device Model: Device Model is correct according to classes and datatypes advertised by Class Manager"""
@@ -745,7 +773,7 @@ class IS1201Test(GenericTest):
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
             .format(self.apis[CONTROL_API_KEY]["spec_branch"])
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         class_id_str = ".".join(map(str, StandardClassIds.NCCLASSMANAGER.value))
         class_descriptor = self.reference_class_descriptors[class_id_str]
@@ -788,7 +816,7 @@ class IS1201Test(GenericTest):
         # specification it MUST comply with the model definitions published
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncclassmanager
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         for _, class_descriptor in class_manager.class_descriptors.items():
             for include_inherited in [False, True]:
@@ -811,7 +839,7 @@ class IS1201Test(GenericTest):
         # specification it MUST comply with the model definitions published
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncclassmanager
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.get_class_manager(test)
 
         for _, datatype_descriptor in class_manager.datatype_descriptors.items():
             for include_inherited in [False, True]:
@@ -892,30 +920,6 @@ class IS1201Test(GenericTest):
         return test.PASS()
 
     def test_18(self, test):
-        """NcObject: SetSequenceItem method is correct"""
-        # Where the functionality of a device uses control classes and datatypes listed in this
-        # specification it MUST comply with the model definitions published
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
-
-        return test.DISABLED()
-
-    def test_19(self, test):
-        """NcObject: AddSequenceItem method is correct"""
-        # Where the functionality of a device uses control classes and datatypes listed in this
-        # specification it MUST comply with the model definitions published
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
-
-        return test.DISABLED()
-
-    def test_20(self, test):
-        """NcObject: RemoveSequenceItem method is correct"""
-        # Where the functionality of a device uses control classes and datatypes listed in this
-        # specification it MUST comply with the model definitions published
-        # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncobject
-
-        return test.DISABLED()
-
-    def test_21(self, test):
         """NcObject: GetSequenceLength method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -965,7 +969,7 @@ class IS1201Test(GenericTest):
             for queried_member in queried_members:
                 self._validate_schema(test,
                                       queried_member,
-                                      self.datatype_schemas["NcBlockMemberDescriptor"],
+                                      self.reference_datatype_schemas["NcBlockMemberDescriptor"],
                                       context=context
                                       + block.role
                                       + ": NcBlockMemberDescriptor: ")
@@ -975,7 +979,7 @@ class IS1201Test(GenericTest):
                                                       + block.role
                                                       + ": Unsuccessful attempt to get member descriptors."))
 
-    def test_22(self, test):
+    def test_19(self, test):
         """NcBlock: GetMemberDescriptors method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1011,7 +1015,7 @@ class IS1201Test(GenericTest):
             for queried_member in queried_members:
                 self._validate_schema(test,
                                       queried_member,
-                                      self.datatype_schemas["NcBlockMemberDescriptor"],
+                                      self.reference_datatype_schemas["NcBlockMemberDescriptor"],
                                       context=context
                                       + block.role
                                       + ": NcBlockMemberDescriptor: ")
@@ -1029,7 +1033,7 @@ class IS1201Test(GenericTest):
                                                   + ": Unsuccessful attempt to find member by role path: "
                                                   + str(role_path)))
 
-    def test_23(self, test):
+    def test_20(self, test):
         """NcBlock: FindMemberByPath method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1093,7 +1097,7 @@ class IS1201Test(GenericTest):
                                                               + ": Unexpected search result. "
                                                               + str(actual_result)))
 
-    def test_24(self, test):
+    def test_21(self, test):
         """NcBlock: FindMembersByRole method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1148,7 +1152,7 @@ class IS1201Test(GenericTest):
                                                           + block.role
                                                           + ": Unexpected search result. " + str(actual_result)))
 
-    def test_25(self, test):
+    def test_22(self, test):
         """NcBlock: FindMembersByClassId method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1206,7 +1210,7 @@ class IS1201Test(GenericTest):
 
             return test.PASS()
 
-    def test_26(self, test):
+    def test_23(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not in range 1 to 65535"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1222,7 +1226,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_27(self, test):
+    def test_24(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not a number"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1238,7 +1242,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_28(self, test):
+    def test_25(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1253,7 +1257,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_29(self, test):
+    def test_26(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -1264,7 +1268,7 @@ class IS1201Test(GenericTest):
 
         return self.do_error_test(test, command_json)
 
-    def test_30(self, test):
+    def test_27(self, test):
         """MS-05-02 Error: Node handles oid of object not found in Device Model"""
         # Referencing the Google sheet
         # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
@@ -1284,7 +1288,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.BadOid)
 
-    def test_31(self, test):
+    def test_28(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1300,7 +1304,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.PropertyNotImplemented)
 
-    def test_32(self, test):
+    def test_29(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1319,7 +1323,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.MethodNotImplemented)
 
-    def test_33(self, test):
+    def test_30(self, test):
         """MS-05-02 Error: Node handles read only error"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1335,7 +1339,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.Readonly)
 
-    def test_34(self, test):
+    def test_31(self, test):
         """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1357,7 +1361,7 @@ class IS1201Test(GenericTest):
                                   command_json,
                                   expected_status=NcMethodStatus.IndexOutOfBounds)
 
-    def test_35(self, test):
+    def test_32(self, test):
         """Node implements subscription and notification mechanism"""
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/NcObject.html#propertychanged-event
         # https://specs.amwa.tv/is-12/branches/v1.0/docs/Protocol_messaging.html#notification-message-type
@@ -1371,14 +1375,14 @@ class IS1201Test(GenericTest):
                                                                      include_derived=True,
                                                                      recurse=True)
 
-        oids = [self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects]
+        oids = dict.fromkeys([self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects], 0)
 
-        self.is12_utils.update_subscritions(test, oids)
+        self.is12_utils.update_subscritions(test, list(oids.keys()))
 
         error = False
         error_message = ""
 
-        for oid in oids:
+        for oid in oids.keys():
             new_user_label = "NMOS Testing Tool " + str(oid)
             old_user_label = self.is12_utils.get_property(test, oid, NcObjectProperties.USER_LABEL.value)
 
@@ -1389,38 +1393,198 @@ class IS1201Test(GenericTest):
                 self.is12_utils.set_property(test, oid, NcObjectProperties.USER_LABEL.value, label)
                 self.is12_utils.stop_logging_notifications()
 
-                if len(self.is12_utils.get_notifications()) == 0:
-                    error = True
-                    error_message = context + "No notification recieved"
-
                 for notification in self.is12_utils.get_notifications():
-                    if notification['oid'] != oid:
-                        error = True
-                        error_message += context + "Unexpected Oid " + str(notification['oid']) + ", "
+                    if notification['oid'] == oid:
 
-                    if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
-                        error = True
-                        error_message += context + "Unexpected event type: " + str(notification['eventId']) + ", "
+                        if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
+                            error = True
+                            error_message += context + "Unexpected event type: " + str(notification['eventId']) + ", "
 
-                    if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
-                        error = True
-                        error_message += context + "Unexpected property id: " \
-                            + str(NcObjectProperties(notification["eventData"]["propertyId"]).name) + ", "
+                        if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
+                            continue
 
-                    if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
-                        error = True
-                        error_message += context + "Unexpected change type: " \
-                            + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
+                        if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
+                            error = True
+                            error_message += context + "Unexpected change type: " \
+                                + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
 
-                    if notification["eventData"]["value"] != label:
-                        error = True
-                        error_message += context + "Unexpected value: " + str(notification["eventData"]["value"]) + ", "
+                        if notification["eventData"]["value"] != label:
+                            error = True
+                            error_message += context + "Unexpected value: " \
+                                + str(notification["eventData"]["value"]) + ", "
 
-                    if notification["eventData"]["sequenceItemIndex"] is not None:
-                        error = True
-                        error_message += context + "Unexpected sequence item index: " \
-                            + str(notification["eventData"]["sequenceItemIndex"]) + ", "
+                        if notification["eventData"]["sequenceItemIndex"] is not None:
+                            error = True
+                            error_message += context + "Unexpected sequence item index: " \
+                                + str(notification["eventData"]["sequenceItemIndex"]) + ", "
+
+                        oids[oid] += 1
+
+        if not all(v == 2 for v in oids.values()):
+            error = True
+            error_message += "Notifications not received for Oids " \
+                + str(sorted([i for i, v in oids.items() if v != 2]))
+        elif not any(v == 2 for v in oids.values()):
+            error = True
+            error_message += "No notifications received"
 
         if error:
             return test.FAIL(error_message)
+        return test.PASS()
+
+    def resolve_datatype(self, test, datatype):
+        class_manager = self.get_class_manager(test)
+        if class_manager.datatype_descriptors[datatype].get("parentType"):
+            return self.resolve_datatype(test, class_manager.datatype_descriptors[datatype].get("parentType"))
+        return datatype
+
+    def check_constraint(self, test, constraint, type_name, is_sequence, test_metadata, context):
+        if constraint.get("defaultValue"):
+            datatype_schema = self.datatype_schemas.get(type_name)
+            if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
+                test_metadata["error"] = True
+                test_metadata["error_msg"] = context + (" a default value sequence was expected"
+                                                        if is_sequence else " unexpected default value sequence.")
+                return
+            if is_sequence:
+                for value in constraint.get("defaultValue"):
+                    self._validate_schema(test, value, datatype_schema, context + ": defaultValue ")
+            else:
+                self._validate_schema(test,
+                                      constraint.get("defaultValue"),
+                                      datatype_schema,
+                                      context + ": defaultValue ")
+
+        datatype = self.resolve_datatype(test, type_name)
+        constraint_type = "NcPropertyConstraintsNumber" \
+            if constraint.get("propertyId") else "NcParameterConstraintsNumber"
+
+        # check NcXXXConstraintsNumber
+        if constraint.get("minimum") or constraint.get("maximum") or constraint.get("step"):
+            if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
+                                "NcUint64", "NcFloat32", "NcFloat64"]:
+                test_metadata["error"] = True
+                test_metadata["error_msg"] = context + " of type " + datatype + \
+                    " can not be constrainted by " + constraint_type + "."
+        # check NcXXXConstraintsString
+        if constraint.get("maxCharacters") or constraint.get("pattern"):
+            if datatype not in ["NcString"]:
+                test_metadata["error"] = True
+                test_metadata["error_msg"] = context + "of type " + datatype + \
+                    " can not be constrainted by " + constraint_type + "."
+
+    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, context=""):
+        if nc_object.runtime_constraints:
+            self.validate_runtime_constraints_metadata["checked"] = True
+            for constraint in nc_object.runtime_constraints:
+                class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
+                for class_property in class_descriptor["properties"]:
+                    if class_property["id"] == constraint["propertyId"]:
+                        message_root = context + nc_object.role + ": " + class_property["name"] + \
+                            ": " + class_property.get("typeName")
+                        self.check_constraint(test,
+                                              constraint,
+                                              class_property.get("typeName"),
+                                              class_property["isSequence"],
+                                              self.validate_runtime_constraints_metadata,
+                                              message_root)
+
+        # Recurse through the child blocks
+        if type(nc_object) is NcBlock:
+            for child_object in nc_object.child_objects:
+                self.do_validate_runtime_constraints_test(test,
+                                                          child_object,
+                                                          class_manager,
+                                                          context + nc_object.role + ": ")
+
+    def test_33(self, test):
+        """Constraints: validate runtime constraints"""
+
+        device_model = self.query_device_model(test)
+        class_manager = self.get_class_manager(test)
+
+        self.generate_device_model_datatype_schemas(test)
+
+        self.do_validate_runtime_constraints_test(test, device_model, class_manager)
+
+        if self.validate_runtime_constraints_metadata["error"]:
+            return test.FAIL(self.validate_runtime_constraints_metadata["error_msg"])
+
+        if not self.validate_runtime_constraints_metadata["checked"]:
+            return test.UNCLEAR("No runtime constraints found.")
+
+        return test.PASS()
+
+    def do_validate_property_constraints_test(self, test, nc_object, class_manager, context=""):
+        class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
+
+        for class_property in class_descriptor["properties"]:
+            if class_property["constraints"]:
+                self.validate_property_constraints_metadata["checked"] = True
+                message_root = context + nc_object.role + ": " + class_property["name"] + \
+                    ": " + class_property.get("typeName")
+                self.check_constraint(test,
+                                      class_property["constraints"],
+                                      class_property.get("typeName"),
+                                      class_property["isSequence"],
+                                      self.validate_property_constraints_metadata,
+                                      message_root)
+        # Recurse through the child blocks
+        if type(nc_object) is NcBlock:
+            for child_object in nc_object.child_objects:
+                self.do_validate_property_constraints_test(test,
+                                                           child_object,
+                                                           class_manager,
+                                                           context + nc_object.role + ": ")
+
+    def test_34(self, test):
+        """Constraints: validate property constraints"""
+
+        device_model = self.query_device_model(test)
+        class_manager = self.get_class_manager(test)
+
+        self.generate_device_model_datatype_schemas(test)
+
+        self.do_validate_property_constraints_test(test, device_model, class_manager)
+
+        if self.validate_property_constraints_metadata["error"]:
+            return test.FAIL(self.validate_property_constraints_metadata["error_msg"])
+
+        if not self.validate_property_constraints_metadata["checked"]:
+            return test.UNCLEAR("No property constraints found.")
+
+        return test.PASS()
+
+    def do_validate_datatype_constraints_test(self, test, datatype, type_name, context=""):
+        if datatype.get("constraints"):
+            self.validate_datatype_constraints_metadata["checked"] = True
+            self.check_constraint(test,
+                                  datatype.get("constraints"),
+                                  type_name,
+                                  datatype.get("isSequence", False),
+                                  self.validate_datatype_constraints_metadata,
+                                  context + ": " + type_name)
+        if datatype.get("type") == NcDatatypeType.Struct.value:
+            for field in datatype.get("fields"):
+                self.do_validate_datatype_constraints_test(test,
+                                                           field,
+                                                           field["typeName"],
+                                                           context + ": " + type_name + ": " + field["name"])
+
+    def test_35(self, test):
+        """Constraints: validate datatype constraints"""
+
+        class_manager = self.get_class_manager(test)
+
+        self.generate_device_model_datatype_schemas(test)
+
+        for _, datatype in class_manager.datatype_descriptors.items():
+            self.do_validate_datatype_constraints_test(test, datatype, datatype["name"])
+
+        if self.validate_datatype_constraints_metadata["error"]:
+            return test.FAIL(self.validate_datatype_constraints_metadata["error_msg"])
+
+        if not self.validate_datatype_constraints_metadata["checked"]:
+            return test.UNCLEAR("No datatype constraints found.")
+
         return test.PASS()
