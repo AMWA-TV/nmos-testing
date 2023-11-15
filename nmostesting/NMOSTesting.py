@@ -367,10 +367,6 @@ TEST_DEFINITIONS = {
     "IS-12-02": {
         "name": "IS-12 Invasive Testing",
         "specs": [{
-            "spec_key": "controller-tests",
-            "api_key": "testquestion",
-            "disable_fields": ["urlpath"]
-        }, {
             "spec_key": "is-04",
             "api_key": "node",
             "disable_fields": ["urlpath"]
@@ -382,6 +378,10 @@ TEST_DEFINITIONS = {
             "spec_key": "ms-05-02",
             "api_key": "controlframework",
             "disable_fields": ["host", "port", "urlpath"]
+        }, {
+            "spec_key": "controller-tests",
+            "api_key": "testquestion",
+            "disable_fields": ["urlpath"]
         }],
         "extra_specs": [{
             "spec_key": "nmos-control-feature-sets",
