@@ -381,7 +381,7 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "controller-tests",
             "api_key": "testquestion",
-            "disable_fields": ["urlpath"]
+            "disable_fields": ["urlpath"] if CONFIG.IS12_INTERATIVE_TESTING else ["host", "port", "urlpath"]
         }],
         "extra_specs": [{
             "spec_key": "nmos-control-feature-sets",
