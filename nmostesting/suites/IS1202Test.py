@@ -290,6 +290,11 @@ class IS1202Test(ControllerTest):
     
     def nc_object_factory(self, test, class_id, oid, role):
         """Create NcObject or NcBlock based on class_id"""
+        runtime_constraints = self.get_property(test,
+                                                oid,
+                                                NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
+                                                role + ": ")
+
         # Check class id to determine if this is a block
         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
             member_descriptors = self.get_property(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
@@ -297,7 +302,7 @@ class IS1202Test(ControllerTest):
                 # An error has likely occured
                 return None
 
-            nc_block = NcBlock(class_id, oid, role, member_descriptors)
+            nc_block = NcBlock(class_id, oid, role, member_descriptors, runtime_constraints)
 
             for m in member_descriptors:
                 child_object = self.nc_object_factory(test, m["classId"], m["oid"], m["role"])
@@ -319,8 +324,8 @@ class IS1202Test(ControllerTest):
                     # An error has likely occured
                     return None
 
-                return NcClassManager(class_id, oid, role, class_descriptors, datatype_descriptors)
-            return NcObject(class_id, oid, role)
+                return NcClassManager(class_id, oid, role, class_descriptors, datatype_descriptors, runtime_constraints)
+            return NcObject(class_id, oid, role, runtime_constraints)
 
     def query_device_model(self, test):
         self.create_ncp_socket(test)
@@ -564,6 +569,8 @@ class IS1202Test(ControllerTest):
 
         if parameter_constraint.step is not None:
             self._check_constrained_sequence(test, constraint_type, "Step", constrained_property, new_value + step / 2)
+            
+        self.is12_utils.remove_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], index)
 
     def test_02(self, test):
         """Test all writable sequences with constraints"""
@@ -647,7 +654,7 @@ class IS1202Test(ControllerTest):
                 #         self._check_constrained_parameter(test, constraint_type, "Max characters", constrained_property, new_value)
 
             # Remove added sequence value
-            self.is12_utils.remove_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], sequence_length)
+            # self.is12_utils.remove_sequence_item(test, constrained_property['oid'], constrained_property['property_id'], sequence_length)
 
         if self.constraint_error:
             return test.FAIL(self.constraint_error_msg)
