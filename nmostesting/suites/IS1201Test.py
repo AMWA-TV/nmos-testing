@@ -1456,21 +1456,22 @@ class IS1201Test(GenericTest):
                                       context + ": defaultValue ")
 
         datatype = self.resolve_datatype(test, type_name)
-        constraint_type = "NcPropertyConstraintsNumber" \
-            if constraint.get("propertyId") else "NcParameterConstraintsNumber"
-
         # check NcXXXConstraintsNumber
         if constraint.get("minimum") or constraint.get("maximum") or constraint.get("step"):
+            constraint_type = "NcPropertyConstraintsNumber" \
+                if constraint.get("propertyId") else "NcParameterConstraintsNumber"
             if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
                                 "NcUint64", "NcFloat32", "NcFloat64"]:
                 test_metadata["error"] = True
-                test_metadata["error_msg"] = context + " of type " + datatype + \
+                test_metadata["error_msg"] = context + ". " + datatype + \
                     " can not be constrainted by " + constraint_type + "."
         # check NcXXXConstraintsString
         if constraint.get("maxCharacters") or constraint.get("pattern"):
+            constraint_type = "NcPropertyConstraintsString" \
+                if constraint.get("propertyId") else "NcParameterConstraintsString"
             if datatype not in ["NcString"]:
                 test_metadata["error"] = True
-                test_metadata["error_msg"] = context + "of type " + datatype + \
+                test_metadata["error_msg"] = context + ". " + datatype + \
                     " can not be constrainted by " + constraint_type + "."
 
     def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, context=""):
