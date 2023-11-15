@@ -159,7 +159,9 @@ class IS1202Test(ControllerTest):
         spec_paths = [os.path.join(self.apis[FEATURE_SETS_KEY]["spec_path"], path)
                       for path in self.apis[FEATURE_SETS_KEY]["repo_paths"]]
         spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
-
+        # Root path for primitive datatypes
+        spec_paths.append('test_data/IS1201')
+        
         datatype_paths = []
         classes_paths = []
         for spec_path in spec_paths:
