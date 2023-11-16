@@ -529,20 +529,6 @@ class IS12Utils(NMOSUtils):
         """ Check class id to determine if this is a manager """
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
 
-    def upcast_parameter_constraint(self, constraint):
-        if constraint.get('minimum') or constraint.get('maximum') or constraint.get('step'):
-            return NcParameterConstraintsNumber(constraint.get('defaultValue'),
-                                                constraint.get('minimum'),
-                                                constraint.get('maximum'),
-                                                constraint.get('step'))
-
-        if constraint.get('maxCharacters') or constraint.get('pattern'):
-            return NcParameterConstraintsString(constraint.get('defaultValue'),
-                                                constraint.get('maxCharacters'),
-                                                constraint.get('pattern'))
-
-        return NcParameterConstraints(constraint.get('defaultValue'))
-
 
 class NcObject():
     def __init__(self, class_id, oid, role, runtime_constraints):
@@ -683,24 +669,3 @@ class NcClassManager(NcManager):
             inherited_descriptor["fields"] += descriptor["fields"]
 
         return inherited_descriptor
-
-
-class NcParameterConstraints:
-    def __init__(self, default_value, constraint_type="NcParameterConstraints"):
-        self.constraint_type = constraint_type
-        self.default_value = default_value
-
-
-class NcParameterConstraintsNumber:
-    def __init__(self, default_value, minimum, maximum, step):
-        NcParameterConstraints.__init__(self, default_value, constraint_type="NcParameterConstraintsNumber")
-        self.minimum = minimum
-        self.maximum = maximum
-        self.step = step
-
-
-class NcParameterConstraintsString:
-    def __init__(self, default_value, max_characters, pattern):
-        NcParameterConstraints.__init__(self, default_value, constraint_type="NcParameterConstraintsString")
-        self.max_characters = max_characters
-        self.pattern = pattern

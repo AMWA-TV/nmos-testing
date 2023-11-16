@@ -364,7 +364,9 @@ class IS1202Test(ControllerTest):
                 if object_runtime_constraint['propertyId']['level'] == class_property['id']['level'] and \
                         object_runtime_constraint['propertyId']['index'] == class_property['id']['index']:
                     runtime_constraints = object_runtime_constraint
-        return datatype_constraints, property_constraints, runtime_constraints
+        constraint_type = 'runtime' if runtime_constraints else 'property' if property_constraints else 'datatype'
+
+        return runtime_constraints or property_constraints or datatype_constraints, constraint_type
 
     def _get_properties(self, test, block, get_constraints=True, get_sequences=False, context=""):
         results = []
@@ -392,20 +394,16 @@ class IS1202Test(ControllerTest):
             for class_property in class_descriptor.get('properties'):
                 if class_property['isReadOnly']:
                     continue
-                datatype_constraints, \
-                    property_constraints, \
-                    runtime_constraint = self._get_constraints(test,
-                                                               class_property,
-                                                               class_manager.datatype_descriptors,
-                                                               object_runtime_constraints)
-                if class_property.get('isSequence') == get_sequences and \
-                        bool(datatype_constraints or property_constraints or runtime_constraint) == get_constraints:
+                constraints, constraints_type = self._get_constraints(test,
+                                                                      class_property,
+                                                                      class_manager.datatype_descriptors,
+                                                                      object_runtime_constraints)
+                if class_property.get('isSequence') == get_sequences and bool(constraints) == get_constraints:
                     results.append({'oid': descriptor['oid'],
                                     'name': context + ": " + class_descriptor['name'] + ": " + class_property['name'],
                                     'property_id': class_property['id'],
-                                    'property_constraints': property_constraints,
-                                    'datatype_constraints': datatype_constraints,
-                                    'runtime_constraint': runtime_constraint,
+                                    'constraints': constraints,
+                                    'constraints_type': constraints_type,
                                     'is_sequence': class_property.get('isSequence')})
         # Recurse through the child blocks
         for child_object in block.child_objects:
@@ -448,11 +446,14 @@ class IS1202Test(ControllerTest):
                                                            constrained_property['property_id'],
                                                            value))
 
-    def _check_parameter_constraints_number(self, test, parameter_constraint, constraint_type, constrained_property):
+    def _check_parameter_constraints_number(self, test, constrained_property):
+        constraints = constrained_property.get('constraints')
+        constraint_types = constrained_property.get('constraints_type')
+
         # Attempt to set to a "legal" value
-        minimum = parameter_constraint.minimum if parameter_constraint.minimum else 0
-        maximum = parameter_constraint.maximum if parameter_constraint.maximum else sys.maxsize
-        step = parameter_constraint.step if parameter_constraint.step else 1
+        minimum = constraints.get("minimum", 0)
+        maximum = constraints.get("maximum", sys.maxsize)
+        step = constraints.get("step", 1)
 
         new_value = floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
 
@@ -475,15 +476,15 @@ class IS1202Test(ControllerTest):
                                          new_value)
 
         # Attempt to set to an "illegal" value
-        if parameter_constraint.minimum is not None:
-            self._check_constrained_parameter(test, constraint_type, "Minimum", constrained_property, minimum - step)
+        if constraints.get("minimum") is not None:
+            self._check_constrained_parameter(test, constraint_types, "Minimum", constrained_property, minimum - step)
 
-        if parameter_constraint.maximum is not None:
-            self._check_constrained_parameter(test, constraint_type, "Maximum", constrained_property, maximum + step)
+        if constraints.get("maximum") is not None:
+            self._check_constrained_parameter(test, constraint_types, "Maximum", constrained_property, maximum + step)
 
-        if parameter_constraint.step is not None:
+        if constraints.get("step") is not None:
             self._check_constrained_parameter(test,
-                                              constraint_type,
+                                              constraint_types,
                                               "Step",
                                               constrained_property,
                                               new_value + step / 2)
@@ -494,14 +495,16 @@ class IS1202Test(ControllerTest):
                                                  constrained_property['property_id'],
                                                  index)
 
-    def _check_parameter_constraints_string(self, test, parameter_constraint, constraint_type, constrained_property):
+    def _check_parameter_constraints_string(self, test, constrained_property):
+        constraints = constrained_property["constraints"]
+        constraints_type = constrained_property["constraints_type"]
         new_value = "test"
 
-        if parameter_constraint.pattern:
+        if constraints.get("pattern"):
             # Check legal case
-            x = Xeger(limit=parameter_constraint.max_characters - len(parameter_constraint.pattern)
-                      if parameter_constraint.max_characters > len(parameter_constraint.pattern) else 1)
-            new_value = x.xeger(parameter_constraint.pattern)
+            x = Xeger(limit=constraints.get("max_characters", 0) - len(constraints.get("pattern"))
+                      if constraints.get("max_characters", 0) > len(constraints.get("pattern")) else 1)
+            new_value = x.xeger(constraints.get("pattern"))
 
         # Expect this to work OK
         if constrained_property.get("is_sequence"):
@@ -523,7 +526,7 @@ class IS1202Test(ControllerTest):
                                          constrained_property['property_id'],
                                          new_value)
 
-        if parameter_constraint.pattern:
+        if constraints.get("pattern"):
             # Possible negative example strings
             # Ideally we would compute a negative string based on the regex.
             # In the meantime, some strings that might possibly violate the regex
@@ -531,25 +534,25 @@ class IS1202Test(ControllerTest):
 
             for negative_example in negative_examples:
                 # Verify this string violates constraint
-                if not re.search(parameter_constraint.pattern, negative_example):
+                if not re.search(constraints.get("pattern"), negative_example):
                     self._check_constrained_parameter(test,
-                                                      constraint_type,
+                                                      constraints_type,
                                                       "Pattern",
                                                       constrained_property,
                                                       negative_example)
 
         # Exceed max character limit
-        if parameter_constraint.max_characters:
-            if parameter_constraint.pattern:
-                x = Xeger(limit=parameter_constraint.max_characters * 2)
-                new_value = x.xeger(parameter_constraint.pattern)
+        if constraints.get("max_characters"):
+            if constraints.get("pattern"):
+                x = Xeger(limit=constraints.get("max_characters") * 2)
+                new_value = x.xeger(constraints.get("pattern"))
             else:
-                new_value = '*' * parameter_constraint.max_characters * 2
+                new_value = '*' * constraints.get("max_characters") * 2
 
             # Verfiy this string violates constraint
-            if len(new_value) > parameter_constraint.max_characters:
+            if len(new_value) > constraints.get("max_characters"):
                 self._check_constrained_parameter(test,
-                                                  constraint_type,
+                                                  constraints_type,
                                                   "Max characters",
                                                   constrained_property,
                                                   new_value)
@@ -561,8 +564,7 @@ class IS1202Test(ControllerTest):
                                                  constrained_property['property_id'],
                                                  index)
 
-    def test_01(self, test):
-        """Test all writable properties with constraints"""
+    def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False):
         device_model = self.query_device_model(test)
 
         constrained_properties = self._get_properties(test, device_model, get_constraints=True, get_sequences=False)
@@ -572,23 +574,16 @@ class IS1202Test(ControllerTest):
                                 'resource': p} for i, p in enumerate(constrained_properties)]
 
         if len(possible_properties) == 0:
-            return test.UNCLEAR("No properties with ParameterConstraints in Device Model.")
+            return test.UNCLEAR("No testable properties in Device Model.")
 
         if IS12_INTERATIVE_TESTING:
-            question = """\
-                        From this list of properties with parameter constraints\
-                        carefully select those that can be safely altered by this test.
-
-                        Once you have made you selection please press the 'Submit' button.
-                        """
-
             selected_ids = \
                 self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
 
             selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
 
             if len(selected_properties) == 0:
-                return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+                return test.UNCLEAR("No properties selected for testing.")
         else:
             # If non interactive test all properties
             selected_properties = [p["resource"] for p in possible_properties]
@@ -597,34 +592,20 @@ class IS1202Test(ControllerTest):
         self.constraint_error_msg = ""
 
         for constrained_property in selected_properties:
-            constraints = constrained_property.get('runtime_constraints') \
-                if constrained_property.get('runtime_constraints') else \
-                constrained_property.get('property_constraints') \
-                if constrained_property.get('property_constraints') else \
-                constrained_property.get('datatype_constraints')
-
-            constraint_type = 'runtime' if constrained_property.get('runtime_constraints') else \
-                'property' if constrained_property.get('property_constraints') else 'datatype'
-
-            parameter_constraint = self.is12_utils.upcast_parameter_constraint(constraints)
 
             # Cache original property value
             try:
+                constraint = constrained_property.get('constraints')
+
                 original_value = self.is12_utils.get_property(test,
                                                               constrained_property['oid'],
                                                               constrained_property['property_id'])
 
-                if parameter_constraint.constraint_type == "NcParameterConstraintsNumber":
-                    self._check_parameter_constraints_number(test,
-                                                             parameter_constraint,
-                                                             constraint_type,
-                                                             constrained_property)
+                if constraint.get('minimum') or constraint.get('maximum') or constraint.get('step'):
+                    self._check_parameter_constraints_number(test, constrained_property)
 
-                if parameter_constraint.constraint_type == "NcParameterConstraintsString":
-                    self._check_parameter_constraints_string(test,
-                                                             parameter_constraint,
-                                                             constraint_type,
-                                                             constrained_property)
+                if constraint.get('maxCharacters') or constraint.get('pattern'):
+                    self._check_parameter_constraints_string(test, constrained_property)
 
                 # Reset to original value
                 self.is12_utils.set_property(test,
@@ -639,69 +620,27 @@ class IS1202Test(ControllerTest):
 
         return test.PASS()
 
+    def test_01(self, test):
+        """Test all writable properties with constraints"""
+
+        question = """\
+                    From this list of properties with parameter constraints\
+                    carefully select those that can be safely altered by this test.
+
+                    Once you have made you selection please press the 'Submit' button.
+                    """
+        return self._do_check_property_test(test, question, get_constraints=True, get_sequences=False)
+
     def test_02(self, test):
         """Test all writable sequences with constraints"""
-        device_model = self.query_device_model(test)
+        question = """\
+                   From this list of sequences with parameter constraints\
+                   carefully select those that can be safely altered by this test.
 
-        constrained_properties = self._get_properties(test, device_model, get_constraints=True, get_sequences=True)
+                   Once you have made you selection please press the 'Submit' button.
+                   """
 
-        possible_properties = [{'answer_id': 'answer_'+str(i),
-                                'display_answer': p['name'],
-                                'resource': p} for i, p in enumerate(constrained_properties)]
-
-        if len(possible_properties) == 0:
-            return test.UNCLEAR("No sequences with ParameterConstraints in Device Model.")
-
-        if IS12_INTERATIVE_TESTING:
-            question = """\
-                        From this list of sequences with parameter constraints\
-                        carefully select those that can be safely altered by this test.
-
-                        Once you have made you selection please press the 'Submit' button.
-                        """
-
-            selected_ids = \
-                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
-
-            selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
-
-            if len(selected_properties) == 0:
-                return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
-        else:
-            # If non interactive test all properties
-            selected_properties = [p["resource"] for p in possible_properties]
-
-        self.constraint_error = False
-        self.constraint_error_msg = ""
-
-        for constrained_property in selected_properties:
-            constraints = constrained_property.get('runtime_constraints') \
-                if constrained_property.get('runtime_constraints') else \
-                constrained_property.get('property_constraints') \
-                if constrained_property.get('property_constraints') else \
-                constrained_property.get('datatype_constraints')
-
-            constraint_type = 'runtime' if constrained_property.get('runtime_constraints') else \
-                'property' if constrained_property.get('property_constraints') else 'datatype'
-
-            parameter_constraint = self.is12_utils.upcast_parameter_constraint(constraints)
-
-            if parameter_constraint.constraint_type == "NcParameterConstraintsNumber":
-                self._check_parameter_constraints_number(test,
-                                                         parameter_constraint,
-                                                         constraint_type,
-                                                         constrained_property)
-
-            if parameter_constraint.constraint_type == "NcParameterConstraintsString":
-                self._check_parameter_constraints_string(test,
-                                                         parameter_constraint,
-                                                         constraint_type,
-                                                         constrained_property)
-
-        if self.constraint_error:
-            return test.FAIL(self.constraint_error_msg)
-
-        return test.PASS()
+        return self._do_check_property_test(test, question, get_constraints=True, get_sequences=True)
 
     def check_get_sequence_item(self, test, oid, sequence_values, property_id, property_name, context=""):
         try:
