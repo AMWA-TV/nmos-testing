@@ -37,6 +37,8 @@ class MessageTypes(IntEnum):
 
 class NcMethodStatus(IntEnum):
     OK = 200
+    PropertyDeprecated = 298
+    MethodDeprecated = 299
     BadCommandFormat = 400
     Unauthorized = 401
     BadOid = 404
@@ -258,7 +260,12 @@ class IS12Utils(NMOSUtils):
                     responses = parsed_message["responses"]
                     for response in responses:
                         if response["handle"] == command_handle:
-                            if response["result"]["status"] != NcMethodStatus.OK:
+                            # Make sure 2xx return code
+                            if response["result"]["status"] != NcMethodStatus.OK and \
+                                    response["result"]["status"] != NcMethodStatus.PropertyDeprecated and \
+                                    response["result"]["status"] != NcMethodStatus.MethodDeprecated:
+                                # The response["result"] is used in negative tests
+                                # to ensure command fail when expected to
                                 raise NMOSTestException(test.FAIL(response["result"]))
                             results.append(response)
                 if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
