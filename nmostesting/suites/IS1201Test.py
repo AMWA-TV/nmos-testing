@@ -601,8 +601,6 @@ class IS1201Test(GenericTest):
 
     def check_device_model(self, test):
         if not self.device_model_metadata["checked"]:
-            self.device_model_metadata["checked"] = True
-
             self.create_ncp_socket(test)
             class_manager = self.get_class_manager(test)
             device_model = self.query_device_model(test)
@@ -613,6 +611,7 @@ class IS1201Test(GenericTest):
                              device_model,
                              class_manager.class_descriptors)
 
+            self.device_model_metadata["checked"] = True
         return
 
     def nc_object_factory(self, test, class_id, oid, role):
@@ -664,6 +663,9 @@ class IS1201Test(GenericTest):
         if self.device_model_metadata["error"]:
             return test.FAIL(self.device_model_metadata["error_msg"])
 
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
+
         return test.PASS()
 
     def test_06(self, test):
@@ -674,13 +676,16 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.unique_roles_error:
             return test.FAIL("Roles must be unique. ",
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/NcObject.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
 
@@ -692,13 +697,16 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.unique_oids_error:
             return test.FAIL("Oids must be unique. ",
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/NcObject.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
 
@@ -713,13 +721,16 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.organization_metadata["error"]:
             return test.FAIL(self.organization_metadata["error_msg"],
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Framework.html#ncclassid"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
 
         if not self.organization_metadata["checked"]:
             return test.UNCLEAR("No non-standard classes found.")
@@ -737,13 +748,16 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.touchpoints_metadata["error"]:
             return test.FAIL(self.touchpoints_metadata["error_msg"],
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/NcObject.html#touchpoints"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
 
         if not self.touchpoints_metadata["checked"]:
             return test.UNCLEAR("No Touchpoints found.")
@@ -758,13 +772,16 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.deprecated_property_metadata["error"]:
             return test.FAIL(self.deprecated_property_metadata["error_msg"],
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Framework.html#ncmethodstatus"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
 
         if not self.deprecated_property_metadata["checked"]:
             return test.UNCLEAR("No deprecated properties found.")
@@ -779,13 +796,16 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.managers_members_root_block_error:
             return test.FAIL("Managers must be members of Root Block. ",
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Managers.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
 
@@ -798,13 +818,16 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.managers_are_singletons_error:
             return test.FAIL("Managers must be singleton classes. ",
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Managers.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.device_model_metadata["checked"]:
+            return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
 
@@ -952,7 +975,7 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.get_sequence_item_metadata["error"]:
             return test.FAIL(self.get_sequence_item_metadata["error_msg"])
@@ -972,7 +995,7 @@ class IS1201Test(GenericTest):
             self.check_device_model(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+            return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.get_sequence_length_metadata["error"]:
             return test.FAIL(self.get_sequence_length_metadata["error_msg"])
