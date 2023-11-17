@@ -323,11 +323,17 @@ class IS12Utils(NMOSUtils):
         response = self.send_command(test, command_JSON)
         return response["result"]
 
-    def get_property(self, test, oid, property_id):
+    def get_property_value(self, test, oid, property_id):
         """Get property from object. Raises NMOSTestException on error"""
         return self._execute_command(test, oid,
                                      NcObjectMethods.GENERIC_GET.value,
                                      {'id': property_id})["value"]
+
+    def get_property(self, test, oid, property_id):
+        """Get property from object. Raises NMOSTestException on error"""
+        return self._execute_command(test, oid,
+                                     NcObjectMethods.GENERIC_GET.value,
+                                     {'id': property_id})
 
     def set_property(self, test, oid, property_id, argument):
         """Get property from object. Raises NMOSTestException on error"""

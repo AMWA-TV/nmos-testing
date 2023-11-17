@@ -57,6 +57,7 @@ class IS1201Test(GenericTest):
         self.device_model_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.organization_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.touchpoints_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.deprecated_property_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.get_sequence_length_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.validate_runtime_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
@@ -206,7 +207,7 @@ class IS1201Test(GenericTest):
         return
 
     def get_class_manager_descriptors(self, test, class_manager_oid, property_id, role):
-        response = self.get_property(test, class_manager_oid, property_id, role)
+        response = self.get_property_value(test, class_manager_oid, property_id, role)
 
         if not response:
             return None
@@ -340,9 +341,9 @@ class IS1201Test(GenericTest):
 
         self.create_ncp_socket(test)
 
-        role = self.is12_utils.get_property(test,
-                                            self.is12_utils.ROOT_BLOCK_OID,
-                                            NcObjectProperties.ROLE.value)
+        role = self.is12_utils.get_property_value(test,
+                                                  self.is12_utils.ROOT_BLOCK_OID,
+                                                  NcObjectProperties.ROLE.value)
 
         if role != "root":
             return test.FAIL("Unexpected role in Root Block: " + str(role),
@@ -427,6 +428,18 @@ class IS1201Test(GenericTest):
         self.check_get_sequence_item(test, oid, sequence_values, property_metadata, context)
         self.check_get_sequence_length(test, oid, sequence_values, property_metadata, context)
 
+    def get_property_value(self, test, oid, property_id, context):
+        try:
+            return self.is12_utils.get_property_value(test, oid, property_id)
+        except NMOSTestException as e:
+            self.device_model_metadata["error"] = True
+            self.device_model_metadata["error_msg"] += context \
+                + "Error getting property: " \
+                + str(property_id) + ": " \
+                + str(e.args[0].detail) \
+                + "; "
+        return None
+
     def get_property(self, test, oid, property_id, context):
         try:
             return self.is12_utils.get_property(test, oid, property_id)
@@ -441,7 +454,16 @@ class IS1201Test(GenericTest):
 
     def check_object_properties(self, test, reference_class_descriptor, oid, context):
         for class_property in reference_class_descriptor['properties']:
-            object_property = self.get_property(test, oid, class_property.get('id'), context)
+            response = self.get_property(test, oid, class_property.get('id'), context)
+
+            object_property = response["value"]
+
+            if class_property["isDeprecated"]:
+                self.deprecated_property_metadata["checked"] = True
+                if response["status"] != NcMethodStatus.PropertyDeprecated.value:
+                    self.deprecated_property_metadata["error"] = True
+                    self.deprecated_property_metadata["error_msg"] = context + \
+                        " PropertyDeprecated status code expected when getting " + class_property["name"]
 
             if not object_property:
                 continue
@@ -500,10 +522,10 @@ class IS1201Test(GenericTest):
 
     def check_touchpoints(self, test, oid, context):
         """Touchpoint checks"""
-        touchpoints = self.get_property(test,
-                                        oid,
-                                        NcObjectProperties.TOUCHPOINTS.value,
-                                        context)
+        touchpoints = self.get_property_value(test,
+                                              oid,
+                                              NcObjectProperties.TOUCHPOINTS.value,
+                                              context)
         if touchpoints is not None:
             self.touchpoints_metadata["checked"] = True
             try:
@@ -595,14 +617,14 @@ class IS1201Test(GenericTest):
 
     def nc_object_factory(self, test, class_id, oid, role):
         """Create NcObject or NcBlock based on class_id"""
-        runtime_constraints = self.get_property(test,
-                                                oid,
-                                                NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
-                                                role + ": ")
+        runtime_constraints = self.get_property_value(test,
+                                                      oid,
+                                                      NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
+                                                      role + ": ")
 
         # Check class id to determine if this is a block
         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
-            member_descriptors = self.get_property(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
+            member_descriptors = self.get_property_value(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
             if not member_descriptors:
                 # An error has likely occured
                 return None
@@ -727,6 +749,27 @@ class IS1201Test(GenericTest):
             return test.UNCLEAR("No Touchpoints found.")
         return test.PASS()
 
+    def test_09_01(self, test):
+        """Device Model: deprecated properties are indicated"""
+        # Getting deprecated properties MUST return a PropertyDeprecated status
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/Framework.html#ncmethodstatus
+
+        try:
+            self.check_device_model(test)
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.deprecated_property_metadata["error"]:
+            return test.FAIL(self.deprecated_property_metadata["error_msg"],
+                             "https://specs.amwa.tv/ms-05-02/branches/{}"
+                             "/docs/Framework.html#ncmethodstatus"
+                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+
+        if not self.deprecated_property_metadata["checked"]:
+            return test.UNCLEAR("No deprecated properties found.")
+        return test.PASS()
+
     def test_10(self, test):
         """Managers: managers are members of the Root Block"""
         # All managers MUST always exist as members in the Root Block and have a fixed role.
@@ -802,7 +845,7 @@ class IS1201Test(GenericTest):
         # Check MS-05-02 Version
         property_id = NcDeviceManagerProperties.NCVERSION.value
 
-        version = self.is12_utils.get_property(test, device_manager.oid, property_id)
+        version = self.is12_utils.get_property_value(test, device_manager.oid, property_id)
 
         if self.is12_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
             return test.FAIL("Unexpected version. Expected: "
@@ -871,7 +914,7 @@ class IS1201Test(GenericTest):
 
         property_id = NcObjectProperties.USER_LABEL.value
 
-        old_user_label = self.is12_utils.get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        old_user_label = self.is12_utils.get_property_value(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
 
         # Set user label
         new_user_label = "NMOS Testing Tool"
@@ -879,7 +922,7 @@ class IS1201Test(GenericTest):
         self.is12_utils.set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, new_user_label)
 
         # Check user label
-        label = self.is12_utils.get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        label = self.is12_utils.get_property_value(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
         if label != new_user_label:
             if label == old_user_label:
                 return test.FAIL("Unable to set user label", link)
@@ -890,7 +933,7 @@ class IS1201Test(GenericTest):
         self.is12_utils.set_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id, old_user_label)
 
         # Check user label
-        label = self.is12_utils.get_property(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
+        label = self.is12_utils.get_property_value(test, self.is12_utils.ROOT_BLOCK_OID, property_id)
         if label != old_user_label:
             if label == new_user_label:
                 return test.FAIL("Unable to set user label", link)
@@ -1384,7 +1427,7 @@ class IS1201Test(GenericTest):
 
         for oid in oids.keys():
             new_user_label = "NMOS Testing Tool " + str(oid)
-            old_user_label = self.is12_utils.get_property(test, oid, NcObjectProperties.USER_LABEL.value)
+            old_user_label = self.is12_utils.get_property_value(test, oid, NcObjectProperties.USER_LABEL.value)
 
             context = "oid: " + str(oid) + ", "
 
