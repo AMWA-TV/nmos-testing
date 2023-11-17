@@ -233,7 +233,7 @@ class IS1202Test(ControllerTest):
         return
 
     def get_class_manager_descriptors(self, test, class_manager_oid, property_id, role):
-        response = self.get_property(test, class_manager_oid, property_id, role)
+        response = self.get_property_value(test, class_manager_oid, property_id, role)
 
         if not response:
             return None
@@ -271,9 +271,9 @@ class IS1202Test(ControllerTest):
 
         return results
 
-    def get_property(self, test, oid, property_id, context):
+    def get_property_value(self, test, oid, property_id, context):
         try:
-            return self.is12_utils.get_property(test, oid, property_id)
+            return self.is12_utils.get_property_value(test, oid, property_id)
         except NMOSTestException as e:
             self.device_model_metadata["error"] = True
             self.device_model_metadata["error_msg"] += context \
@@ -285,14 +285,14 @@ class IS1202Test(ControllerTest):
 
     def nc_object_factory(self, test, class_id, oid, role):
         """Create NcObject or NcBlock based on class_id"""
-        runtime_constraints = self.get_property(test,
-                                                oid,
-                                                NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
-                                                role + ": ")
+        runtime_constraints = self.get_property_value(test,
+                                                      oid,
+                                                      NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
+                                                      role + ": ")
 
         # Check class id to determine if this is a block
         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
-            member_descriptors = self.get_property(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
+            member_descriptors = self.get_property_value(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
             if not member_descriptors:
                 # An error has likely occured
                 return None
@@ -387,9 +387,9 @@ class IS1202Test(ControllerTest):
 
             # Get runtime property constraints
             object_runtime_constraints = \
-                self.is12_utils.get_property(test,
-                                             descriptor['oid'],
-                                             NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value)
+                self.is12_utils.get_property_value(test,
+                                                   descriptor['oid'],
+                                                   NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value)
 
             for class_property in class_descriptor.get('properties'):
                 if class_property['isReadOnly']:
@@ -597,9 +597,9 @@ class IS1202Test(ControllerTest):
             try:
                 constraint = constrained_property.get('constraints')
 
-                original_value = self.is12_utils.get_property(test,
-                                                              constrained_property['oid'],
-                                                              constrained_property['property_id'])
+                original_value = self.is12_utils.get_property_value(test,
+                                                                    constrained_property['oid'],
+                                                                    constrained_property['property_id'])
 
                 if constraint.get('minimum') or constraint.get('maximum') or constraint.get('step'):
                     self._check_parameter_constraints_number(test, constrained_property)
@@ -721,7 +721,7 @@ class IS1202Test(ControllerTest):
 
     def check_sequence_methods(self, test, oid, property_id, property_name, context=""):
         """Check that sequence manipulation methods work correctly"""
-        response = self.is12_utils.get_property(test, oid, property_id)
+        response = self.is12_utils.get_property_value(test, oid, property_id)
 
         self.check_get_sequence_item(test, oid, response, property_id, property_name, context)
 
