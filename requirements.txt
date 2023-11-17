@@ -19,3 +19,4 @@ websockets
 Flask-Cors
 flask-socketio
 pycryptodome
+xeger
