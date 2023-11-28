@@ -82,6 +82,7 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1301Test
 from .suites import BCP00301Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
@@ -340,6 +341,14 @@ TEST_DEFINITIONS = {
     #     }],
     #     "class": IS1001Test.IS1001Test
     # },
+    "IS-13-01": {
+        "name": "IS-13 Annotation API",
+        "specs": [{
+            "spec_key": "is-13",
+            "api_key": "annotation"
+        }],
+        "class": IS1301Test.IS1301Test,
+    },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
         "specs": [{
