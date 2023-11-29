@@ -49,7 +49,7 @@ from . import Config as CONFIG
 from .DNS import DNS
 from .GenericTest import NMOSInitException
 from . import ControllerTest
-from .TestResult import TestStates
+from .TestResult import TestStates, TestResult
 from .TestHelper import get_default_ip
 from .NMOSUtils import DEFAULT_ARGS
 from .CRL import CRL, CRL_API
@@ -632,7 +632,7 @@ def run_tests(test, endpoints, test_selection=["all"]):
         try:
             result = test_obj.run_tests(test_selection)
         except Exception as ex:
-            print(" * ERROR: {}".format(ex))
+            print(" * ERROR while running {}: {}".format(test_selection, ex))
             raise ex
         finally:
             core_app.config['TEST_ACTIVE'] = False
@@ -970,7 +970,8 @@ def run_noninteractive_tests(args):
         else:
             exit_code = print_test_results(results, endpoints, args)
     except Exception as e:
-        print(" * ERROR: {}".format(str(e)))
+        print(" * ERROR raw: {}".format(e.args))
+        print(" * ERROR in non-interactive tests: {}".format(str(e) if not isinstance(e.args[0], TestResult) else e.args[0].detail))
         exit_code = ExitCodes.ERROR
     return exit_code
 
