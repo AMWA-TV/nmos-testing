@@ -565,6 +565,7 @@ class IS1202Test(ControllerTest):
                                                  index)
 
     def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False):
+        """Test properties within the Device Model"""
         device_model = self.query_device_model(test)
 
         constrained_properties = self._get_properties(test, device_model, get_constraints=True, get_sequences=False)
