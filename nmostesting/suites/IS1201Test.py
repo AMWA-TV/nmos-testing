@@ -1165,7 +1165,8 @@ class IS1201Test(GenericTest):
                                                           + str(len(actual_results))
                                                           + " when searching with query=" + str(query_string)
                                                           + ", case sensitive=" + str(condition["case_sensitive"])
-                                                          + ", match whole string=" + str(condition["match_whole_string"])
+                                                          + ", match whole string="
+                                                          + str(condition["match_whole_string"])
                                                           + ", recurse=" + str(condition["recurse"])))
 
                     for actual_result in actual_results:
