@@ -456,6 +456,14 @@ class IS1201Test(GenericTest):
         for class_property in reference_class_descriptor['properties']:
             response = self.get_property(test, oid, class_property.get('id'), context)
 
+            if response is None:
+                # Can't find this property - do we have an ID clash
+                self.device_model_metadata["error"] = True
+                self.device_model_metadata["error_msg"] += \
+                    "Property does not exist - it is possible that the class id for this class is NOT unique? " \
+                    + "classId: " + ".".join(map(str, reference_class_descriptor['classId']))
+                continue
+
             object_property = response["value"]
 
             if class_property["isDeprecated"]:
