@@ -1162,14 +1162,23 @@ class IS1201Test(GenericTest):
                                                           + ": Expected "
                                                           + str(len(expected_results))
                                                           + ", but got "
-                                                          + str(len(actual_results))))
+                                                          + str(len(actual_results))
+                                                          + " when searching with query=" + str(query_string)
+                                                          + ", case sensitive=" + str(condition["case_sensitive"])
+                                                          + ", match whole string=" + str(condition["match_whole_string"])
+                                                          + ", recurse=" + str(condition["recurse"])))
 
                     for actual_result in actual_results:
                         if actual_result["oid"] not in expected_results_oids:
                             raise NMOSTestException(test.FAIL(context
                                                               + block.role
                                                               + ": Unexpected search result. "
-                                                              + str(actual_result)))
+                                                              + str(actual_result)
+                                                              + " when searching with query=" + str(query_string)
+                                                              + ", case sensitive=" + str(condition["case_sensitive"])
+                                                              + ", match whole string="
+                                                              + str(condition["match_whole_string"])
+                                                              + ", recurse=" + str(condition["recurse"])))
 
     def test_22(self, test):
         """NcBlock: FindMembersByRole method is correct"""
@@ -1218,13 +1227,19 @@ class IS1201Test(GenericTest):
                                                       + ": Expected "
                                                       + str(len(expected_results))
                                                       + ", but got "
-                                                      + str(len(actual_results))))
+                                                      + str(len(actual_results))
+                                                      + " when searching with class id=" + str(class_id)
+                                                      + ", include derived=" + str(condition["include_derived"])
+                                                      + ", recurse=" + str(condition["recurse"])))
 
                 for actual_result in actual_results:
                     if actual_result["oid"] not in expected_results_oids:
                         raise NMOSTestException(test.FAIL(context
                                                           + block.role
-                                                          + ": Unexpected search result. " + str(actual_result)))
+                                                          + ": Unexpected search result. " + str(actual_result)
+                                                          + " when searching with class id=" + str(class_id)
+                                                          + ", include derived=" + str(condition["include_derived"])
+                                                          + ", recurse=" + str(condition["recurse"])))
 
     def test_23(self, test):
         """NcBlock: FindMembersByClassId method is correct"""
