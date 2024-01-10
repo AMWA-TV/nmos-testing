@@ -21,7 +21,7 @@ from jsonschema import ValidationError, SchemaError
 from math import floor
 from xeger import Xeger
 
-from ..Config import IS12_INTERATIVE_TESTING
+from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..IS12Utils import IS12Utils, NcObject, NcBlockProperties, \
@@ -68,7 +68,7 @@ class IS1202Test(ControllerTest):
         """
         Introduction to IS-12 Invasive Tests
         """
-        if not IS12_INTERATIVE_TESTING:
+        if not IS12_INTERACTIVE_TESTING:
             return
 
         # In order to give the tests some context, a pre tests message is displayed
@@ -97,7 +97,7 @@ class IS1202Test(ControllerTest):
         """
         IS-12 Test Suite complete!
         """
-        if not IS12_INTERATIVE_TESTING:
+        if not IS12_INTERACTIVE_TESTING:
             return
         # Once the tests are complete this post tests message is displayed.
 
@@ -577,7 +577,7 @@ class IS1202Test(ControllerTest):
         if len(possible_properties) == 0:
             return test.UNCLEAR("No testable properties in Device Model.")
 
-        if IS12_INTERATIVE_TESTING:
+        if IS12_INTERACTIVE_TESTING:
             selected_ids = \
                 self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
 
@@ -762,7 +762,7 @@ class IS1202Test(ControllerTest):
         if len(possible_properties) == 0:
             return test.UNCLEAR("No properties with ParameterConstraints in Device Model.")
 
-        if IS12_INTERATIVE_TESTING:
+        if IS12_INTERACTIVE_TESTING:
             question = """\
                         From this list of sequences\
                         carefully select those that can be safely altered by this test.
