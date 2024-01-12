@@ -632,9 +632,6 @@ class IS1201Test(GenericTest):
         # Check class id to determine if this is a block
         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
             member_descriptors = self.get_property_value(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
-            if not member_descriptors:
-                # An error has likely occured
-                return None
 
             nc_block = NcBlock(class_id, oid, role, member_descriptors, runtime_constraints)
 
