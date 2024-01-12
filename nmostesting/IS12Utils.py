@@ -318,101 +318,101 @@ class IS12Utils(NMOSUtils):
             ],
         }
 
-    def _execute_command(self, test, oid, method_id, arguments):
+    def execute_command(self, test, oid, method_id, arguments):
         command_JSON = self.create_command_JSON(oid, method_id, arguments)
         response = self.send_command(test, command_JSON)
         return response["result"]
 
     def get_property_value(self, test, oid, property_id):
         """Get property from object. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.GENERIC_GET.value,
-                                     {'id': property_id})["value"]
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.GENERIC_GET.value,
+                                    {'id': property_id})["value"]
 
     def get_property(self, test, oid, property_id):
         """Get property from object. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.GENERIC_GET.value,
-                                     {'id': property_id})
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.GENERIC_GET.value,
+                                    {'id': property_id})
 
     def set_property(self, test, oid, property_id, argument):
         """Get property from object. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.GENERIC_SET.value,
-                                     {'id': property_id, 'value': argument})
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.GENERIC_SET.value,
+                                    {'id': property_id, 'value': argument})
 
     def get_sequence_item(self, test, oid, property_id, index):
         """Get value from sequence property. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.GET_SEQUENCE_ITEM.value,
-                                     {'id': property_id, 'index': index})["value"]
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.GET_SEQUENCE_ITEM.value,
+                                    {'id': property_id, 'index': index})["value"]
 
     def set_sequence_item(self, test, oid, property_id, index, value):
         """Add value to a sequence property. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
-                                     {'id': property_id, 'index': index, 'value': value})
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.SET_SEQUENCE_ITEM.value,
+                                    {'id': property_id, 'index': index, 'value': value})
 
     def add_sequence_item(self, test, oid, property_id, value):
         """Add value to a sequence property. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,
-                                     {'id': property_id, 'value': value})
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.ADD_SEQUENCE_ITEM.value,
+                                    {'id': property_id, 'value': value})
 
     def remove_sequence_item(self, test, oid, property_id, index):
         """Get value from sequence property. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
-                                     {'id': property_id, 'index': index})
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
+                                    {'id': property_id, 'index': index})
 
     def get_sequence_length(self, test, oid, property_id):
         """Get value from sequence property. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
-                                     {'id': property_id})["value"]
+        return self.execute_command(test, oid,
+                                    NcObjectMethods.GET_SEQUENCE_LENGTH.value,
+                                    {'id': property_id})["value"]
 
     def get_member_descriptors(self, test, oid, recurse):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value,
-                                     {'recurse': recurse})["value"]
+        return self.execute_command(test, oid,
+                                    NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value,
+                                    {'recurse': recurse})["value"]
 
     def find_members_by_path(self, test, oid, role_path):
         """Query members based on role path. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcBlockMethods.FIND_MEMBERS_BY_PATH.value,
-                                     {'path': role_path})["value"]
+        return self.execute_command(test, oid,
+                                    NcBlockMethods.FIND_MEMBERS_BY_PATH.value,
+                                    {'path': role_path})["value"]
 
     def find_members_by_role(self, test, oid, role, case_sensitive, match_whole_string, recurse):
         """Query members based on role. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcBlockMethods.FIND_MEMBERS_BY_ROLE.value,
-                                     {'role': role,
-                                      'caseSensitive': case_sensitive,
-                                      'matchWholeString': match_whole_string,
-                                      'recurse': recurse})["value"]
+        return self.execute_command(test, oid,
+                                    NcBlockMethods.FIND_MEMBERS_BY_ROLE.value,
+                                    {'role': role,
+                                     'caseSensitive': case_sensitive,
+                                     'matchWholeString': match_whole_string,
+                                     'recurse': recurse})["value"]
 
     def find_members_by_class_id(self, test, oid, class_id, include_derived, recurse):
         """Query members based on class id. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value,
-                                     {'classId': class_id,
-                                      'includeDerived': include_derived,
-                                      'recurse': recurse})["value"]
+        return self.execute_command(test, oid,
+                                    NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value,
+                                    {'classId': class_id,
+                                     'includeDerived': include_derived,
+                                     'recurse': recurse})["value"]
 
     def get_control_class(self, test, oid, class_id, include_inherited):
         """Query Class Manager for control class. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcClassManagerMethods.GET_CONTROL_CLASS.value,
-                                     {'classId': class_id,
-                                      'includeInherited': include_inherited})["value"]
+        return self.execute_command(test, oid,
+                                    NcClassManagerMethods.GET_CONTROL_CLASS.value,
+                                    {'classId': class_id,
+                                     'includeInherited': include_inherited})["value"]
 
     def get_datatype(self, test, oid, name, include_inherited):
         """Query Class Manager for datatype. Raises NMOSTestException on error"""
-        return self._execute_command(test, oid,
-                                     NcClassManagerMethods.GET_DATATYPE.value,
-                                     {'name': name,
-                                      'includeInherited': include_inherited})["value"]
+        return self.execute_command(test, oid,
+                                    NcClassManagerMethods.GET_DATATYPE.value,
+                                    {'name': name,
+                                     'includeInherited': include_inherited})["value"]
 
     def create_subscription_JSON(self, subscriptions):
         """for sending over websocket"""
