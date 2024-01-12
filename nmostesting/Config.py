@@ -61,7 +61,7 @@ API_PROCESSING_TIMEOUT = 1
 # Number of seconds to wait before timing out Controller test. Set to None to disable timeout mechanism
 CONTROLLER_TESTING_TIMEOUT = 120
 
-IS12_INTERATIVE_TESTING = False
+IS12_INTERACTIVE_TESTING = False
 
 # Set a Query API hostname/IP and port for use when operating without DNS-SD
 QUERY_API_HOST = "127.0.0.1"
