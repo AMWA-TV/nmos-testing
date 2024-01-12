@@ -24,7 +24,7 @@ from xeger import Xeger
 from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
-from ..IS12Utils import IS12Utils, NcObject, NcBlockProperties, \
+from ..IS12Utils import IS12Utils, NcDatatypeType, NcObject, NcBlockProperties, \
     NcObjectProperties, NcClassManagerProperties, \
     StandardClassIds, NcClassManager, NcBlock
 from ..TestHelper import load_resolved_schema
@@ -55,6 +55,7 @@ class IS1202Test(ControllerTest):
         self.set_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.add_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.remove_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.invoke_methods_metadata = {"checked": False, "error": False, "error_msg": ""}
 
     def set_up_tests(self):
         # Don't set up mock resources as not needed
@@ -412,6 +413,38 @@ class IS1202Test(ControllerTest):
 
         return results
 
+    def _get_methods(self, test, block, context=""):
+        results = []
+        context += block.role
+
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        block_member_descriptors = self.is12_utils.get_member_descriptors(test, block.oid, recurse=False)
+
+        # Note that the userLabel of the block may also be changed, and therefore might be
+        # subject to runtime constraints constraints
+
+        for descriptor in block_member_descriptors:
+            class_descriptor = self.is12_utils.get_control_class(test,
+                                                                 class_manager.oid,
+                                                                 descriptor['classId'],
+                                                                 include_inherited=False)
+
+            for method_descriptor in class_descriptor.get('methods'):
+                results.append({'oid': descriptor['oid'],
+                                'name': context + ": " + class_descriptor['name'] + ": " + method_descriptor['name'],
+                                'method_id': method_descriptor['id'],
+                                'result_datatype': method_descriptor['resultDatatype'],
+                                'parameters': method_descriptor['parameters'],
+                                'is_deprecated': method_descriptor['isDeprecated']})
+
+        # Recurse through the child blocks
+        for child_object in block.child_objects:
+            if type(child_object) is NcBlock:
+                results += (self._get_methods(test, child_object, context + ": "))
+
+        return results
+
     def _check_constrained_parameter(self, test, constraint_type, constraint, constrained_property, value):
         def _do_check(check_function):
             try:
@@ -586,7 +619,7 @@ class IS1202Test(ControllerTest):
             if len(selected_properties) == 0:
                 return test.UNCLEAR("No properties selected for testing.")
         else:
-            # If non interactive test all properties
+            # If non-interactive then test all methods
             selected_properties = [p["resource"] for p in possible_properties]
 
         self.constraint_error = False
@@ -614,34 +647,194 @@ class IS1202Test(ControllerTest):
                                              constrained_property['property_id'],
                                              original_value)
             except NMOSTestException:
-                test.FAIL(constrained_property.get("name") + ": error setting property")
+                return test.FAIL(constrained_property.get("name") + ": error setting property")
 
         if self.constraint_error:
             return test.FAIL(self.constraint_error_msg)
 
         return test.PASS()
 
+    def _resolve_datatype(self, test, datatype):
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        if class_manager.datatype_descriptors[datatype].get("parentType"):
+            return self._resolve_datatype(test, class_manager.datatype_descriptors[datatype].get("parentType"))
+        return datatype
+
+    def _resolve_is_sequence(self, test, datatype):
+        if datatype is None:
+            return False
+
+        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        parentType = class_manager.datatype_descriptors[datatype].get("parentType")
+
+        if parentType and class_manager.datatype_descriptors[parentType].get('type') == NcDatatypeType.Primitive:
+            return class_manager.datatype_descriptors[datatype]['isSequence']
+
+        return self._resolve_is_sequence(test, parentType)
+
+    def _generate_number_parameter(self, constraints):
+        if [constraints[key] for key in constraints if key in ['minimum', 'maximum', 'step']]:
+            minimum = constraints.get("minimum", 0)
+            maximum = constraints.get("maximum", sys.maxsize)
+            step = constraints.get("step", 1)
+
+            return floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
+        return None
+
+    def _generate_string_parameter(self, constraints):
+        if constraints.get("pattern"):
+            # Check legal case
+            x = Xeger(limit=constraints.get("max_characters", 0) - len(constraints.get("pattern"))
+                      if constraints.get("max_characters", 0) > len(constraints.get("pattern")) else 1)
+            return x.xeger(constraints.get("pattern"))
+        return ""
+
+    def _generate_primitive_parameter(self, datatype):
+        type_mapping = {
+            "NcBoolean": False,
+            "NcInt16": 0,
+            "NcInt32": 0,
+            "NcInt64": 0,
+            "NcUint16": 0,
+            "NcUint32": 0,
+            "NcUint64": 0,
+            "NcFloat32": 0.0,
+            "NcFloat64":  0.0,
+            "NcString": ""
+        }
+
+        return type_mapping.get(datatype)
+
+    def _create_compatible_parameter(self, test, parameter_descriptor):
+        parameter = None
+
+        # if there are constraints use them
+        if parameter_descriptor.get('constraints'):
+            constraints = parameter_descriptor['constraints']
+            # either there is a default value, or this is a number constraint, or this is a string
+            if constraints.get('defaultValue') is not None:
+                return constraints.get('defaultValue')
+            elif self._generate_number_parameter(constraints) is not None:
+                return self._generate_number_parameter(constraints)
+            else:
+                return self._generate_string_parameter(constraints)
+        else:
+            # resolve the datatype to either a struct, enum or primative
+            datatype = self._resolve_datatype(test, parameter_descriptor['typeName'])
+
+            class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+
+            datatype_descriptor = class_manager.datatype_descriptors[datatype]
+
+            if datatype_descriptor['type'] == NcDatatypeType.Enum:
+                parameter = datatype_descriptor['items'][0]['value']
+            elif datatype_descriptor['type'] == NcDatatypeType.Primitive:
+                parameter = self._generate_primitive_parameter(datatype)
+            elif datatype_descriptor['type'] == NcDatatypeType.Struct:
+                parameter = self._create_compatible_parameters(test, datatype_descriptor['fields'])
+
+        return [parameter] if self._resolve_is_sequence(test, parameter_descriptor['typeName']) else parameter
+
+    def _create_compatible_parameters(self, test, parameters):
+        result = {}
+
+        for parameter in parameters:
+            result[parameter['name']] = self._create_compatible_parameter(test, parameter)
+
+        return result
+
+    def _do_check_methods_test(self, test, question):
+        """Test methods within the Device Model"""
+        device_model = self.query_device_model(test)
+
+        methods = self._get_methods(test, device_model)
+
+        possible_methods = [{'answer_id': 'answer_'+str(i),
+                             'display_answer': p['name'],
+                             'resource': p} for i, p in enumerate(methods)]
+
+        if len(possible_methods) == 0:
+            return test.UNCLEAR("No non standard methods in Device Model.")
+
+        if IS12_INTERACTIVE_TESTING:
+            selected_ids = \
+                self._invoke_testing_facade(question, possible_methods, test_type="multi_choice")['answer_response']
+
+            selected_methods = [p["resource"] for p in possible_methods if p['answer_id'] in selected_ids]
+
+            if len(selected_methods) == 0:
+                return test.UNCLEAR("No methods selected for testing.")
+        else:
+            # If non-interactive then test all methods
+            selected_methods = [p["resource"] for p in possible_methods]
+
+        self.invoke_methods_metadata['error'] = False
+        self.invoke_methods_metadata['error_msg'] = ""
+
+        for method in selected_methods:
+            try:
+                parameters = self._create_compatible_parameters(test, method['parameters'])
+
+                result = self.is12_utils.execute_command(test, method['oid'], method['method_id'], parameters)
+
+                # check for deprecated status codes for deprecated methods
+                if method['is_deprecated'] and result['status'] != 299:
+                    self.invoke_methods_metadata['error'] = True
+                    self.invoke_methods_metadata['error_msg'] += """
+                        Deprecated method returned incorrect status code {} : {};
+                        """.format(method.get("name"), result.status)
+            except NMOSTestException as e:
+                # ignore 4xx errors
+                if e.args[0].detail['status'] >= 500:
+                    self.invoke_methods_metadata['error'] = True
+                    self.invoke_methods_metadata['error_msg'] += """
+                        Error invoking method {} : {};
+                        """.format(method.get("name"), e.args[0].detail)
+
+        if self.invoke_methods_metadata['error']:
+            return test.FAIL(self.invoke_methods_metadata['error_msg'])
+
+        return test.PASS()
+
     def test_01(self, test):
-        """Test all writable properties with constraints"""
+        """Test discovered writable properties with constraints"""
 
         question = """\
                     From this list of properties with parameter constraints\
                     carefully select those that can be safely altered by this test.
+
+                    Note that this test will attempt to restore the original state of the Device Model.
 
                     Once you have made you selection please press the 'Submit' button.
                     """
         return self._do_check_property_test(test, question, get_constraints=True, get_sequences=False)
 
     def test_02(self, test):
-        """Test all writable sequences with constraints"""
+        """Test discovered writable sequences with constraints"""
         question = """\
                    From this list of sequences with parameter constraints\
                    carefully select those that can be safely altered by this test.
+
+                   Note that this test will attempt to restore the original state of the Device Model.
 
                    Once you have made you selection please press the 'Submit' button.
                    """
 
         return self._do_check_property_test(test, question, get_constraints=True, get_sequences=True)
+
+    def test_03(self, test):
+        """Test discovered methods"""
+        question = """\
+                   From this list of methods\
+                   carefully select those that can be safely invoked by this test.
+
+                   Note that this test will NOT attempt to restore the original state of the Device Model.
+
+                   Once you have made you selection please press the 'Submit' button.
+                   """
+
+        return self._do_check_methods_test(test, question)
 
     def check_get_sequence_item(self, test, oid, sequence_values, property_id, property_name, context=""):
         try:
@@ -788,23 +981,6 @@ class IS1202Test(ControllerTest):
                                         constrained_property['name'])
 
         self.sequences_checked = True
-
-    def test_03(self, test):
-        """NcObject method: GetSequenceItem"""
-        try:
-            if not self.sequences_checked:
-                self.validate_sequences(test)
-        except NMOSTestException as e:
-            # Couldn't validate model so can't perform test
-            return test.UNCLEAR(e.args[0].detail, e.args[0].link)
-
-        if self.get_sequence_item_metadata["error"]:
-            return test.FAIL(self.get_sequence_item_metadata["error_msg"])
-
-        if not self.get_sequence_item_metadata["checked"]:
-            return test.UNCLEAR("GetSequenceItem not tested.")
-
-        return test.PASS()
 
     def test_04(self, test):
         """NcObject method: SetSequenceItem"""
