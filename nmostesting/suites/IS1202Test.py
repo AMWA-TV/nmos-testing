@@ -54,7 +54,8 @@ class IS1202Test(ControllerTest):
         self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.set_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.add_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.remove_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.sequence_test_unclear = False
+        self.remove_sequence_item_metadata = {"checked": False, "error": False, "error_msg": "", "unclear": False}
         self.invoke_methods_metadata = {"checked": False, "error": False, "error_msg": ""}
 
     def set_up_tests(self):
@@ -421,10 +422,11 @@ class IS1202Test(ControllerTest):
 
         block_member_descriptors = self.is12_utils.get_member_descriptors(test, block.oid, recurse=False)
 
-        # Note that the userLabel of the block may also be changed, and therefore might be
-        # subject to runtime constraints constraints
+        # We're only testing the methods from non-standard classes, as the standard methods are already tested elsewhere
+        non_standard_member_descriptors = [d for d in block_member_descriptors
+                                           if self.is12_utils.is_non_standard_class(d['classId'])]
 
-        for descriptor in block_member_descriptors:
+        for descriptor in non_standard_member_descriptors:
             class_descriptor = self.is12_utils.get_control_class(test,
                                                                  class_manager.oid,
                                                                  descriptor['classId'],
@@ -745,7 +747,7 @@ class IS1202Test(ControllerTest):
         return result
 
     def _do_check_methods_test(self, test, question):
-        """Test methods within the Device Model"""
+        """Test methods of non-standard objects within the Device Model"""
         device_model = self.query_device_model(test)
 
         methods = self._get_methods(test, device_model)
@@ -969,7 +971,8 @@ class IS1202Test(ControllerTest):
             selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
 
             if len(selected_properties) == 0:
-                return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+                # No properties selected so can't do the test
+                self.sequence_test_unclear = True
         else:
             # If non interactive test all properties
             selected_properties = [p["resource"] for p in possible_properties]
@@ -991,6 +994,9 @@ class IS1202Test(ControllerTest):
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
+        if self.sequence_test_unclear:
+            return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+
         if self.set_sequence_item_metadata["error"]:
             return test.FAIL(self.set_sequence_item_metadata["error_msg"])
 
@@ -1008,6 +1014,9 @@ class IS1202Test(ControllerTest):
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
+        if self.sequence_test_unclear:
+            return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+
         if self.add_sequence_item_metadata["error"]:
             return test.FAIL(self.add_sequence_item_metadata["error_msg"])
 
@@ -1024,6 +1033,9 @@ class IS1202Test(ControllerTest):
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
+
+        if self.sequence_test_unclear:
+            return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
 
         if self.remove_sequence_item_metadata["error"]:
             return test.FAIL(self.remove_sequence_item_metadata["error_msg"])
