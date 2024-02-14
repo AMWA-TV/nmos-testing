@@ -12,23 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-import os
 import re
 import sys
 
-from jsonschema import ValidationError, SchemaError
 from math import floor
 from xeger import Xeger
 
 from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
-from ..IS12Utils import IS12Utils, NcDatatypeType, NcObject, NcBlockProperties, \
-    NcObjectProperties, NcClassManagerProperties, \
-    StandardClassIds, NcClassManager, NcBlock
-from ..TestHelper import load_resolved_schema
-from ..TestResult import Test
+from ..IS12Utils import IS12Utils, NcDatatypeType, \
+    NcObjectProperties, NcBlock
 
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
@@ -42,10 +36,8 @@ class IS1202Test(ControllerTest):
         ControllerTest.__init__(self, apis, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
-        self.is12_utils = IS12Utils(self.node_url,
-                                    self.apis[CONTROL_API_KEY]["spec_path"],
-                                    self.apis[CONTROL_API_KEY]["spec_branch"])
-        self.load_reference_resources()
+        self.is12_utils = IS12Utils(apis)
+        self.is12_utils.load_reference_resources()
         self.device_model = None
         self.constraint_error = False
         self.constraint_error_msg = ""
@@ -116,162 +108,9 @@ class IS1202Test(ControllerTest):
             # post_test_introducton timed out
             pass
 
-    def load_model_descriptors(self, descriptor_paths):
-        descriptors = {}
-        for descriptor_path in descriptor_paths:
-            for filename in os.listdir(descriptor_path):
-                name, extension = os.path.splitext(filename)
-                if extension == ".json":
-                    with open(os.path.join(descriptor_path, filename), 'r') as json_file:
-                        descriptors[name] = json.load(json_file)
-
-        return descriptors
-
-    def generate_json_schemas(self, datatype_descriptors, schema_path):
-        """Generate datatype schemas from datatype descriptors"""
-        datatype_schema_names = []
-        base_schema_path = os.path.abspath(schema_path)
-        if not os.path.exists(base_schema_path):
-            os.makedirs(base_schema_path)
-
-        for name, descriptor in datatype_descriptors.items():
-            json_schema = self.is12_utils.descriptor_to_schema(descriptor)
-            with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
-                json.dump(json_schema, output_file, indent=4)
-                datatype_schema_names.append(name)
-
-        # Load resolved MS-05 datatype schemas
-        datatype_schemas = {}
-        for name in datatype_schema_names:
-            datatype_schemas[name] = load_resolved_schema(schema_path, name + '.json', path_prefix=False)
-
-        return datatype_schemas
-
-    def load_reference_resources(self):
-        """Load datatype and control class decriptors and create datatype JSON schemas"""
-        # Calculate paths to MS-05 descriptors
-        # including Feature Sets specified as additional_paths in test definition
-        spec_paths = [os.path.join(self.apis[FEATURE_SETS_KEY]["spec_path"], path)
-                      for path in self.apis[FEATURE_SETS_KEY]["repo_paths"]]
-        spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
-        # Root path for primitive datatypes
-        spec_paths.append('test_data/IS1201')
-
-        datatype_paths = []
-        classes_paths = []
-        for spec_path in spec_paths:
-            datatype_path = os.path.abspath(os.path.join(spec_path, 'models/datatypes/'))
-            if os.path.exists(datatype_path):
-                datatype_paths.append(datatype_path)
-            classes_path = os.path.abspath(os.path.join(spec_path, 'models/classes/'))
-            if os.path.exists(classes_path):
-                classes_paths.append(classes_path)
-
-        # Load class and datatype descriptors
-        self.reference_class_descriptors = self.load_model_descriptors(classes_paths)
-
-        # Load MS-05 datatype descriptors
-        self.reference_datatype_descriptors = self.load_model_descriptors(datatype_paths)
-
-        # Generate MS-05 datatype schemas from MS-05 datatype descriptors
-        self.datatype_schemas = self.generate_json_schemas(
-            datatype_descriptors=self.reference_datatype_descriptors,
-            schema_path=os.path.join(self.apis[CONTROL_API_KEY]["spec_path"], 'APIs/schemas/'))
-
     def create_ncp_socket(self, test):
         """Create a WebSocket client connection to Node under test. Raises NMOSTestException on error"""
-        self.is12_utils.open_ncp_websocket(test, self.apis[CONTROL_API_KEY]["url"])
-
-    def validate_descriptor(self, test, reference, descriptor, context=""):
-        """Validate descriptor against reference descriptor. Raises NMOSTestException on error"""
-        non_normative_keys = ['description']
-
-        if isinstance(reference, dict):
-            reference_keys = set(reference.keys())
-            descriptor_keys = set(descriptor.keys())
-
-            # compare the keys to see if any extra/missing
-            key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
-            if len(key_diff) > 0:
-                error_description = "Missing keys " if set(key_diff) <= set(reference_keys) else "Additional keys "
-                raise NMOSTestException(test.FAIL(context + error_description + str(key_diff)))
-            for key in reference_keys:
-                if key in non_normative_keys and not isinstance(reference[key], dict):
-                    continue
-                # Check for class ID
-                if key == 'classId' and isinstance(reference[key], list):
-                    if reference[key] != descriptor[key]:
-                        raise NMOSTestException(test.FAIL(context + "Unexpected ClassId. Expected: "
-                                                          + str(reference[key])
-                                                          + " actual: " + str(descriptor[key])))
-                else:
-                    self.validate_descriptor(test, reference[key], descriptor[key], context=context + key + "->")
-        elif isinstance(reference, list):
-            # Convert to dict and validate
-            references = {item['name']: item for item in reference}
-            descriptors = {item['name']: item for item in descriptor}
-
-            return self.validate_descriptor(test, references, descriptors, context)
-        else:
-            if reference != descriptor:
-                raise NMOSTestException(test.FAIL(context + 'Expected value: '
-                                                  + str(reference)
-                                                  + ', actual value: '
-                                                  + str(descriptor)))
-        return
-
-    def _validate_schema(self, test, payload, schema, context=""):
-        """Delegates to validate_schema. Raises NMOSTestExceptions on error"""
-        if not schema:
-            raise NMOSTestException(test.FAIL(context + "Missing schema. "))
-        try:
-            # Validate the JSON schema is correct
-            self.validate_schema(payload, schema)
-        except ValidationError as e:
-            raise NMOSTestException(test.FAIL(context + "Schema validation error: " + e.message))
-        except SchemaError as e:
-            raise NMOSTestException(test.FAIL(context + "Schema error: " + e.message))
-
-        return
-
-    def get_class_manager_descriptors(self, test, class_manager_oid, property_id, role):
-        response = self.get_property_value(test, class_manager_oid, property_id, role)
-
-        if not response:
-            return None
-
-        # Create descriptor dictionary from response array
-        # Use classId as key if present, otherwise use name
-        def key_lambda(classId, name): return ".".join(map(str, classId)) if classId else name
-        descriptors = {key_lambda(r.get('classId'), r['name']): r for r in response}
-
-        return descriptors
-
-    def validate_model_definitions(self, descriptors, schema_name, reference_descriptors):
-        """Validate class manager model definitions against reference model descriptors. Returns [test result array]"""
-        results = list()
-
-        reference_descriptor_keys = sorted(reference_descriptors.keys())
-
-        for key in reference_descriptor_keys:
-            test = Test("Validate " + str(key) + " definition", "auto_" + str(key))
-            try:
-                if descriptors.get(key):
-                    descriptor = descriptors[key]
-
-                    # Validate the JSON schema is correct
-                    self._validate_schema(test, descriptor, self.datatype_schemas[schema_name])
-
-                    # Validate the descriptor is correct
-                    self.validate_descriptor(test, reference_descriptors[key], descriptor)
-
-                    results.append(test.PASS())
-                else:
-                    results.append(test.UNCLEAR("Not Implemented"))
-            except NMOSTestException as e:
-                results.append(e.args[0])
-
-        return results
+        self.is12_utils.open_ncp_websocket(test)
 
     def get_property_value(self, test, oid, property_id, context):
         try:
@@ -284,73 +123,6 @@ class IS1202Test(ControllerTest):
                 + str(e.args[0].detail) \
                 + "; "
         return None
-
-    def nc_object_factory(self, test, class_id, oid, role):
-        """Create NcObject or NcBlock based on class_id"""
-        runtime_constraints = self.get_property_value(test,
-                                                      oid,
-                                                      NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
-                                                      role + ": ")
-
-        # Check class id to determine if this is a block
-        if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
-            member_descriptors = self.get_property_value(test, oid, NcBlockProperties.MEMBERS.value, role + ": ")
-            if not member_descriptors:
-                # An error has likely occured
-                return None
-
-            nc_block = NcBlock(class_id, oid, role, member_descriptors, runtime_constraints)
-
-            for m in member_descriptors:
-                child_object = self.nc_object_factory(test, m["classId"], m["oid"], m["role"])
-                if child_object:
-                    nc_block.add_child_object(child_object)
-            return nc_block
-        else:
-            # Check to determine if this is a Class Manager
-            if len(class_id) > 2 and class_id[0] == 1 and class_id[1] == 3 and class_id[2] == 2:
-                class_descriptors = self.get_class_manager_descriptors(test,
-                                                                       oid,
-                                                                       NcClassManagerProperties.CONTROL_CLASSES.value,
-                                                                       role + ": ")
-                datatype_descriptors = self.get_class_manager_descriptors(test,
-                                                                          oid,
-                                                                          NcClassManagerProperties.DATATYPES.value,
-                                                                          role + ": ")
-                if not class_descriptors or not datatype_descriptors:
-                    # An error has likely occured
-                    return None
-
-                return NcClassManager(class_id, oid, role, class_descriptors, datatype_descriptors, runtime_constraints)
-            return NcObject(class_id, oid, role, runtime_constraints)
-
-    def query_device_model(self, test):
-        self.create_ncp_socket(test)
-        if not self.device_model:
-            self.device_model = self.nc_object_factory(test,
-                                                       StandardClassIds.NCBLOCK.value,
-                                                       self.is12_utils.ROOT_BLOCK_OID,
-                                                       "root")
-            if not self.device_model:
-                raise NMOSTestException(test.FAIL("Unable to query Device Model: "
-                                                  + self.device_model_metadata["error_msg"]))
-        return self.device_model
-
-    def get_manager(self, test, class_id):
-        self.create_ncp_socket(test)
-        device_model = self.query_device_model(test)
-        members = device_model.find_members_by_class_id(class_id, include_derived=True)
-
-        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
-            .format(self.apis[CONTROL_API_KEY]["spec_branch"])
-
-        if len(members) == 0:
-            raise NMOSTestException(test.FAIL("Manager not found in Root Block.", spec_link))
-
-        if len(members) > 1:
-            raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
-
-        return members[0]
 
     def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):
         datatype_constraints = None
@@ -374,7 +146,7 @@ class IS1202Test(ControllerTest):
         results = []
         context += block.role
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.is12_utils.get_class_manager(test)
 
         block_member_descriptors = self.is12_utils.get_member_descriptors(test, block.oid, recurse=False)
 
@@ -418,7 +190,7 @@ class IS1202Test(ControllerTest):
         results = []
         context += block.role
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.is12_utils.get_class_manager(test)
 
         block_member_descriptors = self.is12_utils.get_member_descriptors(test, block.oid, recurse=False)
 
@@ -601,7 +373,7 @@ class IS1202Test(ControllerTest):
 
     def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False):
         """Test properties within the Device Model"""
-        device_model = self.query_device_model(test)
+        device_model = self.is12_utils.query_device_model(test)
 
         constrained_properties = self._get_properties(test, device_model, get_constraints=True, get_sequences=False)
 
@@ -648,25 +420,21 @@ class IS1202Test(ControllerTest):
                                              constrained_property['oid'],
                                              constrained_property['property_id'],
                                              original_value)
-            except NMOSTestException:
-                return test.FAIL(constrained_property.get("name") + ": error setting property")
+            except NMOSTestException as e:
+                return test.FAIL(constrained_property.get("name")
+                                 + ": error setting property: "
+                                 + str(e.args[0].detail))
 
         if self.constraint_error:
             return test.FAIL(self.constraint_error_msg)
 
         return test.PASS()
 
-    def _resolve_datatype(self, test, datatype):
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
-        if class_manager.datatype_descriptors[datatype].get("parentType"):
-            return self._resolve_datatype(test, class_manager.datatype_descriptors[datatype].get("parentType"))
-        return datatype
-
     def _resolve_is_sequence(self, test, datatype):
         if datatype is None:
             return False
 
-        class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+        class_manager = self.is12_utils.get_class_manager(test)
 
         parentType = class_manager.datatype_descriptors[datatype].get("parentType")
 
@@ -723,9 +491,9 @@ class IS1202Test(ControllerTest):
                 return self._generate_string_parameter(constraints)
         else:
             # resolve the datatype to either a struct, enum or primative
-            datatype = self._resolve_datatype(test, parameter_descriptor['typeName'])
+            datatype = self.is12_utils.resolve_datatype(test, parameter_descriptor['typeName'])
 
-            class_manager = self.get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
+            class_manager = self.is12_utils.get_class_manager(test)
 
             datatype_descriptor = class_manager.datatype_descriptors[datatype]
 
@@ -748,7 +516,7 @@ class IS1202Test(ControllerTest):
 
     def _do_check_methods_test(self, test, question):
         """Test methods of non-standard objects within the Device Model"""
-        device_model = self.query_device_model(test)
+        device_model = self.is12_utils.query_device_model(test)
 
         methods = self._get_methods(test, device_model)
 
@@ -946,7 +714,7 @@ class IS1202Test(ControllerTest):
 
     def validate_sequences(self, test):
         """Test all writable sequences"""
-        device_model = self.query_device_model(test)
+        device_model = self.is12_utils.query_device_model(test)
 
         constrained_properties = self._get_properties(test, device_model, get_constraints=False, get_sequences=True)
 
