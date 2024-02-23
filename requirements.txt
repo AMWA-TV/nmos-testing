@@ -5,7 +5,7 @@ zeroconf>=0.75.0
 requests
 netifaces
 gitpython
-ramlfications
+ramlfications==0.1.9
 websocket-client>=1.0.0,!=1.2.2
 jsonref>=1.0.0
 dnslib
