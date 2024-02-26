@@ -409,12 +409,26 @@ class IS1202Test(ControllerTest):
                                                                     constrained_property['oid'],
                                                                     constrained_property['property_id'])
 
+            except NMOSTestException as e:
+                return test.FAIL(constrained_property.get("name")
+                                 + ": error getting property: "
+                                 + str(e.args[0].detail)
+                                 + ": constraint " + str(constraint))
+
+            try:
                 if constraint.get('minimum') or constraint.get('maximum') or constraint.get('step'):
                     self._check_parameter_constraints_number(test, constrained_property)
 
                 if constraint.get('maxCharacters') or constraint.get('pattern'):
                     self._check_parameter_constraints_string(test, constrained_property)
 
+            except NMOSTestException as e:
+                return test.FAIL(constrained_property.get("name")
+                                 + ": error setting property: "
+                                 + str(e.args[0].detail),
+                                 + ": constraint " + str(constraint))
+
+            try:
                 # Reset to original value
                 self.is12_utils.set_property(test,
                                              constrained_property['oid'],
@@ -422,8 +436,10 @@ class IS1202Test(ControllerTest):
                                              original_value)
             except NMOSTestException as e:
                 return test.FAIL(constrained_property.get("name")
-                                 + ": error setting property: "
-                                 + str(e.args[0].detail))
+                                 + ": error restoring original value of property: "
+                                 + str(e.args[0].detail)
+                                 + " original value: " + str(original_value)
+                                 + ": constraint " + str(constraint))
 
         if self.constraint_error:
             return test.FAIL(self.constraint_error_msg)
