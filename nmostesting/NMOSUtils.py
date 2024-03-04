@@ -83,6 +83,31 @@ class NMOSUtils(object):
     def __init__(self, url):
         self.url = url
 
+    def checkCleanRequest(self, method, dest, data=None, codes=[200]):
+        """Checks a request can be made"""
+        status, response = TestHelper.do_request(method, self.url + dest, json=data)
+        if not status:
+            return status, response
+
+        message = "Expected status code {} from {}, got {}.".format(codes[0], dest, response.status_code)
+        if response.status_code in codes:
+            return True, response
+        else:
+            return False, message
+
+    def checkCleanRequestJSON(self, method, dest, data=None, code=200):
+        """Checks a request can be made and the resulting json can be parsed"""
+        valid, response = self.checkCleanRequest(method, dest, data, [code])
+        # print(response.content)
+        if valid:
+            try:
+                return True, response.json()
+            except Exception:
+                # Failed parsing JSON
+                return False, "Invalid JSON received"
+        else:
+            return valid, response
+
     @staticmethod
     def from_UTC(secs, nanos, is_leap=False):
         """Convert a UTC time into a TAI time"""
