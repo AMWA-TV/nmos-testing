@@ -346,6 +346,10 @@ TEST_DEFINITIONS = {
         "specs": [{
             "spec_key": "is-13",
             "api_key": "annotation"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["host", "port"]
         }],
         "class": IS1301Test.IS1301Test,
     },
