@@ -230,4 +230,26 @@ class IS1301Test(GenericTest):
         """Annotation test: devices/../tags (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
         return self.do_test(test, "devices", "tags")
 
-# TODO add receivers + senders
+    def test_03_01(self, test):
+        """ Annotation test: senders/../label (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
+        return self.do_test(test, "senders", "label")
+
+    def test_03_02(self, test):
+        """Annotation test: senders/../description (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
+        return self.do_test(test, "senders", "description")
+
+    def test_03_03(self, test):
+        """Annotation test: sender/sevices/../tags (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
+        return self.do_test(test, "senders", "tags")
+
+    def test_04_01(self, test):
+        """ Annotation test: receivers/../label (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
+        return self.do_test(test, "receivers", "label")
+
+    def test_04_02(self, test):
+        """Annotation test: receivers/../description (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
+        return self.do_test(test, "receivers", "description")
+
+    def test_04_03(self, test):
+        """Annotation test: receivers/sevices/../tags (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
+        return self.do_test(test, "receivers", "tags")
