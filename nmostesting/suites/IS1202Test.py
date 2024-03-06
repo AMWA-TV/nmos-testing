@@ -75,7 +75,7 @@ class IS1202Test(ControllerTest):
 
                    !!!Care should therefore be taken when running these tests!!!
 
-                   Each test will allow parts of the Device Model to be exluded from the testing.
+                   Each test will allow parts of the Device Model to be excluded from the testing.
 
                    Start the tests by clicking the 'Next' button.
                    """
@@ -778,7 +778,7 @@ class IS1202Test(ControllerTest):
         """Check that sequence manipulation methods work correctly"""
         response = self.is12_utils.get_property_value(test, oid, property_id)
 
-        if response is None or not isinstance(response, list) or len(response)== 0:
+        if response is None or not isinstance(response, list) or len(response) == 0:
             # Hmmm, these tests depend on sequences already having some data in them.
             # This is so it can copy sequence items for add and set operations
             # without having to generate any new data. It would be better to synthesise
@@ -786,7 +786,7 @@ class IS1202Test(ControllerTest):
             return
 
         sequence_length = len(response)
-        
+
         if not self.check_add_sequence_item(test, oid, property_id, property_name, sequence_length, context=context):
             return
         if sequence_length + 1 != self.is12_utils.get_sequence_length(test, oid, property_id):
