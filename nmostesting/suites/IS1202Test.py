@@ -375,7 +375,7 @@ class IS1202Test(ControllerTest):
         """Test properties within the Device Model"""
         device_model = self.is12_utils.query_device_model(test)
 
-        constrained_properties = self._get_properties(test, device_model, get_constraints=True, get_sequences=False)
+        constrained_properties = self._get_properties(test, device_model, get_constraints, get_sequences)
 
         possible_properties = [{'answer_id': 'answer_'+str(i),
                                 'display_answer': p['name'],
