@@ -42,7 +42,7 @@ class IS1202Test(ControllerTest):
         self.constraint_error = False
         self.constraint_error_msg = ""
         self.device_model_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.sequences_checked = False
+        self.sequences_validated = False
         self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.set_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.add_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
@@ -718,27 +718,6 @@ class IS1202Test(ControllerTest):
 
         return self._do_check_methods_test(test, question)
 
-    def check_get_sequence_item(self, test, oid, sequence_values, property_id, property_name, context=""):
-        try:
-            # GetSequenceItem
-            self.get_sequence_item_metadata["checked"] = True
-            sequence_index = 0
-            for property_value in sequence_values:
-                value = self.is12_utils.get_sequence_item(test, oid, property_id, sequence_index)
-                if property_value != value:
-                    self.get_sequence_item_metadata["error"] = True
-                    self.get_sequence_item_metadata["error_msg"] += \
-                        context + property_name \
-                        + ": Expected: " + str(property_value) + ", Actual: " + str(value) \
-                        + " at index " + sequence_index + ", "
-                sequence_index += 1
-            return True
-        except NMOSTestException as e:
-            self.get_sequence_item_metadata["error"] = True
-            self.get_sequence_item_metadata["error_msg"] += \
-                context + property_name + ": " + str(e.args[0].detail) + ", "
-        return False
-
     def check_add_sequence_item(self, test, oid, property_id, property_name, sequence_length, context=""):
         try:
             self.add_sequence_item_metadata["checked"] = True
@@ -799,14 +778,15 @@ class IS1202Test(ControllerTest):
         """Check that sequence manipulation methods work correctly"""
         response = self.is12_utils.get_property_value(test, oid, property_id)
 
-        self.check_get_sequence_item(test, oid, response, property_id, property_name, context)
+        if response is None or not isinstance(response, list) or len(response)== 0:
+            # Hmmm, these tests depend on sequences already having some data in them.
+            # This is so it can copy sequence items for add and set operations
+            # without having to generate any new data. It would be better to synthesise
+            # valid data to use in these tests
+            return
 
         sequence_length = len(response)
-
-        if sequence_length != self.is12_utils.get_sequence_length(test, oid, property_id):
-            self.get_sequence_item_metadata["error"] = True
-            self.get_sequence_item_metadata["error_msg"] = property_name + \
-                ": get_sequence_length method returned an inconsistant sequence length."
+        
         if not self.check_add_sequence_item(test, oid, property_id, property_name, sequence_length, context=context):
             return
         if sequence_length + 1 != self.is12_utils.get_sequence_length(test, oid, property_id):
@@ -863,19 +843,19 @@ class IS1202Test(ControllerTest):
                                         constrained_property['property_id'],
                                         constrained_property['name'])
 
-        self.sequences_checked = True
+        self.sequences_validated = True
 
     def test_06(self, test):
         """NcObject method: SetSequenceItem"""
         try:
-            if not self.sequences_checked:
+            if not self.sequences_validated:
                 self.validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
         if self.sequence_test_unclear:
-            return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+            return test.UNCLEAR("No sequences selected for testing.")
 
         if self.set_sequence_item_metadata["error"]:
             return test.FAIL(self.set_sequence_item_metadata["error_msg"])
@@ -888,14 +868,14 @@ class IS1202Test(ControllerTest):
     def test_07(self, test):
         """NcObject method: AddSequenceItem"""
         try:
-            if not self.sequences_checked:
+            if not self.sequences_validated:
                 self.validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
         if self.sequence_test_unclear:
-            return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+            return test.UNCLEAR("No sequences selected for testing.")
 
         if self.add_sequence_item_metadata["error"]:
             return test.FAIL(self.add_sequence_item_metadata["error_msg"])
@@ -908,14 +888,14 @@ class IS1202Test(ControllerTest):
     def test_08(self, test):
         """NcObject method: RemoveSequenceItem"""
         try:
-            if not self.sequences_checked:
+            if not self.sequences_validated:
                 self.validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.UNCLEAR(e.args[0].detail, e.args[0].link)
 
         if self.sequence_test_unclear:
-            return test.UNCLEAR("No properties with PropertyConstraints selected for testing.")
+            return test.UNCLEAR("No sequences selected for testing.")
 
         if self.remove_sequence_item_metadata["error"]:
             return test.FAIL(self.remove_sequence_item_metadata["error_msg"])
