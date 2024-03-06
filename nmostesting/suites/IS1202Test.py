@@ -142,7 +142,7 @@ class IS1202Test(ControllerTest):
 
         return runtime_constraints or property_constraints or datatype_constraints, constraint_type
 
-    def _get_properties(self, test, block, get_constraints=True, get_sequences=False, context=""):
+    def _get_properties(self, test, block, get_constraints=True, get_sequences=False, get_readonly=False, context=""):
         results = []
         context += block.role
 
@@ -166,8 +166,17 @@ class IS1202Test(ControllerTest):
                                                    NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value)
 
             for class_property in class_descriptor.get('properties'):
-                if class_property['isReadOnly']:
+                if get_readonly != class_property['isReadOnly']:
                     continue
+                if get_readonly and class_property.get('isSequence') == get_sequences:
+                    results.append({'oid': descriptor['oid'],
+                                    'name': context + ": " + class_descriptor['name'] + ": " + class_property['name'],
+                                    'property_id': class_property['id'],
+                                    'constraints': None,
+                                    'constraints_type': None,
+                                    'is_sequence': class_property.get('isSequence')})
+                    continue
+
                 constraints, constraints_type = self._get_constraints(test,
                                                                       class_property,
                                                                       class_manager.datatype_descriptors,
@@ -182,7 +191,8 @@ class IS1202Test(ControllerTest):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                results += (self._get_properties(test, child_object, get_constraints, get_sequences, context + ": "))
+                results += (self._get_properties(test, child_object, get_constraints, get_sequences, get_readonly,
+                                                 context + ": "))
 
         return results
 
@@ -530,6 +540,118 @@ class IS1202Test(ControllerTest):
 
         return result
 
+    def test_01(self, test):
+        """Constraints on writable properties are enforced"""
+
+        question = """\
+                    From this list of properties with parameter constraints\
+                    carefully select those that can be safely altered by this test.
+
+                    Note that this test will attempt to restore the original state of the Device Model.
+
+                    Once you have made you selection please press the 'Submit' button.
+                    """
+        return self._do_check_property_test(test, question, get_constraints=True, get_sequences=False)
+
+    def test_02(self, test):
+        """Constraints on writable sequences are enforced"""
+        question = """\
+                   From this list of sequences with parameter constraints\
+                   carefully select those that can be safely altered by this test.
+
+                   Note that this test will attempt to restore the original state of the Device Model.
+
+                   Once you have made you selection please press the 'Submit' button.
+                   """
+
+        return self._do_check_property_test(test, question, get_constraints=True, get_sequences=True)
+
+    def _do_check_readonly_properties(self, test, question, get_sequences=False):
+        device_model = self.is12_utils.query_device_model(test)
+
+        readonly_properties = self._get_properties(test, device_model, get_constraints=False,
+                                                   get_sequences=get_sequences, get_readonly=True)
+
+        possible_properties = [{'answer_id': 'answer_'+str(i),
+                                'display_answer': p['name'],
+                                'resource': p} for i, p in enumerate(readonly_properties)]
+
+        if len(possible_properties) == 0:
+            return test.UNCLEAR("No testable properties in Device Model.")
+
+        if IS12_INTERACTIVE_TESTING:
+            selected_ids = \
+                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
+
+            selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
+
+            if len(selected_properties) == 0:
+                return test.UNCLEAR("No properties selected for testing.")
+        else:
+            # If non-interactive then test all methods
+            selected_properties = [p["resource"] for p in possible_properties]
+
+        readonly_checked = False
+
+        for readonly_property in selected_properties:
+
+            # Cache original property value
+            try:
+                original_value = self.is12_utils.get_property_value(test,
+                                                                    readonly_property['oid'],
+                                                                    readonly_property['property_id'])
+
+            except NMOSTestException as e:
+                return test.FAIL(readonly_property.get("name")
+                                 + ": error getting property: "
+                                 + str(e.args[0].detail))
+
+            try:
+                # Try setting this value
+                self.is12_utils.set_property(test,
+                                             readonly_property['oid'],
+                                             readonly_property['property_id'],
+                                             original_value)
+                # if it gets this far it's failed
+                return test.FAIL(readonly_property.get("name")
+                                 + ": read only property is writable")
+            except NMOSTestException:
+                # expect an exception to be thrown
+                readonly_checked = True
+
+        if not readonly_checked:
+            return test.UNCLEAR("No read only properties found")
+
+        return test.PASS()
+
+    def test_03(self, test):
+        """Check read only properties are not writable"""
+
+        question = """\
+                   From this list of read only properties\
+                   carefully select those that can be safely altered by this test.
+
+                   Note that this test will attempt to restore the original state of the Device Model.
+
+                   Once you have made you selection please press the 'Submit' button.
+                   """
+
+        return self._do_check_readonly_properties(test, question, get_sequences=False)
+
+    def test_04(self, test):
+        """Check read only sequences are not writable"""
+
+        question = """\
+                   From this list of read only sequences\
+                   carefully select those that can be safely altered by this test.
+
+                   Note that this test will attempt to restore the original state of the Device Model.
+
+                   Once you have made you selection please press the 'Submit' button.
+                   """
+
+        return self._do_check_readonly_properties(test, question, get_sequences=True)
+
     def _do_check_methods_test(self, test, question):
         """Test methods of non-standard objects within the Device Model"""
         device_model = self.is12_utils.query_device_model(test)
@@ -583,34 +705,8 @@ class IS1202Test(ControllerTest):
 
         return test.PASS()
 
-    def test_01(self, test):
-        """Test discovered writable properties with constraints"""
-
-        question = """\
-                    From this list of properties with parameter constraints\
-                    carefully select those that can be safely altered by this test.
-
-                    Note that this test will attempt to restore the original state of the Device Model.
-
-                    Once you have made you selection please press the 'Submit' button.
-                    """
-        return self._do_check_property_test(test, question, get_constraints=True, get_sequences=False)
-
-    def test_02(self, test):
-        """Test discovered writable sequences with constraints"""
-        question = """\
-                   From this list of sequences with parameter constraints\
-                   carefully select those that can be safely altered by this test.
-
-                   Note that this test will attempt to restore the original state of the Device Model.
-
-                   Once you have made you selection please press the 'Submit' button.
-                   """
-
-        return self._do_check_property_test(test, question, get_constraints=True, get_sequences=True)
-
-    def test_03(self, test):
-        """Test discovered methods"""
+    def test_05(self, test):
+        """Check discovered methods"""
         question = """\
                    From this list of methods\
                    carefully select those that can be safely invoked by this test.
@@ -769,7 +865,7 @@ class IS1202Test(ControllerTest):
 
         self.sequences_checked = True
 
-    def test_04(self, test):
+    def test_06(self, test):
         """NcObject method: SetSequenceItem"""
         try:
             if not self.sequences_checked:
@@ -789,7 +885,7 @@ class IS1202Test(ControllerTest):
 
         return test.PASS()
 
-    def test_05(self, test):
+    def test_07(self, test):
         """NcObject method: AddSequenceItem"""
         try:
             if not self.sequences_checked:
@@ -809,7 +905,7 @@ class IS1202Test(ControllerTest):
 
         return test.PASS()
 
-    def test_06(self, test):
+    def test_08(self, test):
         """NcObject method: RemoveSequenceItem"""
         try:
             if not self.sequences_checked:
