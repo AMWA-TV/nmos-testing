@@ -57,6 +57,7 @@ class IS1201Test(GenericTest):
         self.validate_runtime_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.validate_property_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
         self.validate_datatype_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.check_constraints_hierarchy = {"checked": False, "error": False, "error_msg": ""}
 
         self.oid_cache = []
 
@@ -1472,5 +1473,155 @@ class IS1201Test(GenericTest):
 
         if not self.validate_datatype_constraints_metadata["checked"]:
             return test.UNCLEAR("No datatype constraints found.")
+
+        return test.PASS()
+
+    def _xor_constraint(self, left, right):
+        return bool(left is not None) ^ bool(right is not None)
+
+    def _check_constraint_override(self, test, constraint, override_constraint, context):
+        # Is this a number constraint
+        if 'minimum' in constraint or 'maximum' in constraint or 'step' in constraint:
+            self.check_constraints_hierarchy["checked"] = True
+
+            if self._xor_constraint(constraint.get('minimum'), override_constraint.get('minimum')) \
+                    or self._xor_constraint(constraint.get('maximum'), override_constraint.get('maximum')) \
+                    or self._xor_constraint(constraint.get('step'), override_constraint.get('step')):
+                raise NMOSTestException(
+                    test.FAIL(context + "Constraints implementations MUST fully override the previous level: "
+                              + "constraint: " + str(constraint) + ", override_constraint: "
+                              + str(override_constraint)))
+            if constraint.get('minimum') and override_constraint.get('minimum') < constraint.get('minimum'):
+                raise NMOSTestException(
+                    test.FAIL(context + "Constraints implementations MUST not result in widening "
+                              + "the constraints defined in previous levels: "
+                              + "minimum constraint: " + str(constraint.get('minimum'))
+                              + ", override minimum constraint: " + str(override_constraint.get('minimum'))))
+            if constraint.get('maximum') and override_constraint.get('maximum') > constraint.get('maximum'):
+                raise NMOSTestException(
+                    test.FAIL(context + "Constraints implementations MUST not result in widening "
+                              + "the constraints defined in previous levels: "
+                              + "maximum constraint: " + str(constraint.get('maximum'))
+                              + ", override maximum constraint: " + str(override_constraint.get('maximum'))))
+            if constraint.get('step') and override_constraint.get('step') < constraint.get('step'):
+                raise NMOSTestException(
+                    test.FAIL(context + "Constraints implementations MUST not result in widening "
+                              + "the constraints defined in previous levels: "
+                              + "step constraint: " + str(constraint.get('step'))
+                              + ", override step constraint: " + str(override_constraint.get('step'))))
+
+        # is this a string constraint
+        if 'maxCharacters' in constraint or 'pattern' in constraint:
+            self.check_constraints_hierarchy["checked"] = True
+
+            if self._xor_constraint(constraint.get('maxCharacters'), override_constraint.get('maxCharacters')) \
+                    or self._xor_constraint(constraint.get('pattern'), override_constraint.get('pattern')):
+                raise NMOSTestException(
+                    test.FAIL(context + "Constraints implementations MUST fully override the previous level: "
+                              + "constraint: " + str(constraint) + ", override_constraint: "
+                              + str(override_constraint)))
+            if constraint.get('maxCharacters') \
+                    and override_constraint.get('maxCharacters') > constraint.get('maxCharacters'):
+                raise NMOSTestException(
+                    test.FAIL(context + "Constraints implementations MUST not result in widening "
+                              + "the constraints defined in previous levels: "
+                              + "maxCharacters constraint: " + str(constraint.get('maxCharacters'))
+                              + ", override maxCharacters constraint: "
+                              + str(override_constraint.get('maxCharacters'))))
+            # Hmm, difficult to determine whether an overridden regex pattern is widening the constraint
+            # so rule of thumb here is that a shorter pattern is less constraining that a longer pattern
+            if constraint.get('pattern') and len(override_constraint.get('pattern')) < len(constraint.get('pattern')):
+                raise NMOSTestException(
+                    test.FAIL(context + "Constraints implementations MUST not result in widening "
+                              + "the constraints defined in previous levels: "
+                              + "pattern constraint: " + str(constraint.get('pattern'))
+                              + ", override pattern constraint: " + str(override_constraint.get('pattern'))))
+
+    def _check_constraints_hierarchy(self, test, class_property, datatype_descriptors, object_runtime_constraints,
+                                     context):
+        datatype_constraints = None
+        runtime_constraints = None
+        # Level 0: Datatype constraints
+        if class_property.get('typeName'):
+            datatype_constraints = datatype_descriptors.get(class_property['typeName']).get('constraints')
+        # Level 1: Property constraints
+        property_constraints = class_property.get('constraints')
+        # Level 3: Runtime constraints
+        if object_runtime_constraints:
+            for object_runtime_constraint in object_runtime_constraints:
+                if object_runtime_constraint['propertyId']['level'] == class_property['id']['level'] and \
+                        object_runtime_constraint['propertyId']['index'] == class_property['id']['index']:
+                    runtime_constraints = object_runtime_constraint
+
+        if datatype_constraints and property_constraints:
+            self._check_constraint_override(test, datatype_constraints, property_constraints,
+                                            context + "datatype constraints overridden by property constraints: ")
+
+        if datatype_constraints and runtime_constraints:
+            self._check_constraint_override(test, datatype_constraints, runtime_constraints,
+                                            context + "datatype constraints overridden by runtime constraints: ")
+
+        if property_constraints and runtime_constraints:
+            self._check_constraint_override(test, property_constraints, runtime_constraints,
+                                            context + "property constraints overridden by runtime constraints: ")
+
+    def _check_constraints(self, test, block, context=""):
+        context += block.role
+
+        class_manager = self.is12_utils.get_class_manager(test)
+
+        block_member_descriptors = self.is12_utils.get_member_descriptors(test, block.oid, recurse=False)
+
+        for descriptor in block_member_descriptors:
+            class_descriptor = self.is12_utils.get_control_class(test,
+                                                                 class_manager.oid,
+                                                                 descriptor['classId'],
+                                                                 include_inherited=True)
+
+            # Get runtime property constraints
+            # will set error on device_model_metadata on failure
+            object_runtime_constraints = \
+                self.get_property_value(test,
+                                        descriptor['oid'],
+                                        NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
+                                        context)
+
+            for class_property in class_descriptor.get('properties'):
+                if class_property['isReadOnly']:
+                    continue
+                try:
+                    self._check_constraints_hierarchy(test, class_property, class_manager.datatype_descriptors,
+                                                      object_runtime_constraints,
+                                                      context + ": " + class_descriptor['name'] + ": "
+                                                      + class_property['name'] + ": ")
+                except NMOSTestException as e:
+                    self.check_constraints_hierarchy["error"] = True
+                    self.check_constraints_hierarchy["error_msg"] += str(e.args[0].detail) + "; "
+
+        # Recurse through the child blocks
+        for child_object in block.child_objects:
+            if type(child_object) is NcBlock:
+                self._check_constraints(test, child_object, context + ": ")
+
+    def test_37(self, test):
+        """Constraints: check constraints hierarchy"""
+
+        # When using multiple levels of constraints implementations MUST fully override the previous level
+        # and this MUST not result in widening the constraints defined in previous levels
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/Constraints.html
+
+        device_model = self.is12_utils.query_device_model(test)
+
+        self._check_constraints(test, device_model)
+
+        if self.device_model_metadata["error"]:
+            return test.FAIL(self.device_model_metadata["error_msg"])
+
+        if self.check_constraints_hierarchy["error"]:
+            return test.FAIL(self.check_constraints_hierarchy["error_msg"],
+                             "https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/Constraints.html")
+
+        if not self.check_constraints_hierarchy["checked"]:
+            return test.UNCLEAR("No constraints hierarchy found.")
 
         return test.PASS()
