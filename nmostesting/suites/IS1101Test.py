@@ -23,7 +23,6 @@ from .. import TestHelper
 from .. import Config as CONFIG
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
-import requests
 import datetime
 from ..IS11Utils import IS11Utils
 
@@ -2137,9 +2136,9 @@ class IS1101Test(GenericTest):
                     self.version[sender_id] = version
 
                     valid, response = self.do_request("PUT",
-                        self.compat_url + "inputs/" + input_id + "/edid/base",
-                        headers={"Content-Type": "application/octet-stream"},
-                        data=self.valid_edid)
+                                                      self.compat_url + "inputs/" + input_id + "/edid/base",
+                                                      headers={"Content-Type": "application/octet-stream"},
+                                                      data=self.valid_edid)
                     if not valid or response.status_code != 204:
                         return test.FAIL("Unexpected response from "
                             "the Stream Compatibility Management API: {}".format(response))
