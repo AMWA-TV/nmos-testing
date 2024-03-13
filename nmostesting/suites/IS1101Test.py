@@ -2140,8 +2140,8 @@ class IS1101Test(GenericTest):
                                                       headers={"Content-Type": "application/octet-stream"},
                                                       data=self.valid_edid)
                     if not valid or response.status_code != 204:
-                        return test.FAIL("Unexpected response from "
-                            "the Stream Compatibility Management API: {}".format(response))
+                        return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
+                                         .format(response))
                     time.sleep(CONFIG.STABLE_STATE_DELAY)
 
                     valid, response = self.do_request(
