@@ -2104,7 +2104,7 @@ class IS1101Test(GenericTest):
                 if len(inputs) == 0:
                     return test.UNCLEAR("No input supports changing the base EDID")
                 for input_id in inputs:
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                     )
                     if not valid:
@@ -2120,7 +2120,7 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unable to find expected key: {}".format(e))
                     self.version[input_id] = version
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.node_url + "senders/" + sender_id
                     )
                     if not valid:
@@ -2136,14 +2136,16 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unable to find expected key: {}".format(e))
                     self.version[sender_id] = version
 
-                    response = requests.put(
-                        self.compat_url + "inputs/" + input_id + "/edid/base/",
-                        data=self.valid_edid,
+                    valid, response = self.do_request("PUT",
+                        self.compat_url + "inputs/" + input_id + "/edid/base",
                         headers={"Content-Type": "application/octet-stream"},
-                    )
+                        data=self.valid_edid)
+                    if not valid or response.status_code != 204:
+                        return test.FAIL("Unexpected response from "
+                            "the Stream Compatibility Management API: {}".format(response))
                     time.sleep(CONFIG.STABLE_STATE_DELAY)
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                     )
                     if not valid:
@@ -2160,7 +2162,7 @@ class IS1101Test(GenericTest):
                     if version == self.version[input_id]:
                         return test.FAIL("Version should change")
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.node_url + "senders/" + sender_id
                     )
                     if not valid:
@@ -2177,7 +2179,7 @@ class IS1101Test(GenericTest):
                     if version == self.version[input_id]:
                         return test.FAIL("Version should change")
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
                     )
                     if not valid:
