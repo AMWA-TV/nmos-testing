@@ -12,6 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+"""
+The script implements the IS-13 test suite as specified by the nmos-resource-labelling workgroup.
+At the end of the test, the initial state of the tested unit is supposed to be restored but this
+cannot be garanteed.
+
+In addition to the basic annotation API tests, this suite includes the test sequence:
+For each resource type (self, devices, senders, receivers):
+    For each annotable object type (label, description, tags):
+        - Read initial value
+            - store
+        - Reset default value by sending null
+            - check value + timestamp + is-14/value + is-04 timestamp
+            - store
+        - Write max-length
+            - check value + timestamp + is-14/value + is-04 timestamp
+        - Write >max-length
+            - check value + timestamp + is-14/value + is-04 timestamp
+        - Reset default value again
+            - check value + timestamp + is-14/value + is-04 timestamp
+            - compare with 1st reset
+        - Restore initial value
+"""
+
 from ..GenericTest import GenericTest, NMOSTestException
 from ..TestHelper import compare_json
 
@@ -165,14 +189,7 @@ class IS1301Test(GenericTest):
 
     def do_test(self, test, resource, object):
         """
-        Perform the test sequence for a resource:
-
-        - Read initial value and store
-        - Reset default value, check timestamp and store
-        - Write max-length and check value+timestamp
-        - Write >max-length and check value+timestamp
-        - Reset default value again and compare
-        - Restore initial value
+        Perform the test sequence as documented in the file header
         """
 
         url = self.get_url(f"{self.annotation_url}node/", resource)
