@@ -33,15 +33,25 @@ STRING_MAX_VALUE = STRING_OVER_MAX_VALUE[:64]  # this is the max length tolerate
 TAGS_OVER_MAX_VALUE = {'location': ['underground'], 'studio': ['42'], 'tech': ['John', 'Mike']}
 TAGS_MAX_VALUE = TAGS_OVER_MAX_VALUE.copy()
 TAGS_OVER_MAX_VALUE.pop('tech')  # must have a max of 5
+TAGS_TO_BE_SKIPPED = 'urn:x-nmos:tag:grouphint/v1.0'
+
 
 def get_ts_from_version(version):
     """ Convert the 'version' object (string) into float """
     return float(re.sub(':', '.', version))
 
+
+def strip_tags(tags):
+    if TAGS_TO_BE_SKIPPED in list(tags.keys()):
+        tags.pop(TAGS_TO_BE_SKIPPED)
+    return tags
+
+
 class IS1301Test(GenericTest):
     """
     Runs IS-13-Test
     """
+
     def __init__(self, apis, **kwargs):
         GenericTest.__init__(self, apis, **kwargs)
         self.annotation_url = self.apis[ANNOTATION_API_KEY]["url"]
@@ -90,8 +100,11 @@ class IS1301Test(GenericTest):
             return False, "new version FAIL"
         # check PATCH == GET
         if new[object] is not None:  # NOT a reset
-            if object == "tags" and not TestHelper.compare_json(resp[object], new[object]):
-                return False, f"new {object} FAIL"
+            if object == "tags":
+                if TAGS_TO_BE_SKIPPED in list(resp[object].keys()):
+                    resp[object].pop(TAGS_TO_BE_SKIPPED)
+                if not TestHelper.compare_json(resp[object], new[object]):
+                    return False, f"new {object} FAIL"
             elif resp[object] != new[object]:
                 return False, f"new {object} FAIL"
 
@@ -117,9 +130,9 @@ class IS1301Test(GenericTest):
         if resource != "self":  # get first of the list of devices, receivers, senders
             valid, r = self.get_resource(url)
             if valid:
-                if isinstance(r[0], str): # in annotation api
+                if isinstance(r[0], str):  # in annotation api
                     index = r[0]
-                elif isinstance(r[0], dict): # in node api
+                elif isinstance(r[0], dict):  # in node api
                     index = r[0]['id']
                 else:
                     return None
@@ -155,6 +168,7 @@ class IS1301Test(GenericTest):
             initial = copy.copy(r)
             initial.pop('id')
             initial.pop('version')
+            initial['tags'] = strip_tags(initial['tags'])
             self.log(f"    {msg}: {r}")
         else:
             return test.FAIL(f"Can't {msg} {resource}/{object}")
