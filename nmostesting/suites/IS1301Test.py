@@ -18,6 +18,7 @@ from ..TestHelper import compare_json
 from ..import TestHelper
 import re
 import copy
+import time
 
 ANNOTATION_API_KEY = "annotation"
 NODE_API_KEY = "node"
@@ -102,11 +103,14 @@ class IS1301Test(GenericTest):
 
     def set_resource(self, url, node_url, new, prev):
         """ Patch a resource with one ore several object values """
-        object = list(new.keys())[0]
 
+        object = list(new.keys())[0]
         valid, resp = TestHelper.do_request("PATCH", url, json=new)
         if not valid:
             return False, "PATCH Resquest FAIL"
+
+        # pause to accomodate update propagation
+        time.sleep(0.1)
 
         # re-GET
         valid, resp = self.get_resource(url)
