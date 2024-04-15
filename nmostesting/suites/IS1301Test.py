@@ -74,6 +74,7 @@ class IS1301Test(GenericTest):
 
     def get_resource(self, url):
         """ Get a resource """
+
         valid, r = self.do_request("GET", url)
         if valid and r.status_code == 200:
             try:
@@ -83,6 +84,22 @@ class IS1301Test(GenericTest):
         else:
             return False, "GET  Resquest FAIL"
 
+    def compare_resource(self, object, new, resp):
+        """ Compare string values (or "tags" dict) """
+
+        if new[object] is None:  # this is a reset, new is null, skip
+            return True, ""
+
+        if object == "tags":  # tags needs to be stripped
+            resp[object] = strip_tags(resp[object])
+            if not TestHelper.compare_json(resp[object], new[object]):
+                return False, f"{object} value FAIL"
+
+        elif resp[object] != new[object]:
+            return False, f"{object} value FAIL"
+
+        return True, ""
+
     def set_resource(self, url, node_url, new, prev):
         """ Patch a resource with one ore several object values """
         object = list(new.keys())[0]
@@ -91,34 +108,29 @@ class IS1301Test(GenericTest):
         if not valid:
             return False, "PATCH Resquest FAIL"
 
+        # re-GET
         valid, resp = self.get_resource(url)
         if not valid:
             return False, "Get Resquest FAIL"
-
+        # check PATCH == GET
+        valid, msg = self.compare_resource(object, new, resp)
+        if not valid:
+            return False, f"new {msg}"
         # check that the version (timestamp) has increased
         if get_ts_from_version(prev['version']) >= get_ts_from_version(resp['version']):
-            return False, "new version FAIL"
-        # check PATCH == GET
-        if new[object] is not None:  # NOT a reset
-            if object == "tags":
-                if TAGS_TO_BE_SKIPPED in list(resp[object].keys()):
-                    resp[object].pop(TAGS_TO_BE_SKIPPED)
-                if not TestHelper.compare_json(resp[object], new[object]):
-                    return False, f"new {object} FAIL"
-            elif resp[object] != new[object]:
-                return False, f"new {object} FAIL"
+            return False, "new version (timestamp) FAIL"
 
         # validate that it is reflected in IS04
         valid, node_resp = self.get_resource(node_url)
         if not valid:
-            return False, "GET node FAIL"
-        if new[object] is not None:  # NOT a reset
-            if object == "tags" and not TestHelper.compare_json(node_resp[object], new[object]):
-                return False, f"new node/.../{object} FAIL"
-            elif node_resp[object] != new[object]:
-                return False, f"new node/.../{object} FAIL"
+            return False, "GET IS-04 Node FAIL"
+        # check PATCH == GET
+        valid, msg = self.compare_resource(object, new, resp)
+        if not valid:
+            return False, f"new IS-04/node/.../ {msg}"
+        # check that the version (timestamp) has increased
         if get_ts_from_version(node_resp['version']) != get_ts_from_version(resp['version']):
-            return False, "new node version FAIL"
+            return False, "new IS-04/node/.../version (timestamp) FAIL"
 
         return True, resp
 
@@ -126,8 +138,13 @@ class IS1301Test(GenericTest):
         print(msg)
 
     def get_url(self, base_url, resource):
+        """
+        Build the url for both annotation and node APIs which behaves differently.
+        For iterables resources (devices, senders, receivers), return the 1st element.
+        """
+
         url = f"{base_url}{resource}"
-        if resource != "self":  # get first of the list of devices, receivers, senders
+        if resource != "self":
             valid, r = self.get_resource(url)
             if valid:
                 if isinstance(r[0], str):  # in annotation api
@@ -139,6 +156,7 @@ class IS1301Test(GenericTest):
                 url = f"{url}/{index}"
             else:
                 return None
+
         return url
 
     def do_test(self, test, resource, object):
@@ -149,75 +167,83 @@ class IS1301Test(GenericTest):
         - Reset default value, check timestamp and store
         - Write max-length and check value+timestamp
         - Write >max-length and check value+timestamp
-        - Reset default value and compare
+        - Reset default value again and compare
         - Restore initial value
         """
 
         url = self.get_url(f"{self.annotation_url}node/", resource)
         if not url:
-            return test.FAIL(f"Can't get annotation url for {resource}")
+            msg = f"Can't get annotation url for {resource}"
+            self.log(f"    FAIL {msg}")
+            return test.FAIL(msg)
 
         node_url = self.get_url(self.node_url, resource)
         if not url:
-            return test.FAIL(f"Can't get node url for {resource}")
+            msg = f"Can't get node url for {resource}"
+            self.log(f"    FAIL {msg}")
+            return test.FAIL(msg)
 
-        msg = "SAVE initial"
         valid, r = self.get_resource(url)
+        msg = f"SAVE initial: {r}"
+        self.log(f"    {msg}")
         if valid:
             prev = r
             initial = copy.copy(r)
             initial.pop('id')
             initial.pop('version')
             initial['tags'] = strip_tags(initial['tags'])
-            self.log(f"    {msg}: {r}")
         else:
-            return test.FAIL(f"Can't {msg} {resource}/{object}")
+            self.log("    FAIL")
+            return test.FAIL(f"Can't {msg}")
 
-        msg = "RESET to default and save"
         valid, r = self.set_resource(url, node_url, {object: None}, prev)
+        msg = f"RESET to default and save: {r}"
+        self.log(f"    {msg}")
         if valid:
             default = prev = r
-            self.log(f"    {msg}: {r}")
         else:
-            return test.FAIL(f"Can't {msg} {resource}/{object}")
+            self.log("    FAIL")
+            return test.FAIL(f"Can't {msg}")
 
-        msg = "SET MAX value and expected complete response"
         value = TAGS_MAX_VALUE if object == "tags" else STRING_MAX_VALUE
         valid, r = self.set_resource(url, node_url, {object: value}, prev)
+        msg = f"SET MAX value and expected complete response: {r}"
+        self.log(f"    {msg}")
         if valid:
             prev = r
-            self.log(f"    {msg}: {r}")
         else:
-            return test.FAIL(f"Can't {msg} {resource}/{object}")
+            self.log("    FAIL")
+            return test.FAIL(f"Can't {msg}")
 
-        msg = "SET >MAX value and expect truncated response"
         value = TAGS_OVER_MAX_VALUE if object == "tags" else STRING_OVER_MAX_VALUE
         valid, r = self.set_resource(url, node_url, {object: value}, prev)
+        msg = f"SET >MAX value and expect truncated response: {r}"
+        self.log(f"    {msg}")
         if valid:
             prev = r
-            self.log(f"    {msg}: {r}")
-            if object == "tags" and not TestHelper.compare_json(r[object], TAGS_MAX_VALUE):
-                return test.FAIL(f"Can't {msg} {resource}/{object}")
-            elif r[object] != STRING_MAX_VALUE:
-                return test.FAIL(f"Can't {msg} {resource}/{object}")
+            self.log(f"    {msg}")
+            if object == "tags" and not TestHelper.compare_json(r[object], TAGS_MAX_VALUE) or r[object] != STRING_MAX_VALUE:
+                return test.FAIL(f"Can't {msg}")
         else:
-            return test.FAIL(f"Can't {msg} {resource}/{object}")
+            self.log("    FAIL")
+            return test.FAIL(f"Can't {msg}")
 
-        msg = "RESET again and compare"
         valid, r = self.set_resource(url, node_url, {object: None}, prev)
+        msg = f"RESET again and compare: {r}"
+        self.log(f"    {msg}")
         if valid:
-            self.log(f"    {msg}: {r}")
-            if object == "tags" and not TestHelper.compare_json(default[object], r[object]):
-                return test.FAIL("Second reset give a different default.")
-            elif default[object] != r[object]:
-                return test.FAIL("Second reset give a different default.")
+            if object == "tags" and not TestHelper.compare_json(default[object], r[object]) or default[object] != r[object]:
+                self.log("    FAIL")
+                return test.FAIL("Second reset gives a different default value.")
             prev = r
         else:
-            return test.FAIL(f"Can't {msg} {resource}/{object}")
+            self.log("    FAIL")
+            return test.FAIL(f"Can't {msg}")
 
         # restore initial for courtesy
         self.set_resource(url, node_url, initial, prev)
 
+        self.log("    PASS")
         return test.PASS()
 
     def test_01_01(self, test):
