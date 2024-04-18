@@ -2413,8 +2413,7 @@ class IS1101Test(GenericTest):
 
                 valid, response = self.do_request(
                     "GET",
-                    self.compat_url + "senders/" + sender_id + "/status/",
-                    time.sleep(20),
+                    self.compat_url + "senders/" + sender_id + "/status/"
                 )
 
                 if not valid:
@@ -2761,7 +2760,7 @@ class IS1101Test(GenericTest):
 
                 valid, response = self.do_request(
                     "GET",
-                    self.compat_url + "senders/" + sender_id + "/status/", time.sleep(20)
+                    self.compat_url + "senders/" + sender_id + "/status/"
                 )
                 if not valid:
                     return test.FAIL(
