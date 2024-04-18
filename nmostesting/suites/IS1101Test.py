@@ -2782,7 +2782,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unable to find expected key: {}".format(e))
 
                 if state == "active_constraints_violation":
-                    return test.UNCLEAR("This device can not constraint grain_rate")
+                    return test.UNCLEAR("This device can not constraint sample_rate")
 
                 if state in ["awaiting_essence", "no_essence"]:
                     for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
