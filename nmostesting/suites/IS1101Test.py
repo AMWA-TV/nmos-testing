@@ -2189,7 +2189,7 @@ class IS1101Test(GenericTest):
 
     def test_02_03_05_01(self, test):
         """
-        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints
+        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints (video)
         """
         if len(self.flow_format_video) == 0:
             return test.UNCLEAR("There is no video format")
@@ -2539,7 +2539,7 @@ class IS1101Test(GenericTest):
 
     def test_02_03_05_02(self, test):
         """
-        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints
+        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints (audio)
         """
         if len(self.flow_format_audio) == 0:
             return test.UNCLEAR("There is no audio format")
