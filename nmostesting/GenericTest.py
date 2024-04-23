@@ -16,6 +16,7 @@ import os
 from requests.compat import json
 import git
 import jsonschema
+import re
 import traceback
 import inspect
 import uuid
@@ -592,48 +593,38 @@ class GenericTest(object):
             return test.DISABLED("This test is only performed when an API supports Authorization and 'ENABLE_AUTH' "
                                  "is True")
 
+    def generate_parameterized_endpoints(self, endpoint_path, params, param_index=0):
+        if params is None or param_index >= len(params):
+            return [endpoint_path]
+
+        root_path = endpoint_path.split("{")[0].rstrip("/")
+        parameter_path = re.findall("([^}]+}[^{]*)", endpoint_path)[0].rstrip("/")
+        post_param = endpoint_path.split(parameter_path)[1].rstrip("/")
+
+        if root_path not in self.saved_entities:
+            return []
+
+        endpoints = []
+        for entity in self.saved_entities[root_path]:
+            partial_endpoint = parameter_path.format(**{params[param_index].name: entity})
+            endpoints += self.generate_parameterized_endpoints("{}{}".format(partial_endpoint, post_param),
+                                                               params, param_index+1)
+        return endpoints
+
     def do_test_api_resource(self, resource, response_code, api):
         test = Test("{} /x-nmos/{}/{}{}".format(resource[1]['method'].upper(),
                                                 api,
                                                 self.apis[api]["version"],
                                                 resource[0].rstrip("/")), self.auto_test_name(api))
 
-        # Test URLs which include a single {resourceId} or similar parameter
-        if resource[1]['params'] and len(resource[1]['params']) == 1:
-            path = resource[0].split("{")[0].rstrip("/")
-            if path in self.saved_entities:
-                entity_warn = ""
-                for entity in NMOSUtils.sampled_list(self.saved_entities[path]):
-                    params = {resource[1]['params'][0].name: entity}
-                    entity_path = resource[0].rstrip("/").format(**params)
-                    entity_valid, entity_message = self.check_api_resource(test, resource, response_code, api,
-                                                                           entity_path)
-                    if not entity_valid:
-                        return test.FAIL("Error for {}: {}".format(params, entity_message))
-                    elif entity_message and not entity_warn:
-                        entity_warn = entity_message
-                if entity_warn:
-                    return test.WARNING("Warning for {}: {}".format(params, entity_warn))
-                else:
-                    return test.PASS()
-            else:
-                # There were no saved entities found, so we can't test this parameterised URL
-                return test.UNCLEAR("No resources found to perform this test")
-
-        # Test general URLs with no parameters
-        elif not resource[1]['params']:
-            valid, message = self.check_api_resource(test, resource, response_code, api, resource[0].rstrip("/"))
-            if valid:
-                if message:
-                    return test.WARNING(message)
-                else:
-                    return test.PASS()
-            else:
-                return test.FAIL(message)
-
-        # URLs with more than one parameter are currently not tested by the automatically defined tests
-        else:
-            return None
+        endpoints = NMOSUtils.sampled_list(self.generate_parameterized_endpoints(resource[0], resource[1]['params']))
+        for endpoint in endpoints:
+            entity_valid, entity_message = self.check_api_resource(test, resource, response_code, api, endpoint)
+            if not entity_valid:
+                return test.FAIL("Error for {}: {}".format(endpoint, entity_message))
+            elif entity_message:
+                return test.WARNING("Warning for {}: {}".format(endpoint, entity_message))
+        return test.PASS()
 
     def check_api_resource(self, test, resource, response_code, api, path):
         url = "{}{}".format(self.apis[api]["url"].rstrip("/"), path)
