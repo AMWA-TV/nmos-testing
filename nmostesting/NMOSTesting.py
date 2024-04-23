@@ -84,6 +84,7 @@ from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import IS1201Test
 from .suites import IS1202Test
+from .suites import IS1401Test
 from .suites import BCP00301Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
@@ -389,6 +390,14 @@ TEST_DEFINITIONS = {
         }],
         "class": IS1202Test.IS1202Test,
         "urlpath": True
+    },
+    "IS-14-01" : {
+        "name": "IS-14 Configuration",
+        "specs": [{
+            "spec_key": "is-14",
+            "api_key": "configuration"
+        }],
+        "class": IS1401Test.IS1401Test
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
