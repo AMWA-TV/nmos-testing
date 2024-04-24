@@ -630,7 +630,8 @@ class GenericTest(object):
                 return test.WARNING("Warning for {}: {}".format(param_values, entity_message)
                                     if param_values else entity_message)
         if len(endpoints) == 0:
-            return test.UNCLEAR("Unable to test endpoint.")
+            # There were no saved entities found, so we can't test this parameterised URL
+            return test.UNCLEAR("No resources found to perform this test")
         return test.PASS()
 
     def check_api_resource(self, test, resource, response_code, api, path):
