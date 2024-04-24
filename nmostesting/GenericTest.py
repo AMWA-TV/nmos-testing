@@ -593,9 +593,11 @@ class GenericTest(object):
             return test.DISABLED("This test is only performed when an API supports Authorization and 'ENABLE_AUTH' "
                                  "is True")
 
-    def generate_parameterized_endpoints(self, endpoint_path, params, param_index=0):
-        if params is None or param_index >= len(params):
-            return [endpoint_path]
+    def generate_parameterized_endpoints(self, endpoint_path, param_names, param_values=None, param_index=0):
+        if param_values is None:
+            param_values = {}
+        if param_names is None or param_index >= len(param_names):
+            return [(endpoint_path, param_values)]
 
         root_path = endpoint_path.split("{")[0].rstrip("/")
         parameter_path = re.findall("([^}]+}[^{]*)", endpoint_path)[0].rstrip("/")
@@ -606,9 +608,10 @@ class GenericTest(object):
 
         endpoints = []
         for entity in self.saved_entities[root_path]:
-            partial_endpoint = parameter_path.format(**{params[param_index].name: entity})
+            param_values[param_names[param_index].name] = entity
+            partial_endpoint = parameter_path.format(**{param_names[param_index].name: entity})
             endpoints += self.generate_parameterized_endpoints("{}{}".format(partial_endpoint, post_param),
-                                                               params, param_index+1)
+                                                               param_names, param_values.copy(), param_index+1)
         return endpoints
 
     def do_test_api_resource(self, resource, response_code, api):
@@ -618,12 +621,16 @@ class GenericTest(object):
                                                 resource[0].rstrip("/")), self.auto_test_name(api))
 
         endpoints = NMOSUtils.sampled_list(self.generate_parameterized_endpoints(resource[0], resource[1]['params']))
-        for endpoint in endpoints:
+        for endpoint, param_values in endpoints:
             entity_valid, entity_message = self.check_api_resource(test, resource, response_code, api, endpoint)
             if not entity_valid:
-                return test.FAIL("Error for {}: {}".format(endpoint, entity_message))
+                return test.FAIL("Error for {}: {}".format(param_values, entity_message)
+                                 if param_values else entity_message)
             elif entity_message:
-                return test.WARNING("Warning for {}: {}".format(endpoint, entity_message))
+                return test.WARNING("Warning for {}: {}".format(param_values, entity_message)
+                                    if param_values else entity_message)
+        if len(endpoints) == 0:
+            return test.UNCLEAR("Unable to test endpoint.")
         return test.PASS()
 
     def check_api_resource(self, test, resource, response_code, api, path):
