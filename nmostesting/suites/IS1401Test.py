@@ -14,6 +14,7 @@
 
 from ..GenericTest import GenericTest
 
+
 class IS1401Test(GenericTest):
     """
     Runs IS-04-01-Test
@@ -23,10 +24,10 @@ class IS1401Test(GenericTest):
 
     def set_up_tests(self):
         pass
-    
+
     def tear_down_tests(self):
         pass
-    
+
     def test_01(self, test):
         """First test"""
 

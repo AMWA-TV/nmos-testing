@@ -391,7 +391,7 @@ TEST_DEFINITIONS = {
         "class": IS1202Test.IS1202Test,
         "urlpath": True
     },
-    "IS-14-01" : {
+    "IS-14-01": {
         "name": "IS-14 Configuration",
         "specs": [{
             "spec_key": "is-14",
