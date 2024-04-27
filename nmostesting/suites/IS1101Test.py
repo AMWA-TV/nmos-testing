@@ -19,11 +19,9 @@ import re
 from requests.compat import json
 from ..NMOSUtils import NMOSUtils
 from ..GenericTest import GenericTest, NMOSInitException, NMOSTestException
-from .. import TestHelper
 from .. import Config as CONFIG
 from ..IS04Utils import IS04Utils
 from ..IS05Utils import IS05Utils
-import requests
 import datetime
 from ..IS11Utils import IS11Utils
 
@@ -193,7 +191,7 @@ class IS1101Test(GenericTest):
                 if state == "no_signal" or state == "awaiting_signal":
                     if state == "awaiting_signal":
                         for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                            valid, response = TestHelper.do_request(
+                            valid, response = self.do_request(
                                 "GET", self.compat_url + "inputs/" + id + "/properties/"
                             )
                             if not valid:
@@ -549,7 +547,7 @@ class IS1101Test(GenericTest):
 
         if len(self.senders) > 0:
             for sender_id in self.senders:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "DELETE",
                     self.build_constraints_active_url(sender_id),
                 )
@@ -570,7 +568,7 @@ class IS1101Test(GenericTest):
         "Verify that IS-11 Senders exist on the Node API as Senders"
         if len(self.senders) > 0:
             for sender_id in self.senders:
-                valid, response = TestHelper.do_request("GET", self.node_url + "senders/" + sender_id)
+                valid, response = self.do_request("GET", self.node_url + "senders/" + sender_id)
                 if not valid:
                     return test.FAIL("Unexpected response from the Node API: {}".format(response))
                 if response.status_code != 200:
@@ -595,7 +593,7 @@ class IS1101Test(GenericTest):
         """
         if len(self.senders) > 0:
             for sender_id in self.senders:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.build_sender_status_url(sender_id)
                 )
                 if not valid:
@@ -615,7 +613,7 @@ class IS1101Test(GenericTest):
 
                 if state in ["awaiting_essence", "no_essence"]:
                     for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                        valid, response = TestHelper.do_request(
+                        valid, response = self.do_request(
                             "GET", self.build_sender_status_url(sender_id)
                         )
                         if not valid:
@@ -650,7 +648,7 @@ class IS1101Test(GenericTest):
         """
         if len(self.senders) > 0:
             for sender_id in self.senders:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
                 if not valid:
@@ -698,7 +696,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET",
                 self.compat_url + "senders/" + sender_id + "/constraints/supported/",
             )
@@ -727,7 +725,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no audio format")
 
         for sender_id in self.flow_format_audio:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET",
                 self.compat_url + "senders/" + sender_id + "/constraints/supported/",
             )
@@ -757,7 +755,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -778,7 +776,7 @@ class IS1101Test(GenericTest):
                 ]
             }
             self.empty_constraints[sender_id] = {"constraint_sets": []}
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.grain_rate_constraints[sender_id],
@@ -789,7 +787,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL(
                     "The sender {} constraints change has failed: {}".format(sender_id, response.json())
                 )
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -802,7 +800,7 @@ class IS1101Test(GenericTest):
             if version == self.version[sender_id]:
                 return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
             self.version[sender_id] = version
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
@@ -817,7 +815,7 @@ class IS1101Test(GenericTest):
                 self.grain_rate_constraints[sender_id]["constraint_sets"],
             ):
                 return test.FAIL("The sender {} contraints are different".format(sender_id))
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -827,7 +825,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL(
                    "The sender {} constraints cannot be deleted".format(sender_id)
                 )
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -840,7 +838,7 @@ class IS1101Test(GenericTest):
             if version == self.version[sender_id]:
                 return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
             self.version[sender_id] = version
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
@@ -862,7 +860,7 @@ class IS1101Test(GenericTest):
         if len(self.flow_format_audio) == 0:
             return test.UNCLEAR("There is no audio format")
         for sender_id in self.flow_format_audio:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -883,7 +881,7 @@ class IS1101Test(GenericTest):
                 ]
             }
             self.empty_constraints[sender_id] = {"constraint_sets": []}
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.sample_rate_constraints[sender_id],
@@ -894,7 +892,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL(
                     "The sender {} constraints change has failed: {}".format(sender_id, response.json())
                 )
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -908,7 +906,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
             self.version[sender_id] = version
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
@@ -926,7 +924,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The constraint applied does not match the active"
                                  "constraint retrieved from the sender {}".format(sender_id))
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -937,7 +935,7 @@ class IS1101Test(GenericTest):
                     "The sender {} constraints cannot be deleted".format(sender_id)
                 )
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -951,7 +949,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
             self.version[sender_id] = version
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_constraints_active_url(sender_id)
             )
             if not valid:
@@ -974,7 +972,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -987,7 +985,7 @@ class IS1101Test(GenericTest):
             state = response.json()["state"]
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1026,7 +1024,7 @@ class IS1101Test(GenericTest):
                 ]
             }
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
@@ -1039,7 +1037,7 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -1053,7 +1051,7 @@ class IS1101Test(GenericTest):
 
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1071,7 +1069,7 @@ class IS1101Test(GenericTest):
             if state != "constrained":
                 return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\"".format(sender_id, state))
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -1096,7 +1094,7 @@ class IS1101Test(GenericTest):
                     .format(sender_id)
                 )
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -1118,7 +1116,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no audio format")
 
         for sender_id in self.flow_format_audio:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -1132,7 +1130,7 @@ class IS1101Test(GenericTest):
 
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1160,7 +1158,7 @@ class IS1101Test(GenericTest):
                     }
                 ]
             }
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
@@ -1173,7 +1171,7 @@ class IS1101Test(GenericTest):
                     .format(sender_id, response.json())
                 )
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -1187,7 +1185,7 @@ class IS1101Test(GenericTest):
 
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1205,7 +1203,7 @@ class IS1101Test(GenericTest):
             if state != "constrained":
                 return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\"".format(sender_id, state))
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -1223,7 +1221,7 @@ class IS1101Test(GenericTest):
             if self.flow_sample_rate[sender_id] != flow_sample_rate:
                 return test.FAIL("Different sample rate")
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -1244,7 +1242,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -1257,7 +1255,7 @@ class IS1101Test(GenericTest):
             state = response.json()["state"]
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1276,7 +1274,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
                                  .format(sender_id, state))
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -1334,7 +1332,7 @@ class IS1101Test(GenericTest):
 
             self.constraints[sender_id] = {"constraint_sets": [constraint_set]}
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
@@ -1379,7 +1377,7 @@ class IS1101Test(GenericTest):
                             return test.FAIL("Different component_depth")
                 except Exception:
                     pass
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -1399,7 +1397,7 @@ class IS1101Test(GenericTest):
         if len(self.flow_format_audio) == 0:
             return test.UNCLEAR("There is no audio format")
         for sender_id in self.flow_format_audio:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -1410,7 +1408,7 @@ class IS1101Test(GenericTest):
             state = response.json()["state"]
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1428,7 +1426,7 @@ class IS1101Test(GenericTest):
             if state != "unconstrained":
                 return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
                                  .format(sender_id, state))
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -1442,7 +1440,7 @@ class IS1101Test(GenericTest):
             self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
             constraint_set = {}
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
@@ -1482,7 +1480,7 @@ class IS1101Test(GenericTest):
                 except Exception:
                     pass
             self.constraints[sender_id] = {"constraint_sets": [constraint_set]}
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
@@ -1496,7 +1494,7 @@ class IS1101Test(GenericTest):
                 )
             new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
@@ -1524,7 +1522,7 @@ class IS1101Test(GenericTest):
                             return test.FAIL("Different sample_depth")
                 except Exception:
                     pass
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -1542,7 +1540,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -1555,7 +1553,7 @@ class IS1101Test(GenericTest):
             state = response.json()["state"]
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1575,7 +1573,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
                                  .format(sender_id, state))
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -1679,7 +1677,7 @@ class IS1101Test(GenericTest):
             self.constraints[sender_id] = {
                 "constraint_sets": [constraint_set0, constraint_set0]
             }
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
@@ -1727,7 +1725,7 @@ class IS1101Test(GenericTest):
                 except Exception:
                     pass
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -1745,7 +1743,7 @@ class IS1101Test(GenericTest):
             return test.UNCLEAR("There is no audio format")
 
         for sender_id in self.flow_format_audio:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.build_sender_status_url(sender_id)
             )
             if not valid:
@@ -1756,7 +1754,7 @@ class IS1101Test(GenericTest):
             state = response.json()["state"]
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                     )
                     if not valid:
@@ -1775,7 +1773,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
                                  .format(sender_id, state))
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "senders/" + sender_id
             )
             if not valid:
@@ -1787,7 +1785,7 @@ class IS1101Test(GenericTest):
                 )
             sender = response.json()
             self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
@@ -1864,7 +1862,7 @@ class IS1101Test(GenericTest):
                 "constraint_sets": [constraint_set0, constraint_set1]
             }
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "PUT",
                 self.build_constraints_active_url(sender_id),
                 json=self.constraints[sender_id],
@@ -1878,7 +1876,7 @@ class IS1101Test(GenericTest):
                 )
             new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
 
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "sources/" + self.flow["source_id"]
             )
             if not valid:
@@ -1906,7 +1904,7 @@ class IS1101Test(GenericTest):
                             return test.FAIL("Different sample_depth")
                 except Exception:
                     pass
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
             )
@@ -1923,7 +1921,7 @@ class IS1101Test(GenericTest):
         Verify senders supporting inputs
         """
         for input in self.senders:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                         "GET", self.compat_url + "senders/" + input + "/inputs/"
                     )
             if not valid:
@@ -1948,7 +1946,7 @@ class IS1101Test(GenericTest):
         """
         if len(self.input_senders) != 0:
             for sender_id in self.input_senders:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
                 )
                 if not valid:
@@ -1977,7 +1975,7 @@ class IS1101Test(GenericTest):
         """
         if len(self.input_senders) != 0:
             for sender_id in self.input_senders:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
                 )
                 if not valid:
@@ -2019,7 +2017,7 @@ class IS1101Test(GenericTest):
 
         if len(self.input_senders) > 0:
             for sender_id in self.input_senders:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.build_sender_status_url(sender_id)
                 )
                 if not valid:
@@ -2039,7 +2037,7 @@ class IS1101Test(GenericTest):
 
                 if state in ["awaiting_essence", "no_essence"]:
                     for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                        valid, response = TestHelper.do_request(
+                        valid, response = self.do_request(
                             "GET", self.build_sender_status_url(sender_id)
                         )
                         if not valid:
@@ -2073,7 +2071,7 @@ class IS1101Test(GenericTest):
         """
         if len(self.input_senders) != 0:
             for sender_id in self.input_senders:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
                 )
                 if not valid:
@@ -2104,7 +2102,7 @@ class IS1101Test(GenericTest):
                 if len(inputs) == 0:
                     return test.UNCLEAR("No input supports changing the base EDID")
                 for input_id in inputs:
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                     )
                     if not valid:
@@ -2120,7 +2118,7 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unable to find expected key: {}".format(e))
                     self.version[input_id] = version
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.node_url + "senders/" + sender_id
                     )
                     if not valid:
@@ -2136,14 +2134,16 @@ class IS1101Test(GenericTest):
                         return test.FAIL("Unable to find expected key: {}".format(e))
                     self.version[sender_id] = version
 
-                    response = requests.put(
-                        self.compat_url + "inputs/" + input_id + "/edid/base/",
-                        data=self.valid_edid,
-                        headers={"Content-Type": "application/octet-stream"},
-                    )
+                    valid, response = self.do_request("PUT",
+                                                      self.compat_url + "inputs/" + input_id + "/edid/base",
+                                                      headers={"Content-Type": "application/octet-stream"},
+                                                      data=self.valid_edid)
+                    if not valid or response.status_code != 204:
+                        return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
+                                         .format(response))
                     time.sleep(CONFIG.STABLE_STATE_DELAY)
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                     )
                     if not valid:
@@ -2160,7 +2160,7 @@ class IS1101Test(GenericTest):
                     if version == self.version[input_id]:
                         return test.FAIL("Version should change")
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.node_url + "senders/" + sender_id
                     )
                     if not valid:
@@ -2177,7 +2177,7 @@ class IS1101Test(GenericTest):
                     if version == self.version[input_id]:
                         return test.FAIL("Version should change")
 
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
                     )
                     if not valid:
@@ -2189,13 +2189,14 @@ class IS1101Test(GenericTest):
 
     def test_02_03_05_01(self, test):
         """
-        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints
+        Verify for inputs supporting EDID that the version and
+        the effective EDID change when applying constraints (video)
         """
         if len(self.flow_format_video) == 0:
             return test.UNCLEAR("There is no video format")
 
         for sender_id in self.flow_format_video:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
             )
             if not valid:
@@ -2233,7 +2234,7 @@ class IS1101Test(GenericTest):
             if len(inputs) == 0:
                 return test.UNCLEAR("No input supports changing the base EDID")
             for input_id in inputs:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                 )
                 if not valid:
@@ -2257,7 +2258,7 @@ class IS1101Test(GenericTest):
 
                 self.version[input_id] = version
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
                 if not valid:
@@ -2294,7 +2295,7 @@ class IS1101Test(GenericTest):
                         }
                     ]
                 }
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "PUT",
                     self.compat_url + "senders/" + sender_id + "/constraints/active/",
                     json=self.another_grain_rate_constraints[sender_id],
@@ -2313,7 +2314,7 @@ class IS1101Test(GenericTest):
                 if response.status_code == 422:
                     print("Device does not accept grain_rate constraint")
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET",
                     self.compat_url + "inputs/" + input_id + "/edid/effective/",
                 )
@@ -2332,7 +2333,7 @@ class IS1101Test(GenericTest):
                 if response.content == default_edid:
                     print("Grain rate constraint are not changing effective EDID")
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                 )
                 if not valid:
@@ -2356,7 +2357,7 @@ class IS1101Test(GenericTest):
 
                 if version == self.version[input_id]:
                     return test.FAIL("Version should change")
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
                 if not valid:
@@ -2386,7 +2387,7 @@ class IS1101Test(GenericTest):
                         seconds=15
                     ):
                         time.sleep(CONFIG.HTTP_TIMEOUT)
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.node_url + "senders/" + sender_id
                     )
                     if not valid:
@@ -2411,10 +2412,9 @@ class IS1101Test(GenericTest):
                     else:
                         stable_count += 1
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET",
-                    self.compat_url + "senders/" + sender_id + "/status/",
-                    time.sleep(20),
+                    self.compat_url + "senders/" + sender_id + "/status/"
                 )
 
                 if not valid:
@@ -2440,7 +2440,7 @@ class IS1101Test(GenericTest):
 
                 if state in ["awaiting_essence", "no_essence"]:
                     for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                        valid, response = TestHelper.do_request(
+                        valid, response = self.do_request(
                             "GET", self.build_sender_status_url(sender_id)
                         )
                         if not valid:
@@ -2466,7 +2466,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\""
                                      .format(sender_id, state))
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
                 if not valid:
@@ -2491,7 +2491,7 @@ class IS1101Test(GenericTest):
 
                 if flow_id is None:
                     return test.FAIL("flow_id is null")
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "flows/" + flow_id
                 )
                 if not valid:
@@ -2519,7 +2519,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL(
                         "The flow_grain_rate does not match the constraint"
                     )
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "DELETE",
                     self.compat_url + "senders/" + sender_id + "/constraints/active/",
                 )
@@ -2540,13 +2540,14 @@ class IS1101Test(GenericTest):
 
     def test_02_03_05_02(self, test):
         """
-        Verify for inputs supporting EDID that the version and the effective EDID change when applying constraints
+        Verify for inputs supporting EDID that the version and
+        the effective EDID change when applying constraints (audio)
         """
         if len(self.flow_format_audio) == 0:
             return test.UNCLEAR("There is no audio format")
 
         for sender_id in self.flow_format_audio:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
             )
             if not valid:
@@ -2584,7 +2585,7 @@ class IS1101Test(GenericTest):
             if len(inputs) == 0:
                 return test.UNCLEAR("No input supports changing the base EDID")
             for input_id in inputs:
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                 )
                 if not valid:
@@ -2607,7 +2608,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unable to find expected key: {}".format(e))
                 self.version[input_id] = version
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
                 if not valid:
@@ -2643,7 +2644,7 @@ class IS1101Test(GenericTest):
                         }
                     ]
                 }
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "PUT",
                     self.compat_url + "senders/" + sender_id + "/constraints/active/",
                     json=self.another_sample_rate_constraints[sender_id],
@@ -2662,7 +2663,7 @@ class IS1101Test(GenericTest):
                 if response.status_code == 422:
                     print("Device does not accept grain_rate constraint")
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET",
                     self.compat_url + "inputs/" + input_id + "/edid/effective/",
                 )
@@ -2681,7 +2682,7 @@ class IS1101Test(GenericTest):
                 if response.content == default_edid:
                     print("Grain rate constraint are not changing effective EDID")
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
                 )
                 if not valid:
@@ -2705,7 +2706,7 @@ class IS1101Test(GenericTest):
 
                 if version == self.version[input_id]:
                     return test.FAIL("Version should change")
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
                 if not valid:
@@ -2734,7 +2735,7 @@ class IS1101Test(GenericTest):
                         seconds=15
                     ):
                         time.sleep(CONFIG.HTTP_TIMEOUT)
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.node_url + "senders/" + sender_id
                     )
                     if not valid:
@@ -2759,9 +2760,9 @@ class IS1101Test(GenericTest):
                     else:
                         stable_count += 1
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET",
-                    self.compat_url + "senders/" + sender_id + "/status/", time.sleep(20)
+                    self.compat_url + "senders/" + sender_id + "/status/"
                 )
                 if not valid:
                     return test.FAIL(
@@ -2783,11 +2784,11 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unable to find expected key: {}".format(e))
 
                 if state == "active_constraints_violation":
-                    return test.UNCLEAR("This device can not constraint grain_rate")
+                    return test.UNCLEAR("This device can not constraint sample_rate")
 
                 if state in ["awaiting_essence", "no_essence"]:
                     for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                        valid, response = TestHelper.do_request(
+                        valid, response = self.do_request(
                             "GET", self.build_sender_status_url(sender_id)
                         )
                         if not valid:
@@ -2813,7 +2814,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\""
                                      .format(sender_id, state))
 
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "senders/" + sender_id
                 )
                 if not valid:
@@ -2836,7 +2837,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unable to find expected key: {}".format(e))
                 if flow_id is None:
                     return test.FAIL("flow_id is null")
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "GET", self.node_url + "flows/" + flow_id
                 )
                 if not valid:
@@ -2863,7 +2864,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL(
                         "The flow_grain_rate does not match the constraint"
                     )
-                valid, response = TestHelper.do_request(
+                valid, response = self.do_request(
                     "DELETE",
                     self.compat_url + "senders/" + sender_id + "/constraints/active/",
                 )
@@ -2887,7 +2888,7 @@ class IS1101Test(GenericTest):
         Verify senders not supporting inputs
         """
         for input in self.senders:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.compat_url + "senders/" + input + "/inputs/"
                 )
             if not valid:
@@ -2921,7 +2922,7 @@ class IS1101Test(GenericTest):
         if len(self.not_input_senders) == 0:
             return test.UNCLEAR("All senders support inputs")
         for sender_id in self.not_input_senders:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET",
                 self.compat_url + "senders/" + sender_id + "/status/",
             )
@@ -2948,7 +2949,7 @@ class IS1101Test(GenericTest):
 
             if state in ["awaiting_essence", "no_essence"]:
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request(
+                    valid, response = self.do_request(
                         "GET", self.build_sender_status_url(sender_id)
                         )
                     if not valid:
@@ -3020,7 +3021,7 @@ class IS1101Test(GenericTest):
         if len(self.receivers) == 0:
             return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "receivers/" + receiver_id
             )
             if not valid:
@@ -3050,7 +3051,7 @@ class IS1101Test(GenericTest):
         if len(self.receivers) == 0:
             return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET",  self.compat_url + "receivers/" + receiver_id + "/status/"
             )
             if not valid:
@@ -3070,7 +3071,7 @@ class IS1101Test(GenericTest):
         if len(self.receivers) == 0:
             return test.UNCLEAR("No IS-11 receivers")
         for receiver_id in self.receivers:
-            valid, response = TestHelper.do_request(
+            valid, response = self.do_request(
                 "GET", self.node_url + "receivers/" + receiver_id
             )
             if not valid:
@@ -3195,7 +3196,7 @@ class IS1101Test(GenericTest):
                                  " and IS11_REFERENCE_SENDER_CONNECTION_API_URL in Config.py")
 
         for output_id in self.outputs:
-            valid, response = TestHelper.do_request('GET', self.compat_url + "outputs/" + output_id + "/properties/")
+            valid, response = self.do_request('GET', self.compat_url + "outputs/" + output_id + "/properties/")
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
             if response.status_code != 200:
@@ -3211,7 +3212,7 @@ class IS1101Test(GenericTest):
 
             if state != "signal_present":
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request('GET', self.build_output_properties_url(output_id))
+                    valid, response = self.do_request('GET', self.build_output_properties_url(output_id))
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                     if response.status_code != 200:
@@ -3330,7 +3331,7 @@ class IS1101Test(GenericTest):
                                  " and IS11_REFERENCE_SENDER_CONNECTION_API_URL in Config.py")
 
         for output_id in self.outputs:
-            valid, response = TestHelper.do_request('GET', self.compat_url + "outputs/" + output_id + "/properties/")
+            valid, response = self.do_request('GET', self.compat_url + "outputs/" + output_id + "/properties/")
             if not valid:
                 return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
             if response.status_code != 200:
@@ -3345,7 +3346,7 @@ class IS1101Test(GenericTest):
 
             if state != "signal_present":
                 for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = TestHelper.do_request('GET', self.build_output_properties_url(output_id))
+                    valid, response = self.do_request('GET', self.build_output_properties_url(output_id))
                     if not valid:
                         return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
                     if response.status_code != 200:
