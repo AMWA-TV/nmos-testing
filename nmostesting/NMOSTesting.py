@@ -394,6 +394,9 @@ TEST_DEFINITIONS = {
     "IS-14-01": {
         "name": "IS-14 Configuration",
         "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
             "spec_key": "is-14",
             "api_key": "configuration"
         }],
