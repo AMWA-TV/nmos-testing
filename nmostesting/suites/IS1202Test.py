@@ -37,7 +37,7 @@ class IS1202Test(ControllerTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
         self.is12_utils = IS12Utils(apis)
-        self.is12_utils.load_reference_resources()
+        self.is12_utils.load_reference_resources(CONTROL_API_KEY)
         self.device_model = None
         self.constraint_error = False
         self.constraint_error_msg = ""
