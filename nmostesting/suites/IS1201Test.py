@@ -26,6 +26,8 @@ from ..MS05Utils import NcMethodStatus, NcBlockProperties, \
     StandardClassIds, NcBlock, NcDatatypeType, \
     NcPropertyChangeType, NcObjectEvents, NcDeviceManagerProperties
 
+from .MS0501Test import MS0501Test
+
 from ..TestResult import Test
 
 
@@ -43,7 +45,9 @@ class IS1201Test(GenericTest):
         self.node_url = apis[NODE_API_KEY]["url"]
         self.ncp_url = apis[CONTROL_API_KEY]["url"]
         self.is12_utils = IS12Utils(apis)
-        self.is12_utils.load_reference_resources()
+        self.is12_utils.load_reference_resources(CONTROL_API_KEY)
+        self.ms0501Test = MS0501Test(apis, self.is12_utils)
+        
 
     def set_up_tests(self):
         super().set_up_tests()
@@ -148,52 +152,56 @@ class IS1201Test(GenericTest):
                 + "; "
             return None
 
-    def validate_model_definitions(self, descriptors, schema_name, reference_descriptors):
-        """ Validate Class Manager model definitions against reference model descriptors.
-            Returns [test result array] """
-        results = list()
+    # def validate_model_definitions(self, descriptors, schema_name, reference_descriptors):
+    #     """ Validate Class Manager model definitions against reference model descriptors.
+    #         Returns [test result array] """
+    #     results = list()
 
-        reference_descriptor_keys = sorted(reference_descriptors.keys())
+    #     reference_descriptor_keys = sorted(reference_descriptors.keys())
 
-        for key in reference_descriptor_keys:
-            test = Test("Validate " + str(key) + " definition", "auto_" + str(key))
-            try:
-                if descriptors.get(key):
-                    descriptor = descriptors[key]
+    #     for key in reference_descriptor_keys:
+    #         test = Test("Validate " + str(key) + " definition", "auto_" + str(key))
+    #         try:
+    #             if descriptors.get(key):
+    #                 descriptor = descriptors[key]
 
-                    # Validate descriptor obeys the JSON schema
-                    self.is12_utils.validate_reference_datatype_schema(test, descriptor, schema_name)
+    #                 # Validate descriptor obeys the JSON schema
+    #                 self.is12_utils.validate_reference_datatype_schema(test, descriptor, schema_name)
 
-                    # Validate the descriptor is correct
-                    self.is12_utils.validate_descriptor(test, reference_descriptors[key], descriptor)
+    #                 # Validate the descriptor is correct
+    #                 self.is12_utils.validate_descriptor(test, reference_descriptors[key], descriptor)
 
-                    results.append(test.PASS())
-                else:
-                    results.append(test.UNCLEAR("Not Implemented"))
-            except NMOSTestException as e:
-                results.append(e.args[0])
+    #                 results.append(test.PASS())
+    #             else:
+    #                 results.append(test.UNCLEAR("Not Implemented"))
+    #         except NMOSTestException as e:
+    #             results.append(e.args[0])
 
-        return results
+    #     return results
+
+    # def auto_tests(self):
+    #     """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
+    #     # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html
+
+    #     results = list()
+    #     test = Test("Initialize auto tests", "auto_init")
+
+    #     #self.is12_utils.open_ncp_websocket(test)
+
+    #     class_manager = self.is12_utils.get_class_manager(test)
+
+    #     results += self.validate_model_definitions(class_manager.class_descriptors,
+    #                                                'NcClassDescriptor',
+    #                                                self.is12_utils.reference_class_descriptors)
+
+    #     results += self.validate_model_definitions(class_manager.datatype_descriptors,
+    #                                                'NcDatatypeDescriptor',
+    #                                                self.is12_utils.reference_datatype_descriptors)
+    #     return results
 
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
-        # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html
-
-        results = list()
-        test = Test("Initialize auto tests", "auto_init")
-
-        self.is12_utils.open_ncp_websocket(test)
-
-        class_manager = self.is12_utils.get_class_manager(test)
-
-        results += self.validate_model_definitions(class_manager.class_descriptors,
-                                                   'NcClassDescriptor',
-                                                   self.is12_utils.reference_class_descriptors)
-
-        results += self.validate_model_definitions(class_manager.datatype_descriptors,
-                                                   'NcDatatypeDescriptor',
-                                                   self.is12_utils.reference_datatype_descriptors)
-        return results
+        return self.ms0501Test.auto_tests()    
 
     def test_01(self, test):
         """Control Endpoint: Node under test advertises IS-12 control endpoint matching API under test"""
