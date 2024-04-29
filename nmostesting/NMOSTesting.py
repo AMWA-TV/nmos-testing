@@ -399,6 +399,14 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "is-14",
             "api_key": "configuration"
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
         }],
         "class": IS1401Test.IS1401Test
     },
