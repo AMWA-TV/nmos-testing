@@ -14,26 +14,13 @@
 
 
 """
-The script implements the IS-13 test suite as specified by the nmos-resource-labelling workgroup.
-At the end of the test, the initial state of the tested unit is supposed to be restored but this
-cannot be garanteed.
+The script implements the IS-13 test suite according to the AMWA IS-13 NMOS Annotation
+Specification (https://specs.amwa.tv/is-13/). At the end of the test, the initial state
+of the tested unit is supposed to be restored but this cannot be garanteed.
 
-In addition to the basic annotation API tests, this suite includes the test sequence:
-For each resource type (self, devices, senders, receivers):
-    For each annotable object type (label, description, tags):
-        - Read initial value
-            - store
-        - Reset default value by sending null
-            - check value + timestamp + is-14/value + is-04 timestamp
-            - store
-        - Write max-length
-            - check value + timestamp + is-14/value + is-04 timestamp
-        - Write >max-length
-            - check value + timestamp + is-14/value + is-04 timestamp
-        - Reset default value again
-            - check value + timestamp + is-14/value + is-04 timestamp
-            - compare with 1st reset
-        - Restore initial value
+Terminology:
+* `resource` refers to self, devices, senders or receivers endpoints
+* `annotation_property` refers to annotable objects: label, description or tags
 """
 
 from ..GenericTest import GenericTest, NMOSTestException
@@ -47,18 +34,15 @@ import time
 ANNOTATION_API_KEY = "annotation"
 NODE_API_KEY = "node"
 
-RESOURCES = ["self", "devices", "senders", "receivers"]
-OBJECTS = ["label", "description", "tags"]
+# Constants for label and description related tests
+STRING_LENGTH_OVER_MAX_VALUE = ''.join(['X' for i in range(100)])
+STRING_LENGTH_MAX_VALUE = STRING_LENGTH_OVER_MAX_VALUE[:64]  # this is the max length tolerated
 
-# const for label&description-related tests
-STRING_OVER_MAX_VALUE = ''.join(['X' for i in range(100)])
-STRING_MAX_VALUE = STRING_OVER_MAX_VALUE[:64]  # this is the max length tolerated
-
-# const for tags-related tests
-TAGS_OVER_MAX_VALUE = {'location': ['underground'], 'studio': ['42'], 'tech': ['John', 'Mike']}
-TAGS_MAX_VALUE = TAGS_OVER_MAX_VALUE.copy()
-TAGS_OVER_MAX_VALUE.pop('tech')  # must have a max of 5
-TAGS_TO_BE_SKIPPED = 'urn:x-nmos:tag:grouphint/v1.0'
+# Constants for tags related tests
+TAGS_LENGTH_OVER_MAX_VALUE = {'location': ['underground'], 'studio': ['42'], 'tech': ['John', 'Mike']}
+TAGS_LENGTH_MAX_VALUE = TAGS_LENGTH_OVER_MAX_VALUE.copy()
+TAGS_LENGTH_MAX_VALUE.pop('tech')  # must have a max of 5
+TAGS_TO_BE_STRIPPED = 'urn:x-nmos:tag:grouphint/v1.0'
 
 
 def get_ts_from_version(version):
@@ -67,8 +51,8 @@ def get_ts_from_version(version):
 
 
 def strip_tags(tags):
-    if TAGS_TO_BE_SKIPPED in list(tags.keys()):
-        tags.pop(TAGS_TO_BE_SKIPPED)
+    if TAGS_TO_BE_STRIPPED in list(tags.keys()):
+        tags.pop(TAGS_TO_BE_STRIPPED)
     return tags
 
 
@@ -82,21 +66,6 @@ class IS1301Test(GenericTest):
         self.annotation_url = self.apis[ANNOTATION_API_KEY]["url"]
         self.node_url = f"{self.apis[ANNOTATION_API_KEY]['base_url']}/x-nmos/node/{self.apis[NODE_API_KEY]['version']}/"
 
-    def set_up_tests(self):
-        """
-        FAKE_ORIG = {
-            'description': 'fake_orig_desc',
-            'label': 'fake_orig_label',
-            'tags': {
-                'location': ['fake_location']
-            }
-        }
-        for resource in RESOURCES:
-            url = "{}{}{}".format(self.annotation_url, 'node/', resource)
-            TestHelper.do_request("PATCH", url, json=FAKE_ORIG)
-        """
-        pass
-
     def get_resource(self, url):
         """ Get a resource """
 
@@ -107,31 +76,35 @@ class IS1301Test(GenericTest):
             except Exception as e:
                 return False, e.msg
         else:
-            return False, "GET  Resquest FAIL"
+            return False, "GET Request FAIL"
 
-    def compare_resource(self, object, new, resp):
-        """ Compare string values (or "tags" dict) """
+    def compare_resource(self, annotation_property, value1, value2):
+        """ Compare strings (or dict for 'tags') """
 
-        if new[object] is None:  # this is a reset, new is null, skip
+        if value1[annotation_property] is None:  # this is a reset, value1 is null, skip
             return True, ""
 
-        if object == "tags":  # tags needs to be stripped
-            resp[object] = strip_tags(resp[object])
-            if not TestHelper.compare_json(resp[object], new[object]):
-                return False, f"{object} value FAIL"
+        if annotation_property == "tags":  # tags needs to be stripped
+            value2[annotation_property] = strip_tags(value2[annotation_property])
+            if not TestHelper.compare_json(value2[annotation_property], value1[annotation_property]):
+                return False, f"{annotation_property} value FAIL"
 
-        elif resp[object] != new[object]:
-            return False, f"{object} value FAIL"
+        elif value2[annotation_property] != value1[annotation_property]:
+            return False, f"{annotation_property} value FAIL"
 
         return True, ""
 
-    def set_resource(self, url, node_url, new, prev):
+    def set_resource(self, url, node_url, new, prev, msg):
         """ Patch a resource with one ore several object values """
+        global prev
 
-        object = list(new.keys())[0]
-        valid, resp = TestHelper.do_request("PATCH", url, json=new)
+        self.log(f"    {msg}")
+
+        annotation_property = list(new.keys())[0]
+        valid, resp = self.do_request("PATCH", url, json=new)
         if not valid:
-            return False, "PATCH Resquest FAIL"
+            # raise NMOSTestException(test.WARNING("501 'Not Implemented' status code is not supported below API " "version v1.3", NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
+            return False, "PATCH Request FAIL"
 
         # pause to accomodate update propagation
         time.sleep(0.1)
@@ -139,9 +112,9 @@ class IS1301Test(GenericTest):
         # re-GET
         valid, resp = self.get_resource(url)
         if not valid:
-            return False, "Get Resquest FAIL"
+            return False, "Get Request FAIL"
         # check PATCH == GET
-        valid, msg = self.compare_resource(object, new, resp)
+        valid, msg = self.compare_resource(annotation_property, new, resp)
         if not valid:
             return False, f"new {msg}"
         # check that the version (timestamp) has increased
@@ -153,7 +126,7 @@ class IS1301Test(GenericTest):
         if not valid:
             return False, "GET IS-04 Node FAIL"
         # check PATCH == GET
-        valid, msg = self.compare_resource(object, new, resp)
+        valid, msg = self.compare_resource(annotation_property, new, resp)
         if not valid:
             return False, f"new IS-04/node/.../ {msg}"
         # check that the version (timestamp) has increased
@@ -165,7 +138,7 @@ class IS1301Test(GenericTest):
     def log(self, msg):
         print(msg)
 
-    def get_url(self, base_url, resource):
+    def create_url(self, base_url, resource):
         """
         Build the url for both annotation and node APIs which behaves differently.
         For iterables resources (devices, senders, receivers), return the 1st element.
@@ -187,18 +160,34 @@ class IS1301Test(GenericTest):
 
         return url
 
-    def do_test(self, test, resource, object):
+
+    def do_test_sequence(self, test, resource, annotation_property):
         """
-        Perform the test sequence as documented in the file header
+        In addition to the basic annotation API tests, this suite includes the test sequence:
+        For each resource:
+            For each annotation_property:
+                - Read initial value
+                    - store
+                - Reset default value by sending null
+                    - check value + timestamp + is-14/value + is-04 timestamp
+                    - store
+                - Write max-length
+                    - check value + timestamp + is-14/value + is-04 timestamp
+                - Write >max-length
+                    - check value + timestamp + is-14/value + is-04 timestamp
+                - Reset default value again
+                    - check value + timestamp + is-14/value + is-04 timestamp
+                    - compare with 1st reset
+                - Restore initial value
         """
 
-        url = self.get_url(f"{self.annotation_url}node/", resource)
+        url = self.create_url(f"{self.annotation_url}node/", resource)
         if not url:
             msg = f"Can't get annotation url for {resource}"
             self.log(f"    FAIL {msg}")
             return test.FAIL(msg)
 
-        node_url = self.get_url(self.node_url, resource)
+        node_url = self.create_url(self.node_url, resource)
         if not url:
             msg = f"Can't get node url for {resource}"
             self.log(f"    FAIL {msg}")
@@ -217,8 +206,8 @@ class IS1301Test(GenericTest):
             self.log("    FAIL")
             return test.FAIL(f"Can't {msg}")
 
-        valid, r = self.set_resource(url, node_url, {object: None}, prev)
         msg = f"RESET to default and save: {r}"
+        valid, r = self.set_resource(url, node_url, {annotation_property: None}, prev, msg)
         self.log(f"    {msg}")
         if valid:
             default = prev = r
@@ -226,91 +215,74 @@ class IS1301Test(GenericTest):
             self.log("    FAIL")
             return test.FAIL(f"Can't {msg}")
 
-        value = TAGS_MAX_VALUE if object == "tags" else STRING_MAX_VALUE
-        valid, r = self.set_resource(url, node_url, {object: value}, prev)
         msg = f"SET MAX value and expected complete response: {r}"
-        self.log(f"    {msg}")
-        if valid:
-            prev = r
-        else:
-            self.log("    FAIL")
-            return test.FAIL(f"Can't {msg}")
+        value = TAGS_LENGTH_MAX_VALUE if annotation_property == "tags" else STRING_LENGTH_MAX_VALUE
+        valid, r = self.set_resource(url, node_url, {annotation_property: value}, prev, msg)
 
-        value = TAGS_OVER_MAX_VALUE if object == "tags" else STRING_OVER_MAX_VALUE
-        valid, r = self.set_resource(url, node_url, {object: value}, prev)
         msg = f"SET >MAX value and expect truncated response: {r}"
-        self.log(f"    {msg}")
+        value = TAGS_LENGTH_OVER_MAX_VALUE if annotation_property == "tags" else STRING_LENGTH_OVER_MAX_VALUE
+        valid, r = self.set_resource(url, node_url, {annotation_property: value}, prev, msg)
         if valid:
-            prev = r
-            self.log(f"    {msg}")
-            if object == "tags" and not TestHelper.compare_json(r[object], TAGS_MAX_VALUE) or r[object] != STRING_MAX_VALUE:
+            if annotation_property == "tags" and not TestHelper.compare_json(r[annotation_property], TAGS_LENGTH_MAX_VALUE) or r[annotation_property] != STRING_LENGTH_MAX_VALUE:
                 return test.FAIL(f"Can't {msg}")
-        else:
-            self.log("    FAIL")
-            return test.FAIL(f"Can't {msg}")
 
-        valid, r = self.set_resource(url, node_url, {object: None}, prev)
         msg = f"RESET again and compare: {r}"
-        self.log(f"    {msg}")
+        valid, r = self.set_resource(url, node_url, {annotation_property: None}, prev, msg)
         if valid:
-            if object == "tags" and not TestHelper.compare_json(default[object], r[object]) or default[object] != r[object]:
+            if annotation_property == "tags" and not TestHelper.compare_json(default[annotation_property], r[annotation_property]) or default[annotation_property] != r[annotation_property]:
                 self.log("    FAIL")
                 return test.FAIL("Second reset gives a different default value.")
-            prev = r
-        else:
-            self.log("    FAIL")
-            return test.FAIL(f"Can't {msg}")
 
-        # restore initial for courtesy
-        self.set_resource(url, node_url, initial, prev)
+        msg = f"RESTORE initial values"
+        self.set_resource(url, node_url, initial, prev, msg)
 
         self.log("    PASS")
         return test.PASS()
 
     def test_01_01(self, test):
         """ Annotation test: self/label (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
-        return self.do_test(test, "self", "label")
+        return self.do_test_sequence(test, "self", "label")
 
     def test_01_02(self, test):
         """ Annotation test: self/description (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
-        return self.do_test(test, "self", "description")
+        return self.do_test_sequence(test, "self", "description")
 
     def test_01_03(self, test):
         """ Annotation test: self/tags (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
-        return self.do_test(test, "self", "tags")
+        return self.do_test_sequence(test, "self", "tags")
 
     def test_02_01(self, test):
         """ Annotation test: devices/../label (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
-        return self.do_test(test, "devices", "label")
+        return self.do_test_sequence(test, "devices", "label")
 
     def test_02_02(self, test):
         """Annotation test: devices/../description (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
-        return self.do_test(test, "devices", "description")
+        return self.do_test_sequence(test, "devices", "description")
 
     def test_02_03(self, test):
         """Annotation test: devices/../tags (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
-        return self.do_test(test, "devices", "tags")
+        return self.do_test_sequence(test, "devices", "tags")
 
     def test_03_01(self, test):
         """ Annotation test: senders/../label (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
-        return self.do_test(test, "senders", "label")
+        return self.do_test_sequence(test, "senders", "label")
 
     def test_03_02(self, test):
         """Annotation test: senders/../description (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
-        return self.do_test(test, "senders", "description")
+        return self.do_test_sequence(test, "senders", "description")
 
     def test_03_03(self, test):
         """Annotation test: sender/sevices/../tags (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
-        return self.do_test(test, "senders", "tags")
+        return self.do_test_sequence(test, "senders", "tags")
 
     def test_04_01(self, test):
         """ Annotation test: receivers/../label (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
-        return self.do_test(test, "receivers", "label")
+        return self.do_test_sequence(test, "receivers", "label")
 
     def test_04_02(self, test):
         """Annotation test: receivers/../description (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
-        return self.do_test(test, "receivers", "description")
+        return self.do_test_sequence(test, "receivers", "description")
 
     def test_04_03(self, test):
         """Annotation test: receivers/sevices/../tags (reset to default, set 5 tags, set >5 tags, check IS04+version)"""
-        return self.do_test(test, "receivers", "tags")
+        return self.do_test_sequence(test, "receivers", "tags")
