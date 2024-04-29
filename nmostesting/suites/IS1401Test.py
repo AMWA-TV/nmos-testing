@@ -14,6 +14,7 @@
 
 from ..GenericTest import GenericTest
 
+from ..IS14Utils import IS14Utils
 
 class IS1401Test(GenericTest):
     """
@@ -21,6 +22,7 @@ class IS1401Test(GenericTest):
     """
     def __init__(self, apis, auths, **kwargs):
         GenericTest.__init__(self, apis, auths=auths, **kwargs)
+        self.is14_utils = IS14Utils(apis)
 
     def set_up_tests(self):
         pass
@@ -30,5 +32,9 @@ class IS1401Test(GenericTest):
 
     def test_01(self, test):
         """First test"""
+        
+        value = self.is14_utils.get_property_value('root', {'level':'1', 'index': '1'})
+        
+        print(value)
 
         return test.UNCLEAR("Noting was tested.")

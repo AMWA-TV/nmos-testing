@@ -19,9 +19,13 @@ from itertools import product
 
 from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
-from ..IS12Utils import IS12Utils, NcMethodStatus, NcBlockProperties,  NcPropertyChangeType, \
-    NcObjectMethods, NcObjectProperties, NcObjectEvents, NcDeviceManagerProperties, \
-    StandardClassIds, NcBlock, NcDatatypeType
+from ..IS12Utils import IS12Utils
+    
+from ..MS05Utils import NcMethodStatus, NcBlockProperties, \
+    NcObjectMethods, NcObjectProperties, \
+    StandardClassIds, NcBlock, NcDatatypeType, \
+    NcPropertyChangeType, NcObjectEvents, NcDeviceManagerProperties
+
 from ..TestResult import Test
 
 
