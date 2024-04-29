@@ -16,6 +16,7 @@ from .MS05Utils import MS05Utils
 
 from .MS05Utils import NcMethodStatus, NcObjectMethods, NcBlockMethods, NcClassManagerMethods, NcClassManagerProperties, NcDatatypeType, StandardClassIds, NcObjectProperties, NcBlockProperties,  NcObject, NcBlock, NcClassManager
 from . import TestHelper
+from .GenericTest import NMOSTestException
 
 CONFIGURATION_API_KEY = 'configuration'
 
@@ -25,71 +26,45 @@ class IS14Utils(MS05Utils):
         MS05Utils.__init__(self, apis)
         self.configuration_url = apis[CONFIGURATION_API_KEY]['url']
         
-    def _format_property_id(self, property_id):
-        return property_id['level'] + 'p' + property_id['index']
+    # Oveerridden functions
+    def query_device_model(self, test):
+        """ Query Device Model from the Node under test.
+            self.device_model_metadata set on Device Model validation error.
+            NMOSTestException raised if unable to query Device Model """
+        if not self.device_model:
+            self.device_model = self._nc_object_factory(
+                test,
+                StandardClassIds.NCBLOCK.value,
+                self.ROOT_BLOCK_OID,
+                "root")
 
-    def get_property_value(self, rolePath, property_id):
+            if not self.device_model:
+                raise NMOSTestException(test.FAIL("Unable to query Device Model"))
+        return self.device_model
+
+    def _format_property_id(self, property_id):
+        return str(property_id['level']) + 'p' + str(property_id['index'])
+    
+    def _format_role_path(self, role_path):
+        return '.'.join(r for r in role_path)
+
+    def get_property_value_polymorphic(self, test, property_id, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         formatted_property_id = self._format_property_id(property_id)
+        formatted_role_path = self._format_role_path(role_path)
         # delimit role path?
         # get the api base from the apis
-        get_property_endpoint = '{}rolePaths/{}/properties/{}/value'.format( self.configuration_url, rolePath, formatted_property_id)
+        get_property_endpoint = '{}rolePaths/{}/properties/{}/value'.format( self.configuration_url, formatted_role_path, formatted_property_id)
         
         valid, r = TestHelper.do_request('GET', get_property_endpoint)
         
-        value = r.content['value']
-
-        return value
+        if valid and r.status_code == 200:
+            try:
+                return r.json()['value']
+            except ValueError:
+                pass
+            
+        return None
     
-    # def _nc_object_factory(self, test, class_id, oid, role):
-    #     """Create NcObject or NcBlock based on class_id"""
-    #     # will set self.device_model_error to True if problems encountered
-    #     try:
-    #         runtime_constraints = self.get_property_value(
-    #                 test,
-    #                 oid,
-    #                 NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value)
-
-    #         # Check class id to determine if this is a block
-    #         if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
-    #             member_descriptors = self.get_property_value(
-    #                 test,
-    #                 oid,
-    #                 NcBlockProperties.MEMBERS.value)
-
-    #             nc_block = NcBlock(class_id, oid, role, member_descriptors, runtime_constraints)
-
-    #             for m in member_descriptors:
-    #                 child_object = self._nc_object_factory(test, m["classId"], m["oid"], m["role"])
-    #                 if child_object:
-    #                     nc_block.add_child_object(child_object)
-
-    #             return nc_block
-    #         else:
-    #             # Check to determine if this is a Class Manager
-    #             if len(class_id) > 2 and class_id[0] == 1 and class_id[1] == 3 and class_id[2] == 2:
-    #                 class_descriptors = self._get_class_manager_descriptors(
-    #                     test,
-    #                     oid,
-    #                     NcClassManagerProperties.CONTROL_CLASSES.value)
-
-    #                 datatype_descriptors = self._get_class_manager_descriptors(
-    #                     test,
-    #                     oid,
-    #                     NcClassManagerProperties.DATATYPES.value)
-
-    #                 if not class_descriptors or not datatype_descriptors:
-    #                     # An error has likely occured
-    #                     return None
-
-    #                 return NcClassManager(class_id,
-    #                                       oid,
-    #                                       role,
-    #                                       class_descriptors,
-    #                                       datatype_descriptors,
-    #                                       runtime_constraints)
-
-    #             return NcObject(class_id, oid, role, runtime_constraints)
-
-    #     except NMOSTestException as e:
-    #         raise NMOSTestException(test.FAIL("Error in Device Model " + role + ": " + str(e.args[0].detail)))
+    # end of overridden functions
+    
