@@ -20,15 +20,13 @@ from itertools import product
 from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS12Utils import IS12Utils
-    
+
 from ..MS05Utils import NcMethodStatus, NcBlockProperties, \
     NcObjectMethods, NcObjectProperties, \
     StandardClassIds, NcBlock, NcDatatypeType, \
     NcPropertyChangeType, NcObjectEvents, NcDeviceManagerProperties
 
 from .MS0501Test import MS0501Test
-
-from ..TestResult import Test
 
 
 NODE_API_KEY = "node"
@@ -47,7 +45,6 @@ class IS1201Test(GenericTest):
         self.is12_utils = IS12Utils(apis)
         self.is12_utils.load_reference_resources(CONTROL_API_KEY)
         self.ms0501Test = MS0501Test(apis, self.is12_utils)
-        
 
     def set_up_tests(self):
         super().set_up_tests()
@@ -201,7 +198,7 @@ class IS1201Test(GenericTest):
 
     def auto_tests(self):
         """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
-        return self.ms0501Test.auto_tests()    
+        return self.ms0501Test.auto_tests()
 
     def test_01(self, test):
         """Control Endpoint: Node under test advertises IS-12 control endpoint matching API under test"""

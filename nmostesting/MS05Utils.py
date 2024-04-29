@@ -27,6 +27,7 @@ MS05_API_KEY = "controlframework"
 FEATURE_SETS_KEY = "featuresets"
 NODE_API_KEY = "node"
 
+
 class MS05Utils(NMOSUtils):
     def __init__(self, apis):
         NMOSUtils.__init__(self, apis[NODE_API_KEY]["url"])
@@ -35,11 +36,12 @@ class MS05Utils(NMOSUtils):
         self.ROOT_BLOCK_OID = 1
         self.device_model = None
         self.class_manager = None
-        
+
     # Overriddenfunctions specialized for IS-12 and IS-14
     def query_device_model(self, test):
         pass
-        # JRT this could probably be spolit into an "initialize connection function, and the actual querying of the device model
+        # JRT this could probably be spolit into an "initialize connection function,
+        # and the actual querying of the device model
 
     def get_property_value_polymorphic(self, test, property_id, role_path, **kwargs):
         pass
@@ -72,7 +74,7 @@ class MS05Utils(NMOSUtils):
                       for path in self.apis[FEATURE_SETS_KEY]["repo_paths"]]
         spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
         # Root path for primitive datatypes
-        spec_paths.append('test_data/IS1201') # JRT this test_data should really be MS0501 test data
+        spec_paths.append('test_data/IS1201')  # JRT this test_data should really be MS0501 test data
 
         datatype_paths = []
         classes_paths = []
@@ -94,7 +96,7 @@ class MS05Utils(NMOSUtils):
         self.reference_datatype_schemas = self.generate_json_schemas(
             datatype_descriptors=self.reference_datatype_descriptors,
             schema_path=os.path.join(self.apis[protocol_api_key]["spec_path"], 'APIs/schemas/'))
-        
+
     def _load_model_descriptors(self, descriptor_paths):
         descriptors = {}
         for descriptor_path in descriptor_paths:
@@ -191,7 +193,7 @@ class MS05Utils(NMOSUtils):
             json_schema['type'] = 'integer'
 
         return json_schema
- 
+
     def validate_reference_datatype_schema(self, test, payload, datatype_name, context=""):
         """Validate payload against reference datatype schema"""
         self.validate_schema(test, payload, self.reference_datatype_schemas[datatype_name])
@@ -210,7 +212,7 @@ class MS05Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL(context + "Schema error: " + e.message))
 
         return
-  
+
     def validate_descriptor(self, test, reference, descriptor, context=""):
         """Validate descriptor against reference descriptor. Raises NMOSTestException on error"""
         non_normative_keys = ['description']
@@ -253,7 +255,7 @@ class MS05Utils(NMOSUtils):
                                                   + ', actual value: '
                                                   + str(descriptor)))
         return
-    
+
     def _get_class_manager_descriptors(self, test, property_id, class_manager_oid, role_path):
         response = self.get_property_value_polymorphic(test, property_id, oid=class_manager_oid, role_path=role_path)
 
@@ -274,7 +276,7 @@ class MS05Utils(NMOSUtils):
             role_path = []
         else:
             role_path = _role_path.copy()
-            
+
         role_path.append(role)
         try:
             runtime_constraints = self.get_property_value_polymorphic(
@@ -290,9 +292,10 @@ class MS05Utils(NMOSUtils):
                     NcBlockProperties.MEMBERS.value,
                     oid=oid,
                     role_path=role_path)
-                
+
                 if member_descriptors is None:
-                    raise NMOSTestException(test.FAIL('Unable to get members for object: oid={}, role Path={}'.format(str(oid), str(role_path))))
+                    raise NMOSTestException(test.FAIL('Unable to get members for object: oid={}, role Path={}'
+                                                      .format(str(oid), str(role_path))))
 
                 nc_block = NcBlock(class_id, oid, role, member_descriptors, runtime_constraints)
 
@@ -318,7 +321,8 @@ class MS05Utils(NMOSUtils):
                         role_path=role_path)
 
                     if not class_descriptors or not datatype_descriptors:
-                        raise NMOSTestException(test.FAIL('No class descriptors or datatype descriptors found in ClassManager'))
+                        raise NMOSTestException(test.FAIL('No class descriptors or datatype descriptors'
+                                                          + 'found in ClassManager'))
 
                     return NcClassManager(class_id,
                                           oid,
@@ -331,7 +335,7 @@ class MS05Utils(NMOSUtils):
 
         except NMOSTestException as e:
             raise NMOSTestException(test.FAIL("Error in Device Model " + role + ": " + str(e.args[0].detail)))
- 
+
     def get_class_manager(self, test):
         """Get the Class Manager queried from the Node under test's Device Model"""
         if not self.class_manager:
@@ -356,6 +360,7 @@ class MS05Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
 
         return members[0]
+
 
 class NcMethodStatus(IntEnum):
     OK = 200
@@ -465,6 +470,8 @@ class StandardClassIds(Enum):
     NCMANAGER = [1, 3]
     NCDEVICEMANAGER = [1, 3, 1]
     NCCLASSMANAGER = [1, 3, 2]
+
+
 class NcObject():
     def __init__(self, class_id, oid, role, runtime_constraints):
         self.class_id = class_id

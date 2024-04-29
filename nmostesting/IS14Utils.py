@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .MS05Utils import MS05Utils
+from .MS05Utils import MS05Utils, StandardClassIds
 
-from .MS05Utils import NcMethodStatus, NcObjectMethods, NcBlockMethods, NcClassManagerMethods, NcClassManagerProperties, NcDatatypeType, StandardClassIds, NcObjectProperties, NcBlockProperties,  NcObject, NcBlock, NcClassManager
 from . import TestHelper
 from .GenericTest import NMOSTestException
 
@@ -25,8 +24,8 @@ class IS14Utils(MS05Utils):
     def __init__(self, apis):
         MS05Utils.__init__(self, apis)
         self.configuration_url = apis[CONFIGURATION_API_KEY]['url']
-        
-    # Oveerridden functions
+
+    # Overridden functions
     def query_device_model(self, test):
         """ Query Device Model from the Node under test.
             self.device_model_metadata set on Device Model validation error.
@@ -44,7 +43,7 @@ class IS14Utils(MS05Utils):
 
     def _format_property_id(self, property_id):
         return str(property_id['level']) + 'p' + str(property_id['index'])
-    
+
     def _format_role_path(self, role_path):
         return '.'.join(r for r in role_path)
 
@@ -54,17 +53,18 @@ class IS14Utils(MS05Utils):
         formatted_role_path = self._format_role_path(role_path)
         # delimit role path?
         # get the api base from the apis
-        get_property_endpoint = '{}rolePaths/{}/properties/{}/value'.format( self.configuration_url, formatted_role_path, formatted_property_id)
-        
+        get_property_endpoint = '{}rolePaths/{}/properties/{}/value'.format(self.configuration_url,
+                                                                            formatted_role_path,
+                                                                            formatted_property_id)
+
         valid, r = TestHelper.do_request('GET', get_property_endpoint)
-        
+
         if valid and r.status_code == 200:
             try:
                 return r.json()['value']
             except ValueError:
                 pass
-            
+
         return None
-    
+
     # end of overridden functions
-    

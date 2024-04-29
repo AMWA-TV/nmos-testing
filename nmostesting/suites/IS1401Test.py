@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nmostesting.suites.MS0501Test import MS0501Test
 from ..GenericTest import GenericTest, NMOSTestException
-
 from ..IS14Utils import IS14Utils
-
 from .MS0501Test import MS0501Test
 
 CONFIGURATION_API_KEY = "configuration"
+
 
 class IS1401Test(GenericTest):
     """
@@ -50,7 +48,7 @@ class IS1401Test(GenericTest):
                     self.result += self.ms0501Test.auto_tests()
                 except NMOSTestException as e:
                     self.result.append(e.args[0])
-            
+
     def test_01(self, test):
         """First test"""
         return test.UNCLEAR("I D K")
