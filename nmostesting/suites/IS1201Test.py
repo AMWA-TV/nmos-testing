@@ -287,9 +287,9 @@ class IS1201Test(MS0501Test):
 
         self.is12_utils.open_ncp_websocket(test)
 
-        length = self.is12_utils.get_sequence_length_value(test,
-                                                           NcBlockProperties.MEMBERS.value,
-                                                           oid=self.is12_utils.ROOT_BLOCK_OID)
+        length = self.is12_utils.get_sequence_length(test,
+                                                     NcBlockProperties.MEMBERS.value,
+                                                     oid=self.is12_utils.ROOT_BLOCK_OID)
         out_of_bounds_index = length + 10
 
         command_json = \

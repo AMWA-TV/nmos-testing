@@ -242,9 +242,9 @@ class IS1202Test(ControllerTest):
                 pass
 
         def _do_set_sequence():
-            index = self.is12_utils.get_sequence_length_value(test,
-                                                              constrained_property['property_id'],
-                                                              oid=constrained_property['oid'])
+            index = self.is12_utils.get_sequence_length(test,
+                                                        constrained_property['property_id'],
+                                                        oid=constrained_property['oid'])
             self.is12_utils.set_sequence_item(test,
                                               constrained_property['property_id'],
                                               index - 1,
@@ -276,9 +276,9 @@ class IS1202Test(ControllerTest):
 
         # Expect this to work OK
         if constrained_property.get("is_sequence"):
-            index = self.is12_utils.get_sequence_length_value(test,
-                                                              constrained_property['property_id'],
-                                                              constrained_property['oid'])
+            index = self.is12_utils.get_sequence_length(test,
+                                                        constrained_property['property_id'],
+                                                        constrained_property['oid'])
             self.is12_utils.add_sequence_item(test,
                                               constrained_property['oid'],
                                               constrained_property['property_id'],
@@ -326,9 +326,9 @@ class IS1202Test(ControllerTest):
 
         # Expect this to work OK
         if constrained_property.get("is_sequence"):
-            index = self.is12_utils.get_sequence_length_value(test,
-                                                              constrained_property['property_id'],
-                                                              oid=constrained_property['oid'])
+            index = self.is12_utils.get_sequence_length(test,
+                                                        constrained_property['property_id'],
+                                                        oid=constrained_property['oid'])
             self.is12_utils.add_sequence_item(test,
                                               constrained_property['oid'],
                                               constrained_property['property_id'],
@@ -791,17 +791,17 @@ class IS1202Test(ControllerTest):
 
         if not self.check_add_sequence_item(test, oid, property_id, property_name, sequence_length, context=context):
             return
-        if sequence_length + 1 != self.is12_utils.get_sequence_length_value(test, property_id, oid=oid):
+        if sequence_length + 1 != self.is12_utils.get_sequence_length(test, property_id, oid=oid):
             self.add_sequence_item_metadata["error"] = True
             self.add_sequence_item_metadata["error_msg"] = property_name + \
                 ": add_sequence_item resulted in unexpected sequence length."
         self.check_set_sequence_item(test, oid, property_id, property_name, sequence_length, context=context)
-        if sequence_length + 1 != self.is12_utils.get_sequence_length_value(test, property_id, oid=oid):
+        if sequence_length + 1 != self.is12_utils.get_sequence_length(test, property_id, oid=oid):
             self.set_sequence_item_metadata["error"] = True
             self.set_sequence_item_metadata["error_msg"] = property_name + \
                 ": set_sequence_item resulted in unexpected sequence length."
         self.check_remove_sequence_item(test, oid, property_id, property_name, sequence_length, context)
-        if sequence_length != self.is12_utils.get_sequence_length_value(test, property_id, oid=oid):
+        if sequence_length != self.is12_utils.get_sequence_length(test, property_id, oid=oid):
             self.remove_sequence_item_metadata["error"] = True
             self.remove_sequence_item_metadata["error_msg"] = property_name + \
                 ": remove_sequence_item resulted in unexpected sequence length."

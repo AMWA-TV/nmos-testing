@@ -58,11 +58,12 @@ class MS05Utils(NMOSUtils):
     def get_sequence_item(self, test, property_id, index, **kwargs):
         pass
 
-    def get_sequence_length(self, test, property_id, **kwargs):
-        """Get sequence property. Raises NMOSTestException on error"""
+    def get_sequence_item_value(self, test, property_id, index, **kwargs):
+        """Get value from sequence property. Raises NMOSTestException on error"""
         pass
 
-    def get_sequence_length_value(self, test, property_id, **kwargs):
+    def get_sequence_length(self, test, property_id, **kwargs):
+        """Get sequence length. Raises NMOSTestException on error"""
         pass
 
     def get_member_descriptors(self, test, recurse, **kwargs):

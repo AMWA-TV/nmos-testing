@@ -249,7 +249,7 @@ class IS12Utils(MS05Utils):
 
     def get_sequence_item_value(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
-        return self.get_sequence_item(test, oid, index, oid=oid)['value']
+        return self.get_sequence_item(test, property_id, index, oid=oid)['value']
 
     def set_sequence_item(self, test, property_id, index, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
@@ -273,11 +273,7 @@ class IS12Utils(MS05Utils):
         """Get sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
-                                    {'id': property_id})
-
-    def get_sequence_length_value(self, test, property_id, oid, **kwargs):
-        """Get value from sequence property. Raises NMOSTestException on error"""
-        return self.get_sequence_length(self, test, property_id, oid=oid)['value']
+                                    {'id': property_id})['value']
 
     def get_member_descriptors(self, test, recurse, oid, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""

@@ -79,23 +79,24 @@ class IS14Utils(MS05Utils):
 
         return None
 
-    def get_sequence_item(self, test, property_id, index, role_path, **kwargs):
+    def get_sequence_item_value(self, test, property_id, index, role_path, **kwargs):
         # Hmmm should we reply on get or should we assume that get_sequence_item has been
         # implemented?
         value = self.get_property_value(test, property_id, role_path=role_path)
 
         return value[index]
 
-    def get_sequence_length_value(self, test, property_id, role_path, **kwargs):
+    def get_sequence_item(self, test, property_id, index, role_path, **kwargs):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        pass
+
+    def get_sequence_length(self, test, property_id, role_path, **kwargs):
+        """Get sequence length. Raises NMOSTestException on error"""
         # Hmmm should we reply on get or should we assume that get_sequence_item has been
         # implemented?
         value = self.get_property_value(test, property_id, role_path=role_path)
 
         return len(value)
-
-    def get_sequence_length(self, test, property_id, oid, **kwargs):
-        """Get sequence property. Raises NMOSTestException on error"""
-        return None
 
     def get_member_descriptors(self, test, recurse, role_path, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
