@@ -18,12 +18,12 @@ import json
 import time
 
 from enum import IntEnum
-from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
+
 from .Config import WS_MESSAGE_TIMEOUT
 from .GenericTest import NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
-from .MS05Utils import NcMethodStatus, NcObjectMethods, NcBlockMethods, NcClassManagerMethods, StandardClassIds
+from .MS05Utils import NcMethodStatus, NcObjectMethods, NcBlockMethods, NcClassManagerMethods
 
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
@@ -41,7 +41,7 @@ class MessageTypes(IntEnum):
 
 class IS12Utils(MS05Utils):
     def __init__(self, apis):
-        MS05Utils.__init__(self, apis)
+        MS05Utils.__init__(self, apis, CONTROL_API_KEY)
         self.apis = apis
         self.spec_path = self.apis[CONTROL_API_KEY]["spec_path"]
         self.spec_branch = self.apis[CONTROL_API_KEY]["spec_branch"]
@@ -50,6 +50,10 @@ class IS12Utils(MS05Utils):
         self.command_handle = 0
         self.expect_notifications = False
         self.notifications = []
+
+    # Overridden functions
+    def initialize_connection(self, test):
+        self.open_ncp_websocket(test)
 
     def _load_is12_schemas(self):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
@@ -219,34 +223,35 @@ class IS12Utils(MS05Utils):
         response = self.send_command(test, command_JSON)
         return response["result"]
 
-    def get_property_value_polymorphic(self, test, property_id, oid, **kwargs):
-        return self.get_property_value(test, oid, property_id)
-
-    def get_property_value(self, test, oid, property_id):
+    def get_property_value(self, test, property_id, oid, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_GET.value,
                                     {'id': property_id})["value"]
 
-    def get_property(self, test, oid, property_id):
+    def get_property(self, test, property_id, oid, **kwargs):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_GET.value,
                                     {'id': property_id})
 
-    def set_property(self, test, oid, property_id, argument):
+    def set_property(self, test, property_id, argument, oid, **kwargs):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_SET.value,
                                     {'id': property_id, 'value': argument})
 
-    def get_sequence_item(self, test, oid, property_id, index):
+    def get_sequence_item(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_ITEM.value,
-                                    {'id': property_id, 'index': index})["value"]
+                                    {'id': property_id, 'index': index})
 
-    def set_sequence_item(self, test, oid, property_id, index, value):
+    def get_sequence_item_value(self, test, property_id, index, oid, **kwargs):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        return self.get_sequence_item(test, oid, index, oid=oid)['value']
+
+    def set_sequence_item(self, test, property_id, index, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
@@ -264,25 +269,29 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
                                     {'id': property_id, 'index': index})
 
-    def get_sequence_length(self, test, oid, property_id):
-        """Get value from sequence property. Raises NMOSTestException on error"""
+    def get_sequence_length(self, test, property_id, oid, **kwargs):
+        """Get sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
-                                    {'id': property_id})["value"]
+                                    {'id': property_id})
 
-    def get_member_descriptors(self, test, oid, recurse):
+    def get_sequence_length_value(self, test, property_id, oid, **kwargs):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        return self.get_sequence_length(self, test, property_id, oid=oid)['value']
+
+    def get_member_descriptors(self, test, recurse, oid, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value,
                                     {'recurse': recurse})["value"]
 
-    def find_members_by_path(self, test, oid, role_path):
+    def find_members_by_path(self, test, path, oid, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_PATH.value,
-                                    {'path': role_path})["value"]
+                                    {'path': path})["value"]
 
-    def find_members_by_role(self, test, oid, role, case_sensitive, match_whole_string, recurse):
+    def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, oid, **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_ROLE.value,
@@ -291,7 +300,7 @@ class IS12Utils(MS05Utils):
                                      'matchWholeString': match_whole_string,
                                      'recurse': recurse})["value"]
 
-    def find_members_by_class_id(self, test, oid, class_id, include_derived, recurse):
+    def find_members_by_class_id(self, test, class_id, include_derived, recurse, oid, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value,
@@ -325,57 +334,3 @@ class IS12Utils(MS05Utils):
         command_JSON = self.create_subscription_JSON(subscriptions)
         response = self.send_command(test, command_JSON)
         return response
-
-    def primitive_to_python_type(self, type):
-        """Convert MS-05 primitive type to corresponding Python type"""
-
-        types = {
-            "NcBoolean": bool,
-            "NcInt16": int,
-            "NcInt32": int,
-            "NcInt64": int,
-            "NcUint16": int,
-            "NcUint32": int,
-            "NcUint64": int,
-            "NcFloat32": float,
-            "NcFloat64":  float,
-            "NcString": str
-        }
-
-        return types.get(type, False)
-
-    def get_base_class_id(self, class_id):
-        """ Given a class_id returns the standard base class id as a string"""
-        return '.'.join([str(v) for v in takewhile(lambda x: x > 0, class_id)])
-
-    def is_non_standard_class(self, class_id):
-        """ Check class_id to determine if it is for a non-standard class """
-        # Assumes at least one value follows the authority key
-        return len([v for v in dropwhile(lambda x: x > 0, class_id)]) > 1
-
-    def is_manager(self, class_id):
-        """ Check class id to determine if this is a manager """
-        return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
-
-    def query_device_model(self, test):
-        """ Query Device Model from the Node under test.
-            self.device_model_metadata set on Device Model validation error.
-            NMOSTestException raised if unable to query Device Model """
-        self.open_ncp_websocket(test)
-        if not self.device_model:
-            self.device_model = self._nc_object_factory(
-                test,
-                StandardClassIds.NCBLOCK.value,
-                self.ROOT_BLOCK_OID,
-                "root")
-
-            if not self.device_model:
-                raise NMOSTestException(test.FAIL("Unable to query Device Model"))
-        return self.device_model
-
-    def resolve_datatype(self, test, datatype):
-        """Resolve datatype to its base type"""
-        class_manager = self.get_class_manager(test)
-        if class_manager.datatype_descriptors[datatype].get("parentType"):
-            return self.resolve_datatype(test, class_manager.datatype_descriptors[datatype].get("parentType"))
-        return datatype

@@ -21,8 +21,8 @@ from xeger import Xeger
 from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
-from ..IS12Utils import IS12Utils, NcDatatypeType, \
-    NcObjectProperties, NcBlock
+from ..IS12Utils import IS12Utils
+from ..MS05Utils import NcDatatypeType, NcObjectProperties, NcBlock
 
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
@@ -37,7 +37,7 @@ class IS1202Test(ControllerTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.ncp_url = self.apis[CONTROL_API_KEY]["url"]
         self.is12_utils = IS12Utils(apis)
-        self.is12_utils.load_reference_resources(CONTROL_API_KEY)
+        self.is12_utils.load_reference_resources()
         self.device_model = None
         self.constraint_error = False
         self.constraint_error_msg = ""
@@ -114,7 +114,7 @@ class IS1202Test(ControllerTest):
 
     def get_property_value(self, test, oid, property_id, context):
         try:
-            return self.is12_utils.get_property_value(test, oid, property_id)
+            return self.is12_utils.get_property_value(test, property_id, oid=oid)
         except NMOSTestException as e:
             self.device_model_metadata["error"] = True
             self.device_model_metadata["error_msg"] += context \
@@ -148,7 +148,7 @@ class IS1202Test(ControllerTest):
 
         class_manager = self.is12_utils.get_class_manager(test)
 
-        block_member_descriptors = self.is12_utils.get_member_descriptors(test, block.oid, recurse=False)
+        block_member_descriptors = self.is12_utils.get_member_descriptors(test, recurse=False, oid=block.oid)
 
         # Note that the userLabel of the block may also be changed, and therefore might be
         # subject to runtime constraints constraints
@@ -162,8 +162,8 @@ class IS1202Test(ControllerTest):
             # Get runtime property constraints
             object_runtime_constraints = \
                 self.is12_utils.get_property_value(test,
-                                                   descriptor['oid'],
-                                                   NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value)
+                                                   NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
+                                                   oid=descriptor['oid'])
 
             for class_property in class_descriptor.get('properties'):
                 if get_readonly != class_property['isReadOnly']:
@@ -202,7 +202,7 @@ class IS1202Test(ControllerTest):
 
         class_manager = self.is12_utils.get_class_manager(test)
 
-        block_member_descriptors = self.is12_utils.get_member_descriptors(test, block.oid, recurse=False)
+        block_member_descriptors = self.is12_utils.get_member_descriptors(test, recurse=False, oid=block.oid)
 
         # We're only testing the methods from non-standard classes, as the standard methods are already tested elsewhere
         non_standard_member_descriptors = [d for d in block_member_descriptors
@@ -242,14 +242,14 @@ class IS1202Test(ControllerTest):
                 pass
 
         def _do_set_sequence():
-            index = self.is12_utils.get_sequence_length(test,
-                                                        constrained_property['oid'],
-                                                        constrained_property['property_id'])
+            index = self.is12_utils.get_sequence_length_value(test,
+                                                              constrained_property['property_id'],
+                                                              oid=constrained_property['oid'])
             self.is12_utils.set_sequence_item(test,
-                                              constrained_property['oid'],
                                               constrained_property['property_id'],
                                               index - 1,
-                                              value)
+                                              value,
+                                              oid=constrained_property['oid'])
 
         if constrained_property.get("is_sequence"):
             _do_check(lambda: self.is12_utils.add_sequence_item(test,
@@ -259,9 +259,9 @@ class IS1202Test(ControllerTest):
             _do_check(_do_set_sequence)
         else:
             _do_check(lambda: self.is12_utils.set_property(test,
-                                                           constrained_property['oid'],
                                                            constrained_property['property_id'],
-                                                           value))
+                                                           value,
+                                                           oid=constrained_property['oid']))
 
     def _check_parameter_constraints_number(self, test, constrained_property):
         constraints = constrained_property.get('constraints')
@@ -276,21 +276,22 @@ class IS1202Test(ControllerTest):
 
         # Expect this to work OK
         if constrained_property.get("is_sequence"):
-            index = self.is12_utils.get_sequence_length(test,
-                                                        constrained_property['oid'],
-                                                        constrained_property['property_id'])
+            index = self.is12_utils.get_sequence_length_value(test,
+                                                              constrained_property['property_id'],
+                                                              constrained_property['oid'])
             self.is12_utils.add_sequence_item(test,
                                               constrained_property['oid'],
                                               constrained_property['property_id'],
                                               new_value)
-            self.is12_utils.set_sequence_item(test, constrained_property['oid'],
+            self.is12_utils.set_sequence_item(test,
                                               constrained_property['property_id'],
-                                              index, new_value)
+                                              index, new_value,
+                                              oid=constrained_property['oid'])
         else:
             self.is12_utils.set_property(test,
-                                         constrained_property['oid'],
                                          constrained_property['property_id'],
-                                         new_value)
+                                         new_value,
+                                         oid=constrained_property['oid'])
 
         # Attempt to set to an "illegal" value
         if constraints.get("minimum") is not None:
@@ -325,23 +326,23 @@ class IS1202Test(ControllerTest):
 
         # Expect this to work OK
         if constrained_property.get("is_sequence"):
-            index = self.is12_utils.get_sequence_length(test,
-                                                        constrained_property['oid'],
-                                                        constrained_property['property_id'])
+            index = self.is12_utils.get_sequence_length_value(test,
+                                                              constrained_property['property_id'],
+                                                              oid=constrained_property['oid'])
             self.is12_utils.add_sequence_item(test,
                                               constrained_property['oid'],
                                               constrained_property['property_id'],
                                               new_value)
             self.is12_utils.set_sequence_item(test,
-                                              constrained_property['oid'],
                                               constrained_property['property_id'],
                                               index,
-                                              new_value)
+                                              new_value,
+                                              oid=constrained_property['oid'])
         else:
             self.is12_utils.set_property(test,
-                                         constrained_property['oid'],
                                          constrained_property['property_id'],
-                                         new_value)
+                                         new_value,
+                                         oid=constrained_property['oid'])
 
         if constraints.get("pattern"):
             # Possible negative example strings
@@ -416,8 +417,8 @@ class IS1202Test(ControllerTest):
                 constraint = constrained_property.get('constraints')
 
                 original_value = self.is12_utils.get_property_value(test,
-                                                                    constrained_property['oid'],
-                                                                    constrained_property['property_id'])
+                                                                    constrained_property['property_id'],
+                                                                    oid=constrained_property['oid'])
 
             except NMOSTestException as e:
                 return test.FAIL(constrained_property.get("name")
@@ -441,9 +442,9 @@ class IS1202Test(ControllerTest):
             try:
                 # Reset to original value
                 self.is12_utils.set_property(test,
-                                             constrained_property['oid'],
                                              constrained_property['property_id'],
-                                             original_value)
+                                             original_value,
+                                             oid=constrained_property['oid'])
             except NMOSTestException as e:
                 return test.FAIL(constrained_property.get("name")
                                  + ": error restoring original value of property: "
@@ -598,8 +599,8 @@ class IS1202Test(ControllerTest):
             # Cache original property value
             try:
                 original_value = self.is12_utils.get_property_value(test,
-                                                                    readonly_property['oid'],
-                                                                    readonly_property['property_id'])
+                                                                    readonly_property['property_id'],
+                                                                    oid=readonly_property['oid'])
 
             except NMOSTestException as e:
                 return test.FAIL(readonly_property.get("name")
@@ -609,9 +610,9 @@ class IS1202Test(ControllerTest):
             try:
                 # Try setting this value
                 self.is12_utils.set_property(test,
-                                             readonly_property['oid'],
                                              readonly_property['property_id'],
-                                             original_value)
+                                             original_value,
+                                             oid=readonly_property['oid'])
                 # if it gets this far it's failed
                 return test.FAIL(readonly_property.get("name")
                                  + ": read only property is writable")
@@ -722,12 +723,12 @@ class IS1202Test(ControllerTest):
         try:
             self.add_sequence_item_metadata["checked"] = True
             # Add a value to the end of the sequence
-            new_item = self.is12_utils.get_sequence_item(test, oid, property_id, index=0)
+            new_item = self.is12_utils.get_sequence_item_value(test, property_id, index=0, oid=oid)
 
             self.is12_utils.add_sequence_item(test, oid, property_id, new_item)
 
             # check the value
-            value = self.is12_utils.get_sequence_item(test, oid, property_id, index=sequence_length)
+            value = self.is12_utils.get_sequence_item_value(test, property_id, index=sequence_length, oid=oid)
             if value != new_item:
                 self.add_sequence_item_metadata["error"] = True
                 self.add_sequence_item_metadata["error_msg"] += \
@@ -743,13 +744,14 @@ class IS1202Test(ControllerTest):
     def check_set_sequence_item(self, test, oid, property_id, property_name, sequence_length, context=""):
         try:
             self.set_sequence_item_metadata["checked"] = True
-            new_value = self.is12_utils.get_sequence_item(test, oid, property_id, index=sequence_length - 1)
+            new_value = self.is12_utils.get_sequence_item_value(test, property_id, index=sequence_length - 1, oid=oid)
 
             # set to another value
-            self.is12_utils.set_sequence_item(test, oid, property_id, index=sequence_length, value=new_value)
+            self.is12_utils.set_sequence_item(test, property_id, index=sequence_length, value=new_value,
+                                              oid=oid)
 
             # check the value
-            value = self.is12_utils.get_sequence_item(test, oid, property_id, index=sequence_length)
+            value = self.is12_utils.get_sequence_item_value(test, property_id, index=sequence_length, oid=oid)
             if value != new_value:
                 self.set_sequence_item_metadata["error"] = True
                 self.set_sequence_item_metadata["error_msg"] += \
@@ -776,7 +778,7 @@ class IS1202Test(ControllerTest):
 
     def check_sequence_methods(self, test, oid, property_id, property_name, context=""):
         """Check that sequence manipulation methods work correctly"""
-        response = self.is12_utils.get_property_value(test, oid, property_id)
+        response = self.is12_utils.get_property_value(test, property_id, oid=oid)
 
         if response is None or not isinstance(response, list) or len(response) == 0:
             # Hmmm, these tests depend on sequences already having some data in them.
@@ -789,17 +791,17 @@ class IS1202Test(ControllerTest):
 
         if not self.check_add_sequence_item(test, oid, property_id, property_name, sequence_length, context=context):
             return
-        if sequence_length + 1 != self.is12_utils.get_sequence_length(test, oid, property_id):
+        if sequence_length + 1 != self.is12_utils.get_sequence_length_value(test, property_id, oid=oid):
             self.add_sequence_item_metadata["error"] = True
             self.add_sequence_item_metadata["error_msg"] = property_name + \
                 ": add_sequence_item resulted in unexpected sequence length."
         self.check_set_sequence_item(test, oid, property_id, property_name, sequence_length, context=context)
-        if sequence_length + 1 != self.is12_utils.get_sequence_length(test, oid, property_id):
+        if sequence_length + 1 != self.is12_utils.get_sequence_length_value(test, property_id, oid=oid):
             self.set_sequence_item_metadata["error"] = True
             self.set_sequence_item_metadata["error_msg"] = property_name + \
                 ": set_sequence_item resulted in unexpected sequence length."
         self.check_remove_sequence_item(test, oid, property_id, property_name, sequence_length, context)
-        if sequence_length != self.is12_utils.get_sequence_length(test, oid, property_id):
+        if sequence_length != self.is12_utils.get_sequence_length_value(test, property_id, oid=oid):
             self.remove_sequence_item_metadata["error"] = True
             self.remove_sequence_item_metadata["error_msg"] = property_name + \
                 ": remove_sequence_item resulted in unexpected sequence length."

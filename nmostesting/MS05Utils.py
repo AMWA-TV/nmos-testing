@@ -19,8 +19,10 @@ import os
 
 from copy import deepcopy
 from enum import IntEnum, Enum
-from .GenericTest import NMOSTestException
+from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
+
+from .GenericTest import NMOSTestException
 from .TestHelper import load_resolved_schema
 
 MS05_API_KEY = "controlframework"
@@ -29,24 +31,72 @@ NODE_API_KEY = "node"
 
 
 class MS05Utils(NMOSUtils):
-    def __init__(self, apis):
+    def __init__(self, apis, protocol_api_key):
         NMOSUtils.__init__(self, apis[NODE_API_KEY]["url"])
         self.apis = apis
         self.ms05_spec_branch = self.apis[MS05_API_KEY]["spec_branch"]
         self.ROOT_BLOCK_OID = 1
         self.device_model = None
         self.class_manager = None
+        self.protocol_api_key = protocol_api_key
 
-    # Overriddenfunctions specialized for IS-12 and IS-14
-    def query_device_model(self, test):
+    # Overridden functions specialized for IS-12 and IS-14
+    def initialize_connection(self, test):
+        # For IS-12 this is overridden with the websocket initialization
+        # For IS-14 no connection initialization is needed
         pass
-        # JRT this could probably be spolit into an "initialize connection function,
-        # and the actual querying of the device model
 
-    def get_property_value_polymorphic(self, test, property_id, role_path, **kwargs):
+    def get_property(test, property_id, **kwargs):
+        pass
+
+    def get_property_value(self, test, property_id, **kwargs):
+        pass
+
+    def set_property(self, test, property_id, argument, **kwargs):
+        pass
+
+    def get_sequence_item(self, test, property_id, index, **kwargs):
+        pass
+
+    def get_sequence_length(self, test, property_id, **kwargs):
+        """Get sequence property. Raises NMOSTestException on error"""
+        pass
+
+    def get_sequence_length_value(self, test, property_id, **kwargs):
+        pass
+
+    def get_member_descriptors(self, test, recurse, **kwargs):
+        pass
+
+    def find_members_by_path(self, test, path, **kwargs):
+        """Query members based on role path. Raises NMOSTestException on error"""
+        pass
+
+    def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, **kwargs):
+        """Query members based on role. Raises NMOSTestException on error"""
+        pass
+
+    def find_members_by_class_id(self, test, class_id, include_derived, recurse, **kwargs):
+        """Query members based on class id. Raises NMOSTestException on error"""
         pass
 
     # End of overridden functions
+
+    def query_device_model(self, test):
+        """ Query Device Model from the Node under test.
+            self.device_model_metadata set on Device Model validation error.
+            NMOSTestException raised if unable to query Device Model """
+        self.initialize_connection(test)
+        if not self.device_model:
+            self.device_model = self._nc_object_factory(
+                test,
+                StandardClassIds.NCBLOCK.value,
+                self.ROOT_BLOCK_OID,
+                "root")
+
+            if not self.device_model:
+                raise NMOSTestException(test.FAIL("Unable to query Device Model"))
+        return self.device_model
 
     def _primitive_to_JSON(self, type):
         """Convert MS-05 primitive type to corresponding JSON type"""
@@ -66,7 +116,7 @@ class MS05Utils(NMOSUtils):
 
         return types.get(type, False)
 
-    def load_reference_resources(self, protocol_api_key):
+    def load_reference_resources(self):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
         # Calculate paths to MS-05 descriptors
         # including Feature Sets specified as additional_paths in test definition
@@ -95,7 +145,7 @@ class MS05Utils(NMOSUtils):
         # Generate MS-05 datatype schemas from MS-05 datatype descriptors
         self.reference_datatype_schemas = self.generate_json_schemas(
             datatype_descriptors=self.reference_datatype_descriptors,
-            schema_path=os.path.join(self.apis[protocol_api_key]["spec_path"], 'APIs/schemas/'))
+            schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/schemas/'))
 
     def _load_model_descriptors(self, descriptor_paths):
         descriptors = {}
@@ -194,6 +244,17 @@ class MS05Utils(NMOSUtils):
 
         return json_schema
 
+    def generate_device_model_datatype_schemas(self, test):
+        # Generate datatype schemas based on the datatype decriptors
+        # queried from the Node under test's Device Model.
+        # This will include any Non-standard data types
+        class_manager = self.get_class_manager(test)
+
+        # Create JSON schemas for the queried datatypes
+        return self.generate_json_schemas(
+            datatype_descriptors=class_manager.datatype_descriptors,
+            schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/tmp_schemas/'))
+
     def validate_reference_datatype_schema(self, test, payload, datatype_name, context=""):
         """Validate payload against reference datatype schema"""
         self.validate_schema(test, payload, self.reference_datatype_schemas[datatype_name])
@@ -257,7 +318,7 @@ class MS05Utils(NMOSUtils):
         return
 
     def _get_class_manager_descriptors(self, test, property_id, class_manager_oid, role_path):
-        response = self.get_property_value_polymorphic(test, property_id, oid=class_manager_oid, role_path=role_path)
+        response = self.get_property_value(test, property_id, oid=class_manager_oid, role_path=role_path)
 
         if not response:
             return None
@@ -279,7 +340,7 @@ class MS05Utils(NMOSUtils):
 
         role_path.append(role)
         try:
-            runtime_constraints = self.get_property_value_polymorphic(
+            runtime_constraints = self.get_property_value(
                     test,
                     NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
                     oid=oid,
@@ -287,7 +348,7 @@ class MS05Utils(NMOSUtils):
 
             # Check class id to determine if this is a block
             if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
-                member_descriptors = self.get_property_value_polymorphic(
+                member_descriptors = self.get_property_value(
                     test,
                     NcBlockProperties.MEMBERS.value,
                     oid=oid,
@@ -297,7 +358,7 @@ class MS05Utils(NMOSUtils):
                     raise NMOSTestException(test.FAIL('Unable to get members for object: oid={}, role Path={}'
                                                       .format(str(oid), str(role_path))))
 
-                nc_block = NcBlock(class_id, oid, role, member_descriptors, runtime_constraints)
+                nc_block = NcBlock(class_id, oid, role, role_path, member_descriptors, runtime_constraints)
 
                 for m in member_descriptors:
                     child_object = self._nc_object_factory(test, m["classId"], m["oid"], m["role"], role_path)
@@ -327,11 +388,12 @@ class MS05Utils(NMOSUtils):
                     return NcClassManager(class_id,
                                           oid,
                                           role,
+                                          role_path,
                                           class_descriptors,
                                           datatype_descriptors,
                                           runtime_constraints)
 
-                return NcObject(class_id, oid, role, runtime_constraints)
+                return NcObject(class_id, oid, role, role_path, runtime_constraints)
 
         except NMOSTestException as e:
             raise NMOSTestException(test.FAIL("Error in Device Model " + role + ": " + str(e.args[0].detail)))
@@ -360,6 +422,44 @@ class MS05Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
 
         return members[0]
+
+    def primitive_to_python_type(self, type):
+        """Convert MS-05 primitive type to corresponding Python type"""
+
+        types = {
+            "NcBoolean": bool,
+            "NcInt16": int,
+            "NcInt32": int,
+            "NcInt64": int,
+            "NcUint16": int,
+            "NcUint32": int,
+            "NcUint64": int,
+            "NcFloat32": float,
+            "NcFloat64":  float,
+            "NcString": str
+        }
+
+        return types.get(type, False)
+
+    def get_base_class_id(self, class_id):
+        """ Given a class_id returns the standard base class id as a string"""
+        return '.'.join([str(v) for v in takewhile(lambda x: x > 0, class_id)])
+
+    def is_non_standard_class(self, class_id):
+        """ Check class_id to determine if it is for a non-standard class """
+        # Assumes at least one value follows the authority key
+        return len([v for v in dropwhile(lambda x: x > 0, class_id)]) > 1
+
+    def is_manager(self, class_id):
+        """ Check class id to determine if this is a manager """
+        return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
+
+    def resolve_datatype(self, test, datatype):
+        """Resolve datatype to its base type"""
+        class_manager = self.get_class_manager(test)
+        if class_manager.datatype_descriptors[datatype].get("parentType"):
+            return self.resolve_datatype(test, class_manager.datatype_descriptors[datatype].get("parentType"))
+        return datatype
 
 
 class NcMethodStatus(IntEnum):
@@ -473,16 +573,17 @@ class StandardClassIds(Enum):
 
 
 class NcObject():
-    def __init__(self, class_id, oid, role, runtime_constraints):
+    def __init__(self, class_id, oid, role, role_path, runtime_constraints):
         self.class_id = class_id
         self.oid = oid
         self.role = role
+        self.role_path = role_path
         self.runtime_constraints = runtime_constraints
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id, oid, role, descriptors, runtime_constraints):
-        NcObject.__init__(self, class_id, oid, role, runtime_constraints)
+    def __init__(self, class_id, oid, role, role_path, descriptors, runtime_constraints):
+        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints)
         self.child_objects = []
         self.member_descriptors = descriptors
 
@@ -490,6 +591,7 @@ class NcBlock(NcObject):
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
 
+    # JRT this could be simplified now that we have the role_path as a member
     def get_role_paths(self):
         role_paths = []
         for child_object in self.child_objects:
@@ -565,13 +667,13 @@ class NcBlock(NcObject):
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id, oid, role, runtime_constraints):
-        NcObject.__init__(self, class_id, oid, role, runtime_constraints)
+    def __init__(self, class_id, oid, role, role_path, runtime_constraints):
+        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id, oid, role, class_descriptors, datatype_descriptors, runtime_constraints):
-        NcObject.__init__(self, class_id, oid, role, runtime_constraints)
+    def __init__(self, class_id, oid, role, role_path, class_descriptors, datatype_descriptors, runtime_constraints):
+        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints)
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors
 
