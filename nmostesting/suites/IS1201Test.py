@@ -621,9 +621,10 @@ class IS1201Test(MS0501Test):
 
         for descriptor in block_member_descriptors:
             class_descriptor = self.is12_utils.get_control_class(test,
-                                                                 class_manager.oid,
                                                                  descriptor['classId'],
-                                                                 include_inherited=True)
+                                                                 include_inherited=True,
+                                                                 oid=class_manager.oid,
+                                                                 role_path=class_manager.role_path)
 
             # Get runtime property constraints
             # will set error on device_model_metadata on failure

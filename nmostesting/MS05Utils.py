@@ -81,6 +81,14 @@ class MS05Utils(NMOSUtils):
         """Query members based on class id. Raises NMOSTestException on error"""
         pass
 
+    def get_control_class(self, test, class_id, include_inherited, **kwargs):
+        """Query Class Manager for control class. Raises NMOSTestException on error"""
+        pass
+    
+    def get_datatype(self, test, name, include_inherited, **kwargs):
+        """Query Class Manager for datatype. Raises NMOSTestException on error"""
+        pass
+    
     # End of overridden functions
 
     def query_device_model(self, test):
@@ -258,7 +266,8 @@ class MS05Utils(NMOSUtils):
 
     def validate_reference_datatype_schema(self, test, payload, datatype_name, context=""):
         """Validate payload against reference datatype schema"""
-        self.validate_schema(test, payload, self.reference_datatype_schemas[datatype_name])
+        context += f"{datatype_name}: "
+        self.validate_schema(test, payload, self.reference_datatype_schemas[datatype_name], context)
 
     def validate_schema(self, test, payload, schema, context=""):
         """Delegates to validate_schema. Raises NMOSTestExceptions on error"""
@@ -280,6 +289,8 @@ class MS05Utils(NMOSUtils):
         non_normative_keys = ['description']
 
         if isinstance(reference, dict):
+            if descriptor is None:
+                raise NMOSTestException(test.FAIL(f"{context}: descriptor is None"))
             reference_keys = set(reference.keys())
             descriptor_keys = set(descriptor.keys())
 

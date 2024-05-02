@@ -155,9 +155,10 @@ class IS1202Test(ControllerTest):
 
         for descriptor in block_member_descriptors:
             class_descriptor = self.is12_utils.get_control_class(test,
-                                                                 class_manager.oid,
                                                                  descriptor['classId'],
-                                                                 include_inherited=True)
+                                                                 include_inherited=True,
+                                                                 oid=class_manager.oid,
+                                                                 role_path=class_manager.role_path)
 
             # Get runtime property constraints
             object_runtime_constraints = \
@@ -210,9 +211,10 @@ class IS1202Test(ControllerTest):
 
         for descriptor in non_standard_member_descriptors:
             class_descriptor = self.is12_utils.get_control_class(test,
-                                                                 class_manager.oid,
                                                                  descriptor['classId'],
-                                                                 include_inherited=False)
+                                                                 include_inherited=False,
+                                                                 oid=class_manager.oid,
+                                                                 role_path=class_manager.role_path)
 
             for method_descriptor in class_descriptor.get('methods'):
                 results.append({'oid': descriptor['oid'],

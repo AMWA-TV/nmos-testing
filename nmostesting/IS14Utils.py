@@ -51,15 +51,17 @@ class IS14Utils(MS05Utils):
         valid, r = TestHelper.do_request(method, url, **kwargs)
 
         if not valid:
-            raise NMOSTestException(test.FAIL("{} for {}:{}".format(r, method, url)))
+            raise NMOSTestException(test.FAIL("{} for {} :{}".format(r, method, url)))
         if r.status_code < 200 or r.status_code > 299:
-            raise NMOSTestException(test.FAIL("Unexpected status code: {} for {}:{}".format(r.status_code,
+            raise NMOSTestException(test.FAIL("Unexpected status code: {} for {} :{}".format(r.status_code,
                                                                                             method,
                                                                                             url))) 
         try:
+            self.validate_reference_datatype_schema(test, r.json(), "NcMethodResult", f"{method} :{url} ")
+            
             return r.json()
         except ValueError as e:
-            raise NMOSTestException(test.FAIL("Error: {} for {}:{}".format(e.args[0], method, url)))
+            raise NMOSTestException(test.FAIL("Error: {} for {} :{}".format(e.args[0], method, url)))
     
     # Overridden functions
     def get_property(self, test, property_id, role_path, **kwargs):
@@ -70,7 +72,10 @@ class IS14Utils(MS05Utils):
 
     def get_property_value(self, test, property_id, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
-        return self.get_property(test, property_id, role_path=role_path)['value']
+        try:
+            return self.get_property(test, property_id, role_path=role_path)['value']
+        except KeyError:
+            raise NMOSTestException(test.FAIL("Error: {} for {} :{}".format(e.args[0], method, url)))
 
     def set_property(self, test, property_id, argument, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
