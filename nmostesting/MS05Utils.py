@@ -84,11 +84,11 @@ class MS05Utils(NMOSUtils):
     def get_control_class(self, test, class_id, include_inherited, **kwargs):
         """Query Class Manager for control class. Raises NMOSTestException on error"""
         pass
-    
+
     def get_datatype(self, test, name, include_inherited, **kwargs):
         """Query Class Manager for datatype. Raises NMOSTestException on error"""
         pass
-    
+
     # End of overridden functions
 
     def query_device_model(self, test):
