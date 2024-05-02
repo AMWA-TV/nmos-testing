@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from nmostesting.GenericTest import NMOSTestException
-from .MS05Utils import MS05Utils, NcBlockMethods
+from .MS05Utils import MS05Utils, NcBlockMethods, NcClassManagerMethods, NcObjectMethods
 
 from . import TestHelper
 
@@ -67,60 +67,65 @@ class IS14Utils(MS05Utils):
     def get_property(self, test, property_id, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
-
         return self._do_request(test, 'GET', property_value_endpoint)
 
     def get_property_value(self, test, property_id, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
-        try:
-            return self.get_property(test, property_id, role_path=role_path)['value']
-        except KeyError:
-            raise NMOSTestException(test.FAIL("Error: {} for {} :{}".format(e.args[0], method, url)))
+        return self.get_property(test, property_id, role_path=role_path)['value']
 
     def set_property(self, test, property_id, argument, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
-
         return self._do_request(test, 'SET', property_value_endpoint, data={'value': argument})
-
-    def get_sequence_item_value(self, test, property_id, index, role_path, **kwargs):
-        # Hmmm should we reply on get or should we assume that get_sequence_item has been
-        # implemented?
-        raise NMOSTestException(test.FAIL("get_sequence_item_value not implemented"))
-        # value = self.get_property_value(test, property_id, role_path=role_path)
-
-        # return value[index]
 
     def get_sequence_item(self, test, property_id, index, role_path, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
-        raise NMOSTestException(test.FAIL("get_sequence_item not implemented"))
-        #pass
+        methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.GET_SEQUENCE_ITEM.value)
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'id': property_id, 'index': index}})
+
+    def get_sequence_item_value(self, test, property_id, index, role_path, **kwargs):
+        return self.get_sequence_item(test, property, index, role_path, **kwargs)['value']
 
     def get_sequence_length(self, test, property_id, role_path, **kwargs):
         """Get sequence length. Raises NMOSTestException on error"""
-        # Hmmm should we reply on get or should we assume that get_sequence_item has been
-        # implemented?
-        raise NMOSTestException(test.FAIL("get_sequence_length not implemented"))
-        # value = self.get_property_value(test, property_id, role_path=role_path)
-
-        # return len(value)
+        methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.GET_SEQUENCE_LENGTH.value)
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'id': property_id}})
 
     def get_member_descriptors(self, test, recurse, role_path, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value)
-
         return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'recurse': recurse}})
 
     def find_members_by_path(self, test, path, role_path, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""
-        raise NMOSTestException(test.FAIL("find_members_by_path not implemented"))
+        methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.FIND_MEMBERS_BY_PATH.value)
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'path': path}})
 
     def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, role_path, **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
-        raise NMOSTestException(test.FAIL("find_members_by_role not implemented"))
+        methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.FIND_MEMBERS_BY_ROLE.value)
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'role': role,
+                                                                                    'caseSensitive': case_sensitive,
+                                                                                    'matchWholeString': match_whole_string,
+                                                                                    'recurse': recurse}})
 
     def find_members_by_class_id(self, test, class_id, include_derived, recurse, role_path, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""
-        raise NMOSTestException(test.FAIL("find_members_by_class_id not implemented"))
+        methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value)
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'classId': class_id,
+                                                                                    'includeDerived': include_derived,
+                                                                                    'recurse': recurse}})
+
+    def get_control_class(self, test, class_id, include_inherited, role_path, **kwargs):
+        """Query Class Manager for control class. Raises NMOSTestException on error"""
+        methods_endpoint = self._create_methods_endpoint(role_path, NcClassManagerMethods.GET_CONTROL_CLASS.value)
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'classId': class_id,
+                                                                                    'includeInherited': include_inherited}})
+    
+    def get_datatype(self, test, name, include_inherited, role_path, **kwargs):
+        """Query Class Manager for datatype. Raises NMOSTestException on error"""
+        methods_endpoint = self._create_methods_endpoint(role_path, NcClassManagerMethods.GET_DATATYPE.value)
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'name': name,
+                                                                                    'includeInherited': include_inherited}})
 
     # end of overridden functions
