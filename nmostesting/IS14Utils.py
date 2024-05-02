@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from nmostesting.GenericTest import NMOSTestException
 from .MS05Utils import MS05Utils, NcBlockMethods
 
 from . import TestHelper
@@ -46,20 +47,26 @@ class IS14Utils(MS05Utils):
         formatted_method_id = self._format_method_id(method_id)
         return self._create_role_path_base(role_path) + '/methods/{}'.format(formatted_method_id)
 
+    def _do_request(self, test, method, url, **kwargs):
+        valid, r = TestHelper.do_request(method, url, **kwargs)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL("{} for {}:{}".format(r, method, url)))
+        if r.status_code < 200 or r.status_code > 299:
+            raise NMOSTestException(test.FAIL("Unexpected status code: {} for {}:{}".format(r.status_code,
+                                                                                            method,
+                                                                                            url))) 
+        try:
+            return r.json()
+        except ValueError as e:
+            raise NMOSTestException(test.FAIL("Error: {} for {}:{}".format(e.args[0], method, url)))
+    
     # Overridden functions
     def get_property(self, test, property_id, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
 
-        valid, r = TestHelper.do_request('GET', property_value_endpoint)
-
-        if valid and r.status_code == 200:
-            try:
-                return r.json()
-            except ValueError:
-                pass
-
-        return None
+        return self._do_request(test, 'GET', property_value_endpoint)
 
     def get_property_value(self, test, property_id, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
@@ -69,60 +76,46 @@ class IS14Utils(MS05Utils):
         """Get value of property from object. Raises NMOSTestException on error"""
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
 
-        valid, r = TestHelper.do_request('SET', property_value_endpoint, data={'value': argument})
-
-        if valid and r.status_code == 200:
-            try:
-                return r.json()
-            except ValueError:
-                pass
-
-        return None
+        return self._do_request(test, 'SET', property_value_endpoint, data={'value': argument})
 
     def get_sequence_item_value(self, test, property_id, index, role_path, **kwargs):
         # Hmmm should we reply on get or should we assume that get_sequence_item has been
         # implemented?
-        value = self.get_property_value(test, property_id, role_path=role_path)
+        raise NMOSTestException(test.FAIL("get_sequence_item_value not implemented"))
+        # value = self.get_property_value(test, property_id, role_path=role_path)
 
-        return value[index]
+        # return value[index]
 
     def get_sequence_item(self, test, property_id, index, role_path, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
-        pass
+        raise NMOSTestException(test.FAIL("get_sequence_item not implemented"))
+        #pass
 
     def get_sequence_length(self, test, property_id, role_path, **kwargs):
         """Get sequence length. Raises NMOSTestException on error"""
         # Hmmm should we reply on get or should we assume that get_sequence_item has been
         # implemented?
-        value = self.get_property_value(test, property_id, role_path=role_path)
+        raise NMOSTestException(test.FAIL("get_sequence_length not implemented"))
+        # value = self.get_property_value(test, property_id, role_path=role_path)
 
-        return len(value)
+        # return len(value)
 
     def get_member_descriptors(self, test, recurse, role_path, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value)
-        # get the api base from the apis
 
-        valid, r = TestHelper.do_request('PATCH', methods_endpoint, data={'argument': {'recurse': recurse}})
-
-        if valid and r.status_code == 200:
-            try:
-                return r.json()['value']
-            except ValueError:
-                pass
-
-        return None
+        return self._do_request(test, 'PATCH', methods_endpoint, data={'argument': {'recurse': recurse}})
 
     def find_members_by_path(self, test, path, role_path, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""
-        return None
+        raise NMOSTestException(test.FAIL("find_members_by_path not implemented"))
 
     def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, role_path, **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
-        return None
+        raise NMOSTestException(test.FAIL("find_members_by_role not implemented"))
 
     def find_members_by_class_id(self, test, class_id, include_derived, recurse, role_path, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""
-        return None
+        raise NMOSTestException(test.FAIL("find_members_by_class_id not implemented"))
 
     # end of overridden functions
