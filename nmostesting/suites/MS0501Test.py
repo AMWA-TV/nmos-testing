@@ -121,8 +121,6 @@ class MS0501Test(GenericTest):
         """Device Model: Root Block exists with correct oid and role"""
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Blocks.html
 
-        self.ms05_utils.initialize_connection(test)
-
         # Check role is correct
         role = self.ms05_utils.get_property_value(
             test,
@@ -713,8 +711,6 @@ class MS0501Test(GenericTest):
                .format(self.apis[MS05_API_KEY]["spec_branch"])
 
         # Attempt to set labels
-        self.ms05_utils.initialize_connection(test)
-
         property_id = NcObjectProperties.USER_LABEL.value
 
         old_user_label = self.ms05_utils.get_property_value(test, property_id,
@@ -1351,8 +1347,6 @@ class MS0501Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
         try:
-            self.ms05_utils.initialize_connection(test)
-
             self.ms05_utils.set_property(test, NcObjectProperties.ROLE.value, "ROLE IS READ ONLY",
                                          oid=self.ms05_utils.ROOT_BLOCK_OID, role_path=["root"])
 
@@ -1389,8 +1383,6 @@ class MS0501Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
         try:
-            self.ms05_utils.initialize_connection(test)
-
             length = self.ms05_utils.get_sequence_length(test,
                                                          NcBlockProperties.MEMBERS.value,
                                                          oid=self.ms05_utils.ROOT_BLOCK_OID,

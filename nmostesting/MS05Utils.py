@@ -43,11 +43,6 @@ class MS05Utils(NMOSUtils):
         self.class_manager = None
 
     # Overridden functions specialized for IS-12 and IS-14
-    def initialize_connection(self, test):
-        # For IS-12 this is overridden with the websocket initialization
-        # For IS-14 no connection initialization is needed
-        pass
-
     def get_property(test, property_id, **kwargs):
         pass
 
@@ -100,7 +95,6 @@ class MS05Utils(NMOSUtils):
         """ Query Device Model from the Node under test.
             self.device_model_metadata set on Device Model validation error.
             NMOSTestException raised if unable to query Device Model """
-        self.initialize_connection(test)
         if not self.device_model:
             self.device_model = self._nc_object_factory(
                 test,

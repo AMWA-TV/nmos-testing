@@ -21,7 +21,7 @@ from enum import IntEnum
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 
 from .Config import WS_MESSAGE_TIMEOUT
-from .GenericTest import NMOSTestException
+from .GenericTest import NMOSInitException, NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
 from .MS05Utils import NcMethodStatus, NcObjectMethods, NcBlockMethods, NcClassManagerMethods
 
@@ -54,9 +54,6 @@ class IS12Utils(MS05Utils):
         self.notifications = []
 
     # Overridden functions
-    def initialize_connection(self, test):
-        self.open_ncp_websocket(test)
-
     def _load_is12_schemas(self):
         """Load datatype and control class decriptors and create datatype JSON schemas"""
         # Load IS-12 schemas
@@ -69,8 +66,8 @@ class IS12Utils(MS05Utils):
             self.schemas[schema_name] = load_resolved_schema(self.apis[CONTROL_API_KEY]["spec_path"],
                                                              schema_name + ".json")
 
-    def open_ncp_websocket(self, test):
-        """Create a WebSocket client connection to Node under test. Raises NMOSTestException on error"""
+    def open_ncp_websocket(self):
+        """Create a WebSocket client connection to Node under test. Raises NMOSInitException on error"""
         # Reuse socket if connection already established
         if self.ncp_websocket and self.ncp_websocket.is_open():
             return
@@ -87,9 +84,9 @@ class IS12Utils(MS05Utils):
             time.sleep(0.2)
 
         if self.ncp_websocket.did_error_occur() or not self.ncp_websocket.is_open():
-            raise NMOSTestException(test.FAIL("Failed to open WebSocket successfully"
+            raise NMOSInitException("Failed to open WebSocket successfully"
                                     + (": " + str(self.ncp_websocket.get_error_message())
-                                       if self.ncp_websocket.did_error_occur() else ".")))
+                                       if self.ncp_websocket.did_error_occur() else "."))
 
     def close_ncp_websocket(self):
         # Clean up Websocket resources

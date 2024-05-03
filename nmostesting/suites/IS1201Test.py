@@ -37,6 +37,7 @@ class IS1201Test(MS0501Test):
         self.ncp_url = apis[CONTROL_API_KEY]["url"]
 
     def set_up_tests(self):
+        self.is12_utils.open_ncp_websocket()
         super().set_up_tests()
 
     def tear_down_tests(self):
@@ -60,15 +61,11 @@ class IS1201Test(MS0501Test):
         """WebSocket: endpoint successfully opened"""
         # https://specs.amwa.tv/is-12/releases/v1.0.0/docs/Transport_and_message_encoding.html
 
-        self.is12_utils.open_ncp_websocket(test)
-
         return test.PASS()
 
     def test_03(self, test):
         """WebSocket: socket is kept open until client closes"""
         # https://specs.amwa.tv/is-12/releases/v1.0.0/docs/Protocol_messaging.html#control-session
-
-        self.is12_utils.open_ncp_websocket(test)
 
         # Ensure WebSocket remains open
         start_time = time.time()
@@ -85,8 +82,6 @@ class IS1201Test(MS0501Test):
         # check the syntax of the error message according to is12_error
 
         try:
-            self.is12_utils.open_ncp_websocket(test)
-
             self.is12_utils.send_command(test, command_json)
 
             return test.FAIL("Error not handled.",

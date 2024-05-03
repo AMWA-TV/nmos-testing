@@ -25,7 +25,7 @@ class IS1202Test(MS0502Test):
 
     def set_up_tests(self):
         super().set_up_tests()
-        # Don't set up mock resources as not needed
+        self.is12_utils.open_ncp_websocket()
         pass
 
     def tear_down_tests(self):
