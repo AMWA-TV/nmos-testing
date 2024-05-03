@@ -44,7 +44,6 @@ class IS12Utils(MS05Utils):
         MS05Utils.__init__(self, apis, CONTROL_API_KEY)
         self.apis = apis
         self.spec_path = self.apis[CONTROL_API_KEY]["spec_path"]
-        self.spec_branch = self.apis[CONTROL_API_KEY]["spec_branch"]
         self._load_is12_schemas()
         self.ncp_websocket = None
         self.command_handle = 0
@@ -154,7 +153,7 @@ class IS12Utils(MS05Utils):
                     raise NMOSTestException(test.FAIL("Unrecognised message type: " + parsed_message.get("messageType"),
                                                       "https://specs.amwa.tv/is-12/branches/{}"
                                                       "/docs/Protocol_messaging.html#command-message-type"
-                                                      .format(self.spec_branch)))
+                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
                 if parsed_message["messageType"] == MessageTypes.CommandResponse:
                     responses = parsed_message["responses"]
@@ -175,7 +174,7 @@ class IS12Utils(MS05Utils):
                 if parsed_message["messageType"] == MessageTypes.Error:
                     raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
                                                       "/docs/Protocol_messaging.html#error-messages"
-                                                      .format(self.spec_branch)))
+                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
             if not self.expect_notifications and len(results) != 0:
                 break
@@ -186,7 +185,7 @@ class IS12Utils(MS05Utils):
             raise NMOSTestException(test.FAIL("No Message Response received.",
                                               "https://specs.amwa.tv/is-12/branches/{}"
                                               "/docs/Protocol_messaging.html#command-message-type"
-                                              .format(self.spec_branch)))
+                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
         if len(results) > 1:
             raise NMOSTestException(test.FAIL("Received multiple responses : " + len(responses)))

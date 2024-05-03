@@ -34,7 +34,6 @@ class MS05Utils(NMOSUtils):
     def __init__(self, apis, protocol_api_key):
         NMOSUtils.__init__(self, apis[NODE_API_KEY]["url"])
         self.apis = apis
-        self.ms05_spec_branch = self.apis[MS05_API_KEY]["spec_branch"]
         self.ROOT_BLOCK_OID = 1
         self.device_model = None
         self.class_manager = None
@@ -428,7 +427,8 @@ class MS05Utils(NMOSUtils):
         device_model = self.query_device_model(test)
         members = device_model.find_members_by_class_id(class_id, include_derived=True)
 
-        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html".format(self.ms05_spec_branch)
+        spec_link = f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}" \
+            + "/docs/Managers.html"
 
         if len(members) == 0:
             raise NMOSTestException(test.FAIL("Manager not found in Root Block.", spec_link))
