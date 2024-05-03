@@ -51,7 +51,7 @@ class MS0502Test(ControllerTest):
 
     def pre_tests_message(self):
         """
-        Introduction to IS-12 Invasive Tests
+        Introduction to MS-05 Invasive Tests
         """
         if not IS12_INTERACTIVE_TESTING:
             return
@@ -60,7 +60,7 @@ class MS0502Test(ControllerTest):
         # on the Testing Facade prior to the tests starting. This communicates any
         # pre-requisites or setup required by the Test User.
         question = """\
-                   These tests validate a Node under test's MS-05 Device Model using IS-12.
+                   These tests validate a Node under test's MS-05 Device Model.
 
                    These tests are invasive and could cause harm to the Node under test.
 
@@ -80,14 +80,14 @@ class MS0502Test(ControllerTest):
 
     def post_tests_message(self):
         """
-        IS-12 Test Suite complete!
+        MS-05 Test Suite complete!
         """
         if not IS12_INTERACTIVE_TESTING:
             return
         # Once the tests are complete this post tests message is displayed.
 
         question = """\
-                   IS-12 tests complete!
+                   MS-05 tests complete!
 
                    Please press the 'Next' button to exit the tests.
                    """
@@ -546,7 +546,7 @@ class MS0502Test(ControllerTest):
 
         return result
 
-    def test_01(self, test):
+    def test_ms05_01(self, test):
         """Constraints on writable properties are enforced"""
 
         question = """\
@@ -559,7 +559,7 @@ class MS0502Test(ControllerTest):
                     """
         return self._do_check_property_test(test, question, get_constraints=True, get_sequences=False)
 
-    def test_02(self, test):
+    def test_ms05_02(self, test):
         """Constraints on writable sequences are enforced"""
         question = """\
                    From this list of sequences with parameter constraints\
@@ -632,7 +632,7 @@ class MS0502Test(ControllerTest):
 
         return test.PASS()
 
-    def test_03(self, test):
+    def test_ms05_03(self, test):
         """Check read only properties are not writable"""
 
         question = """\
@@ -646,7 +646,7 @@ class MS0502Test(ControllerTest):
 
         return self._do_check_readonly_properties(test, question, get_sequences=False)
 
-    def test_04(self, test):
+    def test_ms05_04(self, test):
         """Check read only sequences are not writable"""
 
         question = """\
@@ -714,7 +714,7 @@ class MS0502Test(ControllerTest):
 
         return test.PASS()
 
-    def test_05(self, test):
+    def test_ms05_05(self, test):
         """Check discovered methods"""
         question = """\
                    From this list of methods\
@@ -867,7 +867,7 @@ class MS0502Test(ControllerTest):
 
         self.sequences_validated = True
 
-    def test_06(self, test):
+    def test_ms05_06(self, test):
         """NcObject method: SetSequenceItem"""
         try:
             if not self.sequences_validated:
@@ -887,7 +887,7 @@ class MS0502Test(ControllerTest):
 
         return test.PASS()
 
-    def test_07(self, test):
+    def test_ms05_07(self, test):
         """NcObject method: AddSequenceItem"""
         try:
             if not self.sequences_validated:
@@ -907,7 +907,7 @@ class MS0502Test(ControllerTest):
 
         return test.PASS()
 
-    def test_08(self, test):
+    def test_ms05_08(self, test):
         """NcObject method: RemoveSequenceItem"""
         try:
             if not self.sequences_validated:
