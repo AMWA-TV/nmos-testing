@@ -18,12 +18,10 @@ from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import NMOSTestException
 from ..IS12Utils import IS12Utils
 
-from ..MS05Utils import NcMethodStatus, NcBlockProperties, \
-    NcObjectMethods, NcObjectProperties, StandardClassIds, \
+from ..MS05Utils import NcMethodStatus, NcObjectMethods, NcObjectProperties, StandardClassIds, \
     NcPropertyChangeType, NcObjectEvents
 
 from .MS0501Test import MS0501Test
-
 
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
@@ -127,7 +125,7 @@ class IS1201Test(MS0501Test):
                                     + " (" + str(error_msg['status']) + ")",
                                     "https://specs.amwa.tv/ms-05-02/branches/{}"
                                     "/docs/Framework.html#ncmethodresult"
-                                    .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+                                    .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
             return test.PASS()
 
@@ -243,44 +241,6 @@ class IS1201Test(MS0501Test):
         return self.do_error_test(test,
                                   command_json,
                                   expected_status=NcMethodStatus.MethodNotImplemented)
-
-    def test_31(self, test):
-        """MS-05-02 Error: Node handles read only error"""
-        # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
-        # for the following scenarios...
-        # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
-
-        command_json = \
-            self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
-                                                NcObjectMethods.GENERIC_SET.value,
-                                                {'id': NcObjectProperties.ROLE.value,
-                                                 'value': "ROLE IS READ ONLY"})
-
-        return self.do_error_test(test,
-                                  command_json,
-                                  expected_status=NcMethodStatus.Readonly)
-
-    def test_32(self, test):
-        """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
-        # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
-        # for the following scenarios...
-        # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
-
-        self.is12_utils.open_ncp_websocket(test)
-
-        length = self.is12_utils.get_sequence_length(test,
-                                                     NcBlockProperties.MEMBERS.value,
-                                                     oid=self.is12_utils.ROOT_BLOCK_OID)
-        out_of_bounds_index = length + 10
-
-        command_json = \
-            self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
-                                                NcObjectMethods.GET_SEQUENCE_ITEM.value,
-                                                {'id': NcBlockProperties.MEMBERS.value,
-                                                 'index': out_of_bounds_index})
-        return self.do_error_test(test,
-                                  command_json,
-                                  expected_status=NcMethodStatus.IndexOutOfBounds)
 
     def test_33(self, test):
         """Node implements subscription and notification mechanism"""
