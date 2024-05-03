@@ -29,7 +29,9 @@ MS05_API_KEY = "controlframework"
 
 
 class IS1201Test(MS0501Test):
-
+    """
+    Runs Tests covering MS-05 and IS-12
+    """
     def __init__(self, apis, **kwargs):
         self.is12_utils = IS12Utils(apis)
         MS0501Test.__init__(self, apis, self.is12_utils, **kwargs)

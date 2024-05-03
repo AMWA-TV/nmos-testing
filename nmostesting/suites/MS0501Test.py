@@ -19,7 +19,7 @@ from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeType, N
     NcMethodStatus, NcObjectProperties, StandardClassIds
 from ..TestResult import Test
 
-# Note: this test suite is used by the IS12 and IS14 test suites
+# Note: this test suite is a base class for the IS1201Test and IS1401Test test suites
 # where there are common MS-05 tests.  The test suite is not configured and
 # instantiated in the same way as the other test suites.  This is
 # explicitly instantiated by the IS-12 and IS-14 test suites
@@ -29,7 +29,9 @@ MS05_API_KEY = "controlframework"
 
 
 class MS0501Test(GenericTest):
-
+    """
+    Runs Tests covering MS-05
+    """
     def __init__(self, apis, utils, **kwargs):
         # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)

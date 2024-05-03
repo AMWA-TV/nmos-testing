@@ -18,7 +18,9 @@ from .MS0502Test import MS0502Test
 
 
 class IS1202Test(MS0502Test):
-
+    """
+    Runs Invasive Tests covering MS-05 and IS-12
+    """
     def __init__(self, apis, **kwargs):
         self.is12_utils = IS12Utils(apis)
         MS0502Test.__init__(self, apis, self.is12_utils, **kwargs)

@@ -28,9 +28,16 @@ CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
 FEATURE_SETS_KEY = "featuresets"
 
+# Note: this test suite is a base class for the IS1202Test and IS1402Test test suites
+# where there are common MS-05 tests.  The test suite is not configured and
+# instantiated in the same way as the other test suites.  This is
+# explicitly instantiated by the IS-12 and IS-14 test suites
+
 
 class MS0502Test(ControllerTest):
-
+    """
+    Runs Invasive Tests covering MS-05
+    """
     def __init__(self, apis, utils, **kwargs):
         ControllerTest.__init__(self, apis, **kwargs)
         self.ms05_utils = utils
