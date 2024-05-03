@@ -24,14 +24,17 @@ from ..TestResult import Test
 # instantiated in the same way as the other test suites.  This is
 # explicitly instantiated by the IS-12 and IS-14 test suites
 
+NODE_API_KEY = "node"
 MS05_API_KEY = "controlframework"
 
 
 class MS0501Test(GenericTest):
 
-    def __init__(self, apis, **kwargs):
+    def __init__(self, apis, utils, **kwargs):
+        # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
+        apis[NODE_API_KEY].pop("raml", None)
         GenericTest.__init__(self, apis, **kwargs)
-        self.ms05_utils = None
+        self.ms05_utils = utils
 
     def set_up_tests(self):
         super().set_up_tests()

@@ -16,17 +16,13 @@
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
-CONFIGURATION_API_KEY = "configuration"
-
 
 class IS1401Test(MS0501Test):
     """
     Runs IS-04-01-Test
     """
     def __init__(self, apis, **kwargs):
-        MS0501Test.__init__(self, apis, **kwargs)
-        self.set_utils(IS14Utils(apis))
-        self.ms05_utils.load_reference_resources()
+        MS0501Test.__init__(self, apis, IS14Utils(apis), **kwargs)
 
     def set_up_tests(self):
         super().set_up_tests()

@@ -20,10 +20,8 @@ from .MS0502Test import MS0502Test
 class IS1202Test(MS0502Test):
 
     def __init__(self, apis, **kwargs):
-        MS0502Test.__init__(self, apis, **kwargs)
         self.is12_utils = IS12Utils(apis)
-        self.set_utils(self.is12_utils)
-        self.is12_utils.load_reference_resources()
+        MS0502Test.__init__(self, apis, self.is12_utils, **kwargs)
 
     def set_up_tests(self):
         super().set_up_tests()

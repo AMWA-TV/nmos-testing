@@ -21,9 +21,7 @@ class IS1402Test(MS0502Test):
     Runs IS-04-01-Test
     """
     def __init__(self, apis, **kwargs):
-        MS0502Test.__init__(self, apis, **kwargs)
-        self.set_utils(IS14Utils(apis))
-        self.ms05_utils.load_reference_resources()
+        MS0502Test.__init__(self, apis, IS14Utils(apis), **kwargs)
 
     def set_up_tests(self):
         super().set_up_tests()

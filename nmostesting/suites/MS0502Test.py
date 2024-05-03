@@ -31,9 +31,9 @@ FEATURE_SETS_KEY = "featuresets"
 
 class MS0502Test(ControllerTest):
 
-    def __init__(self, apis, **kwargs):
+    def __init__(self, apis, utils, **kwargs):
         ControllerTest.__init__(self, apis, **kwargs)
-        self.ms05_utils = None
+        self.ms05_utils = utils
 
     def set_up_tests(self):
         self.constraint_error = False
@@ -47,10 +47,6 @@ class MS0502Test(ControllerTest):
 
     def tear_down_tests(self):
         pass
-
-    # Used to inject specialized utils after construction
-    def set_utils(self, ms05_utils):
-        self.ms05_utils = ms05_utils
 
     def pre_tests_message(self):
         """

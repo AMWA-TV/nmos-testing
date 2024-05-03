@@ -31,14 +31,10 @@ MS05_API_KEY = "controlframework"
 class IS1201Test(MS0501Test):
 
     def __init__(self, apis, **kwargs):
-        # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
-        apis[NODE_API_KEY].pop("raml", None)
-        MS0501Test.__init__(self, apis, **kwargs)
+        self.is12_utils = IS12Utils(apis)
+        MS0501Test.__init__(self, apis, self.is12_utils, **kwargs)
         self.node_url = apis[NODE_API_KEY]["url"]
         self.ncp_url = apis[CONTROL_API_KEY]["url"]
-        self.is12_utils = IS12Utils(apis)
-        self.set_utils(self.is12_utils)
-        self.is12_utils.load_reference_resources()
 
     def set_up_tests(self):
         super().set_up_tests()

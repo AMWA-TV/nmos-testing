@@ -38,6 +38,7 @@ class MS05Utils(NMOSUtils):
         self.device_model = None
         self.class_manager = None
         self.protocol_api_key = protocol_api_key
+        self.load_reference_resources()
 
     # Overridden functions specialized for IS-12 and IS-14
     def initialize_connection(self, test):
