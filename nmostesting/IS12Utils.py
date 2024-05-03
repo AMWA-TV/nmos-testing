@@ -46,6 +46,9 @@ class IS12Utils(MS05Utils):
         self.spec_path = self.apis[CONTROL_API_KEY]["spec_path"]
         self._load_is12_schemas()
         self.ncp_websocket = None
+
+    def reset(self):
+        super().reset()
         self.command_handle = 0
         self.expect_notifications = False
         self.notifications = []

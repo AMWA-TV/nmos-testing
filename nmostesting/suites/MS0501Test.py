@@ -38,6 +38,7 @@ class MS0501Test(GenericTest):
 
     def set_up_tests(self):
         super().set_up_tests()
+        self.ms05_utils.reset()
         self.datatype_schemas = None
         self.unique_roles_error = False
         self.unique_oids_error = False

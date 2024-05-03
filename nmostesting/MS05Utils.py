@@ -35,10 +35,12 @@ class MS05Utils(NMOSUtils):
         NMOSUtils.__init__(self, apis[NODE_API_KEY]["url"])
         self.apis = apis
         self.ROOT_BLOCK_OID = 1
-        self.device_model = None
-        self.class_manager = None
         self.protocol_api_key = protocol_api_key
         self.load_reference_resources()
+
+    def reset(self):
+        self.device_model = None
+        self.class_manager = None
 
     # Overridden functions specialized for IS-12 and IS-14
     def initialize_connection(self, test):

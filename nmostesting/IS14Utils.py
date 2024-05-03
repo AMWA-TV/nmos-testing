@@ -25,6 +25,9 @@ class IS14Utils(MS05Utils):
         MS05Utils.__init__(self, apis, CONFIGURATION_API_KEY)
         self.configuration_url = apis[CONFIGURATION_API_KEY]["url"]
 
+    def reset(self):
+        super().reset()
+
     def _format_property_id(self, property_id):
         return f"{str(property_id["level"])}p{str(property_id["index"])}"
 

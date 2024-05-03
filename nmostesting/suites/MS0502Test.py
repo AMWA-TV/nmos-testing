@@ -36,6 +36,7 @@ class MS0502Test(ControllerTest):
         self.ms05_utils = utils
 
     def set_up_tests(self):
+        self.ms05_utils.reset()
         self.constraint_error = False
         self.constraint_error_msg = ""
         self.sequences_validated = False
