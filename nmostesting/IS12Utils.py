@@ -241,6 +241,12 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.GENERIC_SET.value,
                                     {'id': property_id, 'value': argument})
 
+    def invoke_method(self, test, method_id, argument, oid, **kwargs):
+        """Invoke method on Node. Raises NMOSTestException on error"""
+        return self.execute_command(test, oid,
+                                    method_id,
+                                    {"argument": argument})
+
     def get_sequence_item(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
@@ -257,13 +263,13 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
                                     {'id': property_id, 'index': index, 'value': value})
 
-    def add_sequence_item(self, test, oid, property_id, value):
+    def add_sequence_item(self, test, property_id, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,
                                     {'id': property_id, 'value': value})
 
-    def remove_sequence_item(self, test, oid, property_id, index):
+    def remove_sequence_item(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,

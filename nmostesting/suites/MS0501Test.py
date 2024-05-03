@@ -374,8 +374,7 @@ class MS0501Test(GenericTest):
         role_cache = []
         manager_cache = []
         for descriptor in block.member_descriptors:
-            role_path = block.role_path.copy()
-            role_path.append(descriptor['role'])
+            role_path = self.ms05_utils.create_role_path(block.role_path, descriptor['role'])
             self.ms05_utils.validate_schema(
                 test,
                 descriptor,
@@ -1293,8 +1292,7 @@ class MS0501Test(GenericTest):
 
             # Get runtime property constraints
             # will set error on device_model_metadata on failure
-            role_path = block.role_path.copy()
-            role_path.append(descriptor['role'])
+            role_path = self.ms05_utils.create_role_path(block.role_path, descriptor['role'])
             object_runtime_constraints = \
                 self.get_property_value(test,
                                         NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,

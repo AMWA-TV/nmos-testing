@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Advanced Media Workflow Association
+# Copyright (C) 2024 Advanced Media Workflow Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,25 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..IS12Utils import IS12Utils
-
+from ..IS14Utils import IS14Utils
 from .MS0502Test import MS0502Test
 
 
-class IS1202Test(MS0502Test):
-
+class IS1402Test(MS0502Test):
+    """
+    Runs IS-04-01-Test
+    """
     def __init__(self, apis, **kwargs):
         MS0502Test.__init__(self, apis, **kwargs)
-        self.is12_utils = IS12Utils(apis)
-        self.set_utils(self.is12_utils)
-        self.is12_utils.load_reference_resources()
+        self.set_utils(IS14Utils(apis))
+        self.ms05_utils.load_reference_resources()
 
     def set_up_tests(self):
         super().set_up_tests()
-        # Don't set up mock resources as not needed
-        pass
 
     def tear_down_tests(self):
         super().tear_down_tests()
-        # Clean up Websocket resources
-        self.is12_utils.close_ncp_websocket()

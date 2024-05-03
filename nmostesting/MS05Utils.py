@@ -55,6 +55,9 @@ class MS05Utils(NMOSUtils):
     def set_property(self, test, property_id, argument, **kwargs):
         pass
 
+    def invoke_method(self, test, method_id, argument, **kwargs):
+        pass
+
     def get_sequence_item(self, test, property_id, index, **kwargs):
         pass
 
@@ -472,6 +475,11 @@ class MS05Utils(NMOSUtils):
         if class_manager.datatype_descriptors[datatype].get("parentType"):
             return self.resolve_datatype(test, class_manager.datatype_descriptors[datatype].get("parentType"))
         return datatype
+
+    def create_role_path(self, base_role_path, role):
+        role_path = base_role_path.copy()
+        role_path.append(role)
+        return role_path
 
 
 class NcMethodStatus(IntEnum):
