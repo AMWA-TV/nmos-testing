@@ -29,10 +29,10 @@ class IS14Utils(MS05Utils):
         super().reset()
 
     def _format_property_id(self, property_id):
-        return f"{str(property_id["level"])}p{str(property_id["index"])}"
+        return f"{str(property_id['level'])}p{str(property_id['index'])}"
 
     def _format_method_id(self, method_id):
-        return f"{str(method_id["level"])}m{str(method_id["index"])}"
+        return f"{str(method_id['level'])}m{str(method_id['index'])}"
 
     def _format_role_path(self, role_path):
         return ".".join(r for r in role_path)
