@@ -75,7 +75,7 @@ class IS14Utils(MS05Utils):
     def set_property(self, test, property_id, argument, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
-        return self._do_request(test, "SET", property_value_endpoint, data={"value": argument})
+        return self._do_request(test, "PUT", property_value_endpoint, data={"value": argument})
 
     def invoke_method(self, test, method_id, argument, role_path, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
