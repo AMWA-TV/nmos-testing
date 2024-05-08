@@ -673,7 +673,7 @@ class MS0501Test(GenericTest):
                     test,
                     expected_descriptor,
                     actual_descriptor,
-                    context=f"Class: {str(class_descriptor["classId"])}: ")
+                    context=f"Class: {str(class_descriptor['classId'])}: ")
 
         return test.PASS()
 
@@ -698,7 +698,7 @@ class MS0501Test(GenericTest):
                     test,
                     expected_descriptor,
                     actual_descriptor,
-                    context=f"Datatype: {datatype_descriptor["name"]}: ")
+                    context=f"Datatype: {datatype_descriptor['name']}: ")
 
         return test.PASS()
 
@@ -1353,7 +1353,7 @@ class MS0501Test(GenericTest):
                                          oid=self.ms05_utils.ROOT_BLOCK_OID, role_path=["root"])
 
             return test.FAIL("Read only properties error expected.",
-                             f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
                              + "/docs/Framework.html#ncmethodresult")
 
         except NMOSTestException as e:
@@ -1373,7 +1373,7 @@ class MS0501Test(GenericTest):
                                     + f", actual: {NcMethodStatus(error_msg['status']).name}"
                                     + f" ({str(error_msg['status'])})",
                                     + "https://specs.amwa.tv/ms-05-02/branches/"
-                                    + f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                                    + f"{self.apis[MS05_API_KEY]['spec_branch']}"
                                     + "/docs/Framework.html#ncmethodresult")
 
             return test.PASS()
@@ -1398,7 +1398,7 @@ class MS0501Test(GenericTest):
                                               role_path=["root"])
 
             return test.FAIL("Sequence out of bounds error expected.",
-                             f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
                              + "/docs/Framework.html#ncmethodresult")
 
         except NMOSTestException as e:
@@ -1418,7 +1418,7 @@ class MS0501Test(GenericTest):
                                     + f", actual: {NcMethodStatus(error_msg['status']).name}"
                                     + f" ({str(error_msg['status'])})",
                                     + "https://specs.amwa.tv/ms-05-02/branches/"
-                                    + f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                                    + f"{self.apis[MS05_API_KEY]['spec_branch']}"
                                     + "/docs/Framework.html#ncmethodresult")
 
             return test.PASS()
