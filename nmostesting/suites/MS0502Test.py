@@ -241,7 +241,8 @@ class MS0502Test(ControllerTest):
         def _do_set_sequence():
             index = self.ms05_utils.get_sequence_length(test,
                                                         constrained_property['property_id'],
-                                                        oid=constrained_property['oid'])
+                                                        oid=constrained_property['oid'],
+                                                        role_path=constrained_property['role_path'])
             self.ms05_utils.set_sequence_item(test,
                                               constrained_property['property_id'],
                                               index - 1,
@@ -447,7 +448,7 @@ class MS0502Test(ControllerTest):
             except NMOSTestException as e:
                 return test.FAIL(constrained_property.get("name")
                                  + ": error setting property: "
-                                 + str(e.args[0].detail),
+                                 + str(e.args[0].detail)
                                  + ": constraint " + str(constraint))
 
             try:
@@ -710,6 +711,7 @@ class MS0502Test(ControllerTest):
                         """.format(method.get("name"), result.status)
             except NMOSTestException as e:
                 # ignore 4xx errors
+                self.ms05_utils.validate_reference_datatype_schema(test, e.args[0].detail, "NcMethodResult")
                 if e.args[0].detail['status'] >= 500:
                     self.invoke_methods_metadata['error'] = True
                     self.invoke_methods_metadata['error_msg'] += """
