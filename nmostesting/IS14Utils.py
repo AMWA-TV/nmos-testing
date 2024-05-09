@@ -86,7 +86,7 @@ class IS14Utils(MS05Utils):
     def invoke_method(self, test, method_id, argument, role_path, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, method_id)
-        return self._do_request(test, "PATCH", methods_endpoint, json={"argument": argument})
+        return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": argument})
 
     def get_sequence_item(self, test, property_id, index, role_path, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
@@ -101,6 +101,24 @@ class IS14Utils(MS05Utils):
         """Get sequence length. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.GET_SEQUENCE_LENGTH.value)
         return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": {"id": property_id}})['value']
+
+    def set_sequence_item(self, test, property_id, index, value, role_path, **kwargs):
+        """Add value to a sequence property. Raises NMOSTestException on error"""
+        methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.SET_SEQUENCE_ITEM.value)
+        return self._do_request(test, "PATCH", methods_endpoint,
+                                json={"arguments": {"id": property_id,  "index": index, "value": value}})
+
+    def add_sequence_item(self, test, property_id, value, role_path, **kwargs):
+        """Add value to a sequence property. Raises NMOSTestException on error"""
+        methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.ADD_SEQUENCE_ITEM.value)
+        return self._do_request(test, "PATCH", methods_endpoint,
+                                json={"arguments": {"id": property_id, "value": value}})
+
+    def remove_sequence_item(self, test, property_id, index, role_path, **kwargs):
+        """Get value from sequence property. Raises NMOSTestException on error"""
+        methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.REMOVE_SEQUENCE_ITEM.value)
+        return self._do_request(test, "PATCH", methods_endpoint,
+                                json={"arguments": {"id": property_id,  "index": index}})
 
     def get_member_descriptors(self, test, recurse, role_path, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
