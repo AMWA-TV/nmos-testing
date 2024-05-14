@@ -97,10 +97,17 @@ class IS11Utils(NMOSUtils, GenericTest):
             toReturn = r.text
         return toReturn
 
-    def get_flows(self, url, sender_id):
+    def get_flow(self, url, sender_id):
         """Get the flow for a given Sender"""
         toReturn = None
         valid, r = TestHelper.do_request("GET", url + "flows/" + sender_id)
+        if valid and r.status_code == 200:
+            toReturn = r.json()
+        return toReturn
+
+    def get_source(self, url, id):
+        toReturn = None
+        valid, r = TestHelper.do_request("GET", url + "sources/" + id)
         if valid and r.status_code == 200:
             toReturn = r.json()
         return toReturn

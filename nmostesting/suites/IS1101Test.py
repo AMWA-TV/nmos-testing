@@ -71,24 +71,11 @@ class IS1101Test(GenericTest):
         self.compat_url = self.apis[COMPAT_API_KEY]["url"]
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.conn_url = self.apis[CONN_API_KEY]["url"]
-        self.connected_outputs = []
-        self.not_edid_connected_outputs = []
-        self.edid_connected_outputs = []
         self.reference_senders = {}
-        self.flow = ""
         self.caps = ""
-        self.flow_format = {}
-        self.flow_format_audio = []
-        self.flow_format_video = []
-        self.flow_width = {}
-        self.flow_height = {}
         self.flow_grain_rate = {}
         self.flow_sample_rate = {}
         self.version = {}
-        self.grain_rate_constraints = {}
-        self.empty_constraints = {}
-        self.sample_rate_constraints = {}
-        self.constraints = {}
         self.some_input = {}
         self.input_senders = []
         self.not_active_connected_inputs = []
@@ -123,6 +110,9 @@ class IS1101Test(GenericTest):
 
         self.senders = self.is11_utils.get_senders()
         self.receivers = self.is11_utils.get_receivers()
+
+        self.video_senders = list(filter(self.has_sender_video_flow, self.senders))
+        self.audio_senders = list(filter(self.has_sender_audio_flow, self.senders))
 
         self.receivers_with_outputs = list(filter(self.receiver_has_i_o, self.receivers))
         self.receivers_without_outputs = list(set(self.receivers) - set(self.receivers_with_outputs))
@@ -542,1379 +532,314 @@ class IS1101Test(GenericTest):
             return {"numerator": 44100}
         return "sample_rate not valid"
 
-    def test_02_00(self, test):
-        "Reset active constraints of all senders"
-
-        if len(self.senders) > 0:
-            for sender_id in self.senders:
-                valid, response = self.do_request(
-                    "DELETE",
-                    self.build_constraints_active_url(sender_id),
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The sender {} constraints cannot be deleted".format(sender_id))
-            return test.PASS()
-        return test.UNCLEAR("There are no IS-11 senders")
-
-    def test_02_01(self, test):
-        "Verify that the device supports the concept of IS-11 Sender"
-        if len(self.senders) == 0:
-            return test.UNCLEAR("There are no IS-11 senders")
-        return test.PASS()
-
     def test_02_01_01(self, test):
-        "Verify that IS-11 Senders exist on the Node API as Senders"
-        if len(self.senders) > 0:
-            for sender_id in self.senders:
-                valid, response = self.do_request("GET", self.node_url + "senders/" + sender_id)
-                if not valid:
-                    return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL(
-                        "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                    )
-                sender_node_id = response.json()["id"]
-                if sender_id != sender_node_id:
-                    return test.FAIL("Senders {} and {} are different".format(sender_id, sender_node_id))
-            return test.PASS()
-        return test.UNCLEAR("There are no IS-11 senders")
+        """Senders shown in Stream Compatibility Management API match those shown in Node API"""
 
-    def test_02_02(self, test):
-        "Verify senders (generic with/without inputs)"
         if len(self.senders) == 0:
-            return test.UNCLEAR("There are no IS-11 senders")
+            return test.UNCLEAR("Not tested. No Senders found via IS-11.")
+
+        is04_senders = self.is04_utils.get_senders()
+
+        if not set(self.senders).issubset(is04_senders):
+            return test.FAIL("Unable to find all Senders from IS-11 in IS-04")
+
         return test.PASS()
 
     def test_02_02_01(self, test):
         """
         Verify that the status is "unconstrained" as per our pre-conditions
         """
-        if len(self.senders) > 0:
-            for sender_id in self.senders:
-                valid, response = self.do_request(
-                    "GET", self.build_sender_status_url(sender_id)
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
-                                     .format(response))
-                if response.status_code != 200:
-                    return test.FAIL(
-                        "The streamcompatibility request for sender {} status has failed: {}"
-                        .format(sender_id, response.json())
-                    )
-                try:
-                    state = response.json()["state"]
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
 
-                if state in ["awaiting_essence", "no_essence"]:
-                    for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                        valid, response = self.do_request(
-                            "GET", self.build_sender_status_url(sender_id)
-                        )
-                        if not valid:
-                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
-                                             .format(response))
-                        if response.status_code != 200:
-                            return test.FAIL(
-                                "The streamcompatibility request for sender {} status has failed: {}"
-                                .format(sender_id, response.json())
-                            )
-                        try:
-                            state = response.json()["state"]
-                        except json.JSONDecodeError:
-                            return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
-                        except KeyError as e:
-                            return test.FAIL("Unable to find expected key: {}".format(e))
+        if len(self.senders) == 0:
+            return test.UNCLEAR("Not tested. No Senders found via IS-11.")
 
-                        if state in ["awaiting_essence", "no_essence"]:
-                            time.sleep(CONFIG.STABLE_STATE_DELAY)
-                        else:
-                            break
-                if state != "unconstrained":
-                    return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                     .format(sender_id, state))
-            return test.PASS()
-        return test.UNCLEAR("There are no IS-11 senders")
+        for sender_id in self.senders:
+            result = self.wait_until_true(
+                partial(self.is_sender_state_equal_to_expected, test, sender_id, "unconstrained")
+            )
+            if not result:
+                return test.FAIL("Expected state of sender {} is \"unconstrained\""
+                                 .format(sender_id))
 
-    def test_02_02_03(self, test):
-        """
-        Verify that the sender is available in the node API,
-        has an associated flow and is inactive
-        """
-        if len(self.senders) > 0:
-            for sender_id in self.senders:
-                valid, response = self.do_request(
-                    "GET", self.node_url + "senders/" + sender_id
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL(
-                        "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                    )
-                sender_node_id = response.json()["id"]
-                if sender_id != sender_node_id:
-                    return test.FAIL("Senders {} and {} are different".format(sender_id, sender_node_id))
-                sender_flow_id = response.json()["flow_id"]
-                if sender_flow_id is None:
-                    return test.FAIL("The sender {} must have a flow".format(sender_id))
-                sender_subscription_active = response.json()["subscription"]["active"]
-                if sender_subscription_active:
-                    return test.FAIL(
-                        "The sender {} must be inactive ".format(sender_id)
-                    )
-                self.flow = self.is11_utils.get_flows(self.node_url, sender_flow_id)
-                flow_format = self.flow["format"]
-                self.flow_format[sender_id] = flow_format
-                if flow_format == "urn:x-nmos:format:video":
-                    self.flow_format_video.append(sender_id)
-                    self.flow_width[sender_id] = self.flow["frame_width"]
-                    self.flow_height[sender_id] = self.flow["frame_height"]
-                    self.flow_grain_rate[sender_id] = self.flow["grain_rate"]
-                if flow_format == "urn:x-nmos:format:audio":
-                    self.flow_format_audio.append(sender_id)
-                    self.flow_sample_rate[sender_id] = self.flow["sample_rate"]
-                if (
-                    flow_format != "urn:x-nmos:format:video"
-                    and flow_format != "urn:x-nmos:format:audio"
-                ):
-                    print("Only audio and video senders are tested at this time")
-            return test.PASS()
-        return test.UNCLEAR("There are no IS-11 senders")
+        return test.PASS()
 
     def test_02_02_03_01(self, test):
-        "Verify that the video sender supports the minimum set of video constraints"
+        "Video senders support the required parameter constraints"
 
-        sample = "^urn:x-nmos:cap:"
-
-        if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format")
-
-        for sender_id in self.flow_format_video:
-            valid, response = self.do_request(
-                "GET",
-                self.compat_url + "senders/" + sender_id + "/constraints/supported/",
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} constraints supported has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            supportedConstraints = response.json()["parameter_constraints"]
-            for item in supportedConstraints:
-                if not re.search(sample, item):
-                    return test.FAIL("Only x-nmos:cap constraints are allowed")
-            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
-                if item not in supportedConstraints:
-                    return test.FAIL(item + " is not in supportedConstraints ")
-        return test.PASS()
+        return self.check_param_constraints(test, self.video_senders, REF_SUPPORTED_CONSTRAINTS_VIDEO)
 
     def test_02_02_03_02(self, test):
-        "Verify that the audio sender supports the minimum set of audio constraints"
+        "Audio senders support the required parameter constraints"
 
-        sample = "^urn:x-nmos:cap:"
-
-        if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format")
-
-        for sender_id in self.flow_format_audio:
-            valid, response = self.do_request(
-                "GET",
-                self.compat_url + "senders/" + sender_id + "/constraints/supported/",
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} constraints supported has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            supportedConstraints = response.json()["parameter_constraints"]
-            for item in supportedConstraints:
-                if not re.search(sample, item):
-                    return test.FAIL("Only x-nmos:cap constraints are allowed")
-            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
-                if item not in supportedConstraints:
-                    return test.FAIL(item + "is not in supportedConstraints")
-        return test.PASS()
+        return self.check_param_constraints(test, self.audio_senders, REF_SUPPORTED_CONSTRAINTS_AUDIO)
 
     def test_02_02_04_01(self, test):
         """
-        Verify that changing the constraints of an
-        IS-11 sender(video) changes the version of
-        the associated IS-04 sender.
+        IS-11 Video senders increment their version
+        after changing Active Constraints
         """
-        if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format")
 
-        for sender_id in self.flow_format_video:
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                )
-            version = response.json()["version"]
-            self.version[sender_id] = version
-            self.grain_rate_constraints[sender_id] = {
-                "constraint_sets": [
-                    {
-                        "urn:x-nmos:cap:format:grain_rate": {
-                            "enum": [self.flow_grain_rate[sender_id]]
-                        }
-                    }
-                ]
-            }
-            self.empty_constraints[sender_id] = {"constraint_sets": []}
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.grain_rate_constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}".format(sender_id, response.json())
-                )
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                )
-            version = response.json()["version"]
-            if version == self.version[sender_id]:
-                return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
-            self.version[sender_id] = version
-            valid, response = self.do_request(
-                "GET", self.build_constraints_active_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "Contraints active request sender {} has failed: {}".format(sender_id, response.json())
-                )
-            constraints = response.json()
-            if not IS04Utils.compare_constraint_sets(
-                constraints["constraint_sets"],
-                self.grain_rate_constraints[sender_id]["constraint_sets"],
-            ):
-                return test.FAIL("The sender {} contraints are different".format(sender_id))
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                   "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                )
-            version = response.json()["version"]
-            if version == self.version[sender_id]:
-                return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
-            self.version[sender_id] = version
-            valid, response = self.do_request(
-                "GET", self.build_constraints_active_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                     "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
-                )
-            constraints = response.json()
-            if constraints != self.empty_constraints[sender_id]:
-                return test.FAIL("Contraints are different")
-        return test.PASS()
+        return self.check_snd_ver_after_active_constraints_put(
+            test, self.video_senders, "grain_rate", "urn:x-nmos:cap:format:grain_rate"
+        )
 
     def test_02_02_04_02(self, test):
         """
         Verify that changing the constraints of an IS-11
         sender(audio) changes the version of the associated IS-04 sender.
         """
-        if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format")
-        for sender_id in self.flow_format_audio:
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                )
-            version = response.json()["version"]
-            self.version[sender_id] = version
-            self.sample_rate_constraints[sender_id] = {
-                "constraint_sets": [
-                    {
-                        "urn:x-nmos:cap:format:sample_rate": {
-                            "enum": [self.flow_sample_rate[sender_id]]
-                        }
-                    }
-                ]
-            }
-            self.empty_constraints[sender_id] = {"constraint_sets": []}
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.sample_rate_constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}".format(sender_id, response.json())
-                )
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                )
-            version = response.json()["version"]
-            if version == self.version[sender_id]:
-                return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
-            self.version[sender_id] = version
 
-            valid, response = self.do_request(
-                "GET", self.build_constraints_active_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
-                )
-            constraints = response.json()
-
-            if not IS04Utils.compare_constraint_sets(
-                constraints["constraint_sets"],
-                self.sample_rate_constraints[sender_id]["constraint_sets"],
-            ):
-                return test.FAIL("The constraint applied does not match the active"
-                                 "constraint retrieved from the sender {}".format(sender_id))
-
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                )
-            version = response.json()["version"]
-            if version == self.version[sender_id]:
-                return test.FAIL("Versions {} and {} are different".format(version, self.version[sender_id]))
-            self.version[sender_id] = version
-
-            valid, response = self.do_request(
-                "GET", self.build_constraints_active_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
-                )
-            constraints = response.json()
-            if constraints != self.empty_constraints[sender_id]:
-                return test.FAIL("Contraints are different")
-        return test.PASS()
+        return self.check_snd_ver_after_active_constraints_put(
+            test, self.audio_senders, "sample_rate", "urn:x-nmos:cap:format:sample_rate"
+        )
 
     def test_02_02_05_01(self, test):
         """
         Verify that setting no-op constraints for frame(width,height),
         grain_rate doesn't change the flow of a sender(video).
         """
-        if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format")
 
-        for sender_id in self.flow_format_video:
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} status has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            state = response.json()["state"]
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "unconstrained":
-                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                 .format(sender_id, state))
-
-            self.constraints[sender_id] = {
-                "constraint_sets": [
-                    {
-                        "urn:x-nmos:cap:format:grain_rate": {
-                            "enum": [self.flow_grain_rate[sender_id]]
-                        }
+        def make_active_constraints(_, flow):
+            return {
+                "constraint_sets": [{
+                    "urn:x-nmos:cap:format:grain_rate": {
+                        "enum": [flow["grain_rate"]]
                     },
-                    {
-                        "urn:x-nmos:cap:format:frame_width": {
-                            "enum": [self.flow_width[sender_id]]
-                        }
+                    "urn:x-nmos:cap:format:frame_width": {
+                        "enum": [flow["frame_width"]]
                     },
-                    {
-                        "urn:x-nmos:cap:format:frame_height": {
-                            "enum": [self.flow_height[sender_id]]
-                        }
-                    },
-                ]
+                    "urn:x-nmos:cap:format:frame_height": {
+                        "enum": [flow["frame_height"]]
+                    }
+                }]
             }
 
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}"
-                    .format(sender_id, response.json())
-                )
+        flow_attrs = ["grain_rate", "frame_width", "frame_height"]
 
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} status has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            state = response.json()["state"]
-
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "constrained":
-                return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\"".format(sender_id, state))
-
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
-                )
-            sender_flow_id = response.json()["flow_id"]
-            if sender_flow_id is None:
-                return test.FAIL("The sender {} must have a flow".format(sender_id))
-            self.flow = self.is11_utils.get_flows(self.node_url, sender_flow_id)
-
-            if (
-                self.flow_grain_rate[sender_id] != self.flow["grain_rate"]
-                or self.flow_width[sender_id] != self.flow["frame_width"]
-                or self.flow_height[sender_id] != self.flow["frame_height"]
-            ):
-                return test.FAIL(
-                    "The constraints on frame_width, frame_height\
-                    and grain_rate were not expected to change the flow of sender(video) {}"
-                    .format(sender_id)
-                )
-
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-
-        return test.PASS()
+        return self.apply_nop_active_constraints(test, self.video_senders, make_active_constraints, [], flow_attrs)
 
     def test_02_02_05_02(self, test):
         """
         Verify that setting no-op constraints for sample_rate doesn't change the flow of a sender(audio).
         """
 
-        if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format")
-
-        for sender_id in self.flow_format_audio:
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} status has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            state = response.json()["state"]
-
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "unconstrained":
-                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                 .format(sender_id, state))
-
-            self.constraints[sender_id] = {
-                "constraint_sets": [
-                    {
-                        "urn:x-nmos:cap:format:sample_rate": {
-                            "enum": [self.flow_sample_rate[sender_id]]
-                        }
+        def make_active_constraints(_, flow):
+            return {
+                "constraint_sets": [{
+                    "urn:x-nmos:cap:format:sample_rate": {
+                        "enum": [flow["sample_rate"]]
                     }
-                ]
+                }]
             }
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}"
-                    .format(sender_id, response.json())
-                )
 
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} status has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            state = response.json()["state"]
+        flow_attrs = ["sample_rate"]
 
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "constrained":
-                return test.FAIL("Expected state of sender {} is \"constrained\", got \"{}\"".format(sender_id, state))
-
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}"
-                    .format(sender_id, response.json())
-                )
-            sender_flow_id = response.json()["flow_id"]
-            if sender_flow_id is None:
-                return test.FAIL("The sender {} must have a flow".format(sender_id))
-            self.flow = self.is11_utils.get_flows(self.node_url, sender_flow_id)
-            flow_sample_rate = self.flow["sample_rate"]
-            if self.flow_sample_rate[sender_id] != flow_sample_rate:
-                return test.FAIL("Different sample rate")
-
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-        return test.PASS()
+        return self.apply_nop_active_constraints(test, self.audio_senders, make_active_constraints, [], flow_attrs)
 
     def test_02_02_06_01(self, test):
         """
         Verify that setting no-op constraints for supported constraints
         doesn't change the flow of a sender(video).
         """
-        if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format")
 
-        for sender_id in self.flow_format_video:
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} status has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            state = response.json()["state"]
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "unconstrained":
-                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                 .format(sender_id, state))
+        def make_active_constraints(_, flow):
+            color_sampling = IS04Utils.make_sampling(flow["components"])
 
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}"
-                    .format(sender_id, response.json())
-                )
-            sender = response.json()
-            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
-            color_sampling = IS04Utils.make_sampling(self.flow["components"])
             if color_sampling is None:
-                return test.FAIL("Invalid array of video components")
-            constraint_set = {}
-
-            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
-                try:
-                    if item == "urn:x-nmos:cap:meta:label":
-                        constraint_set["urn:x-nmos:cap:meta:label"] = "video constraint"
-                    if item == "urn:x-nmos:cap:meta:preference":
-                        constraint_set["urn:x-nmos:cap:meta:preference"] = 0
-                    if item == "urn:x-nmos:cap:meta:enabled":
-                        constraint_set["urn:x-nmos:cap:meta:enabled"] = True
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        constraint_set["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [self.flow["media_type"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:grain_rate":
-                        constraint_set["urn:x-nmos:cap:format:grain_rate"] = {
-                            "enum": [self.flow["grain_rate"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:frame_width":
-                        constraint_set["urn:x-nmos:cap:format:frame_width"] = {
-                            "enum": [self.flow["frame_width"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:frame_height":
-                        constraint_set["urn:x-nmos:cap:format:frame_height"] = {
-                            "enum": [self.flow["frame_height"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:interlace_mode":
-                        constraint_set["urn:x-nmos:cap:format:interlace_mode"] = {
-                            "enum": [self.flow["interlace_mode"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:color_sampling":
-                        constraint_set["urn:x-nmos:cap:format:color_sampling"] = {
-                            "enum": [color_sampling]
-                        }
-                    if item == "urn:x-nmos:cap:format:component_depth":
-                        constraint_set["urn:x-nmos:cap:format:component_depth"] = {
-                            "enum": [self.flow["components"][0]["bit_depth"]]
-                        }
-                except Exception:
-                    pass
-
-            self.constraints[sender_id] = {"constraint_sets": [constraint_set]}
-
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}"
-                    .format(sender_id, response.json())
+                raise NMOSTestException(
+                    test.FAIL("Invalid array of video components")
                 )
-            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
-            new_color_sampling = IS04Utils.make_sampling(new_flow["components"])
-            if new_color_sampling is None:
-                return test.FAIL("Invalid array of video components")
 
-            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
-                try:
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        if self.flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("Different media_type")
-                    if item == "urn:x-nmos:cap:format:grain_rate":
-                        if self.flow["grain_rate"] != new_flow["grain_rate"]:
-                            return test.FAIL("Different grain_rate")
-                    if item == "urn:x-nmos:cap:format:frame_width":
-                        if self.flow["frame_width"] != new_flow["frame_width"]:
-                            return test.FAIL("Different frame_width")
-                    if item == "urn:x-nmos:cap:format:frame_height":
-                        if self.flow["frame_height"] != new_flow["frame_height"]:
-                            return test.FAIL("Different frame_height")
-                    if item == "urn:x-nmos:cap:format:interlace_mode":
-                        if self.flow["interlace_mode"] != new_flow["interlace_mode"]:
-                            return test.FAIL("Different interlace_mode")
-                    if item == "urn:x-nmos:cap:format:color_sampling":
-                        if color_sampling != new_color_sampling:
-                            return test.FAIL("Different color_sampling")
-                    if item == "urn:x-nmos:cap:format:component_depth":
-                        if (
-                            self.flow["components"][0]["bit_depth"]
-                            != new_flow["components"][0]["bit_depth"]
-                        ):
-                            return test.FAIL("Different component_depth")
-                except Exception:
-                    pass
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-        return test.PASS()
+            return {
+                "constraint_sets": [{
+                    "urn:x-nmos:cap:meta:label": "video constraint",
+                    "urn:x-nmos:cap:meta:preference": 0,
+                    "urn:x-nmos:cap:meta:enabled": True,
+                    "urn:x-nmos:cap:format:media_type": {
+                        "enum": [flow["media_type"]]
+                    },
+                    "urn:x-nmos:cap:format:grain_rate": {
+                        "enum": [flow["grain_rate"]]
+                    },
+                    "urn:x-nmos:cap:format:frame_width": {
+                        "enum": [flow["frame_width"]]
+                    },
+                    "urn:x-nmos:cap:format:frame_height": {
+                        "enum": [flow["frame_height"]]
+                    },
+                    "urn:x-nmos:cap:format:interlace_mode": {
+                        "enum": [flow["interlace_mode"]]
+                    },
+                    "urn:x-nmos:cap:format:color_sampling": {
+                        "enum": [color_sampling]
+                    },
+                    "urn:x-nmos:cap:format:component_depth": {
+                        "enum": [flow["components"][0]["bit_depth"]]
+                    }
+                }]
+            }
+
+        flow_attrs = [
+            "media_type", "grain_rate",
+            "frame_width", "frame_height",
+            "interlace_mode", "components"
+        ]
+
+        return self.apply_nop_active_constraints(test, self.video_senders, make_active_constraints, [], flow_attrs)
 
     def test_02_02_06_02(self, test):
         """
         Verify that setting no-op constraints for supported
         constraints doesn't change the flow of a sender(audio).
         """
-        if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format")
-        for sender_id in self.flow_format_audio:
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                test.FAIL("The streamcompatibility request for sender {} status has failed: {}"
-                          .format(sender_id, response.json()))
-            state = response.json()["state"]
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "unconstrained":
-                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                 .format(sender_id, state))
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}"
-                    .format(sender_id, response.json())
-                )
-            sender = response.json()
-            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
-            constraint_set = {}
 
-            valid, response = self.do_request(
-                "GET", self.node_url + "sources/" + self.flow["source_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The source {} is not available in the Node API: {}"
-                    .format(self.flow["source_id"], response.json())
-                )
-            source = response.json()
+        def make_active_constraints(source, flow):
+            return {
+                "constraint_sets": [{
+                    "urn:x-nmos:cap:meta:label": "audio constraint",
+                    "urn:x-nmos:cap:meta:preference": 0,
+                    "urn:x-nmos:cap:meta:enabled": True,
+                    "urn:x-nmos:cap:format:media_type": {
+                        "enum": [flow["media_type"]]
+                    },
+                    "urn:x-nmos:cap:format:sample_rate": {
+                        "enum": [flow["sample_rate"]]
+                    },
+                    "urn:x-nmos:cap:format:channel_count": {
+                        "enum": [len(source["channels"])]
+                    },
+                    "urn:x-nmos:cap:format:sample_depth": {
+                        "enum": [flow["bit_depth"]]
+                    }
+                }]
+            }
 
-            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
-                try:
+        source_attrs = ["channels"]
+        flow_attrs = ["media_type", "sample_rate", "bit_depth"]
 
-                    if item == "urn:x-nmos:cap:meta:label":
-                        constraint_set["urn:x-nmos:cap:meta:label"] = "audio constraint"
-                    if item == "urn:x-nmos:cap:meta:preference":
-                        constraint_set["urn:x-nmos:cap:meta:preference"] = 0
-                    if item == "urn:x-nmos:cap:meta:enabled":
-                        constraint_set["urn:x-nmos:cap:meta:enabled"] = True
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        constraint_set["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [self.flow["media_type"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:sample_rate":
-                        constraint_set["urn:x-nmos:cap:format:sample_rate"] = {
-                            "enum": [self.flow["sample_rate"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:channel_count":
-                        constraint_set["urn:x-nmos:cap:format:channel_count"] = {
-                            "enum": [len(source["channels"])]
-                        }
-                    if item == "urn:x-nmos:cap:format:sample_depth":
-                        constraint_set["urn:x-nmos:cap:format:sample_depth"] = {
-                            "enum": [self.flow["bit_depth"]]
-                        }
-                except Exception:
-                    pass
-            self.constraints[sender_id] = {"constraint_sets": [constraint_set]}
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
-
-            valid, response = self.do_request(
-                "GET", self.node_url + "sources/" + self.flow["source_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The source {} is not available in the Node API: {}"
-                    .format(self.flow["source_id"], response.json())
-                )
-            new_source = response.json()
-
-            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
-                try:
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        if self.flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("Different media_type")
-                    if item == "urn:x-nmos:cap:format:sample_rate":
-                        if self.flow["sample_rate"] != new_flow["sample_rate"]:
-                            return test.FAIL("Different sample_rate")
-                    if item == "urn:x-nmos:cap:format:channel_count":
-                        if len(source["channels"]) != len(new_source["channels"]):
-                            return test.FAIL("Different channel_count")
-                    if item == "urn:x-nmos:cap:format:sample_depth":
-                        if self.flow["bit_depth"] != new_flow["bit_depth"]:
-                            return test.FAIL("Different sample_depth")
-                except Exception:
-                    pass
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-        return test.PASS()
+        return self.apply_nop_active_constraints(
+            test, self.audio_senders, make_active_constraints, source_attrs, flow_attrs
+        )
 
     def test_02_02_07_01(self, test):
         "Verify that the device adhere to the preference of the constraint_set."
-        if len(self.flow_format_video) == 0:
-            return test.UNCLEAR("There is no video format")
 
-        for sender_id in self.flow_format_video:
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The streamcompatibility request for sender {} status has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            state = response.json()["state"]
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
+        def make_active_constraints(_, flow):
+            color_sampling = IS04Utils.make_sampling(flow["components"])
 
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "unconstrained":
-                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                 .format(sender_id, state))
-
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}"
-                    .format(sender_id, response.json())
-                )
-            sender = response.json()
-            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
-            color_sampling = IS04Utils.make_sampling(self.flow["components"])
             if color_sampling is None:
-                return test.FAIL("Invalid array of video components")
-            constraint_set0 = {}
-            constraint_set1 = {}
+                raise NMOSTestException(
+                    test.FAIL("Invalid array of video components")
+                )
 
-            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
-                try:
-
-                    if item == "urn:x-nmos:cap:meta:label":
-                        constraint_set0[
-                            "urn:x-nmos:cap:meta:label"
-                        ] = "video constraint"
-                    if item == "urn:x-nmos:cap:meta:preference":
-                        constraint_set0["urn:x-nmos:cap:meta:preference"] = 0
-                    if item == "urn:x-nmos:cap:meta:enabled":
-                        constraint_set0["urn:x-nmos:cap:meta:enabled"] = True
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        constraint_set0["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [self.flow["media_type"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:grain_rate":
-                        constraint_set0["urn:x-nmos:cap:format:grain_rate"] = {
-                            "enum": [self.flow["grain_rate"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:frame_width":
-                        constraint_set0["urn:x-nmos:cap:format:frame_width"] = {
-                            "enum": [self.flow["frame_width"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:frame_height":
-                        constraint_set0["urn:x-nmos:cap:format:frame_height"] = {
-                            "enum": [self.flow["frame_height"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:interlace_mode":
-                        constraint_set0["urn:x-nmos:cap:format:interlace_mode"] = {
-                            "enum": [self.flow["interlace_mode"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:color_sampling":
-                        constraint_set0["urn:x-nmos:cap:format:color_sampling"] = {
-                            "enum": [color_sampling]
-                        }
-                    if item == "urn:x-nmos:cap:format:component_depth":
-                        constraint_set0["urn:x-nmos:cap:format:component_depth"] = {
-                            "enum": [self.flow["components"][0]["bit_depth"]]
-                        }
-                except Exception:
-                    pass
-
-            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
-                try:
-                    if item == "urn:x-nmos:cap:meta:label":
-                        constraint_set1[
-                            "urn:x-nmos:cap:meta:label"
-                        ] = "video constraint"
-                    if item == "urn:x-nmos:cap:meta:preference":
-                        constraint_set1["urn:x-nmos:cap:meta:preference"] = -100
-                    if item == "urn:x-nmos:cap:meta:enabled":
-                        constraint_set1["urn:x-nmos:cap:meta:enabled"] = True
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        constraint_set1["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [self.flow["media_type"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:grain_rate":
-                        constraint_set1["urn:x-nmos:cap:format:grain_rate"] = {
-                            "enum": [self.get_another_grain_rate(self.flow["grain_rate"])]
-                        }
-                    if item == "urn:x-nmos:cap:format:frame_width":
-                        constraint_set1["urn:x-nmos:cap:format:frame_width"] = {
-                            "enum": [self.flow["frame_width"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:frame_height":
-                        constraint_set1["urn:x-nmos:cap:format:frame_height"] = {
-                            "enum": [self.flow["frame_height"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:interlace_mode":
-                        constraint_set1["urn:x-nmos:cap:format:interlace_mode"] = {
-                            "enum": [self.flow["interlace_mode"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:color_sampling":
-                        constraint_set1["urn:x-nmos:cap:format:color_sampling"] = {
-                            "enum": [color_sampling]
-                        }
-                    if item == "urn:x-nmos:cap:format:component_depth":
-                        constraint_set1["urn:x-nmos:cap:format:component_depth"] = {
-                            "enum": [self.flow["components"][0]["bit_depth"]]
-                        }
-                except Exception:
-                    pass
-
-            self.constraints[sender_id] = {
-                "constraint_sets": [constraint_set0, constraint_set0]
+            return {
+                "constraint_sets": [{
+                    "urn:x-nmos:cap:meta:label": "video constraint",
+                    "urn:x-nmos:cap:meta:preference": 0,
+                    "urn:x-nmos:cap:meta:enabled": True,
+                    "urn:x-nmos:cap:format:media_type": {
+                        "enum": [flow["media_type"]]
+                    },
+                    "urn:x-nmos:cap:format:grain_rate": {
+                        "enum": [flow["grain_rate"]]
+                    },
+                    "urn:x-nmos:cap:format:frame_width": {
+                        "enum": [flow["frame_width"]]
+                    },
+                    "urn:x-nmos:cap:format:frame_height": {
+                        "enum": [flow["frame_height"]]
+                    },
+                    "urn:x-nmos:cap:format:interlace_mode": {
+                        "enum": [flow["interlace_mode"]]
+                    },
+                    "urn:x-nmos:cap:format:color_sampling": {
+                        "enum": [color_sampling]
+                    },
+                    "urn:x-nmos:cap:format:component_depth": {
+                        "enum": [flow["components"][0]["bit_depth"]]
+                    }
+                }, {
+                    "urn:x-nmos:cap:meta:label": "video constraint",
+                    "urn:x-nmos:cap:meta:preference": -100,
+                    "urn:x-nmos:cap:meta:enabled": True,
+                    "urn:x-nmos:cap:format:media_type": {
+                        "enum": [flow["media_type"]]
+                    },
+                    "urn:x-nmos:cap:format:grain_rate": {
+                        "enum": [self.get_another_grain_rate(flow["grain_rate"])]
+                    },
+                    "urn:x-nmos:cap:format:frame_width": {
+                        "enum": [flow["frame_width"]]
+                    },
+                    "urn:x-nmos:cap:format:frame_height": {
+                        "enum": [flow["frame_height"]]
+                    },
+                    "urn:x-nmos:cap:format:interlace_mode": {
+                        "enum": [flow["interlace_mode"]]
+                    },
+                    "urn:x-nmos:cap:format:color_sampling": {
+                        "enum": [color_sampling]
+                    },
+                    "urn:x-nmos:cap:format:component_depth": {
+                        "enum": [flow["components"][0]["bit_depth"]]
+                    }
+                }]
             }
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}"
-                    .format(sender_id, response.json())
-                )
 
-            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
+        flow_attrs = [
+            "media_type", "grain_rate",
+            "frame_width", "frame_height",
+            "interlace_mode", "components"
+        ]
 
-            new_color_sampling = IS04Utils.make_sampling(new_flow["components"])
-            if new_color_sampling is None:
-                return test.FAIL("invalid array of video components")
-
-            for item in REF_SUPPORTED_CONSTRAINTS_VIDEO:
-                try:
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        if self.flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("Different media_type")
-                    if item == "urn:x-nmos:cap:format:grain_rate":
-                        if self.flow["grain_rate"] != new_flow["grain_rate"]:
-                            return test.FAIL("Different grain_rate")
-                    if item == "urn:x-nmos:cap:format:frame_width":
-                        if self.flow["frame_width"] != new_flow["frame_width"]:
-                            return test.FAIL("Different frame_width")
-                    if item == "urn:x-nmos:cap:format:frame_height":
-                        if self.flow["frame_height"] != new_flow["frame_height"]:
-                            return test.FAIL("Different frame_height")
-                    if item == "urn:x-nmos:cap:format:interlace_mode":
-                        if self.flow["interlace_mode"] != new_flow["interlace_mode"]:
-                            return test.FAIL("Different interlace_mode")
-                    if item == "urn:x-nmos:cap:format:color_sampling":
-                        if color_sampling != new_color_sampling:
-                            return test.FAIL("Different color_sampling")
-                    if item == "urn:x-nmos:cap:format:component_depth":
-                        if (
-                            self.flow["components"][0]["bit_depth"]
-                            != new_flow["components"][0]["bit_depth"]
-                        ):
-                            return test.FAIL("Different component_depth")
-                except Exception:
-                    pass
-
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-        return test.PASS()
+        return self.apply_nop_active_constraints(test, self.video_senders, make_active_constraints, [], flow_attrs)
 
     def test_02_02_07_02(self, test):
         "Verify that the device adhere to the preference of the constraint_set."
-        if len(self.flow_format_audio) == 0:
-            return test.UNCLEAR("There is no audio format")
 
-        for sender_id in self.flow_format_audio:
-            valid, response = self.do_request(
-                "GET", self.build_sender_status_url(sender_id)
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The streamcompatibility request for sender {} status has failed: {}"
-                                 .format(sender_id, response.json()))
-            state = response.json()["state"]
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                            "The streamcompatibility request for sender {} status has failed: {}"
-                            .format(sender_id, response.json())
-                        )
-                    state = response.json()["state"]
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "unconstrained":
-                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                 .format(sender_id, state))
-
-            valid, response = self.do_request(
-                "GET", self.node_url + "senders/" + sender_id
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API response: {}"
-                    .format(sender_id, response.json())
-                )
-            sender = response.json()
-            self.flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
-            valid, response = self.do_request(
-                "GET", self.node_url + "sources/" + self.flow["source_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The source {} is not available in the Node API: {}"
-                    .format(self.flow["source_id"], response.json())
-                )
-            source = response.json()
-
-            constraint_set0 = {}
-            constraint_set1 = {}
-
-            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
-                try:
-                    if item == "urn:x-nmos:cap:meta:label":
-                        constraint_set0[
-                            "urn:x-nmos:cap:meta:label"
-                        ] = "audio constraint"
-                    if item == "urn:x-nmos:cap:meta:preference":
-                        constraint_set0["urn:x-nmos:cap:meta:preference"] = 0
-                    if item == "urn:x-nmos:cap:meta:enabled":
-                        constraint_set0["urn:x-nmos:cap:meta:enabled"] = True
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        constraint_set0["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [self.flow["media_type"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:sample_rate":
-                        constraint_set0["urn:x-nmos:cap:format:sample_rate"] = {
-                            "enum": [self.flow["sample_rate"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:channel_count":
-                        constraint_set0["urn:x-nmos:cap:format:channel_count"] = {
-                            "enum": [len(source["channels"])]
-                        }
-                    if item == "urn:x-nmos:cap:format:sample_depth":
-                        constraint_set0["urn:x-nmos:cap:format:sample_depth"] = {
-                            "enum": [self.flow["bit_depth"]]
-                        }
-                except Exception:
-                    pass
-
-            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
-                try:
-                    if item == "urn:x-nmos:cap:meta:label":
-                        constraint_set1[
-                            "urn:x-nmos:cap:meta:label"
-                        ] = "video constraint"
-                    if item == "urn:x-nmos:cap:meta:preference":
-                        constraint_set1["urn:x-nmos:cap:meta:preference"] = -100
-                    if item == "urn:x-nmos:cap:meta:enabled":
-                        constraint_set1["urn:x-nmos:cap:meta:enabled"] = True
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        constraint_set1["urn:x-nmos:cap:format:media_type"] = {
-                            "enum": [self.flow["media_type"]]
-                        }
-                    if item == "urn:x-nmos:cap:format:sample_rate":
-                        constraint_set1["urn:x-nmos:cap:format:sample_rate"] = {
-                            "enum": [self.get_another_sample_rate(self.flow["sample_rate"])]
-                        }
-                    if item == "urn:x-nmos:cap:format:channel_count":
-                        constraint_set1["urn:x-nmos:cap:format:channel_count"] = {
-                            "enum": [len(source["channels"])]
-                        }
-                    if item == "urn:x-nmos:cap:format:sample_depth":
-                        constraint_set1["urn:x-nmos:cap:format:sample_depth"] = {
-                            "enum": [self.flow["bit_depth"]]
-                        }
-                except Exception:
-                    pass
-
-            self.constraints[sender_id] = {
-                "constraint_sets": [constraint_set0, constraint_set1]
+        def make_active_constraints(source, flow):
+            return {
+                "constraint_sets": [{
+                    "urn:x-nmos:cap:meta:label": "audio constraint",
+                    "urn:x-nmos:cap:meta:preference": 0,
+                    "urn:x-nmos:cap:meta:enabled": True,
+                    "urn:x-nmos:cap:format:media_type": {
+                        "enum": [flow["media_type"]]
+                    },
+                    "urn:x-nmos:cap:format:sample_rate": {
+                        "enum": [flow["sample_rate"]]
+                    },
+                    "urn:x-nmos:cap:format:channel_count": {
+                        "enum": [len(source["channels"])]
+                    },
+                    "urn:x-nmos:cap:format:sample_depth": {
+                        "enum": [flow["bit_depth"]]
+                    }
+                }, {
+                    "urn:x-nmos:cap:meta:label": "audio constraint",
+                    "urn:x-nmos:cap:meta:preference": -100,
+                    "urn:x-nmos:cap:meta:enabled": True,
+                    "urn:x-nmos:cap:format:media_type": {
+                        "enum": [flow["media_type"]]
+                    },
+                    "urn:x-nmos:cap:format:sample_rate": {
+                        "enum": [self.get_another_sample_rate(flow["sample_rate"])]
+                    },
+                    "urn:x-nmos:cap:format:channel_count": {
+                        "enum": [len(source["channels"])]
+                    },
+                    "urn:x-nmos:cap:format:sample_depth": {
+                        "enum": [flow["bit_depth"]]
+                    }
+                }]
             }
 
-            valid, response = self.do_request(
-                "PUT",
-                self.build_constraints_active_url(sender_id),
-                json=self.constraints[sender_id],
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints change has failed: {}"
-                    .format(sender_id, response.json())
-                )
-            new_flow = self.is11_utils.get_flows(self.node_url, sender["flow_id"])
+        source_attrs = ["channels"]
+        flow_attrs = ["media_type", "sample_rate", "bit_depth"]
 
-            valid, response = self.do_request(
-                "GET", self.node_url + "sources/" + self.flow["source_id"]
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the Node API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The source {} is not available in the Node API: {}"
-                    .format(self.flow["source_id"], response.json())
-                )
-            new_source = response.json()
-
-            for item in REF_SUPPORTED_CONSTRAINTS_AUDIO:
-                try:
-                    if item == "urn:x-nmos:cap:format:media_type":
-                        if self.flow["media_type"] != new_flow["media_type"]:
-                            return test.FAIL("Different media_type")
-                    if item == "urn:x-nmos:cap:format:sample_rate":
-                        if self.flow["sample_rate"] != new_flow["sample_rate"]:
-                            return test.FAIL("Different sample_rate")
-                    if item == "urn:x-nmos:cap:format:channel_count":
-                        if len(source["channels"]) != len(new_source["channels"]):
-                            return test.FAIL("Different channel_count")
-                    if item == "urn:x-nmos:cap:format:sample_depth":
-                        if self.flow["bit_depth"] != new_flow["bit_depth"]:
-                            return test.FAIL("Different sample_depth")
-                except Exception:
-                    pass
-            valid, response = self.do_request(
-                "DELETE",
-                self.build_constraints_active_url(sender_id),
-            )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} constraints cannot be deleted".format(sender_id)
-                )
-        return test.PASS()
+        return self.apply_nop_active_constraints(
+            test, self.audio_senders, make_active_constraints, source_attrs, flow_attrs
+        )
 
     def test_02_03_00(self, test):
         """
@@ -2192,10 +1117,10 @@ class IS1101Test(GenericTest):
         Verify for inputs supporting EDID that the version and
         the effective EDID change when applying constraints (video)
         """
-        if len(self.flow_format_video) == 0:
+        if len(self.video_senders) == 0:
             return test.UNCLEAR("There is no video format")
 
-        for sender_id in self.flow_format_video:
+        for sender_id in self.video_senders:
             valid, response = self.do_request(
                 "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
             )
@@ -2543,10 +1468,10 @@ class IS1101Test(GenericTest):
         Verify for inputs supporting EDID that the version and
         the effective EDID change when applying constraints (audio)
         """
-        if len(self.flow_format_audio) == 0:
+        if len(self.audio_senders) == 0:
             return test.UNCLEAR("There is no audio format")
 
-        for sender_id in self.flow_format_audio:
+        for sender_id in self.audio_senders:
             valid, response = self.do_request(
                 "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
             )
@@ -3748,6 +2673,7 @@ class IS1101Test(GenericTest):
             if response.status_code != 204:
                 raise NMOSInitException("The request {} has failed: {}".format(url, response))
 
+    # Returns Input's Senders
     def get_inputs_senders(self, test, input_id):
         sender_ids = []
 
@@ -3771,6 +2697,45 @@ class IS1101Test(GenericTest):
                 )
 
         return sender_ids
+
+    # Returns Sender's Flow
+    def get_senders_flow(self, test, sender_id):
+        valid, response = self.do_request(
+            "GET", self.node_url + "senders/" + sender_id
+        )
+        if not valid:
+            raise NMOSTestException(
+                test.FAIL("Unexpected response from the Node API: {}".format(response))
+            )
+        if response.status_code != 200:
+            raise NMOSTestException(
+                test.FAIL("The sender {} is not available in the Node API response: {}"
+                          .format(sender_id, response.json()))
+            )
+        flow_id = response.json()["flow_id"]
+        if flow_id is None:
+            raise NMOSTestException(
+                test.FAIL("The sender {} must have a flow".format(sender_id))
+            )
+
+        return self.is11_utils.get_flow(self.node_url, flow_id)
+
+    # Returns Flow's Source
+    def get_flows_source(self, test, flow_id):
+        valid, response = self.do_request(
+            "GET", self.node_url + "flows/" + flow_id
+        )
+        if not valid:
+            raise NMOSTestException(
+                test.FAIL("Unexpected response from the Node API: {}".format(response))
+            )
+        if response.status_code != 200:
+            raise NMOSTestException(
+                test.FAIL("The Flow {} is not available in the Node API response: {}".format(flow_id, response.json()))
+            )
+        source_id = response.json()["source_id"]
+
+        return self.is11_utils.get_source(self.node_url, source_id)
 
     def get_json(self, test, url):
         valid, response = self.do_request("GET", url)
@@ -3817,3 +2782,265 @@ class IS1101Test(GenericTest):
                 return True
             time.sleep(CONFIG.STABLE_STATE_DELAY)
         return False
+
+    def has_sender_flow_format(self, sender_id, format):
+        assert format in ["video", "audio"]
+        format = "urn:x-nmos:format:" + format
+
+        url = self.node_url + "senders/" + sender_id
+        valid, response = self.do_request("GET", url)
+
+        if not valid:
+            raise NMOSInitException(
+                "Unexpected response from the Node API: {}".format(response)
+            )
+        if response.status_code != 200:
+            raise NMOSInitException("The request {} has failed: {}".format(url, response))
+
+        try:
+            flow_id = response.json()["flow_id"]
+            if flow_id is None:
+                return False
+
+            flow = self.is11_utils.get_flow(self.node_url, flow_id)
+            if flow["format"] == format:
+                return True
+
+            return False
+        except json.JSONDecodeError:
+            raise NMOSInitException(
+                "Non-JSON response returned from the Node API"
+            )
+
+    def has_sender_video_flow(self, id):
+        return self.has_sender_flow_format(id, "video")
+
+    def has_sender_audio_flow(self, id):
+        return self.has_sender_flow_format(id, "audio")
+
+    def check_param_constraints(self, test, senders, param_constraints):
+        sample = "^urn:x-nmos:cap:"
+
+        if len(senders) == 0:
+            return test.UNCLEAR("Not tested. No appropriate Senders found via IS-11.")
+
+        for sender_id in senders:
+            valid, response = self.do_request(
+                "GET",
+                self.compat_url + "senders/" + sender_id + "/constraints/supported/",
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
+                                 .format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The streamcompatibility request for sender {} constraints supported has failed: {}"
+                    .format(sender_id, response.json())
+                )
+            supportedConstraints = response.json()["parameter_constraints"]
+            for item in supportedConstraints:
+                if not re.search(sample, item):
+                    return test.FAIL("Only x-nmos:cap constraints are allowed")
+            for item in param_constraints:
+                if item not in supportedConstraints:
+                    return test.FAIL(item + " is not in supportedConstraints ")
+        return test.PASS()
+
+    def check_snd_ver_after_active_constraints_put(self, test, senders, flow_key, active_constraints_key):
+        empty_constraints = {"constraint_sets": []}
+
+        if len(senders) == 0:
+            return test.UNCLEAR("Not tested. No appropriate Senders found via IS-11.")
+
+        for sender_id in senders:
+            snd_version_1 = ""
+            snd_version_2 = ""
+            snd_version_3 = ""
+
+            valid, response = self.do_request(
+                "GET", self.node_url + "senders/" + sender_id
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
+                )
+            snd_version_1 = response.json()["version"]
+
+            flow = self.get_senders_flow(test, sender_id)
+
+            active_constraints_request = {
+                "constraint_sets": [
+                    {
+                        active_constraints_key: {
+                            "enum": [flow[flow_key]]
+                        }
+                    }
+                ]
+            }
+
+            valid, response = self.do_request(
+                "PUT",
+                self.build_constraints_active_url(sender_id),
+                json=active_constraints_request
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} constraints change has failed: {}".format(sender_id, response.json())
+                )
+
+            valid, response = self.do_request(
+                "GET", self.node_url + "senders/" + sender_id
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
+                )
+            snd_version_2 = response.json()["version"]
+            if snd_version_2 == snd_version_1:
+                return test.FAIL("Versions {} and {} are the same".format(snd_version_2, snd_version_1))
+
+            valid, response = self.do_request(
+                "GET", self.build_constraints_active_url(sender_id)
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
+                )
+            constraints = response.json()
+
+            if not IS04Utils.compare_constraint_sets(
+                constraints["constraint_sets"],
+                active_constraints_request["constraint_sets"],
+            ):
+                return test.FAIL("The constraint applied does not match the active"
+                                 "constraint retrieved from the sender {}".format(sender_id))
+
+            valid, response = self.do_request(
+                "DELETE",
+                self.build_constraints_active_url(sender_id),
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} constraints cannot be deleted".format(sender_id)
+                )
+
+            valid, response = self.do_request(
+                "GET", self.node_url + "senders/" + sender_id
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the Node API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} is not available in the Node API response: {}".format(sender_id, response.json())
+                )
+            snd_version_3 = response.json()["version"]
+            if snd_version_3 == snd_version_2:
+                return test.FAIL("Versions {} and {} are the same".format(snd_version_3, snd_version_2))
+
+            valid, response = self.do_request(
+                "GET", self.build_constraints_active_url(sender_id)
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "Contraints active request for sender {} has failed: {}".format(sender_id, response.json())
+                )
+            constraints = response.json()
+            if constraints != empty_constraints:
+                return test.FAIL("Contraints are different")
+        return test.PASS()
+
+    def is_sender_state_equal_to_expected(self, test, sender_id, expected):
+        valid, response = self.do_request(
+            "GET", self.build_sender_status_url(sender_id)
+        )
+        if not valid:
+            return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+        if response.status_code != 200:
+            return test.FAIL(
+                "The streamcompatibility request for sender {} status has failed: {}"
+                .format(sender_id, response.json())
+            )
+        return response.json()["state"] == expected
+
+    def apply_nop_active_constraints(self, test, senders, make_active_constraints, source_attrs, flow_attrs):
+        if len(senders) == 0:
+            return test.UNCLEAR("Not tested. No appropriate Senders found via IS-11.")
+
+        for sender_id in senders:
+            # Verify that the state of the Sender is "unconstrained"
+            # after "set_up_tests" call
+
+            result = self.wait_until_true(
+                partial(self.is_sender_state_equal_to_expected, test, sender_id, "unconstrained")
+            )
+            if not result:
+                return test.FAIL("Expected state of sender {} is \"unconstrained\""
+                                 .format(sender_id))
+
+            flow = self.get_senders_flow(test, sender_id)
+            source = self.get_flows_source(test, flow["id"])
+            active_constraints_request = make_active_constraints(source, flow)
+
+            valid, response = self.do_request(
+                "PUT",
+                self.build_constraints_active_url(sender_id),
+                json=active_constraints_request
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} constraints change has failed: {}"
+                    .format(sender_id, response.json())
+                )
+
+            # Verify that the state of the Sender is "constrained"
+
+            result = self.wait_until_true(
+                partial(self.is_sender_state_equal_to_expected, test, sender_id, "constrained")
+            )
+            if not result:
+                return test.FAIL("Expected state of sender {} is \"constrained\""
+                                 .format(sender_id))
+
+            new_flow = self.get_senders_flow(test, sender_id)
+            new_source = self.get_flows_source(test, new_flow["id"])
+
+            for flow_attr in flow_attrs:
+                if (new_flow[flow_attr] != flow[flow_attr]):
+                    return test.FAIL(
+                        "The constraints were not expected to change the flow of sender {}"
+                        .format(sender_id)
+                    )
+
+            for source_attr in source_attrs:
+                if (new_source[source_attr] != source[source_attr]):
+                    return test.FAIL(
+                        "The constraints were not expected to change the Source of sender {}"
+                        .format(sender_id)
+                    )
+
+            valid, response = self.do_request(
+                "DELETE",
+                self.build_constraints_active_url(sender_id),
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL(
+                    "The sender {} constraints cannot be deleted".format(sender_id)
+                )
+
+        return test.PASS()
