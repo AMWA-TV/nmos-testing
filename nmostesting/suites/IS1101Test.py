@@ -110,6 +110,8 @@ class IS1101Test(GenericTest):
         self.video_senders = list(filter(self.has_sender_video_flow, self.senders))
         self.audio_senders = list(filter(self.has_sender_audio_flow, self.senders))
 
+        self.senders_with_inputs = list(filter(self.sender_has_i_o, self.senders))
+
         self.receivers_with_outputs = list(filter(self.receiver_has_i_o, self.receivers))
         self.receivers_without_outputs = list(set(self.receivers) - set(self.receivers_with_outputs))
 
@@ -837,276 +839,36 @@ class IS1101Test(GenericTest):
             test, self.audio_senders, make_active_constraints, source_attrs, flow_attrs
         )
 
-    def test_02_03_00(self, test):
-        """
-        Verify senders supporting inputs
-        """
-        for input in self.senders:
-            valid, response = self.do_request(
-                        "GET", self.compat_url + "senders/" + input + "/inputs/"
-                    )
-            if not valid:
-                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-            if response.status_code != 200:
-                return test.FAIL("The sender's inputs {} streamcompatibility request has failed: {}"
-                                 .format(input, response))
-            try:
-                if len(response.json()) != 0:
-                    self.input_senders.append(input)
-            except json.JSONDecodeError:
-                return test.FAIL("Non-JSON response returned from Node API")
-            except KeyError as e:
-                return test.FAIL("Unable to find expected key: {}".format(e))
-        if len(self.input_senders) == 0:
-            return test.UNCLEAR("No senders supporting inputs")
-        return test.PASS()
-
     def test_02_03_01(self, test):
         """
         Verify that the input is valid
         """
-        if len(self.input_senders) != 0:
-            for sender_id in self.input_senders:
-                valid, response = self.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The sender {} inputs streamcompatibility request has failed: {}"
-                                     .format(sender_id, response))
-                try:
-                    inputs = response.json()
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                if len(inputs) == 0:
-                    return test.UNCLEAR("No inputs")
-                for input_id in inputs:
-                    if input_id not in self.inputs:
-                        return test.FAIL("The input does not exist")
-                self.some_input[sender_id] = input_id
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
 
-    def _test_02_03_02(self, test):
-        """
-        Verify that the input passed its test suite
-        """
-        if len(self.input_senders) != 0:
-            for sender_id in self.input_senders:
-                valid, response = self.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The sender {} inputs streamcompatibility request has failed: {}"
-                                     .format(sender_id, response))
-                try:
-                    inputs = response.json()
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                if len(inputs) == 0:
-                    return test.UNCLEAR("No inputs")
-                for input_id in inputs:
-                    if (
-                        input_id not in self.edid_connected_inputs
-                        and input_id not in self.not_edid_connected_inputs
-                    ):
-                        print("Input does not exist.")
-                        break
-                    if input_id in self.edid_connected_inputs and not self.test_01_04_00(
-                        test
-                    ):
-                        return test.FAIL("Input supporting EDID failed test suite")
-                    if (
-                        input_id in self.not_edid_connected_inputs
-                        and not self.test_01_05_00(test)
-                    ):
-                        return test.FAIL("Input not supporting EDID failed test suite")
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test")
+        if len(self.senders_with_inputs) == 0:
+            return test.UNCLEAR("Not tested. No Senders with routed Inputs found via IS-11.")
 
-    def test_02_03_03(self, test):
-        """
-        Verify that the status is "unconstrained" as per our pre-conditions
-        """
+        for sender_id in self.senders_with_inputs:
+            valid, response = self.do_request(
+                "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
+            )
+            if not valid:
+                return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
+            if response.status_code != 200:
+                return test.FAIL("The sender {} inputs streamcompatibility request has failed: {}"
+                                 .format(sender_id, response))
+            try:
+                inputs = response.json()
+            except json.JSONDecodeError:
+                return test.FAIL("Non-JSON response returned from Node API")
+            except KeyError as e:
+                return test.FAIL("Unable to find expected key: {}".format(e))
+            if len(inputs) == 0:
+                return test.UNCLEAR("No inputs")
+            for input_id in inputs:
+                if input_id not in self.inputs:
+                    return test.FAIL("The input does not exist")
 
-        if len(self.input_senders) > 0:
-            for sender_id in self.input_senders:
-                valid, response = self.do_request(
-                    "GET", self.build_sender_status_url(sender_id)
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
-                                     .format(response))
-                if response.status_code != 200:
-                    return test.FAIL(
-                        "The streamcompatibility request for sender {} status has failed: {}"
-                        .format(sender_id, response.json())
-                    )
-                try:
-                    state = response.json()["state"]
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-
-                if state in ["awaiting_essence", "no_essence"]:
-                    for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                        valid, response = self.do_request(
-                            "GET", self.build_sender_status_url(sender_id)
-                        )
-                        if not valid:
-                            return test.FAIL("Unexpected response from the streamcompatibility API: {}"
-                                             .format(response))
-                        if response.status_code != 200:
-                            return test.FAIL(
-                                "The streamcompatibility request for sender {} status has failed: {}"
-                                .format(sender_id, response.json())
-                            )
-                        try:
-                            state = response.json()["state"]
-                        except json.JSONDecodeError:
-                            return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
-                        except KeyError as e:
-                            return test.FAIL("Unable to find expected key: {}".format(e))
-
-                        if state in ["awaiting_essence", "no_essence"]:
-                            time.sleep(CONFIG.STABLE_STATE_DELAY)
-                        else:
-                            break
-                if state != "unconstrained":
-                    return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                     .format(sender_id, state))
-            return test.PASS()
-        return test.UNCLEAR("There are no IS-11 senders with associated Inputs")
-
-    def test_02_03_04(self, test):
-        """
-        Verify for inputs supporting EDID and supporting changing the base EDID
-        """
-        if len(self.input_senders) != 0:
-            for sender_id in self.input_senders:
-                valid, response = self.do_request(
-                    "GET", self.compat_url + "senders/" + sender_id + "/inputs/"
-                )
-                if not valid:
-                    return test.FAIL("Unexpected response from the streamcompatibility API: {}"
-                                     .format(response))
-                if response.status_code != 200:
-                    return test.FAIL("The sender {} inputs streamcompatibility request has failed: {}"
-                                     .format(sender_id, response))
-                inputs = []
-                try:
-                    for input_id in response.json():
-                        if (
-                            input_id in self.edid_connected_inputs
-                            and input_id in self.base_edid_inputs
-                        ):
-                            inputs.append(input_id)
-                        else:
-                            print(
-                                "Inputs {} are not connected or does'nt support base Edid".format(
-                                    input_id
-                                )
-                            )
-                            break
-                except json.JSONDecodeError:
-                    return test.FAIL("Non-JSON response returned from Node API")
-                except KeyError as e:
-                    return test.FAIL("Unable to find expected key: {}".format(e))
-                if len(inputs) == 0:
-                    return test.UNCLEAR("No input supports changing the base EDID")
-                for input_id in inputs:
-                    valid, response = self.do_request(
-                        "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                         .format(input_id, response))
-                    try:
-                        version = response.json()["version"]
-                    except json.JSONDecodeError:
-                        return test.FAIL("Non-JSON response returned from Node API")
-                    except KeyError as e:
-                        return test.FAIL("Unable to find expected key: {}".format(e))
-                    self.version[input_id] = version
-
-                    valid, response = self.do_request(
-                        "GET", self.node_url + "senders/" + sender_id
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The sender {} is not available in the Node API request: {}"
-                                         .format(sender_id, response))
-                    try:
-                        version = response.json()["version"]
-                    except json.JSONDecodeError:
-                        return test.FAIL("Non-JSON response returned from Node API")
-                    except KeyError as e:
-                        return test.FAIL("Unable to find expected key: {}".format(e))
-                    self.version[sender_id] = version
-
-                    valid, response = self.do_request("PUT",
-                                                      self.compat_url + "inputs/" + input_id + "/edid/base",
-                                                      headers={"Content-Type": "application/octet-stream"},
-                                                      data=self.valid_edid)
-                    if not valid or response.status_code != 204:
-                        return test.FAIL("Unexpected response from the Stream Compatibility Management API: {}"
-                                         .format(response))
-                    time.sleep(CONFIG.STABLE_STATE_DELAY)
-
-                    valid, response = self.do_request(
-                        "GET", self.compat_url + "inputs/" + input_id + "/properties/"
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The input {} properties streamcompatibility request has failed: {}"
-                                         .format(input_id, response))
-                    try:
-                        version = response.json()["version"]
-                    except json.JSONDecodeError:
-                        return test.FAIL("Non-JSON response returned from Node API")
-                    except KeyError as e:
-                        return test.FAIL("Unable to find expected key: {}".format(e))
-                    if version == self.version[input_id]:
-                        return test.FAIL("Version should change")
-
-                    valid, response = self.do_request(
-                        "GET", self.node_url + "senders/" + sender_id
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the Node API: {}".format(response))
-                    if response.status_code != 200:
-                        return test.FAIL("The sender {} is not available in the Node API request: {}"
-                                         .format(sender_id, response))
-                    try:
-                        version = response.json()["version"]
-                    except json.JSONDecodeError:
-                        return test.FAIL("Non-JSON response returned from Node API")
-                    except KeyError as e:
-                        return test.FAIL("Unable to find expected key: {}".format(e))
-                    if version == self.version[input_id]:
-                        return test.FAIL("Version should change")
-
-                    valid, response = self.do_request(
-                        "DELETE", self.compat_url + "inputs/" + input_id + "/edid/base/"
-                    )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}".format(response))
-                    if response.status_code != 204:
-                        return test.FAIL("The input {} base edid cannot be deleted".format(input_id))
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test.")
+        return test.PASS()
 
     def test_02_03_05_01(self, test):
         """
@@ -1813,99 +1575,6 @@ class IS1101Test(GenericTest):
             return test.PASS()
         return test.UNCLEAR("No resources found to perform this test.")
 
-    def test_02_04(self, test):
-        """
-        Verify senders not supporting inputs
-        """
-        for input in self.senders:
-            valid, response = self.do_request(
-                "GET", self.compat_url + "senders/" + input + "/inputs/"
-                )
-            if not valid:
-                return test.FAIL(
-                     "Unexpected response from the streamcompatibility API: {}".format(
-                         response
-                        )
-                    )
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender's inputs {} streamcompatibility request has failed: {}".format(
-                         input, response
-                        )
-                    )
-            try:
-                if len(response.json()) == 0:
-                    self.not_input_senders.append(input)
-            except json.JSONDecodeError:
-                return test.FAIL("Non-JSON response returned from Node API")
-            except KeyError as e:
-                return test.FAIL("Unable to find expected key: {}".format(e))
-
-        if len(self.not_input_senders) == 0:
-            return test.UNCLEAR("All senders support inputs")
-        return test.PASS()
-
-    def test_02_04_01(self, test):
-        """
-        Verify that the status is "unconstrained" as per our pre-conditions
-        """
-        if len(self.not_input_senders) == 0:
-            return test.UNCLEAR("All senders support inputs")
-        for sender_id in self.not_input_senders:
-            valid, response = self.do_request(
-                "GET",
-                self.compat_url + "senders/" + sender_id + "/status/",
-            )
-            if not valid:
-                return test.FAIL(
-                    "Unexpected response from the Node API: {}".format(response)
-                )
-            if response.status_code != 200:
-                return test.FAIL(
-                    "The sender {} is not available in the Node API request: {}".format(
-                        sender_id, response
-                    )
-                )
-
-            time.sleep(CONFIG.STABLE_STATE_DELAY)
-            try:
-                state = response.json()["state"]
-            except json.JSONDecodeError:
-                return test.FAIL("Non-JSON response returned from Node API")
-            except KeyError as e:
-                return test.FAIL("Unable to find expected key: {}".format(e))
-            if state != "OK":
-                return test.FAIL("The status is incorrect")
-
-            if state in ["awaiting_essence", "no_essence"]:
-                for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-                    valid, response = self.do_request(
-                        "GET", self.build_sender_status_url(sender_id)
-                        )
-                    if not valid:
-                        return test.FAIL("Unexpected response from the streamcompatibility API: {}"
-                                         .format(response))
-                    if response.status_code != 200:
-                        return test.FAIL(
-                                "The streamcompatibility request for sender {} status has failed: {}"
-                                .format(sender_id, response.json())
-                            )
-                    try:
-                        state = response.json()["state"]
-                    except json.JSONDecodeError:
-                        return test.FAIL("Non-JSON response returned from the Stream Compatibility Management API")
-                    except KeyError as e:
-                        return test.FAIL("Unable to find expected key: {}".format(e))
-
-                    if state in ["awaiting_essence", "no_essence"]:
-                        time.sleep(CONFIG.STABLE_STATE_DELAY)
-                    else:
-                        break
-            if state != "unconstrained":
-                return test.FAIL("Expected state of sender {} is \"unconstrained\", got \"{}\""
-                                 .format(sender_id, state))
-        return test.PASS()
-
     # OUTPUTS TESTS
     def test_03_00(self, test):
         """Connected Outputs with EDID support return the EDID"""
@@ -2597,6 +2266,8 @@ class IS1101Test(GenericTest):
             raise NMOSInitException("Non-JSON response returned from the Connection API")
 
     def has_i_o(self, id, type):
+        assert type in ["sender", "receiver"]
+
         connector = "senders/" if type == "sender" else "receivers/"
         i_o = "/inputs/" if type == "sender" else "/outputs/"
         url = self.compat_url + connector + id + i_o
@@ -2606,6 +2277,9 @@ class IS1101Test(GenericTest):
             return len(r.json()) > 0
         else:
             raise NMOSInitException("The request {} has failed: {}".format(url, r))
+
+    def sender_has_i_o(self, id):
+        return self.has_i_o(id, "sender")
 
     def receiver_has_i_o(self, id):
         return self.has_i_o(id, "receiver")
