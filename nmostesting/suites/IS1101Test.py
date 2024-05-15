@@ -73,14 +73,10 @@ class IS1101Test(GenericTest):
         self.conn_url = self.apis[CONN_API_KEY]["url"]
         self.reference_senders = {}
         self.caps = ""
-        self.flow_grain_rate = {}
-        self.flow_sample_rate = {}
         self.version = {}
         self.some_input = {}
         self.input_senders = []
         self.not_active_connected_inputs = []
-        self.another_grain_rate_constraints = {}
-        self.another_sample_rate_constraints = {}
         self.not_input_senders = []
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.conn_url)
@@ -1206,14 +1202,15 @@ class IS1101Test(GenericTest):
                 self.version[sender_id] = version
 
                 default_edid = self.get_effective_edid(test, input_id)
+                flow_grain_rate = self.get_senders_flow(test, sender_id)["grain_rate"]
 
-                self.another_grain_rate_constraints[sender_id] = {
+                another_grain_rate_constraints = {
                     "constraint_sets": [
                         {
                             "urn:x-nmos:cap:format:grain_rate": {
                                 "enum": [
                                     self.get_another_grain_rate(
-                                        self.flow_grain_rate[sender_id]
+                                        flow_grain_rate
                                     )
                                 ]
                             }
@@ -1223,21 +1220,23 @@ class IS1101Test(GenericTest):
                 valid, response = self.do_request(
                     "PUT",
                     self.compat_url + "senders/" + sender_id + "/constraints/active/",
-                    json=self.another_grain_rate_constraints[sender_id],
+                    json=another_grain_rate_constraints
                 )
                 time.sleep(CONFIG.STABLE_STATE_DELAY)
                 if not valid:
                     return test.FAIL(
                         "Unexpected response from the Node API: {}".format(response)
                     )
+
+                if response.status_code == 422:
+                    return test.UNCLEAR("Device does not accept grain_rate constraint")
+
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The sender {} is not available in the Node API request: {}".format(
-                            sender_id, response
+                        "Sender {} failed to apply the Active Constraints: {}".format(
+                            sender_id, response.json()
                         )
                     )
-                if response.status_code == 422:
-                    print("Device does not accept grain_rate constraint")
 
                 valid, response = self.do_request(
                     "GET",
@@ -1256,7 +1255,7 @@ class IS1101Test(GenericTest):
                         )
                     )
                 if response.content == default_edid:
-                    print("Grain rate constraint are not changing effective EDID")
+                    return test.UNCLEAR("Grain rate constraint are not changing effective EDID")
 
                 valid, response = self.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
@@ -1439,7 +1438,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Unable to find expected key: {}".format(e))
 
                 if grain_rate != self.get_another_grain_rate(
-                    self.flow_grain_rate[sender_id]
+                    flow_grain_rate
                 ):
                     return test.FAIL(
                         "The flow_grain_rate does not match the constraint"
@@ -1460,8 +1459,7 @@ class IS1101Test(GenericTest):
                             sender_id, response
                         )
                     )
-            return test.PASS()
-        return test.UNCLEAR("No resources found to perform this test.")
+        return test.PASS()
 
     def test_02_03_05_02(self, test):
         """
@@ -1531,6 +1529,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Non-JSON response returned from Node API")
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
+
                 self.version[input_id] = version
 
                 valid, response = self.do_request(
@@ -1543,7 +1542,7 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL(
                         "The sender {} is not available in the Node API request: {}".format(
-                            sender_id, response
+                            sender_id, response.json()
                         )
                     )
                 try:
@@ -1552,17 +1551,19 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Non-JSON response returned from Node API")
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
+
                 self.version[sender_id] = version
 
                 default_edid = self.get_effective_edid(test, input_id)
+                flow_sample_rate = self.get_senders_flow(test, sender_id)["sample_rate"]
 
-                self.another_sample_rate_constraints[sender_id] = {
+                another_sample_rate_constraints = {
                     "constraint_sets": [
                         {
                             "urn:x-nmos:cap:format:sample_rate": {
                                 "enum": [
                                     self.get_another_sample_rate(
-                                        self.flow_sample_rate[sender_id]
+                                        flow_sample_rate
                                     )
                                 ]
                             }
@@ -1572,21 +1573,23 @@ class IS1101Test(GenericTest):
                 valid, response = self.do_request(
                     "PUT",
                     self.compat_url + "senders/" + sender_id + "/constraints/active/",
-                    json=self.another_sample_rate_constraints[sender_id],
+                    json=another_sample_rate_constraints
                 )
                 time.sleep(CONFIG.STABLE_STATE_DELAY)
                 if not valid:
                     return test.FAIL(
                         "Unexpected response from the Node API: {}".format(response)
                     )
+
+                if response.status_code == 422:
+                    return test.UNCLEAR("Device does not accept sample_rate constraint")
+
                 if response.status_code != 200:
                     return test.FAIL(
-                        "The sender {} is not available in the Node API request: {}".format(
-                            sender_id, response
+                        "Sender {} failed to apply the Active Constraints: {}".format(
+                            sender_id, response.json()
                         )
                     )
-                if response.status_code == 422:
-                    print("Device does not accept grain_rate constraint")
 
                 valid, response = self.do_request(
                     "GET",
@@ -1605,7 +1608,7 @@ class IS1101Test(GenericTest):
                         )
                     )
                 if response.content == default_edid:
-                    print("Grain rate constraint are not changing effective EDID")
+                    return test.UNCLEAR("Sample rate constraint are not changing effective EDID")
 
                 valid, response = self.do_request(
                     "GET", self.compat_url + "inputs/" + input_id + "/properties/"
@@ -1641,7 +1644,7 @@ class IS1101Test(GenericTest):
                 if response.status_code != 200:
                     return test.FAIL(
                         "The sender {} is not available in the Node API request: {}".format(
-                            sender_id, response
+                            sender_id, response.json()
                         )
                     )
                 try:
@@ -1650,6 +1653,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL("Non-JSON response returned from Node API")
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
+
                 if version == self.version[input_id]:
                     return test.FAIL("Version should change")
 
@@ -1689,6 +1693,7 @@ class IS1101Test(GenericTest):
                     "GET",
                     self.compat_url + "senders/" + sender_id + "/status/"
                 )
+
                 if not valid:
                     return test.FAIL(
                         "Unexpected response from the Node API: {}".format(response)
@@ -1784,10 +1789,10 @@ class IS1101Test(GenericTest):
                 except KeyError as e:
                     return test.FAIL("Unable to find expected key: {}".format(e))
                 if sample_rate != self.get_another_sample_rate(
-                    self.flow_sample_rate[sender_id]
+                    flow_sample_rate
                 ):
                     return test.FAIL(
-                        "The flow_grain_rate does not match the constraint"
+                        "The flow_sample_rate does not match the constraint"
                     )
                 valid, response = self.do_request(
                     "DELETE",
