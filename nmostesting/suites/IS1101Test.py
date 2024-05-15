@@ -225,7 +225,7 @@ class IS1101Test(GenericTest):
     def test_01_02(self, test):
         """Inputs with Base EDID support handle PUTting and DELETing the Base EDID"""
         def is_edid_equal_to_effective_edid(self, test, inputId, edid):
-            return self.get_effective_edid(test, inputId) == edid
+            return self.get_effective_edid(test, inputId) == edid, ""
 
         if len(self.base_edid_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs with Base EDID support found.")
@@ -454,10 +454,10 @@ class IS1101Test(GenericTest):
         """Effective EDID updates if Base EDID changes with 'adjust_to_caps'"""
 
         def is_edid_equal_to_effective_edid(self, test, inputId, edid):
-            return self.get_effective_edid(test, inputId) == edid
+            return self.get_effective_edid(test, inputId) == edid, ""
 
         def is_edid_inequal_to_effective_edid(self, test, inputId, edid):
-            return self.get_effective_edid(test, inputId) != edid
+            return self.get_effective_edid(test, inputId) != edid, ""
 
         if len(self.adjust_to_caps_inputs) == 0:
             return test.UNCLEAR("Not tested. No inputs with 'adjust_to_caps' support found.")
@@ -2469,11 +2469,13 @@ class IS1101Test(GenericTest):
         return response.content
 
     def wait_until_true(self, predicate):
+        err = ""
         for i in range(0, CONFIG.STABLE_STATE_ATTEMPTS):
-            if predicate():
+            result, err = predicate()
+            if result:
                 return True
             time.sleep(CONFIG.STABLE_STATE_DELAY)
-        return False
+        return False, err
 
     def has_sender_flow_format(self, sender_id, format):
         assert format in ["video", "audio"]
@@ -2664,7 +2666,8 @@ class IS1101Test(GenericTest):
                 "The streamcompatibility request for sender {} status has failed: {}"
                 .format(sender_id, response.json())
             )
-        return response.json()["state"] == expected
+        actual_state = response.json()["state"]
+        return actual_state == expected, actual_state
 
     def apply_nop_active_constraints(self, test, senders, make_active_constraints, source_attrs, flow_attrs):
         if len(senders) == 0:
