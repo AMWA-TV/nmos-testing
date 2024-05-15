@@ -142,16 +142,18 @@ class IS1101Test(GenericTest):
         self.state_no_essence = "no_essence"
         self.state_awaiting_essence = "awaiting_essence"
 
-        self.deactivate_connection_resources("sender")
-        self.deactivate_connection_resources("receiver")
-
         self.delete_active_constraints()
         self.delete_base_edid()
 
+        self.deactivate_connection_resources("sender")
+        self.deactivate_connection_resources("receiver")
+
     def tear_down_tests(self):
-        for inputId in self.is11_utils.sampled_list(self.base_edid_inputs):
-            # DELETE the Base EDID of the Input
-            self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
+        self.delete_active_constraints()
+        self.delete_base_edid()
+
+        self.deactivate_connection_resources("sender")
+        self.deactivate_connection_resources("receiver")
 
     # GENERAL TESTS
     def test_00_00(self, test):
@@ -478,6 +480,17 @@ class IS1101Test(GenericTest):
                 )
                 if not result:
                     return test.FAIL("Effective EDID doesn't change when Base EDID changes")
+
+                # PUT the same EDID with "adjust_to_caps": "false"
+                # to reset its value before running other tests
+                valid, response = self.do_request("PUT",
+                                                  self.compat_url + "inputs/" + inputId + "/edid/base",
+                                                  headers={"Content-Type": "application/octet-stream"},
+                                                  data=self.valid_edid,
+                                                  params={"adjust_to_caps": "false"})
+                if not valid or response.status_code != 204:
+                    return test.FAIL("Unexpected response from "
+                                     "the Stream Compatibility Management API: {}".format(response))
 
                 valid, response = self.do_request("DELETE", self.compat_url + "inputs/" + inputId + "/edid/base")
                 if not valid or response.status_code != 204:
@@ -2697,20 +2710,7 @@ class IS1101Test(GenericTest):
             new_flow = self.get_senders_flow(test, sender_id)
             new_source = self.get_flows_source(test, new_flow["id"])
 
-            for flow_attr in flow_attrs:
-                if (new_flow[flow_attr] != flow[flow_attr]):
-                    return test.FAIL(
-                        "The constraints were not expected to change the flow of sender {}"
-                        .format(sender_id)
-                    )
-
-            for source_attr in source_attrs:
-                if (new_source[source_attr] != source[source_attr]):
-                    return test.FAIL(
-                        "The constraints were not expected to change the Source of sender {}"
-                        .format(sender_id)
-                    )
-
+            # DELETE Active Constraints ASAP to tear down even if the test will fail
             valid, response = self.do_request(
                 "DELETE",
                 self.build_constraints_active_url(sender_id),
@@ -2721,5 +2721,21 @@ class IS1101Test(GenericTest):
                 return test.FAIL(
                     "The sender {} constraints cannot be deleted".format(sender_id)
                 )
+
+            # Check that Flow didn't change
+            for flow_attr in flow_attrs:
+                if (new_flow[flow_attr] != flow[flow_attr]):
+                    return test.FAIL(
+                        "The constraints were not expected to change Flow of Sender {} ({}: {} -> {})"
+                        .format(sender_id, flow_attr, flow[flow_attr], new_flow[flow_attr])
+                    )
+
+            # Check that Source didn't change
+            for source_attr in source_attrs:
+                if (new_source[source_attr] != source[source_attr]):
+                    return test.FAIL(
+                        "The constraints were not expected to change Source of Sender {} ({}: {} -> {})"
+                        .format(sender_id, source_attr, source[source_attr], new_source[source_attr])
+                    )
 
         return test.PASS()
