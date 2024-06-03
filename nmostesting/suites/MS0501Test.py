@@ -383,7 +383,7 @@ class MS0501Test(GenericTest):
                 test,
                 descriptor,
                 self.get_datatype_schema(test, "NcBlockMemberDescriptor"),
-                context="NcBlockMemberDescriptor: ")
+                context=context + "NcBlockMemberDescriptor: ")
 
             self.check_unique_roles(descriptor['role'], role_cache)
             self.check_unique_oid(descriptor['oid'])
@@ -396,6 +396,11 @@ class MS0501Test(GenericTest):
 
             class_identifier = ".".join(map(str, descriptor['classId']))
             if class_identifier and class_identifier in class_descriptors:
+                self.ms05_utils.validate_schema(
+                    test,
+                    class_descriptors[class_identifier],
+                    self.get_datatype_schema(test, "NcClassDescriptor"),
+                    context=context + "NcClassDescriptor for class " + str(descriptor['classId']))
                 self.check_object_properties(test,
                                              class_descriptors[class_identifier],
                                              descriptor['oid'],
