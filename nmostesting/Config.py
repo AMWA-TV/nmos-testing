@@ -320,7 +320,7 @@ SPECIFICATIONS = {
         "apis": {
             "featuresets": {
                 "name": "Control Feature Sets",
-                "repo_paths": ["identification", "monitoring"]
+                "repo_paths": ["identification", "monitoring", "device-configuration"]
             }
         }
     },
