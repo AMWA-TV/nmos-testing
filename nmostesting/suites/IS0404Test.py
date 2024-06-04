@@ -29,8 +29,8 @@ class IS0404Test(ControllerTest):
     """
     Testing initial set up of new test suite for controller testing
     """
-    def __init__(self, apis, registries, node, dns_server, **kwargs):
-        ControllerTest.__init__(self, apis, registries, node, dns_server)
+    def __init__(self, apis, **kwargs):
+        ControllerTest.__init__(self, apis, **kwargs)
 
     def set_up_tests(self):
         # Sender initial details

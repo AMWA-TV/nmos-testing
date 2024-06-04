@@ -26,7 +26,7 @@ function updateDropdown() {
           label.innerHTML = "";
         }
         div.style.display = "block";
-        var fields = ["host", "port", "version", "selector"];
+        var fields = ["host", "port", "version", "selector", "urlpath"];
         for (var i=0; i<fields.length; i++) {
           if ("disable_fields" in testData["specs"][apiNum] && testData["specs"][apiNum]["disable_fields"].indexOf(fields[i]) !== -1) {
             document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i] + "-save").value = document.getElementById("endpoints-" + apiNum.toString() + "-" + fields[i]).value;
@@ -41,6 +41,11 @@ function updateDropdown() {
           document.getElementById("endpoints-" + apiNum.toString() + "-selector-div").style.display = "inline-block";
         } else {
           document.getElementById("endpoints-" + apiNum.toString() + "-selector-div").style.display = "none";
+        }
+          if ("urlpath" in testData && testData["urlpath"] === true) {
+            document.getElementById("endpoints-" + apiNum.toString() + "-urlpath-div").style.display = "inline-block";
+        } else {
+            document.getElementById("endpoints-" + apiNum.toString() + "-urlpath-div").style.display = "none";
         }
       } else {
         div.style.display = "none";
@@ -80,6 +85,7 @@ function loadSettings() {
                     document.getElementById("endpoints-" + apiNum.toString() + "-port").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-port");
                     document.getElementById("endpoints-" + apiNum.toString() + "-version").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-version");
                     document.getElementById("endpoints-" + apiNum.toString() + "-selector").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-selector");
+                    document.getElementById("endpoints-" + apiNum.toString() + "-urlpath").value = sessionStorage.getItem("endpoints-" + apiNum.toString() + "-urlpath");
                 }
                 return;
             }
@@ -112,6 +118,7 @@ function saveSettings() {
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-port", document.getElementById("endpoints-" + apiNum.toString() + "-port").value);
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-version", document.getElementById("endpoints-" + apiNum.toString() + "-version").value);
                 sessionStorage.setItem("endpoints-" + apiNum.toString() + "-selector", document.getElementById("endpoints-" + apiNum.toString() + "-selector").value);
+                sessionStorage.setItem("endpoints-" + apiNum.toString() + "-urlpath", document.getElementById("endpoints-" + apiNum.toString() + "-urlpath").value);
             }
         }
     }
