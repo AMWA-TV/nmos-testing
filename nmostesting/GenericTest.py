@@ -670,7 +670,7 @@ class GenericTest(object):
         schema = self.get_schema(api, resource[1]["method"], resource[0], response.status_code)
 
         if not schema:
-            raise NMOSTestException(test.MANUAL("Test suite unable to locate schema"))
+            raise NMOSTestException(test.MANUAL(f"Test suite unable to locate schema for resource:{resource}"))
 
         return self.check_response(schema, resource[1]["method"], response)
 
