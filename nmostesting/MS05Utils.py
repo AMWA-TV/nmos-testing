@@ -36,11 +36,11 @@ class MS05Utils(NMOSUtils):
         self.apis = apis
         self.ROOT_BLOCK_OID = 1
         self.protocol_api_key = protocol_api_key
-        self.load_reference_resources()
 
     def reset(self):
         self.device_model = None
         self.class_manager = None
+        self.load_reference_resources()
 
     # Overridden functions specialized for IS-12 and IS-14
     def get_property(test, property_id, **kwargs):
@@ -370,7 +370,7 @@ class MS05Utils(NMOSUtils):
                     role_path=role_path)
 
             # Check class id to determine if this is a block
-            if len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1:
+            if self.is_block(class_id):
                 member_descriptors = self.get_property_value(
                     test,
                     NcBlockProperties.MEMBERS.value,
@@ -477,6 +477,10 @@ class MS05Utils(NMOSUtils):
     def is_manager(self, class_id):
         """ Check class id to determine if this is a manager """
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
+    
+    def is_block(self, class_id):
+        """ Check class id to determine if this is a block """
+        return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1
 
     def resolve_datatype(self, test, datatype):
         """Resolve datatype to its base type"""
