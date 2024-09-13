@@ -283,7 +283,7 @@ class MS05Utils(NMOSUtils):
     def validate_schema(self, test, payload, schema, context=""):
         """Delegates to validate_schema. Raises NMOSTestExceptions on error"""
         if not schema:
-            raise NMOSTestException(test.FAIL(context + "Missing schema. "))
+            raise NMOSTestException(test.FAIL("Missing schema. Possible unknown type: " + context))
         try:
             # Validate the JSON schema is correct
             checker = FormatChecker(["ipv4", "ipv6", "uri"])

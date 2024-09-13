@@ -202,7 +202,7 @@ class MS0501Test(GenericTest):
             if not isinstance(value, self.ms05_utils.primitive_to_python_type(data_type)):
                 raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(data_type)))
         else:
-            self.ms05_utils.validate_schema(test, value, self.get_datatype_schema(test, data_type), context)
+            self.ms05_utils.validate_schema(test, value, self.get_datatype_schema(test, data_type), context + data_type)
 
         return
 
@@ -308,8 +308,7 @@ class MS0501Test(GenericTest):
                     object_property,
                     class_property['typeName'],
                     class_property['isNullable'],
-                    context=context + class_property["typeName"]
-                    + class_property["name"] + ": ")
+                    context=context + class_property["name"] + ": ")
         return
 
     def check_unique_roles(self, role, role_cache):
@@ -361,7 +360,7 @@ class MS0501Test(GenericTest):
                         test,
                         touchpoint,
                         schema,
-                        context=context + schema["title"] + ": ")
+                        context=context + schema["title"])
 
             except NMOSTestException as e:
                 self.touchpoints_metadata["error"] = True
@@ -383,7 +382,7 @@ class MS0501Test(GenericTest):
                 test,
                 descriptor,
                 self.get_datatype_schema(test, "NcBlockMemberDescriptor"),
-                context=context + "NcBlockMemberDescriptor: ")
+                context=context + "NcBlockMemberDescriptor: " + str(descriptor['role']))
 
             self.check_unique_roles(descriptor['role'], role_cache)
             self.check_unique_oid(descriptor['oid'])
@@ -1260,7 +1259,13 @@ class MS0501Test(GenericTest):
         runtime_constraints = None
         # Level 0: Datatype constraints
         if class_property.get('typeName'):
-            datatype_constraints = datatype_descriptors.get(class_property['typeName']).get('constraints')
+            if(datatype_descriptors.get(class_property['typeName'])):
+                datatype_constraints = datatype_descriptors.get(class_property['typeName']).get('constraints')
+            else:
+                raise NMOSTestException(test.FAIL(context + "Unknown data type: " + class_property['typeName']))
+        else:
+            raise NMOSTestException(test.FAIL(context + "Missing data type from class descriptor"))
+
         # Level 1: Property constraints
         property_constraints = class_property.get('constraints')
         # Level 3: Runtime constraints
