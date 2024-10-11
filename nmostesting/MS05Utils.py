@@ -270,10 +270,13 @@ class MS05Utils(NMOSUtils):
         # This will include any Non-standard data types
         class_manager = self.get_class_manager(test)
 
-        # Create JSON schemas for the queried datatypes
-        return self.generate_json_schemas(
-            datatype_descriptors=class_manager.datatype_descriptors,
-            schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/tmp_schemas/'))
+        try:
+            # Create JSON schemas for the queried datatypes
+            return self.generate_json_schemas(
+                datatype_descriptors=class_manager.datatype_descriptors,
+                schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/tmp_schemas/'))
+        except Exception as e:
+            raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
 
     def validate_reference_datatype_schema(self, test, payload, datatype_name, context=""):
         """Validate payload against reference datatype schema"""
@@ -477,7 +480,7 @@ class MS05Utils(NMOSUtils):
     def is_manager(self, class_id):
         """ Check class id to determine if this is a manager """
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
-    
+
     def is_block(self, class_id):
         """ Check class id to determine if this is a block """
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1

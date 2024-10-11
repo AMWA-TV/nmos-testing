@@ -34,6 +34,14 @@ FEATURE_SETS_KEY = "featuresets"
 # explicitly instantiated by the IS-12 and IS-14 test suites
 
 
+class TestMetadata():
+    def __init__(self, checked=False, error=False, error_msg="", unclear=False):
+        self.checked = checked
+        self.error = error
+        self.error_msg = error_msg
+        self.unclear = unclear
+
+
 class MS0502Test(ControllerTest):
     """
     Runs Invasive Tests covering MS-05
@@ -47,11 +55,11 @@ class MS0502Test(ControllerTest):
         self.constraint_error = False
         self.constraint_error_msg = ""
         self.sequences_validated = False
-        self.set_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.add_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.set_sequence_item_metadata = TestMetadata()
+        self.add_sequence_item_metadata = TestMetadata()
         self.sequence_test_unclear = False
-        self.remove_sequence_item_metadata = {"checked": False, "error": False, "error_msg": "", "unclear": False}
-        self.invoke_methods_metadata = {"checked": False, "error": False, "error_msg": ""}
+        self.remove_sequence_item_metadata = TestMetadata()
+        self.invoke_methods_metadata = TestMetadata()
 
     def tear_down_tests(self):
         pass
@@ -154,6 +162,7 @@ class MS0502Test(ControllerTest):
                                                    role_path=role_path)
 
             for class_property in class_descriptor.get('properties'):
+                datatype = class_manager.get_datatype(class_property['typeName'], include_inherited=False)
                 if get_readonly != class_property['isReadOnly']:
                     continue
                 if get_readonly and class_property.get('isSequence') == get_sequences:
@@ -163,6 +172,7 @@ class MS0502Test(ControllerTest):
                                     'property_id': class_property['id'],
                                     'constraints': None,
                                     'constraints_type': None,
+                                    'datatype_type': datatype['type'],
                                     'is_sequence': class_property.get('isSequence')})
                     continue
 
@@ -177,6 +187,7 @@ class MS0502Test(ControllerTest):
                                     'property_id': class_property['id'],
                                     'constraints': constraints,
                                     'constraints_type': constraints_type,
+                                    'datatype_type': datatype['type'],
                                     'is_sequence': class_property.get('isSequence')})
         # Recurse through the child blocks
         for child_object in block.child_objects:
@@ -393,11 +404,30 @@ class MS0502Test(ControllerTest):
                                                  oid=constrained_property['oid'],
                                                  role_path=constrained_property['role_path'])
 
-    def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False):
+    def _check_sequence_datatype_type(self, test, property_under_test):
+        original_value = self.ms05_utils.get_property_value(test,
+                                                            property_under_test['property_id'],
+                                                            oid=property_under_test['oid'],
+                                                            role_path=property_under_test['role_path'])
+
+        modified_value = list(reversed(original_value))
+
+        # Reset to original value
+        self.ms05_utils.set_property(test,
+                                     property_under_test['property_id'],
+                                     modified_value,
+                                     oid=property_under_test['oid'],
+                                     role_path=property_under_test['role_path'])
+
+    def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False, datatype_type=None):
         """Test properties within the Device Model"""
         device_model = self.ms05_utils.query_device_model(test)
 
         constrained_properties = self._get_properties(test, device_model, get_constraints, get_sequences)
+
+        # Filter constrained properties according to datatype_type
+        constrained_properties = [p for p in constrained_properties
+                                  if datatype_type is None or p['datatype_type'] == datatype_type]
 
         possible_properties = [{'answer_id': 'answer_'+str(i),
                                 'display_answer': p['name'],
@@ -439,18 +469,19 @@ class MS0502Test(ControllerTest):
                                  + ": constraint " + str(constraint))
 
             try:
-                if constraint.get('minimum') or constraint.get('maximum') or constraint.get('step'):
-                    self._check_parameter_constraints_number(test, constrained_property)
+                if get_constraints:
+                    if constraint.get('minimum') or constraint.get('maximum') or constraint.get('step'):
+                        self._check_parameter_constraints_number(test, constrained_property)
 
-                if constraint.get('maxCharacters') or constraint.get('pattern'):
-                    self._check_parameter_constraints_string(test, constrained_property)
-
+                    if constraint.get('maxCharacters') or constraint.get('pattern'):
+                        self._check_parameter_constraints_string(test, constrained_property)
+                elif datatype_type is not None and get_sequences:
+                    # Enums and Struct are validated against their type definitions
+                    self._check_sequence_datatype_type(test, constrained_property)
             except NMOSTestException as e:
                 return test.FAIL(constrained_property.get("name")
                                  + ": error setting property: "
-                                 + str(e.args[0].detail)
-                                 + ": constraint " + str(constraint))
-
+                                 + str(e.args[0].detail))
             try:
                 # Reset to original value
                 self.ms05_utils.set_property(test,
@@ -580,6 +611,34 @@ class MS0502Test(ControllerTest):
 
         return self._do_check_property_test(test, question, get_constraints=True, get_sequences=True)
 
+    def test_ms05_03(self, test):
+        """Check writable enumeration sequences"""
+        question = """\
+                   From this list of enumeration sequences\
+                   carefully select those that can be safely altered by this test.
+
+                   Note that this test will attempt to restore the original state of the Device Model.
+
+                   Once you have made you selection please press the 'Submit' button.
+                   """
+
+        return self._do_check_property_test(test, question, get_constraints=False, get_sequences=True,
+                                            datatype_type=NcDatatypeType.Enum)
+
+    def test_ms05_04(self, test):
+        """Check writable struct sequences"""
+        question = """\
+                   From this list of struct sequences\
+                   carefully select those that can be safely altered by this test.
+
+                   Note that this test will attempt to restore the original state of the Device Model.
+
+                   Once you have made you selection please press the 'Submit' button.
+                   """
+
+        return self._do_check_property_test(test, question, get_constraints=False, get_sequences=True,
+                                            datatype_type=NcDatatypeType.Struct)
+
     def _do_check_readonly_properties(self, test, question, get_sequences=False):
         device_model = self.ms05_utils.query_device_model(test)
 
@@ -640,7 +699,7 @@ class MS0502Test(ControllerTest):
 
         return test.PASS()
 
-    def test_ms05_03(self, test):
+    def test_ms05_05(self, test):
         """Check read only properties are not writable"""
 
         question = """\
@@ -654,7 +713,7 @@ class MS0502Test(ControllerTest):
 
         return self._do_check_readonly_properties(test, question, get_sequences=False)
 
-    def test_ms05_04(self, test):
+    def test_ms05_06(self, test):
         """Check read only sequences are not writable"""
 
         question = """\
@@ -693,8 +752,8 @@ class MS0502Test(ControllerTest):
             # If non-interactive then test all methods
             selected_methods = [p["resource"] for p in possible_methods]
 
-        self.invoke_methods_metadata['error'] = False
-        self.invoke_methods_metadata['error_msg'] = ""
+        self.invoke_methods_metadata.error = False
+        self.invoke_methods_metadata.error_msg = ""
 
         for method in selected_methods:
             try:
@@ -705,25 +764,25 @@ class MS0502Test(ControllerTest):
 
                 # check for deprecated status codes for deprecated methods
                 if method['is_deprecated'] and result['status'] != 299:
-                    self.invoke_methods_metadata['error'] = True
-                    self.invoke_methods_metadata['error_msg'] += """
+                    self.invoke_methods_metadata.error = True
+                    self.invoke_methods_metadata.error_msg += """
                         Deprecated method returned incorrect status code {} : {};
                         """.format(method.get("name"), result.status)
             except NMOSTestException as e:
                 # ignore 4xx errors
                 self.ms05_utils.validate_reference_datatype_schema(test, e.args[0].detail, "NcMethodResult")
                 if e.args[0].detail['status'] >= 500:
-                    self.invoke_methods_metadata['error'] = True
-                    self.invoke_methods_metadata['error_msg'] += """
+                    self.invoke_methods_metadata.error = True
+                    self.invoke_methods_metadata.error_msg += """
                         Error invoking method {} : {};
                         """.format(method.get("name"), e.args[0].detail)
 
-        if self.invoke_methods_metadata['error']:
-            return test.FAIL(self.invoke_methods_metadata['error_msg'])
+        if self.invoke_methods_metadata.error:
+            return test.FAIL(self.invoke_methods_metadata.error_msg)
 
         return test.PASS()
 
-    def test_ms05_05(self, test):
+    def test_ms05_07(self, test):
         """Check discovered methods"""
         question = """\
                    From this list of methods\
@@ -738,7 +797,7 @@ class MS0502Test(ControllerTest):
 
     def check_add_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path, context=""):
         try:
-            self.add_sequence_item_metadata["checked"] = True
+            self.add_sequence_item_metadata.checked = True
             # Add a value to the end of the sequence
             new_item = self.ms05_utils.get_sequence_item_value(test, property_id, index=0, oid=oid, role_path=role_path)
 
@@ -748,20 +807,20 @@ class MS0502Test(ControllerTest):
             value = self.ms05_utils.get_sequence_item_value(test, property_id, index=sequence_length,
                                                             oid=oid, role_path=role_path)
             if value != new_item:
-                self.add_sequence_item_metadata["error"] = True
-                self.add_sequence_item_metadata["error_msg"] += \
+                self.add_sequence_item_metadata.error = True
+                self.add_sequence_item_metadata.error_msg += \
                     context + property_name \
                     + ": Expected: " + str(new_item) + ", Actual: " + str(value) + ", "
             return True
         except NMOSTestException as e:
-            self.add_sequence_item_metadata["error"] = True
-            self.add_sequence_item_metadata["error_msg"] += \
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg += \
                 context + property_name + ": " + str(e.args[0].detail) + ", "
         return False
 
     def check_set_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path, context=""):
         try:
-            self.set_sequence_item_metadata["checked"] = True
+            self.set_sequence_item_metadata.checked = True
             new_value = self.ms05_utils.get_sequence_item_value(test, property_id, index=sequence_length - 1,
                                                                 oid=oid, role_path=role_path)
 
@@ -773,14 +832,14 @@ class MS0502Test(ControllerTest):
             value = self.ms05_utils.get_sequence_item_value(test, property_id, index=sequence_length,
                                                             oid=oid, role_path=role_path)
             if value != new_value:
-                self.set_sequence_item_metadata["error"] = True
-                self.set_sequence_item_metadata["error_msg"] += \
+                self.set_sequence_item_metadata.error = True
+                self.set_sequence_item_metadata.error_msg += \
                     context + property_name \
                     + ": Expected: " + str(new_value) + ", Actual: " + str(value) + ", "
             return True
         except NMOSTestException as e:
-            self.set_sequence_item_metadata["error"] = True
-            self.set_sequence_item_metadata["error_msg"] += \
+            self.set_sequence_item_metadata.error = True
+            self.set_sequence_item_metadata.error_msg += \
                 context + property_name + ": " + str(e.args[0].detail) + ", "
         return False
 
@@ -788,13 +847,13 @@ class MS0502Test(ControllerTest):
                                    oid, role_path, context=""):
         try:
             # remove item
-            self.remove_sequence_item_metadata["checked"] = True
+            self.remove_sequence_item_metadata.checked = True
             self.ms05_utils.remove_sequence_item(test, property_id, index=sequence_length,
                                                  oid=oid, role_path=role_path)
             return True
         except NMOSTestException as e:
-            self.remove_sequence_item_metadata["error"] = True
-            self.remove_sequence_item_metadata["error_msg"] += \
+            self.remove_sequence_item_metadata.error = True
+            self.remove_sequence_item_metadata.error_msg += \
                 context + property_name + ": " + str(e.args[0].detail) + ", "
         return False
 
@@ -816,22 +875,22 @@ class MS0502Test(ControllerTest):
             return
         if sequence_length + 1 != self.ms05_utils.get_sequence_length(test, property_id,
                                                                       oid=oid, role_path=role_path):
-            self.add_sequence_item_metadata["error"] = True
-            self.add_sequence_item_metadata["error_msg"] = property_name + \
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg = property_name + \
                 ": add_sequence_item resulted in unexpected sequence length."
         self.check_set_sequence_item(test, property_id, property_name, sequence_length,
                                      oid, role_path, context=context)
         if sequence_length + 1 != self.ms05_utils.get_sequence_length(test, property_id,
                                                                       oid=oid, role_path=role_path):
-            self.set_sequence_item_metadata["error"] = True
-            self.set_sequence_item_metadata["error_msg"] = property_name + \
+            self.set_sequence_item_metadata.error = True
+            self.set_sequence_item_metadata.error_msg = property_name + \
                 ": set_sequence_item resulted in unexpected sequence length."
         self.check_remove_sequence_item(test, property_id, property_name, sequence_length,
                                         oid, role_path, context)
         if sequence_length != self.ms05_utils.get_sequence_length(test, property_id,
                                                                   oid=oid, role_path=role_path):
-            self.remove_sequence_item_metadata["error"] = True
-            self.remove_sequence_item_metadata["error_msg"] = property_name + \
+            self.remove_sequence_item_metadata.error = True
+            self.remove_sequence_item_metadata.error_msg = property_name + \
                 ": remove_sequence_item resulted in unexpected sequence length."
 
     def validate_sequences(self, test):
@@ -876,7 +935,7 @@ class MS0502Test(ControllerTest):
 
         self.sequences_validated = True
 
-    def test_ms05_06(self, test):
+    def test_ms05_08(self, test):
         """NcObject method: SetSequenceItem"""
         try:
             if not self.sequences_validated:
@@ -888,15 +947,15 @@ class MS0502Test(ControllerTest):
         if self.sequence_test_unclear:
             return test.UNCLEAR("No sequences selected for testing.")
 
-        if self.set_sequence_item_metadata["error"]:
-            return test.FAIL(self.set_sequence_item_metadata["error_msg"])
+        if self.set_sequence_item_metadata.error:
+            return test.FAIL(self.set_sequence_item_metadata.error_msg)
 
-        if not self.set_sequence_item_metadata["checked"]:
+        if not self.set_sequence_item_metadata.checked:
             return test.UNCLEAR("SetSequenceItem not tested.")
 
         return test.PASS()
 
-    def test_ms05_07(self, test):
+    def test_ms05_09(self, test):
         """NcObject method: AddSequenceItem"""
         try:
             if not self.sequences_validated:
@@ -908,15 +967,15 @@ class MS0502Test(ControllerTest):
         if self.sequence_test_unclear:
             return test.UNCLEAR("No sequences selected for testing.")
 
-        if self.add_sequence_item_metadata["error"]:
-            return test.FAIL(self.add_sequence_item_metadata["error_msg"])
+        if self.add_sequence_item_metadata.error:
+            return test.FAIL(self.add_sequence_item_metadata.error_msg)
 
-        if not self.add_sequence_item_metadata["checked"]:
+        if not self.add_sequence_item_metadata.checked:
             return test.UNCLEAR("AddSequenceItem not tested.")
 
         return test.PASS()
 
-    def test_ms05_08(self, test):
+    def test_ms05_10(self, test):
         """NcObject method: RemoveSequenceItem"""
         try:
             if not self.sequences_validated:
@@ -928,10 +987,10 @@ class MS0502Test(ControllerTest):
         if self.sequence_test_unclear:
             return test.UNCLEAR("No sequences selected for testing.")
 
-        if self.remove_sequence_item_metadata["error"]:
-            return test.FAIL(self.remove_sequence_item_metadata["error_msg"])
+        if self.remove_sequence_item_metadata.error:
+            return test.FAIL(self.remove_sequence_item_metadata.error_msg)
 
-        if not self.remove_sequence_item_metadata["checked"]:
+        if not self.remove_sequence_item_metadata.checked:
             return test.UNCLEAR("RemoveSequenceItem not tested.")
 
         return test.PASS()
