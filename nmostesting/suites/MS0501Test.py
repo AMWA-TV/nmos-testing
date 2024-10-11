@@ -151,13 +151,6 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def get_datatype_schema(self, test, type_name):
-        """Get generated JSON schema for datatype specified"""
-        if not self.datatype_schemas:
-            self.datatype_schemas = self.ms05_utils.generate_device_model_datatype_schemas(test)
-
-        return self.datatype_schemas.get(type_name)
-
     def get_property(self, test, oid, property_id, role_path, context):
         """Get property from object. Sets self.device_model_metadata on error"""
         try:
@@ -202,7 +195,8 @@ class MS0501Test(GenericTest):
             if not isinstance(value, self.ms05_utils.primitive_to_python_type(data_type)):
                 raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(data_type)))
         else:
-            self.ms05_utils.validate_schema(test, value, self.get_datatype_schema(test, data_type), context + data_type)
+            self.ms05_utils.validate_schema(test, value, self.ms05_utils.get_datatype_schema(test, data_type),
+                                            context + data_type)
 
         return
 
@@ -353,9 +347,9 @@ class MS0501Test(GenericTest):
             self.touchpoints_metadata["checked"] = True
             try:
                 for touchpoint in touchpoints:
-                    schema = self.get_datatype_schema(test, "NcTouchpointNmos") \
+                    schema = self.ms05_utils.get_datatype_schema(test, "NcTouchpointNmos") \
                         if touchpoint["contextNamespace"] == "x-nmos" \
-                        else self.get_datatype_schema(test, "NcTouchpointNmosChannelMapping")
+                        else self.ms05_utils.get_datatype_schema(test, "NcTouchpointNmosChannelMapping")
                     self.ms05_utils.validate_schema(
                         test,
                         touchpoint,
@@ -381,7 +375,7 @@ class MS0501Test(GenericTest):
             self.ms05_utils.validate_schema(
                 test,
                 descriptor,
-                self.get_datatype_schema(test, "NcBlockMemberDescriptor"),
+                self.ms05_utils.get_datatype_schema(test, "NcBlockMemberDescriptor"),
                 context=context + "NcBlockMemberDescriptor: " + str(descriptor['role']))
 
             self.check_unique_roles(descriptor['role'], role_cache)
@@ -398,7 +392,7 @@ class MS0501Test(GenericTest):
                 self.ms05_utils.validate_schema(
                     test,
                     class_descriptors[class_identifier],
-                    self.get_datatype_schema(test, "NcClassDescriptor"),
+                    self.ms05_utils.get_datatype_schema(test, "NcClassDescriptor"),
                     context=context + "NcClassDescriptor for class " + str(descriptor['classId']))
                 self.check_object_properties(test,
                                              class_descriptors[class_identifier],
@@ -973,7 +967,7 @@ class MS0501Test(GenericTest):
 
     def check_constraint(self, test, constraint, type_name, is_sequence, test_metadata, context):
         if constraint.get("defaultValue"):
-            datatype_schema = self.get_datatype_schema(test, type_name)
+            datatype_schema = self.ms05_utils.get_datatype_schema(test, type_name)
             if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
                 test_metadata["error"] = True
                 test_metadata["error_msg"] = context + (" a default value sequence was expected"

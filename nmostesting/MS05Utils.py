@@ -40,6 +40,7 @@ class MS05Utils(NMOSUtils):
     def reset(self):
         self.device_model = None
         self.class_manager = None
+        self.datatype_schemas = None
         self.load_reference_resources()
 
     # Overridden functions specialized for IS-12 and IS-14
@@ -162,7 +163,7 @@ class MS05Utils(NMOSUtils):
         # Load MS-05 datatype descriptors
         self.reference_datatype_descriptors = self._load_model_descriptors(datatype_paths)
 
-        # Generate MS-05 datatype schemas from MS-05 datatype descriptors
+        # Generate reference MS-05 datatype schemas from MS-05 datatype descriptors
         self.reference_datatype_schemas = self.generate_json_schemas(
             datatype_descriptors=self.reference_datatype_descriptors,
             schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/schemas/'))
@@ -186,7 +187,7 @@ class MS05Utils(NMOSUtils):
             os.makedirs(base_schema_path)
 
         for name, descriptor in datatype_descriptors.items():
-            json_schema = self.descriptor_to_schema(descriptor)
+            json_schema = self._descriptor_to_schema(descriptor)
             with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
                 json.dump(json_schema, output_file, indent=4)
                 datatype_schema_names.append(name)
@@ -198,7 +199,7 @@ class MS05Utils(NMOSUtils):
 
         return datatype_schemas
 
-    def descriptor_to_schema(self, descriptor):
+    def _descriptor_to_schema(self, descriptor):
         variant_type = ['number', 'string', 'boolean', 'object', 'array', 'null']
 
         json_schema = {}
@@ -264,7 +265,7 @@ class MS05Utils(NMOSUtils):
 
         return json_schema
 
-    def generate_device_model_datatype_schemas(self, test):
+    def _generate_device_model_datatype_schemas(self, test):
         # Generate datatype schemas based on the datatype decriptors
         # queried from the Node under test's Device Model.
         # This will include any Non-standard data types
@@ -277,6 +278,13 @@ class MS05Utils(NMOSUtils):
                 schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/tmp_schemas/'))
         except Exception as e:
             raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
+
+    def get_datatype_schema(self, test, type_name):
+        """Get generated JSON schema for datatype specified, based on descriptor queried from the Node under Test"""
+        if not self.datatype_schemas:
+            self.datatype_schemas = self._generate_device_model_datatype_schemas(test)
+
+        return self.datatype_schemas.get(type_name)
 
     def validate_reference_datatype_schema(self, test, payload, datatype_name, context=""):
         """Validate payload against reference datatype schema"""
@@ -424,18 +432,7 @@ class MS05Utils(NMOSUtils):
         except NMOSTestException as e:
             raise NMOSTestException(test.FAIL("Error in Device Model " + role + ": " + str(e.args[0].detail)))
 
-    def get_class_manager(self, test):
-        """Get the Class Manager queried from the Node under test's Device Model"""
-        if not self.class_manager:
-            self.class_manager = self._get_manager(test, StandardClassIds.NCCLASSMANAGER.value)
-
-        return self.class_manager
-
-    def get_device_manager(self, test):
-        """Get the Device Manager queried from the Node under test's Device Model"""
-        return self._get_manager(test, StandardClassIds.NCDEVICEMANAGER.value)
-
-    def _get_manager(self, test, class_id):
+    def _get_object_by_class_id(self, test, class_id):
         device_model = self.query_device_model(test)
         members = device_model.find_members_by_class_id(class_id, include_derived=True)
 
@@ -449,6 +446,17 @@ class MS05Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
 
         return members[0]
+
+    def get_class_manager(self, test):
+        """Get the Class Manager queried from the Node under test's Device Model"""
+        if not self.class_manager:
+            self.class_manager = self._get_object_by_class_id(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        return self.class_manager
+
+    def get_device_manager(self, test):
+        """Get the Device Manager queried from the Node under test's Device Model"""
+        return self._get_object_by_class_id(test, StandardClassIds.NCDEVICEMANAGER.value)
 
     def primitive_to_python_type(self, type):
         """Convert MS-05 primitive type to corresponding Python type"""
@@ -493,6 +501,7 @@ class MS05Utils(NMOSUtils):
         return datatype
 
     def create_role_path(self, base_role_path, role):
+        """Appends role to base_role_path"""
         role_path = base_role_path.copy()
         role_path.append(role)
         return role_path
