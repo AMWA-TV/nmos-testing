@@ -1259,7 +1259,7 @@ class MS0501Test(GenericTest):
         runtime_constraints = None
         # Level 0: Datatype constraints
         if class_property.get('typeName'):
-            if(datatype_descriptors.get(class_property['typeName'])):
+            if datatype_descriptors.get(class_property['typeName']):
                 datatype_constraints = datatype_descriptors.get(class_property['typeName']).get('constraints')
             else:
                 raise NMOSTestException(test.FAIL(context + "Unknown data type: " + class_property['typeName']))
