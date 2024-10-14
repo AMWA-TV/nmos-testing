@@ -34,18 +34,17 @@ FEATURE_SETS_KEY = "featuresets"
 # explicitly instantiated by the IS-12 and IS-14 test suites
 
 
-class TestMetadata():
-    def __init__(self, checked=False, error=False, error_msg="", unclear=False):
-        self.checked = checked
-        self.error = error
-        self.error_msg = error_msg
-        self.unclear = unclear
-
-
 class MS0502Test(ControllerTest):
     """
     Runs Invasive Tests covering MS-05
     """
+    class TestMetadata():
+        def __init__(self, checked=False, error=False, error_msg="", unclear=False):
+            self.checked = checked
+            self.error = error
+            self.error_msg = error_msg
+            self.unclear = unclear
+
     def __init__(self, apis, utils, **kwargs):
         ControllerTest.__init__(self, apis, **kwargs)
         self.ms05_utils = utils
@@ -55,11 +54,11 @@ class MS0502Test(ControllerTest):
         self.constraint_error = False
         self.constraint_error_msg = ""
         self.sequences_validated = False
-        self.set_sequence_item_metadata = TestMetadata()
-        self.add_sequence_item_metadata = TestMetadata()
+        self.set_sequence_item_metadata = MS0502Test.TestMetadata()
+        self.add_sequence_item_metadata = MS0502Test.TestMetadata()
         self.sequence_test_unclear = False
-        self.remove_sequence_item_metadata = TestMetadata()
-        self.invoke_methods_metadata = TestMetadata()
+        self.remove_sequence_item_metadata = MS0502Test.TestMetadata()
+        self.invoke_methods_metadata = MS0502Test.TestMetadata()
 
     def tear_down_tests(self):
         pass
