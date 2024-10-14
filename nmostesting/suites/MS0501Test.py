@@ -32,6 +32,12 @@ class MS0501Test(GenericTest):
     """
     Runs Tests covering MS-05
     """
+    class TestMetadata():
+        def __init__(self, checked=False, error=False, error_msg="", unclear=False):
+            self.checked = checked
+            self.error = error
+            self.error_msg = error_msg
+
     def __init__(self, apis, utils, **kwargs):
         # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
@@ -41,21 +47,26 @@ class MS0501Test(GenericTest):
     def set_up_tests(self):
         super().set_up_tests()
         self.ms05_utils.reset()
-        self.datatype_schemas = None
+        # check_device_model validates that device model is correct according to specification
+        self.device_model_metadata = MS0501Test.TestMetadata()
+        # checked in check_device_model, reported in test_ms05_03
         self.unique_roles_error = False
+        # checked in check_device_model, reported in test_ms05_04
         self.unique_oids_error = False
-        self.managers_are_singletons_error = False
+        # checked in check_device_model, reported in test_ms05_05
+        self.organization_metadata = MS0501Test.TestMetadata()
+        # checked in check_device_model, reported in test_ms05_06
+        self.touchpoints_metadata = MS0501Test.TestMetadata()
+        # checked in check_device_model, reported in test_ms05_07
+        self.deprecated_property_metadata = MS0501Test.TestMetadata()
+        # checked in check_device_model, reported in test_ms05_08
         self.managers_members_root_block_error = False
-        self.device_model_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.organization_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.touchpoints_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.deprecated_property_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.get_sequence_item_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.get_sequence_length_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.validate_runtime_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.validate_property_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.validate_datatype_constraints_metadata = {"checked": False, "error": False, "error_msg": ""}
-        self.check_constraints_hierarchy = {"checked": False, "error": False, "error_msg": ""}
+        # checked in check_device_model, reported in test_ms05_09
+        self.managers_are_singletons_error = False
+        # checked in check_device_model, reported in test_ms05_15
+        self.get_sequence_item_metadata = MS0501Test.TestMetadata()
+        # checked in check_device_model, reported in test_ms05_16
+        self.get_sequence_length_metadata = MS0501Test.TestMetadata()
 
         self.oid_cache = []
 
@@ -156,8 +167,8 @@ class MS0501Test(GenericTest):
         try:
             return self.ms05_utils.get_property(test, property_id, oid=oid, role_path=role_path)
         except NMOSTestException as e:
-            self.device_model_metadata["error"] = True
-            self.device_model_metadata["error_msg"] += context \
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg += context \
                 + "Error getting property: " \
                 + str(property_id) + ": " \
                 + str(e.args[0].detail) \
@@ -169,8 +180,8 @@ class MS0501Test(GenericTest):
         try:
             return self.ms05_utils.get_property_value(test, property_id, oid=oid, role_path=role_path)
         except NMOSTestException as e:
-            self.device_model_metadata["error"] = True
-            self.device_model_metadata["error_msg"] += context \
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg += context \
                 + "Error getting property: " \
                 + str(property_id) + ": " \
                 + str(e.args[0].detail) \
@@ -202,53 +213,53 @@ class MS0501Test(GenericTest):
 
     def check_get_sequence_item(self, test, oid, role_path, sequence_values, property_metadata, context=""):
         if sequence_values is None and not property_metadata["isNullable"]:
-            self.get_sequence_item_metadata["error"] = True
-            self.get_sequence_item_metadata["error_msg"] += \
+            self.get_sequence_item_metadata.error = True
+            self.get_sequence_item_metadata.error_msg += \
                 context + property_metadata["name"] + ": Non-nullable property set to null, "
             return
         try:
             # GetSequenceItem
-            self.get_sequence_item_metadata["checked"] = True
+            self.get_sequence_item_metadata.checked = True
             sequence_index = 0
             for property_value in sequence_values:
                 value = self.ms05_utils.get_sequence_item_value(test, property_metadata['id'], sequence_index,
                                                                 oid=oid, role_path=role_path)
                 if property_value != value:
-                    self.get_sequence_item_metadata["error"] = True
-                    self.get_sequence_item_metadata["error_msg"] += \
+                    self.get_sequence_item_metadata.error = True
+                    self.get_sequence_item_metadata.error_msg += \
                         context + property_metadata["name"] \
                         + ": Expected: " + str(property_value) + ", Actual: " + str(value) \
                         + " at index " + sequence_index + ", "
                 sequence_index += 1
             return True
         except NMOSTestException as e:
-            self.get_sequence_item_metadata["error"] = True
-            self.get_sequence_item_metadata["error_msg"] += \
+            self.get_sequence_item_metadata.error = True
+            self.get_sequence_item_metadata.error_msg += \
                 context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
         return False
 
     def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_metadata, context=""):
         if sequence_values is None and not property_metadata["isNullable"]:
-            self.get_sequence_length_metadata["error"] = True
-            self.get_sequence_length_metadata["error_msg"] += \
+            self.get_sequence_length_metadata.error = True
+            self.get_sequence_length_metadata.error_msg += \
                 context + property_metadata["name"] + ": Non-nullable property set to null, "
             return
 
         try:
-            self.get_sequence_length_metadata["checked"] = True
+            self.get_sequence_length_metadata.checked = True
             length = self.ms05_utils.get_sequence_length(test, property_metadata['id'],
                                                          oid=oid, role_path=role_path)
 
             if length == len(sequence_values):
                 return True
-            self.get_sequence_length_metadata["error_msg"] += \
+            self.get_sequence_length_metadata.error_msg += \
                 context + property_metadata["name"] \
                 + ": GetSequenceLength error. Expected: " \
                 + str(len(sequence_values)) + ", Actual: " + str(length) + ", "
         except NMOSTestException as e:
-            self.get_sequence_length_metadata["error_msg"] += \
+            self.get_sequence_length_metadata.error_msg += \
                 context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
-        self.get_sequence_length_metadata["error"] = True
+        self.get_sequence_length_metadata.error = True
         return False
 
     def check_sequence_methods(self, test, oid, role_path, sequence_values, property_metadata, context=""):
@@ -262,8 +273,8 @@ class MS0501Test(GenericTest):
 
             if response is None:
                 # Can't find this property - do we have an ID clash
-                self.device_model_metadata["error"] = True
-                self.device_model_metadata["error_msg"] += \
+                self.device_model_metadata.error = True
+                self.device_model_metadata.error_msg += \
                     "Property does not exist - it is possible that the class id for this class is NOT unique? " \
                     + "classId: " + ".".join(map(str, reference_class_descriptor['classId']))
                 continue
@@ -271,10 +282,10 @@ class MS0501Test(GenericTest):
             object_property = response["value"]
 
             if class_property["isDeprecated"]:
-                self.deprecated_property_metadata["checked"] = True
+                self.deprecated_property_metadata.checked = True
                 if response["status"] != NcMethodStatus.PropertyDeprecated.value:
-                    self.deprecated_property_metadata["error"] = True
-                    self.deprecated_property_metadata["error_msg"] = context + \
+                    self.deprecated_property_metadata.error = True
+                    self.deprecated_property_metadata.error_msg = context + \
                         " PropertyDeprecated status code expected when getting " + class_property["name"]
 
             if not object_property:
@@ -344,7 +355,7 @@ class MS0501Test(GenericTest):
             role_path)
 
         if touchpoints is not None:
-            self.touchpoints_metadata["checked"] = True
+            self.touchpoints_metadata.checked = True
             try:
                 for touchpoint in touchpoints:
                     schema = self.ms05_utils.get_datatype_schema(test, "NcTouchpointNmos") \
@@ -357,8 +368,8 @@ class MS0501Test(GenericTest):
                         context=context + schema["title"])
 
             except NMOSTestException as e:
-                self.touchpoints_metadata["error"] = True
-                self.touchpoints_metadata["error_msg"] = context + str(e.args[0].detail)
+                self.touchpoints_metadata.error = True
+                self.touchpoints_metadata.error_msg = context + str(e.args[0].detail)
 
     def check_block(self, test, block, class_descriptors, context=""):
         for child_object in block.child_objects:
@@ -382,7 +393,7 @@ class MS0501Test(GenericTest):
             self.check_unique_oid(descriptor['oid'])
             # check for non-standard classes
             if self.ms05_utils.is_non_standard_class(descriptor['classId']):
-                self.organization_metadata["checked"] = True
+                self.organization_metadata.checked = True
             self.check_manager(descriptor['classId'], descriptor["owner"], class_descriptors, manager_cache)
             self.check_touchpoints(test, descriptor['oid'], role_path,
                                    context=context + str(descriptor['role']) + ': ')
@@ -400,21 +411,21 @@ class MS0501Test(GenericTest):
                                              role_path,
                                              context=context + str(descriptor['role']) + ': ')
             else:
-                self.device_model_metadata["error"] = True
-                self.device_model_metadata["error_msg"] += str(descriptor['role']) + ': ' \
+                self.device_model_metadata.error = True
+                self.device_model_metadata.error_msg += str(descriptor['role']) + ': ' \
                     + "Class not advertised by Class Manager: " \
                     + str(descriptor['classId']) + ". "
 
             if class_identifier not in self.ms05_utils.reference_class_descriptors and \
                     not self.ms05_utils.is_non_standard_class(descriptor['classId']):
                 # Not a standard or non-standard class
-                self.organization_metadata["error"] = True
-                self.organization_metadata["error_msg"] = str(descriptor['role']) + ': ' \
+                self.organization_metadata.error = True
+                self.organization_metadata.error_msg = str(descriptor['role']) + ': ' \
                     + "Non-standard class id does not contain authority key: " \
                     + str(descriptor['classId']) + ". "
 
     def check_device_model(self, test):
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             class_manager = self.ms05_utils.get_class_manager(test)
             device_model = self.ms05_utils.query_device_model(test)
 
@@ -422,7 +433,7 @@ class MS0501Test(GenericTest):
                              device_model,
                              class_manager.class_descriptors)
 
-            self.device_model_metadata["checked"] = True
+            self.device_model_metadata.checked = True
         return
 
     def test_ms05_02(self, test):
@@ -432,10 +443,10 @@ class MS0501Test(GenericTest):
 
         self.check_device_model(test)
 
-        if self.device_model_metadata["error"]:
-            return test.FAIL(self.device_model_metadata["error_msg"])
+        if self.device_model_metadata.error:
+            return test.FAIL(self.device_model_metadata.error_msg)
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
@@ -456,7 +467,7 @@ class MS0501Test(GenericTest):
                              "/docs/NcObject.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
@@ -477,7 +488,7 @@ class MS0501Test(GenericTest):
                              "/docs/NcObject.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
@@ -495,16 +506,16 @@ class MS0501Test(GenericTest):
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
 
-        if self.organization_metadata["error"]:
-            return test.FAIL(self.organization_metadata["error_msg"],
+        if self.organization_metadata.error:
+            return test.FAIL(self.organization_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Framework.html#ncclassid"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
-        if not self.organization_metadata["checked"]:
+        if not self.organization_metadata.checked:
             return test.UNCLEAR("No non-standard classes found.")
 
         return test.PASS()
@@ -522,16 +533,16 @@ class MS0501Test(GenericTest):
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
 
-        if self.touchpoints_metadata["error"]:
-            return test.FAIL(self.touchpoints_metadata["error_msg"],
+        if self.touchpoints_metadata.error:
+            return test.FAIL(self.touchpoints_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/NcObject.html#touchpoints"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
-        if not self.touchpoints_metadata["checked"]:
+        if not self.touchpoints_metadata.checked:
             return test.UNCLEAR("No Touchpoints found.")
         return test.PASS()
 
@@ -546,16 +557,16 @@ class MS0501Test(GenericTest):
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
 
-        if self.deprecated_property_metadata["error"]:
-            return test.FAIL(self.deprecated_property_metadata["error_msg"],
+        if self.deprecated_property_metadata.error:
+            return test.FAIL(self.deprecated_property_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Framework.html#ncmethodstatus"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
-        if not self.deprecated_property_metadata["checked"]:
+        if not self.deprecated_property_metadata.checked:
             return test.UNCLEAR("No deprecated properties found.")
         return test.PASS()
 
@@ -576,7 +587,7 @@ class MS0501Test(GenericTest):
                              "/docs/Managers.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
@@ -598,7 +609,7 @@ class MS0501Test(GenericTest):
                              "/docs/Managers.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
 
-        if not self.device_model_metadata["checked"]:
+        if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
 
         return test.PASS()
@@ -763,10 +774,10 @@ class MS0501Test(GenericTest):
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
 
-        if self.get_sequence_item_metadata["error"]:
-            return test.FAIL(self.get_sequence_item_metadata["error_msg"])
+        if self.get_sequence_item_metadata.error:
+            return test.FAIL(self.get_sequence_item_metadata.error_msg)
 
-        if not self.get_sequence_item_metadata["checked"]:
+        if not self.get_sequence_item_metadata.checked:
             return test.UNCLEAR("GetSequenceItem not tested.")
 
         return test.PASS()
@@ -783,10 +794,10 @@ class MS0501Test(GenericTest):
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
 
-        if self.get_sequence_length_metadata["error"]:
-            return test.FAIL(self.get_sequence_length_metadata["error_msg"])
+        if self.get_sequence_length_metadata.error:
+            return test.FAIL(self.get_sequence_length_metadata.error_msg)
 
-        if not self.get_sequence_length_metadata["checked"]:
+        if not self.get_sequence_length_metadata.checked:
             return test.UNCLEAR("GetSequenceItem not tested.")
 
         return test.PASS()
@@ -969,9 +980,9 @@ class MS0501Test(GenericTest):
         if constraint.get("defaultValue"):
             datatype_schema = self.ms05_utils.get_datatype_schema(test, type_name)
             if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
-                test_metadata["error"] = True
-                test_metadata["error_msg"] = context + (" a default value sequence was expected"
-                                                        if is_sequence else " unexpected default value sequence.")
+                test_metadata.error = True
+                test_metadata.error_msg = context + (" a default value sequence was expected"
+                                                     if is_sequence else " unexpected default value sequence.")
                 return
             if is_sequence:
                 for value in constraint.get("defaultValue"):
@@ -990,21 +1001,22 @@ class MS0501Test(GenericTest):
                 if constraint.get("propertyId") else "NcParameterConstraintsNumber"
             if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
                                 "NcUint64", "NcFloat32", "NcFloat64"]:
-                test_metadata["error"] = True
-                test_metadata["error_msg"] = context + ". " + datatype + \
+                test_metadata.error = True
+                test_metadata.error_msg = context + ". " + datatype + \
                     " can not be constrainted by " + constraint_type + "."
         # check NcXXXConstraintsString
         if constraint.get("maxCharacters") or constraint.get("pattern"):
             constraint_type = "NcPropertyConstraintsString" \
                 if constraint.get("propertyId") else "NcParameterConstraintsString"
             if datatype not in ["NcString"]:
-                test_metadata["error"] = True
-                test_metadata["error_msg"] = context + ". " + datatype + \
+                test_metadata.error = True
+                test_metadata.error_msg = context + ". " + datatype + \
                     " can not be constrainted by " + constraint_type + "."
 
-    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, context=""):
+    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
+
         if nc_object.runtime_constraints:
-            self.validate_runtime_constraints_metadata["checked"] = True
+            test_metadata.checked = True
             for constraint in nc_object.runtime_constraints:
                 class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
                 for class_property in class_descriptor["properties"]:
@@ -1015,7 +1027,7 @@ class MS0501Test(GenericTest):
                                               constraint,
                                               class_property.get("typeName"),
                                               class_property["isSequence"],
-                                              self.validate_runtime_constraints_metadata,
+                                              test_metadata,
                                               message_root)
 
         # Recurse through the child blocks
@@ -1024,6 +1036,7 @@ class MS0501Test(GenericTest):
                 self.do_validate_runtime_constraints_test(test,
                                                           child_object,
                                                           class_manager,
+                                                          test_metadata,
                                                           context + nc_object.role + ": ")
 
     def test_ms05_19(self, test):
@@ -1106,29 +1119,31 @@ class MS0501Test(GenericTest):
         device_model = self.ms05_utils.query_device_model(test)
         class_manager = self.ms05_utils.get_class_manager(test)
 
-        self.do_validate_runtime_constraints_test(test, device_model, class_manager)
+        test_metadata = MS0501Test.TestMetadata()
 
-        if self.validate_runtime_constraints_metadata["error"]:
-            return test.FAIL(self.validate_runtime_constraints_metadata["error_msg"])
+        self.do_validate_runtime_constraints_test(test, device_model, class_manager, test_metadata)
 
-        if not self.validate_runtime_constraints_metadata["checked"]:
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg)
+
+        if not test_metadata.checked:
             return test.UNCLEAR("No runtime constraints found.")
 
         return test.PASS()
 
-    def do_validate_property_constraints_test(self, test, nc_object, class_manager, context=""):
+    def do_validate_property_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
         class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
 
         for class_property in class_descriptor["properties"]:
             if class_property["constraints"]:
-                self.validate_property_constraints_metadata["checked"] = True
+                test_metadata.checked = True
                 message_root = context + nc_object.role + ": " + class_property["name"] + \
                     ": " + class_property.get("typeName")
                 self.check_constraint(test,
                                       class_property["constraints"],
                                       class_property.get("typeName"),
                                       class_property["isSequence"],
-                                      self.validate_property_constraints_metadata,
+                                      test_metadata,
                                       message_root)
         # Recurse through the child blocks
         if type(nc_object) is NcBlock:
@@ -1136,6 +1151,7 @@ class MS0501Test(GenericTest):
                 self.do_validate_property_constraints_test(test,
                                                            child_object,
                                                            class_manager,
+                                                           test_metadata,
                                                            context + nc_object.role + ": ")
 
     def test_ms05_22(self, test):
@@ -1144,30 +1160,32 @@ class MS0501Test(GenericTest):
         device_model = self.ms05_utils.query_device_model(test)
         class_manager = self.ms05_utils.get_class_manager(test)
 
-        self.do_validate_property_constraints_test(test, device_model, class_manager)
+        test_metadata = MS0501Test.TestMetadata()
+        self.do_validate_property_constraints_test(test, device_model, class_manager, test_metadata)
 
-        if self.validate_property_constraints_metadata["error"]:
-            return test.FAIL(self.validate_property_constraints_metadata["error_msg"])
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg)
 
-        if not self.validate_property_constraints_metadata["checked"]:
+        if not test_metadata.checked:
             return test.UNCLEAR("No property constraints found.")
 
         return test.PASS()
 
-    def do_validate_datatype_constraints_test(self, test, datatype, type_name, context=""):
+    def do_validate_datatype_constraints_test(self, test, datatype, type_name, test_metadata, context=""):
         if datatype.get("constraints"):
-            self.validate_datatype_constraints_metadata["checked"] = True
+            test_metadata.checked = True
             self.check_constraint(test,
                                   datatype.get("constraints"),
                                   type_name,
                                   datatype.get("isSequence", False),
-                                  self.validate_datatype_constraints_metadata,
+                                  test_metadata,
                                   context + ": " + type_name)
         if datatype.get("type") == NcDatatypeType.Struct.value:
             for field in datatype.get("fields"):
                 self.do_validate_datatype_constraints_test(test,
                                                            field,
                                                            field["typeName"],
+                                                           test_metadata,
                                                            context + ": " + type_name + ": " + field["name"])
 
     def test_ms05_23(self, test):
@@ -1175,13 +1193,15 @@ class MS0501Test(GenericTest):
 
         class_manager = self.ms05_utils.get_class_manager(test)
 
+        test_metadata = MS0501Test.TestMetadata()
+
         for _, datatype in class_manager.datatype_descriptors.items():
-            self.do_validate_datatype_constraints_test(test, datatype, datatype["name"])
+            self.do_validate_datatype_constraints_test(test, datatype, datatype["name"], test_metadata)
 
-        if self.validate_datatype_constraints_metadata["error"]:
-            return test.FAIL(self.validate_datatype_constraints_metadata["error_msg"])
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg)
 
-        if not self.validate_datatype_constraints_metadata["checked"]:
+        if not test_metadata.checked:
             return test.UNCLEAR("No datatype constraints found.")
 
         return test.PASS()
@@ -1190,9 +1210,10 @@ class MS0501Test(GenericTest):
         return bool(left is not None) ^ bool(right is not None)
 
     def _check_constraint_override(self, test, constraint, override_constraint, context):
+        checked = False
         # Is this a number constraint
         if 'minimum' in constraint or 'maximum' in constraint or 'step' in constraint:
-            self.check_constraints_hierarchy["checked"] = True
+            checked = True
 
             if self._xor_constraint(constraint.get('minimum'), override_constraint.get('minimum')) \
                     or self._xor_constraint(constraint.get('maximum'), override_constraint.get('maximum')) \
@@ -1222,7 +1243,7 @@ class MS0501Test(GenericTest):
 
         # is this a string constraint
         if 'maxCharacters' in constraint or 'pattern' in constraint:
-            self.check_constraints_hierarchy["checked"] = True
+            checked = True
 
             if self._xor_constraint(constraint.get('maxCharacters'), override_constraint.get('maxCharacters')) \
                     or self._xor_constraint(constraint.get('pattern'), override_constraint.get('pattern')):
@@ -1246,11 +1267,13 @@ class MS0501Test(GenericTest):
                               + "the constraints defined in previous levels: "
                               + "pattern constraint: " + str(constraint.get('pattern'))
                               + ", override pattern constraint: " + str(override_constraint.get('pattern'))))
+        return checked
 
     def _check_constraints_hierarchy(self, test, class_property, datatype_descriptors, object_runtime_constraints,
                                      context):
         datatype_constraints = None
         runtime_constraints = None
+        checked = False
         # Level 0: Datatype constraints
         if class_property.get('typeName'):
             if datatype_descriptors.get(class_property['typeName']):
@@ -1270,18 +1293,23 @@ class MS0501Test(GenericTest):
                     runtime_constraints = object_runtime_constraint
 
         if datatype_constraints and property_constraints:
-            self._check_constraint_override(test, datatype_constraints, property_constraints,
-                                            context + "datatype constraints overridden by property constraints: ")
+            checked = checked or \
+                self._check_constraint_override(test, datatype_constraints, property_constraints,
+                                                context + "datatype constraints overridden by property constraints: ")
 
         if datatype_constraints and runtime_constraints:
-            self._check_constraint_override(test, datatype_constraints, runtime_constraints,
-                                            context + "datatype constraints overridden by runtime constraints: ")
+            checked = checked or \
+                self._check_constraint_override(test, datatype_constraints, runtime_constraints,
+                                                context + "datatype constraints overridden by runtime constraints: ")
 
         if property_constraints and runtime_constraints:
-            self._check_constraint_override(test, property_constraints, runtime_constraints,
-                                            context + "property constraints overridden by runtime constraints: ")
+            checked = checked or \
+                self._check_constraint_override(test, property_constraints, runtime_constraints,
+                                                context + "property constraints overridden by runtime constraints: ")
 
-    def _check_constraints(self, test, block, context=""):
+        return checked
+
+    def _check_constraints(self, test, block, test_metadata, context=""):
         context += block.role
 
         class_manager = self.ms05_utils.get_class_manager(test)
@@ -1310,18 +1338,21 @@ class MS0501Test(GenericTest):
                 if class_property['isReadOnly']:
                     continue
                 try:
-                    self._check_constraints_hierarchy(test, class_property, class_manager.datatype_descriptors,
-                                                      object_runtime_constraints,
-                                                      context + ": " + class_descriptor['name'] + ": "
-                                                      + class_property['name'] + ": ")
+                    test_metadata.checked = test_metadata.checked or \
+                        self._check_constraints_hierarchy(test, class_property, class_manager.datatype_descriptors,
+                                                          object_runtime_constraints,
+                                                          context + ": " + class_descriptor['name'] + ": "
+                                                          + class_property['name'] + ": ")
                 except NMOSTestException as e:
-                    self.check_constraints_hierarchy["error"] = True
-                    self.check_constraints_hierarchy["error_msg"] += str(e.args[0].detail) + "; "
+                    test_metadata.error = True
+                    test_metadata.error_msg += str(e.args[0].detail) + "; "
 
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                self._check_constraints(test, child_object, context + ": ")
+                self._check_constraints(test, child_object, test_metadata, context + ": ")
+
+        return test_metadata
 
     def test_ms05_24(self, test):
         """Constraints: check constraints hierarchy"""
@@ -1332,16 +1363,18 @@ class MS0501Test(GenericTest):
 
         device_model = self.ms05_utils.query_device_model(test)
 
-        self._check_constraints(test, device_model)
+        if self.device_model_metadata.error:
+            return test.FAIL(self.device_model_metadata.error_msg)
 
-        if self.device_model_metadata["error"]:
-            return test.FAIL(self.device_model_metadata["error_msg"])
+        test_metadata = MS0501Test.TestMetadata()
 
-        if self.check_constraints_hierarchy["error"]:
-            return test.FAIL(self.check_constraints_hierarchy["error_msg"],
+        self._check_constraints(test, device_model, test_metadata)
+
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/Constraints.html")
 
-        if not self.check_constraints_hierarchy["checked"]:
+        if not test_metadata.checked:
             return test.UNCLEAR("No constraints hierarchy found.")
 
         return test.PASS()
