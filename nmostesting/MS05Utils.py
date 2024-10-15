@@ -617,6 +617,26 @@ class StandardClassIds(Enum):
     NCCLASSMANAGER = [1, 3, 2]
 
 
+# Base descriptor
+class NcDescriptor():
+    def __init__(self, description):
+        self.description = description  # Optional user facing description
+
+
+class NcPropertyDescriptor(NcDescriptor):
+    def __init__(self, descriptor_json):
+        NcDescriptor.__init__(self, descriptor_json['description'])
+        self.json = descriptor_json
+        self.id = descriptor_json['id']  # Property id with level and index
+        self.name = descriptor_json['name']  # Name of property
+        self.type_name = descriptor_json['typeName']  # Name of property's datatype.
+        self.is_read_only = descriptor_json['isReadOnly']  # TRUE iff property is read-only
+        self.is_nullable = descriptor_json['isNullable']  # TRUE iff property is nullable
+        self.is_sequence = descriptor_json['isSequence']  # TRUE iff property is a sequence
+        self.is_deprecated = descriptor_json['isDeprecated']  # TRUE iff property is marked as deprecated
+        self.constraints = descriptor_json['constraints']  # Optional constraints on top of the underlying data type
+
+
 class NcObject():
     def __init__(self, class_id, oid, role, role_path, runtime_constraints):
         self.class_id = class_id
