@@ -617,6 +617,18 @@ class StandardClassIds(Enum):
     NCCLASSMANAGER = [1, 3, 2]
 
 
+class NcElementId():
+    def __init__(self, id_json):
+        self.json = id_json
+        self.level = id_json['level']  # Level of the element
+        self.index = id_json['index']  # Index of the element
+
+
+class NcPropertyId(NcElementId):
+    def __init__(self, id_json):
+        NcElementId.__init__(self, id_json)
+
+
 # Base descriptor
 class NcDescriptor():
     def __init__(self, description):
@@ -627,7 +639,7 @@ class NcPropertyDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
         NcDescriptor.__init__(self, descriptor_json['description'])
         self.json = descriptor_json
-        self.id = descriptor_json['id']  # Property id with level and index
+        self.id = NcPropertyId(descriptor_json['id'])  # Property id with level and index
         self.name = descriptor_json['name']  # Name of property
         self.type_name = descriptor_json['typeName']  # Name of property's datatype.
         self.is_read_only = descriptor_json['isReadOnly']  # TRUE iff property is read-only
@@ -635,6 +647,23 @@ class NcPropertyDescriptor(NcDescriptor):
         self.is_sequence = descriptor_json['isSequence']  # TRUE iff property is a sequence
         self.is_deprecated = descriptor_json['isDeprecated']  # TRUE iff property is marked as deprecated
         self.constraints = descriptor_json['constraints']  # Optional constraints on top of the underlying data type
+
+
+class NcTouchpoint():
+    def __init__(self, touchpoint_json):
+        self.context_namespace = touchpoint_json['contextNamespace']  # Context namespace
+
+
+class NcTouchpointNmos(NcTouchpoint):
+    def __init__(self, touchpoint_json):
+        NcTouchpoint.__init__(self, touchpoint_json)
+        self.resource = touchpoint_json['resource']  # Context NMOS resource
+
+
+class NcTouchpointNmosChannelMapping(NcTouchpoint):
+    def __init__(self, touchpoint_json):
+        NcTouchpoint.__init__(self, touchpoint_json)
+        self.resource = touchpoint_json['resource']  # Context Channel Mapping resource
 
 
 class NcObject():

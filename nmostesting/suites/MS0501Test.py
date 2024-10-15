@@ -16,7 +16,8 @@ from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeType, NcDeviceManagerProperties, \
-    NcMethodStatus, NcObjectProperties, NcPropertyDescriptor, StandardClassIds
+    NcMethodStatus, NcObjectProperties, NcPropertyDescriptor, NcTouchpoint, NcTouchpointNmos, \
+    NcTouchpointNmosChannelMapping, StandardClassIds
 from ..TestResult import Test
 
 # Note: this test suite is a base class for the IS1201Test and IS1401Test test suites
@@ -222,7 +223,7 @@ class MS0501Test(GenericTest):
             self.get_sequence_item_metadata.checked = True
             sequence_index = 0
             for property_value in sequence_values:
-                value = self.ms05_utils.get_sequence_item_value(test, property_descriptor.id, sequence_index,
+                value = self.ms05_utils.get_sequence_item_value(test, property_descriptor.id.json, sequence_index,
                                                                 oid=oid, role_path=role_path)
                 if property_value != value:
                     self.get_sequence_item_metadata.error = True
@@ -244,7 +245,7 @@ class MS0501Test(GenericTest):
             return
         try:
             self.get_sequence_length_metadata.checked = True
-            length = self.ms05_utils.get_sequence_length(test, property_descriptor.id,
+            length = self.ms05_utils.get_sequence_length(test, property_descriptor.id.json,
                                                          oid=oid, role_path=role_path)
 
             if length == len(sequence_values):
@@ -355,13 +356,14 @@ class MS0501Test(GenericTest):
         if touchpoints is not None:
             self.touchpoints_metadata.checked = True
             try:
-                for touchpoint in touchpoints:
-                    schema = self.ms05_utils.get_datatype_schema(test, "NcTouchpointNmos") \
-                        if touchpoint["contextNamespace"] == "x-nmos" \
-                        else self.ms05_utils.get_datatype_schema(test, "NcTouchpointNmosChannelMapping")
+                for touchpoint_json in touchpoints:
+                    touchpoint = NcTouchpoint(touchpoint_json)
+                    schema = self.ms05_utils.get_datatype_schema(test, NcTouchpointNmos.__name__) \
+                        if touchpoint.context_namespace == "x-nmos" \
+                        else self.ms05_utils.get_datatype_schema(test, NcTouchpointNmosChannelMapping.__name__)
                     self.ms05_utils.validate_schema(
                         test,
-                        touchpoint,
+                        touchpoint_json,
                         schema,
                         context=context + schema["title"])
 
@@ -1018,13 +1020,14 @@ class MS0501Test(GenericTest):
             for constraint in nc_object.runtime_constraints:
                 class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
                 for class_property in class_descriptor["properties"]:
-                    if class_property["id"] == constraint["propertyId"]:
-                        message_root = context + nc_object.role + ": " + class_property["name"] + \
-                            ": " + class_property.get("typeName")
+                    property_descriptor = NcPropertyDescriptor(class_property)
+                    if property_descriptor.id.json == constraint["propertyId"]:
+                        message_root = context + nc_object.role + ": " + property_descriptor.name + \
+                            ": " + property_descriptor.type_name
                         self.check_constraint(test,
                                               constraint,
-                                              class_property.get("typeName"),
-                                              class_property["isSequence"],
+                                              property_descriptor.type_name,
+                                              property_descriptor.is_sequence,
                                               test_metadata,
                                               message_root)
 
@@ -1133,14 +1136,15 @@ class MS0501Test(GenericTest):
         class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
 
         for class_property in class_descriptor["properties"]:
-            if class_property["constraints"]:
+            property_descriptor = NcPropertyDescriptor(class_property)
+            if property_descriptor.constraints:
                 test_metadata.checked = True
-                message_root = context + nc_object.role + ": " + class_property["name"] + \
-                    ": " + class_property.get("typeName")
+                message_root = context + nc_object.role + ": " + property_descriptor.name + \
+                    ": " + property_descriptor.type_name
                 self.check_constraint(test,
-                                      class_property["constraints"],
-                                      class_property.get("typeName"),
-                                      class_property["isSequence"],
+                                      property_descriptor.constraints,
+                                      property_descriptor.type_name,
+                                      property_descriptor.is_sequence,
                                       test_metadata,
                                       message_root)
         # Recurse through the child blocks
@@ -1267,27 +1271,27 @@ class MS0501Test(GenericTest):
                               + ", override pattern constraint: " + str(override_constraint.get('pattern'))))
         return checked
 
-    def _check_constraints_hierarchy(self, test, class_property, datatype_descriptors, object_runtime_constraints,
+    def _check_constraints_hierarchy(self, test, property_descriptor, datatype_descriptors, object_runtime_constraints,
                                      context):
         datatype_constraints = None
         runtime_constraints = None
         checked = False
         # Level 0: Datatype constraints
-        if class_property.get('typeName'):
-            if datatype_descriptors.get(class_property['typeName']):
-                datatype_constraints = datatype_descriptors.get(class_property['typeName']).get('constraints')
+        if property_descriptor.type_name:
+            if datatype_descriptors.get(property_descriptor.type_name):
+                datatype_constraints = datatype_descriptors.get(property_descriptor.type_name).get('constraints')
             else:
-                raise NMOSTestException(test.FAIL(context + "Unknown data type: " + class_property['typeName']))
+                raise NMOSTestException(test.FAIL(context + "Unknown data type: " + property_descriptor.type_name))
         else:
             raise NMOSTestException(test.FAIL(context + "Missing data type from class descriptor"))
 
         # Level 1: Property constraints
-        property_constraints = class_property.get('constraints')
+        property_constraints = property_descriptor.constraints
         # Level 3: Runtime constraints
         if object_runtime_constraints:
             for object_runtime_constraint in object_runtime_constraints:
-                if object_runtime_constraint['propertyId']['level'] == class_property['id']['level'] and \
-                        object_runtime_constraint['propertyId']['index'] == class_property['id']['index']:
+                if object_runtime_constraint['propertyId']['level'] == property_descriptor.id.level and \
+                        object_runtime_constraint['propertyId']['index'] == property_descriptor.id.index:
                     runtime_constraints = object_runtime_constraint
 
         if datatype_constraints and property_constraints:
@@ -1333,14 +1337,15 @@ class MS0501Test(GenericTest):
                                         role_path=role_path)
 
             for class_property in class_descriptor.get('properties'):
-                if class_property['isReadOnly']:
+                property_descriptor = NcPropertyDescriptor(class_property)
+                if property_descriptor.is_read_only:
                     continue
                 try:
                     test_metadata.checked = test_metadata.checked or \
-                        self._check_constraints_hierarchy(test, class_property, class_manager.datatype_descriptors,
+                        self._check_constraints_hierarchy(test, property_descriptor, class_manager.datatype_descriptors,
                                                           object_runtime_constraints,
                                                           context + ": " + class_descriptor['name'] + ": "
-                                                          + class_property['name'] + ": ")
+                                                          + property_descriptor.name + ": ")
                 except NMOSTestException as e:
                     test_metadata.error = True
                     test_metadata.error_msg += str(e.args[0].detail) + "; "
