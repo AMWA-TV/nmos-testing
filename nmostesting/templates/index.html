@@ -66,6 +66,10 @@
                             {{ endpoint.selector.label }} {{ endpoint.selector(size="10") }}
                             <input type="hidden" id="endpoints-{{ loop.index-1 }}-selector-save" />
                         </div>
+                        <div class="input text input_data_fld" id="endpoints-{{ loop.index-1 }}-urlpath-div">
+                            {{ endpoint.urlpath.label }} {{ endpoint.urlpath(size="30") }}
+                            <input type="hidden" id="endpoints-{{ loop.index-1 }}-urlpath-save" />
+                        </div>
                         <br />
                     </div>
                 {% endfor %}
