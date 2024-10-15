@@ -16,7 +16,7 @@ from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeType, NcDeviceManagerProperties, \
-    NcMethodStatus, NcObjectProperties, StandardClassIds
+    NcMethodStatus, NcObjectProperties, NcPropertyDescriptor, StandardClassIds
 from ..TestResult import Test
 
 # Note: this test suite is a base class for the IS1201Test and IS1401Test test suites
@@ -155,7 +155,7 @@ class MS0501Test(GenericTest):
             role_path=['root'])
 
         if oid != self.ms05_utils.ROOT_BLOCK_OID:
-            return test.FAIL("Unexpected role in Root Block: " + str(role),
+            return test.FAIL("Unexpected OID in Root Block: " + str(oid),
                              "https://specs.amwa.tv/ms-05-02/branches/{}"
                              "/docs/Blocks.html"
                              .format(self.apis[MS05_API_KEY]["spec_branch"]))
@@ -189,7 +189,7 @@ class MS0501Test(GenericTest):
             return None
 
     def _validate_property_type(self, test, value, data_type, is_nullable, context=""):
-        """Validate the the property value is correct according to the type. Raises NMOSTestException on error"""
+        """Validate property type. Raises NMOSTestException on error"""
         if value is None:
             if is_nullable:
                 return
@@ -211,109 +211,107 @@ class MS0501Test(GenericTest):
 
         return
 
-    def check_get_sequence_item(self, test, oid, role_path, sequence_values, property_metadata, context=""):
-        if sequence_values is None and not property_metadata["isNullable"]:
+    def check_get_sequence_item(self, test, oid, role_path, sequence_values, property_descriptor, context=""):
+        if sequence_values is None and not property_descriptor.is_nullable:
             self.get_sequence_item_metadata.error = True
             self.get_sequence_item_metadata.error_msg += \
-                context + property_metadata["name"] + ": Non-nullable property set to null, "
+                context + property_descriptor.name + ": Non-nullable property set to null, "
             return
         try:
             # GetSequenceItem
             self.get_sequence_item_metadata.checked = True
             sequence_index = 0
             for property_value in sequence_values:
-                value = self.ms05_utils.get_sequence_item_value(test, property_metadata['id'], sequence_index,
+                value = self.ms05_utils.get_sequence_item_value(test, property_descriptor.id, sequence_index,
                                                                 oid=oid, role_path=role_path)
                 if property_value != value:
                     self.get_sequence_item_metadata.error = True
                     self.get_sequence_item_metadata.error_msg += \
-                        context + property_metadata["name"] \
+                        context + property_descriptor.name \
                         + ": Expected: " + str(property_value) + ", Actual: " + str(value) \
                         + " at index " + sequence_index + ", "
                 sequence_index += 1
-            return True
         except NMOSTestException as e:
             self.get_sequence_item_metadata.error = True
             self.get_sequence_item_metadata.error_msg += \
-                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
-        return False
+                context + property_descriptor.name + ": " + str(e.args[0].detail) + ", "
 
-    def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_metadata, context=""):
-        if sequence_values is None and not property_metadata["isNullable"]:
+    def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_descriptor, context=""):
+        if sequence_values is None and not property_descriptor.is_nullable:
             self.get_sequence_length_metadata.error = True
             self.get_sequence_length_metadata.error_msg += \
-                context + property_metadata["name"] + ": Non-nullable property set to null, "
+                context + property_descriptor.name + ": Non-nullable property set to null, "
             return
-
         try:
             self.get_sequence_length_metadata.checked = True
-            length = self.ms05_utils.get_sequence_length(test, property_metadata['id'],
+            length = self.ms05_utils.get_sequence_length(test, property_descriptor.id,
                                                          oid=oid, role_path=role_path)
 
             if length == len(sequence_values):
                 return True
             self.get_sequence_length_metadata.error_msg += \
-                context + property_metadata["name"] \
+                context + property_descriptor.name \
                 + ": GetSequenceLength error. Expected: " \
                 + str(len(sequence_values)) + ", Actual: " + str(length) + ", "
         except NMOSTestException as e:
             self.get_sequence_length_metadata.error_msg += \
-                context + property_metadata["name"] + ": " + str(e.args[0].detail) + ", "
+                context + property_descriptor.name + ": " + str(e.args[0].detail) + ", "
         self.get_sequence_length_metadata.error = True
-        return False
 
-    def check_sequence_methods(self, test, oid, role_path, sequence_values, property_metadata, context=""):
-        """Check that sequence manipulation methods work correctly"""
-        self.check_get_sequence_item(test, oid, role_path, sequence_values, property_metadata, context)
-        self.check_get_sequence_length(test, oid, role_path, sequence_values, property_metadata, context)
+    def check_sequence_methods(self, test, oid, role_path, sequence_values, property_descriptor, context=""):
+        """Check that sequence manipulation methods work correctly. Raises NMOSTestException on error"""
+        self.check_get_sequence_item(test, oid, role_path, sequence_values, property_descriptor, context)
+        self.check_get_sequence_length(test, oid, role_path, sequence_values, property_descriptor, context)
 
     def check_object_properties(self, test, reference_class_descriptor, oid, role_path, context):
+        """Check properties of an object against reference NcClassDescriptor"""
         for class_property in reference_class_descriptor['properties']:
+            property_descriptor = NcPropertyDescriptor(class_property)
             response = self.get_property(test, oid, class_property.get('id'), role_path, context)
 
             if response is None:
-                # Can't find this property - do we have an ID clash
+                # Can't find this property - do we have an ID clash?
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += \
                     "Property does not exist - it is possible that the class id for this class is NOT unique? " \
                     + "classId: " + ".".join(map(str, reference_class_descriptor['classId']))
                 continue
 
-            object_property = response["value"]
+            property_value = response["value"]
 
-            if class_property["isDeprecated"]:
+            if property_descriptor.is_deprecated:
                 self.deprecated_property_metadata.checked = True
                 if response["status"] != NcMethodStatus.PropertyDeprecated.value:
                     self.deprecated_property_metadata.error = True
                     self.deprecated_property_metadata.error_msg = context + \
-                        " PropertyDeprecated status code expected when getting " + class_property["name"]
+                        " PropertyDeprecated status code expected when getting " + property_descriptor.name
 
-            if not object_property:
+            if not property_value:
                 continue
 
             # validate property type
-            if class_property['isSequence']:
-                for property_value in object_property:
+            if property_descriptor.is_sequence:
+                for sequence_value in property_value:
                     self._validate_property_type(
                         test,
-                        property_value,
-                        class_property['typeName'],
-                        class_property['isNullable'],
-                        context=context + class_property["typeName"]
-                        + ": " + class_property["name"] + ": ")
+                        sequence_value,
+                        property_descriptor.type_name,
+                        property_descriptor.is_nullable,
+                        context=context + property_descriptor.type_name
+                        + ": " + property_descriptor.name + ": ")
                 self.check_sequence_methods(test,
                                             oid,
                                             role_path,
-                                            object_property,
-                                            class_property,
+                                            property_value,
+                                            property_descriptor,
                                             context=context)
             else:
                 self._validate_property_type(
                     test,
-                    object_property,
-                    class_property['typeName'],
-                    class_property['isNullable'],
-                    context=context + class_property["name"] + ": ")
+                    property_value,
+                    property_descriptor.type_name,
+                    property_descriptor.is_nullable,
+                    context=context + property_descriptor.name + ": ")
         return
 
     def check_unique_roles(self, role, role_cache):
