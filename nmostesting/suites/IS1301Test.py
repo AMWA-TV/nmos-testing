@@ -136,7 +136,11 @@ class IS1301Test(GenericTest):
         return True, resp
 
     def log(self, msg):
-        print(msg)
+        """
+        Enable for quick debug only
+        """
+        # print(msg)
+        return
 
     def create_url(self, base_url, resource):
         """
