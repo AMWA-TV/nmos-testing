@@ -15,7 +15,7 @@
 from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import MS05Utils, NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, \
+from ..MS05Utils import MS05Utils, NcBlock, NcBlockMemberDescriptor, NcBlockProperties, \
     NcDatatypeType, NcDeviceManagerProperties, \
     NcMethodStatus, NcObjectProperties, NcPropertyDescriptor, NcTouchpoint, NcTouchpointNmos, \
     NcTouchpointNmosChannelMapping, StandardClassIds
@@ -95,13 +95,14 @@ class MS0501Test(GenericTest):
         reference_descriptor_keys = sorted(reference_descriptors.keys())
 
         for key in reference_descriptor_keys:
-            test = Test("Validate " + str(key) + " definition", "auto_ms05_" + str(key))
+            test = Test(f"Validate {str(key)} definition", f"auto_ms05_{str(key)}")
             try:
                 if descriptors.get(key):
                     descriptor = descriptors[key]
 
                     # Validate descriptor obeys the JSON schema
-                    self.ms05_utils.validate_reference_datatype_schema(test, descriptor.json, descriptor.__class__.__name__)
+                    self.ms05_utils.validate_reference_datatype_schema(test, descriptor.json,
+                                                                       descriptor.__class__.__name__)
 
                     # Validate the descriptor is correct
                     self.ms05_utils.validate_descriptor(test, reference_descriptors[key], descriptor.json)
@@ -142,10 +143,10 @@ class MS0501Test(GenericTest):
             role_path=['root'])
 
         if role != "root":
-            return test.FAIL("Unexpected role in Root Block: " + str(role),
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Blocks.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+            return test.FAIL(f"Unexpected role in Root Block: {str(role)}",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/Blocks.html")
 
         # Check OID is correct
         oid = self.ms05_utils.get_property_value(
@@ -155,10 +156,10 @@ class MS0501Test(GenericTest):
             role_path=['root'])
 
         if oid != self.ms05_utils.ROOT_BLOCK_OID:
-            return test.FAIL("Unexpected OID in Root Block: " + str(oid),
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Blocks.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+            return test.FAIL(f"Unexpected OID in Root Block: {str(oid)}",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/Blocks.html")
 
         return test.PASS()
 
@@ -168,11 +169,8 @@ class MS0501Test(GenericTest):
             return self.ms05_utils.get_property(test, property_id, oid=oid, role_path=role_path)
         except NMOSTestException as e:
             self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += context \
-                + "Error getting property: " \
-                + str(property_id) + ": " \
-                + str(e.args[0].detail) \
-                + "; "
+            self.device_model_metadata.error_msg += f"{context}Error getting property: " \
+                + f"{str(property_id)}: {str(e.args[0].detail)}; "
         return None
 
     def get_property_value(self, test, property_id, context, oid, role_path):
@@ -181,11 +179,8 @@ class MS0501Test(GenericTest):
             return self.ms05_utils.get_property_value(test, property_id, oid=oid, role_path=role_path)
         except NMOSTestException as e:
             self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += context \
-                + "Error getting property: " \
-                + str(property_id) + ": " \
-                + str(e.args[0].detail) \
-                + "; "
+            self.device_model_metadata.error_msg += f"{context}Error getting property: " \
+                + f"{str(property_id)}: {str(e.args[0].detail)}; "
             return None
 
     def _validate_property_type(self, test, value, data_type, is_nullable, context=""):
@@ -194,7 +189,7 @@ class MS0501Test(GenericTest):
             if is_nullable:
                 return
             else:
-                raise NMOSTestException(test.FAIL(context + "Non-nullable property set to null."))
+                raise NMOSTestException(test.FAIL(f"{context}Non-nullable property set to null."))
 
         if self.ms05_utils.primitive_to_python_type(data_type):
             # Special case: if this is a floating point value it
@@ -204,10 +199,10 @@ class MS0501Test(GenericTest):
                 return
 
             if not isinstance(value, self.ms05_utils.primitive_to_python_type(data_type)):
-                raise NMOSTestException(test.FAIL(context + str(value) + " is not of type " + str(data_type)))
+                raise NMOSTestException(test.FAIL(f"{context}{str(value)} is not of type {str(data_type)}"))
         else:
             self.ms05_utils.validate_schema(test, value, self.ms05_utils.get_datatype_schema(test, data_type),
-                                            context + data_type)
+                                            f"{context}{data_type}")
 
         return
 
@@ -215,7 +210,7 @@ class MS0501Test(GenericTest):
         if sequence_values is None and not property_descriptor.isNullable:
             self.get_sequence_item_metadata.error = True
             self.get_sequence_item_metadata.error_msg += \
-                context + property_descriptor.name + ": Non-nullable property set to null, "
+                f"{context}{property_descriptor.name}: Non-nullable property set to null, "
             return
         try:
             # GetSequenceItem
@@ -227,20 +222,19 @@ class MS0501Test(GenericTest):
                 if property_value != value:
                     self.get_sequence_item_metadata.error = True
                     self.get_sequence_item_metadata.error_msg += \
-                        context + property_descriptor.name \
-                        + ": Expected: " + str(property_value) + ", Actual: " + str(value) \
-                        + " at index " + sequence_index + ", "
+                        f"{context}{property_descriptor.name}: Expected: {str(property_value)}, Actual: {str(value)}" \
+                        f" at index {sequence_index}, "
                 sequence_index += 1
         except NMOSTestException as e:
             self.get_sequence_item_metadata.error = True
             self.get_sequence_item_metadata.error_msg += \
-                context + property_descriptor.name + ": " + str(e.args[0].detail) + ", "
+                f"{context}{property_descriptor.name}: {str(e.args[0].detail)}, "
 
     def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_descriptor, context=""):
         if sequence_values is None and not property_descriptor.isNullable:
             self.get_sequence_length_metadata.error = True
             self.get_sequence_length_metadata.error_msg += \
-                context + property_descriptor.name + ": Non-nullable property set to null, "
+                f"{context}{property_descriptor.name}: Non-nullable property set to null, "
             return
         try:
             self.get_sequence_length_metadata.checked = True
@@ -250,12 +244,11 @@ class MS0501Test(GenericTest):
             if length == len(sequence_values):
                 return True
             self.get_sequence_length_metadata.error_msg += \
-                context + property_descriptor.name \
-                + ": GetSequenceLength error. Expected: " \
-                + str(len(sequence_values)) + ", Actual: " + str(length) + ", "
+                f"{context}{property_descriptor.name}: GetSequenceLength error. Expected: " \
+                f"{str(len(sequence_values))}, Actual: {str(length)}, "
         except NMOSTestException as e:
             self.get_sequence_length_metadata.error_msg += \
-                context + property_descriptor.name + ": " + str(e.args[0].detail) + ", "
+                f"{context}{property_descriptor.name}: {str(e.args[0].detail)}, "
         self.get_sequence_length_metadata.error = True
 
     def check_sequence_methods(self, test, oid, role_path, sequence_values, property_descriptor, context=""):
@@ -272,8 +265,9 @@ class MS0501Test(GenericTest):
                 # Can't find this property - do we have an ID clash?
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += \
-                    "Property does not exist - it is possible that the class id for this class is NOT unique? " \
-                    + "classId: " + ".".join(map(str, reference_class_descriptor.classId))
+                    f"{context}Property does not exist - " \
+                    "it is possible that the class id for this class is NOT unique? " \
+                    f"classId: {".".join(map(str, reference_class_descriptor.classId))}"
                 continue
 
             property_value = response["value"]
@@ -282,8 +276,8 @@ class MS0501Test(GenericTest):
                 self.deprecated_property_metadata.checked = True
                 if response["status"] != NcMethodStatus.PropertyDeprecated.value:
                     self.deprecated_property_metadata.error = True
-                    self.deprecated_property_metadata.error_msg = context + \
-                        " PropertyDeprecated status code expected when getting " + property_descriptor.name
+                    self.deprecated_property_metadata.error_msg += \
+                        f"{context}PropertyDeprecated status code expected when getting {property_descriptor.name}"
 
             if not property_value:
                 continue
@@ -296,8 +290,8 @@ class MS0501Test(GenericTest):
                         sequence_value,
                         property_descriptor.typeName,
                         property_descriptor.isNullable,
-                        context=context + property_descriptor.typeName
-                        + ": " + property_descriptor.name + ": ")
+                        context=f"{context}{property_descriptor.typeName}"
+                        + f": {property_descriptor.name}: ")
                 self.check_sequence_methods(test,
                                             oid,
                                             role_path,
@@ -310,7 +304,7 @@ class MS0501Test(GenericTest):
                     property_value,
                     property_descriptor.typeName,
                     property_descriptor.isNullable,
-                    context=context + property_descriptor.name + ": ")
+                    context=f"{context}{property_descriptor.name}: ")
         return
 
     def check_unique_roles(self, role, role_cache):
@@ -363,11 +357,11 @@ class MS0501Test(GenericTest):
                         test,
                         touchpoint_json,
                         schema,
-                        context=context + schema["title"])
+                        context=f"{context}{schema["title"]}")
 
             except NMOSTestException as e:
                 self.touchpoints_metadata.error = True
-                self.touchpoints_metadata.error_msg = context + str(e.args[0].detail)
+                self.touchpoints_metadata.error_msg = f"{context}{str(e.args[0].detail)}"
 
     def check_block(self, test, block, class_descriptors, context=""):
         for child_object in block.child_objects:
@@ -376,7 +370,7 @@ class MS0501Test(GenericTest):
                 self.check_block(test,
                                  child_object,
                                  class_descriptors,
-                                 context=context + str(child_object.role) + ': ')
+                                 context=f"{context}{str(child_object.role)}: ")
         role_cache = []
         manager_cache = []
         for descriptor in block.member_descriptors:
@@ -389,7 +383,7 @@ class MS0501Test(GenericTest):
                 self.organization_metadata.checked = True
             self.check_manager(descriptor.classId, descriptor.owner, class_descriptors, manager_cache)
             self.check_touchpoints(test, descriptor.oid, role_path,
-                                   context=context + str(descriptor.role) + ': ')
+                                   context=f"{context}{str(descriptor.role)}: ")
 
             class_identifier = ".".join(map(str, descriptor.classId))
             if class_identifier and class_identifier in class_descriptors:
@@ -397,20 +391,18 @@ class MS0501Test(GenericTest):
                                              class_descriptors[class_identifier],
                                              descriptor.oid,
                                              role_path,
-                                             context=context + str(descriptor.role) + ': ')
+                                             context=f"{context}{str(descriptor.role)}: ")
             else:
                 self.device_model_metadata.error = True
-                self.device_model_metadata.error_msg += str(descriptor.role) + ': ' \
-                    + "Class not advertised by Class Manager: " \
-                    + str(descriptor.classId) + ". "
+                self.device_model_metadata.error_msg += f"{str(descriptor.role)}: " \
+                    f"Class not advertised by Class Manager: {str(descriptor.classId)}. "
 
             if class_identifier not in self.ms05_utils.reference_class_descriptors and \
                     not self.ms05_utils.is_non_standard_class(descriptor.classId):
                 # Not a standard or non-standard class
                 self.organization_metadata.error = True
-                self.organization_metadata.error_msg = str(descriptor.role) + ': ' \
-                    + "Non-standard class id does not contain authority key: " \
-                    + str(descriptor.classId) + ". "
+                self.organization_metadata.error_msg = f"{str(descriptor.role)}: " \
+                    "Non-standard class id does not contain authority key: {str(descriptor.classId)}. "
 
     def check_device_model(self, test):
         if not self.device_model_metadata.checked:
@@ -451,9 +443,9 @@ class MS0501Test(GenericTest):
 
         if self.unique_roles_error:
             return test.FAIL("Roles must be unique. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/NcObject.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/NcObject.html")
 
         if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
@@ -472,9 +464,9 @@ class MS0501Test(GenericTest):
 
         if self.unique_oids_error:
             return test.FAIL("Oids must be unique. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/NcObject.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/NcObject.html")
 
         if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
@@ -496,9 +488,9 @@ class MS0501Test(GenericTest):
 
         if self.organization_metadata.error:
             return test.FAIL(self.organization_metadata.error_msg,
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Framework.html#ncclassid"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/Framework.html#ncclassid")
 
         if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
@@ -523,9 +515,9 @@ class MS0501Test(GenericTest):
 
         if self.touchpoints_metadata.error:
             return test.FAIL(self.touchpoints_metadata.error_msg,
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/NcObject.html#touchpoints"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/NcObject.html#touchpoints")
 
         if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
@@ -547,9 +539,9 @@ class MS0501Test(GenericTest):
 
         if self.deprecated_property_metadata.error:
             return test.FAIL(self.deprecated_property_metadata.error_msg,
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Framework.html#ncmethodstatus"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/Framework.html#ncmethodstatus")
 
         if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
@@ -571,9 +563,9 @@ class MS0501Test(GenericTest):
 
         if self.managers_members_root_block_error:
             return test.FAIL("Managers must be members of Root Block. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Managers.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/Managers.html")
 
         if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
@@ -593,9 +585,9 @@ class MS0501Test(GenericTest):
 
         if self.managers_are_singletons_error:
             return test.FAIL("Managers must be singleton classes. ",
-                             "https://specs.amwa.tv/ms-05-02/branches/{}"
-                             "/docs/Managers.html"
-                             .format(self.apis[MS05_API_KEY]["spec_branch"]))
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             "/docs/Managers.html")
 
         if not self.device_model_metadata.checked:
             return test.UNCLEAR("Unable to check Device Model.")
@@ -607,8 +599,8 @@ class MS0501Test(GenericTest):
         # Class manager exists in root
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
 
-        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
-            .format(self.apis[MS05_API_KEY]["spec_branch"])
+        spec_link = "https://specs.amwa.tv/ms-05-02/branches/" \
+            f"{self.apis[MS05_API_KEY]["spec_branch"]}/docs/Managers.html"
 
         class_manager = self.ms05_utils.get_class_manager(test)
 
@@ -625,8 +617,8 @@ class MS0501Test(GenericTest):
         # A minimal device implementation MUST have a device manager in the Root Block.
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
 
-        spec_link = "https://specs.amwa.tv/ms-05-02/branches/{}/docs/Managers.html"\
-            .format(self.apis[MS05_API_KEY]["spec_branch"])
+        spec_link = "https://specs.amwa.tv/ms-05-02/branches/" \
+            f"{self.apis[MS05_API_KEY]["spec_branch"]}/docs/Managers.html"
 
         device_manager = self.ms05_utils.get_device_manager(test)
 
@@ -644,9 +636,8 @@ class MS0501Test(GenericTest):
                                                      role_path=device_manager.role_path)
 
         if self.ms05_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
-            return test.FAIL("Unexpected version. Expected: "
-                             + self.apis[MS05_API_KEY]["version"]
-                             + ". Actual: " + str(version))
+            return test.FAIL(f"Unexpected version. Expected: {self.apis[MS05_API_KEY]["version"]}"
+                             f". Actual: {str(version)}")
         return test.PASS()
 
     def test_ms05_12(self, test):
@@ -666,11 +657,17 @@ class MS0501Test(GenericTest):
                                                                       role_path=class_manager.role_path)
                 expected_descriptor = class_manager.get_control_class(class_descriptor.classId,
                                                                       include_inherited)
+                context = f"Class: {str(class_descriptor.classId)}: "
+                self.ms05_utils.validate_reference_datatype_schema(
+                    test,
+                    actual_descriptor,
+                    expected_descriptor.__class__.__name__,
+                    context)
                 self.ms05_utils.validate_descriptor(
                     test,
                     expected_descriptor.__dict__,
                     actual_descriptor,
-                    context=f"Class: {str(class_descriptor.classId)}: ")
+                    context)
 
         return test.PASS()
 
@@ -691,11 +688,17 @@ class MS0501Test(GenericTest):
                                                                  role_path=class_manager.role_path)
                 expected_descriptor = class_manager.get_datatype(datatype_descriptor.name,
                                                                  include_inherited)
+                context = f"Datatype: {datatype_descriptor.name}: "
+                self.ms05_utils.validate_reference_datatype_schema(
+                    test,
+                    actual_descriptor,
+                    expected_descriptor.__class__.__name__,
+                    context)
                 self.ms05_utils.validate_descriptor(
                     test,
                     expected_descriptor,
                     actual_descriptor,
-                    context=f"Datatype: {datatype_descriptor.name}: ")
+                    context)
 
         return test.PASS()
 
@@ -705,9 +708,9 @@ class MS0501Test(GenericTest):
         # using the Get method.
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/NcObject.html#generic-getter-and-setter
 
-        link = "https://specs.amwa.tv/ms-05-02/branches/{}" \
+        link = "https://specs.amwa.tv/ms-05-02/branches/" \
+               f"{self.apis[MS05_API_KEY]["spec_branch"]}" \
                "/docs/NcObject.html#generic-getter-and-setter" \
-               .format(self.apis[MS05_API_KEY]["spec_branch"])
 
         # Attempt to set labels
         property_id = NcObjectProperties.USER_LABEL.value
@@ -731,7 +734,7 @@ class MS0501Test(GenericTest):
             if label == old_user_label:
                 return test.FAIL("Unable to set user label", link)
             else:
-                return test.FAIL("Unexpected user label: " + str(label), link)
+                return test.FAIL(f"Unexpected user label: {str(label)}", link)
 
         # Reset user label
         self.ms05_utils.set_property(test, property_id, old_user_label,
@@ -746,7 +749,7 @@ class MS0501Test(GenericTest):
             if label == new_user_label:
                 return test.FAIL("Unable to set user label", link)
             else:
-                return test.FAIL("Unexpected user label: " + str(label), link)
+                return test.FAIL(f"Unexpected user label: {str(label)}", link)
 
         return test.PASS()
 
@@ -794,7 +797,7 @@ class MS0501Test(GenericTest):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                self.do_get_member_descriptors_test(test, child_object, context + block.role + ": ")
+                self.do_get_member_descriptors_test(test, child_object, f"{context}{block.role}: ")
 
         search_conditions = [{"recurse": True}, {"recurse": False}]
 
@@ -805,16 +808,12 @@ class MS0501Test(GenericTest):
                                                                      oid=block.oid, role_path=block.role_path)
 
             if not isinstance(queried_members, list):
-                raise NMOSTestException(test.FAIL(context
-                                                  + block.role
-                                                  + ": Did not return an array of results."))
+                raise NMOSTestException(test.FAIL(f"{context}{block.role}: Did not return an array of results."))
 
             if len(queried_members) != len(expected_members):
-                raise NMOSTestException(test.FAIL(context
-                                                  + block.role
-                                                  + ": Unexpected number of block members found. Expected: "
-                                                  + str(len(expected_members)) + ", Actual: "
-                                                  + str(len(queried_members))))
+                raise NMOSTestException(test.FAIL(f"{context}{block.role}: Unexpected number of block members found. "
+                                                  f"Expected: {str(len(expected_members))}, "
+                                                  f"Actual: {str(len(queried_members))}"))
 
             expected_members_oids = [m.oid for m in expected_members]
 
@@ -823,14 +822,11 @@ class MS0501Test(GenericTest):
                     test,
                     queried_member,
                     NcBlockMemberDescriptor.__name__,
-                    context=context
-                    + block.role
-                    + ": " + NcBlockMemberDescriptor.__name__ + ": ")
+                    context=f"{context}{block.role}: {NcBlockMemberDescriptor.__name__}: ")
 
                 if queried_member["oid"] not in expected_members_oids:
-                    raise NMOSTestException(test.FAIL(context
-                                                      + block.role
-                                                      + ": Unsuccessful attempt to get member descriptors."))
+                    raise NMOSTestException(test.FAIL(f"{context}{block.role}"
+                                                      ": Unsuccessful attempt to get member descriptors."))
 
     def test_ms05_17(self, test):
         """NcBlock: GetMemberDescriptors method is correct"""
@@ -848,7 +844,7 @@ class MS0501Test(GenericTest):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                self.do_find_member_by_path_test(test, child_object, context + block.role + ": ")
+                self.do_find_member_by_path_test(test, child_object, f"{context}{block.role}: ")
 
         # Get ground truth role paths
         role_paths = block.get_role_paths()
@@ -862,32 +858,26 @@ class MS0501Test(GenericTest):
                                                                    role_path=block.role_path)
 
             if not isinstance(queried_members, list):
-                raise NMOSTestException(test.FAIL(context
-                                                  + block.role
-                                                  + ": Did not return an array of results for query: "
-                                                  + str(path)))
+                raise NMOSTestException(test.FAIL(f"{context}{block.role}"
+                                                  f": Did not return an array of results for query: {str(path)}"))
 
             for queried_member in queried_members:
                 self.ms05_utils.validate_reference_datatype_schema(
                     test,
                     queried_member,
                     NcBlockMemberDescriptor.__name__,
-                    context=context
-                    + block.role
-                    + ": " + NcBlockMemberDescriptor.__name__ + ": ")
+                    context=f"{context}{block.role}: {NcBlockMemberDescriptor.__name__}: ")
 
             if len(queried_members) != 1:
-                raise NMOSTestException(test.FAIL(context
-                                                  + block.role
-                                                  + ": Incorrect member found by role path: " + str(path)))
+                raise NMOSTestException(test.FAIL(f"{context}{block.role}"
+                                                  f": Incorrect member found by role path: {str(path)}"))
 
             queried_member_oids = [m['oid'] for m in queried_members]
 
             if expected_member.oid not in queried_member_oids:
-                raise NMOSTestException(test.FAIL(context
-                                                  + block.role
-                                                  + ": Unsuccessful attempt to find member by role path: "
-                                                  + str(path)))
+                raise NMOSTestException(test.FAIL(f"{context}{block.role}"
+                                                  ": Unsuccessful attempt to find member by role path: "
+                                                  f"{str(path)}"))
 
     def test_ms05_18(self, test):
         """NcBlock: FindMemberByPath method is correct"""
@@ -906,7 +896,7 @@ class MS0501Test(GenericTest):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                self.do_find_member_by_role_test(test, child_object, context + block.role + ": ")
+                self.do_find_member_by_role_test(test, child_object, f"{context}{block.role}: ")
 
         role_paths = MS05Utils.sampled_list(block.get_role_paths())
         # Generate every combination of case_sensitive, match_whole_string and recurse
@@ -940,92 +930,28 @@ class MS0501Test(GenericTest):
                     expected_results_oids = [m.oid for m in expected_results]
 
                     if actual_results is None or len(actual_results) != len(expected_results):
-                        raise NMOSTestException(test.FAIL(context
-                                                          + block.role
-                                                          + ": Expected "
-                                                          + str(len(expected_results))
-                                                          + ", but got "
-                                                          + str(len(actual_results) if actual_results else 0)
-                                                          + " when searching with query=" + str(query_string)
-                                                          + ", case sensitive=" + str(condition["case_sensitive"])
-                                                          + ", match whole string="
-                                                          + str(condition["match_whole_string"])
-                                                          + ", recurse=" + str(condition["recurse"])))
+                        raise NMOSTestException(
+                            test.FAIL(f"{context}{block.role}: Expected {str(len(expected_results))}, "
+                                      f"but got {str(len(actual_results) if actual_results else 0)} "
+                                      f"when searching with query={str(query_string)}, "
+                                      f"case sensitive={str(condition["case_sensitive"])}, "
+                                      f"match whole string={str(condition["match_whole_string"])}, "
+                                      f"recurse={str(condition["recurse"])}"))
 
                     for actual_result in actual_results:
+                        self.ms05_utils.validate_reference_datatype_schema(
+                            test,
+                            actual_result,
+                            NcBlockMemberDescriptor.__name__,
+                            context=f"{context}{block.role}: {NcBlockMemberDescriptor.__name__}: ")
                         if actual_result["oid"] not in expected_results_oids:
-                            raise NMOSTestException(test.FAIL(context
-                                                              + block.role
-                                                              + ": Unexpected search result. "
-                                                              + str(actual_result)
-                                                              + " when searching with query=" + str(query_string)
-                                                              + ", case sensitive=" + str(condition["case_sensitive"])
-                                                              + ", match whole string="
-                                                              + str(condition["match_whole_string"])
-                                                              + ", recurse=" + str(condition["recurse"])))
-
-    def check_constraint(self, test, constraint, type_name, is_sequence, test_metadata, context):
-        if constraint.get("defaultValue"):
-            datatype_schema = self.ms05_utils.get_datatype_schema(test, type_name)
-            if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
-                test_metadata.error = True
-                test_metadata.error_msg = context + (" a default value sequence was expected"
-                                                     if is_sequence else " unexpected default value sequence.")
-                return
-            if is_sequence:
-                for value in constraint.get("defaultValue"):
-                    self.ms05_utils.validate_schema(test, value, datatype_schema, context + ": defaultValue ")
-            else:
-                self.ms05_utils.validate_schema(
-                    test,
-                    constraint.get("defaultValue"),
-                    datatype_schema,
-                    context + ": defaultValue ")
-
-        datatype = self.ms05_utils.resolve_datatype(test, type_name)
-        # check NcXXXConstraintsNumber
-        if constraint.get("minimum") or constraint.get("maximum") or constraint.get("step"):
-            constraint_type = "NcPropertyConstraintsNumber" \
-                if constraint.get("propertyId") else "NcParameterConstraintsNumber"
-            if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
-                                "NcUint64", "NcFloat32", "NcFloat64"]:
-                test_metadata.error = True
-                test_metadata.error_msg = context + ". " + datatype + \
-                    " can not be constrainted by " + constraint_type + "."
-        # check NcXXXConstraintsString
-        if constraint.get("maxCharacters") or constraint.get("pattern"):
-            constraint_type = "NcPropertyConstraintsString" \
-                if constraint.get("propertyId") else "NcParameterConstraintsString"
-            if datatype not in ["NcString"]:
-                test_metadata.error = True
-                test_metadata.error_msg = context + ". " + datatype + \
-                    " can not be constrainted by " + constraint_type + "."
-
-    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
-
-        if nc_object.runtime_constraints:
-            test_metadata.checked = True
-            for constraint in nc_object.runtime_constraints:
-                class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
-                for property_descriptor in class_descriptor.properties:
-                    if property_descriptor.id.__dict__ == constraint["propertyId"]:
-                        message_root = context + nc_object.role + ": " + property_descriptor.name + \
-                            ": " + property_descriptor.typeName
-                        self.check_constraint(test,
-                                              constraint,
-                                              property_descriptor.typeName,
-                                              property_descriptor.isSequence,
-                                              test_metadata,
-                                              message_root)
-
-        # Recurse through the child blocks
-        if type(nc_object) is NcBlock:
-            for child_object in nc_object.child_objects:
-                self.do_validate_runtime_constraints_test(test,
-                                                          child_object,
-                                                          class_manager,
-                                                          test_metadata,
-                                                          context + nc_object.role + ": ")
+                            raise NMOSTestException(
+                                test.FAIL(f"{context}{block.role}: Unexpected search result. "
+                                          f"{str(actual_result)}"
+                                          f"when searching with query={str(query_string)}, "
+                                          f"case sensitive={str(condition["case_sensitive"])}, "
+                                          f"match whole string={str(condition["match_whole_string"])}, "
+                                          f"recurse={str(condition["recurse"])}"))
 
     def test_ms05_19(self, test):
         """NcBlock: FindMembersByRole method is correct"""
@@ -1044,7 +970,7 @@ class MS0501Test(GenericTest):
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                self.do_find_members_by_class_id_test(test, child_object, context + block.role + ": ")
+                self.do_find_members_by_class_id_test(test, child_object, f"{context}{block.role}: ")
 
         class_ids = [e.value for e in StandardClassIds]
 
@@ -1070,24 +996,19 @@ class MS0501Test(GenericTest):
                 expected_results_oids = [m.oid for m in expected_results]
 
                 if actual_results is None or len(actual_results) != len(expected_results):
-                    raise NMOSTestException(test.FAIL(context
-                                                      + block.role
-                                                      + ": Expected "
-                                                      + str(len(expected_results))
-                                                      + ", but got "
-                                                      + str(len(actual_results) if actual_results else 0)
-                                                      + " when searching with class id=" + str(class_id)
-                                                      + ", include derived=" + str(condition["include_derived"])
-                                                      + ", recurse=" + str(condition["recurse"])))
+                    raise NMOSTestException(test.FAIL(f"{context}{block.role}: Expected {str(len(expected_results))}, "
+                                                      f"but got {str(len(actual_results) if actual_results else 0)} "
+                                                      f"when searching with class id={str(class_id)}, "
+                                                      f"include derived={str(condition["include_derived"])}, "
+                                                      f"recurse={str(condition["recurse"])}"))
 
                 for actual_result in actual_results:
                     if actual_result["oid"] not in expected_results_oids:
-                        raise NMOSTestException(test.FAIL(context
-                                                          + block.role
-                                                          + ": Unexpected search result. " + str(actual_result)
-                                                          + " when searching with class id=" + str(class_id)
-                                                          + ", include derived=" + str(condition["include_derived"])
-                                                          + ", recurse=" + str(condition["recurse"])))
+                        raise NMOSTestException(test.FAIL(f"{context}{block.role}: Unexpected search result. "
+                                                          f"{str(actual_result)} when searching with "
+                                                          f"class id={str(class_id)}, "
+                                                          f"include derived={str(condition["include_derived"])}, "
+                                                          f"recurse={str(condition["recurse"])}"))
 
     def test_ms05_20(self, test):
         """NcBlock: FindMembersByClassId method is correct"""
@@ -1100,6 +1021,68 @@ class MS0501Test(GenericTest):
         self.do_find_members_by_class_id_test(test, device_model)
 
         return test.PASS()
+
+    def check_constraint(self, test, constraint, type_name, is_sequence, test_metadata, context):
+        if constraint.get("defaultValue"):
+            datatype_schema = self.ms05_utils.get_datatype_schema(test, type_name)
+            if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
+                test_metadata.error = True
+                test_metadata.error_msg = f"{context} {"a default value sequence was expected"
+                                                       if is_sequence else "unexpected default value sequence."}"
+                return
+            if is_sequence:
+                for value in constraint.get("defaultValue"):
+                    self.ms05_utils.validate_schema(test, value, datatype_schema, f"{context}: defaultValue ")
+            else:
+                self.ms05_utils.validate_schema(
+                    test,
+                    constraint.get("defaultValue"),
+                    datatype_schema,
+                    f"{context}: defaultValue ")
+
+        datatype = self.ms05_utils.resolve_datatype(test, type_name)
+        # check NcXXXConstraintsNumber
+        if constraint.get("minimum") or constraint.get("maximum") or constraint.get("step"):
+            constraint_type = "NcPropertyConstraintsNumber" \
+                if constraint.get("propertyId") else "NcParameterConstraintsNumber"
+            if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
+                                "NcUint64", "NcFloat32", "NcFloat64"]:
+                test_metadata.error = True
+                test_metadata.error_msg = f"{context}. {datatype} " \
+                    f"can not be constrainted by {constraint_type}."
+        # check NcXXXConstraintsString
+        if constraint.get("maxCharacters") or constraint.get("pattern"):
+            constraint_type = "NcPropertyConstraintsString" \
+                if constraint.get("propertyId") else "NcParameterConstraintsString"
+            if datatype not in ["NcString"]:
+                test_metadata.error = True
+                test_metadata.error_msg = f"{context}. {datatype} " \
+                    "can not be constrainted by {constraint_type}."
+
+    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
+        if nc_object.runtime_constraints:
+            test_metadata.checked = True
+            for constraint in nc_object.runtime_constraints:
+                class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
+                for property_descriptor in class_descriptor.properties:
+                    if property_descriptor.id.__dict__ == constraint["propertyId"]:
+                        message_root = f"{context}{nc_object.role}: {property_descriptor.name}" + \
+                            f": {property_descriptor.typeName}"
+                        self.check_constraint(test,
+                                              constraint,
+                                              property_descriptor.typeName,
+                                              property_descriptor.isSequence,
+                                              test_metadata,
+                                              message_root)
+
+        # Recurse through the child blocks
+        if type(nc_object) is NcBlock:
+            for child_object in nc_object.child_objects:
+                self.do_validate_runtime_constraints_test(test,
+                                                          child_object,
+                                                          class_manager,
+                                                          test_metadata,
+                                                          f"{context}{nc_object.role}: ")
 
     def test_ms05_21(self, test):
         """Constraints: validate runtime constraints"""
@@ -1125,8 +1108,7 @@ class MS0501Test(GenericTest):
         for property_descriptor in class_descriptor.properties:
             if property_descriptor.constraints:
                 test_metadata.checked = True
-                message_root = context + nc_object.role + ": " + property_descriptor.name + \
-                    ": " + property_descriptor.typeName
+                message_root = f"{context}{nc_object.role}: {property_descriptor.name}: {property_descriptor.typeName}"
                 self.check_constraint(test,
                                       property_descriptor.constraints,
                                       property_descriptor.typeName,
@@ -1140,7 +1122,7 @@ class MS0501Test(GenericTest):
                                                            child_object,
                                                            class_manager,
                                                            test_metadata,
-                                                           context + nc_object.role + ": ")
+                                                           f"{context}{nc_object.role}: ")
 
     def test_ms05_22(self, test):
         """Constraints: validate property constraints"""
@@ -1167,14 +1149,14 @@ class MS0501Test(GenericTest):
                                   type_name,
                                   datatype.get("isSequence", False),
                                   test_metadata,
-                                  context + ": " + type_name)
+                                  f"{context}: {type_name}")
         if datatype.get("type") == NcDatatypeType.Struct.value:
             for field in datatype.get("fields"):
                 self.do_validate_datatype_constraints_test(test,
                                                            field,
                                                            field["typeName"],
                                                            test_metadata,
-                                                           context + ": " + type_name + ": " + field["name"])
+                                                           f"{context}: {type_name}: {field["name"]}")
 
     def test_ms05_23(self, test):
         """Constraints: validate datatype constraints"""
@@ -1207,27 +1189,26 @@ class MS0501Test(GenericTest):
                     or self._xor_constraint(constraint.get('maximum'), override_constraint.get('maximum')) \
                     or self._xor_constraint(constraint.get('step'), override_constraint.get('step')):
                 raise NMOSTestException(
-                    test.FAIL(context + "Constraints implementations MUST fully override the previous level: "
-                              + "constraint: " + str(constraint) + ", override_constraint: "
-                              + str(override_constraint)))
+                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level: "
+                              f"constraint: {str(constraint)}, override_constraint: {str(override_constraint)}"))
             if constraint.get('minimum') and override_constraint.get('minimum') < constraint.get('minimum'):
                 raise NMOSTestException(
-                    test.FAIL(context + "Constraints implementations MUST not result in widening "
-                              + "the constraints defined in previous levels: "
-                              + "minimum constraint: " + str(constraint.get('minimum'))
-                              + ", override minimum constraint: " + str(override_constraint.get('minimum'))))
+                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                              "the constraints defined in previous levels: "
+                              f"minimum constraint: {str(constraint.get('minimum'))}"
+                              f", override minimum constraint: {str(override_constraint.get('minimum'))}"))
             if constraint.get('maximum') and override_constraint.get('maximum') > constraint.get('maximum'):
                 raise NMOSTestException(
-                    test.FAIL(context + "Constraints implementations MUST not result in widening "
-                              + "the constraints defined in previous levels: "
-                              + "maximum constraint: " + str(constraint.get('maximum'))
-                              + ", override maximum constraint: " + str(override_constraint.get('maximum'))))
+                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                              "the constraints defined in previous levels: "
+                              f"maximum constraint: {str(constraint.get('maximum'))}, "
+                              f"override maximum constraint: {str(override_constraint.get('maximum'))}"))
             if constraint.get('step') and override_constraint.get('step') < constraint.get('step'):
                 raise NMOSTestException(
-                    test.FAIL(context + "Constraints implementations MUST not result in widening "
-                              + "the constraints defined in previous levels: "
-                              + "step constraint: " + str(constraint.get('step'))
-                              + ", override step constraint: " + str(override_constraint.get('step'))))
+                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                              "the constraints defined in previous levels: "
+                              f"step constraint: {str(constraint.get('step'))}, "
+                              f"override step constraint: {str(override_constraint.get('step'))}"))
 
         # is this a string constraint
         if 'maxCharacters' in constraint or 'pattern' in constraint:
@@ -1236,25 +1217,25 @@ class MS0501Test(GenericTest):
             if self._xor_constraint(constraint.get('maxCharacters'), override_constraint.get('maxCharacters')) \
                     or self._xor_constraint(constraint.get('pattern'), override_constraint.get('pattern')):
                 raise NMOSTestException(
-                    test.FAIL(context + "Constraints implementations MUST fully override the previous level: "
-                              + "constraint: " + str(constraint) + ", override_constraint: "
-                              + str(override_constraint)))
+                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level: "
+                              f"constraint: {str(constraint)}, override_constraint: "
+                              f"{str(override_constraint)}"))
             if constraint.get('maxCharacters') \
                     and override_constraint.get('maxCharacters') > constraint.get('maxCharacters'):
                 raise NMOSTestException(
-                    test.FAIL(context + "Constraints implementations MUST not result in widening "
-                              + "the constraints defined in previous levels: "
-                              + "maxCharacters constraint: " + str(constraint.get('maxCharacters'))
-                              + ", override maxCharacters constraint: "
-                              + str(override_constraint.get('maxCharacters'))))
+                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                              "the constraints defined in previous levels: "
+                              f"maxCharacters constraint: {str(constraint.get('maxCharacters'))}, "
+                              "override maxCharacters constraint: "
+                              f"{str(override_constraint.get('maxCharacters'))}"))
             # Hmm, difficult to determine whether an overridden regex pattern is widening the constraint
             # so rule of thumb here is that a shorter pattern is less constraining that a longer pattern
             if constraint.get('pattern') and len(override_constraint.get('pattern')) < len(constraint.get('pattern')):
                 raise NMOSTestException(
-                    test.FAIL(context + "Constraints implementations MUST not result in widening "
-                              + "the constraints defined in previous levels: "
-                              + "pattern constraint: " + str(constraint.get('pattern'))
-                              + ", override pattern constraint: " + str(override_constraint.get('pattern'))))
+                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                              "the constraints defined in previous levels: "
+                              f"pattern constraint: {str(constraint.get('pattern'))}, "
+                              f"override pattern constraint: {str(override_constraint.get('pattern'))}"))
         return checked
 
     def _check_constraints_hierarchy(self, test, property_descriptor, datatype_descriptors, object_runtime_constraints,
@@ -1267,9 +1248,9 @@ class MS0501Test(GenericTest):
             if datatype_descriptors.get(property_descriptor.typeName):
                 datatype_constraints = datatype_descriptors.get(property_descriptor.typeName).constraints
             else:
-                raise NMOSTestException(test.FAIL(context + "Unknown data type: " + property_descriptor.typeName))
+                raise NMOSTestException(test.FAIL(f"{context}Unknown data type: {property_descriptor.typeName}"))
         else:
-            raise NMOSTestException(test.FAIL(context + "Missing data type from class descriptor"))
+            raise NMOSTestException(test.FAIL(f"{context}Missing data type from class descriptor"))
 
         # Level 1: Property constraints
         property_constraints = property_descriptor.constraints
@@ -1283,17 +1264,17 @@ class MS0501Test(GenericTest):
         if datatype_constraints and property_constraints:
             checked = checked or \
                 self._check_constraint_override(test, datatype_constraints, property_constraints,
-                                                context + "datatype constraints overridden by property constraints: ")
+                                                f"{context}datatype constraints overridden by property constraints: ")
 
         if datatype_constraints and runtime_constraints:
             checked = checked or \
                 self._check_constraint_override(test, datatype_constraints, runtime_constraints,
-                                                context + "datatype constraints overridden by runtime constraints: ")
+                                                f"{context}datatype constraints overridden by runtime constraints: ")
 
         if property_constraints and runtime_constraints:
             checked = checked or \
                 self._check_constraint_override(test, property_constraints, runtime_constraints,
-                                                context + "property constraints overridden by runtime constraints: ")
+                                                f"{context}property constraints overridden by runtime constraints: ")
 
         return checked
 
@@ -1330,16 +1311,16 @@ class MS0501Test(GenericTest):
                     test_metadata.checked = test_metadata.checked or \
                         self._check_constraints_hierarchy(test, property_descriptor, class_manager.datatype_descriptors,
                                                           object_runtime_constraints,
-                                                          context + ": " + class_descriptor['name'] + ": "
-                                                          + property_descriptor.name + ": ")
+                                                          f"{context}: {class_descriptor['name']}: "
+                                                          + f"{property_descriptor.name}: ")
                 except NMOSTestException as e:
                     test_metadata.error = True
-                    test_metadata.error_msg += str(e.args[0].detail) + "; "
+                    test_metadata.error_msg += f"{str(e.args[0].detail)}; "
 
         # Recurse through the child blocks
         for child_object in block.child_objects:
             if type(child_object) is NcBlock:
-                self._check_constraints(test, child_object, test_metadata, context + ": ")
+                self._check_constraints(test, child_object, test_metadata, f"{context}: ")
 
         return test_metadata
 
