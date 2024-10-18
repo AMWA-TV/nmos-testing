@@ -55,7 +55,7 @@ class IS14Utils(MS05Utils):
         if not valid:
             raise NMOSTestException(test.FAIL(f"{r} for {method}: {url}"))
         try:
-            self.validate_reference_datatype_schema(test, r.json(), "NcMethodResult", f"{method} :{url} ")
+            self.reference_datatype_schema_validate(test, r.json(), "NcMethodResult", f"{method} :{url} ")
         except ValueError as e:
             raise NMOSTestException(test.FAIL(f"Error: {e.args[0]} for {method}: {url}"))
         except NMOSTestException as e:

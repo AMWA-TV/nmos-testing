@@ -101,7 +101,7 @@ class MS0501Test(GenericTest):
                     descriptor = descriptors[key]
 
                     # Validate descriptor obeys the JSON schema
-                    self.ms05_utils.validate_reference_datatype_schema(test, descriptor.json,
+                    self.ms05_utils.reference_datatype_schema_validate(test, descriptor.json,
                                                                        descriptor.__class__.__name__)
 
                     # Validate the descriptor is correct
@@ -201,8 +201,7 @@ class MS0501Test(GenericTest):
             if not isinstance(value, self.ms05_utils.primitive_to_python_type(data_type)):
                 raise NMOSTestException(test.FAIL(f"{context}{str(value)} is not of type {str(data_type)}"))
         else:
-            self.ms05_utils.validate_schema(test, value, self.ms05_utils.get_datatype_schema(test, data_type),
-                                            f"{context}{data_type}")
+            self.ms05_utils.queried_datatype_schema_validate(test, value, data_type, f"{context}{data_type}")
 
         return
 
@@ -350,14 +349,10 @@ class MS0501Test(GenericTest):
             try:
                 for touchpoint_json in touchpoints:
                     touchpoint = NcTouchpoint(touchpoint_json)
-                    schema = self.ms05_utils.get_datatype_schema(test, NcTouchpointNmos.__name__) \
-                        if touchpoint.context_namespace == "x-nmos" \
-                        else self.ms05_utils.get_datatype_schema(test, NcTouchpointNmosChannelMapping.__name__)
-                    self.ms05_utils.validate_schema(
-                        test,
-                        touchpoint_json,
-                        schema,
-                        context=f"{context}{schema["title"]}")
+                    datatype_name = NcTouchpointNmos.__name__ \
+                        if touchpoint.context_namespace == "x-nmos" else NcTouchpointNmosChannelMapping.__name__
+                    self.ms05_utils.queried_datatype_schema_validate(test, touchpoint_json, datatype_name,
+                                                                     f"{context}{datatype_name}")
 
             except NMOSTestException as e:
                 self.touchpoints_metadata.error = True
@@ -658,7 +653,7 @@ class MS0501Test(GenericTest):
                 expected_descriptor = class_manager.get_control_class(class_descriptor.classId,
                                                                       include_inherited)
                 context = f"Class: {str(class_descriptor.classId)}: "
-                self.ms05_utils.validate_reference_datatype_schema(
+                self.ms05_utils.reference_datatype_schema_validate(
                     test,
                     actual_descriptor,
                     expected_descriptor.__class__.__name__,
@@ -689,7 +684,7 @@ class MS0501Test(GenericTest):
                 expected_descriptor = class_manager.get_datatype(datatype_descriptor.name,
                                                                  include_inherited)
                 context = f"Datatype: {datatype_descriptor.name}: "
-                self.ms05_utils.validate_reference_datatype_schema(
+                self.ms05_utils.reference_datatype_schema_validate(
                     test,
                     actual_descriptor,
                     expected_descriptor.__class__.__name__,
@@ -818,7 +813,7 @@ class MS0501Test(GenericTest):
             expected_members_oids = [m.oid for m in expected_members]
 
             for queried_member in queried_members:
-                self.ms05_utils.validate_reference_datatype_schema(
+                self.ms05_utils.reference_datatype_schema_validate(
                     test,
                     queried_member,
                     NcBlockMemberDescriptor.__name__,
@@ -862,7 +857,7 @@ class MS0501Test(GenericTest):
                                                   f": Did not return an array of results for query: {str(path)}"))
 
             for queried_member in queried_members:
-                self.ms05_utils.validate_reference_datatype_schema(
+                self.ms05_utils.reference_datatype_schema_validate(
                     test,
                     queried_member,
                     NcBlockMemberDescriptor.__name__,
@@ -939,7 +934,7 @@ class MS0501Test(GenericTest):
                                       f"recurse={str(condition["recurse"])}"))
 
                     for actual_result in actual_results:
-                        self.ms05_utils.validate_reference_datatype_schema(
+                        self.ms05_utils.reference_datatype_schema_validate(
                             test,
                             actual_result,
                             NcBlockMemberDescriptor.__name__,
@@ -1024,7 +1019,6 @@ class MS0501Test(GenericTest):
 
     def check_constraint(self, test, constraint, type_name, is_sequence, test_metadata, context):
         if constraint.get("defaultValue"):
-            datatype_schema = self.ms05_utils.get_datatype_schema(test, type_name)
             if isinstance(constraint.get("defaultValue"), list) is not is_sequence:
                 test_metadata.error = True
                 test_metadata.error_msg = f"{context} {"a default value sequence was expected"
@@ -1032,13 +1026,11 @@ class MS0501Test(GenericTest):
                 return
             if is_sequence:
                 for value in constraint.get("defaultValue"):
-                    self.ms05_utils.validate_schema(test, value, datatype_schema, f"{context}: defaultValue ")
+                    self.ms05_utils.queried_datatype_schema_validate(test, value, type_name,
+                                                                     f"{context}: defaultValue ")
             else:
-                self.ms05_utils.validate_schema(
-                    test,
-                    constraint.get("defaultValue"),
-                    datatype_schema,
-                    f"{context}: defaultValue ")
+                self.ms05_utils.queried_datatype_schema_validate(test, constraint.get("defaultValue"), type_name,
+                                                                 f"{context}: defaultValue ")
 
         datatype = self.ms05_utils.resolve_datatype(test, type_name)
         # check NcXXXConstraintsNumber
@@ -1312,7 +1304,7 @@ class MS0501Test(GenericTest):
                         self._check_constraints_hierarchy(test, property_descriptor, class_manager.datatype_descriptors,
                                                           object_runtime_constraints,
                                                           f"{context}: {class_descriptor['name']}: "
-                                                          + f"{property_descriptor.name}: ")
+                                                          f"{property_descriptor.name}: ")
                 except NMOSTestException as e:
                     test_metadata.error = True
                     test_metadata.error_msg += f"{str(e.args[0].detail)}; "
@@ -1361,7 +1353,7 @@ class MS0501Test(GenericTest):
 
             return test.FAIL("Read only properties error expected.",
                              f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
-                             + "/docs/Framework.html#ncmethodresult")
+                             "/docs/Framework.html#ncmethodresult")
 
         except NMOSTestException as e:
             error_msg = e.args[0].detail
@@ -1376,12 +1368,12 @@ class MS0501Test(GenericTest):
 
             if error_msg['status'] != NcMethodStatus.Readonly.value:
                 return test.WARNING(f"Unexpected status. Expected: {NcMethodStatus.Readonly.name}"
-                                    + f" ({str(NcMethodStatus.Readonly)})"
-                                    + f", actual: {NcMethodStatus(error_msg['status']).name}"
-                                    + f" ({str(error_msg['status'])})",
-                                    + "https://specs.amwa.tv/ms-05-02/branches/"
-                                    + f"{self.apis[MS05_API_KEY]['spec_branch']}"
-                                    + "/docs/Framework.html#ncmethodresult")
+                                    f" ({str(NcMethodStatus.Readonly)})"
+                                    f", actual: {NcMethodStatus(error_msg['status']).name}"
+                                    f" ({str(error_msg['status'])})",
+                                    "https://specs.amwa.tv/ms-05-02/branches/"
+                                    f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                    "/docs/Framework.html#ncmethodresult")
 
             return test.PASS()
 
@@ -1406,7 +1398,7 @@ class MS0501Test(GenericTest):
 
             return test.FAIL("Sequence out of bounds error expected.",
                              f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
-                             + "/docs/Framework.html#ncmethodresult")
+                             "/docs/Framework.html#ncmethodresult")
 
         except NMOSTestException as e:
             error_msg = e.args[0].detail
@@ -1421,11 +1413,11 @@ class MS0501Test(GenericTest):
 
             if error_msg['status'] != NcMethodStatus.IndexOutOfBounds.value:
                 return test.WARNING(f"Unexpected status. Expected: {NcMethodStatus.IndexOutOfBounds.name}"
-                                    + f" ({str(NcMethodStatus.IndexOutOfBounds)})"
-                                    + f", actual: {NcMethodStatus(error_msg['status']).name}"
-                                    + f" ({str(error_msg['status'])})",
-                                    + "https://specs.amwa.tv/ms-05-02/branches/"
-                                    + f"{self.apis[MS05_API_KEY]['spec_branch']}"
-                                    + "/docs/Framework.html#ncmethodresult")
+                                    f" ({str(NcMethodStatus.IndexOutOfBounds)})"
+                                    f", actual: {NcMethodStatus(error_msg['status']).name}"
+                                    f" ({str(error_msg['status'])})",
+                                    "https://specs.amwa.tv/ms-05-02/branches/"
+                                    f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                    "/docs/Framework.html#ncmethodresult")
 
             return test.PASS()

@@ -777,7 +777,7 @@ class MS0502Test(ControllerTest):
                         """.format(method.get("name"), result.status)
             except NMOSTestException as e:
                 # ignore 4xx errors
-                self.ms05_utils.validate_reference_datatype_schema(test, e.args[0].detail, "NcMethodResult")
+                self.ms05_utils.reference_datatype_schema_validate(test, e.args[0].detail, "NcMethodResult")
                 if e.args[0].detail['status'] >= 500:
                     self.invoke_methods_metadata.error = True
                     self.invoke_methods_metadata.error_msg += """
