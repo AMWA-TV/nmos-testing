@@ -43,7 +43,7 @@ class MS05Utils(NMOSUtils):
         self.datatype_schemas = None
         self.load_reference_resources()
 
-    # Overridden functions specialized for IS-12 and IS-14
+    # Overridden functions specialized in derived classes
     def get_property(test, property_id, **kwargs):
         pass
 
@@ -145,7 +145,7 @@ class MS05Utils(NMOSUtils):
                       for path in self.apis[FEATURE_SETS_KEY]["repo_paths"]]
         spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
         # Root path for primitive datatypes
-        spec_paths.append("test_data/IS1201")  # JRT this test_data should really be MS0501 test data
+        spec_paths.append("test_data/MS05")
 
         datatype_paths = []
         classes_paths = []
