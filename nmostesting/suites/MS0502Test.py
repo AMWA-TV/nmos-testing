@@ -21,7 +21,8 @@ from xeger import Xeger
 from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
-from ..MS05Utils import NcDatatypeType, NcObjectProperties, NcBlock
+from ..MS05Utils import NcDatatypeType, NcObjectProperties, NcBlock, NcDatatypeDescriptorStruct, \
+    NcDatatypeDescriptorTypeDef
 
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
@@ -118,7 +119,7 @@ class MS0502Test(ControllerTest):
         runtime_constraints = None
         # Level 0: Datatype constraints
         if class_property.get('typeName'):
-            datatype_constraints = datatype_descriptors.get(class_property['typeName']).get('constraints')
+            datatype_constraints = datatype_descriptors.get(class_property['typeName']).constraints
         # Level 1: Property constraints
         property_constraints = class_property.get('constraints')
         # Level 3: Runtime constraints
@@ -171,7 +172,7 @@ class MS0502Test(ControllerTest):
                                     'property_id': class_property['id'],
                                     'constraints': None,
                                     'constraints_type': None,
-                                    'datatype_type': datatype['type'],
+                                    'datatype_type': datatype.type,
                                     'is_sequence': class_property.get('isSequence')})
                     continue
 
@@ -186,7 +187,7 @@ class MS0502Test(ControllerTest):
                                     'property_id': class_property['id'],
                                     'constraints': constraints,
                                     'constraints_type': constraints_type,
-                                    'datatype_type': datatype['type'],
+                                    'datatype_type': datatype.type,
                                     'is_sequence': class_property.get('isSequence')})
         # Recurse through the child blocks
         for child_object in block.child_objects:
@@ -506,12 +507,15 @@ class MS0502Test(ControllerTest):
 
         class_manager = self.ms05_utils.get_class_manager(test)
 
-        parentType = class_manager.datatype_descriptors[datatype].get("parentType")
+        datatype_descriptor = class_manager.datatype_descriptors[datatype]
 
-        if parentType and class_manager.datatype_descriptors[parentType].get('type') == NcDatatypeType.Primitive:
-            return class_manager.datatype_descriptors[datatype]['isSequence']
+        if isinstance(datatype_descriptor, NcDatatypeDescriptorTypeDef):
+            return datatype_descriptor.isSequence
 
-        return self._resolve_is_sequence(test, parentType)
+        if isinstance(datatype_descriptor, NcDatatypeDescriptorStruct) and datatype_descriptor.parentType:
+            return self._resolve_is_sequence(test, datatype_descriptor.parentType)
+
+        return False
 
     def _generate_number_parameter(self, constraints):
         if [constraints[key] for key in constraints if key in ['minimum', 'maximum', 'step']]:
@@ -567,13 +571,17 @@ class MS0502Test(ControllerTest):
 
             datatype_descriptor = class_manager.datatype_descriptors[datatype]
 
-            if datatype_descriptor['type'] == NcDatatypeType.Enum:
-                parameter = datatype_descriptor['items'][0]['value']
-            elif datatype_descriptor['type'] == NcDatatypeType.Primitive:
+            if datatype_descriptor.type == NcDatatypeType.Enum:
+                parameter = datatype_descriptor.items[0]['value']
+            elif datatype_descriptor.type == NcDatatypeType.Primitive:
                 parameter = self._generate_primitive_parameter(datatype)
-            elif datatype_descriptor['type'] == NcDatatypeType.Struct:
-                parameter = self._create_compatible_parameters(test, datatype_descriptor['fields'])
+            elif datatype_descriptor.type == NcDatatypeType.Struct:
+                parameter = self._create_compatible_parameters(test, datatype_descriptor.fields)
 
+        if parameter_descriptor['isSequence']:
+            parameter = [parameter]
+
+        # Note that only NcDatatypeDescriptorTypeDef has an isSequence property
         return [parameter] if self._resolve_is_sequence(test, parameter_descriptor['typeName']) else parameter
 
     def _create_compatible_parameters(self, test, parameters):

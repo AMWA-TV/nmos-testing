@@ -15,7 +15,8 @@
 from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeType, NcDeviceManagerProperties, \
+from ..MS05Utils import MS05Utils, NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, \
+    NcDatatypeType, NcDeviceManagerProperties, \
     NcMethodStatus, NcObjectProperties, NcPropertyDescriptor, NcTouchpoint, NcTouchpointNmos, \
     NcTouchpointNmosChannelMapping, StandardClassIds
 from ..TestResult import Test
@@ -86,7 +87,7 @@ class MS0501Test(GenericTest):
             results.append(self.uncaught_exception("auto_tests", e))
         return results
 
-    def validate_model_definitions(self, descriptors, schema_name, reference_descriptors):
+    def validate_model_definitions(self, descriptors, reference_descriptors):
         """ Validate Class Manager model definitions against reference model descriptors.
             Returns [test result array] """
         results = list()
@@ -100,10 +101,10 @@ class MS0501Test(GenericTest):
                     descriptor = descriptors[key]
 
                     # Validate descriptor obeys the JSON schema
-                    self.ms05_utils.validate_reference_datatype_schema(test, descriptor, schema_name)
+                    self.ms05_utils.validate_reference_datatype_schema(test, descriptor.json, descriptor.__class__.__name__)
 
                     # Validate the descriptor is correct
-                    self.ms05_utils.validate_descriptor(test, reference_descriptors[key], descriptor)
+                    self.ms05_utils.validate_descriptor(test, reference_descriptors[key], descriptor.json)
 
                     results.append(test.PASS())
                 else:
@@ -123,11 +124,9 @@ class MS0501Test(GenericTest):
         class_manager = self.ms05_utils.get_class_manager(test)
 
         results += self.validate_model_definitions(class_manager.class_descriptors,
-                                                   'NcClassDescriptor',
                                                    self.ms05_utils.reference_class_descriptors)
 
         results += self.validate_model_definitions(class_manager.datatype_descriptors,
-                                                   'NcDatatypeDescriptor',
                                                    self.ms05_utils.reference_datatype_descriptors)
         return results
 
@@ -213,7 +212,7 @@ class MS0501Test(GenericTest):
         return
 
     def check_get_sequence_item(self, test, oid, role_path, sequence_values, property_descriptor, context=""):
-        if sequence_values is None and not property_descriptor.is_nullable:
+        if sequence_values is None and not property_descriptor.isNullable:
             self.get_sequence_item_metadata.error = True
             self.get_sequence_item_metadata.error_msg += \
                 context + property_descriptor.name + ": Non-nullable property set to null, "
@@ -223,7 +222,7 @@ class MS0501Test(GenericTest):
             self.get_sequence_item_metadata.checked = True
             sequence_index = 0
             for property_value in sequence_values:
-                value = self.ms05_utils.get_sequence_item_value(test, property_descriptor.id.json, sequence_index,
+                value = self.ms05_utils.get_sequence_item_value(test, property_descriptor.id.__dict__, sequence_index,
                                                                 oid=oid, role_path=role_path)
                 if property_value != value:
                     self.get_sequence_item_metadata.error = True
@@ -238,14 +237,14 @@ class MS0501Test(GenericTest):
                 context + property_descriptor.name + ": " + str(e.args[0].detail) + ", "
 
     def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_descriptor, context=""):
-        if sequence_values is None and not property_descriptor.is_nullable:
+        if sequence_values is None and not property_descriptor.isNullable:
             self.get_sequence_length_metadata.error = True
             self.get_sequence_length_metadata.error_msg += \
                 context + property_descriptor.name + ": Non-nullable property set to null, "
             return
         try:
             self.get_sequence_length_metadata.checked = True
-            length = self.ms05_utils.get_sequence_length(test, property_descriptor.id.json,
+            length = self.ms05_utils.get_sequence_length(test, property_descriptor.id.__dict__,
                                                          oid=oid, role_path=role_path)
 
             if length == len(sequence_values):
@@ -266,21 +265,20 @@ class MS0501Test(GenericTest):
 
     def check_object_properties(self, test, reference_class_descriptor, oid, role_path, context):
         """Check properties of an object against reference NcClassDescriptor"""
-        for class_property in reference_class_descriptor['properties']:
-            property_descriptor = NcPropertyDescriptor(class_property)
-            response = self.get_property(test, oid, class_property.get('id'), role_path, context)
+        for property_descriptor in reference_class_descriptor.properties:
+            response = self.get_property(test, oid, property_descriptor.id.__dict__, role_path, context)
 
             if response is None:
                 # Can't find this property - do we have an ID clash?
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += \
                     "Property does not exist - it is possible that the class id for this class is NOT unique? " \
-                    + "classId: " + ".".join(map(str, reference_class_descriptor['classId']))
+                    + "classId: " + ".".join(map(str, reference_class_descriptor.classId))
                 continue
 
             property_value = response["value"]
 
-            if property_descriptor.is_deprecated:
+            if property_descriptor.isDeprecated:
                 self.deprecated_property_metadata.checked = True
                 if response["status"] != NcMethodStatus.PropertyDeprecated.value:
                     self.deprecated_property_metadata.error = True
@@ -291,14 +289,14 @@ class MS0501Test(GenericTest):
                 continue
 
             # validate property type
-            if property_descriptor.is_sequence:
+            if property_descriptor.isSequence:
                 for sequence_value in property_value:
                     self._validate_property_type(
                         test,
                         sequence_value,
-                        property_descriptor.type_name,
-                        property_descriptor.is_nullable,
-                        context=context + property_descriptor.type_name
+                        property_descriptor.typeName,
+                        property_descriptor.isNullable,
+                        context=context + property_descriptor.typeName
                         + ": " + property_descriptor.name + ": ")
                 self.check_sequence_methods(test,
                                             oid,
@@ -310,8 +308,8 @@ class MS0501Test(GenericTest):
                 self._validate_property_type(
                     test,
                     property_value,
-                    property_descriptor.type_name,
-                    property_descriptor.is_nullable,
+                    property_descriptor.typeName,
+                    property_descriptor.isNullable,
                     context=context + property_descriptor.name + ": ")
         return
 
@@ -333,7 +331,7 @@ class MS0501Test(GenericTest):
         """Check manager is singleton and that it inherits from NcManager"""
         # detemine the standard base class name
         base_id = self.ms05_utils.get_base_class_id(class_id)
-        base_class_name = class_descriptors[base_id]["name"]
+        base_class_name = class_descriptors[base_id].name
 
         # manager checks
         if self.ms05_utils.is_manager(class_id):
@@ -382,47 +380,37 @@ class MS0501Test(GenericTest):
         role_cache = []
         manager_cache = []
         for descriptor in block.member_descriptors:
-            role_path = self.ms05_utils.create_role_path(block.role_path, descriptor['role'])
-            self.ms05_utils.validate_schema(
-                test,
-                descriptor,
-                self.ms05_utils.get_datatype_schema(test, "NcBlockMemberDescriptor"),
-                context=context + "NcBlockMemberDescriptor: " + str(descriptor['role']))
+            role_path = self.ms05_utils.create_role_path(block.role_path, descriptor.role)
 
-            self.check_unique_roles(descriptor['role'], role_cache)
-            self.check_unique_oid(descriptor['oid'])
+            self.check_unique_roles(descriptor.role, role_cache)
+            self.check_unique_oid(descriptor.oid)
             # check for non-standard classes
-            if self.ms05_utils.is_non_standard_class(descriptor['classId']):
+            if self.ms05_utils.is_non_standard_class(descriptor.classId):
                 self.organization_metadata.checked = True
-            self.check_manager(descriptor['classId'], descriptor["owner"], class_descriptors, manager_cache)
-            self.check_touchpoints(test, descriptor['oid'], role_path,
-                                   context=context + str(descriptor['role']) + ': ')
+            self.check_manager(descriptor.classId, descriptor.owner, class_descriptors, manager_cache)
+            self.check_touchpoints(test, descriptor.oid, role_path,
+                                   context=context + str(descriptor.role) + ': ')
 
-            class_identifier = ".".join(map(str, descriptor['classId']))
+            class_identifier = ".".join(map(str, descriptor.classId))
             if class_identifier and class_identifier in class_descriptors:
-                self.ms05_utils.validate_schema(
-                    test,
-                    class_descriptors[class_identifier],
-                    self.ms05_utils.get_datatype_schema(test, "NcClassDescriptor"),
-                    context=context + "NcClassDescriptor for class " + str(descriptor['classId']))
                 self.check_object_properties(test,
                                              class_descriptors[class_identifier],
-                                             descriptor['oid'],
+                                             descriptor.oid,
                                              role_path,
-                                             context=context + str(descriptor['role']) + ': ')
+                                             context=context + str(descriptor.role) + ': ')
             else:
                 self.device_model_metadata.error = True
-                self.device_model_metadata.error_msg += str(descriptor['role']) + ': ' \
+                self.device_model_metadata.error_msg += str(descriptor.role) + ': ' \
                     + "Class not advertised by Class Manager: " \
-                    + str(descriptor['classId']) + ". "
+                    + str(descriptor.classId) + ". "
 
             if class_identifier not in self.ms05_utils.reference_class_descriptors and \
-                    not self.ms05_utils.is_non_standard_class(descriptor['classId']):
+                    not self.ms05_utils.is_non_standard_class(descriptor.classId):
                 # Not a standard or non-standard class
                 self.organization_metadata.error = True
-                self.organization_metadata.error_msg = str(descriptor['role']) + ': ' \
+                self.organization_metadata.error_msg = str(descriptor.role) + ': ' \
                     + "Non-standard class id does not contain authority key: " \
-                    + str(descriptor['classId']) + ". "
+                    + str(descriptor.classId) + ". "
 
     def check_device_model(self, test):
         if not self.device_model_metadata.checked:
@@ -627,7 +615,7 @@ class MS0501Test(GenericTest):
         class_id_str = ".".join(map(str, StandardClassIds.NCCLASSMANAGER.value))
         class_descriptor = self.ms05_utils.reference_class_descriptors[class_id_str]
 
-        if class_manager.role != class_descriptor["fixedRole"]:
+        if class_manager.role != class_descriptor.fixedRole:
             return test.FAIL("Class Manager MUST have a role of ClassManager.", spec_link)
 
         return test.PASS()
@@ -645,7 +633,7 @@ class MS0501Test(GenericTest):
         class_id_str = ".".join(map(str, StandardClassIds.NCDEVICEMANAGER.value))
         class_descriptor = self.ms05_utils.reference_class_descriptors[class_id_str]
 
-        if device_manager.role != class_descriptor["fixedRole"]:
+        if device_manager.role != class_descriptor.fixedRole:
             return test.FAIL("Device Manager MUST have a role of DeviceManager.", spec_link)
 
         # Check MS-05-02 Version
@@ -672,17 +660,17 @@ class MS0501Test(GenericTest):
         for _, class_descriptor in class_manager.class_descriptors.items():
             for include_inherited in [False, True]:
                 actual_descriptor = self.ms05_utils.get_control_class(test,
-                                                                      class_descriptor["classId"],
+                                                                      class_descriptor.classId,
                                                                       include_inherited,
                                                                       oid=class_manager.oid,
                                                                       role_path=class_manager.role_path)
-                expected_descriptor = class_manager.get_control_class(class_descriptor["classId"],
+                expected_descriptor = class_manager.get_control_class(class_descriptor.classId,
                                                                       include_inherited)
                 self.ms05_utils.validate_descriptor(
                     test,
-                    expected_descriptor,
+                    expected_descriptor.__dict__,
                     actual_descriptor,
-                    context=f"Class: {str(class_descriptor['classId'])}: ")
+                    context=f"Class: {str(class_descriptor.classId)}: ")
 
         return test.PASS()
 
@@ -697,17 +685,17 @@ class MS0501Test(GenericTest):
         for _, datatype_descriptor in class_manager.datatype_descriptors.items():
             for include_inherited in [False, True]:
                 actual_descriptor = self.ms05_utils.get_datatype(test,
-                                                                 datatype_descriptor["name"],
+                                                                 datatype_descriptor.name,
                                                                  include_inherited,
                                                                  oid=class_manager.oid,
                                                                  role_path=class_manager.role_path)
-                expected_descriptor = class_manager.get_datatype(datatype_descriptor["name"],
+                expected_descriptor = class_manager.get_datatype(datatype_descriptor.name,
                                                                  include_inherited)
                 self.ms05_utils.validate_descriptor(
                     test,
                     expected_descriptor,
                     actual_descriptor,
-                    context=f"Datatype: {datatype_descriptor['name']}: ")
+                    context=f"Datatype: {datatype_descriptor.name}: ")
 
         return test.PASS()
 
@@ -828,16 +816,16 @@ class MS0501Test(GenericTest):
                                                   + str(len(expected_members)) + ", Actual: "
                                                   + str(len(queried_members))))
 
-            expected_members_oids = [m["oid"] for m in expected_members]
+            expected_members_oids = [m.oid for m in expected_members]
 
             for queried_member in queried_members:
                 self.ms05_utils.validate_reference_datatype_schema(
                     test,
                     queried_member,
-                    "NcBlockMemberDescriptor",
+                    NcBlockMemberDescriptor.__name__,
                     context=context
                     + block.role
-                    + ": NcBlockMemberDescriptor: ")
+                    + ": " + NcBlockMemberDescriptor.__name__ + ": ")
 
                 if queried_member["oid"] not in expected_members_oids:
                     raise NMOSTestException(test.FAIL(context
@@ -883,10 +871,10 @@ class MS0501Test(GenericTest):
                 self.ms05_utils.validate_reference_datatype_schema(
                     test,
                     queried_member,
-                    "NcBlockMemberDescriptor",
+                    NcBlockMemberDescriptor.__name__,
                     context=context
                     + block.role
-                    + ": NcBlockMemberDescriptor: ")
+                    + ": " + NcBlockMemberDescriptor.__name__ + ": ")
 
             if len(queried_members) != 1:
                 raise NMOSTestException(test.FAIL(context
@@ -1019,15 +1007,14 @@ class MS0501Test(GenericTest):
             test_metadata.checked = True
             for constraint in nc_object.runtime_constraints:
                 class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
-                for class_property in class_descriptor["properties"]:
-                    property_descriptor = NcPropertyDescriptor(class_property)
-                    if property_descriptor.id.json == constraint["propertyId"]:
+                for property_descriptor in class_descriptor.properties:
+                    if property_descriptor.id.__dict__ == constraint["propertyId"]:
                         message_root = context + nc_object.role + ": " + property_descriptor.name + \
-                            ": " + property_descriptor.type_name
+                            ": " + property_descriptor.typeName
                         self.check_constraint(test,
                                               constraint,
-                                              property_descriptor.type_name,
-                                              property_descriptor.is_sequence,
+                                              property_descriptor.typeName,
+                                              property_descriptor.isSequence,
                                               test_metadata,
                                               message_root)
 
@@ -1135,16 +1122,15 @@ class MS0501Test(GenericTest):
     def do_validate_property_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
         class_descriptor = class_manager.class_descriptors[".".join(map(str, nc_object.class_id))]
 
-        for class_property in class_descriptor["properties"]:
-            property_descriptor = NcPropertyDescriptor(class_property)
+        for property_descriptor in class_descriptor.properties:
             if property_descriptor.constraints:
                 test_metadata.checked = True
                 message_root = context + nc_object.role + ": " + property_descriptor.name + \
-                    ": " + property_descriptor.type_name
+                    ": " + property_descriptor.typeName
                 self.check_constraint(test,
                                       property_descriptor.constraints,
-                                      property_descriptor.type_name,
-                                      property_descriptor.is_sequence,
+                                      property_descriptor.typeName,
+                                      property_descriptor.isSequence,
                                       test_metadata,
                                       message_root)
         # Recurse through the child blocks
@@ -1198,7 +1184,7 @@ class MS0501Test(GenericTest):
         test_metadata = MS0501Test.TestMetadata()
 
         for _, datatype in class_manager.datatype_descriptors.items():
-            self.do_validate_datatype_constraints_test(test, datatype, datatype["name"], test_metadata)
+            self.do_validate_datatype_constraints_test(test, datatype.__dict__, datatype.name, test_metadata)
 
         if test_metadata.error:
             return test.FAIL(test_metadata.error_msg)
@@ -1277,11 +1263,11 @@ class MS0501Test(GenericTest):
         runtime_constraints = None
         checked = False
         # Level 0: Datatype constraints
-        if property_descriptor.type_name:
-            if datatype_descriptors.get(property_descriptor.type_name):
-                datatype_constraints = datatype_descriptors.get(property_descriptor.type_name).get('constraints')
+        if property_descriptor.typeName:
+            if datatype_descriptors.get(property_descriptor.typeName):
+                datatype_constraints = datatype_descriptors.get(property_descriptor.typeName).constraints
             else:
-                raise NMOSTestException(test.FAIL(context + "Unknown data type: " + property_descriptor.type_name))
+                raise NMOSTestException(test.FAIL(context + "Unknown data type: " + property_descriptor.typeName))
         else:
             raise NMOSTestException(test.FAIL(context + "Missing data type from class descriptor"))
 
@@ -1338,7 +1324,7 @@ class MS0501Test(GenericTest):
 
             for class_property in class_descriptor.get('properties'):
                 property_descriptor = NcPropertyDescriptor(class_property)
-                if property_descriptor.is_read_only:
+                if property_descriptor.isReadOnly:
                     continue
                 try:
                     test_metadata.checked = test_metadata.checked or \
