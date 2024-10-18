@@ -145,15 +145,15 @@ class MS05Utils(NMOSUtils):
                       for path in self.apis[FEATURE_SETS_KEY]["repo_paths"]]
         spec_paths.append(self.apis[MS05_API_KEY]["spec_path"])
         # Root path for primitive datatypes
-        spec_paths.append('test_data/IS1201')  # JRT this test_data should really be MS0501 test data
+        spec_paths.append("test_data/IS1201")  # JRT this test_data should really be MS0501 test data
 
         datatype_paths = []
         classes_paths = []
         for spec_path in spec_paths:
-            datatype_path = os.path.abspath(os.path.join(spec_path, 'models/datatypes/'))
+            datatype_path = os.path.abspath(os.path.join(spec_path, "models/datatypes/"))
             if os.path.exists(datatype_path):
                 datatype_paths.append(datatype_path)
-            classes_path = os.path.abspath(os.path.join(spec_path, 'models/classes/'))
+            classes_path = os.path.abspath(os.path.join(spec_path, "models/classes/"))
             if os.path.exists(classes_path):
                 classes_paths.append(classes_path)
 
@@ -166,16 +166,16 @@ class MS05Utils(NMOSUtils):
         # Generate reference MS-05 datatype schemas from MS-05 datatype descriptors
         self.reference_datatype_schemas = self.generate_json_schemas(
             datatype_descriptors=self.reference_datatype_descriptors,
-            schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/schemas/'))
+            schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], "APIs/schemas/"))
 
     def datatype_descriptor_factory(self, descriptor_json):
-        if 'fields' in descriptor_json and 'parentType' in descriptor_json:
+        if "fields" in descriptor_json and "parentType" in descriptor_json:
             return NcDatatypeDescriptorStruct(descriptor_json)
 
-        if 'parentType' in descriptor_json and 'isSequence' in descriptor_json:
+        if "parentType" in descriptor_json and "isSequence" in descriptor_json:
             return NcDatatypeDescriptorTypeDef(descriptor_json)
 
-        if 'items' in descriptor_json:
+        if "items" in descriptor_json:
             return NcDatatypeDescriptorEnum(descriptor_json)
 
         return NcDatatypeDescriptorPrimitive(descriptor_json)
@@ -186,9 +186,9 @@ class MS05Utils(NMOSUtils):
             for filename in os.listdir(descriptor_path):
                 name, extension = os.path.splitext(filename)
                 if extension == ".json":
-                    with open(os.path.join(descriptor_path, filename), 'r') as json_file:
+                    with open(os.path.join(descriptor_path, filename), "r") as json_file:
                         descriptor = json.load(json_file)
-                        if descriptor.get('classId'):
+                        if descriptor.get("classId"):
                             descriptors[name] = NcClassDescriptor(descriptor)
                         else:
                             descriptors[name] = self.datatype_descriptor_factory(descriptor)
@@ -204,80 +204,80 @@ class MS05Utils(NMOSUtils):
 
         for name, descriptor in datatype_descriptors.items():
             json_schema = self._descriptor_to_schema(descriptor.json)
-            with open(os.path.join(base_schema_path, name + '.json'), 'w') as output_file:
+            with open(os.path.join(base_schema_path, name + ".json"), "w") as output_file:
                 json.dump(json_schema, output_file, indent=4)
                 datatype_schema_names.append(name)
 
         # Load resolved MS-05 datatype schemas
         datatype_schemas = {}
         for name in datatype_schema_names:
-            datatype_schemas[name] = load_resolved_schema(schema_path, name + '.json', path_prefix=False)
+            datatype_schemas[name] = load_resolved_schema(schema_path, name + ".json", path_prefix=False)
 
         return datatype_schemas
 
     def _descriptor_to_schema(self, descriptor):
-        variant_type = ['number', 'string', 'boolean', 'object', 'array', 'null']
+        variant_type = ["number", "string", "boolean", "object", "array", "null"]
 
         json_schema = {}
-        json_schema['$schema'] = 'http://json-schema.org/draft-07/schema#'
+        json_schema["$schema"] = "http://json-schema.org/draft-07/schema#"
 
-        json_schema['title'] = descriptor['name']
-        json_schema['description'] = descriptor['description'] if descriptor['description'] else ""
+        json_schema["title"] = descriptor["name"]
+        json_schema["description"] = descriptor["description"] if descriptor["description"] else ""
 
         # Inheritance of datatype
-        if descriptor.get('parentType'):
-            if descriptor.get('isSequence'):
-                json_schema['type'] = 'array'
-                json_schema['items'] = {'$ref': descriptor['parentType'] + '.json'}
+        if descriptor.get("parentType"):
+            if descriptor.get("isSequence"):
+                json_schema["type"] = "array"
+                json_schema["items"] = {"$ref": descriptor["parentType"] + ".json"}
             else:
-                json_schema['allOf'] = []
-                json_schema['allOf'].append({'$ref': descriptor['parentType'] + '.json'})
+                json_schema["allOf"] = []
+                json_schema["allOf"].append({"$ref": descriptor["parentType"] + ".json"})
         # Primitive datatype
-        elif descriptor['type'] == NcDatatypeType.Primitive:
-            json_schema['type'] = self._primitive_to_JSON(descriptor['name'])
+        elif descriptor["type"] == NcDatatypeType.Primitive:
+            json_schema["type"] = self._primitive_to_JSON(descriptor["name"])
 
         # Struct datatype
-        if descriptor['type'] == NcDatatypeType.Struct and descriptor.get('fields'):
-            json_schema['type'] = 'object'
+        if descriptor["type"] == NcDatatypeType.Struct and descriptor.get("fields"):
+            json_schema["type"] = "object"
 
             required = []
             properties = {}
-            for field in descriptor['fields']:
-                required.append(field['name'])
+            for field in descriptor["fields"]:
+                required.append(field["name"])
 
                 property_type = {}
-                if self._primitive_to_JSON(field['typeName']):
-                    if field['isNullable']:
-                        property_type = {'type': [self._primitive_to_JSON(field['typeName']), 'null']}
+                if self._primitive_to_JSON(field["typeName"]):
+                    if field["isNullable"]:
+                        property_type = {"type": [self._primitive_to_JSON(field["typeName"]), "null"]}
                     else:
-                        property_type = {'type': self._primitive_to_JSON(field['typeName'])}
+                        property_type = {"type": self._primitive_to_JSON(field["typeName"])}
                 else:
-                    if field.get('typeName'):
-                        if field['isNullable']:
-                            property_type['anyOf'] = []
-                            property_type['anyOf'].append({'$ref': field['typeName'] + '.json'})
-                            property_type['anyOf'].append({'type': 'null'})
+                    if field.get("typeName"):
+                        if field["isNullable"]:
+                            property_type["anyOf"] = []
+                            property_type["anyOf"].append({"$ref": field["typeName"] + ".json"})
+                            property_type["anyOf"].append({"type": "null"})
                         else:
-                            property_type = {'$ref': field['typeName'] + '.json'}
+                            property_type = {"$ref": field["typeName"] + ".json"}
                     else:
                         # variant
-                        property_type = {'type': variant_type}
+                        property_type = {"type": variant_type}
 
-                if field.get('isSequence'):
-                    property_type = {'type': 'array', 'items': property_type}
+                if field.get("isSequence"):
+                    property_type = {"type": "array", "items": property_type}
 
-                property_type['description'] = field['description'] if descriptor['description'] else ""
-                properties[field['name']] = property_type
+                property_type["description"] = field["description"] if descriptor["description"] else ""
+                properties[field["name"]] = property_type
 
-            json_schema['required'] = required
-            json_schema['properties'] = properties
+            json_schema["required"] = required
+            json_schema["properties"] = properties
 
         # Enum datatype
-        if descriptor['type'] == NcDatatypeType.Enum and descriptor.get('items'):
-            json_schema['enum'] = []
-            for item in descriptor['items']:
-                json_schema['enum'].append(int(item['value']))
-            json_schema['type'] = 'integer'
+        if descriptor["type"] == NcDatatypeType.Enum and descriptor.get("items"):
+            json_schema["enum"] = []
+            for item in descriptor["items"]:
+                json_schema["enum"].append(int(item["value"]))
+            json_schema["type"] = "integer"
 
         return json_schema
 
@@ -291,7 +291,7 @@ class MS05Utils(NMOSUtils):
             # Create JSON schemas for the queried datatypes
             return self.generate_json_schemas(
                 datatype_descriptors=class_manager.datatype_descriptors,
-                schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], 'APIs/tmp_schemas/'))
+                schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], "APIs/tmp_schemas/"))
         except Exception as e:
             raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
 
@@ -324,12 +324,12 @@ class MS05Utils(NMOSUtils):
 
     def validate_descriptor(self, test, reference, descriptor, context=""):
         """Validate descriptor against reference NcDescriptor. Raises NMOSTestException on error"""
-        non_normative_keys = ['description']
+        non_normative_keys = ["description"]
 
         # Compare disctionaries
         if isinstance(reference, dict):
             # Remove the json field if present
-            reference.pop('json', None)
+            reference.pop("json", None)
 
             reference_keys = set(reference.keys())
             descriptor_keys = set(descriptor.keys())
@@ -347,16 +347,16 @@ class MS05Utils(NMOSUtils):
         # We can't guarantee ordering of lists, so convert reference and descriptor to dictionaries
         elif isinstance(reference, list):
             if len(reference) != len(descriptor):
-                raise NMOSTestException(test.FAIL(context + 'List unexpected length. Expected: '
-                                        + str(len(reference)) + ', actual: ' + str(len(descriptor))))
+                raise NMOSTestException(test.FAIL(context + "List unexpected length. Expected: "
+                                        + str(len(reference)) + ", actual: " + str(len(descriptor))))
             if len(reference) > 0:
                 if isinstance(reference[0], (dict, NcDescriptor)):
                     # Convert to dict and validate
                     if isinstance(reference[0], NcDescriptor):
                         references = {item.name: item.__dict__ for item in reference}
                     else:
-                        references = {item['name']: item for item in reference}
-                    descriptors = {item['name']: item for item in descriptor}
+                        references = {item["name"]: item for item in reference}
+                    descriptors = {item["name"]: item for item in descriptor}
                     self.validate_descriptor(test, references, descriptors, context)
                 else:
                     for refvalue, value in zip(reference, descriptor):
@@ -365,8 +365,8 @@ class MS05Utils(NMOSUtils):
         elif isinstance(reference, (NcDescriptor, NcElementId)):
             self.validate_descriptor(test, reference.__dict__, descriptor, context)
         elif reference != descriptor:
-            raise NMOSTestException(test.FAIL(context + 'Expected value: '
-                                    + str(reference) + ', actual value: ' + str(descriptor)))
+            raise NMOSTestException(test.FAIL(context + "Expected value: "
+                                    + str(reference) + ", actual value: " + str(descriptor)))
         return
 
     def _get_class_manager_datatype_descriptors(self, test, class_manager_oid, role_path):
@@ -379,10 +379,10 @@ class MS05Utils(NMOSUtils):
         # Validate descriptors
         for r in response:
             self.validate_reference_datatype_schema(test, r, NcDatatypeDescriptor.__name__,
-                                                    '/'.join([str(r) for r in role_path]))
+                                                    "/".join([str(r) for r in role_path]))
 
         # Create NcDescriptor dictionary from response array
-        descriptors = {r['name']: self.datatype_descriptor_factory(r) for r in response}
+        descriptors = {r["name"]: self.datatype_descriptor_factory(r) for r in response}
 
         return descriptors
 
@@ -396,11 +396,11 @@ class MS05Utils(NMOSUtils):
         # Validate descriptors
         for r in response:
             self.validate_reference_datatype_schema(test, r, NcClassDescriptor.__name__,
-                                                    '/'.join([str(r) for r in role_path]))
+                                                    "/".join([str(r) for r in role_path]))
 
         # Create NcClassDescriptor dictionary from response array
         def key_lambda(classId): return ".".join(map(str, classId))
-        descriptors = {key_lambda(r.get('classId')): NcClassDescriptor(r) for r in response}
+        descriptors = {key_lambda(r.get("classId")): NcClassDescriptor(r) for r in response}
         return descriptors
 
     def _nc_object_factory(self, test, class_id, oid, role, _role_path=None):
@@ -423,13 +423,13 @@ class MS05Utils(NMOSUtils):
                     oid=oid, role_path=role_path)
 
                 if member_descriptors is None:
-                    raise NMOSTestException(test.FAIL('Unable to get members for object: oid={}, role Path={}'
+                    raise NMOSTestException(test.FAIL("Unable to get members for object: oid={}, role Path={}"
                                                       .format(str(oid), str(role_path))))
 
                 block_member_descriptors = []
                 for m in member_descriptors:
                     self.validate_reference_datatype_schema(test, m, NcBlockMemberDescriptor.__name__,
-                                                            '/'.join([str(r) for r in role_path]))
+                                                            "/".join([str(r) for r in role_path]))
                     block_member_descriptors.append(NcBlockMemberDescriptor(m))
 
                 nc_block = NcBlock(class_id, oid, role, role_path, block_member_descriptors, runtime_constraints)
@@ -450,8 +450,8 @@ class MS05Utils(NMOSUtils):
                         test, class_manager_oid=oid, role_path=role_path)
 
                     if not class_descriptors or not datatype_descriptors:
-                        raise NMOSTestException(test.FAIL('No class descriptors or datatype descriptors'
-                                                          + 'found in ClassManager'))
+                        raise NMOSTestException(test.FAIL("No class descriptors or datatype descriptors"
+                                                          + "found in ClassManager"))
 
                     return NcClassManager(class_id, oid, role, role_path,
                                           class_descriptors, datatype_descriptors,
@@ -466,7 +466,7 @@ class MS05Utils(NMOSUtils):
         device_model = self.query_device_model(test)
         members = device_model.find_members_by_class_id(class_id, include_derived=True)
 
-        spec_link = f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}" \
+        spec_link = f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}" \
             + "/docs/Managers.html"
 
         if len(members) == 0:
@@ -508,7 +508,7 @@ class MS05Utils(NMOSUtils):
 
     def get_base_class_id(self, class_id):
         """ Given a class_id returns the standard base class id as a string"""
-        return '.'.join([str(v) for v in takewhile(lambda x: x > 0, class_id)])
+        return ".".join([str(v) for v in takewhile(lambda x: x > 0, class_id)])
 
     def is_non_standard_class(self, class_id):
         """ Check class_id to determine if it is for a non-standard class """
@@ -585,15 +585,15 @@ class NcPropertyChangeType(IntEnum):
 
 
 class NcObjectProperties(Enum):
-    CLASS_ID = {'level': 1, 'index': 1}
-    OID = {'level': 1, 'index': 2}
-    CONSTANT_OID = {'level': 1, 'index': 3}
-    OWNER = {'level': 1, 'index': 4}
-    ROLE = {'level': 1, 'index': 5}
-    USER_LABEL = {'level': 1, 'index': 6}
-    TOUCHPOINTS = {'level': 1, 'index': 7}
-    RUNTIME_PROPERTY_CONSTRAINTS = {'level': 1, 'index': 8}
-    UNKNOWN = {'level': 9999, 'index': 9999}
+    CLASS_ID = {"level": 1, "index": 1}
+    OID = {"level": 1, "index": 2}
+    CONSTANT_OID = {"level": 1, "index": 3}
+    OWNER = {"level": 1, "index": 4}
+    ROLE = {"level": 1, "index": 5}
+    USER_LABEL = {"level": 1, "index": 6}
+    TOUCHPOINTS = {"level": 1, "index": 7}
+    RUNTIME_PROPERTY_CONSTRAINTS = {"level": 1, "index": 8}
+    UNKNOWN = {"level": 9999, "index": 9999}
 
     @classmethod
     def _missing_(cls, _):
@@ -601,43 +601,43 @@ class NcObjectProperties(Enum):
 
 
 class NcObjectMethods(Enum):
-    GENERIC_GET = {'level': 1, 'index': 1}
-    GENERIC_SET = {'level': 1, 'index': 2}
-    GET_SEQUENCE_ITEM = {'level': 1, 'index': 3}
-    SET_SEQUENCE_ITEM = {'level': 1, 'index': 4}
-    ADD_SEQUENCE_ITEM = {'level': 1, 'index': 5}
-    REMOVE_SEQUENCE_ITEM = {'level': 1, 'index': 6}
-    GET_SEQUENCE_LENGTH = {'level': 1, 'index': 7}
+    GENERIC_GET = {"level": 1, "index": 1}
+    GENERIC_SET = {"level": 1, "index": 2}
+    GET_SEQUENCE_ITEM = {"level": 1, "index": 3}
+    SET_SEQUENCE_ITEM = {"level": 1, "index": 4}
+    ADD_SEQUENCE_ITEM = {"level": 1, "index": 5}
+    REMOVE_SEQUENCE_ITEM = {"level": 1, "index": 6}
+    GET_SEQUENCE_LENGTH = {"level": 1, "index": 7}
 
 
 class NcObjectEvents(Enum):
-    PROPERTY_CHANGED = {'level': 1, 'index': 1}
+    PROPERTY_CHANGED = {"level": 1, "index": 1}
 
 
 class NcBlockProperties(Enum):
-    ENABLED = {'level': 2, 'index': 1}
-    MEMBERS = {'level': 2, 'index': 2}
+    ENABLED = {"level": 2, "index": 1}
+    MEMBERS = {"level": 2, "index": 2}
 
 
 class NcBlockMethods(Enum):
-    GET_MEMBERS_DESCRIPTOR = {'level': 2, 'index': 1}
-    FIND_MEMBERS_BY_PATH = {'level': 2, 'index': 2}
-    FIND_MEMBERS_BY_ROLE = {'level': 2, 'index': 3}
-    FIND_MEMBERS_BY_CLASS_ID = {'level': 2, 'index': 4}
+    GET_MEMBERS_DESCRIPTOR = {"level": 2, "index": 1}
+    FIND_MEMBERS_BY_PATH = {"level": 2, "index": 2}
+    FIND_MEMBERS_BY_ROLE = {"level": 2, "index": 3}
+    FIND_MEMBERS_BY_CLASS_ID = {"level": 2, "index": 4}
 
 
 class NcClassManagerProperties(Enum):
-    CONTROL_CLASSES = {'level': 3, 'index': 1}
-    DATATYPES = {'level': 3, 'index': 2}
+    CONTROL_CLASSES = {"level": 3, "index": 1}
+    DATATYPES = {"level": 3, "index": 2}
 
 
 class NcClassManagerMethods(Enum):
-    GET_CONTROL_CLASS = {'level': 3, 'index': 1}
-    GET_DATATYPE = {'level': 3, 'index': 2}
+    GET_CONTROL_CLASS = {"level": 3, "index": 1}
+    GET_DATATYPE = {"level": 3, "index": 2}
 
 
 class NcDeviceManagerProperties(Enum):
-    NCVERSION = {'level': 3, 'index': 1}
+    NCVERSION = {"level": 3, "index": 1}
 
 
 class StandardClassIds(Enum):
@@ -651,8 +651,8 @@ class StandardClassIds(Enum):
 
 class NcElementId():
     def __init__(self, id_json):
-        self.level = id_json['level']  # Level of the element
-        self.index = id_json['index']  # Index of the element
+        self.level = id_json["level"]  # Level of the element
+        self.index = id_json["index"]  # Index of the element
 
 
 class NcPropertyId(NcElementId):
@@ -664,56 +664,56 @@ class NcPropertyId(NcElementId):
 class NcDescriptor():
     def __init__(self, descriptor_json):
         self.json = descriptor_json  # Store original JSON to use for schema validation
-        self.description = descriptor_json['description']  # Optional user facing description
+        self.description = descriptor_json["description"]  # Optional user facing description
 
 
 class NcPropertyDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
         NcDescriptor.__init__(self, descriptor_json)
-        self.id = NcPropertyId(descriptor_json['id'])  # Property id with level and index
-        self.name = descriptor_json['name']  # Name of property
-        self.typeName = descriptor_json['typeName']  # Name of property's datatype.
-        self.isReadOnly = descriptor_json['isReadOnly']  # TRUE iff property is read-only
-        self.isNullable = descriptor_json['isNullable']  # TRUE iff property is nullable
-        self.isSequence = descriptor_json['isSequence']  # TRUE iff property is a sequence
-        self.isDeprecated = descriptor_json['isDeprecated']  # TRUE iff property is marked as deprecated
-        self.constraints = descriptor_json['constraints']  # Optional constraints on top of the underlying data type
+        self.id = NcPropertyId(descriptor_json["id"])  # Property id with level and index
+        self.name = descriptor_json["name"]  # Name of property
+        self.typeName = descriptor_json["typeName"]  # Name of property's datatype.
+        self.isReadOnly = descriptor_json["isReadOnly"]  # TRUE iff property is read-only
+        self.isNullable = descriptor_json["isNullable"]  # TRUE iff property is nullable
+        self.isSequence = descriptor_json["isSequence"]  # TRUE iff property is a sequence
+        self.isDeprecated = descriptor_json["isDeprecated"]  # TRUE iff property is marked as deprecated
+        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
 
 
 class NcBlockMemberDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
         NcDescriptor.__init__(self, descriptor_json)
-        self.role = descriptor_json['role']  # Role of member in its containing block
-        self.oid = descriptor_json['oid']  # OID of member
-        self.constantOid = descriptor_json['constantOid']  # TRUE iff member's OID is hardwired into device
-        self.classId = descriptor_json['classId']  # Class ID
-        self.userLabel = descriptor_json['userLabel']  # User label
-        self.owner = descriptor_json['owner']  # Containing block's OID
+        self.role = descriptor_json["role"]  # Role of member in its containing block
+        self.oid = descriptor_json["oid"]  # OID of member
+        self.constantOid = descriptor_json["constantOid"]  # TRUE iff member's OID is hardwired into device
+        self.classId = descriptor_json["classId"]  # Class ID
+        self.userLabel = descriptor_json["userLabel"]  # User label
+        self.owner = descriptor_json["owner"]  # Containing block's OID
 
 
 class NcClassDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
         NcDescriptor.__init__(self, descriptor_json)
-        self.classId = descriptor_json['classId']  # Identity of the class
-        self.name = descriptor_json['name']  # Name of the class
-        self.fixedRole = descriptor_json['fixedRole']  # Role if the class has fixed role (manager classes)
-        self.properties = [NcPropertyDescriptor(p) for p in descriptor_json['properties']]
-        self.methods = descriptor_json['methods']  # Method descriptors
-        self.events = descriptor_json['events']  # Event descriptors
+        self.classId = descriptor_json["classId"]  # Identity of the class
+        self.name = descriptor_json["name"]  # Name of the class
+        self.fixedRole = descriptor_json["fixedRole"]  # Role if the class has fixed role (manager classes)
+        self.properties = [NcPropertyDescriptor(p) for p in descriptor_json["properties"]]
+        self.methods = descriptor_json["methods"]  # Method descriptors
+        self.events = descriptor_json["events"]  # Event descriptors
 
 
 class NcDatatypeDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
         NcDescriptor.__init__(self, descriptor_json)
-        self.name = descriptor_json['name']  # Datatype name
-        self.type = descriptor_json['type']  # Type: Primitive, Typedef, Struct, Enum
-        self.constraints = descriptor_json['constraints']  # Optional constraints on top of the underlying data type
+        self.name = descriptor_json["name"]  # Datatype name
+        self.type = descriptor_json["type"]  # Type: Primitive, Typedef, Struct, Enum
+        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
 
 
 class NcDatatypeDescriptorEnum(NcDatatypeDescriptor):
     def __init__(self, descriptor_json):
         NcDatatypeDescriptor.__init__(self, descriptor_json)
-        self.items = descriptor_json['items']
+        self.items = descriptor_json["items"]
 
 
 class NcDatatypeDescriptorPrimitive(NcDatatypeDescriptor):
@@ -724,32 +724,32 @@ class NcDatatypeDescriptorPrimitive(NcDatatypeDescriptor):
 class NcDatatypeDescriptorStruct(NcDatatypeDescriptor):
     def __init__(self, descriptor_json):
         NcDatatypeDescriptor.__init__(self, descriptor_json)
-        self.fields = descriptor_json['fields']
-        self.parentType = descriptor_json['parentType']
+        self.fields = descriptor_json["fields"]
+        self.parentType = descriptor_json["parentType"]
 
 
 class NcDatatypeDescriptorTypeDef(NcDatatypeDescriptor):
     def __init__(self, descriptor_json):
         NcDatatypeDescriptor.__init__(self, descriptor_json)
-        self.parentType = descriptor_json['parentType']  # Original typedef datatype name
-        self.isSequence = descriptor_json['isSequence']  # TRUE iff type is a typedef sequence of another type
+        self.parentType = descriptor_json["parentType"]  # Original typedef datatype name
+        self.isSequence = descriptor_json["isSequence"]  # TRUE iff type is a typedef sequence of another type
 
 
 class NcTouchpoint():
     def __init__(self, touchpoint_json):
-        self.context_namespace = touchpoint_json['contextNamespace']  # Context namespace
+        self.context_namespace = touchpoint_json["contextNamespace"]  # Context namespace
 
 
 class NcTouchpointNmos(NcTouchpoint):
     def __init__(self, touchpoint_json):
         NcTouchpoint.__init__(self, touchpoint_json)
-        self.resource = touchpoint_json['resource']  # Context NMOS resource
+        self.resource = touchpoint_json["resource"]  # Context NMOS resource
 
 
 class NcTouchpointNmosChannelMapping(NcTouchpoint):
     def __init__(self, touchpoint_json):
         NcTouchpoint.__init__(self, touchpoint_json)
-        self.resource = touchpoint_json['resource']  # Context Channel Mapping resource
+        self.resource = touchpoint_json["resource"]  # Context Channel Mapping resource
 
 
 class NcObject():
