@@ -24,12 +24,14 @@ Terminology:
 """
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..TestHelper import compare_json
 
 from ..import TestHelper
 import re
 import copy
 import time
+
+IS13_SPEC_VERSION = "v1.0-dev"
+IS13_SPEC_URL = f"https://specs.amwa.tv/is-13/branches/{IS13_SPEC_VERSION}/docs"
 
 ANNOTATION_API_KEY = "annotation"
 NODE_API_KEY = "node"
@@ -72,68 +74,65 @@ class IS1301Test(GenericTest):
         valid, r = self.do_request("GET", url)
         if valid and r.status_code == 200:
             try:
-                return True, r.json()
+                return r.json()
             except Exception as e:
-                return False, e.msg
+                raise(f"Can't parse response as json {e.msg}")
         else:
-            return False, "GET Request FAIL"
+            return None
 
     def compare_resource(self, annotation_property, value1, value2):
         """ Compare strings (or dict for 'tags') """
 
-        if value1[annotation_property] is None:  # this is a reset, value1 is null, skip
-            return True, ""
+        if value2[annotation_property] is None:  # this is a reset, value2 is null, skip
+            return True
 
         if annotation_property == "tags":  # tags needs to be stripped
             value2[annotation_property] = strip_tags(value2[annotation_property])
-            if not TestHelper.compare_json(value2[annotation_property], value1[annotation_property]):
-                return False, f"{annotation_property} value FAIL"
+            return TestHelper.compare_json(value2[annotation_property], value1[annotation_property])
 
-        elif value2[annotation_property] != value1[annotation_property]:
-            return False, f"{annotation_property} value FAIL"
+        return value2[annotation_property] == value1[annotation_property]
 
-        return True, ""
-
-    def set_resource(self, url, node_url, new, prev, msg):
+    def set_resource(self, test, url, node_url, value, prev, expected, msg, link):
         """ Patch a resource with one ore several object values """
-        global prev
 
         self.log(f"    {msg}")
 
-        annotation_property = list(new.keys())[0]
-        valid, resp = self.do_request("PATCH", url, json=new)
+        annotation_property = list(value.keys())[0]
+        valid, resp = self.do_request("PATCH", url, json=value)
         if not valid:
-            # raise NMOSTestException(test.WARNING("501 'Not Implemented' status code is not supported below API " "version v1.3", NMOS_WIKI_URL + "/IS-04#nodes-basic-connection-management"))
-            return False, "PATCH Request FAIL"
+            raise NMOSTestException(test.FAIL("PATCH Request FAIL", link=f"{IS13_SPEC_URL}/Behaviour.html#setting-values"))
+        # TODO: if put_response.status_code == 500:
 
         # pause to accomodate update propagation
         time.sleep(0.1)
 
         # re-GET
-        valid, resp = self.get_resource(url)
-        if not valid:
-            return False, "Get Request FAIL"
+        resp = self.get_resource(url)
+        if not resp:
+            raise NMOSTestException(test.FAIL(f"GET /{ANNOTATION_API_KEY} FAIL"))
         # check PATCH == GET
-        valid, msg = self.compare_resource(annotation_property, new, resp)
-        if not valid:
-            return False, f"new {msg}"
+        if not self.compare_resource(annotation_property, resp, expected):
+            raise NMOSTestException(test.FAIL(f"Compare req vs expect FAIL - {msg}", link=link))
         # check that the version (timestamp) has increased
         if get_ts_from_version(prev['version']) >= get_ts_from_version(resp['version']):
-            return False, "new version (timestamp) FAIL"
+            raise NMOSTestException(test.FAIL(f"Version update FAIL \
+                                              ({get_ts_from_version(prev['version'])} !>= {get_ts_from_version(resp['version'])})", \
+                                              link=f"{IS13_SPEC_URL}/Behaviour.html#successful-response>"))
 
         # validate that it is reflected in IS04
-        valid, node_resp = self.get_resource(node_url)
-        if not valid:
-            return False, "GET IS-04 Node FAIL"
+        node_resp = self.get_resource(node_url)
+        if not node_resp:
+            raise NMOSTestException(test.FAIL(f"GET /{NODE_API_KEY} FAIL"))
         # check PATCH == GET
-        valid, msg = self.compare_resource(annotation_property, new, resp)
-        if not valid:
-            return False, f"new IS-04/node/.../ {msg}"
+        if not self.compare_resource(annotation_property, resp, expected):
+            raise NMOSTestException(test.FAIL(f"Compare /annotation vs /node FAIL {msg}",
+                                              link=f"{IS13_SPEC_URL}/Interoperability_-_IS-04.html#consistent-resources"))
         # check that the version (timestamp) has increased
         if get_ts_from_version(node_resp['version']) != get_ts_from_version(resp['version']):
-            return False, "new IS-04/node/.../version (timestamp) FAIL"
+            raise NMOSTestException(test.FAIL(f"Compare /annotation Version vs /node FAIL {msg}",
+                                              link=f"{IS13_SPEC_URL}/Interoperability_-_IS-04.html#version-increments"))
 
-        return True, resp
+        return resp
 
     def log(self, msg):
         """
@@ -142,28 +141,37 @@ class IS1301Test(GenericTest):
         # print(msg)
         return
 
-    def create_url(self, base_url, resource):
+    def create_url(self, test, base_url, resource):
         """
         Build the url for both annotation and node APIs which behaves differently.
         For iterables resources (devices, senders, receivers), return the 1st element.
         """
 
         url = f"{base_url}{resource}"
-        if resource != "self":
-            valid, r = self.get_resource(url)
-            if valid:
+        r = self.get_resource(url)
+        if r:
+            if resource != "self":
                 if isinstance(r[0], str):  # in annotation api
                     index = r[0]
                 elif isinstance(r[0], dict):  # in node api
                     index = r[0]['id']
                 else:
-                    return None
+                    raise NMOSTestException(test.FAIL(f"Unexpected resource found @ {url}"))
                 url = f"{url}/{index}"
-            else:
-                return None
+        else:
+            raise NMOSTestException(test.FAIL(f"No resource found @ {url}"))
 
         return url
 
+    def copy_resource(self, resource):
+        """ Strip and copy resource """
+
+        r = copy.copy(resource)
+        r.pop('id')
+        r.pop('version')
+        r['tags'] = strip_tags(r['tags'])
+
+        return r
 
     def do_test_sequence(self, test, resource, annotation_property):
         """
@@ -185,62 +193,40 @@ class IS1301Test(GenericTest):
                 - Restore initial value
         """
 
-        url = self.create_url(f"{self.annotation_url}node/", resource)
-        if not url:
-            msg = f"Can't get annotation url for {resource}"
-            self.log(f"    FAIL {msg}")
-            return test.FAIL(msg)
+        url = self.create_url(test, f"{self.annotation_url}node/", resource)
+        node_url = self.create_url(test, self.node_url, resource)
 
-        node_url = self.create_url(self.node_url, resource)
-        if not url:
-            msg = f"Can't get node url for {resource}"
-            self.log(f"    FAIL {msg}")
-            return test.FAIL(msg)
+        # Save initial resource value
+        resp = self.get_resource(url)
+        initial = self.copy_resource(resp)
 
-        valid, r = self.get_resource(url)
-        msg = f"SAVE initial: {r}"
-        self.log(f"    {msg}")
-        if valid:
-            prev = r
-            initial = copy.copy(r)
-            initial.pop('id')
-            initial.pop('version')
-            initial['tags'] = strip_tags(initial['tags'])
-        else:
-            self.log("    FAIL")
-            return test.FAIL(f"Can't {msg}")
+        msg = "Reset to default and save."
+        link = f"{IS13_SPEC_URL}/Behaviour.html#resetting-values"
+        default = resp = self.set_resource(test, url, node_url, {annotation_property: None}, resp,
+                                           {annotation_property: None}, msg, link)
 
-        msg = f"RESET to default and save: {r}"
-        valid, r = self.set_resource(url, node_url, {annotation_property: None}, prev, msg)
-        self.log(f"    {msg}")
-        if valid:
-            default = prev = r
-        else:
-            self.log("    FAIL")
-            return test.FAIL(f"Can't {msg}")
-
-        msg = f"SET MAX value and expected complete response: {r}"
+        msg = "Set max-length value and return complete response."
+        link = f"{IS13_SPEC_URL}/Behaviour.html#setting-values"
         value = TAGS_LENGTH_MAX_VALUE if annotation_property == "tags" else STRING_LENGTH_MAX_VALUE
-        valid, r = self.set_resource(url, node_url, {annotation_property: value}, prev, msg)
+        resp = self.set_resource(test, url, node_url, {annotation_property: value}, resp,
+                                 {annotation_property: value}, msg, link)
 
-        msg = f"SET >MAX value and expect truncated response: {r}"
+        msg = "Exceed max-length value and return truncated response"
+        link = f"{IS13_SPEC_URL}/Behaviour.html#additional-limitations"
         value = TAGS_LENGTH_OVER_MAX_VALUE if annotation_property == "tags" else STRING_LENGTH_OVER_MAX_VALUE
-        valid, r = self.set_resource(url, node_url, {annotation_property: value}, prev, msg)
-        if valid:
-            if annotation_property == "tags" and not TestHelper.compare_json(r[annotation_property], TAGS_LENGTH_MAX_VALUE) or r[annotation_property] != STRING_LENGTH_MAX_VALUE:
-                return test.FAIL(f"Can't {msg}")
+        expected = TAGS_LENGTH_MAX_VALUE if annotation_property == "tags" else STRING_LENGTH_MAX_VALUE
+        resp = self.set_resource(test, url, node_url, {annotation_property: value}, resp,
+                                 {annotation_property: expected}, msg, link)
 
-        msg = f"RESET again and compare: {r}"
-        valid, r = self.set_resource(url, node_url, {annotation_property: None}, prev, msg)
-        if valid:
-            if annotation_property == "tags" and not TestHelper.compare_json(default[annotation_property], r[annotation_property]) or default[annotation_property] != r[annotation_property]:
-                self.log("    FAIL")
-                return test.FAIL("Second reset gives a different default value.")
+        msg = "Reset again and compare with default."
+        link = f"{IS13_SPEC_URL}/Behaviour.html#resetting-values"
+        resp = self.set_resource(test, url, node_url, {annotation_property: None}, resp, default,
+                                 msg, link)
 
-        msg = f"RESTORE initial values"
-        self.set_resource(url, node_url, initial, prev, msg)
+        msg = "Restore initial values."
+        link = "{IS13_SPEC_URL}/Behaviour.html#setting-values"
+        self.set_resource(test, url, node_url, initial, resp, msg, link)
 
-        self.log("    PASS")
         return test.PASS()
 
     def test_01_01(self, test):
