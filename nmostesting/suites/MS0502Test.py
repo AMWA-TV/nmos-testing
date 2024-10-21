@@ -576,7 +576,9 @@ class MS0502Test(ControllerTest):
             elif datatype_descriptor.type == NcDatatypeType.Primitive:
                 parameter = self._generate_primitive_parameter(datatype)
             elif datatype_descriptor.type == NcDatatypeType.Struct:
-                parameter = self._create_compatible_parameters(test, datatype_descriptor.fields)
+                parameter = {}
+                for d in datatype_descriptor.fields:
+                    parameter[d.name] = self._create_compatible_parameter(test, d.__dict__)
 
         if parameter_descriptor['isSequence']:
             parameter = [parameter]

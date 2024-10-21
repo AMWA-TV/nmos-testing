@@ -169,6 +169,7 @@ class MS05Utils(NMOSUtils):
             schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], "APIs/schemas/"))
 
     def datatype_descriptor_factory(self, descriptor_json):
+        """Instantiate concrete NcDatatypeDescriptor object"""
         if "fields" in descriptor_json and "parentType" in descriptor_json:
             return NcDatatypeDescriptorStruct(descriptor_json)
 
@@ -710,7 +711,7 @@ class NcClassDescriptor(NcDescriptor):
         self.name = descriptor_json["name"]  # Name of the class
         self.fixedRole = descriptor_json["fixedRole"]  # Role if the class has fixed role (manager classes)
         self.properties = [NcPropertyDescriptor(p) for p in descriptor_json["properties"]]
-        self.methods = descriptor_json["methods"]  # Method descriptors
+        self.methods = [NcMethodDescriptor(p) for p in descriptor_json["methods"]]
         self.events = descriptor_json["events"]  # Event descriptors
 
 
@@ -736,7 +737,7 @@ class NcDatatypeDescriptorPrimitive(NcDatatypeDescriptor):
 class NcDatatypeDescriptorStruct(NcDatatypeDescriptor):
     def __init__(self, descriptor_json):
         NcDatatypeDescriptor.__init__(self, descriptor_json)
-        self.fields = descriptor_json["fields"]
+        self.fields = [NcFieldDescriptor(p) for p in descriptor_json["fields"]]
         self.parentType = descriptor_json["parentType"]
 
 
@@ -745,6 +746,36 @@ class NcDatatypeDescriptorTypeDef(NcDatatypeDescriptor):
         NcDatatypeDescriptor.__init__(self, descriptor_json)
         self.parentType = descriptor_json["parentType"]  # Original typedef datatype name
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff type is a typedef sequence of another type
+
+
+class NcFieldDescriptor(NcDescriptor):
+    def __init__(self, descriptor_json):
+        NcDescriptor.__init__(self, descriptor_json)
+        self.name = descriptor_json["name"]  # Name of field
+        self.typeName = descriptor_json["typeName"]  # Name of field's datatype.
+        self.isNullable = descriptor_json["isNullable"]  # TRUE iff field is nullable
+        self.isSequence = descriptor_json["isSequence"]  # TRUE iff field is a sequence
+        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
+
+
+class NcParameterDescriptor(NcDescriptor):
+    def __init__(self, descriptor_json):
+        NcDescriptor.__init__(self, descriptor_json)
+        self.name = descriptor_json["name"]  # Name of parameter
+        self.typeName = descriptor_json["typeName"]  # Name of parameter's datatype.
+        self.isNullable = descriptor_json["isNullable"]  # TRUE iff parameter is nullable
+        self.isSequence = descriptor_json["isSequence"]  # TRUE iff parameter is a sequence
+        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
+
+
+class NcMethodDescriptor(NcDescriptor):
+    def __init__(self, descriptor_json):
+        NcDescriptor.__init__(self, descriptor_json)
+        self.id = descriptor_json["id"]  # Method id with level and index
+        self.name = descriptor_json["name"]  # Name of method
+        self.resultDatatype = descriptor_json["resultDatatype"]  # Name of method result's datatype
+        self.parameters = [NcParameterDescriptor(p) for p in descriptor_json["parameters"]]  # Parameter descriptors
+        self.isDeprecated = descriptor_json["isDeprecated"]  # TRUE iff property is marked as deprecated
 
 
 class NcTouchpoint():

@@ -15,8 +15,8 @@
 from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import MS05Utils, NcBlock, NcBlockMemberDescriptor, NcBlockProperties, \
-    NcDatatypeType, NcDeviceManagerProperties, \
+from ..MS05Utils import MS05Utils, NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcDatatypeDescriptorStruct, \
+    NcDeviceManagerProperties, \
     NcMethodStatus, NcObjectProperties, NcPropertyDescriptor, NcTouchpoint, NcTouchpointNmos, \
     NcTouchpointNmosChannelMapping, StandardClassIds
 from ..TestResult import Test
@@ -1134,21 +1134,21 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def do_validate_datatype_constraints_test(self, test, datatype, type_name, test_metadata, context=""):
-        if datatype.get("constraints"):
+        if datatype.constraints:
             test_metadata.checked = True
             self.check_constraint(test,
-                                  datatype.get("constraints"),
+                                  datatype.constraints,
                                   type_name,
-                                  datatype.get("isSequence", False),
+                                  datatype.isSequence,
                                   test_metadata,
                                   f"{context}: {type_name}")
-        if datatype.get("type") == NcDatatypeType.Struct.value:
-            for field in datatype.get("fields"):
+        if isinstance(datatype, NcDatatypeDescriptorStruct):
+            for field in datatype.fields:
                 self.do_validate_datatype_constraints_test(test,
                                                            field,
-                                                           field["typeName"],
+                                                           field.typeName,
                                                            test_metadata,
-                                                           f"{context}: {type_name}: {field["name"]}")
+                                                           f"{context}: {type_name}: {field.name}")
 
     def test_ms05_23(self, test):
         """Constraints: validate datatype constraints"""
@@ -1158,7 +1158,7 @@ class MS0501Test(GenericTest):
         test_metadata = MS0501Test.TestMetadata()
 
         for _, datatype in class_manager.datatype_descriptors.items():
-            self.do_validate_datatype_constraints_test(test, datatype.__dict__, datatype.name, test_metadata)
+            self.do_validate_datatype_constraints_test(test, datatype, datatype.name, test_metadata)
 
         if test_metadata.error:
             return test.FAIL(test_metadata.error_msg)
