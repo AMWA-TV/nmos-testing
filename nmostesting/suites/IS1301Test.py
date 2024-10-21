@@ -229,6 +229,19 @@ class IS1301Test(GenericTest):
 
         return test.PASS()
 
+    def test_00_01(self, test):
+        """ Annotation service must be announced """
+        r = self. get_resource(f"{self.node_url}self/")
+        print(self.annotation_url)
+        try:
+            for s in r['services']:
+                if 'urn:x-nmos:service:annotation' in s['type'] and s['href'] + '/' == self.annotation_url:
+                    return test.PASS()
+        except Exception as e:
+            return test.FAIL(f"Could't parse services in '/node/self' {str(e)}")
+        return test.FAIL("Could't found 'annotation' as a service in '/node/self'",
+                         link=f"{IS13_SPEC_URL}/Interoperability_-_IS-04.html#discovery")
+
     def test_01_01(self, test):
         """ Annotation test: self/label (reset to default, set 64-byte value, set >64-byte, check IS04+version)"""
         return self.do_test_sequence(test, "self", "label")
