@@ -168,19 +168,6 @@ class MS05Utils(NMOSUtils):
             datatype_descriptors=self.reference_datatype_descriptors,
             schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], "APIs/schemas/"))
 
-    def datatype_descriptor_factory(self, descriptor_json):
-        """Instantiate concrete NcDatatypeDescriptor object"""
-        if "fields" in descriptor_json and "parentType" in descriptor_json:
-            return NcDatatypeDescriptorStruct(descriptor_json)
-
-        if "parentType" in descriptor_json and "isSequence" in descriptor_json:
-            return NcDatatypeDescriptorTypeDef(descriptor_json)
-
-        if "items" in descriptor_json:
-            return NcDatatypeDescriptorEnum(descriptor_json)
-
-        return NcDatatypeDescriptorPrimitive(descriptor_json)
-
     def _load_model_descriptors(self, descriptor_paths):
         descriptors = {}
         for descriptor_path in descriptor_paths:
@@ -192,7 +179,7 @@ class MS05Utils(NMOSUtils):
                         if descriptor.get("classId"):
                             descriptors[name] = NcClassDescriptor(descriptor)
                         else:
-                            descriptors[name] = self.datatype_descriptor_factory(descriptor)
+                            descriptors[name] = NcDatatypeDescriptor.factory(descriptor)
 
         return descriptors
 
@@ -204,7 +191,7 @@ class MS05Utils(NMOSUtils):
             os.makedirs(base_schema_path)
 
         for name, descriptor in datatype_descriptors.items():
-            json_schema = self._descriptor_to_schema(descriptor.json)
+            json_schema = self._datatype_descriptor_to_schema(descriptor)
             with open(os.path.join(base_schema_path, name + ".json"), "w") as output_file:
                 json.dump(json_schema, output_file, indent=4)
                 datatype_schema_names.append(name)
@@ -216,68 +203,69 @@ class MS05Utils(NMOSUtils):
 
         return datatype_schemas
 
-    def _descriptor_to_schema(self, descriptor):
+    def _datatype_descriptor_to_schema(self, descriptor):
+        """Convert NcDatatypeDescriptor to json schema"""
         variant_type = ["number", "string", "boolean", "object", "array", "null"]
 
         json_schema = {}
         json_schema["$schema"] = "http://json-schema.org/draft-07/schema#"
 
-        json_schema["title"] = descriptor["name"]
-        json_schema["description"] = descriptor["description"] if descriptor["description"] else ""
+        json_schema["title"] = descriptor.name
+        json_schema["description"] = descriptor.description if descriptor.description else ""
 
         # Inheritance of datatype
-        if descriptor.get("parentType"):
-            if descriptor.get("isSequence"):
+        if isinstance(descriptor, (NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef)) and descriptor.parentType:
+            if isinstance(descriptor, NcDatatypeDescriptorTypeDef) and descriptor.isSequence:
                 json_schema["type"] = "array"
-                json_schema["items"] = {"$ref": descriptor["parentType"] + ".json"}
+                json_schema["items"] = {"$ref": descriptor.parentType + ".json"}
             else:
                 json_schema["allOf"] = []
-                json_schema["allOf"].append({"$ref": descriptor["parentType"] + ".json"})
+                json_schema["allOf"].append({"$ref": descriptor.parentType + ".json"})
         # Primitive datatype
-        elif descriptor["type"] == NcDatatypeType.Primitive:
-            json_schema["type"] = self._primitive_to_JSON(descriptor["name"])
+        elif isinstance(descriptor, NcDatatypeDescriptorPrimitive):
+            json_schema["type"] = self._primitive_to_JSON(descriptor.name)
 
         # Struct datatype
-        if descriptor["type"] == NcDatatypeType.Struct and descriptor.get("fields"):
+        elif isinstance(descriptor, NcDatatypeDescriptorStruct):
             json_schema["type"] = "object"
 
             required = []
             properties = {}
-            for field in descriptor["fields"]:
-                required.append(field["name"])
+            for field in descriptor.fields:
+                required.append(field.name)
 
                 property_type = {}
-                if self._primitive_to_JSON(field["typeName"]):
-                    if field["isNullable"]:
-                        property_type = {"type": [self._primitive_to_JSON(field["typeName"]), "null"]}
+                if self._primitive_to_JSON(field.typeName):
+                    if field.isNullable:
+                        property_type = {"type": [self._primitive_to_JSON(field.typeName), "null"]}
                     else:
-                        property_type = {"type": self._primitive_to_JSON(field["typeName"])}
+                        property_type = {"type": self._primitive_to_JSON(field.typeName)}
                 else:
-                    if field.get("typeName"):
-                        if field["isNullable"]:
+                    if field.typeName:
+                        if field.isNullable:
                             property_type["anyOf"] = []
-                            property_type["anyOf"].append({"$ref": field["typeName"] + ".json"})
+                            property_type["anyOf"].append({"$ref": field.typeName + ".json"})
                             property_type["anyOf"].append({"type": "null"})
                         else:
-                            property_type = {"$ref": field["typeName"] + ".json"}
+                            property_type = {"$ref": field.typeName + ".json"}
                     else:
                         # variant
                         property_type = {"type": variant_type}
 
-                if field.get("isSequence"):
+                if field.isSequence:
                     property_type = {"type": "array", "items": property_type}
 
-                property_type["description"] = field["description"] if descriptor["description"] else ""
-                properties[field["name"]] = property_type
+                property_type["description"] = field.description if field.description else ""
+                properties[field.name] = property_type
 
             json_schema["required"] = required
             json_schema["properties"] = properties
 
         # Enum datatype
-        if descriptor["type"] == NcDatatypeType.Enum and descriptor.get("items"):
+        elif isinstance(descriptor, NcDatatypeDescriptorEnum):
             json_schema["enum"] = []
-            for item in descriptor["items"]:
-                json_schema["enum"].append(int(item["value"]))
+            for item in descriptor.items:
+                json_schema["enum"].append(int(item.value))
             json_schema["type"] = "integer"
 
         return json_schema
@@ -371,7 +359,7 @@ class MS05Utils(NMOSUtils):
                 for refvalue, value in zip(reference, descriptor):
                     self.validate_descriptor(test, refvalue, value, context)
         # If the reference is an object then convert to a dict before comparison
-        elif isinstance(reference, (NcDescriptor, NcElementId)):
+        elif isinstance(reference, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
             self.validate_descriptor(test, reference.__dict__, descriptor, context)
         # Compare primitives and primitive arrays directly
         elif reference != descriptor:
@@ -392,7 +380,7 @@ class MS05Utils(NMOSUtils):
                                                     "/".join([str(r) for r in role_path]))
 
         # Create NcDescriptor dictionary from response array
-        descriptors = {r["name"]: self.datatype_descriptor_factory(r) for r in response}
+        descriptors = {r["name"]: NcDatatypeDescriptor.factory(r) for r in response}
 
         return descriptors
 
@@ -426,6 +414,12 @@ class MS05Utils(NMOSUtils):
             runtime_constraints = self.get_property_value(
                     test, NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
                     oid=oid, role_path=role_path)
+            if runtime_constraints:
+                for constraint in runtime_constraints:
+                    self.reference_datatype_schema_validate(test, constraint, NcPropertyConstraints.__name__,
+                                                            "/".join([str(r) for r in role_path]))
+
+                runtime_constraints = [NcPropertyConstraints.factory(c) for c in runtime_constraints]
 
             if self.is_block(class_id):
                 member_descriptors = self.get_property_value(
@@ -667,6 +661,12 @@ class NcElementId():
         self.level = id_json["level"]  # Level of the element
         self.index = id_json["index"]  # Index of the element
 
+    def __eq__(self, other):
+        if not isinstance(other, NcElementId):
+            return NotImplemented
+
+        return self.level == other.level and self.index == other.index
+
 
 class NcPropertyId(NcElementId):
     def __init__(self, id_json):
@@ -690,7 +690,7 @@ class NcPropertyDescriptor(NcDescriptor):
         self.isNullable = descriptor_json["isNullable"]  # TRUE iff property is nullable
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff property is a sequence
         self.isDeprecated = descriptor_json["isDeprecated"]  # TRUE iff property is marked as deprecated
-        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
 
 
 class NcBlockMemberDescriptor(NcDescriptor):
@@ -720,13 +720,27 @@ class NcDatatypeDescriptor(NcDescriptor):
         NcDescriptor.__init__(self, descriptor_json)
         self.name = descriptor_json["name"]  # Datatype name
         self.type = descriptor_json["type"]  # Type: Primitive, Typedef, Struct, Enum
-        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
+
+    @staticmethod
+    def factory(descriptor_json):
+        """Instantiate concrete NcDatatypeDescriptor object"""
+        if "fields" in descriptor_json and "parentType" in descriptor_json:
+            return NcDatatypeDescriptorStruct(descriptor_json)
+
+        if "parentType" in descriptor_json and "isSequence" in descriptor_json:
+            return NcDatatypeDescriptorTypeDef(descriptor_json)
+
+        if "items" in descriptor_json:
+            return NcDatatypeDescriptorEnum(descriptor_json)
+
+        return NcDatatypeDescriptorPrimitive(descriptor_json)
 
 
 class NcDatatypeDescriptorEnum(NcDatatypeDescriptor):
     def __init__(self, descriptor_json):
         NcDatatypeDescriptor.__init__(self, descriptor_json)
-        self.items = descriptor_json["items"]
+        self.items = [NcEnumItemDescriptor(i) for i in descriptor_json["items"]]
 
 
 class NcDatatypeDescriptorPrimitive(NcDatatypeDescriptor):
@@ -748,6 +762,13 @@ class NcDatatypeDescriptorTypeDef(NcDatatypeDescriptor):
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff type is a typedef sequence of another type
 
 
+class NcEnumItemDescriptor(NcDescriptor):
+    def __init__(self, descriptor_json):
+        NcDescriptor.__init__(self, descriptor_json)
+        self.name = descriptor_json["name"]  # Name of option
+        self.value = descriptor_json["value"]  # Enum item numerical value
+
+
 class NcFieldDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
         NcDescriptor.__init__(self, descriptor_json)
@@ -755,7 +776,7 @@ class NcFieldDescriptor(NcDescriptor):
         self.typeName = descriptor_json["typeName"]  # Name of field's datatype.
         self.isNullable = descriptor_json["isNullable"]  # TRUE iff field is nullable
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff field is a sequence
-        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
 
 
 class NcParameterDescriptor(NcDescriptor):
@@ -765,7 +786,7 @@ class NcParameterDescriptor(NcDescriptor):
         self.typeName = descriptor_json["typeName"]  # Name of parameter's datatype.
         self.isNullable = descriptor_json["isNullable"]  # TRUE iff parameter is nullable
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff parameter is a sequence
-        self.constraints = descriptor_json["constraints"]  # Optional constraints on top of the underlying data type
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
 
 
 class NcMethodDescriptor(NcDescriptor):
@@ -793,6 +814,65 @@ class NcTouchpointNmosChannelMapping(NcTouchpoint):
     def __init__(self, touchpoint_json):
         NcTouchpoint.__init__(self, touchpoint_json)
         self.resource = touchpoint_json["resource"]  # Context Channel Mapping resource
+
+
+class NcParameterConstraints:
+    def __init__(self, constraints_json):
+        self.defaultValue = constraints_json["defaultValue"]  # Default value
+
+    @staticmethod
+    def factory(constraints_json):
+        if constraints_json is None:
+            return None
+        if "minimum" in constraints_json and "maximum" in constraints_json and "step" in constraints_json:
+            return NcParameterConstraintsNumber(constraints_json)
+        if "maxCharacters" in constraints_json and "pattern" in constraints_json:
+            return NcParameterConstraintsString(constraints_json)
+        return NcParameterConstraints(constraints_json)
+
+
+class NcParameterConstraintsNumber(NcParameterConstraints):
+    def __init__(self, constraints_json):
+        NcParameterConstraints.__init__(self, constraints_json)
+        self.maximum = constraints_json["maximum"]  # Optional maximum
+        self.minimum = constraints_json["minimum"]  # Optional minimum
+        self.step = constraints_json["step"]  # Optional step
+
+
+class NcParameterConstraintsString(NcParameterConstraints):
+    def __init__(self, constraints_json):
+        NcParameterConstraints.__init__(self, constraints_json)
+        self.maxCharacters = constraints_json["maxCharacters"]  # Maximum characters allowed
+        self.pattern = constraints_json["pattern"]  # Regex pattern
+
+
+class NcPropertyConstraints:
+    def __init__(self, constraints_json):
+        self.propertyId = NcPropertyId(constraints_json["propertyId"])  # Property being constrained
+        self.defaultValue = constraints_json["defaultValue"]  # Default value
+
+    @staticmethod
+    def factory(constraints_json):
+        if "minimum" in constraints_json and "maximum" in constraints_json and "step" in constraints_json:
+            return NcPropertyConstraintsNumber(constraints_json)
+        if "maxCharacters" in constraints_json and "pattern" in constraints_json:
+            return NcPropertyConstraintsString(constraints_json)
+        return NcPropertyConstraints(constraints_json)
+
+
+class NcPropertyConstraintsNumber(NcPropertyConstraints):
+    def __init__(self, constraints_json):
+        NcPropertyConstraints.__init__(self, constraints_json)
+        self.maximum = constraints_json["maximum"]  # Optional maximum
+        self.minimum = constraints_json["minimum"]  # Optional minimum
+        self.step = constraints_json["step"]  # Optional step
+
+
+class NcPropertyConstraintsString(NcPropertyConstraints):
+    def __init__(self, constraints_json):
+        NcPropertyConstraints.__init__(self, constraints_json)
+        self.maxCharacters = constraints_json["maxCharacters"]  # Maximum characters allowed
+        self.pattern = constraints_json["pattern"]  # Regex pattern
 
 
 class NcObject():
