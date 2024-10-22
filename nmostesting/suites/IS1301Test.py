@@ -18,6 +18,11 @@ The script implements the IS-13 test suite according to the AMWA IS-13 NMOS Anno
 Specification (https://specs.amwa.tv/is-13/). At the end of the test, the initial state
 of the tested unit is supposed to be restored but this cannot be garanteed.
 
+Not covered yet:
+* Persistency: https://specs.amwa.tv/is-13/branches/v1.0-dev/docs/Behaviour.html#persistence-of-updates
+* Read only Tags: https://specs.amwa.tv/is-13/branches/v1.0-dev/docs/Behaviour.html#read-only-tags
+* 500 reponses are ignored
+
 Terminology:
 * `resource` refers to self, devices, senders or receivers endpoints
 * `annotation_property` refers to annotable objects: label, description or tags
