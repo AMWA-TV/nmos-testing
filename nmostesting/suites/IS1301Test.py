@@ -21,6 +21,7 @@ of the tested unit is supposed to be restored but this cannot be garanteed.
 Not covered yet:
 * Persistency: https://specs.amwa.tv/is-13/branches/v1.0-dev/docs/Behaviour.html#persistence-of-updates
 * Read only Tags: https://specs.amwa.tv/is-13/branches/v1.0-dev/docs/Behaviour.html#read-only-tags
+* Individual Tag reset
 * 500 reponses are ignored
 
 Terminology:
@@ -30,6 +31,7 @@ Terminology:
 
 from ..GenericTest import GenericTest, NMOSTestException
 
+from ..import Config as CONFIG
 from ..import TestHelper
 import re
 import copy
@@ -109,7 +111,7 @@ class IS1301Test(GenericTest):
         # TODO: if put_response.status_code == 500:
 
         # pause to accomodate update propagation
-        time.sleep(0.1)
+        time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
 
         # re-GET
         resp = self.get_resource(url)
