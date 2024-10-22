@@ -294,13 +294,13 @@ class MS05Utils(NMOSUtils):
     def queried_datatype_schema_validate(self, test, payload, datatype_name, context=""):
         """Validate payload against datatype schema queried from Node under Test Class Manager"""
         datatype_schema = self.get_datatype_schema(test, datatype_name)
-        self._validate_schema(test, payload, datatype_schema, f"{context}{datatype_name}")
+        self._validate_schema(test, payload, datatype_schema, f"{context}{datatype_name} ")
 
     def reference_datatype_schema_validate(self, test, payload, datatype_name, context=""):
         """Validate payload against reference datatype schema"""
         context += f"{datatype_name}: "
         self._validate_schema(test, payload, self.reference_datatype_schemas[datatype_name],
-                              f"{context}{datatype_name}")
+                              f"{context}{datatype_name} ")
 
     def _validate_schema(self, test, payload, schema, context=""):
         """Delegates to jsonschema validate. Raises NMOSTestExceptions on error"""
@@ -532,6 +532,9 @@ class MS05Utils(NMOSUtils):
 
     def resolve_datatype(self, test, datatype):
         """Resolve datatype to its base type"""
+        # Datatype of None denotes 'any' in MS-05-02 framework
+        if datatype is None:
+            return None
         class_manager = self.get_class_manager(test)
         datatype_descriptor = class_manager.datatype_descriptors[datatype]
         if isinstance(datatype_descriptor, (NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef)) and \

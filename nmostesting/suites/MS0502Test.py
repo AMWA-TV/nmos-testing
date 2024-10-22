@@ -21,9 +21,9 @@ from xeger import Xeger
 from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
-from ..MS05Utils import NcDatatypeType, NcBlock, NcDatatypeDescriptorStruct, \
-    NcDatatypeDescriptorTypeDef, NcParameterConstraintsNumber, NcParameterConstraintsString, \
-    NcPropertyConstraintsNumber, NcPropertyConstraintsString
+from ..MS05Utils import NcDatatypeDescriptorEnum, NcDatatypeDescriptorPrimitive, NcDatatypeType, NcBlock, \
+    NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef, NcParameterConstraintsNumber, \
+    NcParameterConstraintsString, NcPropertyConstraintsNumber, NcPropertyConstraintsString
 
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
@@ -187,7 +187,7 @@ class MS0502Test(ControllerTest):
         class_manager = self.ms05_utils.get_class_manager(test)
 
         for child in block.child_objects:
-            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=False)
+            class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
 
             # Only test methods on non-standard classes, as the standard classes are already tested elsewhere
             if not self.ms05_utils.is_non_standard_class(class_descriptor.classId):
@@ -537,21 +537,22 @@ class MS0502Test(ControllerTest):
             else:
                 return self._generate_string_parameter(constraints)
         else:
-            # resolve the datatype to either a struct, enum or primative
+            # resolve the datatype to either a struct, enum, primative or None
             datatype = self.ms05_utils.resolve_datatype(test, parameter_descriptor['typeName'])
 
-            class_manager = self.ms05_utils.get_class_manager(test)
+            if datatype is None:
+                parameter = 42  # None denotes an 'any' type so set to an arbitrary type/value
+            else:
+                class_manager = self.ms05_utils.get_class_manager(test)
 
-            datatype_descriptor = class_manager.datatype_descriptors[datatype]
+                datatype_descriptor = class_manager.datatype_descriptors[datatype]
 
-            if datatype_descriptor.type == NcDatatypeType.Enum:
-                parameter = datatype_descriptor.items[0].value
-            elif datatype_descriptor.type == NcDatatypeType.Primitive:
-                parameter = self._generate_primitive_parameter(datatype)
-            elif datatype_descriptor.type == NcDatatypeType.Struct:
-                parameter = {}
-                for d in datatype_descriptor.fields:
-                    parameter[d.name] = self._create_compatible_parameter(test, d.__dict__)
+                if isinstance(datatype_descriptor, NcDatatypeDescriptorEnum):
+                    parameter = datatype_descriptor.items[0].value
+                elif isinstance(datatype_descriptor, NcDatatypeDescriptorPrimitive):
+                    parameter = self._generate_primitive_parameter(datatype)
+                elif isinstance(datatype_descriptor, NcDatatypeDescriptorStruct):
+                    parameter = self._create_compatible_parameters(test, datatype_descriptor.fields)
 
         if parameter_descriptor['isSequence']:
             parameter = [parameter]
