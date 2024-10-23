@@ -302,10 +302,10 @@ class MS05Utils(NMOSUtils):
 
         self._validate_schema(test, payload, self.datatype_schemas.get(datatype_name), f"{context}{datatype_name}: ")
 
-    def reference_datatype_schema_validate(self, test, payload, datatype_name, context=""):
+    def reference_datatype_schema_validate(self, test, payload, datatype_name, role_path=None):
         """Validate payload against specification reference datatype schema"""
         self._validate_schema(test, payload, self.reference_datatype_schemas.get(datatype_name),
-                              f"{context}{datatype_name}: ")
+                              f"{self.create_role_path_string(role_path)}: {datatype_name}: ")
 
     def _validate_schema(self, test, payload, schema, context=""):
         """Delegates to jsonschema validate. Raises NMOSTestExceptions on error"""
@@ -380,8 +380,7 @@ class MS05Utils(NMOSUtils):
 
         # Validate descriptors against schema
         for r in response:
-            self.reference_datatype_schema_validate(test, r, NcDatatypeDescriptor.__name__,
-                                                    self.create_role_path_string(role_path))
+            self.reference_datatype_schema_validate(test, r, NcDatatypeDescriptor.__name__, role_path)
 
         # Create NcDescriptor dictionary from response array
         descriptors = {r["name"]: NcDatatypeDescriptor.factory(r) for r in response}
@@ -397,12 +396,10 @@ class MS05Utils(NMOSUtils):
 
         # Validate descriptors
         for r in response:
-            self.reference_datatype_schema_validate(test, r, NcClassDescriptor.__name__,
-                                                    self.create_role_path_string(role_path))
+            self.reference_datatype_schema_validate(test, r, NcClassDescriptor.__name__, role_path)
 
         # Create NcClassDescriptor dictionary from response array
-        def key_lambda(classId): return ".".join(map(str, classId))
-        descriptors = {key_lambda(r.get("classId")): NcClassDescriptor(r) for r in response}
+        descriptors = {self.create_class_id_string(r.get("classId")): NcClassDescriptor(r) for r in response}
         return descriptors
 
     def create_block(self, test, class_id, oid, role, base_role_path=None):
@@ -417,7 +414,7 @@ class MS05Utils(NMOSUtils):
             if runtime_constraints:
                 for constraint in runtime_constraints:
                     self.reference_datatype_schema_validate(test, constraint, NcPropertyConstraints.__name__,
-                                                            self.create_role_path_string(role_path))
+                                                            role_path)
 
                 runtime_constraints = [NcPropertyConstraints.factory(c) for c in runtime_constraints]
 
@@ -432,8 +429,7 @@ class MS05Utils(NMOSUtils):
 
                 block_member_descriptors = []
                 for m in member_descriptors:
-                    self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__,
-                                                            self.create_role_path_string(role_path))
+                    self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__, role_path)
                 block_member_descriptors = [NcBlockMemberDescriptor(m) for m in member_descriptors]
 
                 nc_block = NcBlock(class_id, oid, role, role_path, block_member_descriptors, runtime_constraints)
@@ -557,6 +553,11 @@ class MS05Utils(NMOSUtils):
         if role_path is None or not isinstance(role_path, list):
             return ""
         return "/".join([str(r) for r in role_path])
+
+    def create_class_id_string(self, class_id):
+        if class_id is None or not isinstance(class_id, list):
+            return ""
+        return ".".join(map(str, class_id))
 
 
 class NcMethodStatus(IntEnum):
@@ -686,6 +687,11 @@ class NcPropertyId(NcElementId):
         NcElementId.__init__(self, id_json)
 
 
+class NcMethodId(NcElementId):
+    def __init__(self, id_json):
+        NcElementId.__init__(self, id_json)
+
+
 # Base descriptor
 class NcDescriptor():
     def __init__(self, descriptor_json):
@@ -805,7 +811,7 @@ class NcParameterDescriptor(NcDescriptor):
 class NcMethodDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
         NcDescriptor.__init__(self, descriptor_json)
-        self.id = descriptor_json["id"]  # Method id with level and index
+        self.id = NcMethodId(descriptor_json["id"])  # Method id with level and index
         self.name = descriptor_json["name"]  # Name of method
         self.resultDatatype = descriptor_json["resultDatatype"]  # Name of method result's datatype
         self.parameters = [NcParameterDescriptor(p) for p in descriptor_json["parameters"]]  # Parameter descriptors

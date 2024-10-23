@@ -739,7 +739,7 @@ class MS0502Test(ControllerTest):
 
                 parameters = self._create_compatible_parameters(test, method.descriptor.parameters)
 
-                result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
+                result = self.ms05_utils.invoke_method(test, method.descriptor.id.__dict__, parameters,
                                                        oid=method.oid, role_path=method.role_path)
 
                 # check for deprecated status codes for deprecated methods
@@ -749,7 +749,8 @@ class MS0502Test(ControllerTest):
                         f"Deprecated method returned incorrect status code {method.name} : {result.status}"
             except NMOSTestException as e:
                 # ignore 4xx errors
-                self.ms05_utils.reference_datatype_schema_validate(test, e.args[0].detail, "NcMethodResult")
+                self.ms05_utils.reference_datatype_schema_validate(test, e.args[0].detail, "NcMethodResult",
+                                                                   method.role_path)
                 if e.args[0].detail["status"] >= 500:
                     self.invoke_methods_metadata.error = True
                     self.invoke_methods_metadata.error_msg += \
