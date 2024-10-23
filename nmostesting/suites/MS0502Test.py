@@ -47,20 +47,36 @@ class MS0502Test(ControllerTest):
             self.error_msg = error_msg
             self.unclear = unclear
 
+    class PropertyMetadata():
+        def __init__(self, oid, role_path, name, constraints, constraints_type, datatype_type, descriptor):
+            self.oid = oid
+            self.role_path = role_path
+            self.name = name
+            self.constraints = constraints
+            self.constraints_type = constraints_type
+            self.datatype_type = datatype_type
+            self.descriptor = descriptor
+
+    class MethodMetadata():
+        def __init__(self, oid, role_path, name, descriptor):
+            self.oid = oid
+            self.role_path = role_path
+            self.name = name
+            self.descriptor = descriptor
+
     def __init__(self, apis, utils, **kwargs):
         ControllerTest.__init__(self, apis, **kwargs)
         self.ms05_utils = utils
 
     def set_up_tests(self):
         self.ms05_utils.reset()
-        self.constraint_error = False
-        self.constraint_error_msg = ""
-        self.sequences_validated = False
+        self.constraint_validation_metadata = MS0502Test.TestMetadata()
         self.set_sequence_item_metadata = MS0502Test.TestMetadata()
         self.add_sequence_item_metadata = MS0502Test.TestMetadata()
-        self.sequence_test_unclear = False
         self.remove_sequence_item_metadata = MS0502Test.TestMetadata()
         self.invoke_methods_metadata = MS0502Test.TestMetadata()
+        self.sequences_validated = False
+        self.sequence_test_unclear = False
 
     def tear_down_tests(self):
         pass
@@ -128,7 +144,7 @@ class MS0502Test(ControllerTest):
             for object_runtime_constraint in object_runtime_constraints:
                 if object_runtime_constraint.propertyId == class_property.id:
                     runtime_constraints = object_runtime_constraint
-        constraint_type = 'runtime' if runtime_constraints else 'property' if property_constraints else 'datatype'
+        constraint_type = "runtime" if runtime_constraints else "property" if property_constraints else "datatype"
 
         return runtime_constraints or property_constraints or datatype_constraints, constraint_type
 
@@ -145,38 +161,26 @@ class MS0502Test(ControllerTest):
 
             role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
 
-            for class_property in class_descriptor.properties:
-                datatype = class_manager.get_datatype(class_property.typeName, include_inherited=False)
-                if get_readonly != class_property.isReadOnly:
-                    continue
-                if get_readonly and class_property.isSequence == get_sequences:
-                    results.append({'oid': child.oid,
-                                    'role_path': role_path,
-                                    'name': context + ": " + class_descriptor.name + ": " + class_property.name,
-                                    'property_id': class_property.id,
-                                    'constraints': None,
-                                    'constraints_type': None,
-                                    'datatype_type': datatype.type,
-                                    'is_sequence': class_property.isSequence})
-                    continue
-
+            for property_descriptor in class_descriptor.properties:
                 constraints, constraints_type = self._get_constraints(test,
-                                                                      class_property,
+                                                                      property_descriptor,
                                                                       class_manager.datatype_descriptors,
                                                                       child.runtime_constraints)
-                if class_property.isSequence == get_sequences and bool(constraints) == get_constraints:
-                    results.append({'oid': child.oid,
-                                    'role_path': role_path,
-                                    'name': context + ": " + class_descriptor.name + ": " + class_property.name,
-                                    'property_id': class_property.id,
-                                    'constraints': constraints,
-                                    'constraints_type': constraints_type,
-                                    'datatype_type': datatype.type,
-                                    'is_sequence': class_property.isSequence})
+                if get_readonly == property_descriptor.isReadOnly \
+                        and property_descriptor.isSequence == get_sequences \
+                        and bool(constraints) == get_constraints:
+                    datatype = class_manager.get_datatype(property_descriptor.typeName, include_inherited=False)
 
+                    results.append(MS0502Test.PropertyMetadata(
+                        child.oid, role_path,
+                        f"{context}: {class_descriptor.name}: {property_descriptor.name}",
+                        constraints,
+                        constraints_type,
+                        datatype.type,
+                        property_descriptor))
             if type(child) is NcBlock:
                 results += (self._get_properties(test, child, get_constraints, get_sequences, get_readonly,
-                                                 context + ": "))
+                                                 f"{context}: "))
 
         return results
 
@@ -196,17 +200,12 @@ class MS0502Test(ControllerTest):
             role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
 
             for method_descriptor in class_descriptor.methods:
-                results.append({'oid': child.oid,
-                                'role_path': role_path,
-                                'name': context + ": " + class_descriptor.name + ": " + method_descriptor.name,
-                                'method_id': method_descriptor.id,
-                                'result_datatype': method_descriptor.resultDatatype,
-                                'parameters': method_descriptor.parameters,
-                                'is_deprecated': method_descriptor.isDeprecated,
-                                'descriptor': method_descriptor})
+                results.append(MS0502Test.MethodMetadata(
+                    child.oid, role_path,
+                    f"{context}: {class_descriptor.name}: {method_descriptor.name}", method_descriptor))
 
             if type(child) is NcBlock:
-                results += (self._get_methods(test, child, context + ": "))
+                results += (self._get_methods(test, child, f"{context}: "))
 
         return results
 
@@ -214,43 +213,43 @@ class MS0502Test(ControllerTest):
         def _do_check(check_function):
             try:
                 check_function()
-                self.constraint_error = True
-                self.constraint_error_msg += \
-                    constraint + " " + constraint_type + \
-                    " constraint not enforced for " + constrained_property['name'] + "; "
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{constraint} {constraint_type}" \
+                    f" constraint not enforced for {constrained_property.name}; "
             except NMOSTestException:
                 # Expecting a parameter constraint violation
-                pass
+                self.constraint_validation_metadata.checked = True
 
         def _do_set_sequence():
             index = self.ms05_utils.get_sequence_length(test,
-                                                        constrained_property['property_id'].__dict__,
-                                                        oid=constrained_property['oid'],
-                                                        role_path=constrained_property['role_path'])
+                                                        constrained_property.descriptor.id.__dict__,
+                                                        oid=constrained_property.oid,
+                                                        role_path=constrained_property.role_path)
             self.ms05_utils.set_sequence_item(test,
-                                              constrained_property['property_id'].__dict__,
+                                              constrained_property.descriptor.id.__dict__,
                                               index - 1,
                                               value,
-                                              oid=constrained_property['oid'],
-                                              role_path=constrained_property['role_path'])
+                                              oid=constrained_property.oid,
+                                              role_path=constrained_property.role_path)
 
-        if constrained_property.get("is_sequence"):
+        if constrained_property.descriptor.isSequence:
             _do_check(lambda: self.ms05_utils.add_sequence_item(test,
-                                                                constrained_property['property_id'].__dict__,
+                                                                constrained_property.descriptor.id.__dict__,
                                                                 value,
-                                                                oid=constrained_property['oid'],
-                                                                role_path=constrained_property['role_path']))
+                                                                oid=constrained_property.oid,
+                                                                role_path=constrained_property.role_path))
             _do_check(_do_set_sequence)
         else:
             _do_check(lambda: self.ms05_utils.set_property(test,
-                                                           constrained_property['property_id'].__dict__,
+                                                           constrained_property.descriptor.id.__dict__,
                                                            value,
-                                                           oid=constrained_property['oid'],
-                                                           role_path=constrained_property['role_path']))
+                                                           oid=constrained_property.oid,
+                                                           role_path=constrained_property.role_path))
 
     def _check_parameter_constraints_number(self, test, constrained_property):
-        constraints = constrained_property.get('constraints')
-        constraint_types = constrained_property.get('constraints_type')
+        constraints = constrained_property.constraints
+        constraint_types = constrained_property.constraints_type
 
         # Attempt to set to a "legal" value
         minimum = (constraints.minimum or 0)
@@ -260,27 +259,27 @@ class MS0502Test(ControllerTest):
         new_value = floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
 
         # Expect this to work OK
-        if constrained_property.get("is_sequence"):
+        if constrained_property.descriptor.isSequence:
             index = self.ms05_utils.get_sequence_length(test,
-                                                        constrained_property['property_id'].__dict__,
-                                                        oid=constrained_property['oid'],
-                                                        role_path=constrained_property['role_path'])
+                                                        constrained_property.descriptor.id.__dict__,
+                                                        oid=constrained_property.oid,
+                                                        role_path=constrained_property.role_path)
             self.ms05_utils.add_sequence_item(test,
-                                              constrained_property['property_id'].__dict__,
+                                              constrained_property.descriptor.id.__dict__,
                                               new_value,
-                                              oid=constrained_property['oid'],
-                                              role_path=constrained_property['role_path'])
+                                              oid=constrained_property.oid,
+                                              role_path=constrained_property.role_path)
             self.ms05_utils.set_sequence_item(test,
-                                              constrained_property['property_id'].__dict__,
+                                              constrained_property.descriptor.id.__dict__,
                                               index, new_value,
-                                              oid=constrained_property['oid'],
-                                              role_path=constrained_property['role_path'])
+                                              oid=constrained_property.oid,
+                                              role_path=constrained_property.role_path)
         else:
             self.ms05_utils.set_property(test,
-                                         constrained_property['property_id'].__dict__,
+                                         constrained_property.descriptor.id.__dict__,
                                          new_value,
-                                         oid=constrained_property['oid'],
-                                         role_path=constrained_property['role_path'])
+                                         oid=constrained_property.oid,
+                                         role_path=constrained_property.role_path)
 
         # Attempt to set to an "illegal" value
         if constraints.minimum is not None:
@@ -296,16 +295,16 @@ class MS0502Test(ControllerTest):
                                               constrained_property,
                                               new_value + step / 2)
 
-        if constrained_property.get("is_sequence"):
+        if constrained_property.descriptor.isSequence:
             self.ms05_utils.remove_sequence_item(test,
-                                                 constrained_property['property_id'].__dict__,
+                                                 constrained_property.descriptor.id.__dict__,
                                                  index,
-                                                 oid=constrained_property['oid'],
-                                                 role_path=constrained_property['role_path'])
+                                                 oid=constrained_property.oid,
+                                                 role_path=constrained_property.role_path)
 
     def _check_parameter_constraints_string(self, test, constrained_property):
-        constraints = constrained_property["constraints"]
-        constraints_type = constrained_property["constraints_type"]
+        constraints = constrained_property.constraints
+        constraints_type = constrained_property.constraints_type
         new_value = "test"
 
         if constraints.pattern:
@@ -315,34 +314,34 @@ class MS0502Test(ControllerTest):
             new_value = x.xeger(constraints.pattern)
 
         # Expect this to work OK
-        if constrained_property.get("is_sequence"):
+        if constrained_property.descriptor.isSequence:
             index = self.ms05_utils.get_sequence_length(test,
-                                                        constrained_property['property_id'].__dict__,
-                                                        oid=constrained_property['oid'],
-                                                        role_path=constrained_property['role_path'])
+                                                        constrained_property.descriptor.id.__dict__,
+                                                        oid=constrained_property.oid,
+                                                        role_path=constrained_property.role_path)
             self.ms05_utils.add_sequence_item(test,
-                                              constrained_property['property_id'].__dict__,
+                                              constrained_property.descriptor.id.__dict__,
                                               new_value,
-                                              oid=constrained_property['oid'],
-                                              role_path=constrained_property['role_path'])
+                                              oid=constrained_property.oid,
+                                              role_path=constrained_property.role_path)
             self.ms05_utils.set_sequence_item(test,
-                                              constrained_property['property_id'].__dict__,
+                                              constrained_property.descriptor.id.__dict__,
                                               index,
                                               new_value,
-                                              oid=constrained_property['oid'],
-                                              role_path=constrained_property['role_path'])
+                                              oid=constrained_property.oid,
+                                              role_path=constrained_property.role_path)
         else:
             self.ms05_utils.set_property(test,
-                                         constrained_property['property_id'].__dict__,
+                                         constrained_property.descriptor.id.__dict__,
                                          new_value,
-                                         oid=constrained_property['oid'],
-                                         role_path=constrained_property['role_path'])
+                                         oid=constrained_property.oid,
+                                         role_path=constrained_property.role_path)
 
         if constraints.pattern:
             # Possible negative example strings
             # Ideally we would compute a negative string based on the regex.
             # In the meantime, some strings that might possibly violate the regex
-            negative_examples = ['!$%^&*()+_:;/', '*********', '000000000', 'AAAAAAAA']
+            negative_examples = ["!$%^&*()+_:;/", "*********", "000000000", "AAAAAAAA"]
 
             for negative_example in negative_examples:
                 # Verify this string violates constraint
@@ -359,7 +358,7 @@ class MS0502Test(ControllerTest):
                 x = Xeger(limit=constraints.maxCharacters * 2)
                 new_value = x.xeger(constraints.pattern)
             else:
-                new_value = '*' * constraints.maxCharacters * 2
+                new_value = "*" * constraints.maxCharacters * 2
 
             # Verfiy this string violates constraint
             if len(new_value) > constraints.maxCharacters:
@@ -370,27 +369,29 @@ class MS0502Test(ControllerTest):
                                                   new_value)
 
         # Remove added sequence item
-        if constrained_property.get("is_sequence"):
+        if constrained_property.descriptor.isSequence:
             self.ms05_utils.remove_sequence_item(test,
-                                                 constrained_property['property_id'].__dict__,
+                                                 constrained_property.descriptor.id.__dict__,
                                                  index,
-                                                 oid=constrained_property['oid'],
-                                                 role_path=constrained_property['role_path'])
+                                                 oid=constrained_property.oid,
+                                                 role_path=constrained_property.role_path)
 
     def _check_sequence_datatype_type(self, test, property_under_test):
+        self.constraint_validation_metadata.checked = True
+
         original_value = self.ms05_utils.get_property_value(test,
-                                                            property_under_test['property_id'].__dict__,
-                                                            oid=property_under_test['oid'],
-                                                            role_path=property_under_test['role_path'])
+                                                            property_under_test.descriptor.id.__dict__,
+                                                            oid=property_under_test.oid,
+                                                            role_path=property_under_test.role_path)
 
         modified_value = list(reversed(original_value))
 
         # Reset to original value
         self.ms05_utils.set_property(test,
-                                     property_under_test['property_id'].__dict__,
+                                     property_under_test.descriptor.id.__dict__,
                                      modified_value,
-                                     oid=property_under_test['oid'],
-                                     role_path=property_under_test['role_path'])
+                                     oid=property_under_test.oid,
+                                     role_path=property_under_test.role_path)
 
     def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False, datatype_type=None):
         """Test properties within the Device Model"""
@@ -400,20 +401,20 @@ class MS0502Test(ControllerTest):
 
         # Filter constrained properties according to datatype_type
         constrained_properties = [p for p in constrained_properties
-                                  if datatype_type is None or p['datatype_type'] == datatype_type]
+                                  if datatype_type is None or p.datatype_type == datatype_type]
 
-        possible_properties = [{'answer_id': 'answer_'+str(i),
-                                'display_answer': p['name'],
-                                'resource': p} for i, p in enumerate(constrained_properties)]
+        possible_properties = [{"answer_id": f"answer_{str(i)}",
+                                "display_answer": p.name,
+                                "resource": p} for i, p in enumerate(constrained_properties)]
 
         if len(possible_properties) == 0:
             return test.UNCLEAR("No testable properties in Device Model.")
 
         if IS12_INTERACTIVE_TESTING:
             selected_ids = \
-                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
+                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")["answer_response"]
 
-            selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
+            selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
             if len(selected_properties) == 0:
                 return test.UNCLEAR("No properties selected for testing.")
@@ -421,25 +422,22 @@ class MS0502Test(ControllerTest):
             # If non-interactive then test all methods
             selected_properties = [p["resource"] for p in possible_properties]
 
-        self.constraint_error = False
-        self.constraint_error_msg = ""
+        self.constraint_validation_metadata = MS0502Test.TestMetadata()
 
         for constrained_property in selected_properties:
 
             # Cache original property value
             try:
-                constraint = constrained_property.get('constraints')
+                constraint = constrained_property.constraints
 
                 original_value = self.ms05_utils.get_property_value(test,
-                                                                    constrained_property['property_id'].__dict__,
-                                                                    oid=constrained_property['oid'],
-                                                                    role_path=constrained_property['role_path'])
+                                                                    constrained_property.descriptor.id.__dict__,
+                                                                    oid=constrained_property.oid,
+                                                                    role_path=constrained_property.role_path)
 
             except NMOSTestException as e:
-                return test.FAIL(constrained_property.get("name")
-                                 + ": error getting property: "
-                                 + str(e.args[0].detail)
-                                 + ": constraint " + str(constraint))
+                return test.FAIL(f"{constrained_property.name}: error getting property: "
+                                 f"{str(e.args[0].detail)}: constraint {str(constraint)}")
 
             try:
                 if get_constraints:
@@ -452,27 +450,26 @@ class MS0502Test(ControllerTest):
                     # Enums and Struct are validated against their type definitions
                     self._check_sequence_datatype_type(test, constrained_property)
             except NMOSTestException as e:
-                return test.FAIL(constrained_property.get("name")
-                                 + ": error setting property: "
-                                 + str(e.args[0].detail))
+                return test.FAIL(f"{constrained_property.name}: error setting property: {str(e.args[0].detail)}")
             try:
                 # Reset to original value
                 self.ms05_utils.set_property(test,
-                                             constrained_property['property_id'].__dict__,
+                                             constrained_property.descriptor.id.__dict__,
                                              original_value,
-                                             oid=constrained_property['oid'],
-                                             role_path=constrained_property['role_path'])
+                                             oid=constrained_property.oid,
+                                             role_path=constrained_property.role_path)
             except NMOSTestException as e:
-                return test.FAIL(constrained_property.get("name")
-                                 + ": error restoring original value of property: "
-                                 + str(e.args[0].detail)
-                                 + " original value: " + str(original_value)
-                                 + ": constraint " + str(constraint))
+                return test.FAIL(f"{constrained_property.name}: error restoring original value of property: "
+                                 f"{str(e.args[0].detail)} original value: {str(original_value)}"
+                                 f": constraint {str(constraint)}")
 
-        if self.constraint_error:
-            return test.FAIL(self.constraint_error_msg)
+        if self.constraint_validation_metadata.error:
+            return test.FAIL(self.constraint_validation_metadata.error_msg)
 
-        return test.PASS()
+        if self.constraint_validation_metadata.checked:
+            return test.PASS()
+
+        return test.UNCLEAR("No properties of this type checked")
 
     def _resolve_is_sequence(self, test, datatype):
         if datatype is None:
@@ -500,7 +497,8 @@ class MS0502Test(ControllerTest):
         return None
 
     def _generate_string_parameter(self, constraints):
-        if isinstance(constraints, (NcParameterConstraintsString, NcPropertyConstraintsString)):
+        if constraints.pattern and isinstance(constraints, (NcParameterConstraintsString,
+                                                            NcPropertyConstraintsString)):
             # Check legal case
             x = Xeger(limit=(constraints.maxCharacters or 0) - len(constraints.pattern)
                       if (constraints.maxCharacters or 0) > len(constraints.pattern) else 1)
@@ -527,8 +525,8 @@ class MS0502Test(ControllerTest):
         parameter = None
 
         # if there are constraints use them
-        if parameter_descriptor.get('constraints'):
-            constraints = parameter_descriptor['constraints']
+        if parameter_descriptor.constraints:
+            constraints = parameter_descriptor.constraints
             # either there is a default value, or this is a number constraint, or this is a string
             if constraints.defaultValue is not None:
                 return constraints.defaultValue
@@ -538,7 +536,7 @@ class MS0502Test(ControllerTest):
                 return self._generate_string_parameter(constraints)
         else:
             # resolve the datatype to either a struct, enum, primative or None
-            datatype = self.ms05_utils.resolve_datatype(test, parameter_descriptor['typeName'])
+            datatype = self.ms05_utils.resolve_datatype(test, parameter_descriptor.typeName)
 
             if datatype is None:
                 parameter = 42  # None denotes an 'any' type so set to an arbitrary type/value
@@ -554,17 +552,17 @@ class MS0502Test(ControllerTest):
                 elif isinstance(datatype_descriptor, NcDatatypeDescriptorStruct):
                     parameter = self._create_compatible_parameters(test, datatype_descriptor.fields)
 
-        if parameter_descriptor['isSequence']:
+        if parameter_descriptor.isSequence:
             parameter = [parameter]
 
         # Note that only NcDatatypeDescriptorTypeDef has an isSequence property
-        return [parameter] if self._resolve_is_sequence(test, parameter_descriptor['typeName']) else parameter
+        return [parameter] if self._resolve_is_sequence(test, parameter_descriptor.typeName) else parameter
 
     def _create_compatible_parameters(self, test, parameters):
         result = {}
 
         for parameter in parameters:
-            result[parameter.name] = self._create_compatible_parameter(test, parameter.__dict__)
+            result[parameter.name] = self._create_compatible_parameter(test, parameter)
 
         return result
 
@@ -628,18 +626,18 @@ class MS0502Test(ControllerTest):
         readonly_properties = self._get_properties(test, device_model, get_constraints=False,
                                                    get_sequences=get_sequences, get_readonly=True)
 
-        possible_properties = [{'answer_id': 'answer_'+str(i),
-                                'display_answer': p['name'],
-                                'resource': p} for i, p in enumerate(readonly_properties)]
+        possible_properties = [{"answer_id": f"answer_{str(i)}",
+                                "display_answer": p.name,
+                                "resource": p} for i, p in enumerate(readonly_properties)]
 
         if len(possible_properties) == 0:
             return test.UNCLEAR("No testable properties in Device Model.")
 
         if IS12_INTERACTIVE_TESTING:
             selected_ids = \
-                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
+                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")["answer_response"]
 
-            selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
+            selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
             if len(selected_properties) == 0:
                 return test.UNCLEAR("No properties selected for testing.")
@@ -654,25 +652,22 @@ class MS0502Test(ControllerTest):
             # Cache original property value
             try:
                 original_value = self.ms05_utils.get_property_value(test,
-                                                                    readonly_property['property_id'].__dict__,
-                                                                    oid=readonly_property['oid'],
-                                                                    role_path=readonly_property['role_path'])
+                                                                    readonly_property.descriptor.id.__dict__,
+                                                                    oid=readonly_property.oid,
+                                                                    role_path=readonly_property.role_path)
 
             except NMOSTestException as e:
-                return test.FAIL(readonly_property.get("name")
-                                 + ": error getting property: "
-                                 + str(e.args[0].detail))
+                return test.FAIL(f"{readonly_property.name}: error getting property: {str(e.args[0].detail)}")
 
             try:
                 # Try setting this value
                 self.ms05_utils.set_property(test,
-                                             readonly_property['property_id'].__dict__,
+                                             readonly_property.descriptor.id.__dict__,
                                              original_value,
-                                             oid=readonly_property['oid'],
-                                             role_path=readonly_property['role_path'])
+                                             oid=readonly_property.oid,
+                                             role_path=readonly_property.role_path)
                 # if it gets this far it's failed
-                return test.FAIL(readonly_property.get("name")
-                                 + ": read only property is writable")
+                return test.FAIL(f"{readonly_property.get("name")}: read only property is writable")
             except NMOSTestException:
                 # expect an exception to be thrown
                 readonly_checked = True
@@ -716,18 +711,18 @@ class MS0502Test(ControllerTest):
 
         methods = self._get_methods(test, device_model)
 
-        possible_methods = [{'answer_id': 'answer_'+str(i),
-                             'display_answer': p['name'],
-                             'resource': p} for i, p in enumerate(methods)]
+        possible_methods = [{"answer_id": f"answer_{str(i)}",
+                             "display_answer": p.name,
+                             "resource": p} for i, p in enumerate(methods)]
 
         if len(possible_methods) == 0:
             return test.UNCLEAR("No non standard methods in Device Model.")
 
         if IS12_INTERACTIVE_TESTING:
             selected_ids = \
-                self._invoke_testing_facade(question, possible_methods, test_type="multi_choice")['answer_response']
+                self._invoke_testing_facade(question, possible_methods, test_type="multi_choice")["answer_response"]
 
-            selected_methods = [p["resource"] for p in possible_methods if p['answer_id'] in selected_ids]
+            selected_methods = [p["resource"] for p in possible_methods if p["answer_id"] in selected_ids]
 
             if len(selected_methods) == 0:
                 return test.UNCLEAR("No methods selected for testing.")
@@ -740,30 +735,32 @@ class MS0502Test(ControllerTest):
 
         for method in selected_methods:
             try:
-                parameters = self._create_compatible_parameters(test, method['descriptor'].parameters)
+                self.invoke_methods_metadata.checked = True
 
-                result = self.ms05_utils.invoke_method(test, method['descriptor'].id, parameters,
-                                                       oid=method['oid'], role_path=method['role_path'])
+                parameters = self._create_compatible_parameters(test, method.descriptor.parameters)
+
+                result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
+                                                       oid=method.oid, role_path=method.role_path)
 
                 # check for deprecated status codes for deprecated methods
-                if method['descriptor'].isDeprecated and result['status'] != 299:
+                if method.descriptor.isDeprecated and result["status"] != 299:
                     self.invoke_methods_metadata.error = True
-                    self.invoke_methods_metadata.error_msg += """
-                        Deprecated method returned incorrect status code {} : {};
-                        """.format(method.get("name"), result.status)
+                    self.invoke_methods_metadata.error_msg += \
+                        f"Deprecated method returned incorrect status code {method.name} : {result.status}"
             except NMOSTestException as e:
                 # ignore 4xx errors
                 self.ms05_utils.reference_datatype_schema_validate(test, e.args[0].detail, "NcMethodResult")
-                if e.args[0].detail['status'] >= 500:
+                if e.args[0].detail["status"] >= 500:
                     self.invoke_methods_metadata.error = True
-                    self.invoke_methods_metadata.error_msg += """
-                        Error invoking method {} : {};
-                        """.format(method.get("name"), e.args[0].detail)
-
+                    self.invoke_methods_metadata.error_msg += \
+                        f"Error invoking method {method.name} : {e.args[0].detail}"
         if self.invoke_methods_metadata.error:
             return test.FAIL(self.invoke_methods_metadata.error_msg)
 
-        return test.PASS()
+        if self.invoke_methods_metadata.checked:
+            return test.PASS()
+
+        return test.UNCLEAR("No methods checked.")
 
     def test_ms05_07(self, test):
         """Check discovered methods"""
@@ -793,13 +790,12 @@ class MS0502Test(ControllerTest):
             if value != new_item:
                 self.add_sequence_item_metadata.error = True
                 self.add_sequence_item_metadata.error_msg += \
-                    context + property_name \
-                    + ": Expected: " + str(new_item) + ", Actual: " + str(value) + ", "
+                    f"{context}{property_name}: Expected: {str(new_item)}, Actual: {str(value)}, "
             return True
         except NMOSTestException as e:
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                context + property_name + ": " + str(e.args[0].detail) + ", "
+                f"{context}{property_name}: {str(e.args[0].detail)}, "
         return False
 
     def check_set_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path, context=""):
@@ -818,13 +814,12 @@ class MS0502Test(ControllerTest):
             if value != new_value:
                 self.set_sequence_item_metadata.error = True
                 self.set_sequence_item_metadata.error_msg += \
-                    context + property_name \
-                    + ": Expected: " + str(new_value) + ", Actual: " + str(value) + ", "
+                    f"{context}{property_name}: Expected: {str(new_value)}, Actual: {str(value)}, "
             return True
         except NMOSTestException as e:
             self.set_sequence_item_metadata.error = True
             self.set_sequence_item_metadata.error_msg += \
-                context + property_name + ": " + str(e.args[0].detail) + ", "
+                f"{context}{property_name}: {str(e.args[0].detail)}, "
         return False
 
     def check_remove_sequence_item(self, test, property_id, property_name, sequence_length,
@@ -838,7 +833,7 @@ class MS0502Test(ControllerTest):
         except NMOSTestException as e:
             self.remove_sequence_item_metadata.error = True
             self.remove_sequence_item_metadata.error_msg += \
-                context + property_name + ": " + str(e.args[0].detail) + ", "
+                f"{context}{property_name}: {str(e.args[0].detail)}, "
         return False
 
     def check_sequence_methods(self, test, property_id, property_name, oid, role_path, context=""):
@@ -860,22 +855,22 @@ class MS0502Test(ControllerTest):
         if sequence_length + 1 != self.ms05_utils.get_sequence_length(test, property_id.__dict__,
                                                                       oid=oid, role_path=role_path):
             self.add_sequence_item_metadata.error = True
-            self.add_sequence_item_metadata.error_msg = property_name + \
-                ": add_sequence_item resulted in unexpected sequence length."
+            self.add_sequence_item_metadata.error_msg += \
+                f"{property_name}: add_sequence_item resulted in unexpected sequence length."
         self.check_set_sequence_item(test, property_id, property_name, sequence_length,
                                      oid, role_path, context=context)
         if sequence_length + 1 != self.ms05_utils.get_sequence_length(test, property_id.__dict__,
                                                                       oid=oid, role_path=role_path):
             self.set_sequence_item_metadata.error = True
-            self.set_sequence_item_metadata.error_msg = property_name + \
-                ": set_sequence_item resulted in unexpected sequence length."
+            self.set_sequence_item_metadata.error_msg += \
+                f"{property_name}: set_sequence_item resulted in unexpected sequence length."
         self.check_remove_sequence_item(test, property_id, property_name, sequence_length,
                                         oid, role_path, context)
         if sequence_length != self.ms05_utils.get_sequence_length(test, property_id.__dict__,
                                                                   oid=oid, role_path=role_path):
             self.remove_sequence_item_metadata.error = True
-            self.remove_sequence_item_metadata.error_msg = property_name + \
-                ": remove_sequence_item resulted in unexpected sequence length."
+            self.remove_sequence_item_metadata.error_msg += \
+                f"{property_name}: remove_sequence_item resulted in unexpected sequence length."
 
     def validate_sequences(self, test):
         """Test all writable sequences"""
@@ -883,9 +878,9 @@ class MS0502Test(ControllerTest):
 
         constrained_properties = self._get_properties(test, device_model, get_constraints=False, get_sequences=True)
 
-        possible_properties = [{'answer_id': 'answer_'+str(i),
-                                'display_answer': p['name'],
-                                'resource': p} for i, p in enumerate(constrained_properties)]
+        possible_properties = [{"answer_id": f"answer_{str(i)}",
+                                "display_answer": p.descriptor.name,
+                                "resource": p} for i, p in enumerate(constrained_properties)]
 
         if len(possible_properties) == 0:
             return test.UNCLEAR("No properties with ParameterConstraints in Device Model.")
@@ -899,9 +894,9 @@ class MS0502Test(ControllerTest):
                         """
 
             selected_ids = \
-                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")['answer_response']
+                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")["answer_response"]
 
-            selected_properties = [p["resource"] for p in possible_properties if p['answer_id'] in selected_ids]
+            selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
             if len(selected_properties) == 0:
                 # No properties selected so can't do the test
@@ -912,10 +907,10 @@ class MS0502Test(ControllerTest):
 
         for constrained_property in selected_properties:
             self.check_sequence_methods(test,
-                                        constrained_property['property_id'],
-                                        constrained_property['name'],
-                                        constrained_property['oid'],
-                                        constrained_property['role_path'])
+                                        constrained_property.descriptor.id,
+                                        constrained_property.descriptor.name,
+                                        constrained_property.oid,
+                                        constrained_property.role_path)
 
         self.sequences_validated = True
 

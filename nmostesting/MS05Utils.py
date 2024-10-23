@@ -109,7 +109,7 @@ class MS05Utils(NMOSUtils):
             self.device_model_metadata set on Device Model validation error.
             NMOSTestException raised if unable to query Device Model """
         if not self.device_model:
-            self.device_model = self.create_device_model(
+            self.device_model = self.create_block(
                 test,
                 StandardClassIds.NCBLOCK.value,
                 self.ROOT_BLOCK_OID,
@@ -284,28 +284,33 @@ class MS05Utils(NMOSUtils):
         except Exception as e:
             raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
 
-    def get_datatype_schema(self, test, type_name):
-        """Get generated JSON schema for datatype specified, based on descriptor queried from the Node under Test"""
-        if not self.datatype_schemas:
-            self.datatype_schemas = self._generate_device_model_datatype_schemas(test)
-
-        return self.datatype_schemas.get(type_name)
-
     def queried_datatype_schema_validate(self, test, payload, datatype_name, context=""):
-        """Validate payload against datatype schema queried from Node under Test Class Manager"""
-        datatype_schema = self.get_datatype_schema(test, datatype_name)
-        self._validate_schema(test, payload, datatype_schema, f"{context}{datatype_name} ")
+        """Validate payload against datatype schema queried from Node under Test's Class Manager"""
+        if not self.datatype_schemas:
+            # Generate datatype schemas based on the datatype decriptors
+            # queried from the Node under test's Device Model.
+            # This will include any Non-standard data types
+            class_manager = self.get_class_manager(test)
+
+            try:
+                # Create JSON schemas for the queried datatypes
+                self.datatype_schemas = self.generate_json_schemas(
+                    datatype_descriptors=class_manager.datatype_descriptors,
+                    schema_path=os.path.join(self.apis[self.protocol_api_key]["spec_path"], "APIs/tmp_schemas/"))
+            except Exception as e:
+                raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
+
+        self._validate_schema(test, payload, self.datatype_schemas.get(datatype_name), f"{context}{datatype_name}: ")
 
     def reference_datatype_schema_validate(self, test, payload, datatype_name, context=""):
-        """Validate payload against reference datatype schema"""
-        context += f"{datatype_name}: "
-        self._validate_schema(test, payload, self.reference_datatype_schemas[datatype_name],
-                              f"{context}{datatype_name} ")
+        """Validate payload against specification reference datatype schema"""
+        self._validate_schema(test, payload, self.reference_datatype_schemas.get(datatype_name),
+                              f"{context}{datatype_name}: ")
 
     def _validate_schema(self, test, payload, schema, context=""):
         """Delegates to jsonschema validate. Raises NMOSTestExceptions on error"""
         if not schema:
-            raise NMOSTestException(test.FAIL(f"Missing schema. Possible unknown type: {context}"))
+            raise NMOSTestException(test.FAIL(f"{context}Missing schema. Possible unknown type"))
         try:
             # Validate the JSON schema is correct
             checker = FormatChecker(["ipv4", "ipv6", "uri"])
@@ -338,13 +343,12 @@ class MS05Utils(NMOSUtils):
             # compare the keys to see if any extra/missing
             key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
             if len(key_diff) > 0:
-                error_description = "Missing keys " if set(key_diff) <= set(reference_keys) else "Additional keys "
-                raise NMOSTestException(test.FAIL(f"{context}{error_description}{str(key_diff)}"))
+                raise NMOSTestException(test.FAIL(f"{context}Missing/additional keys: {str(key_diff)}"))
             for key in reference_keys:
                 # Ignore keys that contain non-normative information
                 if key in non_normative_keys:
                     continue
-                self.validate_descriptor(test, reference[key], descriptor[key], context=context + key + "->")
+                self.validate_descriptor(test, reference[key], descriptor[key], context=f"{context}{key}->")
         # Compare lists
         elif isinstance(reference, list):
             if len(reference) != len(descriptor):
@@ -377,7 +381,7 @@ class MS05Utils(NMOSUtils):
         # Validate descriptors against schema
         for r in response:
             self.reference_datatype_schema_validate(test, r, NcDatatypeDescriptor.__name__,
-                                                    "/".join([str(r) for r in role_path]))
+                                                    self.create_role_path_string(role_path))
 
         # Create NcDescriptor dictionary from response array
         descriptors = {r["name"]: NcDatatypeDescriptor.factory(r) for r in response}
@@ -394,21 +398,17 @@ class MS05Utils(NMOSUtils):
         # Validate descriptors
         for r in response:
             self.reference_datatype_schema_validate(test, r, NcClassDescriptor.__name__,
-                                                    "/".join([str(r) for r in role_path]))
+                                                    self.create_role_path_string(role_path))
 
         # Create NcClassDescriptor dictionary from response array
         def key_lambda(classId): return ".".join(map(str, classId))
         descriptors = {key_lambda(r.get("classId")): NcClassDescriptor(r) for r in response}
         return descriptors
 
-    def create_device_model(self, test, class_id, oid, role, _role_path=None):
+    def create_block(self, test, class_id, oid, role, base_role_path=None):
         """Recursively create Device Model hierarchy"""
         # will set self.device_model_error to True if problems encountered
-        if _role_path is None:
-            role_path = []
-        else:
-            role_path = _role_path.copy()
-        role_path.append(role)
+        role_path = self.create_role_path(base_role_path, role)
 
         try:
             runtime_constraints = self.get_property_value(
@@ -417,7 +417,7 @@ class MS05Utils(NMOSUtils):
             if runtime_constraints:
                 for constraint in runtime_constraints:
                     self.reference_datatype_schema_validate(test, constraint, NcPropertyConstraints.__name__,
-                                                            "/".join([str(r) for r in role_path]))
+                                                            self.create_role_path_string(role_path))
 
                 runtime_constraints = [NcPropertyConstraints.factory(c) for c in runtime_constraints]
 
@@ -433,19 +433,19 @@ class MS05Utils(NMOSUtils):
                 block_member_descriptors = []
                 for m in member_descriptors:
                     self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__,
-                                                            "/".join([str(r) for r in role_path]))
-                    block_member_descriptors.append(NcBlockMemberDescriptor(m))
+                                                            self.create_role_path_string(role_path))
+                block_member_descriptors = [NcBlockMemberDescriptor(m) for m in member_descriptors]
 
                 nc_block = NcBlock(class_id, oid, role, role_path, block_member_descriptors, runtime_constraints)
 
                 for m in member_descriptors:
-                    child_object = self.create_device_model(test, m["classId"], m["oid"], m["role"], role_path)
+                    child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path)
                     if child_object:
                         nc_block.add_child_object(child_object)
 
                 return nc_block
             else:
-                if self.is_class_manager(class_id):
+                if self._is_class_manager(class_id):
                     class_descriptors = self._get_class_manager_class_descriptors(
                         test, class_manager_oid=oid, role_path=role_path)
 
@@ -465,7 +465,7 @@ class MS05Utils(NMOSUtils):
         except NMOSTestException as e:
             raise NMOSTestException(test.FAIL(f"Error in Device Model {role}: {str(e.args[0].detail)}"))
 
-    def _get_object_by_class_id(self, test, class_id):
+    def _get_singleton_object_by_class_id(self, test, class_id):
         device_model = self.query_device_model(test)
         members = device_model.find_members_by_class_id(class_id, include_derived=True)
 
@@ -473,23 +473,22 @@ class MS05Utils(NMOSUtils):
             + "/docs/Managers.html"
 
         if len(members) == 0:
-            raise NMOSTestException(test.FAIL("Manager not found in Root Block.", spec_link))
+            raise NMOSTestException(test.FAIL(f"Class: {class_id} not found in Root Block.", spec_link))
 
         if len(members) > 1:
-            raise NMOSTestException(test.FAIL("Manager MUST be a singleton.", spec_link))
+            raise NMOSTestException(test.FAIL(f"Class: {class_id} expected to be a singleton.", spec_link))
 
         return members[0]
 
     def get_class_manager(self, test):
         """Get the Class Manager queried from the Node under test's Device Model"""
         if not self.class_manager:
-            self.class_manager = self._get_object_by_class_id(test, StandardClassIds.NCCLASSMANAGER.value)
-
+            self.class_manager = self._get_singleton_object_by_class_id(test, StandardClassIds.NCCLASSMANAGER.value)
         return self.class_manager
 
     def get_device_manager(self, test):
         """Get the Device Manager queried from the Node under test's Device Model"""
-        return self._get_object_by_class_id(test, StandardClassIds.NCDEVICEMANAGER.value)
+        return self._get_singleton_object_by_class_id(test, StandardClassIds.NCDEVICEMANAGER.value)
 
     def primitive_to_python_type(self, type):
         """Convert MS-05 primitive type to corresponding Python type"""
@@ -522,7 +521,7 @@ class MS05Utils(NMOSUtils):
         """ Check class id to determine if this is a manager class_id"""
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 3
 
-    def is_class_manager(self, class_id):
+    def _is_class_manager(self, class_id):
         """ Check class id to determine is this is a class manager class_id """
         return len(class_id) > 2 and class_id[0] == 1 and class_id[1] == 3 and class_id[2] == 2
 
@@ -536,6 +535,9 @@ class MS05Utils(NMOSUtils):
         if datatype is None:
             return None
         class_manager = self.get_class_manager(test)
+        if datatype not in class_manager.datatype_descriptors:
+            raise NMOSTestException(test.FAIL(f"Unknown datatype: {datatype}"))
+
         datatype_descriptor = class_manager.datatype_descriptors[datatype]
         if isinstance(datatype_descriptor, (NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef)) and \
                 class_manager.datatype_descriptors[datatype].parentType:
@@ -544,9 +546,17 @@ class MS05Utils(NMOSUtils):
 
     def create_role_path(self, base_role_path, role):
         """Appends role to base_role_path"""
-        role_path = base_role_path.copy()
+        if base_role_path is None:
+            role_path = []
+        else:
+            role_path = base_role_path.copy()
         role_path.append(role)
         return role_path
+
+    def create_role_path_string(self, role_path):
+        if role_path is None or not isinstance(role_path, list):
+            return ""
+        return "/".join([str(r) for r in role_path])
 
 
 class NcMethodStatus(IntEnum):

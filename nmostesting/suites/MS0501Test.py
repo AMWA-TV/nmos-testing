@@ -73,10 +73,6 @@ class MS0501Test(GenericTest):
 
         self.oid_cache = []
 
-    # Used to inject specialized utils after construction
-    def set_utils(self, ms05_utils):
-        self.ms05_utils = ms05_utils
-
     # Override basics to include the MS-05 auto tests
     def basics(self):
         results = super().basics()
@@ -105,7 +101,7 @@ class MS0501Test(GenericTest):
                     self.ms05_utils.reference_datatype_schema_validate(test, descriptor.json,
                                                                        descriptor.__class__.__name__)
 
-                    # Validate the descriptor is correct
+                    # Validate the content of descriptor is correct
                     self.ms05_utils.validate_descriptor(test, reference_descriptors[key], descriptor.json)
 
                     results.append(test.PASS())
@@ -163,26 +159,6 @@ class MS0501Test(GenericTest):
                              "/docs/Blocks.html")
 
         return test.PASS()
-
-    def get_property(self, test, oid, property_id, role_path, context):
-        """Get property from object. Sets self.device_model_metadata on error"""
-        try:
-            return self.ms05_utils.get_property(test, property_id, oid=oid, role_path=role_path)
-        except NMOSTestException as e:
-            self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += f"{context}Error getting property: " \
-                + f"{str(property_id)}: {str(e.args[0].detail)}; "
-        return None
-
-    def get_property_value(self, test, property_id, context, oid, role_path):
-        """Get value of property from object. Sets self.device_model_metadata on error"""
-        try:
-            return self.ms05_utils.get_property_value(test, property_id, oid=oid, role_path=role_path)
-        except NMOSTestException as e:
-            self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += f"{context}Error getting property: " \
-                + f"{str(property_id)}: {str(e.args[0].detail)}; "
-            return None
 
     def _validate_property_type(self, test, value, data_type, is_nullable, context=""):
         """Validate property type. Raises NMOSTestException on error"""
@@ -256,10 +232,17 @@ class MS0501Test(GenericTest):
         self.check_get_sequence_item(test, oid, role_path, sequence_values, property_descriptor, context)
         self.check_get_sequence_length(test, oid, role_path, sequence_values, property_descriptor, context)
 
-    def check_object_properties(self, test, reference_class_descriptor, oid, role_path, context):
+    def check_object_properties(self, test, reference_class_descriptor, oid, role_path):
+        context = self.ms05_utils.create_role_path_string(role_path)
         """Check properties of an object against reference NcClassDescriptor"""
         for property_descriptor in reference_class_descriptor.properties:
-            response = self.get_property(test, oid, property_descriptor.id.__dict__, role_path, context)
+            try:
+                response = self.ms05_utils.get_property(test, property_descriptor.id.__dict__,
+                                                        oid=oid, role_path=role_path)
+            except NMOSTestException as e:
+                self.device_model_metadata.error = True
+                self.device_model_metadata.error_msg += f"{context}Error getting property: " \
+                    + f"{str(property_descriptor.id.__dict__)}: {str(e.args[0].detail)}; "
 
             if response is None:
                 # Can't find this property - do we have an ID clash?
@@ -336,14 +319,20 @@ class MS0501Test(GenericTest):
             else:
                 manager_cache.append(base_class_name)
 
-    def check_touchpoints(self, test, oid, role_path, context):
+    def check_touchpoints(self, test, oid, role_path):
         """Touchpoint checks"""
-        touchpoints = self.get_property_value(
-            test,
-            NcObjectProperties.TOUCHPOINTS.value,
-            context,
-            oid,
-            role_path)
+        context = self.ms05_utils.create_role_path_string(role_path)
+        try:
+            touchpoints = self.ms05_utils.get_property_value(
+                test,
+                NcObjectProperties.TOUCHPOINTS.value,
+                oid=oid,
+                role_path=role_path)
+        except NMOSTestException as e:
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg += f"{context}Error getting touchpoints for object: " \
+                + f"{context}: {str(e.args[0].detail)}; "
+            return
 
         if touchpoints is not None:
             self.touchpoints_metadata.checked = True
@@ -378,16 +367,14 @@ class MS0501Test(GenericTest):
             if self.ms05_utils.is_non_standard_class(descriptor.classId):
                 self.organization_metadata.checked = True
             self.check_manager(descriptor.classId, descriptor.owner, class_descriptors, manager_cache)
-            self.check_touchpoints(test, descriptor.oid, role_path,
-                                   context=f"{context}{str(descriptor.role)}: ")
+            self.check_touchpoints(test, descriptor.oid, role_path)
 
             class_identifier = ".".join(map(str, descriptor.classId))
             if class_identifier and class_identifier in class_descriptors:
                 self.check_object_properties(test,
                                              class_descriptors[class_identifier],
                                              descriptor.oid,
-                                             role_path,
-                                             context=f"{context}{str(descriptor.role)}: ")
+                                             role_path)
             else:
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += f"{str(descriptor.role)}: " \
@@ -661,7 +648,7 @@ class MS0501Test(GenericTest):
                     context)
                 self.ms05_utils.validate_descriptor(
                     test,
-                    expected_descriptor.__dict__,
+                    expected_descriptor,
                     actual_descriptor,
                     context)
 
