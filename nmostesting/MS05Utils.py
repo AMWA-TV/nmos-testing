@@ -332,10 +332,17 @@ class MS05Utils(NMOSUtils):
 
         non_normative_keys = ["description"]
 
-        # Compare disctionaries
-        if isinstance(reference, dict):
+        # If the reference is an object then convert to a dict before comparison
+        if isinstance(reference, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
+            self.validate_descriptor(test, reference.__dict__, descriptor, context)
+        # If the descriptor being checked is an object then convert to a dict before comparison
+        elif isinstance(descriptor, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
+            self.validate_descriptor(test, reference, descriptor.__dict__, context)
+        # Compare dictionaries
+        elif isinstance(reference, dict):
             # NcDescriptor objects have a json field that caches the json used to construct it
             reference.pop("json", None)
+            descriptor.pop("json", None)
 
             reference_keys = set(reference.keys())
             descriptor_keys = set(descriptor.keys())
@@ -362,9 +369,6 @@ class MS05Utils(NMOSUtils):
                     descriptor.sort(key=sort_key)
                 for refvalue, value in zip(reference, descriptor):
                     self.validate_descriptor(test, refvalue, value, context)
-        # If the reference is an object then convert to a dict before comparison
-        elif isinstance(reference, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
-            self.validate_descriptor(test, reference.__dict__, descriptor, context)
         # Compare primitives and primitive arrays directly
         elif reference != descriptor:
             raise NMOSTestException(test.FAIL(f"{context}Expected value: "
