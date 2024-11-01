@@ -84,14 +84,11 @@ class IS14Utils(MS05Utils):
         methods_endpoint = self._create_methods_endpoint(role_path, method_id)
         return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": argument})
 
-    def get_sequence_item(self, test, property_id, index, role_path, **kwargs):
+    def get_sequence_item_override(self, test, property_id, index, role_path, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.GET_SEQUENCE_ITEM.value)
         return self._do_request(test, "PATCH", methods_endpoint,
                                 json={"arguments": {"id": property_id, "index": index}})
-
-    def get_sequence_item_value(self, test, property_id, index, role_path, **kwargs):
-        return self.get_sequence_item(test, property_id, index, role_path, **kwargs)["value"]
 
     def get_sequence_length(self, test, property_id, role_path, **kwargs):
         """Get sequence length. Raises NMOSTestException on error"""

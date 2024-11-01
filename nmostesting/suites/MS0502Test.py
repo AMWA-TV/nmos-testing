@@ -811,51 +811,69 @@ class MS0502Test(ControllerTest):
         return self._do_check_methods_test(test, question)
 
     def check_add_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path, context=""):
-        try:
-            self.add_sequence_item_metadata.checked = True
-            # Add a value to the end of the sequence
-            new_item = self.ms05_utils.get_sequence_item_value(test, property_id.__dict__, index=0,
-                                                               oid=oid, role_path=role_path)
+        # Add a value to the end of the sequence
+        method_result = self.ms05_utils.get_sequence_item(test, property_id.__dict__, index=0,
+                                                          oid=oid, role_path=role_path)
 
-            self.ms05_utils.add_sequence_item(test, property_id.__dict__, new_item, oid=oid, role_path=role_path)
-
-            # check the value
-            value = self.ms05_utils.get_sequence_item_value(test, property_id.__dict__, index=sequence_length,
-                                                            oid=oid, role_path=role_path)
-            if value != new_item:
-                self.add_sequence_item_metadata.error = True
-                self.add_sequence_item_metadata.error_msg += \
-                    f"{context}{property_name}: Expected: {str(new_item)}, Actual: {str(value)}, "
-            return True
-        except NMOSTestException as e:
+        if isinstance(method_result, NcMethodResultError):
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: {str(e.args[0].detail)}, "
-        return False
+                f"{context}{property_name}: Error getting sequence item: {str(method_result.errorMessage)} "
+            return False
+        new_item = method_result.value
+        self.ms05_utils.add_sequence_item(test, property_id.__dict__, new_item, oid=oid, role_path=role_path)
+
+        # check the value
+        method_result = self.ms05_utils.get_sequence_item(test, property_id.__dict__, index=sequence_length,
+                                                          oid=oid, role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg += \
+                f"{context}{property_name}: Error getting sequence item: {str(method_result.errorMessage)} "
+            return False
+
+        value = method_result.value
+        if value != new_item:
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg += \
+                f"{context}{property_name}: Expected: {str(new_item)}, Actual: {str(value)}, "
+        self.add_sequence_item_metadata.checked = True
+
+        return True
 
     def check_set_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path, context=""):
-        try:
-            self.set_sequence_item_metadata.checked = True
-            new_value = self.ms05_utils.get_sequence_item_value(test, property_id.__dict__, index=sequence_length - 1,
-                                                                oid=oid, role_path=role_path)
+        method_result = self.ms05_utils.get_sequence_item(test, property_id.__dict__, index=sequence_length - 1,
+                                                          oid=oid, role_path=role_path)
 
-            # set to another value
-            self.ms05_utils.set_sequence_item(test, property_id.__dict__, index=sequence_length, value=new_value,
-                                              oid=oid, role_path=role_path)
+        if isinstance(method_result, NcMethodResultError):
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg += \
+                f"{context}{property_name}: Error getting sequence item: {str(method_result.errorMessage)} "
+            return False
+        new_value = method_result.value
+        # set to another value
+        self.ms05_utils.set_sequence_item(test, property_id.__dict__, index=sequence_length, value=new_value,
+                                          oid=oid, role_path=role_path)
 
-            # check the value
-            value = self.ms05_utils.get_sequence_item_value(test, property_id.__dict__, index=sequence_length,
-                                                            oid=oid, role_path=role_path)
-            if value != new_value:
-                self.set_sequence_item_metadata.error = True
-                self.set_sequence_item_metadata.error_msg += \
-                    f"{context}{property_name}: Expected: {str(new_value)}, Actual: {str(value)}, "
-            return True
-        except NMOSTestException as e:
+        # check the value
+        method_result = self.ms05_utils.get_sequence_item(test, property_id.__dict__, index=sequence_length,
+                                                          oid=oid, role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg += \
+                f"{context}{property_name}: Error getting sequence item: {str(method_result.errorMessage)} "
+            return False
+
+        if method_result.value != new_value:
             self.set_sequence_item_metadata.error = True
             self.set_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: {str(e.args[0].detail)}, "
-        return False
+                f"{context}{property_name}: Expected: {str(new_value)}, Actual: {str(method_result.value)}, "
+
+        self.set_sequence_item_metadata.checked = True
+
+        return True
 
     def check_remove_sequence_item(self, test, property_id, property_name, sequence_length,
                                    oid, role_path, context=""):

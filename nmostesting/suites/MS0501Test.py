@@ -17,7 +17,7 @@ from itertools import product
 from ..GenericTest import GenericTest, NMOSTestException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, \
     NcDatatypeDescriptor, NcDatatypeDescriptorStruct, NcDeviceManagerProperties, NcMethodResultError, NcMethodStatus, \
-    NcMethodResult, NcObjectProperties, NcParameterConstraintsNumber, NcParameterConstraintsString, \
+    NcObjectProperties, NcParameterConstraintsNumber, NcParameterConstraintsString, \
     NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcTouchpoint, NcTouchpointNmos, \
     NcTouchpointNmosChannelMapping, StandardClassIds
 from ..TestResult import Test
@@ -199,22 +199,23 @@ class MS0501Test(GenericTest):
 
     def check_get_sequence_item(self, test, oid, role_path, sequence_values, property_descriptor):
         context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
-        try:
-            self.get_sequence_item_metadata.checked = True
-            sequence_index = 0
-            for property_value in sequence_values:
-                value = self.ms05_utils.get_sequence_item_value(test, property_descriptor.id.__dict__, sequence_index,
-                                                                oid=oid, role_path=role_path)
-                if property_value != value:
-                    self.get_sequence_item_metadata.error = True
-                    self.get_sequence_item_metadata.error_msg += \
-                        f"{context}{property_descriptor.name}: Expected: {str(property_value)}, Actual: {str(value)}" \
-                        f" at index {sequence_index}, "
-                sequence_index += 1
-        except NMOSTestException as e:
-            self.get_sequence_item_metadata.error = True
-            self.get_sequence_item_metadata.error_msg += \
-                f"{context}{property_descriptor.name}: {str(e.args[0].detail)}, "
+        self.get_sequence_item_metadata.checked = True
+        sequence_index = 0
+        for property_value in sequence_values:
+            method_result = self.ms05_utils.get_sequence_item(test, property_descriptor.id.__dict__,
+                                                              sequence_index, oid=oid, role_path=role_path)
+            if isinstance(method_result, NcMethodResultError):
+                self.get_sequence_item_metadata.error = True
+                self.get_sequence_item_metadata.error_msg += \
+                    f"{context}{property_descriptor.name}: Error getting sequence item: " \
+                    f"{method_result.error}, "
+            if property_value != method_result.value:
+                self.get_sequence_item_metadata.error = True
+                self.get_sequence_item_metadata.error_msg += \
+                    f"{context}{property_descriptor.name}: Expected: {str(property_value)}, " \
+                    f"Actual: {str(method_result.value)} " \
+                    f"at index {sequence_index}, "
+            sequence_index += 1
 
     def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_descriptor):
         context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
@@ -1366,14 +1367,11 @@ class MS0501Test(GenericTest):
                                                      role_path=["root"])
         out_of_bounds_index = length + 10
 
-        result = self.ms05_utils.get_sequence_item(test,
-                                                   NcBlockProperties.MEMBERS.value,
-                                                   out_of_bounds_index,
-                                                   oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                                   role_path=["root"])
-
-        self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
-        method_result = NcMethodResult.factory(result)
+        method_result = self.ms05_utils.get_sequence_item(test,
+                                                          NcBlockProperties.MEMBERS.value,
+                                                          out_of_bounds_index,
+                                                          oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                          role_path=["root"])
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Sequence out of bounds error expected.",

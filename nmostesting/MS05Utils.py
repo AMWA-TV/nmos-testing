@@ -53,11 +53,7 @@ class MS05Utils(NMOSUtils):
     def invoke_method_override(self, test, method_id, argument, **kwargs):
         pass
 
-    def get_sequence_item(self, test, property_id, index, **kwargs):
-        pass
-
-    def get_sequence_item_value(self, test, property_id, index, **kwargs):
-        """Get value from sequence property. Raises NMOSTestException on error"""
+    def get_sequence_item_override(self, test, property_id, index, **kwargs):
         pass
 
     def get_sequence_length(self, test, property_id, **kwargs):
@@ -118,6 +114,12 @@ class MS05Utils(NMOSUtils):
     def invoke_method(self, test, method_id, argument, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
         result = self.invoke_method_override(test, method_id, argument, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        return NcMethodResult.factory(result)
+
+    def get_sequence_item(self, test, property_id, index, **kwargs):
+        result = self.get_sequence_item_override(test, property_id, index, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
