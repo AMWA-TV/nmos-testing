@@ -23,7 +23,7 @@ from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 from .Config import WS_MESSAGE_TIMEOUT
 from .GenericTest import NMOSInitException, NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
-from .MS05Utils import NcMethodStatus, NcObjectMethods, NcBlockMethods, NcClassManagerMethods
+from .MS05Utils import NcObjectMethods, NcBlockMethods, NcClassManagerMethods
 
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
