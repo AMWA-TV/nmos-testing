@@ -79,7 +79,7 @@ class IS14Utils(MS05Utils):
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
         return self._do_request(test, "PUT", property_value_endpoint, json={"value": argument})
 
-    def invoke_method(self, test, method_id, argument, role_path, **kwargs):
+    def invoke_method_override(self, test, method_id, argument, role_path, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, method_id)
         return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": argument})

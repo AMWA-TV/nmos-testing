@@ -227,7 +227,7 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.GENERIC_SET.value,
                                     {'id': property_id, 'value': argument})
 
-    def invoke_method(self, test, method_id, argument, oid, **kwargs):
+    def invoke_method_override(self, test, method_id, argument, oid, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     method_id,

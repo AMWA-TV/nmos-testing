@@ -773,27 +773,22 @@ class MS0502Test(ControllerTest):
         self.invoke_methods_metadata.error_msg = ""
 
         for method in selected_methods:
-            try:
-                self.invoke_methods_metadata.checked = True
+            self.invoke_methods_metadata.checked = True
 
-                parameters = self._create_compatible_parameters(test, method.descriptor.parameters)
+            parameters = self._create_compatible_parameters(test, method.descriptor.parameters)
 
-                result = self.ms05_utils.invoke_method(test, method.descriptor.id.__dict__, parameters,
-                                                       oid=method.oid, role_path=method.role_path)
+            method_result = self.ms05_utils.invoke_method(test, method.descriptor.id.__dict__, parameters,
+                                                          oid=method.oid, role_path=method.role_path)
 
-                # check for deprecated status codes for deprecated methods
-                if method.descriptor.isDeprecated and result["status"] != 299:
-                    self.invoke_methods_metadata.error = True
-                    self.invoke_methods_metadata.error_msg += \
-                        f"Deprecated method returned incorrect status code {method.name} : {result.status}"
-            except NMOSTestException as e:
-                # ignore 4xx errors
-                self.ms05_utils.reference_datatype_schema_validate(test, e.args[0].detail, "NcMethodResult",
-                                                                   method.role_path)
-                if e.args[0].detail["status"] >= 500:
-                    self.invoke_methods_metadata.error = True
-                    self.invoke_methods_metadata.error_msg += \
-                        f"Error invoking method {method.name} : {e.args[0].detail}"
+            # check for deprecated status codes for deprecated methods
+            if method.descriptor.isDeprecated and method_result.status != 299:
+                self.invoke_methods_metadata.error = True
+                self.invoke_methods_metadata.error_msg += \
+                    f"Deprecated method returned incorrect status code {method.name} : {method_result.status}"
+            if isinstance(method_result, NcMethodResultError) and method_result.status >= 500:
+                self.invoke_methods_metadata.error = True
+                self.invoke_methods_metadata.error_msg += \
+                    f"Error invoking method {method.name} : {method_result.errorMessage}"
         if self.invoke_methods_metadata.error:
             return test.FAIL(self.invoke_methods_metadata.error_msg)
 

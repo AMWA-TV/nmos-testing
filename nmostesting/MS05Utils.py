@@ -50,7 +50,7 @@ class MS05Utils(NMOSUtils):
     def set_property_override(self, test, property_id, argument, **kwargs):
         pass
 
-    def invoke_method(self, test, method_id, argument, **kwargs):
+    def invoke_method_override(self, test, method_id, argument, **kwargs):
         pass
 
     def get_sequence_item(self, test, property_id, index, **kwargs):
@@ -111,6 +111,13 @@ class MS05Utils(NMOSUtils):
     def set_property(self, test, property_id, argument, **kwargs):
         """Set property from object. Returns NcMethodResult. Raises NMOSTestException on error"""
         result = self.set_property_override(test, property_id, argument, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        return NcMethodResult.factory(result)
+
+    def invoke_method(self, test, method_id, argument, **kwargs):
+        """Invoke method on Node. Raises NMOSTestException on error"""
+        result = self.invoke_method_override(test, method_id, argument, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
