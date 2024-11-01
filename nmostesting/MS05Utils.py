@@ -674,6 +674,40 @@ class StandardClassIds(Enum):
     NCCLASSMANAGER = [1, 3, 2]
 
 
+# MS-05-02 All methods MUST return a datatype which inherits from NcMethodResult.
+# When a method call encounters an error the return MUST be NcMethodResultError
+# or a derived datatype.
+# https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncmethodresult
+class NcMethodResult():
+    def __init__(self, result_json):
+        self.status = NcMethodStatus(result_json["status"])  # Status for the invoked method
+
+    @staticmethod
+    def factory(result_json):
+        """Instantiate concrete NcMethodResult object"""
+        if "errorMessage" in result_json:
+            return NcMethodResultError(result_json)
+        
+        if "value" in result_json:
+            return NcMethodResultXXX(result_json)
+        
+        return NcMethodResult(result_json)
+
+
+# Concrete class for all non-error result types 
+# e.g. NcMethodResultBlockMemberDescriptors, NcMethodResultClassDescriptor etc.
+class NcMethodResultXXX(NcMethodResult):
+    def __init__(self, result_json):
+        NcMethodResult.__init__(self, result_json)
+        self.value = result_json["value"]  # Value can be any type
+
+
+class NcMethodResultError(NcMethodResult):
+    def __init__(self, result_json):
+        NcMethodResult.__init__(self, result_json)
+        self.errorMessage = result_json["errorMessage"]  # Error message
+
+
 class NcElementId():
     def __init__(self, id_json):
         self.level = id_json["level"]  # Level of the element
