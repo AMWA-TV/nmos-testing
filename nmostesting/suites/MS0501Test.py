@@ -16,9 +16,9 @@ from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockMemberDescriptor, NcBlockProperties, NcClassDescriptor, \
-    NcDatatypeDescriptor, NcDatatypeDescriptorStruct, NcDeviceManagerProperties, NcMethodStatus, NcObjectProperties, \
-    NcParameterConstraintsNumber, NcParameterConstraintsString, NcPropertyConstraintsNumber, \
-    NcPropertyConstraintsString, NcTouchpoint, NcTouchpointNmos, \
+    NcDatatypeDescriptor, NcDatatypeDescriptorStruct, NcDeviceManagerProperties, NcMethodResultError, NcMethodStatus, \
+    NcMethodResult, NcObjectProperties, NcParameterConstraintsNumber, NcParameterConstraintsString, \
+    NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcTouchpoint, NcTouchpointNmos, \
     NcTouchpointNmosChannelMapping, StandardClassIds
 from ..TestResult import Test
 
@@ -1310,35 +1310,27 @@ class MS0501Test(GenericTest):
         # for the following scenarios...
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
-        try:
-            self.ms05_utils.set_property(test, NcObjectProperties.ROLE.value, "ROLE IS READ ONLY",
-                                         oid=self.ms05_utils.ROOT_BLOCK_OID, role_path=["root"])
+        result = self.ms05_utils.set_property(test, NcObjectProperties.ROLE.value, "ROLE IS READ ONLY",
+                                              oid=self.ms05_utils.ROOT_BLOCK_OID, role_path=["root"])
 
+        self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
+        method_result = NcMethodResult.factory(result)
+
+        if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Read only properties error expected.",
                              f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresult")
 
-        except NMOSTestException as e:
-            error_msg = e.args[0].detail
+        if method_result.status != NcMethodStatus.Readonly.value:
+            return test.WARNING(f"Unexpected status. Expected: {NcMethodStatus.Readonly.name}"
+                                f" ({str(NcMethodStatus.Readonly.value)})"
+                                f", actual: {method_result.status.name}"
+                                f" ({str(method_result.status.value)})",
+                                "https://specs.amwa.tv/ms-05-02/branches/"
+                                f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                "/docs/Framework.html#ncmethodresult")
 
-            # Expecting an error status dictionary
-            if not isinstance(error_msg, dict):
-                # It must be some other type of error so re-throw
-                raise e
-
-            if not error_msg.get('status'):
-                return test.FAIL("No status returned: " + str(error_msg))
-
-            if error_msg['status'] != NcMethodStatus.Readonly.value:
-                return test.WARNING(f"Unexpected status. Expected: {NcMethodStatus.Readonly.name}"
-                                    f" ({str(NcMethodStatus.Readonly)})"
-                                    f", actual: {NcMethodStatus(error_msg['status']).name}"
-                                    f" ({str(error_msg['status'])})",
-                                    "https://specs.amwa.tv/ms-05-02/branches/"
-                                    f"{self.apis[MS05_API_KEY]['spec_branch']}"
-                                    "/docs/Framework.html#ncmethodresult")
-
-            return test.PASS()
+        return test.PASS()
 
     def test_ms05_26(self, test):
         """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
@@ -1346,41 +1338,33 @@ class MS0501Test(GenericTest):
         # for the following scenarios...
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
-        try:
-            length = self.ms05_utils.get_sequence_length(test,
-                                                         NcBlockProperties.MEMBERS.value,
-                                                         oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                                         role_path=["root"])
-            out_of_bounds_index = length + 10
+        length = self.ms05_utils.get_sequence_length(test,
+                                                     NcBlockProperties.MEMBERS.value,
+                                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                     role_path=["root"])
+        out_of_bounds_index = length + 10
 
-            self.ms05_utils.get_sequence_item(test,
-                                              NcBlockProperties.MEMBERS.value,
-                                              out_of_bounds_index,
-                                              oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                              role_path=["root"])
+        result = self.ms05_utils.get_sequence_item(test,
+                                                   NcBlockProperties.MEMBERS.value,
+                                                   out_of_bounds_index,
+                                                   oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                   role_path=["root"])
 
+        self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
+        method_result = NcMethodResult.factory(result)
+
+        if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Sequence out of bounds error expected.",
                              f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresult")
 
-        except NMOSTestException as e:
-            error_msg = e.args[0].detail
+        if method_result.status != NcMethodStatus.IndexOutOfBounds:
+            return test.WARNING(f"Unexpected status. Expected: {NcMethodStatus.IndexOutOfBounds.name}"
+                                f" ({str(NcMethodStatus.IndexOutOfBounds.value)})"
+                                f", actual: {method_result.status.name}"
+                                f" ({str(method_result.status.value)})",
+                                "https://specs.amwa.tv/ms-05-02/branches/"
+                                f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                "/docs/Framework.html#ncmethodresult")
 
-            # Expecting an error status dictionary
-            if not isinstance(error_msg, dict):
-                # It must be some other type of error so re-throw
-                raise e
-
-            if not error_msg.get('status'):
-                return test.FAIL("No status returned: " + str(error_msg))
-
-            if error_msg['status'] != NcMethodStatus.IndexOutOfBounds.value:
-                return test.WARNING(f"Unexpected status. Expected: {NcMethodStatus.IndexOutOfBounds.name}"
-                                    f" ({str(NcMethodStatus.IndexOutOfBounds)})"
-                                    f", actual: {NcMethodStatus(error_msg['status']).name}"
-                                    f" ({str(error_msg['status'])})",
-                                    "https://specs.amwa.tv/ms-05-02/branches/"
-                                    f"{self.apis[MS05_API_KEY]['spec_branch']}"
-                                    "/docs/Framework.html#ncmethodresult")
-
-            return test.PASS()
+        return test.PASS()

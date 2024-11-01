@@ -22,8 +22,9 @@ from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..MS05Utils import NcDatatypeDescriptorEnum, NcDatatypeDescriptorPrimitive, NcDatatypeType, NcBlock, \
-    NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef, NcParameterConstraintsNumber, \
-    NcParameterConstraintsString, NcPropertyConstraintsNumber, NcPropertyConstraintsString
+    NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef, NcMethodResult, NcMethodResultError, \
+    NcParameterConstraintsNumber, NcParameterConstraintsString, NcPropertyConstraintsNumber, \
+    NcPropertyConstraintsString
 
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
@@ -211,13 +212,16 @@ class MS0502Test(ControllerTest):
 
     def _check_constrained_parameter(self, test, constraint_type, constraint, constrained_property, value):
         def _do_check(check_function):
-            try:
-                check_function()
+            result = check_function()
+            self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
+            method_result = NcMethodResult.factory(result)
+
+            if not isinstance(method_result, NcMethodResultError):
                 self.constraint_validation_metadata.error = True
                 self.constraint_validation_metadata.error_msg += \
                     f"{constraint} {constraint_type}" \
                     f" constraint not enforced for {constrained_property.name}; "
-            except NMOSTestException:
+            else:
                 # Expecting a parameter constraint violation
                 self.constraint_validation_metadata.checked = True
 
@@ -226,12 +230,12 @@ class MS0502Test(ControllerTest):
                                                         constrained_property.descriptor.id.__dict__,
                                                         oid=constrained_property.oid,
                                                         role_path=constrained_property.role_path)
-            self.ms05_utils.set_sequence_item(test,
-                                              constrained_property.descriptor.id.__dict__,
-                                              index - 1,
-                                              value,
-                                              oid=constrained_property.oid,
-                                              role_path=constrained_property.role_path)
+            return self.ms05_utils.set_sequence_item(test,
+                                                     constrained_property.descriptor.id.__dict__,
+                                                     index - 1,
+                                                     value,
+                                                     oid=constrained_property.oid,
+                                                     role_path=constrained_property.role_path)
 
         if constrained_property.descriptor.isSequence:
             _do_check(lambda: self.ms05_utils.add_sequence_item(test,
@@ -659,17 +663,19 @@ class MS0502Test(ControllerTest):
             except NMOSTestException as e:
                 return test.FAIL(f"{readonly_property.name}: error getting property: {str(e.args[0].detail)}")
 
-            try:
-                # Try setting this value
-                self.ms05_utils.set_property(test,
-                                             readonly_property.descriptor.id.__dict__,
-                                             original_value,
-                                             oid=readonly_property.oid,
-                                             role_path=readonly_property.role_path)
+            # Try setting this value
+            result = self.ms05_utils.set_property(test,
+                                                  readonly_property.descriptor.id.__dict__,
+                                                  original_value,
+                                                  oid=readonly_property.oid,
+                                                  role_path=readonly_property.role_path)
+            self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
+            method_result = NcMethodResult.factory(result)
+
+            if not isinstance(method_result, NcMethodResultError):
                 # if it gets this far it's failed
-                return test.FAIL(f"{readonly_property.get("name")}: read only property is writable")
-            except NMOSTestException:
-                # expect an exception to be thrown
+                return test.FAIL(f"{readonly_property.name}: read only property is writable")
+            else:
                 readonly_checked = True
 
         if not readonly_checked:
