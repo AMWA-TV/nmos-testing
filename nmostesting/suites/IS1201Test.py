@@ -309,7 +309,12 @@ class IS1201Test(MS0501Test):
             for label in [new_user_label, old_user_label]:
                 # Set property and log notificaiton
                 self.is12_utils.start_logging_notifications()
-                self.is12_utils.set_property(test, NcObjectProperties.USER_LABEL.value, label, oid=oid)
+                method_result = self.is12_utils.set_property(test, NcObjectProperties.USER_LABEL.value, label, oid=oid)
+                if isinstance(method_result, NcMethodResultError):
+                    error = True
+                    error_message += f"Unable to set user label property from object (OID:{str(oid)}): " \
+                        f"{str(method_result.errorMessage)} "
+                    continue
                 self.is12_utils.stop_logging_notifications()
 
                 for notification in self.is12_utils.get_notifications():

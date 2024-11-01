@@ -221,7 +221,7 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.GENERIC_GET.value,
                                     {'id': property_id})
 
-    def set_property(self, test, property_id, argument, oid, **kwargs):
+    def set_property_override(self, test, property_id, argument, oid, **kwargs):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_SET.value,

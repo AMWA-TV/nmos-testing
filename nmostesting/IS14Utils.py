@@ -74,7 +74,7 @@ class IS14Utils(MS05Utils):
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
         return self._do_request(test, "GET", property_value_endpoint)
 
-    def set_property(self, test, property_id, argument, role_path, **kwargs):
+    def set_property_override(self, test, property_id, argument, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
         return self._do_request(test, "PUT", property_value_endpoint, json={"value": argument})

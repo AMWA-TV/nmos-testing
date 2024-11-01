@@ -709,9 +709,12 @@ class MS0501Test(GenericTest):
         # Set user label
         new_user_label = "NMOS Testing Tool"
 
-        self.ms05_utils.set_property(test, property_id, new_user_label,
-                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                     role_path=['root'])
+        method_result = self.ms05_utils.set_property(test, property_id, new_user_label,
+                                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                     role_path=['root'])
+
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error setting label property of Root Block: {str(method_result.errorMessage)}")
 
         # Check user label
         method_result = self.ms05_utils.get_property(test, property_id,
@@ -729,9 +732,12 @@ class MS0501Test(GenericTest):
                 return test.FAIL(f"Unexpected user label: {str(label)}", link)
 
         # Reset user label
-        self.ms05_utils.set_property(test, property_id, old_user_label,
-                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                     role_path=['root'])
+        method_result = self.ms05_utils.set_property(test, property_id, old_user_label,
+                                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                     role_path=['root'])
+
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error setting label property of Root Block: {str(method_result.errorMessage)}")
 
         # Check user label
         method_result = self.ms05_utils.get_property(test, property_id,
@@ -1329,11 +1335,8 @@ class MS0501Test(GenericTest):
         # for the following scenarios...
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
-        result = self.ms05_utils.set_property(test, NcObjectProperties.ROLE.value, "ROLE IS READ ONLY",
-                                              oid=self.ms05_utils.ROOT_BLOCK_OID, role_path=["root"])
-
-        self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
-        method_result = NcMethodResult.factory(result)
+        method_result = self.ms05_utils.set_property(test, NcObjectProperties.ROLE.value, "ROLE IS READ ONLY",
+                                                     oid=self.ms05_utils.ROOT_BLOCK_OID, role_path=["root"])
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Read only properties error expected.",

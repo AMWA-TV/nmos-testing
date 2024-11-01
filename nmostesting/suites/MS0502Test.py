@@ -213,8 +213,11 @@ class MS0502Test(ControllerTest):
     def _check_constrained_parameter(self, test, constraint_type, constraint, constrained_property, value):
         def _do_check(check_function):
             result = check_function()
-            self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
-            method_result = NcMethodResult.factory(result)
+            if not isinstance(result, NcMethodResult):
+                self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
+                method_result = NcMethodResult.factory(result)
+            else:
+                method_result = result
 
             if not isinstance(method_result, NcMethodResultError):
                 self.constraint_validation_metadata.error = True
@@ -279,11 +282,17 @@ class MS0502Test(ControllerTest):
                                               oid=constrained_property.oid,
                                               role_path=constrained_property.role_path)
         else:
-            self.ms05_utils.set_property(test,
-                                         constrained_property.descriptor.id.__dict__,
-                                         new_value,
-                                         oid=constrained_property.oid,
-                                         role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.set_property(test,
+                                                         constrained_property.descriptor.id.__dict__,
+                                                         new_value,
+                                                         oid=constrained_property.oid,
+                                                         role_path=constrained_property.role_path)
+            if isinstance(method_result, NcMethodResultError):
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{self.ms05_utils.create_role_path_string(constrained_property.role_path)}: " \
+                    f"Unable to set property {str(constrained_property.descriptor.id.__dict__)}: " \
+                    f"{str(method_result.errorMessage)} "
 
         # Attempt to set to an "illegal" value
         if constraints.minimum is not None:
@@ -335,11 +344,19 @@ class MS0502Test(ControllerTest):
                                               oid=constrained_property.oid,
                                               role_path=constrained_property.role_path)
         else:
-            self.ms05_utils.set_property(test,
-                                         constrained_property.descriptor.id.__dict__,
-                                         new_value,
-                                         oid=constrained_property.oid,
-                                         role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.set_property(test,
+                                                         constrained_property.descriptor.id.__dict__,
+                                                         new_value,
+                                                         oid=constrained_property.oid,
+                                                         role_path=constrained_property.role_path)
+
+            if isinstance(method_result, NcMethodResultError):
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{self.ms05_utils.create_role_path_string(constrained_property.role_path)}: " \
+                    f"Unable to set property {str(constrained_property.descriptor.id.__dict__)}: " \
+                    f"{str(method_result.errorMessage)} "
+                return
 
         if constraints.pattern:
             # Possible negative example strings
@@ -390,17 +407,27 @@ class MS0502Test(ControllerTest):
 
         if isinstance(method_result, NcMethodResultError):
             self.constraint_validation_metadata.error = True
-            self.constraint_validation_metadata.error_msg += f"{str(method_result.errorMessage)}"
+            self.constraint_validation_metadata.error_msg += \
+                f"{self.ms05_utils.create_role_path_string(property_under_test.role_path)}: " \
+                f"Unable to set property {str(property_under_test.descriptor.id.__dict__)}: " \
+                f"{str(method_result.errorMessage)} "
             return
 
         modified_value = list(reversed(method_result.value))
 
         # Reset to original value
-        self.ms05_utils.set_property(test,
-                                     property_under_test.descriptor.id.__dict__,
-                                     modified_value,
-                                     oid=property_under_test.oid,
-                                     role_path=property_under_test.role_path)
+        method_result = self.ms05_utils.set_property(test,
+                                                     property_under_test.descriptor.id.__dict__,
+                                                     modified_value,
+                                                     oid=property_under_test.oid,
+                                                     role_path=property_under_test.role_path)
+
+        if isinstance(method_result, NcMethodResultError):
+            self.constraint_validation_metadata.error = True
+            self.constraint_validation_metadata.error_msg += \
+                f"{self.ms05_utils.create_role_path_string(property_under_test.role_path)}: " \
+                f"Unable to set property {str(property_under_test.descriptor.id.__dict__)}: " \
+                f"{str(method_result.errorMessage)} "
 
     def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False, datatype_type=None):
         """Test properties within the Device Model"""
@@ -462,16 +489,16 @@ class MS0502Test(ControllerTest):
                     self._check_sequence_datatype_type(test, constrained_property)
             except NMOSTestException as e:
                 return test.FAIL(f"{constrained_property.name}: error setting property: {str(e.args[0].detail)}")
-            try:
-                # Reset to original value
-                self.ms05_utils.set_property(test,
-                                             constrained_property.descriptor.id.__dict__,
-                                             original_value,
-                                             oid=constrained_property.oid,
-                                             role_path=constrained_property.role_path)
-            except NMOSTestException as e:
+
+            # Reset to original value
+            method_result = self.ms05_utils.set_property(test,
+                                                         constrained_property.descriptor.id.__dict__,
+                                                         original_value,
+                                                         oid=constrained_property.oid,
+                                                         role_path=constrained_property.role_path)
+            if isinstance(method_result, NcMethodResultError):
                 return test.FAIL(f"{constrained_property.name}: error restoring original value of property: "
-                                 f"{str(e.args[0].detail)} original value: {str(original_value)}"
+                                 f"{str(method_result.errorMessage)} original value: {str(original_value)}"
                                  f": constraint {str(constraint)}")
 
         if self.constraint_validation_metadata.error:
@@ -672,13 +699,11 @@ class MS0502Test(ControllerTest):
 
             original_value = method_result.value
             # Try setting this value
-            result = self.ms05_utils.set_property(test,
-                                                  readonly_property.descriptor.id.__dict__,
-                                                  original_value,
-                                                  oid=readonly_property.oid,
-                                                  role_path=readonly_property.role_path)
-            self.ms05_utils.reference_datatype_schema_validate(test, result, NcMethodResult.__name__)
-            method_result = NcMethodResult.factory(result)
+            method_result = self.ms05_utils.set_property(test,
+                                                         readonly_property.descriptor.id.__dict__,
+                                                         original_value,
+                                                         oid=readonly_property.oid,
+                                                         role_path=readonly_property.role_path)
 
             if not isinstance(method_result, NcMethodResultError):
                 # if it gets this far it's failed

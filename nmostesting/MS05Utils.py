@@ -47,7 +47,7 @@ class MS05Utils(NMOSUtils):
     def get_property_override(self, test, property_id, **kwargs):
         pass
 
-    def set_property(self, test, property_id, argument, **kwargs):
+    def set_property_override(self, test, property_id, argument, **kwargs):
         pass
 
     def invoke_method(self, test, method_id, argument, **kwargs):
@@ -104,6 +104,13 @@ class MS05Utils(NMOSUtils):
     def get_property(self, test, property_id, **kwargs):
         """Get property from object. Returns NcMethodResult. Raises NMOSTestException on error"""
         result = self.get_property_override(test, property_id, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        return NcMethodResult.factory(result)
+
+    def set_property(self, test, property_id, argument, **kwargs):
+        """Set property from object. Returns NcMethodResult. Raises NMOSTestException on error"""
+        result = self.set_property_override(test, property_id, argument, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
