@@ -687,14 +687,14 @@ class NcMethodResult():
         """Instantiate concrete NcMethodResult object"""
         if "errorMessage" in result_json:
             return NcMethodResultError(result_json)
-        
+
         if "value" in result_json:
             return NcMethodResultXXX(result_json)
-        
+
         return NcMethodResult(result_json)
 
 
-# Concrete class for all non-error result types 
+# Concrete class for all non-error result types
 # e.g. NcMethodResultBlockMemberDescriptors, NcMethodResultClassDescriptor etc.
 class NcMethodResultXXX(NcMethodResult):
     def __init__(self, result_json):
