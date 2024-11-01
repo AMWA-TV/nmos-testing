@@ -69,14 +69,10 @@ class IS14Utils(MS05Utils):
         return r.json()
 
     # Overridden functions
-    def get_property(self, test, property_id, role_path, **kwargs):
+    def get_property_override(self, test, property_id, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""
         property_value_endpoint = self._create_property_value_endpoint(role_path, property_id)
         return self._do_request(test, "GET", property_value_endpoint)
-
-    def get_property_value(self, test, property_id, role_path, **kwargs):
-        """Get value of property from object. Raises NMOSTestException on error"""
-        return self.get_property(test, property_id, role_path=role_path)["value"]
 
     def set_property(self, test, property_id, argument, role_path, **kwargs):
         """Get value of property from object. Raises NMOSTestException on error"""

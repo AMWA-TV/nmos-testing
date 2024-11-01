@@ -383,12 +383,17 @@ class MS0502Test(ControllerTest):
     def _check_sequence_datatype_type(self, test, property_under_test):
         self.constraint_validation_metadata.checked = True
 
-        original_value = self.ms05_utils.get_property_value(test,
-                                                            property_under_test.descriptor.id.__dict__,
-                                                            oid=property_under_test.oid,
-                                                            role_path=property_under_test.role_path)
+        method_result = self.ms05_utils.get_property(test,
+                                                     property_under_test.descriptor.id.__dict__,
+                                                     oid=property_under_test.oid,
+                                                     role_path=property_under_test.role_path)
 
-        modified_value = list(reversed(original_value))
+        if isinstance(method_result, NcMethodResultError):
+            self.constraint_validation_metadata.error = True
+            self.constraint_validation_metadata.error_msg += f"{str(method_result.errorMessage)}"
+            return
+
+        modified_value = list(reversed(method_result.value))
 
         # Reset to original value
         self.ms05_utils.set_property(test,
@@ -431,18 +436,20 @@ class MS0502Test(ControllerTest):
         for constrained_property in selected_properties:
 
             # Cache original property value
-            try:
-                constraint = constrained_property.constraints
+            constraint = constrained_property.constraints
 
-                original_value = self.ms05_utils.get_property_value(test,
-                                                                    constrained_property.descriptor.id.__dict__,
-                                                                    oid=constrained_property.oid,
-                                                                    role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.get_property(test,
+                                                         constrained_property.descriptor.id.__dict__,
+                                                         oid=constrained_property.oid,
+                                                         role_path=constrained_property.role_path)
+            if isinstance(method_result, NcMethodResultError):
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{constrained_property.name}: error getting property: " \
+                    f"{str(method_result.errorMessage)}: constraint {str(constraint)} "
+                continue
 
-            except NMOSTestException as e:
-                return test.FAIL(f"{constrained_property.name}: error getting property: "
-                                 f"{str(e.args[0].detail)}: constraint {str(constraint)}")
-
+            original_value = method_result.value
             try:
                 if get_constraints:
                     if isinstance(constraint, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
@@ -654,15 +661,16 @@ class MS0502Test(ControllerTest):
         for readonly_property in selected_properties:
 
             # Cache original property value
-            try:
-                original_value = self.ms05_utils.get_property_value(test,
-                                                                    readonly_property.descriptor.id.__dict__,
-                                                                    oid=readonly_property.oid,
-                                                                    role_path=readonly_property.role_path)
+            method_result = self.ms05_utils.get_property(test,
+                                                         readonly_property.descriptor.id.__dict__,
+                                                         oid=readonly_property.oid,
+                                                         role_path=readonly_property.role_path)
 
-            except NMOSTestException as e:
-                return test.FAIL(f"{readonly_property.name}: error getting property: {str(e.args[0].detail)}")
+            if isinstance(method_result, NcMethodResultError):
+                return test.FAIL(f"{readonly_property.name}: error getting property: "
+                                 f"{str(method_result.errorMessage)} ")
 
+            original_value = method_result.value
             # Try setting this value
             result = self.ms05_utils.set_property(test,
                                                   readonly_property.descriptor.id.__dict__,
@@ -845,7 +853,16 @@ class MS0502Test(ControllerTest):
 
     def check_sequence_methods(self, test, property_id, property_name, oid, role_path, context=""):
         """Check that sequence manipulation methods work correctly"""
-        response = self.ms05_utils.get_property_value(test, property_id.__dict__, oid=oid, role_path=role_path)
+
+        method_result = self.ms05_utils.get_property(test, property_id.__dict__, oid=oid, role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg += \
+                f"error getting property: {str(property_id)}, {str(method_result.errorMessage)} "
+            return
+
+        response = method_result.value
 
         if response is None or not isinstance(response, list) or len(response) == 0:
             # Hmmm, these tests depend on sequences already having some data in them.

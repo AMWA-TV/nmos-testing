@@ -215,13 +215,7 @@ class IS12Utils(MS05Utils):
         response = self.send_command(test, command_JSON)
         return response["result"]
 
-    def get_property_value(self, test, property_id, oid, **kwargs):
-        """Get value of property from object. Raises NMOSTestException on error"""
-        return self.execute_command(test, oid,
-                                    NcObjectMethods.GENERIC_GET.value,
-                                    {'id': property_id})["value"]
-
-    def get_property(self, test, property_id, oid, **kwargs):
+    def get_property_override(self, test, property_id, oid, **kwargs):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_GET.value,

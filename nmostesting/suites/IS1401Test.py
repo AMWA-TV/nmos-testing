@@ -15,7 +15,7 @@
 # from ..GenericTest import NMOSTestException
 from copy import copy
 from nmostesting.GenericTest import NMOSTestException
-from nmostesting.MS05Utils import NcBlockProperties
+from nmostesting.MS05Utils import NcBlockProperties, NcMethodResultError
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
@@ -71,8 +71,13 @@ class IS1401Test(MS0501Test):
 
     def check_block_member_role_syntax(self, test, role_path):
         """  Check syntax of roles in this block """
-        response = self.is14_utils.get_property_value(test, NcBlockProperties.MEMBERS.value, role_path)
+        method_result = self.is14_utils.get_property(test, NcBlockProperties.MEMBERS.value, role_path=role_path)
 
+        if isinstance(method_result, NcMethodResultError):
+            raise NMOSTestException(test.FAIL(f"{self.is14_utils.create_role_path_string(role_path)}: "
+                                              f"Error getting members property: {str(method_result.errorMessage)}. "))
+
+        response = method_result.value
         for member in response:
             # check the class descriptor schema
             if "." in member["role"]:

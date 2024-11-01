@@ -44,10 +44,7 @@ class MS05Utils(NMOSUtils):
         self.load_reference_resources()
 
     # Overridden functions specialized in derived classes
-    def get_property(test, property_id, **kwargs):
-        pass
-
-    def get_property_value(self, test, property_id, **kwargs):
+    def get_property_override(self, test, property_id, **kwargs):
         pass
 
     def set_property(self, test, property_id, argument, **kwargs):
@@ -103,6 +100,13 @@ class MS05Utils(NMOSUtils):
         pass
 
     # End of overridden functions
+
+    def get_property(self, test, property_id, **kwargs):
+        """Get property from object. Returns NcMethodResult. Raises NMOSTestException on error"""
+        result = self.get_property_override(test, property_id, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        return NcMethodResult.factory(result)
 
     def query_device_model(self, test):
         """ Query Device Model from the Node under test.
@@ -376,11 +380,14 @@ class MS05Utils(NMOSUtils):
         return
 
     def _get_class_manager_datatype_descriptors(self, test, class_manager_oid, role_path):
-        response = self.get_property_value(test, NcClassManagerProperties.DATATYPES.value,
-                                           oid=class_manager_oid, role_path=role_path)
+        method_result = self.get_property(test, NcClassManagerProperties.DATATYPES.value,
+                                          oid=class_manager_oid, role_path=role_path)
 
-        if not response:
-            return None
+        if isinstance(method_result, NcMethodResultError):
+            raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+                                              "Error getting Class Manager Datatype property: "
+                                              f"{str(method_result.errorMessage)}"))
+        response = method_result.value
 
         # Validate descriptors against schema
         for r in response:
@@ -392,12 +399,15 @@ class MS05Utils(NMOSUtils):
         return descriptors
 
     def _get_class_manager_class_descriptors(self, test, class_manager_oid, role_path):
-        response = self.get_property_value(test, NcClassManagerProperties.CONTROL_CLASSES.value,
-                                           oid=class_manager_oid, role_path=role_path)
+        method_result = self.get_property(test, NcClassManagerProperties.CONTROL_CLASSES.value,
+                                          oid=class_manager_oid, role_path=role_path)
 
-        if not response:
-            return None
+        if isinstance(method_result, NcMethodResultError):
+            raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+                                              "Error getting Class Manager Control Classes property: "
+                                              f"{str(method_result.errorMessage)}"))
 
+        response = method_result.value
         # Validate descriptors
         for r in response:
             self.reference_datatype_schema_validate(test, r, NcClassDescriptor.__name__, role_path)
@@ -411,59 +421,62 @@ class MS05Utils(NMOSUtils):
         # will set self.device_model_error to True if problems encountered
         role_path = self.create_role_path(base_role_path, role)
 
-        try:
-            runtime_constraints = self.get_property_value(
-                    test, NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
-                    oid=oid, role_path=role_path)
-            if runtime_constraints:
-                for constraint in runtime_constraints:
-                    self.reference_datatype_schema_validate(test, constraint, NcPropertyConstraints.__name__,
-                                                            role_path)
+        method_result = self.get_property(test, NcObjectProperties.RUNTIME_PROPERTY_CONSTRAINTS.value,
+                                          oid=oid, role_path=role_path)
 
-                runtime_constraints = [NcPropertyConstraints.factory(c) for c in runtime_constraints]
+        if isinstance(method_result, NcMethodResultError):
+            raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+                                              "Unable to get runtime property constraints: "
+                                              f"{str(method_result.errorMessage)}"))
 
-            if self.is_block(class_id):
-                member_descriptors = self.get_property_value(
-                    test, NcBlockProperties.MEMBERS.value,
-                    oid=oid, role_path=role_path)
+        runtime_constraints = method_result.value
+        if runtime_constraints:
+            for constraint in runtime_constraints:
+                self.reference_datatype_schema_validate(test, constraint, NcPropertyConstraints.__name__,
+                                                        role_path)
 
-                if member_descriptors is None:
-                    raise NMOSTestException(test.FAIL("Unable to get members for object: "
-                                                      f"oid={str(oid)}, role Path={str(role_path)}"))
+            runtime_constraints = [NcPropertyConstraints.factory(c) for c in runtime_constraints]
 
-                block_member_descriptors = []
-                for m in member_descriptors:
-                    self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__, role_path)
-                block_member_descriptors = [NcBlockMemberDescriptor(m) for m in member_descriptors]
+        if self.is_block(class_id):
+            method_result = self.get_property(test, NcBlockProperties.MEMBERS.value,
+                                              oid=oid, role_path=role_path)
 
-                nc_block = NcBlock(class_id, oid, role, role_path, block_member_descriptors, runtime_constraints)
+            if isinstance(method_result, NcMethodResultError):
+                raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+                                                  "Unable to get members property: "
+                                                  f"{str(method_result.errorMessage)}"))
 
-                for m in member_descriptors:
-                    child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path)
-                    if child_object:
-                        nc_block.add_child_object(child_object)
+            member_descriptors = method_result.value
+            block_member_descriptors = []
+            for m in member_descriptors:
+                self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__, role_path)
+            block_member_descriptors = [NcBlockMemberDescriptor(m) for m in member_descriptors]
 
-                return nc_block
-            else:
-                if self._is_class_manager(class_id):
-                    class_descriptors = self._get_class_manager_class_descriptors(
-                        test, class_manager_oid=oid, role_path=role_path)
+            nc_block = NcBlock(class_id, oid, role, role_path, block_member_descriptors, runtime_constraints)
 
-                    datatype_descriptors = self._get_class_manager_datatype_descriptors(
-                        test, class_manager_oid=oid, role_path=role_path)
+            for m in member_descriptors:
+                child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path)
+                if child_object:
+                    nc_block.add_child_object(child_object)
 
-                    if not class_descriptors or not datatype_descriptors:
-                        raise NMOSTestException(test.FAIL("No class descriptors or datatype descriptors"
-                                                          + "found in ClassManager"))
+            return nc_block
+        else:
+            if self._is_class_manager(class_id):
+                class_descriptors = self._get_class_manager_class_descriptors(
+                    test, class_manager_oid=oid, role_path=role_path)
 
-                    return NcClassManager(class_id, oid, role, role_path,
-                                          class_descriptors, datatype_descriptors,
-                                          runtime_constraints)
+                datatype_descriptors = self._get_class_manager_datatype_descriptors(
+                    test, class_manager_oid=oid, role_path=role_path)
 
-                return NcObject(class_id, oid, role, role_path, runtime_constraints)
+                if not class_descriptors or not datatype_descriptors:
+                    raise NMOSTestException(test.FAIL("No class descriptors or datatype descriptors "
+                                                      "found in ClassManager"))
 
-        except NMOSTestException as e:
-            raise NMOSTestException(test.FAIL(f"Error in Device Model {role}: {str(e.args[0].detail)}"))
+                return NcClassManager(class_id, oid, role, role_path,
+                                      class_descriptors, datatype_descriptors,
+                                      runtime_constraints)
+
+            return NcObject(class_id, oid, role, role_path, runtime_constraints)
 
     def _get_singleton_object_by_class_id(self, test, class_id):
         device_model = self.query_device_model(test)

@@ -133,11 +133,16 @@ class MS0501Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Blocks.html
 
         # Check role is correct
-        role = self.ms05_utils.get_property_value(
+        method_result = self.ms05_utils.get_property(
             test,
             NcObjectProperties.ROLE.value,
             oid=self.ms05_utils.ROOT_BLOCK_OID,
             role_path=['root'])
+
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error getting role property of the Root Block: {str(method_result.errorMessage)}")
+
+        role = method_result.value
 
         if role != "root":
             return test.FAIL(f"Unexpected role in Root Block: {str(role)}",
@@ -146,11 +151,16 @@ class MS0501Test(GenericTest):
                              "/docs/Blocks.html")
 
         # Check OID is correct
-        oid = self.ms05_utils.get_property_value(
+        method_result = self.ms05_utils.get_property(
             test,
             NcObjectProperties.OID.value,
             oid=self.ms05_utils.ROOT_BLOCK_OID,
             role_path=['root'])
+
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error getting OID property of the Root Block: {str(method_result.errorMessage)}")
+
+        oid = method_result.value
 
         if oid != self.ms05_utils.ROOT_BLOCK_OID:
             return test.FAIL(f"Unexpected OID in Root Block: {str(oid)}",
@@ -238,28 +248,18 @@ class MS0501Test(GenericTest):
         context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
         """Check properties of an object against reference NcClassDescriptor"""
         for property_descriptor in reference_class_descriptor.properties:
-            try:
-                response = self.ms05_utils.get_property(test, property_descriptor.id.__dict__,
-                                                        oid=oid, role_path=role_path)
-            except NMOSTestException as e:
+            method_result = self.ms05_utils.get_property(test, property_descriptor.id.__dict__,
+                                                         oid=oid, role_path=role_path)
+            if isinstance(method_result, NcMethodResultError):
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += f"{context}Error getting property: " \
-                    + f"{str(property_descriptor.id.__dict__)}: {str(e.args[0].detail)}; "
+                    + f"{str(property_descriptor.id.__dict__)}: {str(method_result.errorMessage)} "
 
-            if response is None:
-                # Can't find this property - do we have an ID clash?
-                self.device_model_metadata.error = True
-                self.device_model_metadata.error_msg += \
-                    f"{context}Property does not exist - " \
-                    "it is possible that the class id for this class is NOT unique? " \
-                    f"classId: {self.ms05_utils.create_class_id_string(reference_class_descriptor.classId)}"
-                continue
-
-            property_value = response["value"]
+            property_value = method_result.value
 
             if property_descriptor.isDeprecated:
                 self.deprecated_property_metadata.checked = True
-                if response["status"] != NcMethodStatus.PropertyDeprecated.value:
+                if method_result.status != NcMethodStatus.PropertyDeprecated:
                     self.deprecated_property_metadata.error = True
                     self.deprecated_property_metadata.error_msg += \
                         f"{context}PropertyDeprecated status code expected when getting {property_descriptor.name}"
@@ -320,17 +320,19 @@ class MS0501Test(GenericTest):
     def check_touchpoints(self, test, oid, role_path):
         """Touchpoint checks"""
         context = self.ms05_utils.create_role_path_string(role_path)
-        try:
-            touchpoints = self.ms05_utils.get_property_value(
-                test,
-                NcObjectProperties.TOUCHPOINTS.value,
-                oid=oid,
-                role_path=role_path)
-        except NMOSTestException as e:
+        method_result = self.ms05_utils.get_property(
+            test,
+            NcObjectProperties.TOUCHPOINTS.value,
+            oid=oid,
+            role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
             self.device_model_metadata.error = True
             self.device_model_metadata.error_msg += f"{context}Error getting touchpoints for object: " \
-                + f"{context}: {str(e.args[0].detail)}; "
+                + f"{context}: {str(method_result.errorMessage)}; "
             return
+
+        touchpoints = method_result.value
 
         if touchpoints is not None:
             self.touchpoints_metadata.checked = True
@@ -593,7 +595,7 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def test_ms05_11(self, test):
-        """Managers: Device Manager exists with correct Role"""
+        """Managers: Device Manager exists with correct role"""
         # A minimal device implementation MUST have a device manager in the Root Block.
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
 
@@ -611,9 +613,13 @@ class MS0501Test(GenericTest):
         # Check MS-05-02 Version
         property_id = NcDeviceManagerProperties.NCVERSION.value
 
-        version = self.ms05_utils.get_property_value(test, property_id,
+        method_result = self.ms05_utils.get_property(test, property_id,
                                                      oid=device_manager.oid,
                                                      role_path=device_manager.role_path)
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error getting version from Device Manager : {str(method_result.errorMessage)}")
+
+        version = method_result.value
 
         if self.ms05_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
             return test.FAIL(f"Unexpected version. Expected: {self.apis[MS05_API_KEY]["version"]}"
@@ -692,10 +698,14 @@ class MS0501Test(GenericTest):
         # Attempt to set labels
         property_id = NcObjectProperties.USER_LABEL.value
 
-        old_user_label = self.ms05_utils.get_property_value(test, property_id,
-                                                            oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                                            role_path=['root'])
+        method_result = self.ms05_utils.get_property(test, property_id,
+                                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                     role_path=['root'])
 
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error getting label property of Root Block: {str(method_result.errorMessage)}")
+
+        old_user_label = method_result.value
         # Set user label
         new_user_label = "NMOS Testing Tool"
 
@@ -704,9 +714,14 @@ class MS0501Test(GenericTest):
                                      role_path=['root'])
 
         # Check user label
-        label = self.ms05_utils.get_property_value(test, property_id,
-                                                   oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                                   role_path=['root'])
+        method_result = self.ms05_utils.get_property(test, property_id,
+                                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                     role_path=['root'])
+
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error getting label property of Root Block: {str(method_result.errorMessage)}")
+
+        label = method_result.value
         if label != new_user_label:
             if label == old_user_label:
                 return test.FAIL("Unable to set user label", link)
@@ -719,9 +734,13 @@ class MS0501Test(GenericTest):
                                      role_path=['root'])
 
         # Check user label
-        label = self.ms05_utils.get_property_value(test, property_id,
-                                                   oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                                   role_path=['root'])
+        method_result = self.ms05_utils.get_property(test, property_id,
+                                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                     role_path=['root'])
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error getting label property of Root Block: {str(method_result.errorMessage)}")
+
+        label = method_result.value
         if label != old_user_label:
             if label == new_user_label:
                 return test.FAIL("Unable to set user label", link)

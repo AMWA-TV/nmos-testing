@@ -293,7 +293,15 @@ class IS1201Test(MS0501Test):
 
         for oid in oids.keys():
             new_user_label = "NMOS Testing Tool " + str(oid)
-            old_user_label = self.is12_utils.get_property_value(test, NcObjectProperties.USER_LABEL.value, oid=oid)
+            method_result = self.is12_utils.get_property(test, NcObjectProperties.USER_LABEL.value, oid=oid)
+
+            if isinstance(method_result, NcMethodResultError):
+                error = True
+                error_message += f"Unable to get user label property from object (OID:{str(oid)}): " \
+                    f"{str(method_result.errorMessage)} "
+                continue
+
+            old_user_label = method_result.value
 
             context = "oid: " + str(oid) + ", "
 
