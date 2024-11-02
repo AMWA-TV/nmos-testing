@@ -325,11 +325,17 @@ class MS0502Test(ControllerTest):
                                               new_value + step / 2)
 
         if constrained_property.descriptor.isSequence:
-            self.ms05_utils.remove_sequence_item(test,
-                                                 constrained_property.descriptor.id.__dict__,
-                                                 index,
-                                                 oid=constrained_property.oid,
-                                                 role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.remove_sequence_item(test,
+                                                                 constrained_property.descriptor.id.__dict__,
+                                                                 index,
+                                                                 oid=constrained_property.oid,
+                                                                 role_path=constrained_property.role_path)
+            if isinstance(method_result, NcMethodResultError):
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{self.ms05_utils.create_role_path_string(constrained_property.role_path)}: " \
+                    f"Error removing sequence item: {str(constrained_property.descriptor.id.__dict__)}: " \
+                    f"{str(method_result.errorMessage)} "
 
     def _check_parameter_constraints_string(self, test, constrained_property):
         constraints = constrained_property.constraints
@@ -417,11 +423,17 @@ class MS0502Test(ControllerTest):
 
         # Remove added sequence item
         if constrained_property.descriptor.isSequence:
-            self.ms05_utils.remove_sequence_item(test,
-                                                 constrained_property.descriptor.id.__dict__,
-                                                 index,
-                                                 oid=constrained_property.oid,
-                                                 role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.remove_sequence_item(test,
+                                                                 constrained_property.descriptor.id.__dict__,
+                                                                 index,
+                                                                 oid=constrained_property.oid,
+                                                                 role_path=constrained_property.role_path)
+            if isinstance(method_result, NcMethodResultError):
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{self.ms05_utils.create_role_path_string(constrained_property.role_path)}: " \
+                    f"Error removing sequence item: {str(constrained_property.descriptor.id.__dict__)}: " \
+                    f"{str(method_result.errorMessage)} "
 
     def _check_sequence_datatype_type(self, test, property_under_test):
         self.constraint_validation_metadata.checked = True
@@ -913,16 +925,14 @@ class MS0502Test(ControllerTest):
 
     def check_remove_sequence_item(self, test, property_id, property_name, sequence_length,
                                    oid, role_path, context=""):
-        try:
-            # remove item
-            self.remove_sequence_item_metadata.checked = True
-            self.ms05_utils.remove_sequence_item(test, property_id.__dict__, index=sequence_length,
-                                                 oid=oid, role_path=role_path)
-            return True
-        except NMOSTestException as e:
+        # remove item
+        self.remove_sequence_item_metadata.checked = True
+        method_result = self.ms05_utils.remove_sequence_item(test, property_id.__dict__, index=sequence_length,
+                                                             oid=oid, role_path=role_path)
+        if isinstance(method_result, NcMethodResultError):
             self.remove_sequence_item_metadata.error = True
             self.remove_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: {str(e.args[0].detail)}, "
+                f"{context}{property_name}: Error removing sequence item: {str(method_result.errorMessage)}, "
         return False
 
     def check_sequence_methods(self, test, property_id, property_name, oid, role_path, context=""):

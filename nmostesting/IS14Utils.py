@@ -107,7 +107,7 @@ class IS14Utils(MS05Utils):
         return self._do_request(test, "PATCH", methods_endpoint,
                                 json={"arguments": {"id": property_id, "value": value}})
 
-    def remove_sequence_item(self, test, property_id, index, role_path, **kwargs):
+    def remove_sequence_item_override(self, test, property_id, index, role_path, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.REMOVE_SEQUENCE_ITEM.value)
         return self._do_request(test, "PATCH", methods_endpoint,

@@ -251,7 +251,7 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,
                                     {'id': property_id, 'value': value})
 
-    def remove_sequence_item(self, test, property_id, index, oid, **kwargs):
+    def remove_sequence_item_override(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
