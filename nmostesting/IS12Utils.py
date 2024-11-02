@@ -245,7 +245,7 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
                                     {'id': property_id, 'index': index, 'value': value})
 
-    def add_sequence_item(self, test, property_id, value, oid, **kwargs):
+    def add_sequence_item_override(self, test, property_id, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,

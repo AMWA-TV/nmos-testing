@@ -22,7 +22,7 @@ from ..Config import IS12_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..MS05Utils import NcDatatypeDescriptorEnum, NcDatatypeDescriptorPrimitive, NcDatatypeType, NcBlock, \
-    NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef, NcMethodResult, NcMethodResultError, \
+    NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef, NcMethodResult, NcMethodResultError, NcMethodResultXXX, \
     NcParameterConstraintsNumber, NcParameterConstraintsString, NcPropertyConstraintsNumber, \
     NcPropertyConstraintsString
 
@@ -277,12 +277,13 @@ class MS0502Test(ControllerTest):
                                                                 oid=constrained_property.oid,
                                                                 role_path=constrained_property.role_path)
             if not isinstance(method_result, NcMethodResultError):
-                index = method_result.value
-                self.ms05_utils.add_sequence_item(test,
-                                                  constrained_property.descriptor.id.__dict__,
-                                                  new_value,
-                                                  oid=constrained_property.oid,
-                                                  role_path=constrained_property.role_path)
+                index = method_result.value  # new item will be added to end of sequence (at 'index' position)
+                method_result = self.ms05_utils.add_sequence_item(test,
+                                                                  constrained_property.descriptor.id.__dict__,
+                                                                  new_value,
+                                                                  oid=constrained_property.oid,
+                                                                  role_path=constrained_property.role_path)
+            if not isinstance(method_result, NcMethodResultError):
                 method_result = self.ms05_utils.set_sequence_item(test,
                                                                   constrained_property.descriptor.id.__dict__,
                                                                   index, new_value,
@@ -348,12 +349,13 @@ class MS0502Test(ControllerTest):
                                                                 oid=constrained_property.oid,
                                                                 role_path=constrained_property.role_path)
             if not isinstance(method_result, NcMethodResultError):
-                index = method_result.value
-                self.ms05_utils.add_sequence_item(test,
-                                                  constrained_property.descriptor.id.__dict__,
-                                                  new_value,
-                                                  oid=constrained_property.oid,
-                                                  role_path=constrained_property.role_path)
+                index = method_result.value  # new item will be added to end of sequence (at 'index' position)
+                method_result = self.ms05_utils.add_sequence_item(test,
+                                                                  constrained_property.descriptor.id.__dict__,
+                                                                  new_value,
+                                                                  oid=constrained_property.oid,
+                                                                  role_path=constrained_property.role_path)
+            if not isinstance(method_result, NcMethodResultError):
                 method_result = self.ms05_utils.set_sequence_item(test,
                                                                   constrained_property.descriptor.id.__dict__,
                                                                   index,
@@ -836,32 +838,47 @@ class MS0502Test(ControllerTest):
 
     def check_add_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path, context=""):
         # Add a value to the end of the sequence
+        # Get the first item from this sequence (then we know it is of the correct type)
         method_result = self.ms05_utils.get_sequence_item(test, property_id.__dict__, index=0,
                                                           oid=oid, role_path=role_path)
 
+        if not isinstance(method_result, NcMethodResultError):
+            new_item_value = method_result.value
+            # The new item will be added to end of the sequence
+            method_result = self.ms05_utils.get_sequence_length(test, property_id.__dict__,
+                                                                oid=oid, role_path=role_path)
+        if not isinstance(method_result, NcMethodResultError):
+            new_item_index = method_result.value
+            method_result = self.ms05_utils.add_sequence_item(test, property_id.__dict__, new_item_value,
+                                                              oid=oid, role_path=role_path)
+        # Check return type of addSequenceItem - should be NcMethodResultId
+        if not isinstance(method_result, NcMethodResultError):
+            if not isinstance(method_result, NcMethodResultXXX):
+                self.add_sequence_item_metadata.error = True
+                self.add_sequence_item_metadata.error_msg += \
+                    f"{context}{property_name}: Unexpected return type from addSequenceItem. "
+                return False
+            # add_sequence_item should return index of added item
+            if method_result.value != new_item_index:
+                self.add_sequence_item_metadata.error = True
+                self.add_sequence_item_metadata.error_msg += \
+                    f"{context}{property_name}: Unexpected index of added item: " \
+                    f"Expected: {str(new_item_index)}, Actual: {str(method_result.value)}"
+                return False
+            # check the added item value
+            method_result = self.ms05_utils.get_sequence_item(test, property_id.__dict__, index=sequence_length,
+                                                              oid=oid, role_path=role_path)
         if isinstance(method_result, NcMethodResultError):
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: Error getting sequence item: {str(method_result.errorMessage)} "
-            return False
-        new_item = method_result.value
-        self.ms05_utils.add_sequence_item(test, property_id.__dict__, new_item, oid=oid, role_path=role_path)
-
-        # check the value
-        method_result = self.ms05_utils.get_sequence_item(test, property_id.__dict__, index=sequence_length,
-                                                          oid=oid, role_path=role_path)
-
-        if isinstance(method_result, NcMethodResultError):
-            self.add_sequence_item_metadata.error = True
-            self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: Error getting sequence item: {str(method_result.errorMessage)} "
+                f"{context}{property_name}: Sequence method error: {str(method_result.errorMessage)} "
             return False
 
-        value = method_result.value
-        if value != new_item:
+        if method_result.value != new_item_value:
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: Expected: {str(new_item)}, Actual: {str(value)}, "
+                f"{context}{property_name}: Error adding sequence item: " \
+                f"Expected: {str(new_item_value)}, Actual: {str(method_result.value)}, "
         self.add_sequence_item_metadata.checked = True
 
         return True
