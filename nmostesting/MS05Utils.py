@@ -60,7 +60,7 @@ class MS05Utils(NMOSUtils):
         """Get sequence length. Raises NMOSTestException on error"""
         pass
 
-    def set_sequence_item(self, test, property_id, index, value, **kwargs):
+    def set_sequence_item_override(self, test, property_id, index, value, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         pass
 
@@ -127,6 +127,13 @@ class MS05Utils(NMOSUtils):
     def get_sequence_length(self, test, property_id, **kwargs):
         """Get sequence length. Returns NcMethodResult. Raises NMOSTestException on error"""
         result = self.get_sequence_length_override(test, property_id, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        return NcMethodResult.factory(result)
+
+    def set_sequence_item(self, test, property_id, index, value, **kwargs):
+        """Add value to a sequence property. Raises NMOSTestException on error"""
+        result = self.set_sequence_item_override(test, property_id, index, value, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
