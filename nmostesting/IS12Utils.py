@@ -257,11 +257,11 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
                                     {'id': property_id, 'index': index})
 
-    def get_sequence_length(self, test, property_id, oid, **kwargs):
+    def get_sequence_length_override(self, test, property_id, oid, **kwargs):
         """Get sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
-                                    {'id': property_id})['value']
+                                    {'id': property_id})
 
     def get_member_descriptors(self, test, recurse, oid, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""

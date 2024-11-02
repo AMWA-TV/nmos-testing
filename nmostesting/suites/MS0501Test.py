@@ -219,19 +219,24 @@ class MS0501Test(GenericTest):
 
     def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_descriptor):
         context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
-        try:
-            self.get_sequence_length_metadata.checked = True
-            length = self.ms05_utils.get_sequence_length(test, property_descriptor.id.__dict__,
-                                                         oid=oid, role_path=role_path)
-            if length == len(sequence_values):
-                return True
+
+        self.get_sequence_length_metadata.checked = True
+        method_result = self.ms05_utils.get_sequence_length(test, property_descriptor.id.__dict__,
+                                                            oid=oid, role_path=role_path)
+
+        if isinstance(method_result, NcMethodResultError):
+            self.get_sequence_length_metadata.error_msg += \
+                f"{context}{property_descriptor.name}: {str(method_result.errorMessage)}, "
+            self.get_sequence_length_metadata.error = True
+            return False
+        length = method_result.value
+        if length != len(sequence_values):
             self.get_sequence_length_metadata.error_msg += \
                 f"{context}{property_descriptor.name}: GetSequenceLength error. Expected: " \
                 f"{str(len(sequence_values))}, Actual: {str(length)}, "
-        except NMOSTestException as e:
-            self.get_sequence_length_metadata.error_msg += \
-                f"{context}{property_descriptor.name}: {str(e.args[0].detail)}, "
-        self.get_sequence_length_metadata.error = True
+            self.get_sequence_length_metadata.error = True
+            return False
+        return True
 
     def check_sequence_methods(self, test, oid, role_path, sequence_values, property_descriptor):
         """Check that sequence manipulation methods work correctly. Raises NMOSTestException on error"""
@@ -1361,11 +1366,14 @@ class MS0501Test(GenericTest):
         # for the following scenarios...
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
-        length = self.ms05_utils.get_sequence_length(test,
-                                                     NcBlockProperties.MEMBERS.value,
-                                                     oid=self.ms05_utils.ROOT_BLOCK_OID,
-                                                     role_path=["root"])
-        out_of_bounds_index = length + 10
+        method_result = self.ms05_utils.get_sequence_length(test,
+                                                            NcBlockProperties.MEMBERS.value,
+                                                            oid=self.ms05_utils.ROOT_BLOCK_OID,
+                                                            role_path=["root"])
+        if isinstance(method_result, NcMethodResultError):
+            return test.FAIL(f"Error gettign sequence length: {str(method_result.errorMessage)} ")
+
+        out_of_bounds_index = method_result.value + 10
 
         method_result = self.ms05_utils.get_sequence_item(test,
                                                           NcBlockProperties.MEMBERS.value,

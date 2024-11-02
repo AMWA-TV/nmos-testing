@@ -229,13 +229,18 @@ class MS0502Test(ControllerTest):
                 self.constraint_validation_metadata.checked = True
 
         def _do_set_sequence():
-            index = self.ms05_utils.get_sequence_length(test,
-                                                        constrained_property.descriptor.id.__dict__,
-                                                        oid=constrained_property.oid,
-                                                        role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.get_sequence_length(test,
+                                                                constrained_property.descriptor.id.__dict__,
+                                                                oid=constrained_property.oid,
+                                                                role_path=constrained_property.role_path)
+
+            if isinstance(method_result, NcMethodResultError):
+                # We don't want this error to be confused with a constraints violation
+                raise NMOSTestException(test.FAIL(f"Error getting sequence length {str(method_result.errorMessage)}"))
+
             return self.ms05_utils.set_sequence_item(test,
                                                      constrained_property.descriptor.id.__dict__,
-                                                     index - 1,
+                                                     method_result.value - 1,
                                                      value,
                                                      oid=constrained_property.oid,
                                                      role_path=constrained_property.role_path)
@@ -267,10 +272,17 @@ class MS0502Test(ControllerTest):
 
         # Expect this to work OK
         if constrained_property.descriptor.isSequence:
-            index = self.ms05_utils.get_sequence_length(test,
-                                                        constrained_property.descriptor.id.__dict__,
-                                                        oid=constrained_property.oid,
-                                                        role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.get_sequence_length(test,
+                                                                constrained_property.descriptor.id.__dict__,
+                                                                oid=constrained_property.oid,
+                                                                role_path=constrained_property.role_path)
+            if isinstance(method_result, NcMethodResultError):
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{self.ms05_utils.create_role_path_string(constrained_property.role_path)}: " \
+                    f"Error getting sequence length: {str(constrained_property.descriptor.id.__dict__)}: " \
+                    f"{str(method_result.errorMessage)} "
+            index = method_result.value
             self.ms05_utils.add_sequence_item(test,
                                               constrained_property.descriptor.id.__dict__,
                                               new_value,
@@ -291,8 +303,9 @@ class MS0502Test(ControllerTest):
                 self.constraint_validation_metadata.error = True
                 self.constraint_validation_metadata.error_msg += \
                     f"{self.ms05_utils.create_role_path_string(constrained_property.role_path)}: " \
-                    f"Unable to set property {str(constrained_property.descriptor.id.__dict__)}: " \
+                    f"Error setting property: {str(constrained_property.descriptor.id.__dict__)}: " \
                     f"{str(method_result.errorMessage)} "
+                return
 
         # Attempt to set to an "illegal" value
         if constraints.minimum is not None:
@@ -328,10 +341,18 @@ class MS0502Test(ControllerTest):
 
         # Expect this to work OK
         if constrained_property.descriptor.isSequence:
-            index = self.ms05_utils.get_sequence_length(test,
-                                                        constrained_property.descriptor.id.__dict__,
-                                                        oid=constrained_property.oid,
-                                                        role_path=constrained_property.role_path)
+            method_result = self.ms05_utils.get_sequence_length(test,
+                                                                constrained_property.descriptor.id.__dict__,
+                                                                oid=constrained_property.oid,
+                                                                role_path=constrained_property.role_path)
+            if isinstance(method_result, NcMethodResultError):
+                self.constraint_validation_metadata.error = True
+                self.constraint_validation_metadata.error_msg += \
+                    f"{self.ms05_utils.create_role_path_string(constrained_property.role_path)}: " \
+                    f"Error getting sequence length: {str(constrained_property.descriptor.id.__dict__)}: " \
+                    f"{str(method_result.errorMessage)} "
+                return
+            index = method_result.value
             self.ms05_utils.add_sequence_item(test,
                                               constrained_property.descriptor.id.__dict__,
                                               new_value,
@@ -914,25 +935,42 @@ class MS0502Test(ControllerTest):
         if not self.check_add_sequence_item(test, property_id, property_name, sequence_length,
                                             oid, role_path, context=context):
             return
-        if sequence_length + 1 != self.ms05_utils.get_sequence_length(test, property_id.__dict__,
-                                                                      oid=oid, role_path=role_path):
-            self.add_sequence_item_metadata.error = True
-            self.add_sequence_item_metadata.error_msg += \
-                f"{property_name}: add_sequence_item resulted in unexpected sequence length."
-        self.check_set_sequence_item(test, property_id, property_name, sequence_length,
-                                     oid, role_path, context=context)
-        if sequence_length + 1 != self.ms05_utils.get_sequence_length(test, property_id.__dict__,
-                                                                      oid=oid, role_path=role_path):
-            self.set_sequence_item_metadata.error = True
-            self.set_sequence_item_metadata.error_msg += \
-                f"{property_name}: set_sequence_item resulted in unexpected sequence length."
-        self.check_remove_sequence_item(test, property_id, property_name, sequence_length,
-                                        oid, role_path, context)
-        if sequence_length != self.ms05_utils.get_sequence_length(test, property_id.__dict__,
-                                                                  oid=oid, role_path=role_path):
+
+        method_result = self.ms05_utils.get_sequence_length(test, property_id.__dict__,
+                                                            oid=oid, role_path=role_path)
+        if not isinstance(method_result, NcMethodResultError):
+            if sequence_length + 1 != method_result.value:
+                self.add_sequence_item_metadata.error = True
+                self.add_sequence_item_metadata.error_msg += \
+                    f"{property_name}: add_sequence_item resulted in unexpected sequence length. " \
+                    f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}. "
+
+            self.check_set_sequence_item(test, property_id, property_name, sequence_length,
+                                         oid, role_path, context=context)
+
+            method_result = self.ms05_utils.get_sequence_length(test, property_id.__dict__,
+                                                                oid=oid, role_path=role_path)
+        if not isinstance(method_result, NcMethodResultError):
+            if sequence_length + 1 != method_result.value:
+                self.set_sequence_item_metadata.error = True
+                self.set_sequence_item_metadata.error_msg += \
+                    f"{property_name}: set_sequence_item resulted in unexpected sequence length." \
+                    f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}. "
+            self.check_remove_sequence_item(test, property_id, property_name, sequence_length,
+                                            oid, role_path, context)
+
+            method_result = self.ms05_utils.get_sequence_length(test, property_id.__dict__,
+                                                                oid=oid, role_path=role_path)
+        if not isinstance(method_result, NcMethodResultError):
+            if sequence_length != method_result.value:
+                self.remove_sequence_item_metadata.error = True
+                self.remove_sequence_item_metadata.error_msg += \
+                    f"{property_name}: remove_sequence_item resulted in unexpected sequence length." \
+                    f"Expected: {str(sequence_length)}, Actual: {str(method_result.value)}. "
+        else:
             self.remove_sequence_item_metadata.error = True
             self.remove_sequence_item_metadata.error_msg += \
-                f"{property_name}: remove_sequence_item resulted in unexpected sequence length."
+                f"{property_name}: Error getting sequence length. {str(method_result.errorMessage)}"
 
     def validate_sequences(self, test):
         """Test all writable sequences"""
