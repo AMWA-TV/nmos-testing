@@ -863,26 +863,23 @@ class MS0501Test(GenericTest):
             # Get ground truth data from local device model object tree
             expected_member = block.find_members_by_path(path)
 
-            queried_members = self.ms05_utils.find_members_by_path(test, path,
-                                                                   oid=block.oid,
-                                                                   role_path=block.role_path)
+            method_result = self.ms05_utils.find_members_by_path(test, path,
+                                                                 oid=block.oid,
+                                                                 role_path=block.role_path)
 
-            if not isinstance(queried_members, list):
+            if isinstance(method_result, NcMethodResultError):
+                raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error in findMembersByPath: "
+                                                  f"{str(method_result.errorMessage)}"))
+
+            if not isinstance(method_result.value, list):
                 raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
                                                   f": Did not return an array of results for query: {str(path)}"))
 
-            for queried_member in queried_members:
-                self.ms05_utils.reference_datatype_schema_validate(
-                    test,
-                    queried_member,
-                    NcBlockMemberDescriptor.__name__,
-                    self.ms05_utils.create_role_path(block.role_path, queried_member.get("role")))
-
-            if len(queried_members) != 1:
+            if len(method_result.value) != 1:
                 raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
                                                   f": Incorrect member found by role path: {str(path)}"))
 
-            queried_member_oids = [m['oid'] for m in queried_members]
+            queried_member_oids = [m.oid for m in method_result.value]
 
             if expected_member.oid not in queried_member_oids:
                 raise NMOSTestException(test.FAIL(f"{block_role_path_string}"

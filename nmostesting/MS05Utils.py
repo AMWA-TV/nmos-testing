@@ -75,7 +75,7 @@ class MS05Utils(NMOSUtils):
     def get_member_descriptors_override(self, test, recurse, **kwargs):
         pass
 
-    def find_members_by_path(self, test, path, **kwargs):
+    def find_members_by_path_override(self, test, path, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""
         pass
 
@@ -152,11 +152,10 @@ class MS05Utils(NMOSUtils):
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
 
-    def get_member_descriptors(self, test, recurse, **kwargs):
-        result = self.get_member_descriptors_override(test, recurse, **kwargs)
-        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
-                                                role_path=kwargs.get("role_path"))
+    def create_NcMethodResultBlockMemberDescriptors(self, test, result, role_path):
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__, role_path=role_path)
         method_result = NcMethodResult.factory(result)
+
         if not isinstance(method_result, NcMethodResultError) and isinstance(method_result.value, list):
             # Validate block members and create NcBlockMemberDescriptor objects
             block_member_descriptors = []
@@ -165,10 +164,19 @@ class MS05Utils(NMOSUtils):
                     test,
                     member,
                     NcBlockMemberDescriptor.__name__,
-                    self.create_role_path(kwargs.get("role_path"), member.get("role")))
+                    self.create_role_path(role_path, member.get("role")))
                 block_member_descriptors.append(NcBlockMemberDescriptor(member))
             method_result.value = block_member_descriptors
         return method_result
+
+    def get_member_descriptors(self, test, recurse, **kwargs):
+        result = self.get_member_descriptors_override(test, recurse, **kwargs)
+        return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
+
+    def find_members_by_path(self, test, path, **kwargs):
+        """Query members based on role path. Raises NMOSTestException on error"""
+        result = self.find_members_by_path_override(test, path, **kwargs)
+        return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
 
     def query_device_model(self, test):
         """ Query Device Model from the Node under test.
