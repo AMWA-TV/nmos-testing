@@ -113,10 +113,10 @@ class IS14Utils(MS05Utils):
         return self._do_request(test, "PATCH", methods_endpoint,
                                 json={"arguments": {"id": property_id,  "index": index}})
 
-    def get_member_descriptors(self, test, recurse, role_path, **kwargs):
+    def get_member_descriptors_override(self, test, recurse, role_path, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value)
-        return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": {"recurse": recurse}})['value']
+        return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": {"recurse": recurse}})
 
     def find_members_by_path(self, test, path, role_path, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""

@@ -814,28 +814,25 @@ class MS0501Test(GenericTest):
         for search_condition in search_conditions:
             expected_members = block.get_member_descriptors(search_condition["recurse"])
 
-            queried_members = self.ms05_utils.get_member_descriptors(test, search_condition["recurse"],
-                                                                     oid=block.oid, role_path=block.role_path)
+            method_result = self.ms05_utils.get_member_descriptors(test, search_condition["recurse"],
+                                                                   oid=block.oid, role_path=block.role_path)
 
-            if not isinstance(queried_members, list):
+            if isinstance(method_result, NcMethodResultError):
+                raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error getting member descriptors: "
+                                                  f"{str(method_result.errorMessage)}"))
+            if not isinstance(method_result.value, list):
                 raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Did not return an array of results."))
 
-            if len(queried_members) != len(expected_members):
+            if len(method_result.value) != len(expected_members):
                 raise NMOSTestException(test.FAIL(f"{block_role_path_string}: "
                                                   "Unexpected number of block members found. "
                                                   f"Expected: {str(len(expected_members))}, "
-                                                  f"Actual: {str(len(queried_members))}"))
+                                                  f"Actual: {str(len(method_result.value))}"))
 
             expected_members_oids = [m.oid for m in expected_members]
 
-            for queried_member in queried_members:
-                self.ms05_utils.reference_datatype_schema_validate(
-                    test,
-                    queried_member,
-                    NcBlockMemberDescriptor.__name__,
-                    self.ms05_utils.create_role_path(block.role_path, queried_member.get("role")))
-
-                if queried_member["oid"] not in expected_members_oids:
+            for queried_member in method_result.value:
+                if queried_member.oid not in expected_members_oids:
                     raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
                                                       ": Unsuccessful attempt to get member descriptors."))
 

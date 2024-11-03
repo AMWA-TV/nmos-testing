@@ -263,11 +263,11 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
                                     {'id': property_id})
 
-    def get_member_descriptors(self, test, recurse, oid, **kwargs):
+    def get_member_descriptors_override(self, test, recurse, oid, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value,
-                                    {'recurse': recurse})["value"]
+                                    {'recurse': recurse})
 
     def find_members_by_path(self, test, path, oid, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""

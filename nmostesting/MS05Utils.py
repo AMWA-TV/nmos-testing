@@ -72,7 +72,7 @@ class MS05Utils(NMOSUtils):
         """Get value from sequence property. Raises NMOSTestException on error"""
         pass
 
-    def get_member_descriptors(self, test, recurse, **kwargs):
+    def get_member_descriptors_override(self, test, recurse, **kwargs):
         pass
 
     def find_members_by_path(self, test, path, **kwargs):
@@ -151,6 +151,24 @@ class MS05Utils(NMOSUtils):
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
+
+    def get_member_descriptors(self, test, recurse, **kwargs):
+        result = self.get_member_descriptors_override(test, recurse, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        method_result = NcMethodResult.factory(result)
+        if not isinstance(method_result, NcMethodResultError) and isinstance(method_result.value, list):
+            # Validate block members and create NcBlockMemberDescriptor objects
+            block_member_descriptors = []
+            for member in method_result.value:
+                self.reference_datatype_schema_validate(
+                    test,
+                    member,
+                    NcBlockMemberDescriptor.__name__,
+                    self.create_role_path(kwargs.get("role_path"), member.get("role")))
+                block_member_descriptors.append(NcBlockMemberDescriptor(member))
+            method_result.value = block_member_descriptors
+        return method_result
 
     def query_device_model(self, test):
         """ Query Device Model from the Node under test.
