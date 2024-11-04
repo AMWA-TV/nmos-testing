@@ -133,13 +133,13 @@ class IS14Utils(MS05Utils):
                                                     "matchWholeString": match_whole_string,
                                                     "recurse": recurse}})
 
-    def find_members_by_class_id(self, test, class_id, include_derived, recurse, role_path, **kwargs):
+    def find_members_by_class_id_override(self, test, class_id, include_derived, recurse, role_path, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value)
         return self._do_request(test, "PATCH", methods_endpoint,
                                 json={"arguments": {"classId": class_id,
                                                     "includeDerived": include_derived,
-                                                    "recurse": recurse}})['value']
+                                                    "recurse": recurse}})
 
     def get_control_class(self, test, class_id, include_inherited, role_path, **kwargs):
         """Query Class Manager for control class. Raises NMOSTestException on error"""

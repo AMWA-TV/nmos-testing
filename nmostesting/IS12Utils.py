@@ -284,13 +284,13 @@ class IS12Utils(MS05Utils):
                                      'matchWholeString': match_whole_string,
                                      'recurse': recurse})
 
-    def find_members_by_class_id(self, test, class_id, include_derived, recurse, oid, **kwargs):
+    def find_members_by_class_id_override(self, test, class_id, include_derived, recurse, oid, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value,
                                     {'classId': class_id,
                                      'includeDerived': include_derived,
-                                     'recurse': recurse})["value"]
+                                     'recurse': recurse})
 
     def get_control_class(self, test, class_id, include_inherited, oid, **kwargs):
         """Query Class Manager for control class. Raises NMOSTestException on error"""

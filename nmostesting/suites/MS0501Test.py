@@ -995,31 +995,38 @@ class MS0501Test(GenericTest):
         for class_id in class_ids:
             for condition in search_conditions:
                 # Recursively check each block in Device Model
-                expected_results = block.find_members_by_class_id(class_id,
+                expected_members = block.find_members_by_class_id(class_id,
                                                                   condition["include_derived"],
                                                                   condition["recurse"])
 
-                actual_results = self.ms05_utils.find_members_by_class_id(test,
-                                                                          class_id,
-                                                                          condition["include_derived"],
-                                                                          condition["recurse"],
-                                                                          oid=block.oid,
-                                                                          role_path=block.role_path)
+                method_result = self.ms05_utils.find_members_by_class_id(test,
+                                                                         class_id,
+                                                                         condition["include_derived"],
+                                                                         condition["recurse"],
+                                                                         oid=block.oid,
+                                                                         role_path=block.role_path)
 
-                expected_results_oids = [m.oid for m in expected_results]
+                if isinstance(method_result, NcMethodResultError):
+                    raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error calling findMembersByClassId: "
+                                                      f"{str(method_result.errorMessage)}"))
 
-                if actual_results is None or len(actual_results) != len(expected_results):
+                expected_members_oids = [m.oid for m in expected_members]
+
+                if method_result.value is None or not isinstance(method_result.value, list) \
+                        or len(method_result.value) != len(expected_members):
                     raise NMOSTestException(test.FAIL(f"{block_role_path_string}: "
-                                                      f"Expected {str(len(expected_results))}, "
-                                                      f"but got {str(len(actual_results) if actual_results else 0)} "
+                                                      f"Expected {str(len(expected_members))}, "
+                                                      f"but got {str(len(method_result.value)
+                                                                     if method_result.value and
+                                                                     isinstance(method_result.value, list) else 0)} "
                                                       f"when searching with class id={str(class_id)}, "
                                                       f"include derived={str(condition["include_derived"])}, "
                                                       f"recurse={str(condition["recurse"])}"))
 
-                for actual_result in actual_results:
-                    if actual_result["oid"] not in expected_results_oids:
+                for member in method_result.value:
+                    if member.oid not in expected_members_oids:
                         raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Unexpected search result. "
-                                                          f"{str(actual_result)} when searching with "
+                                                          f"{str(member)} when searching with "
                                                           f"class id={str(class_id)}, "
                                                           f"include derived={str(condition["include_derived"])}, "
                                                           f"recurse={str(condition["recurse"])}"))
