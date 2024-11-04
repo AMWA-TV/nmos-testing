@@ -15,11 +15,10 @@
 from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, \
-    NcDatatypeDescriptor, NcDatatypeDescriptorStruct, NcDeviceManagerProperties, NcMethodResultError, NcMethodStatus, \
-    NcObjectProperties, NcParameterConstraintsNumber, NcParameterConstraintsString, \
-    NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcTouchpoint, NcTouchpointNmos, \
-    NcTouchpointNmosChannelMapping, StandardClassIds
+from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescriptorStruct, \
+    NcDeviceManagerProperties, NcMethodResultError, NcMethodStatus, NcObjectProperties, NcParameterConstraintsNumber, \
+    NcParameterConstraintsString, NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcTouchpoint, \
+    NcTouchpointNmos, NcTouchpointNmosChannelMapping, StandardClassIds
 from ..TestResult import Test
 
 # Note: this test suite is a base class for the IS1201Test and IS1401Test test suites
@@ -671,21 +670,20 @@ class MS0501Test(GenericTest):
 
         for _, datatype_descriptor in class_manager.datatype_descriptors.items():
             for include_inherited in [False, True]:
-                actual_descriptor = self.ms05_utils.get_datatype(test,
-                                                                 datatype_descriptor.name,
-                                                                 include_inherited,
-                                                                 oid=class_manager.oid,
-                                                                 role_path=class_manager.role_path)
+                method_result = self.ms05_utils.get_datatype(test,
+                                                             datatype_descriptor.name,
+                                                             include_inherited,
+                                                             oid=class_manager.oid,
+                                                             role_path=class_manager.role_path)
+                if isinstance(method_result, NcMethodResultError):
+                    return test.FAIL(f"Error calling getDatatype : {str(method_result.errorMessage)}")
+
                 expected_descriptor = class_manager.get_datatype(datatype_descriptor.name,
                                                                  include_inherited)
-                self.ms05_utils.reference_datatype_schema_validate(
-                    test,
-                    actual_descriptor,
-                    expected_descriptor.__class__.__name__)
                 self.ms05_utils.validate_descriptor(
                     test,
                     expected_descriptor,
-                    NcDatatypeDescriptor.factory(actual_descriptor),
+                    method_result.value,
                     f"Datatype: {datatype_descriptor.name}: ")
 
         return test.PASS()

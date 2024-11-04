@@ -91,7 +91,7 @@ class MS05Utils(NMOSUtils):
         """Query Class Manager for control class. Raises NMOSTestException on error"""
         pass
 
-    def get_datatype(self, test, name, include_inherited, **kwargs):
+    def get_datatype_override(self, test, name, include_inherited, **kwargs):
         """Query Class Manager for datatype. Raises NMOSTestException on error"""
         pass
 
@@ -196,10 +196,23 @@ class MS05Utils(NMOSUtils):
         method_result = NcMethodResult.factory(result)
 
         if not isinstance(method_result, NcMethodResultError):
-            # Validate block members and create NcBlockMemberDescriptor objects
             self.reference_datatype_schema_validate(test, method_result.value, NcClassDescriptor.__name__,
                                                     role_path=kwargs.get("role_path"))
             method_result.value = NcClassDescriptor(method_result.value)
+
+        return method_result
+
+    def get_datatype(self, test, name, include_inherited, **kwargs):
+        """Query Class Manager for datatype. Raises NMOSTestException on error"""
+        result = self.get_datatype_override(test, name, include_inherited, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        method_result = NcMethodResult.factory(result)
+
+        if not isinstance(method_result, NcMethodResultError):
+            self.reference_datatype_schema_validate(test, method_result.value, NcDatatypeDescriptor.__name__,
+                                                    role_path=kwargs.get("role_path"))
+            method_result.value = NcDatatypeDescriptor.factory(method_result.value)
 
         return method_result
 

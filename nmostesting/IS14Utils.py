@@ -148,11 +148,11 @@ class IS14Utils(MS05Utils):
                                 json={"arguments": {"classId": class_id,
                                                     "includeInherited": include_inherited}})
 
-    def get_datatype(self, test, name, include_inherited, role_path, **kwargs):
+    def get_datatype_override(self, test, name, include_inherited, role_path, **kwargs):
         """Query Class Manager for datatype. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcClassManagerMethods.GET_DATATYPE.value)
         return self._do_request(test, "PATCH", methods_endpoint,
                                 json={"arguments": {"name": name,
-                                                    "includeInherited": include_inherited}})['value']
+                                                    "includeInherited": include_inherited}})
 
     # end of overridden functions

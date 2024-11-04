@@ -299,12 +299,12 @@ class IS12Utils(MS05Utils):
                                     {'classId': class_id,
                                      'includeInherited': include_inherited})
 
-    def get_datatype(self, test, name, include_inherited, oid, **kwargs):
+    def get_datatype_override(self, test, name, include_inherited, oid, **kwargs):
         """Query Class Manager for datatype. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcClassManagerMethods.GET_DATATYPE.value,
                                     {'name': name,
-                                     'includeInherited': include_inherited})["value"]
+                                     'includeInherited': include_inherited})
 
     def create_subscription_JSON(self, subscriptions):
         """for sending over websocket"""
