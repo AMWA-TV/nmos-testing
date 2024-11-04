@@ -730,10 +730,6 @@ class NcPropertyChangeType(IntEnum):
         return cls.UNKNOWN
 
 
-class NcObjectEvents(Enum):
-    PROPERTY_CHANGED = {"level": 1, "index": 1}
-
-
 class StandardClassIds(Enum):
     NCOBJECT = [1]
     NCBLOCK = [1, 1]
@@ -797,6 +793,16 @@ class NcPropertyId(NcElementId):
         NcElementId.__init__(self, id_json)
 
 
+class NcMethodId(NcElementId):
+    def __init__(self, id_json):
+        NcElementId.__init__(self, id_json)
+
+
+class NcEventId(NcElementId):
+    def __init__(self, id_json):
+        NcElementId.__init__(self, id_json)
+
+
 class NcObjectProperties(Enum):
     CLASS_ID = NcPropertyId({"level": 1, "index": 1})
     OID = NcPropertyId({"level": 1, "index": 2})
@@ -827,11 +833,6 @@ class NcDeviceManagerProperties(Enum):
     NCVERSION = NcPropertyId({"level": 3, "index": 1})
 
 
-class NcMethodId(NcElementId):
-    def __init__(self, id_json):
-        NcElementId.__init__(self, id_json)
-
-
 class NcObjectMethods(Enum):
     GENERIC_GET = NcMethodId({"level": 1, "index": 1})
     GENERIC_SET = NcMethodId({"level": 1, "index": 2})
@@ -852,6 +853,10 @@ class NcBlockMethods(Enum):
 class NcClassManagerMethods(Enum):
     GET_CONTROL_CLASS = NcMethodId({"level": 3, "index": 1})
     GET_DATATYPE = NcMethodId({"level": 3, "index": 2})
+
+
+class NcObjectEvents(Enum):
+    PROPERTY_CHANGED = NcEventId({"level": 1, "index": 1})
 
 
 # Base descriptor

@@ -23,7 +23,7 @@ from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 from .Config import WS_MESSAGE_TIMEOUT
 from .GenericTest import NMOSInitException, NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
-from .MS05Utils import NcObjectMethods, NcBlockMethods, NcClassManagerMethods
+from .MS05Utils import NcObjectMethods, NcBlockMethods, NcClassManagerMethods, NcEventId, NcPropertyId
 
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
@@ -37,6 +37,21 @@ class MessageTypes(IntEnum):
     Subscription = 3
     SubscriptionResponse = 4
     Error = 5
+
+
+class IS12EventData():
+    def __init__(self, event_data_json):
+        self.propertyId = NcPropertyId(event_data_json["propertyId"])
+        self.changeType = event_data_json["changeType"]
+        self.value = event_data_json["value"]
+        self.sequenceItemIndex = event_data_json["sequenceItemIndex"]
+
+
+class IS12Notification():
+    def __init__(self, notification_json):
+        self.oid = notification_json["oid"]
+        self.eventId = NcEventId(notification_json["eventId"])
+        self.eventData = IS12EventData(notification_json["eventData"])
 
 
 class IS12Utils(MS05Utils):
@@ -163,7 +178,7 @@ class IS12Utils(MS05Utils):
                 if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
                     results.append(parsed_message["subscriptions"])
                 if parsed_message["messageType"] == MessageTypes.Notification:
-                    self.notifications += parsed_message["notifications"]
+                    self.notifications += [IS12Notification(n) for n in parsed_message["notifications"]]
                 if parsed_message["messageType"] == MessageTypes.Error:
                     raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
                                                       "/docs/Protocol_messaging.html#error-messages"

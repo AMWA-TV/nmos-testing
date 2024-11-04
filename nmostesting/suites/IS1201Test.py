@@ -317,29 +317,29 @@ class IS1201Test(MS0501Test):
                 self.is12_utils.stop_logging_notifications()
 
                 for notification in self.is12_utils.get_notifications():
-                    if notification['oid'] == oid:
+                    if notification.oid == oid:
 
-                        if notification['eventId'] != NcObjectEvents.PROPERTY_CHANGED.value:
+                        if notification.eventId != NcObjectEvents.PROPERTY_CHANGED.value:
                             error = True
-                            error_message += context + "Unexpected event type: " + str(notification['eventId']) + ", "
+                            error_message += f"{context}Unexpected event type: {str(notification.eventId)}, "
 
-                        if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value.__dict__:
+                        if notification.eventData.propertyId != NcObjectProperties.USER_LABEL.value:
                             continue
 
-                        if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
+                        if notification.eventData.changeType != NcPropertyChangeType.ValueChanged.value:
                             error = True
-                            error_message += context + "Unexpected change type: " \
-                                + str(NcPropertyChangeType(notification["eventData"]["changeType"]).name) + ", "
+                            error_message += f"{context}Unexpected change type: " \
+                                f"{str(NcPropertyChangeType(notification.eventData.changeType).name)}, "
 
-                        if notification["eventData"]["value"] != label:
+                        if notification.eventData.value != label:
                             error = True
-                            error_message += context + "Unexpected value: " \
-                                + str(notification["eventData"]["value"]) + ", "
+                            error_message += f"{context}Unexpected value: " \
+                                f"{str(notification.eventData.value)}, "
 
-                        if notification["eventData"]["sequenceItemIndex"] is not None:
+                        if notification.eventData.sequenceItemIndex is not None:
                             error = True
-                            error_message += context + "Unexpected sequence item index: " \
-                                + str(notification["eventData"]["sequenceItemIndex"]) + ", "
+                            error_message += f"{context}Unexpected sequence item index: " \
+                                f"{str(notification["eventData"]["sequenceItemIndex"])}, "
 
                         oids[oid] += 1
 
