@@ -718,18 +718,6 @@ class NcDatatypeType(IntEnum):
     Enum = 3  # Enum datatype
 
 
-class NcPropertyChangeType(IntEnum):
-    ValueChanged = 0  # Current value changed
-    SequenceItemAdded = 1  # Sequence item added
-    SequenceItemChanged = 2  # Sequence item changed
-    SequenceItemRemoved = 3  # Sequence item removed
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
 class StandardClassIds(Enum):
     NCOBJECT = [1]
     NCBLOCK = [1, 1]
@@ -1059,6 +1047,26 @@ class NcPropertyConstraintsString(NcPropertyConstraints):
         NcPropertyConstraints.__init__(self, constraints_json)
         self.maxCharacters = constraints_json["maxCharacters"]  # Maximum characters allowed
         self.pattern = constraints_json["pattern"]  # Regex pattern
+
+
+class NcPropertyChangeType(IntEnum):
+    ValueChanged = 0  # Current value changed
+    SequenceItemAdded = 1  # Sequence item added
+    SequenceItemChanged = 2  # Sequence item changed
+    SequenceItemRemoved = 3  # Sequence item removed
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
+
+
+class NcPropertyChangedEventData():
+    def __init__(self, event_data_json):
+        self.propertyId = NcPropertyId(event_data_json["propertyId"])  # The id of the property that changed
+        self.changeType = NcPropertyChangeType(event_data_json["changeType"])
+        self.value = event_data_json["value"]  # Property-type specific value
+        self.sequenceItemIndex = event_data_json["sequenceItemIndex"]  # Index of item if property is sequence
 
 
 class NcObject():

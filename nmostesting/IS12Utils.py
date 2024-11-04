@@ -23,7 +23,7 @@ from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 from .Config import WS_MESSAGE_TIMEOUT
 from .GenericTest import NMOSInitException, NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
-from .MS05Utils import NcObjectMethods, NcBlockMethods, NcClassManagerMethods, NcEventId, NcPropertyId
+from .MS05Utils import NcObjectMethods, NcBlockMethods, NcClassManagerMethods, NcEventId, NcPropertyChangedEventData
 
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
@@ -39,19 +39,11 @@ class MessageTypes(IntEnum):
     Error = 5
 
 
-class IS12EventData():
-    def __init__(self, event_data_json):
-        self.propertyId = NcPropertyId(event_data_json["propertyId"])
-        self.changeType = event_data_json["changeType"]
-        self.value = event_data_json["value"]
-        self.sequenceItemIndex = event_data_json["sequenceItemIndex"]
-
-
 class IS12Notification():
     def __init__(self, notification_json):
         self.oid = notification_json["oid"]
         self.eventId = NcEventId(notification_json["eventId"])
-        self.eventData = IS12EventData(notification_json["eventData"])
+        self.eventData = NcPropertyChangedEventData(notification_json["eventData"])
 
 
 class IS12Utils(MS05Utils):
