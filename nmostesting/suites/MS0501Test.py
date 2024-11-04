@@ -201,7 +201,7 @@ class MS0501Test(GenericTest):
         self.get_sequence_item_metadata.checked = True
         sequence_index = 0
         for property_value in sequence_values:
-            method_result = self.ms05_utils.get_sequence_item(test, property_descriptor.id.__dict__,
+            method_result = self.ms05_utils.get_sequence_item(test, property_descriptor.id,
                                                               sequence_index, oid=oid, role_path=role_path)
             if isinstance(method_result, NcMethodResultError):
                 self.get_sequence_item_metadata.error = True
@@ -220,7 +220,7 @@ class MS0501Test(GenericTest):
         context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
 
         self.get_sequence_length_metadata.checked = True
-        method_result = self.ms05_utils.get_sequence_length(test, property_descriptor.id.__dict__,
+        method_result = self.ms05_utils.get_sequence_length(test, property_descriptor.id,
                                                             oid=oid, role_path=role_path)
 
         if isinstance(method_result, NcMethodResultError):
@@ -253,7 +253,7 @@ class MS0501Test(GenericTest):
         context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
         """Check properties of an object against reference NcClassDescriptor"""
         for property_descriptor in reference_class_descriptor.properties:
-            method_result = self.ms05_utils.get_property(test, property_descriptor.id.__dict__,
+            method_result = self.ms05_utils.get_property(test, property_descriptor.id,
                                                          oid=oid, role_path=role_path)
             if isinstance(method_result, NcMethodResultError):
                 self.device_model_metadata.error = True

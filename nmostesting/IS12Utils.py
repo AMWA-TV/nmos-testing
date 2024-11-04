@@ -204,7 +204,7 @@ class IS12Utils(MS05Utils):
                 {
                     'handle': self.command_handle,
                     'oid': oid,
-                    'methodId': method_id,
+                    'methodId': method_id.__dict__,
                     'arguments': arguments
                 }
             ],
@@ -219,13 +219,13 @@ class IS12Utils(MS05Utils):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_GET.value,
-                                    {'id': property_id})
+                                    {'id': property_id.__dict__})
 
     def set_property_override(self, test, property_id, argument, oid, **kwargs):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_SET.value,
-                                    {'id': property_id, 'value': argument})
+                                    {'id': property_id.__dict__, 'value': argument})
 
     def invoke_method_override(self, test, method_id, argument, oid, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
@@ -237,31 +237,31 @@ class IS12Utils(MS05Utils):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_ITEM.value,
-                                    {'id': property_id, 'index': index})
+                                    {'id': property_id.__dict__, 'index': index})
 
     def set_sequence_item_override(self, test, property_id, index, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
-                                    {'id': property_id, 'index': index, 'value': value})
+                                    {'id': property_id.__dict__, 'index': index, 'value': value})
 
     def add_sequence_item_override(self, test, property_id, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,
-                                    {'id': property_id, 'value': value})
+                                    {'id': property_id.__dict__, 'value': value})
 
     def remove_sequence_item_override(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
-                                    {'id': property_id, 'index': index})
+                                    {'id': property_id.__dict__, 'index': index})
 
     def get_sequence_length_override(self, test, property_id, oid, **kwargs):
         """Get sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
-                                    {'id': property_id})
+                                    {'id': property_id.__dict__})
 
     def get_member_descriptors_override(self, test, recurse, oid, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""

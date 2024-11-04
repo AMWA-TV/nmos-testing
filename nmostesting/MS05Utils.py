@@ -730,60 +730,8 @@ class NcPropertyChangeType(IntEnum):
         return cls.UNKNOWN
 
 
-class NcObjectProperties(Enum):
-    CLASS_ID = {"level": 1, "index": 1}
-    OID = {"level": 1, "index": 2}
-    CONSTANT_OID = {"level": 1, "index": 3}
-    OWNER = {"level": 1, "index": 4}
-    ROLE = {"level": 1, "index": 5}
-    USER_LABEL = {"level": 1, "index": 6}
-    TOUCHPOINTS = {"level": 1, "index": 7}
-    RUNTIME_PROPERTY_CONSTRAINTS = {"level": 1, "index": 8}
-    UNKNOWN = {"level": 9999, "index": 9999}
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
-class NcObjectMethods(Enum):
-    GENERIC_GET = {"level": 1, "index": 1}
-    GENERIC_SET = {"level": 1, "index": 2}
-    GET_SEQUENCE_ITEM = {"level": 1, "index": 3}
-    SET_SEQUENCE_ITEM = {"level": 1, "index": 4}
-    ADD_SEQUENCE_ITEM = {"level": 1, "index": 5}
-    REMOVE_SEQUENCE_ITEM = {"level": 1, "index": 6}
-    GET_SEQUENCE_LENGTH = {"level": 1, "index": 7}
-
-
 class NcObjectEvents(Enum):
     PROPERTY_CHANGED = {"level": 1, "index": 1}
-
-
-class NcBlockProperties(Enum):
-    ENABLED = {"level": 2, "index": 1}
-    MEMBERS = {"level": 2, "index": 2}
-
-
-class NcBlockMethods(Enum):
-    GET_MEMBERS_DESCRIPTOR = {"level": 2, "index": 1}
-    FIND_MEMBERS_BY_PATH = {"level": 2, "index": 2}
-    FIND_MEMBERS_BY_ROLE = {"level": 2, "index": 3}
-    FIND_MEMBERS_BY_CLASS_ID = {"level": 2, "index": 4}
-
-
-class NcClassManagerProperties(Enum):
-    CONTROL_CLASSES = {"level": 3, "index": 1}
-    DATATYPES = {"level": 3, "index": 2}
-
-
-class NcClassManagerMethods(Enum):
-    GET_CONTROL_CLASS = {"level": 3, "index": 1}
-    GET_DATATYPE = {"level": 3, "index": 2}
-
-
-class NcDeviceManagerProperties(Enum):
-    NCVERSION = {"level": 3, "index": 1}
 
 
 class StandardClassIds(Enum):
@@ -840,15 +788,70 @@ class NcElementId():
 
         return self.level == other.level and self.index == other.index
 
+    def __str__(self):
+        return f"[level={self.level}, index={self.index}]"
+
 
 class NcPropertyId(NcElementId):
     def __init__(self, id_json):
         NcElementId.__init__(self, id_json)
 
 
+class NcObjectProperties(Enum):
+    CLASS_ID = NcPropertyId({"level": 1, "index": 1})
+    OID = NcPropertyId({"level": 1, "index": 2})
+    CONSTANT_OID = NcPropertyId({"level": 1, "index": 3})
+    OWNER = NcPropertyId({"level": 1, "index": 4})
+    ROLE = NcPropertyId({"level": 1, "index": 5})
+    USER_LABEL = NcPropertyId({"level": 1, "index": 6})
+    TOUCHPOINTS = NcPropertyId({"level": 1, "index": 7})
+    RUNTIME_PROPERTY_CONSTRAINTS = NcPropertyId({"level": 1, "index": 8})
+    UNKNOWN = NcPropertyId({"level": 9999, "index": 9999})
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
+
+
+class NcBlockProperties(Enum):
+    ENABLED = NcPropertyId({"level": 2, "index": 1})
+    MEMBERS = NcPropertyId({"level": 2, "index": 2})
+
+
+class NcClassManagerProperties(Enum):
+    CONTROL_CLASSES = NcPropertyId({"level": 3, "index": 1})
+    DATATYPES = NcPropertyId({"level": 3, "index": 2})
+
+
+class NcDeviceManagerProperties(Enum):
+    NCVERSION = NcPropertyId({"level": 3, "index": 1})
+
+
 class NcMethodId(NcElementId):
     def __init__(self, id_json):
         NcElementId.__init__(self, id_json)
+
+
+class NcObjectMethods(Enum):
+    GENERIC_GET = NcMethodId({"level": 1, "index": 1})
+    GENERIC_SET = NcMethodId({"level": 1, "index": 2})
+    GET_SEQUENCE_ITEM = NcMethodId({"level": 1, "index": 3})
+    SET_SEQUENCE_ITEM = NcMethodId({"level": 1, "index": 4})
+    ADD_SEQUENCE_ITEM = NcMethodId({"level": 1, "index": 5})
+    REMOVE_SEQUENCE_ITEM = NcMethodId({"level": 1, "index": 6})
+    GET_SEQUENCE_LENGTH = NcMethodId({"level": 1, "index": 7})
+
+
+class NcBlockMethods(Enum):
+    GET_MEMBERS_DESCRIPTOR = NcMethodId({"level": 2, "index": 1})
+    FIND_MEMBERS_BY_PATH = NcMethodId({"level": 2, "index": 2})
+    FIND_MEMBERS_BY_ROLE = NcMethodId({"level": 2, "index": 3})
+    FIND_MEMBERS_BY_CLASS_ID = NcMethodId({"level": 2, "index": 4})
+
+
+class NcClassManagerMethods(Enum):
+    GET_CONTROL_CLASS = NcMethodId({"level": 3, "index": 1})
+    GET_DATATYPE = NcMethodId({"level": 3, "index": 2})
 
 
 # Base descriptor

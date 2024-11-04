@@ -129,7 +129,7 @@ class IS1201Test(MS0501Test):
 
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
-                                                           {'id': NcObjectProperties.OID.value})
+                                                           {'id': NcObjectProperties.OID.value.__dict__})
 
         # Handle should be between 1 and 65535
         illegal_command_handle = 999999999
@@ -145,7 +145,7 @@ class IS1201Test(MS0501Test):
 
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
-                                                           {'id': NcObjectProperties.OID.value})
+                                                           {'id': NcObjectProperties.OID.value.__dict__})
 
         # Use invalid handle
         invalid_command_handle = "NOT A HANDLE"
@@ -162,7 +162,7 @@ class IS1201Test(MS0501Test):
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
-                                                {'id': NcObjectProperties.OID.value})
+                                                {'id': NcObjectProperties.OID.value.__dict__})
         # Use invalid message type
         command_json['messageType'] = 7
 
@@ -229,7 +229,7 @@ class IS1201Test(MS0501Test):
         command_json = \
             self.is12_utils.create_command_JSON(invalid_oid,
                                                 NcObjectMethods.GENERIC_GET.value,
-                                                {'id': NcObjectProperties.OID.value})
+                                                {'id': NcObjectProperties.OID.value.__dict__})
 
         return self.do_ms05_error_test(test,
                                        command_json,
@@ -260,7 +260,7 @@ class IS1201Test(MS0501Test):
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
-                                                {'id': NcObjectProperties.OID.value})
+                                                {'id': NcObjectProperties.OID.value.__dict__})
 
         # Use invalid method id
         invalid_method_id = {'level': 1, 'index': 999}
@@ -292,7 +292,6 @@ class IS1201Test(MS0501Test):
         error_message = ""
 
         for oid in oids.keys():
-            new_user_label = "NMOS Testing Tool " + str(oid)
             method_result = self.is12_utils.get_property(test, NcObjectProperties.USER_LABEL.value, oid=oid)
 
             if isinstance(method_result, NcMethodResultError):
@@ -302,8 +301,8 @@ class IS1201Test(MS0501Test):
                 continue
 
             old_user_label = method_result.value
-
-            context = "oid: " + str(oid) + ", "
+            new_user_label = f"modified: {old_user_label}"
+            context = f"oid: {str(oid)}, "
 
             # Each label will be set twice; once to the new user label, and then again back to the old user label
             for label in [new_user_label, old_user_label]:
@@ -324,7 +323,7 @@ class IS1201Test(MS0501Test):
                             error = True
                             error_message += context + "Unexpected event type: " + str(notification['eventId']) + ", "
 
-                        if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value:
+                        if notification["eventData"]["propertyId"] != NcObjectProperties.USER_LABEL.value.__dict__:
                             continue
 
                         if notification["eventData"]["changeType"] != NcPropertyChangeType.ValueChanged.value:
