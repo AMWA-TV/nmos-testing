@@ -39,6 +39,13 @@ class MessageTypes(IntEnum):
     Error = 5
 
 
+class IS12CommandResponse():
+    def __init__(self, response_json):
+        self.handle = response_json["handle"]
+        # Store raw result here - construction of NcMethodResult object happens in the MS-05 layer
+        self.result = response_json["result"]
+
+
 class IS12Notification():
     def __init__(self, notification_json):
         self.oid = notification_json["oid"]
@@ -163,9 +170,9 @@ class IS12Utils(MS05Utils):
                                                       .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
 
                 if parsed_message["messageType"] == MessageTypes.CommandResponse:
-                    responses = parsed_message["responses"]
+                    responses = [IS12CommandResponse(r) for r in parsed_message["responses"]]
                     for response in responses:
-                        if response["handle"] == command_handle:
+                        if response.handle == command_handle:
                             results.append(response)
                 if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
                     results.append(parsed_message["subscriptions"])
@@ -220,7 +227,7 @@ class IS12Utils(MS05Utils):
     def execute_command(self, test, oid, method_id, arguments):
         command_JSON = self.create_command_JSON(oid, method_id, arguments)
         response = self.send_command(test, command_JSON)
-        return response["result"]
+        return response.result
 
     def get_property_override(self, test, property_id, oid, **kwargs):
         """Get property from object. Raises NMOSTestException on error"""

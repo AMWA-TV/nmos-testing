@@ -184,10 +184,10 @@ class IS1201Test(MS0501Test):
         # when expected_status = None checking of the status code is skipped
         # check the syntax of the error message according to is12_error
 
-        result = self.is12_utils.send_command(test, command_json)
+        response = self.is12_utils.send_command(test, command_json)
 
-        self.ms05_utils.reference_datatype_schema_validate(test, result["result"], NcMethodResult.__name__)
-        method_result = NcMethodResult.factory(result["result"])
+        self.ms05_utils.reference_datatype_schema_validate(test, response.result, NcMethodResult.__name__)
+        method_result = NcMethodResult.factory(response.result)
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Error not handled.",
