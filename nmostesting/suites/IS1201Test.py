@@ -286,12 +286,17 @@ class IS1201Test(MS0501Test):
 
         oids = dict.fromkeys([self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects], 0)
 
-        self.is12_utils.update_subscritions(test, list(oids.keys()))
-
         error = False
         error_message = ""
 
+        response = self.is12_utils.update_subscritions(test, list(oids.keys()))
+
+        if not isinstance(response, list):
+            return test.FAIL(f"Unexpected response from subscription command: {str(response)}")
+
         for oid in oids.keys():
+            if oid not in response:
+                return test.FAIL(f"Unexpected response from subscription command: {str(response)}")
             method_result = self.is12_utils.get_property(test, NcObjectProperties.USER_LABEL.value, oid=oid)
 
             if isinstance(method_result, NcMethodResultError):
