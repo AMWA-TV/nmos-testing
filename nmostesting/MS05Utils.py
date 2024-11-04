@@ -87,7 +87,7 @@ class MS05Utils(NMOSUtils):
         """Query members based on class id. Raises NMOSTestException on error"""
         pass
 
-    def get_control_class(self, test, class_id, include_inherited, **kwargs):
+    def get_control_class_override(self, test, class_id, include_inherited, **kwargs):
         """Query Class Manager for control class. Raises NMOSTestException on error"""
         pass
 
@@ -187,6 +187,21 @@ class MS05Utils(NMOSUtils):
         """Query members based on class id. Raises NMOSTestException on error"""
         result = self.find_members_by_class_id_override(test, class_id, include_derived, recurse, **kwargs)
         return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
+
+    def get_control_class(self, test, class_id, include_inherited, **kwargs):
+        """Query Class Manager for control class. Raises NMOSTestException on error"""
+        result = self.get_control_class_override(test, class_id, include_inherited, **kwargs)
+        self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
+                                                role_path=kwargs.get("role_path"))
+        method_result = NcMethodResult.factory(result)
+
+        if not isinstance(method_result, NcMethodResultError):
+            # Validate block members and create NcBlockMemberDescriptor objects
+            self.reference_datatype_schema_validate(test, method_result.value, NcClassDescriptor.__name__,
+                                                    role_path=kwargs.get("role_path"))
+            method_result.value = NcClassDescriptor(method_result.value)
+
+        return method_result
 
     def query_device_model(self, test):
         """ Query Device Model from the Node under test.

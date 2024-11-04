@@ -141,12 +141,12 @@ class IS14Utils(MS05Utils):
                                                     "includeDerived": include_derived,
                                                     "recurse": recurse}})
 
-    def get_control_class(self, test, class_id, include_inherited, role_path, **kwargs):
+    def get_control_class_override(self, test, class_id, include_inherited, role_path, **kwargs):
         """Query Class Manager for control class. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcClassManagerMethods.GET_CONTROL_CLASS.value)
         return self._do_request(test, "PATCH", methods_endpoint,
                                 json={"arguments": {"classId": class_id,
-                                                    "includeInherited": include_inherited}})['value']
+                                                    "includeInherited": include_inherited}})
 
     def get_datatype(self, test, name, include_inherited, role_path, **kwargs):
         """Query Class Manager for datatype. Raises NMOSTestException on error"""

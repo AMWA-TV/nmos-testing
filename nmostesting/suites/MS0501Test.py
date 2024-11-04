@@ -15,7 +15,7 @@
 from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcClassDescriptor, \
+from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, \
     NcDatatypeDescriptor, NcDatatypeDescriptorStruct, NcDeviceManagerProperties, NcMethodResultError, NcMethodStatus, \
     NcObjectProperties, NcParameterConstraintsNumber, NcParameterConstraintsString, \
     NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcTouchpoint, NcTouchpointNmos, \
@@ -642,22 +642,21 @@ class MS0501Test(GenericTest):
 
         for _, class_descriptor in class_manager.class_descriptors.items():
             for include_inherited in [False, True]:
-                actual_descriptor = self.ms05_utils.get_control_class(test,
-                                                                      class_descriptor.classId,
-                                                                      include_inherited,
-                                                                      oid=class_manager.oid,
-                                                                      role_path=class_manager.role_path)
+                method_result = self.ms05_utils.get_control_class(test,
+                                                                  class_descriptor.classId,
+                                                                  include_inherited,
+                                                                  oid=class_manager.oid,
+                                                                  role_path=class_manager.role_path)
+                if isinstance(method_result, NcMethodResultError):
+                    return test.FAIL(f"Error calling getControlClass : {str(method_result.errorMessage)}")
+
                 # Yes, we already have the class descriptor, but we might want its inherited attributes
                 expected_descriptor = class_manager.get_control_class(class_descriptor.classId,
                                                                       include_inherited)
-                self.ms05_utils.reference_datatype_schema_validate(
-                    test,
-                    actual_descriptor,
-                    expected_descriptor.__class__.__name__)
                 self.ms05_utils.validate_descriptor(
                     test,
                     expected_descriptor,
-                    NcClassDescriptor(actual_descriptor),
+                    method_result.value,
                     f"Class: {str(class_descriptor.name)}: ")
 
         return test.PASS()
