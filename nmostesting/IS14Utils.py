@@ -123,14 +123,15 @@ class IS14Utils(MS05Utils):
         methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.FIND_MEMBERS_BY_PATH.value)
         return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": {"path": path}})
 
-    def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, role_path, **kwargs):
+    def find_members_by_role_override(self, test, role, case_sensitive, match_whole_string, recurse, role_path,
+                                      **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcBlockMethods.FIND_MEMBERS_BY_ROLE.value)
         return self._do_request(test, "PATCH", methods_endpoint,
                                 json={"arguments": {"role": role,
                                                     "caseSensitive": case_sensitive,
                                                     "matchWholeString": match_whole_string,
-                                                    "recurse": recurse}})['value']
+                                                    "recurse": recurse}})
 
     def find_members_by_class_id(self, test, class_id, include_derived, recurse, role_path, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""

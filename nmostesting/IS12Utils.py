@@ -275,14 +275,14 @@ class IS12Utils(MS05Utils):
                                     NcBlockMethods.FIND_MEMBERS_BY_PATH.value,
                                     {'path': path})
 
-    def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, oid, **kwargs):
+    def find_members_by_role_override(self, test, role, case_sensitive, match_whole_string, recurse, oid, **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_ROLE.value,
                                     {'role': role,
                                      'caseSensitive': case_sensitive,
                                      'matchWholeString': match_whole_string,
-                                     'recurse': recurse})["value"]
+                                     'recurse': recurse})
 
     def find_members_by_class_id(self, test, class_id, include_derived, recurse, oid, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""

@@ -79,7 +79,7 @@ class MS05Utils(NMOSUtils):
         """Query members based on role path. Raises NMOSTestException on error"""
         pass
 
-    def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, **kwargs):
+    def find_members_by_role_override(self, test, role, case_sensitive, match_whole_string, recurse, **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
         pass
 
@@ -176,6 +176,11 @@ class MS05Utils(NMOSUtils):
     def find_members_by_path(self, test, path, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""
         result = self.find_members_by_path_override(test, path, **kwargs)
+        return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
+
+    def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, **kwargs):
+        """Query members based on role. Raises NMOSTestException on error"""
+        result = self.find_members_by_role_override(test, role, case_sensitive, match_whole_string, recurse, **kwargs)
         return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
 
     def query_device_model(self, test):
