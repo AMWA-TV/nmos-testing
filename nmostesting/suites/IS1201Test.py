@@ -16,7 +16,7 @@ import time
 
 from ..Config import WS_MESSAGE_TIMEOUT
 from ..GenericTest import NMOSTestException
-from ..IS12Utils import IS12Utils
+from ..IS12Utils import IS12Utils, IS12Error
 from ..MS05Utils import NcMethodResult, NcMethodResultError, NcMethodStatus, NcObjectMethods, NcObjectEvents, \
     NcObjectProperties, StandardClassIds, NcPropertyChangeType
 
@@ -77,9 +77,8 @@ class IS1201Test(MS0501Test):
 
         return test.PASS()
 
-    def do_is12_error_test(self, test, command_json, expected_status=None):
+    def do_is12_error_test(self, test, command_json):
         """Execute command with expected error status."""
-        # when expected_status = None checking of the status code is skipped
         # check the syntax of the error message according to is12_error
 
         try:
@@ -93,28 +92,17 @@ class IS1201Test(MS0501Test):
             error_msg = e.args[0].detail
 
             # Expecting an error status dictionary
-            if not isinstance(error_msg, dict):
+            if not isinstance(error_msg, IS12Error):
                 # It must be some other type of error so re-throw
                 raise e
 
-            if not error_msg.get("status"):
-                return test.FAIL("Command error: " + str(error_msg))
+            if error_msg.status is None:
+                return test.FAIL(f"Command error: {str(error_msg)}")
 
-            if error_msg["status"] == NcMethodStatus.OK:
-                return test.FAIL(f"Error not handled. Expected: {expected_status.name} "
-                                 f"({str(expected_status)}), "
-                                 f"actual: {NcMethodStatus(error_msg["status"]).name} "
-                                 f"({str(error_msg["status"])})",
+            if error_msg.status == NcMethodStatus.OK:
+                return test.FAIL("Error status expected.",
                                  f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
                                  "/docs/Protocol_messaging.html#error-messages")
-
-            if expected_status and error_msg["status"] != expected_status:
-                return test.WARNING(f"Unexpected status. Expected: {expected_status.name} "
-                                    f"({str(expected_status)}), "
-                                    f"actual: {NcMethodStatus(error_msg["status"]).name} "
-                                    f"({str(error_msg["status"])})",
-                                    f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}"
-                                    "/docs/Framework.html#ncmethodresult")
 
             return test.PASS()
 
@@ -176,7 +164,7 @@ class IS1201Test(MS0501Test):
 
         return self.do_is12_error_test(test, command_json)
 
-    def do_ms05_error_test(self, test, command_json, expected_status=None):
+    def do_ms05_error_test(self, test, command_json, expected_status):
         """Execute command with expected error status."""
         # when expected_status = None checking of the status code is skipped
         # check the syntax of the error message according to is12_error

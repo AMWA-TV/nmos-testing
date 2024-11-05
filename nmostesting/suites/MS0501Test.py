@@ -354,10 +354,11 @@ class MS0501Test(GenericTest):
                 self.ms05_utils.queried_datatype_schema_validate(test, touchpoint_json, NcTouchpoint.__name__,
                                                                  role_path=role_path)
                 datatype_name = NcTouchpointNmos.__name__ \
-                    if touchpoint_json["context_namespace"] == "x-nmos" else NcTouchpointNmosChannelMapping.__name__
+                    if touchpoint_json["contextNamespace"] == "x-nmos" else NcTouchpointNmosChannelMapping.__name__
                 # Check concrete types
                 self.ms05_utils.queried_datatype_schema_validate(test, touchpoint_json, datatype_name,
                                                                  role_path=role_path)
+                self.touchpoints_metadata.checked = True
         except NMOSTestException as e:
             self.touchpoints_metadata.error = True
             self.touchpoints_metadata.error_msg = f"{context}{str(e.args[0].detail)}"
@@ -1149,7 +1150,7 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def _check_constraint_override(self, test, constraint, override_constraint, context):
-        def _xor_constraint(self, left, right):
+        def _xor_constraint(left, right):
             return bool(left is not None) ^ bool(right is not None)
 
         checked = False

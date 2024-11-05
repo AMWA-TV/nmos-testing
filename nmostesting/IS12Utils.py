@@ -23,7 +23,8 @@ from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 from .Config import WS_MESSAGE_TIMEOUT
 from .GenericTest import NMOSInitException, NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
-from .MS05Utils import NcObjectMethods, NcBlockMethods, NcClassManagerMethods, NcEventId, NcPropertyChangedEventData
+from .MS05Utils import NcBlockMethods, NcClassManagerMethods, NcEventId, NcMethodStatus, NcObjectMethods, \
+    NcPropertyChangedEventData
 
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
@@ -44,6 +45,16 @@ class IS12CommandResponse():
         self.handle = response_json["handle"]
         # Store raw result here - construction of NcMethodResult object happens in the MS-05 layer
         self.result = response_json["result"]
+
+
+class IS12Error():
+    def __init__(self, error_json):
+        self.messageType = MessageTypes(error_json["messageType"])
+        self.status = NcMethodStatus(error_json["status"])
+        self.errorMessage = error_json["errorMessage"]
+
+    def __str__(self):
+        return f"[messageType={self.messageType}, status={self.status}, errorMessage={self.errorMessage}]"
 
 
 class IS12Notification():
@@ -142,7 +153,7 @@ class IS12Utils(MS05Utils):
         # https://specs.amwa.tv/ms-05-02/branches/v1.0/docs/Framework.html#ncmethodresult
 
         # Assume single command
-        command_handle = command_json['commands'][0]['handle'] if command_json.get('commands') else 0
+        command_handle = command_json["commands"][0]["handle"] if command_json.get("commands") else 0
 
         self.ncp_websocket.send(json.dumps(command_json))
 
@@ -164,10 +175,10 @@ class IS12Utils(MS05Utils):
                         self.message_type_to_schema_name(parsed_message["messageType"]),
                         context=self.message_type_to_schema_name(parsed_message["messageType"]) + ": ")
                 else:
-                    raise NMOSTestException(test.FAIL("Unrecognised message type: " + parsed_message.get("messageType"),
-                                                      "https://specs.amwa.tv/is-12/branches/{}"
-                                                      "/docs/Protocol_messaging.html#command-message-type"
-                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
+                    raise NMOSTestException(test.FAIL(
+                        f"Unrecognised message type: {parsed_message.get("messageType")}",
+                        f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                        "/docs/Protocol_messaging.html#command-message-type"))
 
                 if parsed_message["messageType"] == MessageTypes.CommandResponse:
                     responses = [IS12CommandResponse(r) for r in parsed_message["responses"]]
@@ -179,9 +190,10 @@ class IS12Utils(MS05Utils):
                 if parsed_message["messageType"] == MessageTypes.Notification:
                     self.notifications += [IS12Notification(n) for n in parsed_message["notifications"]]
                 if parsed_message["messageType"] == MessageTypes.Error:
-                    raise NMOSTestException(test.FAIL(parsed_message, "https://specs.amwa.tv/is-12/branches/{}"
-                                                      "/docs/Protocol_messaging.html#error-messages"
-                                                      .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
+                    raise NMOSTestException(test.FAIL(
+                        IS12Error(parsed_message),
+                        f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                        "/docs/Protocol_messaging.html#error-messages"))
 
             if not self.expect_notifications and len(results) != 0:
                 break
@@ -189,13 +201,13 @@ class IS12Utils(MS05Utils):
                 break
 
         if len(results) == 0:
-            raise NMOSTestException(test.FAIL("No Message Response received.",
-                                              "https://specs.amwa.tv/is-12/branches/{}"
-                                              "/docs/Protocol_messaging.html#command-message-type"
-                                              .format(self.apis[CONTROL_API_KEY]["spec_branch"])))
+            raise NMOSTestException(test.FAIL(
+                "No Message Response received.",
+                f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                "/docs/Protocol_messaging.html#command-message-type"))
 
         if len(results) > 1:
-            raise NMOSTestException(test.FAIL("Received multiple responses : " + len(responses)))
+            raise NMOSTestException(test.FAIL(f"Received multiple responses : {len(responses)}"))
 
         return results[0]
 
@@ -213,13 +225,13 @@ class IS12Utils(MS05Utils):
         """for sending over websocket"""
         self.command_handle += 1
         return {
-            'messageType': MessageTypes.Command,
-            'commands': [
+            "messageType": MessageTypes.Command,
+            "commands": [
                 {
-                    'handle': self.command_handle,
-                    'oid': oid,
-                    'methodId': method_id.__dict__,
-                    'arguments': arguments
+                    "handle": self.command_handle,
+                    "oid": oid,
+                    "methodId": method_id.__dict__,
+                    "arguments": arguments
                 }
             ],
         }
@@ -233,13 +245,13 @@ class IS12Utils(MS05Utils):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_GET.value,
-                                    {'id': property_id.__dict__})
+                                    {"id": property_id.__dict__})
 
     def set_property_override(self, test, property_id, argument, oid, **kwargs):
         """Get property from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_SET.value,
-                                    {'id': property_id.__dict__, 'value': argument})
+                                    {"id": property_id.__dict__, "value": argument})
 
     def invoke_method_override(self, test, method_id, argument, oid, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
@@ -251,80 +263,80 @@ class IS12Utils(MS05Utils):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_ITEM.value,
-                                    {'id': property_id.__dict__, 'index': index})
+                                    {"id": property_id.__dict__, "index": index})
 
     def set_sequence_item_override(self, test, property_id, index, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
-                                    {'id': property_id.__dict__, 'index': index, 'value': value})
+                                    {"id": property_id.__dict__, "index": index, "value": value})
 
     def add_sequence_item_override(self, test, property_id, value, oid, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,
-                                    {'id': property_id.__dict__, 'value': value})
+                                    {"id": property_id.__dict__, "value": value})
 
     def remove_sequence_item_override(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
-                                    {'id': property_id.__dict__, 'index': index})
+                                    {"id": property_id.__dict__, "index": index})
 
     def get_sequence_length_override(self, test, property_id, oid, **kwargs):
         """Get sequence property. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
-                                    {'id': property_id.__dict__})
+                                    {"id": property_id.__dict__})
 
     def get_member_descriptors_override(self, test, recurse, oid, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value,
-                                    {'recurse': recurse})
+                                    {"recurse": recurse})
 
     def find_members_by_path_override(self, test, path, oid, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_PATH.value,
-                                    {'path': path})
+                                    {"path": path})
 
     def find_members_by_role_override(self, test, role, case_sensitive, match_whole_string, recurse, oid, **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_ROLE.value,
-                                    {'role': role,
-                                     'caseSensitive': case_sensitive,
-                                     'matchWholeString': match_whole_string,
-                                     'recurse': recurse})
+                                    {"role": role,
+                                     "caseSensitive": case_sensitive,
+                                     "matchWholeString": match_whole_string,
+                                     "recurse": recurse})
 
     def find_members_by_class_id_override(self, test, class_id, include_derived, recurse, oid, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value,
-                                    {'classId': class_id,
-                                     'includeDerived': include_derived,
-                                     'recurse': recurse})
+                                    {"classId": class_id,
+                                     "includeDerived": include_derived,
+                                     "recurse": recurse})
 
     def get_control_class_override(self, test, class_id, include_inherited, oid, **kwargs):
         """Query Class Manager for control class. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcClassManagerMethods.GET_CONTROL_CLASS.value,
-                                    {'classId': class_id,
-                                     'includeInherited': include_inherited})
+                                    {"classId": class_id,
+                                     "includeInherited": include_inherited})
 
     def get_datatype_override(self, test, name, include_inherited, oid, **kwargs):
         """Query Class Manager for datatype. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcClassManagerMethods.GET_DATATYPE.value,
-                                    {'name': name,
-                                     'includeInherited': include_inherited})
+                                    {"name": name,
+                                     "includeInherited": include_inherited})
 
     def create_subscription_JSON(self, subscriptions):
         """for sending over websocket"""
         return {
-            'messageType': MessageTypes.Subscription,
-            'subscriptions': subscriptions
+            "messageType": MessageTypes.Subscription,
+            "subscriptions": subscriptions
         }
 
     def update_subscritions(self, test, subscriptions):
