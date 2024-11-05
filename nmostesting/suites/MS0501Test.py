@@ -169,8 +169,8 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def _validate_property_type(self, test, value, property_descriptor, role_path):
-        """Validate property type. Raises NMOSTestException on error"""
+    def _check_property_type(self, test, value, property_descriptor, role_path):
+        """Check property type. Raises NMOSTestException on error"""
         context = f"{self.ms05_utils.create_role_path_string(role_path)}: {property_descriptor.name}: "
 
         if value is None:
@@ -191,8 +191,7 @@ class MS0501Test(GenericTest):
                 raise NMOSTestException(test.FAIL(f"{context}{str(value)} is not of type "
                                                   f"{str(property_descriptor.typeName)}"))
         else:
-            self.ms05_utils.queried_datatype_schema_validate(test, value, property_descriptor.typeName,
-                                                             f"{context}{property_descriptor.typeName}")
+            self.ms05_utils.queried_datatype_schema_validate(test, value, property_descriptor.typeName, role_path)
 
         return
 
@@ -258,7 +257,7 @@ class MS0501Test(GenericTest):
             if isinstance(method_result, NcMethodResultError):
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += f"{context}Error getting property: " \
-                    + f"{str(property_descriptor.id.__dict__)}: {str(method_result.errorMessage)} "
+                    f"{str(property_descriptor.id)}: {str(method_result.errorMessage)} "
 
             property_value = method_result.value
 
@@ -275,7 +274,7 @@ class MS0501Test(GenericTest):
             # validate property type
             if property_descriptor.isSequence:
                 for sequence_value in property_value:
-                    self._validate_property_type(
+                    self._check_property_type(
                         test,
                         sequence_value,
                         property_descriptor,
@@ -286,7 +285,7 @@ class MS0501Test(GenericTest):
                                             property_value,
                                             property_descriptor)
             else:
-                self._validate_property_type(
+                self._check_property_type(
                     test,
                     property_value,
                     property_descriptor,
@@ -311,6 +310,10 @@ class MS0501Test(GenericTest):
         """Check manager is singleton and that it inherits from NcManager"""
         # detemine the standard base class name
         base_id = self.ms05_utils.get_base_class_id(class_id)
+        if base_id not in class_descriptors:
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg += f"Cant find base class for class id: {str(class_id)}"
+            return
         base_class_name = class_descriptors[base_id].name
 
         # manager checks
@@ -333,25 +336,31 @@ class MS0501Test(GenericTest):
 
         if isinstance(method_result, NcMethodResultError):
             self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += f"{context}Error getting touchpoints for object: " \
-                + f"{context}: {str(method_result.errorMessage)}; "
+            self.device_model_metadata.error_msg += f"Error getting touchpoints for object: " \
+                f"{context}: {str(method_result.errorMessage)}; "
+            return
+        # touchpoints can be null
+        if method_result.value is None:
             return
 
-        touchpoints = method_result.value
+        if not isinstance(method_result.value, list):
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg += f"{context}Expected touchpoint sequence for object: "
+            return
 
-        if touchpoints is not None:
-            self.touchpoints_metadata.checked = True
-            try:
-                for touchpoint_json in touchpoints:
-                    touchpoint = NcTouchpoint(touchpoint_json)
-                    datatype_name = NcTouchpointNmos.__name__ \
-                        if touchpoint.context_namespace == "x-nmos" else NcTouchpointNmosChannelMapping.__name__
-                    self.ms05_utils.queried_datatype_schema_validate(test, touchpoint_json, datatype_name,
-                                                                     f"{context}{datatype_name}")
-
-            except NMOSTestException as e:
-                self.touchpoints_metadata.error = True
-                self.touchpoints_metadata.error_msg = f"{context}{str(e.args[0].detail)}"
+        try:
+            for touchpoint_json in method_result.value:
+                # Check base type
+                self.ms05_utils.queried_datatype_schema_validate(test, touchpoint_json, NcTouchpoint.__name__,
+                                                                 role_path=role_path)
+                datatype_name = NcTouchpointNmos.__name__ \
+                    if touchpoint_json["context_namespace"] == "x-nmos" else NcTouchpointNmosChannelMapping.__name__
+                # Check concrete types
+                self.ms05_utils.queried_datatype_schema_validate(test, touchpoint_json, datatype_name,
+                                                                 role_path=role_path)
+        except NMOSTestException as e:
+            self.touchpoints_metadata.error = True
+            self.touchpoints_metadata.error_msg = f"{context}{str(e.args[0].detail)}"
 
     def check_block(self, test, block, class_descriptors):
         for child_object in block.child_objects:
@@ -362,7 +371,8 @@ class MS0501Test(GenericTest):
                                  class_descriptors)
         role_cache = []
         manager_cache = []
-        for descriptor in block.member_descriptors:
+        for child_object in block.child_objects:
+            descriptor = child_object.member_descriptor
             role_path = self.ms05_utils.create_role_path(block.role_path, descriptor.role)
 
             self.check_unique_roles(descriptor.role, role_cache)
@@ -382,14 +392,14 @@ class MS0501Test(GenericTest):
             else:
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += f"{self.ms05_utils.create_role_path_string(role_path)}: " \
-                    f"Class not advertised by Class Manager: {str(descriptor.classId)}. "
+                    f"Class not advertised by Class Manager: {class_identifier}. "
 
             if class_identifier not in self.ms05_utils.reference_class_descriptors and \
                     not self.ms05_utils.is_non_standard_class(descriptor.classId):
                 # Not a standard or non-standard class
                 self.organization_metadata.error = True
                 self.organization_metadata.error_msg = f"{str(self.ms05_utils.create_role_path_string(role_path))}: " \
-                    "Non-standard class id does not contain authority key: {str(descriptor.classId)}. "
+                    f"Non-standard class id does not contain authority key: {class_identifier}. "
 
     def check_device_model(self, test):
         if not self.device_model_metadata.checked:
@@ -798,6 +808,48 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
+    def _check_member_descriptors(self, test, expected_members, method_result, role_path,
+                                  query_condition=None, search_condition=None):
+        block_role_path_string = self.ms05_utils.create_role_path_string(role_path)
+
+        query_string = f" for query={str(query_condition)}" if query_condition else ""
+        search_condition_string = f", search parameters: {str(search_condition)}" if search_condition else ""
+
+        if isinstance(method_result, NcMethodResultError):
+            raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error calling function: "
+                                              f"{str(method_result.errorMessage)}"))
+        if method_result.value is None:
+            raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
+                                              f": Function returned None{str(query_string)}"))
+        if not isinstance(method_result.value, list):
+            raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
+                                              f": Result sequence expected{str(query_string)}"))
+
+        if len(method_result.value) != len(expected_members):
+            raise NMOSTestException(
+                test.FAIL(f"{block_role_path_string}: Expected {str(len(expected_members))}, "
+                            f"but got {str(len(method_result.value))}"
+                            f"{str(query_string)}"
+                            f"{search_condition_string}"))
+
+        actual_members = {member.oid: member for member in method_result.value}
+
+        for expected_member in expected_members:
+            if expected_member.oid not in actual_members.keys():
+                raise NMOSTestException(
+                    test.FAIL(f"{block_role_path_string}: Unexpected search result. "
+                                f"{str(expected_member)}"
+                                f"{str(query_string)}"
+                                f"{search_condition_string}"))
+
+            actual_member = actual_members.get(expected_member.oid)
+            if expected_member != actual_member:
+                raise NMOSTestException(
+                    test.FAIL(f"{block_role_path_string}: Unexpected NcBlockMemberDescriptor value: "
+                                f"Expected {str(expected_member)}, Actual {str(actual_member)}"
+                                f"{str(query_string)}"
+                                f"{search_condition_string}"))
+
     def do_get_member_descriptors_test(self, test, block):
         # Recurse through the child blocks
         for child_object in block.child_objects:
@@ -806,32 +858,13 @@ class MS0501Test(GenericTest):
 
         search_conditions = [{"recurse": True}, {"recurse": False}]
 
-        block_role_path_string = self.ms05_utils.create_role_path_string(block.role_path)
-
         for search_condition in search_conditions:
             expected_members = block.get_member_descriptors(search_condition["recurse"])
 
             method_result = self.ms05_utils.get_member_descriptors(test, search_condition["recurse"],
                                                                    oid=block.oid, role_path=block.role_path)
-
-            if isinstance(method_result, NcMethodResultError):
-                raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error getting member descriptors: "
-                                                  f"{str(method_result.errorMessage)}"))
-            if not isinstance(method_result.value, list):
-                raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Did not return an array of results."))
-
-            if len(method_result.value) != len(expected_members):
-                raise NMOSTestException(test.FAIL(f"{block_role_path_string}: "
-                                                  "Unexpected number of block members found. "
-                                                  f"Expected: {str(len(expected_members))}, "
-                                                  f"Actual: {str(len(method_result.value))}"))
-
-            expected_members_oids = [m.oid for m in expected_members]
-
-            for queried_member in method_result.value:
-                if queried_member.oid not in expected_members_oids:
-                    raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
-                                                      ": Unsuccessful attempt to get member descriptors."))
+            self._check_member_descriptors(test, expected_members, method_result, block.role_path,
+                                           search_condition=search_condition)
 
     def test_ms05_17(self, test):
         """NcBlock: GetMemberDescriptors method is correct"""
@@ -854,34 +887,16 @@ class MS0501Test(GenericTest):
         # Get ground truth role paths
         role_paths = block.get_role_paths()
 
-        block_role_path_string = self.ms05_utils.create_role_path_string(block.role_path)
-
         for path in role_paths:
             # Get ground truth data from local device model object tree
-            expected_member = block.find_members_by_path(path)
+            expected_members = block.find_members_by_path(path)
 
             method_result = self.ms05_utils.find_members_by_path(test, path,
                                                                  oid=block.oid,
                                                                  role_path=block.role_path)
 
-            if isinstance(method_result, NcMethodResultError):
-                raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error in findMembersByPath: "
-                                                  f"{str(method_result.errorMessage)}"))
-
-            if not isinstance(method_result.value, list):
-                raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
-                                                  f": Did not return an array of results for query: {str(path)}"))
-
-            if len(method_result.value) != 1:
-                raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
-                                                  f": Incorrect member found by role path: {str(path)}"))
-
-            queried_member_oids = [m.oid for m in method_result.value]
-
-            if expected_member.oid not in queried_member_oids:
-                raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
-                                                  ": Unsuccessful attempt to find member by role path: "
-                                                  f"{str(path)}"))
+            self._check_member_descriptors(test, expected_members, method_result, block.role_path,
+                                           query_condition=self.ms05_utils.create_role_path_string(path))
 
     def test_ms05_18(self, test):
         """NcBlock: FindMemberByPath method is correct"""
@@ -909,8 +924,6 @@ class MS0501Test(GenericTest):
         for state in truth_table:
             search_conditions += [{"case_sensitive": state[0], "match_whole_string": state[1], "recurse": state[2]}]
 
-        block_role_path_string = self.ms05_utils.create_role_path_string(block.role_path)
-
         for role_path in role_paths:
             role = role_path[-1]
             # Case sensitive role, case insensitive role, CS role substring and CI role substring
@@ -933,33 +946,8 @@ class MS0501Test(GenericTest):
                                                              oid=block.oid,
                                                              role_path=block.role_path)
 
-                    if isinstance(method_result, NcMethodResultError):
-                        raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error calling findMembersByRole: "
-                                                          f"{str(method_result.errorMessage)}"))
-
-                    expected_members_oids = [m.oid for m in expected_members]
-
-                    if method_result.value is None or not isinstance(method_result.value, list) \
-                            or len(method_result.value) != len(expected_members):
-                        raise NMOSTestException(
-                            test.FAIL(f"{block_role_path_string}: Expected {str(len(expected_members))}, "
-                                      f"but got {str(len(method_result.value)
-                                                     if method_result.value and
-                                                     isinstance(method_result.value, list) else 0)} "
-                                      f"when searching with query={str(query_string)}, "
-                                      f"case sensitive={str(condition["case_sensitive"])}, "
-                                      f"match whole string={str(condition["match_whole_string"])}, "
-                                      f"recurse={str(condition["recurse"])}"))
-
-                    for member in method_result.value:
-                        if member.oid not in expected_members_oids:
-                            raise NMOSTestException(
-                                test.FAIL(f"{block_role_path_string}: Unexpected search result. "
-                                          f"{str(member)} "
-                                          f"when searching with query={str(query_string)}, "
-                                          f"case sensitive={str(condition["case_sensitive"])}, "
-                                          f"match whole string={str(condition["match_whole_string"])}, "
-                                          f"recurse={str(condition["recurse"])}"))
+                    self._check_member_descriptors(test, expected_members, method_result, block.role_path,
+                                                   query_condition=query_string, search_condition=condition)
 
     def test_ms05_19(self, test):
         """NcBlock: FindMembersByRole method is correct"""
@@ -987,8 +975,6 @@ class MS0501Test(GenericTest):
         for state in truth_table:
             search_conditions += [{"include_derived": state[0], "recurse": state[1]}]
 
-        block_role_path_string = self.ms05_utils.create_role_path_string(block.role_path)
-
         for class_id in class_ids:
             for condition in search_conditions:
                 # Recursively check each block in Device Model
@@ -1003,30 +989,8 @@ class MS0501Test(GenericTest):
                                                                          oid=block.oid,
                                                                          role_path=block.role_path)
 
-                if isinstance(method_result, NcMethodResultError):
-                    raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error calling findMembersByClassId: "
-                                                      f"{str(method_result.errorMessage)}"))
-
-                expected_members_oids = [m.oid for m in expected_members]
-
-                if method_result.value is None or not isinstance(method_result.value, list) \
-                        or len(method_result.value) != len(expected_members):
-                    raise NMOSTestException(test.FAIL(f"{block_role_path_string}: "
-                                                      f"Expected {str(len(expected_members))}, "
-                                                      f"but got {str(len(method_result.value)
-                                                                     if method_result.value and
-                                                                     isinstance(method_result.value, list) else 0)} "
-                                                      f"when searching with class id={str(class_id)}, "
-                                                      f"include derived={str(condition["include_derived"])}, "
-                                                      f"recurse={str(condition["recurse"])}"))
-
-                for member in method_result.value:
-                    if member.oid not in expected_members_oids:
-                        raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Unexpected search result. "
-                                                          f"{str(member)} when searching with "
-                                                          f"class id={str(class_id)}, "
-                                                          f"include derived={str(condition["include_derived"])}, "
-                                                          f"recurse={str(condition["recurse"])}"))
+                self._check_member_descriptors(test, expected_members, method_result, block.role_path,
+                                               query_condition=f"class_id={str(class_id)}", search_condition=condition)
 
     def test_ms05_20(self, test):
         """NcBlock: FindMembersByClassId method is correct"""
@@ -1040,22 +1004,22 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def check_constraint(self, test, constraint, descriptor, test_metadata, roll_path):
-        context = f"{self.ms05_utils.create_role_path_string(roll_path)}:{descriptor.name}:{descriptor.typeName}"
+    def check_constraint(self, test, constraint, descriptor, test_metadata, role_path):
+        context = f"{self.ms05_utils.create_role_path_string(role_path)}:{descriptor.name}:{descriptor.typeName}"
         if constraint.defaultValue:
             if isinstance(constraint.defaultValue, list) is not descriptor.isSequence:
                 test_metadata.error = True
-                test_metadata.error_msg = f"{context} {"a default value sequence was expected"
+                test_metadata.error_msg = f"{context} {"Default value sequence was expected "
                                                        if descriptor.isSequence else
-                                                       "unexpected default value sequence."}"
+                                                       "Unexpected default value sequence. "}"
                 return
             if descriptor.isSequence:
                 for value in constraint.defaultValue:
                     self.ms05_utils.queried_datatype_schema_validate(test, value, descriptor.typeName,
-                                                                     f"{context}: defaultValue ")
+                                                                     role_path=role_path)
             else:
                 self.ms05_utils.queried_datatype_schema_validate(test, constraint.defaultValue, descriptor.typeName,
-                                                                 f"{context}: defaultValue ")
+                                                                 role_path=role_path)
 
         datatype = self.ms05_utils.resolve_datatype(test, descriptor.typeName)
         constraint_type = constraint.__class__.__name__
@@ -1184,18 +1148,18 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def _xor_constraint(self, left, right):
-        return bool(left is not None) ^ bool(right is not None)
-
     def _check_constraint_override(self, test, constraint, override_constraint, context):
+        def _xor_constraint(self, left, right):
+            return bool(left is not None) ^ bool(right is not None)
+
         checked = False
         # Is this a number constraint
         if isinstance(constraint, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
             checked = True
 
-            if self._xor_constraint(constraint.minimum, override_constraint.minimum) \
-                    or self._xor_constraint(constraint.maximum, override_constraint.maximum) \
-                    or self._xor_constraint(constraint.step, override_constraint.step):
+            if _xor_constraint(constraint.minimum, override_constraint.minimum) \
+                    or _xor_constraint(constraint.maximum, override_constraint.maximum) \
+                    or _xor_constraint(constraint.step, override_constraint.step):
                 raise NMOSTestException(
                     test.FAIL(f"{context}Constraints implementations MUST fully override the previous level: "
                               f"constraint: {str(constraint)}, override_constraint: {str(override_constraint)}"))
@@ -1222,8 +1186,8 @@ class MS0501Test(GenericTest):
         if isinstance(constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
             checked = True
 
-            if self._xor_constraint(constraint.maxCharacters, override_constraint.maxCharacters) \
-                    or self._xor_constraint(constraint.pattern, override_constraint.pattern):
+            if _xor_constraint(constraint.maxCharacters, override_constraint.maxCharacters) \
+                    or _xor_constraint(constraint.pattern, override_constraint.pattern):
                 raise NMOSTestException(
                     test.FAIL(f"{context}Constraints implementations MUST fully override the previous level: "
                               f"constraint: {str(constraint)}, override_constraint: "

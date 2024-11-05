@@ -396,7 +396,7 @@ class MS05Utils(NMOSUtils):
         except Exception as e:
             raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
 
-    def queried_datatype_schema_validate(self, test, payload, datatype_name, context=""):
+    def queried_datatype_schema_validate(self, test, payload, datatype_name, role_path=None):
         """Validate payload against datatype schema queried from Node under Test's Class Manager"""
         if not self.datatype_schemas:
             # Generate datatype schemas based on the datatype decriptors
@@ -412,7 +412,8 @@ class MS05Utils(NMOSUtils):
             except Exception as e:
                 raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
 
-        self._validate_schema(test, payload, self.datatype_schemas.get(datatype_name), f"{context}{datatype_name}: ")
+        self._validate_schema(test, payload, self.datatype_schemas.get(datatype_name),
+                              f"{self.create_role_path_string(role_path)}: {datatype_name}: ")
 
     def reference_datatype_schema_validate(self, test, payload, datatype_name, role_path=None):
         """Validate payload against specification reference datatype schema"""
@@ -495,6 +496,9 @@ class MS05Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
                                               "Error getting Class Manager Datatype property: "
                                               f"{str(method_result.errorMessage)}"))
+        
+        if method_result.value is None or not isinstance(method_result.value, list):
+            return None
         response = method_result.value
 
         # Validate descriptors against schema
@@ -515,6 +519,8 @@ class MS05Utils(NMOSUtils):
                                               "Error getting Class Manager Control Classes property: "
                                               f"{str(method_result.errorMessage)}"))
 
+        if method_result.value is None or not isinstance(method_result.value, list):
+            return None
         response = method_result.value
         # Validate descriptors
         for r in response:
@@ -524,7 +530,7 @@ class MS05Utils(NMOSUtils):
         descriptors = {self.create_class_id_string(r.get("classId")): NcClassDescriptor(r) for r in response}
         return descriptors
 
-    def create_block(self, test, class_id, oid, role, base_role_path=None):
+    def create_block(self, test, class_id, oid, role, base_role_path=None, member_descriptor=None):
         """Recursively create Device Model hierarchy"""
         # will set self.device_model_error to True if problems encountered
         role_path = self.create_role_path(base_role_path, role)
@@ -554,18 +560,17 @@ class MS05Utils(NMOSUtils):
                                                   "Unable to get members property: "
                                                   f"{str(method_result.errorMessage)}"))
 
-            member_descriptors = method_result.value
-            block_member_descriptors = []
-            for m in member_descriptors:
+            if method_result.value is None or not isinstance(method_result.value, list):
+                raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+                                                  "Block members not a list: "
+                                                  f"{str(method_result.value)}"))
+                
+            nc_block = NcBlock(class_id, oid, role, role_path, runtime_constraints, member_descriptor)
+
+            for m in method_result.value:
                 self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__, role_path)
-            block_member_descriptors = [NcBlockMemberDescriptor(m) for m in member_descriptors]
-
-            nc_block = NcBlock(class_id, oid, role, role_path, block_member_descriptors, runtime_constraints)
-
-            for m in member_descriptors:
-                child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path)
-                if child_object:
-                    nc_block.add_child_object(child_object)
+                child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path, NcBlockMemberDescriptor(m))
+                nc_block.add_child_object(child_object)
 
             return nc_block
         else:
@@ -582,13 +587,13 @@ class MS05Utils(NMOSUtils):
 
                 return NcClassManager(class_id, oid, role, role_path,
                                       class_descriptors, datatype_descriptors,
-                                      runtime_constraints)
+                                      runtime_constraints, member_descriptor)
 
-            return NcObject(class_id, oid, role, role_path, runtime_constraints)
+            return NcObject(class_id, oid, role, role_path, runtime_constraints, member_descriptor)
 
     def _get_singleton_object_by_class_id(self, test, class_id):
         device_model = self.query_device_model(test)
-        members = device_model.find_members_by_class_id(class_id, include_derived=True)
+        members = device_model.find_members_by_class_id(class_id, include_derived=True, get_objects=True)
 
         spec_link = f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}" \
             + "/docs/Managers.html"
@@ -876,7 +881,17 @@ class NcBlockMemberDescriptor(NcDescriptor):
         self.classId = descriptor_json["classId"]  # Class ID
         self.userLabel = descriptor_json["userLabel"]  # User label
         self.owner = descriptor_json["owner"]  # Containing block's OID
+        
+    def __eq__(self, other):
+        if not isinstance(other, NcBlockMemberDescriptor):
+            return NotImplemented
+        # Don't compare description or user label
+        return self.role == other.role and self.oid == other.oid and self.constantOid == other.constantOid \
+            and self.classId == other.classId and self.owner == other.owner
 
+    def __str__(self):
+        return f"[role={self.role}, oid={self.oid}, constantOID={self.constantOid}, " \
+            f"classId={self.classId}, owner={self.owner}]"
 
 class NcClassDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
@@ -1070,19 +1085,19 @@ class NcPropertyChangedEventData():
 
 
 class NcObject():
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints):
+    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
         self.class_id = class_id
         self.oid = oid
         self.role = role
         self.role_path = role_path
         self.runtime_constraints = runtime_constraints
+        self.member_descriptor = member_descriptor
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id, oid, role, role_path, descriptors, runtime_constraints):
-        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints)
+    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
+        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
         self.child_objects = []
-        self.member_descriptors = descriptors
 
     # Utility Methods
     def add_child_object(self, nc_object):
@@ -1112,22 +1127,22 @@ class NcBlock(NcObject):
     # NcBlock Methods
     def get_member_descriptors(self, recurse=False):
         query_results = []
-        query_results += self.member_descriptors
-        if recurse:
-            for child_object in self.child_objects:
-                if type(child_object) is NcBlock:
-                    query_results += child_object.get_member_descriptors(recurse)
+        for child_object in self.child_objects:
+            query_results.append(child_object.member_descriptor)
+            if recurse and type(child_object) is NcBlock:
+                query_results += child_object.get_member_descriptors(recurse)
         return query_results
 
     def find_members_by_path(self, role_path):
+        query_results = []
         query_role = role_path[0]
         for child_object in self.child_objects:
             if child_object.role == query_role:
                 if len(role_path[1:]) and type(child_object) is NcBlock:
-                    return child_object.find_members_by_path(role_path[1:])
+                    query_results += child_object.find_members_by_path(role_path[1:])
                 else:
-                    return child_object
-        return None
+                    query_results.append(child_object.member_descriptor)
+        return query_results
 
     def find_members_by_role(self, role, case_sensitive=False, match_whole_string=False, recurse=False):
         def match(query_role, role, case_sensitive, match_whole_string):
@@ -1138,7 +1153,7 @@ class NcBlock(NcObject):
         query_results = []
         for child_object in self.child_objects:
             if match(role, child_object.role, case_sensitive, match_whole_string):
-                query_results.append(child_object)
+                query_results.append(child_object.member_descriptor)
             if recurse and type(child_object) is NcBlock:
                 query_results += child_object.find_members_by_role(role,
                                                                    case_sensitive,
@@ -1146,7 +1161,7 @@ class NcBlock(NcObject):
                                                                    recurse)
         return query_results
 
-    def find_members_by_class_id(self, class_id, include_derived=False, recurse=False):
+    def find_members_by_class_id(self, class_id, include_derived=False, recurse=False, get_objects=False):
         def match(query_class_id, class_id, include_derived):
             if query_class_id == (class_id[:len(query_class_id)] if include_derived else class_id):
                 return True
@@ -1155,22 +1170,24 @@ class NcBlock(NcObject):
         query_results = []
         for child_object in self.child_objects:
             if match(class_id, child_object.class_id, include_derived):
-                query_results.append(child_object)
+                # if get_objects is set returns NcObject rather than NcBlockMemberDescriptor
+                query_results.append(child_object if get_objects else child_object.member_descriptor)
             if recurse and type(child_object) is NcBlock:
                 query_results += child_object.find_members_by_class_id(class_id,
                                                                        include_derived,
-                                                                       recurse)
+                                                                       recurse,
+                                                                       get_objects)
         return query_results
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints):
-        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints)
+    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
+        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id, oid, role, role_path, class_descriptors, datatype_descriptors, runtime_constraints):
-        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints)
+    def __init__(self, class_id, oid, role, role_path, class_descriptors, datatype_descriptors, runtime_constraints, member_descriptor):
+        NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors
 
