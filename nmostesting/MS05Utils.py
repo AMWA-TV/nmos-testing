@@ -496,7 +496,7 @@ class MS05Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
                                               "Error getting Class Manager Datatype property: "
                                               f"{str(method_result.errorMessage)}"))
-        
+
         if method_result.value is None or not isinstance(method_result.value, list):
             return None
         response = method_result.value
@@ -564,12 +564,13 @@ class MS05Utils(NMOSUtils):
                 raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
                                                   "Block members not a list: "
                                                   f"{str(method_result.value)}"))
-                
+
             nc_block = NcBlock(class_id, oid, role, role_path, runtime_constraints, member_descriptor)
 
             for m in method_result.value:
                 self.reference_datatype_schema_validate(test, m, NcBlockMemberDescriptor.__name__, role_path)
-                child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path, NcBlockMemberDescriptor(m))
+                child_object = self.create_block(test, m["classId"], m["oid"], m["role"], role_path,
+                                                 NcBlockMemberDescriptor(m))
                 nc_block.add_child_object(child_object)
 
             return nc_block
@@ -881,7 +882,7 @@ class NcBlockMemberDescriptor(NcDescriptor):
         self.classId = descriptor_json["classId"]  # Class ID
         self.userLabel = descriptor_json["userLabel"]  # User label
         self.owner = descriptor_json["owner"]  # Containing block's OID
-        
+
     def __eq__(self, other):
         if not isinstance(other, NcBlockMemberDescriptor):
             return NotImplemented
@@ -892,6 +893,7 @@ class NcBlockMemberDescriptor(NcDescriptor):
     def __str__(self):
         return f"[role={self.role}, oid={self.oid}, constantOID={self.constantOid}, " \
             f"classId={self.classId}, owner={self.owner}]"
+
 
 class NcClassDescriptor(NcDescriptor):
     def __init__(self, descriptor_json):
@@ -1186,7 +1188,8 @@ class NcManager(NcObject):
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id, oid, role, role_path, class_descriptors, datatype_descriptors, runtime_constraints, member_descriptor):
+    def __init__(self, class_id, oid, role, role_path, class_descriptors, datatype_descriptors, runtime_constraints,
+                 member_descriptor):
         NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors

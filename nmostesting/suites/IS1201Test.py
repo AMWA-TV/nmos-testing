@@ -49,7 +49,7 @@ class IS1201Test(MS0501Test):
         """Control Endpoint: Node under test advertises IS-12 control endpoint matching API under test"""
         # https://specs.amwa.tv/is-12/releases/v1.0.0/docs/IS-04_interactions.html
 
-        control_type = "urn:x-nmos:control:ncp/" + self.apis[CONTROL_API_KEY]["version"]
+        control_type = f"urn:x-nmos:control:ncp/{self.apis[CONTROL_API_KEY]["version"]}"
         return self.is12_utils.do_test_device_control(
             test,
             self.node_url,
@@ -86,9 +86,8 @@ class IS1201Test(MS0501Test):
             self.is12_utils.send_command(test, command_json)
 
             return test.FAIL("Error not handled.",
-                             "https://specs.amwa.tv/is-12/branches/{}"
-                             "/docs/Protocol_messaging.html#error-messages"
-                             .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                             "/docs/Protocol_messaging.html#error-messages")
 
         except NMOSTestException as e:
             error_msg = e.args[0].detail
@@ -98,26 +97,24 @@ class IS1201Test(MS0501Test):
                 # It must be some other type of error so re-throw
                 raise e
 
-            if not error_msg.get('status'):
+            if not error_msg.get("status"):
                 return test.FAIL("Command error: " + str(error_msg))
 
-            if error_msg['status'] == NcMethodStatus.OK:
-                return test.FAIL("Error not handled. Expected: " + expected_status.name
-                                 + " (" + str(expected_status) + ")"
-                                 + ", actual: " + NcMethodStatus(error_msg['status']).name
-                                 + " (" + str(error_msg['status']) + ")",
-                                 "https://specs.amwa.tv/is-12/branches/{}"
-                                 "/docs/Protocol_messaging.html#error-messages"
-                                 .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+            if error_msg["status"] == NcMethodStatus.OK:
+                return test.FAIL(f"Error not handled. Expected: {expected_status.name} "
+                                 f"({str(expected_status)}), "
+                                 f"actual: {NcMethodStatus(error_msg["status"]).name} "
+                                 f"({str(error_msg["status"])})",
+                                 f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                                 "/docs/Protocol_messaging.html#error-messages")
 
-            if expected_status and error_msg['status'] != expected_status:
-                return test.WARNING("Unexpected status. Expected: " + expected_status.name
-                                    + " (" + str(expected_status) + ")"
-                                    + ", actual: " + NcMethodStatus(error_msg['status']).name
-                                    + " (" + str(error_msg['status']) + ")",
-                                    "https://specs.amwa.tv/ms-05-02/branches/{}"
-                                    "/docs/Framework.html#ncmethodresult"
-                                    .format(self.apis[MS05_API_KEY]["spec_branch"]))
+            if expected_status and error_msg["status"] != expected_status:
+                return test.WARNING(f"Unexpected status. Expected: {expected_status.name} "
+                                    f"({str(expected_status)}), "
+                                    f"actual: {NcMethodStatus(error_msg["status"]).name} "
+                                    f"({str(error_msg["status"])})",
+                                    f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}"
+                                    "/docs/Framework.html#ncmethodresult")
 
             return test.PASS()
 
@@ -129,11 +126,11 @@ class IS1201Test(MS0501Test):
 
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
-                                                           {'id': NcObjectProperties.OID.value.__dict__})
+                                                           {"id": NcObjectProperties.OID.value.__dict__})
 
         # Handle should be between 1 and 65535
         illegal_command_handle = 999999999
-        command_json['commands'][0]['handle'] = illegal_command_handle
+        command_json["commands"][0]["handle"] = illegal_command_handle
 
         return self.do_is12_error_test(test, command_json)
 
@@ -145,11 +142,11 @@ class IS1201Test(MS0501Test):
 
         command_json = self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                            NcObjectMethods.GENERIC_GET.value,
-                                                           {'id': NcObjectProperties.OID.value.__dict__})
+                                                           {"id": NcObjectProperties.OID.value.__dict__})
 
         # Use invalid handle
         invalid_command_handle = "NOT A HANDLE"
-        command_json['commands'][0]['handle'] = invalid_command_handle
+        command_json["commands"][0]["handle"] = invalid_command_handle
 
         return self.do_is12_error_test(test, command_json)
 
@@ -162,9 +159,9 @@ class IS1201Test(MS0501Test):
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
-                                                {'id': NcObjectProperties.OID.value.__dict__})
+                                                {"id": NcObjectProperties.OID.value.__dict__})
         # Use invalid message type
-        command_json['messageType'] = 7
+        command_json["messageType"] = 7
 
         return self.do_is12_error_test(test, command_json)
 
@@ -175,7 +172,7 @@ class IS1201Test(MS0501Test):
         # https://specs.amwa.tv/is-12/releases/v1.0.0/docs/Protocol_messaging.html#error-messages
 
         # Use invalid JSON
-        command_json = {'not_a': 'valid_command'}
+        command_json = {"not_a": "valid_command"}
 
         return self.do_is12_error_test(test, command_json)
 
@@ -191,27 +188,24 @@ class IS1201Test(MS0501Test):
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Error not handled.",
-                             "https://specs.amwa.tv/is-12/branches/{}"
-                             "/docs/Protocol_messaging.html#error-messages"
-                             .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                             "/docs/Protocol_messaging.html#error-messages")
 
         if method_result.status == NcMethodStatus.OK:
-            return test.FAIL("Error not handled. Expected: " + expected_status.name
-                             + " (" + str(expected_status) + ")"
-                             + ", actual: " + method_result.status.name
-                             + " (" + str(method_result.status) + ")",
-                             "https://specs.amwa.tv/is-12/branches/{}"
-                             "/docs/Protocol_messaging.html#error-messages"
-                             .format(self.apis[CONTROL_API_KEY]["spec_branch"]))
+            return test.FAIL(f"Error not handled. Expected: {expected_status.name}"
+                             f" ({str(expected_status)}), "
+                             f"actual: {method_result.status.name} "
+                             f"({str(method_result.status)})",
+                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                             "/docs/Protocol_messaging.html#error-messages")
 
         if expected_status and method_result.status != expected_status:
-            return test.WARNING("Unexpected status. Expected: " + expected_status.name
-                                + " (" + str(expected_status) + ")"
-                                + ", actual: " + NcMethodStatus(method_result.status).name
-                                + " (" + str(method_result.status) + ")",
-                                "https://specs.amwa.tv/ms-05-02/branches/{}"
-                                "/docs/Framework.html#ncmethodresult"
-                                .format(self.apis[MS05_API_KEY]["spec_branch"]))
+            return test.WARNING(f"Unexpected status. Expected: {expected_status.name} "
+                                f"({str(expected_status)}), "
+                                f"actual: {NcMethodStatus(method_result.status).name} "
+                                f"({str(method_result.status)})",
+                                f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}"
+                                "/docs/Framework.html#ncmethodresult")
 
         return test.PASS()
 
@@ -229,7 +223,7 @@ class IS1201Test(MS0501Test):
         command_json = \
             self.is12_utils.create_command_JSON(invalid_oid,
                                                 NcObjectMethods.GENERIC_GET.value,
-                                                {'id': NcObjectProperties.OID.value.__dict__})
+                                                {"id": NcObjectProperties.OID.value.__dict__})
 
         return self.do_ms05_error_test(test,
                                        command_json,
@@ -242,11 +236,11 @@ class IS1201Test(MS0501Test):
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
         # Use invalid property id
-        invalid_property_identifier = {'level': 1, 'index': 999}
+        invalid_property_identifier = {"level": 1, "index": 999}
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
-                                                {'id': invalid_property_identifier})
+                                                {"id": invalid_property_identifier})
         return self.do_ms05_error_test(test,
                                        command_json,
                                        expected_status=NcMethodStatus.PropertyNotImplemented)
@@ -260,11 +254,11 @@ class IS1201Test(MS0501Test):
         command_json = \
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
-                                                {'id': NcObjectProperties.OID.value.__dict__})
+                                                {"id": NcObjectProperties.OID.value.__dict__})
 
         # Use invalid method id
-        invalid_method_id = {'level': 1, 'index': 999}
-        command_json['commands'][0]['methodId'] = invalid_method_id
+        invalid_method_id = {"level": 1, "index": 999}
+        command_json["commands"][0]["methodId"] = invalid_method_id
 
         return self.do_ms05_error_test(test,
                                        command_json,
@@ -282,7 +276,8 @@ class IS1201Test(MS0501Test):
         # Get all oids for objects in this Device Model
         device_model_objects = device_model.find_members_by_class_id(class_id=StandardClassIds.NCOBJECT.value,
                                                                      include_derived=True,
-                                                                     recurse=True)
+                                                                     recurse=True,
+                                                                     get_objects=True)
 
         oids = dict.fromkeys([self.is12_utils.ROOT_BLOCK_OID] + [o.oid for o in device_model_objects], 0)
 
@@ -352,7 +347,7 @@ class IS1201Test(MS0501Test):
         if not all(v == 2 for v in oids.values()):
             error = True
             error_message += "Notifications not received for Oids " \
-                + str(sorted([i for i, v in oids.items() if v != 2]))
+                f"{str(sorted([i for i, v in oids.items() if v != 2]))}"
         elif not any(v == 2 for v in oids.values()):
             error = True
             error_message += "No notifications received"

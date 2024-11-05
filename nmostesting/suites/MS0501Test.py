@@ -828,9 +828,9 @@ class MS0501Test(GenericTest):
         if len(method_result.value) != len(expected_members):
             raise NMOSTestException(
                 test.FAIL(f"{block_role_path_string}: Expected {str(len(expected_members))}, "
-                            f"but got {str(len(method_result.value))}"
-                            f"{str(query_string)}"
-                            f"{search_condition_string}"))
+                          f"but got {str(len(method_result.value))}"
+                          f"{str(query_string)}"
+                          f"{search_condition_string}"))
 
         actual_members = {member.oid: member for member in method_result.value}
 
@@ -838,17 +838,17 @@ class MS0501Test(GenericTest):
             if expected_member.oid not in actual_members.keys():
                 raise NMOSTestException(
                     test.FAIL(f"{block_role_path_string}: Unexpected search result. "
-                                f"{str(expected_member)}"
-                                f"{str(query_string)}"
-                                f"{search_condition_string}"))
+                              f"{str(expected_member)}"
+                              f"{str(query_string)}"
+                              f"{search_condition_string}"))
 
             actual_member = actual_members.get(expected_member.oid)
             if expected_member != actual_member:
                 raise NMOSTestException(
                     test.FAIL(f"{block_role_path_string}: Unexpected NcBlockMemberDescriptor value: "
-                                f"Expected {str(expected_member)}, Actual {str(actual_member)}"
-                                f"{str(query_string)}"
-                                f"{search_condition_string}"))
+                              f"Expected {str(expected_member)}, Actual {str(actual_member)}"
+                              f"{str(query_string)}"
+                              f"{search_condition_string}"))
 
     def do_get_member_descriptors_test(self, test, block):
         # Recurse through the child blocks
