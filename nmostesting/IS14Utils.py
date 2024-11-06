@@ -53,18 +53,18 @@ class IS14Utils(MS05Utils):
         valid, r = TestHelper.do_request(method, url, **kwargs)
 
         if not valid:
-            raise NMOSTestException(test.FAIL(f"{r} for {method}: {url}"))
+            raise NMOSTestException(test.FAIL(f"{r} for {method}: {url}, json={kwargs}"))
         try:
             self.reference_datatype_schema_validate(test, r.json(), "NcMethodResult")
         except ValueError as e:
-            raise NMOSTestException(test.FAIL(f"Error: {e.args[0]} for {method}: {url}"))
+            raise NMOSTestException(test.FAIL(f"Error: {e.args[0]} for {method}: {url}. "
+                                              f"http/s response={r.text} "
+                                              f"json={kwargs}"))
         except NMOSTestException as e:
-            if r.status_code < 200 or r.status_code > 299:
-                raise NMOSTestException(test.FAIL(f"Unexpected status code: {r.status_code} for {method}: {url}"))
-            raise NMOSTestException(test.FAIL(f"Error: {e.args[0]} for {method}: {url}"))
-
-        if r.status_code < 200 or r.status_code > 299:
-            raise NMOSTestException(test.FAIL(r.json()))
+            # NcMethodResult not returned
+            raise NMOSTestException(test.FAIL(f"Error{e.args[0].detail} for {method}: {url}. "
+                                              f"http/s response={r.text} "
+                                              f"json={kwargs}"))
 
         return r.json()
 
@@ -88,30 +88,30 @@ class IS14Utils(MS05Utils):
         """Get value from sequence property. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.GET_SEQUENCE_ITEM.value)
         return self._do_request(test, "PATCH", methods_endpoint,
-                                json={"arguments": {"id": property_id, "index": index}})
+                                json={"arguments": {"id": property_id.__dict__, "index": index}})
 
     def get_sequence_length_override(self, test, property_id, role_path, **kwargs):
         """Get sequence length. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.GET_SEQUENCE_LENGTH.value)
-        return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": {"id": property_id}})
+        return self._do_request(test, "PATCH", methods_endpoint, json={"arguments": {"id": property_id.__dict__}})
 
     def set_sequence_item_override(self, test, property_id, index, value, role_path, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.SET_SEQUENCE_ITEM.value)
         return self._do_request(test, "PATCH", methods_endpoint,
-                                json={"arguments": {"id": property_id,  "index": index, "value": value}})
+                                json={"arguments": {"id": property_id.__dict__,  "index": index, "value": value}})
 
     def add_sequence_item_override(self, test, property_id, value, role_path, **kwargs):
         """Add value to a sequence property. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.ADD_SEQUENCE_ITEM.value)
         return self._do_request(test, "PATCH", methods_endpoint,
-                                json={"arguments": {"id": property_id, "value": value}})
+                                json={"arguments": {"id": property_id.__dict__, "value": value}})
 
     def remove_sequence_item_override(self, test, property_id, index, role_path, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
         methods_endpoint = self._create_methods_endpoint(role_path, NcObjectMethods.REMOVE_SEQUENCE_ITEM.value)
         return self._do_request(test, "PATCH", methods_endpoint,
-                                json={"arguments": {"id": property_id,  "index": index}})
+                                json={"arguments": {"id": property_id.__dict__,  "index": index}})
 
     def get_member_descriptors_override(self, test, recurse, role_path, **kwargs):
         """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""

@@ -815,18 +815,19 @@ class MS0502Test(ControllerTest):
 
             parameters = self._create_compatible_parameters(test, method.descriptor.parameters)
 
-            method_result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
-                                                          oid=method.oid, role_path=method.role_path)
+            try:
+                method_result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
+                                                              oid=method.oid, role_path=method.role_path)
 
-            # check for deprecated status codes for deprecated methods
-            if method.descriptor.isDeprecated and method_result.status != 299:
+                # check for deprecated status codes for deprecated methods
+                if method.descriptor.isDeprecated and method_result.status != 299:
+                    self.invoke_methods_metadata.error = True
+                    self.invoke_methods_metadata.error_msg += \
+                        f"Deprecated method returned incorrect status code {method.name} : {method_result.status}"
+            except NMOSTestException as e:
                 self.invoke_methods_metadata.error = True
                 self.invoke_methods_metadata.error_msg += \
-                    f"Deprecated method returned incorrect status code {method.name} : {method_result.status}"
-            if isinstance(method_result, NcMethodResultError) and method_result.status >= 500:
-                self.invoke_methods_metadata.error = True
-                self.invoke_methods_metadata.error_msg += \
-                    f"Error invoking method {method.name} : {method_result.errorMessage}"
+                    f"Error invoking method {method.name} : {e.args[0].detail}"
         if self.invoke_methods_metadata.error:
             return test.FAIL(self.invoke_methods_metadata.error_msg)
 
