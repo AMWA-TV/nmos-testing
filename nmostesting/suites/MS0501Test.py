@@ -1023,20 +1023,17 @@ class MS0501Test(GenericTest):
                                                                  role_path=role_path)
 
         datatype = self.ms05_utils.resolve_datatype(test, descriptor.typeName)
-        constraint_type = constraint.__class__.__name__
-        # check NcXXXConstraintsNumber
         if isinstance(constraint, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
             if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
                                 "NcUint64", "NcFloat32", "NcFloat64"]:
                 test_metadata.error = True
                 test_metadata.error_msg = f"{context}. {datatype} " \
-                    f"can not be constrainted by {constraint_type}."
-        # check NcXXXConstraintsString
+                    f"can not be constrainted by {constraint.__class__.__name__}."
         if isinstance(constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
             if datatype not in ["NcString"]:
                 test_metadata.error = True
                 test_metadata.error_msg = f"{context}. {datatype} " \
-                    f"can not be constrainted by {constraint_type}."
+                    f"can not be constrainted by {constraint.__class__.__name__}."
 
     def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
         if nc_object.runtime_constraints:
@@ -1171,26 +1168,23 @@ class MS0501Test(GenericTest):
                     or _xor_constraint(constraint.maximum, override_constraint.maximum) \
                     or _xor_constraint(constraint.step, override_constraint.step):
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level: "
-                              f"constraint: {str(constraint)}, override_constraint: {str(override_constraint)}"))
+                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level. "
+                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
             if constraint.minimum and override_constraint.minimum < constraint.minimum:
                 raise NMOSTestException(
                     test.FAIL(f"{context}Constraints implementations MUST not result in widening "
-                              "the constraints defined in previous levels: "
-                              f"minimum constraint: {str(constraint.minimum)}"
-                              f", override minimum constraint: {str(override_constraint.minimum)}"))
+                              "the minimum constraint defined in previous levels. "
+                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
             if constraint.maximum and override_constraint.maximum > constraint.maximum:
                 raise NMOSTestException(
                     test.FAIL(f"{context}Constraints implementations MUST not result in widening "
-                              "the constraints defined in previous levels: "
-                              f"maximum constraint: {str(constraint.maximum)}, "
-                              f"override maximum constraint: {str(override_constraint.maximum)}"))
+                              "the maximum constraint defined in previous levels. "
+                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
             if constraint.step and override_constraint.step < constraint.step:
                 raise NMOSTestException(
                     test.FAIL(f"{context}Constraints implementations MUST not result in widening "
-                              "the constraints defined in previous levels: "
-                              f"step constraint: {str(constraint.step)}, "
-                              f"override step constraint: {str(override_constraint.step)}"))
+                              "the step constraint defined in previous levels. "
+                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
 
         # is this a string constraint
         if isinstance(constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
@@ -1199,25 +1193,22 @@ class MS0501Test(GenericTest):
             if _xor_constraint(constraint.maxCharacters, override_constraint.maxCharacters) \
                     or _xor_constraint(constraint.pattern, override_constraint.pattern):
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level: "
-                              f"constraint: {str(constraint)}, override_constraint: "
+                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level. "
+                              f"Constraint: {str(constraint)}, Override_constraint: "
                               f"{str(override_constraint)}"))
             if constraint.maxCharacters \
                     and override_constraint.maxCharacters > constraint.maxCharacters:
                 raise NMOSTestException(
                     test.FAIL(f"{context}Constraints implementations MUST not result in widening "
-                              "the constraints defined in previous levels: "
-                              f"maxCharacters constraint: {str(constraint.maxCharacters)}, "
-                              "override maxCharacters constraint: "
-                              f"{str(override_constraint.maxCharacters)}"))
-            # Hmm, difficult to determine whether an overridden regex pattern is widening the constraint
+                              "the maxCharacters constraint defined in previous levels. "
+                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
+            # Hmm, difficult to meaningfully determine whether an overridden regex pattern is widening the constraint
             # so rule of thumb here is that a shorter pattern is less constraining that a longer pattern
             if constraint.pattern and len(override_constraint.pattern) < len(constraint.pattern):
                 raise NMOSTestException(
                     test.FAIL(f"{context}Constraints implementations MUST not result in widening "
-                              "the constraints defined in previous levels: "
-                              f"pattern constraint: {str(constraint.pattern)}, "
-                              f"override pattern constraint: {str(override_constraint.pattern)}"))
+                              "the pattern constraint defined in previous levels. "
+                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
         return checked
 
     def _check_constraints_hierarchy(self, test, property_descriptor, datatype_descriptors, object_runtime_constraints,
@@ -1246,17 +1237,17 @@ class MS0501Test(GenericTest):
         if datatype_constraints and property_constraints:
             checked = checked or \
                 self._check_constraint_override(test, datatype_constraints, property_constraints,
-                                                f"{context}datatype constraints overridden by property constraints: ")
+                                                f"{context}Datatype constraints overridden by property constraints: ")
 
         if datatype_constraints and runtime_constraints:
             checked = checked or \
                 self._check_constraint_override(test, datatype_constraints, runtime_constraints,
-                                                f"{context}datatype constraints overridden by runtime constraints: ")
+                                                f"{context}Datatype constraints overridden by runtime constraints: ")
 
         if property_constraints and runtime_constraints:
             checked = checked or \
                 self._check_constraint_override(test, property_constraints, runtime_constraints,
-                                                f"{context}property constraints overridden by runtime constraints: ")
+                                                f"{context}Droperty constraints overridden by runtime constraints: ")
 
         return checked
 

@@ -217,8 +217,8 @@ class MS0502Test(ControllerTest):
                 self.check_property_metadata.error = True
                 if expect_error:
                     self.check_property_metadata.error_msg += \
-                        f"Constraints not enforced for {constrained_property.name}: " \
-                        f"Value: {value} " \
+                        f"Constraints not enforced for {constrained_property.name}. " \
+                        f"Value: {value}, " \
                         f"Constraints: {constrained_property.constraints}; "
                 else:
                     self.check_property_metadata.error_msg += \
@@ -329,7 +329,7 @@ class MS0502Test(ControllerTest):
         if isinstance(method_result, NcMethodResultError):
             self.check_property_metadata.error = True
             self.check_property_metadata.error_msg += \
-                f"{self.ms05_utils.create_role_path_string(property_under_test.role_path)}: " \
+                f"{self.ms05_utils.create_role_path_string(property_under_test.role_path)}. " \
                 f"Unable to set property {str(property_under_test.descriptor.id)}: " \
                 f"{str(method_result.errorMessage)} "
 
@@ -373,9 +373,9 @@ class MS0502Test(ControllerTest):
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{constrained_property.name}: error getting value of property: "
-                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}: "
-                                 f"constraints {str(constraints)}")
+                return test.FAIL(f"{constrained_property.name}: Error getting value of property. "
+                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}. "
+                                 f"Constraints: {str(constraints)}")
 
             original_value = method_result.value
             try:
@@ -388,7 +388,7 @@ class MS0502Test(ControllerTest):
                     # Enums and Struct are validated against their type definitions
                     self._check_sequence_datatype_type(test, constrained_property, original_value)
             except NMOSTestException as e:
-                return test.FAIL(f"{constrained_property.name}: error setting property: {str(e.args[0].detail)}")
+                return test.FAIL(f"{constrained_property.name}: Error setting property: {str(e.args[0].detail)}. ")
 
             # Reset to original value
             method_result = self.ms05_utils.set_property(test,
@@ -397,10 +397,10 @@ class MS0502Test(ControllerTest):
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{constrained_property.name}: error setting value of property: "
-                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}: "
-                                 f"original value: {str(original_value)}: "
-                                 f"constraints {str(constraints)}")
+                return test.FAIL(f"{constrained_property.name}: Error setting value of property: "
+                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}. "
+                                 f"Original value: {str(original_value)}, "
+                                 f"Constraints {str(constraints)}")
 
         if self.check_property_metadata.error:
             # JRT add link to constraints spec
@@ -594,7 +594,7 @@ class MS0502Test(ControllerTest):
                                                          role_path=readonly_property.role_path)
 
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{readonly_property.name}: error getting property: "
+                return test.FAIL(f"{readonly_property.name}: Error getting property: "
                                  f"{str(method_result.errorMessage)} ")
 
             original_value = method_result.value
@@ -607,7 +607,7 @@ class MS0502Test(ControllerTest):
 
             if not isinstance(method_result, NcMethodResultError):
                 # if it gets this far it's failed
-                return test.FAIL(f"{readonly_property.name}: read only property is writable")
+                return test.FAIL(f"{readonly_property.name}: Read only property is writable")
             else:
                 readonly_checked = True
 
@@ -739,7 +739,7 @@ class MS0502Test(ControllerTest):
             if method_result.value != new_item_index:
                 self.add_sequence_item_metadata.error = True
                 self.add_sequence_item_metadata.error_msg += \
-                    f"{context}{property_name}: Unexpected index of added item: " \
+                    f"{context}{property_name}: Unexpected index of added item. " \
                     f"Expected: {str(new_item_index)}, Actual: {str(method_result.value)}"
                 return False
             # check the added item value
@@ -754,7 +754,7 @@ class MS0502Test(ControllerTest):
         if method_result.value != new_item_value:
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: Error adding sequence item: " \
+                f"{context}{property_name}: Error adding sequence item. " \
                 f"Expected: {str(new_item_value)}, Actual: {str(method_result.value)}, "
         self.add_sequence_item_metadata.checked = True
 
