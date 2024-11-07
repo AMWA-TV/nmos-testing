@@ -596,7 +596,7 @@ class MS05Utils(NMOSUtils):
         device_model = self.query_device_model(test)
         members = device_model.find_members_by_class_id(class_id, include_derived=True, get_objects=True)
 
-        spec_link = f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}" \
+        spec_link = f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}" \
             + "/docs/Managers.html"
 
         if len(members) == 0:

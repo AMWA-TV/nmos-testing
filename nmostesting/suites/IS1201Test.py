@@ -85,7 +85,7 @@ class IS1201Test(MS0501Test):
             self.is12_utils.send_command(test, command_json)
 
             return test.FAIL("Error not handled.",
-                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                              "/docs/Protocol_messaging.html#error-messages")
 
         except NMOSTestException as e:
@@ -101,7 +101,7 @@ class IS1201Test(MS0501Test):
 
             if error_msg.status == NcMethodStatus.OK:
                 return test.FAIL("Error status expected.",
-                                 f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                                 f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                                  "/docs/Protocol_messaging.html#error-messages")
 
             return test.PASS()
@@ -176,7 +176,7 @@ class IS1201Test(MS0501Test):
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Error not handled.",
-                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                              "/docs/Protocol_messaging.html#error-messages")
 
         if method_result.status == NcMethodStatus.OK:
@@ -184,7 +184,7 @@ class IS1201Test(MS0501Test):
                              f" ({str(expected_status)}), "
                              f"actual: {method_result.status.name} "
                              f"({str(method_result.status)})",
-                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                              "/docs/Protocol_messaging.html#error-messages")
 
         if expected_status and method_result.status != expected_status:
@@ -192,7 +192,7 @@ class IS1201Test(MS0501Test):
                                 f"({str(expected_status)}), "
                                 f"actual: {NcMethodStatus(method_result.status).name} "
                                 f"({str(method_result.status)})",
-                                f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]["spec_branch"]}"
+                                f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
                                 "/docs/Framework.html#ncmethodresult")
 
         return test.PASS()

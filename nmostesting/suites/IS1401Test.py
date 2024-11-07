@@ -65,7 +65,7 @@ class IS1401Test(MS0501Test):
         for role_path in response.json():
             if role_path != "root" and not role_path.startswith("root."):
                 test.FAIL("Unexpected role path syntax.", "https://specs.amwa.tv/is-14/branches/"
-                          + f"{self.apis[CONFIGURATION_API_KEY]["spec_branch"]}"
+                          + f"{self.apis[CONFIGURATION_API_KEY]['spec_branch']}"
                           + "/docs/API_requests.html#url-and-usage")
         return test.PASS()
 
@@ -84,7 +84,7 @@ class IS1401Test(MS0501Test):
                 raise NMOSTestException(test.FAIL(f"Illegal role syntax: {member["role"]}. "
                                                   + "Roles must not contain a '.' character",
                                                   "https://specs.amwa.tv/is-14/branches/"
-                                                  + f"{self.apis[CONFIGURATION_API_KEY]["spec_branch"]}"
+                                                  + f"{self.apis[CONFIGURATION_API_KEY]['spec_branch']}"
                                                   + "/docs/API_requests.html#url-and-usage"))
             if self.is14_utils.is_block(member["classId"]):
                 child_role_path = copy(role_path)

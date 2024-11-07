@@ -177,7 +177,7 @@ class IS12Utils(MS05Utils):
                 else:
                     raise NMOSTestException(test.FAIL(
                         f"Unrecognised message type: {parsed_message.get("messageType")}",
-                        f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                        f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                         "/docs/Protocol_messaging.html#command-message-type"))
 
                 if parsed_message["messageType"] == MessageTypes.CommandResponse:
@@ -192,7 +192,7 @@ class IS12Utils(MS05Utils):
                 if parsed_message["messageType"] == MessageTypes.Error:
                     raise NMOSTestException(test.FAIL(
                         IS12Error(parsed_message),
-                        f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                        f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                         "/docs/Protocol_messaging.html#error-messages"))
 
             if not self.expect_notifications and len(results) != 0:
@@ -203,7 +203,7 @@ class IS12Utils(MS05Utils):
         if len(results) == 0:
             raise NMOSTestException(test.FAIL(
                 "No Message Response received.",
-                f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]["spec_branch"]}"
+                f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                 "/docs/Protocol_messaging.html#command-message-type"))
 
         if len(results) > 1:

@@ -146,7 +146,7 @@ class MS0501Test(GenericTest):
         if role != "root":
             return test.FAIL(f"Unexpected role in Root Block: {str(role)}",
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Blocks.html")
 
         # Check OID is correct
@@ -164,7 +164,7 @@ class MS0501Test(GenericTest):
         if oid != self.ms05_utils.ROOT_BLOCK_OID:
             return test.FAIL(f"Unexpected OID in Root Block: {str(oid)}",
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Blocks.html")
 
         return test.PASS()
@@ -442,7 +442,7 @@ class MS0501Test(GenericTest):
         if self.unique_roles_error:
             return test.FAIL("Roles must be unique. ",
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/NcObject.html")
 
         if not self.device_model_metadata.checked:
@@ -463,7 +463,7 @@ class MS0501Test(GenericTest):
         if self.unique_oids_error:
             return test.FAIL("Oids must be unique. ",
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/NcObject.html")
 
         if not self.device_model_metadata.checked:
@@ -487,7 +487,7 @@ class MS0501Test(GenericTest):
         if self.organization_metadata.error:
             return test.FAIL(self.organization_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncclassid")
 
         if not self.device_model_metadata.checked:
@@ -514,7 +514,7 @@ class MS0501Test(GenericTest):
         if self.touchpoints_metadata.error:
             return test.FAIL(self.touchpoints_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/NcObject.html#touchpoints")
 
         if not self.device_model_metadata.checked:
@@ -538,7 +538,7 @@ class MS0501Test(GenericTest):
         if self.deprecated_property_metadata.error:
             return test.FAIL(self.deprecated_property_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodstatus")
 
         if not self.device_model_metadata.checked:
@@ -562,7 +562,7 @@ class MS0501Test(GenericTest):
         if self.managers_members_root_block_error:
             return test.FAIL("Managers must be members of Root Block. ",
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Managers.html")
 
         if not self.device_model_metadata.checked:
@@ -584,7 +584,7 @@ class MS0501Test(GenericTest):
         if self.managers_are_singletons_error:
             return test.FAIL("Managers must be singleton classes. ",
                              "https://specs.amwa.tv/ms-05-02/branches/"
-                             f"{self.apis[MS05_API_KEY]["spec_branch"]}"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Managers.html")
 
         if not self.device_model_metadata.checked:
@@ -598,7 +598,7 @@ class MS0501Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
 
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/" \
-            f"{self.apis[MS05_API_KEY]["spec_branch"]}/docs/Managers.html"
+            f"{self.apis[MS05_API_KEY]['spec_branch']}/docs/Managers.html"
 
         class_manager = self.ms05_utils.get_class_manager(test)
 
@@ -616,7 +616,7 @@ class MS0501Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
 
         spec_link = "https://specs.amwa.tv/ms-05-02/branches/" \
-            f"{self.apis[MS05_API_KEY]["spec_branch"]}/docs/Managers.html"
+            f"{self.apis[MS05_API_KEY]['spec_branch']}/docs/Managers.html"
 
         device_manager = self.ms05_utils.get_device_manager(test)
 
@@ -706,7 +706,7 @@ class MS0501Test(GenericTest):
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/NcObject.html#generic-getter-and-setter
 
         link = "https://specs.amwa.tv/ms-05-02/branches/" \
-               f"{self.apis[MS05_API_KEY]["spec_branch"]}" \
+               f"{self.apis[MS05_API_KEY]['spec_branch']}" \
                "/docs/NcObject.html#generic-getter-and-setter" \
 
         # Attempt to set labels
