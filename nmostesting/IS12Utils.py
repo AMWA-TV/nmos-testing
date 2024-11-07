@@ -253,11 +253,11 @@ class IS12Utils(MS05Utils):
                                     NcObjectMethods.GENERIC_SET.value,
                                     {"id": property_id.__dict__, "value": argument})
 
-    def invoke_method_override(self, test, method_id, argument, oid, **kwargs):
+    def invoke_method_override(self, test, method_id, arguments, oid, **kwargs):
         """Invoke method on Node. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     method_id,
-                                    {"argument": argument})
+                                    arguments)
 
     def get_sequence_item_override(self, test, property_id, index, oid, **kwargs):
         """Get value from sequence property. Raises NMOSTestException on error"""
