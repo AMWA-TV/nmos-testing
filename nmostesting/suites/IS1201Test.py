@@ -49,7 +49,7 @@ class IS1201Test(MS0501Test):
         """Control Endpoint: Node under test advertises IS-12 control endpoint matching API under test"""
         # https://specs.amwa.tv/is-12/releases/v1.0.0/docs/IS-04_interactions.html
 
-        control_type = f"urn:x-nmos:control:ncp/{self.apis[CONTROL_API_KEY]["version"]}"
+        control_type = f"urn:x-nmos:control:ncp/{self.apis[CONTROL_API_KEY]['version']}"
         return self.is12_utils.do_test_device_control(
             test,
             self.node_url,
@@ -311,13 +311,13 @@ class IS1201Test(MS0501Test):
                             error = True
                             error_message += f"{context}Unexpected event type: {str(notification.eventId)}, "
 
-                        if notification.eventData.propertyId != NcObjectProperties.USER_LABEL.value:
+                        if notification.eventData.propertyId != NcObjectProperties.USER_LABEL:
                             continue
 
-                        if notification.eventData.changeType != NcPropertyChangeType.ValueChanged.value:
+                        if notification.eventData.changeType != NcPropertyChangeType.ValueChanged:
                             error = True
                             error_message += f"{context}Unexpected change type: " \
-                                f"{str(NcPropertyChangeType(notification.eventData.changeType).name)}, "
+                                f"{str(notification.eventData.changeType.name)}, "
 
                         if notification.eventData.value != label:
                             error = True
@@ -327,7 +327,7 @@ class IS1201Test(MS0501Test):
                         if notification.eventData.sequenceItemIndex is not None:
                             error = True
                             error_message += f"{context}Unexpected sequence item index: " \
-                                f"{str(notification["eventData"]["sequenceItemIndex"])}, "
+                                f"{str(notification.eventData.sequenceItemIndex)}, "
 
                         oids[oid] += 1
 

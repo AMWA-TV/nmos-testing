@@ -638,7 +638,7 @@ class MS0501Test(GenericTest):
         version = method_result.value
 
         if self.ms05_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
-            return test.FAIL(f"Unexpected version. Expected: {self.apis[MS05_API_KEY]["version"]}"
+            return test.FAIL(f"Unexpected version. Expected: {self.apis[MS05_API_KEY]['version']}"
                              f". Actual: {str(version)}")
         return test.PASS()
 
@@ -1009,10 +1009,10 @@ class MS0501Test(GenericTest):
         context = f"{self.ms05_utils.create_role_path_string(role_path)}:{descriptor.name}:{descriptor.typeName}"
         if constraint.defaultValue:
             if isinstance(constraint.defaultValue, list) is not descriptor.isSequence:
-                test_metadata.error = True
-                test_metadata.error_msg = f"{context} {"Default value sequence was expected "
-                                                       if descriptor.isSequence else
-                                                       "Unexpected default value sequence. "}"
+                self.test_metadata.error = True
+                self.test_metadata.error_msg = f"{context} {"Default value sequence was expected "
+                                                            if descriptor.isSequence else
+                                                            "Unexpected default value sequence. "}"
                 return
             if descriptor.isSequence:
                 for value in constraint.defaultValue:

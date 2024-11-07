@@ -81,7 +81,7 @@ class IS1401Test(MS0501Test):
         for member in response:
             # check the class descriptor schema
             if "." in member["role"]:
-                raise NMOSTestException(test.FAIL(f"Illegal role syntax: {member["role"]}. "
+                raise NMOSTestException(test.FAIL(f"Illegal role syntax: {member['role']}. "
                                                   + "Roles must not contain a '.' character",
                                                   "https://specs.amwa.tv/is-14/branches/"
                                                   + f"{self.apis[CONFIGURATION_API_KEY]['spec_branch']}"
