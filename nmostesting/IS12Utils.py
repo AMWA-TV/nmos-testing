@@ -176,7 +176,7 @@ class IS12Utils(MS05Utils):
                         context=self.message_type_to_schema_name(parsed_message["messageType"]) + ": ")
                 else:
                     raise NMOSTestException(test.FAIL(
-                        f"Unrecognised message type: {parsed_message.get("messageType")}",
+                        f"Unrecognised message type: {parsed_message.get('messageType')}",
                         f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                         "/docs/Protocol_messaging.html#command-message-type"))
 

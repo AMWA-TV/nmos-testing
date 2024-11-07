@@ -1072,7 +1072,10 @@ class MS0501Test(GenericTest):
         self.do_validate_runtime_constraints_test(test, device_model, class_manager, test_metadata)
 
         if test_metadata.error:
-            return test.FAIL(test_metadata.error_msg)
+            return test.FAIL(test_metadata.error_msg,
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Constraints.html")
 
         if not test_metadata.checked:
             return test.UNCLEAR("No runtime constraints found.")
@@ -1109,7 +1112,10 @@ class MS0501Test(GenericTest):
         self.do_validate_property_constraints_test(test, device_model, class_manager, test_metadata)
 
         if test_metadata.error:
-            return test.FAIL(test_metadata.error_msg)
+            return test.FAIL(test_metadata.error_msg,
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Constraints.html")
 
         if not test_metadata.checked:
             return test.UNCLEAR("No property constraints found.")
@@ -1142,7 +1148,10 @@ class MS0501Test(GenericTest):
             self.do_validate_datatype_constraints_test(test, datatype, test_metadata)
 
         if test_metadata.error:
-            return test.FAIL(test_metadata.error_msg)
+            return test.FAIL(test_metadata.error_msg,
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Constraints.html")
 
         if not test_metadata.checked:
             return test.UNCLEAR("No datatype constraints found.")
@@ -1293,7 +1302,9 @@ class MS0501Test(GenericTest):
 
         if test_metadata.error:
             return test.FAIL(test_metadata.error_msg,
-                             "https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/Constraints.html")
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Constraints.html")
 
         if not test_metadata.checked:
             return test.UNCLEAR("No constraints hierarchy found.")
@@ -1311,7 +1322,8 @@ class MS0501Test(GenericTest):
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Read only properties error expected.",
-                             f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresult")
 
         if method_result.status != NcMethodStatus.Readonly.value:
@@ -1348,7 +1360,8 @@ class MS0501Test(GenericTest):
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Sequence out of bounds error expected.",
-                             f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresult")
 
         if method_result.status != NcMethodStatus.IndexOutOfBounds:

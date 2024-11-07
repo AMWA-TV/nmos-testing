@@ -70,7 +70,7 @@ class MS0502Test(ControllerTest):
 
     def set_up_tests(self):
         self.ms05_utils.reset()
-        self.constraints_validation_metadata = MS0502Test.TestMetadata()
+        self.check_property_metadata = MS0502Test.TestMetadata()
         self.set_sequence_item_metadata = MS0502Test.TestMetadata()
         self.add_sequence_item_metadata = MS0502Test.TestMetadata()
         self.remove_sequence_item_metadata = MS0502Test.TestMetadata()
@@ -212,16 +212,16 @@ class MS0502Test(ControllerTest):
             # Expecting a parameter constraint violation
             if not (expect_error ^ isinstance(method_result, NcMethodResultError)):
                 if expect_error:  # only set checked if constraints have been violated/tested
-                    self.constraints_validation_metadata.checked = True
+                    self.check_property_metadata.checked = True
             else:
-                self.constraints_validation_metadata.error = True
+                self.check_property_metadata.error = True
                 if expect_error:
-                    self.constraints_validation_metadata.error_msg += \
+                    self.check_property_metadata.error_msg += \
                         f"Constraints not enforced for {constrained_property.name}: " \
                         f"Value: {value} " \
                         f"Constraints: {constrained_property.constraints}; "
                 else:
-                    self.constraints_validation_metadata.error_msg += \
+                    self.check_property_metadata.error_msg += \
                         f"Constraints incorrectly applied for {constrained_property.name}; "
 
         def _do_set_sequence():
@@ -315,7 +315,7 @@ class MS0502Test(ControllerTest):
                 self._check_constrained_parameter(test, constrained_property, new_value)
 
     def _check_sequence_datatype_type(self, test, property_under_test, original_value):
-        self.constraints_validation_metadata.checked = True
+        self.check_property_metadata.checked = True
 
         modified_value = list(reversed(original_value))
 
@@ -327,8 +327,8 @@ class MS0502Test(ControllerTest):
                                                      role_path=property_under_test.role_path)
 
         if isinstance(method_result, NcMethodResultError):
-            self.constraints_validation_metadata.error = True
-            self.constraints_validation_metadata.error_msg += \
+            self.check_property_metadata.error = True
+            self.check_property_metadata.error_msg += \
                 f"{self.ms05_utils.create_role_path_string(property_under_test.role_path)}: " \
                 f"Unable to set property {str(property_under_test.descriptor.id)}: " \
                 f"{str(method_result.errorMessage)} "
@@ -362,7 +362,7 @@ class MS0502Test(ControllerTest):
             # If non-interactive then test all methods
             selected_properties = [p["resource"] for p in possible_properties]
 
-        self.constraints_validation_metadata = MS0502Test.TestMetadata()
+        self.check_property_metadata = MS0502Test.TestMetadata()
 
         for constrained_property in selected_properties:
 
@@ -373,11 +373,9 @@ class MS0502Test(ControllerTest):
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
-                self.constraints_validation_metadata.error = True
-                self.constraints_validation_metadata.error_msg += \
-                    f"{constrained_property.name}: error getting property: " \
-                    f"{str(method_result.errorMessage)}: constraints {str(constraints)} "
-                continue
+                return test.FAIL(f"{constrained_property.name}: error getting value of property: "
+                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}: "
+                                 f"constraints {str(constraints)}")
 
             original_value = method_result.value
             try:
@@ -399,14 +397,16 @@ class MS0502Test(ControllerTest):
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{constrained_property.name}: error restoring original value of property: "
-                                 f"{str(method_result.errorMessage)} original value: {str(original_value)}"
-                                 f": constraints {str(constraints)}")
+                return test.FAIL(f"{constrained_property.name}: error setting value of property: "
+                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}: "
+                                 f"original value: {str(original_value)}: "
+                                 f"constraints {str(constraints)}")
 
-        if self.constraints_validation_metadata.error:
-            return test.FAIL(self.constraints_validation_metadata.error_msg)
+        if self.check_property_metadata.error:
+            # JRT add link to constraints spec
+            return test.FAIL(self.check_property_metadata.error_msg)
 
-        if self.constraints_validation_metadata.checked:
+        if get_constraints and self.check_property_metadata.checked:
             return test.PASS()
 
         return test.UNCLEAR("No properties of this type checked")
