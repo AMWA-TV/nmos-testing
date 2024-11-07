@@ -1010,9 +1010,9 @@ class MS0501Test(GenericTest):
         if constraint.defaultValue:
             if isinstance(constraint.defaultValue, list) is not descriptor.isSequence:
                 self.test_metadata.error = True
-                self.test_metadata.error_msg = f"{context} {"Default value sequence was expected "
+                self.test_metadata.error_msg = f"{context} {'Default value sequence was expected '
                                                             if descriptor.isSequence else
-                                                            "Unexpected default value sequence. "}"
+                                                            'Unexpected default value sequence. '}"
                 return
             if descriptor.isSequence:
                 for value in constraint.defaultValue:
