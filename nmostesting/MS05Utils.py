@@ -870,7 +870,7 @@ class NcPropertyDescriptor(NcDescriptor):
         self.isNullable = descriptor_json["isNullable"]  # TRUE iff property is nullable
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff property is a sequence
         self.isDeprecated = descriptor_json["isDeprecated"]  # TRUE iff property is marked as deprecated
-        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"], "property")  # Optional
 
 
 class NcBlockMemberDescriptor(NcDescriptor):
@@ -911,7 +911,7 @@ class NcDatatypeDescriptor(NcDescriptor):
         NcDescriptor.__init__(self, descriptor_json)
         self.name = descriptor_json["name"]  # Datatype name
         self.type = descriptor_json["type"]  # Type: Primitive, Typedef, Struct, Enum
-        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"], "datatype")  # Optional
 
     @staticmethod
     def factory(descriptor_json):
@@ -967,7 +967,7 @@ class NcFieldDescriptor(NcDescriptor):
         self.typeName = descriptor_json["typeName"]  # Name of field's datatype.
         self.isNullable = descriptor_json["isNullable"]  # TRUE iff field is nullable
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff field is a sequence
-        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"], "field")  # Optional
 
 
 class NcParameterDescriptor(NcDescriptor):
@@ -977,7 +977,7 @@ class NcParameterDescriptor(NcDescriptor):
         self.typeName = descriptor_json["typeName"]  # Name of parameter's datatype.
         self.isNullable = descriptor_json["isNullable"]  # TRUE iff parameter is nullable
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff parameter is a sequence
-        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"])  # Optional constraints
+        self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"], "parameter")  # Optional
 
 
 class NcMethodDescriptor(NcDescriptor):
@@ -1008,62 +1008,86 @@ class NcTouchpointNmosChannelMapping(NcTouchpoint):
 
 
 class NcParameterConstraints:
-    def __init__(self, constraints_json):
+    def __init__(self, constraints_json, level):
         self.defaultValue = constraints_json["defaultValue"]  # Default value
+        self.level = level
+
+    def __str__(self):
+        return f"level={self.level}, defaultValue={self.defaultValue}"
 
     @staticmethod
-    def factory(constraints_json):
+    def factory(constraints_json, level=""):
         if constraints_json is None:
             return None
         if "minimum" in constraints_json and "maximum" in constraints_json and "step" in constraints_json:
-            return NcParameterConstraintsNumber(constraints_json)
+            return NcParameterConstraintsNumber(constraints_json, level)
         if "maxCharacters" in constraints_json and "pattern" in constraints_json:
-            return NcParameterConstraintsString(constraints_json)
-        return NcParameterConstraints(constraints_json)
+            return NcParameterConstraintsString(constraints_json, level)
+        return NcParameterConstraints(constraints_json, level)
 
 
 class NcParameterConstraintsNumber(NcParameterConstraints):
-    def __init__(self, constraints_json):
-        NcParameterConstraints.__init__(self, constraints_json)
+    def __init__(self, constraints_json, level):
+        NcParameterConstraints.__init__(self, constraints_json, level)
         self.maximum = constraints_json["maximum"]  # Optional maximum
         self.minimum = constraints_json["minimum"]  # Optional minimum
         self.step = constraints_json["step"]  # Optional step
+
+    def __str__(self):
+        return f"[{super(NcParameterConstraintsNumber, self).__str__()}, " \
+            f"maximum={self.maximum}, minimum={self.minimum}, step={self.step}]"
 
 
 class NcParameterConstraintsString(NcParameterConstraints):
-    def __init__(self, constraints_json):
-        NcParameterConstraints.__init__(self, constraints_json)
+    def __init__(self, constraints_json, level):
+        NcParameterConstraints.__init__(self, constraints_json, level)
         self.maxCharacters = constraints_json["maxCharacters"]  # Maximum characters allowed
         self.pattern = constraints_json["pattern"]  # Regex pattern
 
+    def __str__(self):
+        return f"[{super(NcParameterConstraintsString, self).__str__()}, " \
+            f"maxCharacters={self.maxCharacters}, pattern={self.pattern}]"
+
 
 class NcPropertyConstraints:
-    def __init__(self, constraints_json):
+    def __init__(self, constraints_json, level):
         self.propertyId = NcPropertyId(constraints_json["propertyId"])  # Property being constrained
         self.defaultValue = constraints_json["defaultValue"]  # Default value
+        self.level = "runtime"
+
+    def __str__(self):
+        return f"propertyId={self.propertyId}, level={self.level}, defaultValue={self.defaultValue}"
 
     @staticmethod
-    def factory(constraints_json):
+    def factory(constraints_json, level=""):
         if "minimum" in constraints_json and "maximum" in constraints_json and "step" in constraints_json:
-            return NcPropertyConstraintsNumber(constraints_json)
+            return NcPropertyConstraintsNumber(constraints_json, level)
         if "maxCharacters" in constraints_json and "pattern" in constraints_json:
-            return NcPropertyConstraintsString(constraints_json)
-        return NcPropertyConstraints(constraints_json)
+            return NcPropertyConstraintsString(constraints_json, level)
+        return NcPropertyConstraints(constraints_json, level)
 
 
 class NcPropertyConstraintsNumber(NcPropertyConstraints):
-    def __init__(self, constraints_json):
-        NcPropertyConstraints.__init__(self, constraints_json)
+    def __init__(self, constraints_json, level):
+        NcPropertyConstraints.__init__(self, constraints_json, level)
         self.maximum = constraints_json["maximum"]  # Optional maximum
         self.minimum = constraints_json["minimum"]  # Optional minimum
         self.step = constraints_json["step"]  # Optional step
 
+    def __str__(self):
+        return f"[{super(NcPropertyConstraintsNumber, self).__str__()}, " \
+            f"maximum={self.maximum}, minimum={self.minimum}, step={self.step}]"
+
 
 class NcPropertyConstraintsString(NcPropertyConstraints):
-    def __init__(self, constraints_json):
-        NcPropertyConstraints.__init__(self, constraints_json)
+    def __init__(self, constraints_json, level):
+        NcPropertyConstraints.__init__(self, constraints_json, level)
         self.maxCharacters = constraints_json["maxCharacters"]  # Maximum characters allowed
         self.pattern = constraints_json["pattern"]  # Regex pattern
+
+    def __str__(self):
+        return f"[{super(NcPropertyConstraintsString, self).__str__()}, " \
+            f"maxCharacters={self.maxCharacters}, pattern={self.pattern}]"
 
 
 class NcPropertyChangeType(IntEnum):
