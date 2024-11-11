@@ -15,6 +15,7 @@
 import re
 import sys
 
+from copy import deepcopy
 from math import floor
 from xeger import Xeger
 
@@ -181,7 +182,7 @@ class MS0502Test(ControllerTest):
 
         return results
 
-    def _get_methods(self, test, block):
+    def _get_methods(self, test, block, get_constraints=False):
         results = []
 
         class_manager = self.ms05_utils.get_class_manager(test)
@@ -196,10 +197,15 @@ class MS0502Test(ControllerTest):
             role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
 
             for method_descriptor in class_descriptor.methods:
-                results.append(MS0502Test.MethodMetadata(
-                    child.oid, role_path,
-                    f"{self.ms05_utils.create_role_path_string(role_path)}: {class_descriptor.name}: "
-                    f"{method_descriptor.name}", method_descriptor))
+                # Check for parameter constraints
+                parameter_constraints = False
+                for parameter in method_descriptor.parameters:
+                    if parameter.constraints:
+                        parameter_constraints = True
+
+                if parameter_constraints == get_constraints:
+                    results.append(MS0502Test.MethodMetadata(
+                        child.oid, role_path, method_descriptor.name, method_descriptor))
 
             if type(child) is NcBlock:
                 results += (self._get_methods(test, child))
@@ -207,33 +213,46 @@ class MS0502Test(ControllerTest):
         return results
 
     def _check_constrained_parameter(self, test, constrained_property, value, expect_error=True):
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}:" \
+                         f"property id={constrained_property.descriptor.id}, " \
+                         f"property name={constrained_property.descriptor.name}: "
+
         def _do_check(check_function):
             method_result = check_function()
             # Expecting a parameter constraint violation
             if not (expect_error ^ isinstance(method_result, NcMethodResultError)):
                 if expect_error:  # only set checked if constraints have been violated/tested
                     self.check_property_metadata.checked = True
+                elif self.ms05_utils.is_error_status(method_result.status):
+                    self.check_property_metadata.error = True
+                    self.check_property_metadata.error_msg += \
+                        f"{error_msg_base}Method error: NcMethodResultError MUST be returned on an error; "
             else:
                 self.check_property_metadata.error = True
                 if expect_error:
                     self.check_property_metadata.error_msg += \
-                        f"Constraints not enforced for {constrained_property.name}. " \
+                        f"{error_msg_base}Constraints not enforced error, " \
                         f"Value: {value}, " \
                         f"Constraints: {constrained_property.constraints}; "
                 else:
                     self.check_property_metadata.error_msg += \
-                        f"Constraints incorrectly applied for {constrained_property.name}; "
+                        f"{error_msg_base}Constraints incorrectly applied, " \
+                        f"Value: {value}, " \
+                        f"Constraints: {constrained_property.constraints}; "
 
         def _do_set_sequence():
             method_result = self.ms05_utils.get_sequence_length(test,
                                                                 constrained_property.descriptor.id,
                                                                 oid=constrained_property.oid,
                                                                 role_path=constrained_property.role_path)
-
             if isinstance(method_result, NcMethodResultError):
                 # We don't want this error to be confused with a constraints violation error
-                raise NMOSTestException(test.FAIL(f"Error getting sequence length {str(method_result.errorMessage)}"))
-
+                raise NMOSTestException(test.FAIL(f"{error_msg_base}GetSequenceLength error "
+                                                  f"{str(method_result.errorMessage)}"))
+            if self.ms05_utils.is_error_status(method_result.status):
+                # We don't want this error to be confused with a constraints violation error
+                raise NMOSTestException(test.FAIL(f"{error_msg_base}GetSequenceLength error "
+                                                  "NcMethodResultError MUST be returned on an error. "))
             return self.ms05_utils.set_sequence_item(test,
                                                      constrained_property.descriptor.id,
                                                      method_result.value - 1,
@@ -255,43 +274,49 @@ class MS0502Test(ControllerTest):
                                                            oid=constrained_property.oid,
                                                            role_path=constrained_property.role_path))
 
-    def _check_parameter_constraints_number(self, test, constrained_property):
-        constraints = constrained_property.constraints
+    def _generate_number_parameters(self, constraints, violate_constraints=False):
+        # Generate a number value based on constraints if present.
+        # violate_constraints=True will generate an "invalid" value based on constraints
+        parameters = []
 
-        # Attempt to set to a "legal" value
-        minimum = (constraints.minimum or 0)
-        maximum = (constraints.maximum or sys.maxsize)
-        step = (constraints.step or 1)
+        minimum = (constraints.minimum or 0 if constraints else 0)
+        maximum = (constraints.maximum or sys.maxsize if constraints else sys.maxsize)
+        step = (constraints.step or 1 if constraints else 1)
 
-        new_value = floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
+        valid_value = floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
 
-        # Expect this to work OK
-        self._check_constrained_parameter(test, constrained_property, new_value, expect_error=False)
+        # Valid value
+        if not violate_constraints:
+            parameters.append(valid_value)
 
-        # Attempt to set to an "illegal" value
-        if constraints.minimum is not None:
-            self._check_constrained_parameter(test, constrained_property, minimum - step)
+        # Invalid values
+        if violate_constraints and constraints and constraints.minimum is not None:
+            parameters.append(minimum - step)
 
-        if constraints.maximum is not None:
-            self._check_constrained_parameter(test, constrained_property, maximum + step)
+        if violate_constraints and constraints and constraints.maximum is not None:
+            parameters.append(maximum + step)
 
-        if constraints.step is not None and step > 1:
-            self._check_constrained_parameter(test, constrained_property, new_value + step / 2)
+        if violate_constraints and constraints and constraints.step is not None and step > 1:
+            parameters.append(valid_value + step / 2)
 
-    def _check_parameter_constraints_string(self, test, constrained_property):
-        constraints = constrained_property.constraints
-        new_value = "test"
+        return parameters
 
-        if constraints.pattern:
+    def _generate_string_parameters(self, constraints, violate_constraints):
+        # Generate a string value based on constraints if present.
+        # violate_constraints=True will generate an "invalid" string based on constraints
+        parameters = []
+
+        # Valid value
+        if not violate_constraints and constraints and constraints.pattern:
             # Check legal case
             x = Xeger(limit=(constraints.maxCharacters or 0) - len(constraints.pattern)
                       if (constraints.maxCharacters or 0) > len(constraints.pattern) else 1)
-            new_value = x.xeger(constraints.pattern)
+            parameters.append(x.xeger(constraints.pattern))
+        elif not violate_constraints:
+            parameters.append("new_value")
 
-        # Expect this to work OK
-        self._check_constrained_parameter(test, constrained_property, new_value, expect_error=False)
-
-        if constraints.pattern:
+        # Invalid values
+        if violate_constraints and constraints and constraints.pattern:
             # Possible negative example strings
             # Ideally we would compute a negative string based on the regex.
             # In the meantime, some strings that might possibly violate the regex
@@ -300,21 +325,39 @@ class MS0502Test(ControllerTest):
             for negative_example in negative_examples:
                 # Verify this string violates constraint
                 if not re.search(constraints.pattern, negative_example):
-                    self._check_constrained_parameter(test, constrained_property, negative_example)
+                    parameters.append(negative_example)
 
-        # Exceed max character limit
-        if constraints.maxCharacters:
+        if violate_constraints and constraints and constraints.maxCharacters:
             if constraints.pattern:
                 x = Xeger(limit=constraints.maxCharacters * 2)
-                new_value = x.xeger(constraints.pattern)
+                value = x.xeger(constraints.pattern)
             else:
-                new_value = "*" * constraints.maxCharacters * 2
+                value = "*" * constraints.maxCharacters * 2
 
             # Verfiy this string violates constraint
-            if len(new_value) > constraints.maxCharacters:
-                self._check_constrained_parameter(test, constrained_property, new_value)
+            if len(value) > constraints.maxCharacters:
+                parameters.append(value)
+
+        return parameters
+
+    def _check_parameter_constraints(self, test, constrained_property):
+        # Check property constraints with parameters that both don't and do violate constraints
+        for violate_constraints in [False, True]:
+            parameters = []
+            if isinstance(constrained_property.constraints,
+                          (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
+                parameters = self._generate_number_parameters(constrained_property.constraints,
+                                                              violate_constraints=violate_constraints)
+            if isinstance(constrained_property.constraints,
+                          (NcParameterConstraintsString, NcPropertyConstraintsString)):
+                parameters = self._generate_string_parameters(constrained_property.constraints,
+                                                              violate_constraints=violate_constraints)
+            for parameter in parameters:
+                self._check_constrained_parameter(test, constrained_property, parameter,
+                                                  expect_error=violate_constraints)
 
     def _check_sequence_datatype_type(self, test, property_under_test, original_value):
+        # Check that a sequence property can be set
         self.check_property_metadata.checked = True
 
         modified_value = list(reversed(original_value))
@@ -326,15 +369,24 @@ class MS0502Test(ControllerTest):
                                                      oid=property_under_test.oid,
                                                      role_path=property_under_test.role_path)
 
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(property_under_test.role_path)}:" \
+                         f"property id={property_under_test.descriptor.id}, " \
+                         f"Property name={property_under_test.descriptor.name}: "
         if isinstance(method_result, NcMethodResultError):
             self.check_property_metadata.error = True
             self.check_property_metadata.error_msg += \
-                f"{self.ms05_utils.create_role_path_string(property_under_test.role_path)}. " \
-                f"Unable to set property {str(property_under_test.descriptor.id)}: " \
-                f"{str(method_result.errorMessage)} "
+                f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)} "
+        else:
+            self.check_property_metadata.checked = True
+        if self.ms05_utils.is_error_status(method_result.status):
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}SetProperty error "
+                                              "NcMethodResultError MUST be returned on an error. "))
 
     def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False, datatype_type=None):
-        """Test properties within the Device Model"""
+        # Test properties of the Device Model
+        # get_constraints - select properties that have constraints
+        # get_sequences - select properties that are sequences
+        # datatype_type - only select properties that are this datatype type (None selects all)
         device_model = self.ms05_utils.query_device_model(test)
 
         constrained_properties = self._get_properties(test, device_model, get_constraints, get_sequences)
@@ -372,18 +424,20 @@ class MS0502Test(ControllerTest):
             method_result = self.ms05_utils.get_property(test, constrained_property.descriptor.id,
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}:" \
+                             f"property id={constrained_property.descriptor.id}, " \
+                             f"property name={constrained_property.descriptor.name}: "
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{constrained_property.name}: Error getting value of property. "
-                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}. "
+                return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}. "
                                  f"Constraints: {str(constraints)}")
+            if self.ms05_utils.is_error_status(method_result.status):
+                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error "
+                                           "NcMethodResultError MUST be returned on an error. "))
 
             original_value = method_result.value
             try:
                 if get_constraints:
-                    if isinstance(constraints, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
-                        self._check_parameter_constraints_number(test, constrained_property)
-                    if isinstance(constraints, (NcParameterConstraintsString, NcPropertyConstraintsString)):
-                        self._check_parameter_constraints_string(test, constrained_property)
+                    self._check_parameter_constraints(test, constrained_property)
                 elif datatype_type is not None and get_sequences:
                     # Enums and Struct are validated against their type definitions
                     self._check_sequence_datatype_type(test, constrained_property, original_value)
@@ -397,112 +451,21 @@ class MS0502Test(ControllerTest):
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{constrained_property.name}: Error setting value of property: "
-                                 f"{str(constrained_property.descriptor.id)}: {str(method_result.errorMessage)}. "
+                return test.FAIL(f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}. "
                                  f"Original value: {str(original_value)}, "
-                                 f"Constraints {str(constraints)}")
+                                 f"Constraints: {str(constraints)}")
+            if self.ms05_utils.is_error_status(method_result.status):
+                return test.FAIL(test.FAIL(f"{error_msg_base}SetProperty error "
+                                           "NcMethodResultError MUST be returned on an error. "))
 
         if self.check_property_metadata.error:
             # JRT add link to constraints spec
             return test.FAIL(self.check_property_metadata.error_msg)
 
-        if get_constraints and self.check_property_metadata.checked:
+        if self.check_property_metadata.checked:
             return test.PASS()
 
         return test.UNCLEAR("No properties of this type checked")
-
-    def _resolve_is_sequence(self, test, datatype):
-        if datatype is None:
-            return False
-
-        class_manager = self.ms05_utils.get_class_manager(test)
-
-        datatype_descriptor = class_manager.datatype_descriptors[datatype]
-
-        if isinstance(datatype_descriptor, NcDatatypeDescriptorTypeDef):
-            return datatype_descriptor.isSequence
-
-        if isinstance(datatype_descriptor, NcDatatypeDescriptorStruct) and datatype_descriptor.parentType:
-            return self._resolve_is_sequence(test, datatype_descriptor.parentType)
-
-        return False
-
-    def _generate_number_parameter(self, constraints):
-        if isinstance(constraints, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
-            minimum = (constraints.minimum or 0)
-            maximum = (constraints.maximum or sys.maxsize)
-            step = (constraints.step or 1)
-
-            return floor((((maximum - minimum) / 2) + minimum) / step) * step + minimum
-        return None
-
-    def _generate_string_parameter(self, constraints):
-        if constraints.pattern and isinstance(constraints, (NcParameterConstraintsString,
-                                                            NcPropertyConstraintsString)):
-            # Check legal case
-            x = Xeger(limit=(constraints.maxCharacters or 0) - len(constraints.pattern)
-                      if (constraints.maxCharacters or 0) > len(constraints.pattern) else 1)
-            return x.xeger(constraints.pattern)
-        return ""
-
-    def _generate_primitive_parameter(self, datatype):
-        type_mapping = {
-            "NcBoolean": False,
-            "NcInt16": 1,
-            "NcInt32": 1,
-            "NcInt64": 1,
-            "NcUint16": 1,
-            "NcUint32": 1,
-            "NcUint64": 1,
-            "NcFloat32": 1.0,
-            "NcFloat64":  1.0,
-            "NcString": ""
-        }
-
-        return type_mapping.get(datatype)
-
-    def _create_compatible_parameters(self, test, parameters):
-        result = {}
-
-        for parameter_descriptor in parameters:
-            parameter = None
-
-            # if there are constraints use them
-            if parameter_descriptor.constraints:
-                constraints = parameter_descriptor.constraints
-                # either there is a default value, or this is a number constraint, or this is a string
-                if constraints.defaultValue is not None:
-                    parameter = constraints.defaultValue
-                elif isinstance(constraints, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
-                    parameter = self._generate_number_parameter(constraints)
-                elif isinstance(constraints, (NcParameterConstraintsString, NcPropertyConstraintsString)):
-                    parameter = self._generate_string_parameter(constraints)
-            else:
-                # resolve the datatype to either a struct, enum, primative or None
-                datatype = self.ms05_utils.resolve_datatype(test, parameter_descriptor.typeName)
-
-                if datatype is None:
-                    parameter = 42  # None denotes an 'any' type so set to an arbitrary type/value
-                else:
-                    class_manager = self.ms05_utils.get_class_manager(test)
-
-                    datatype_descriptor = class_manager.datatype_descriptors[datatype]
-
-                    if isinstance(datatype_descriptor, NcDatatypeDescriptorEnum):
-                        parameter = datatype_descriptor.items[0].value
-                    elif isinstance(datatype_descriptor, NcDatatypeDescriptorPrimitive):
-                        parameter = self._generate_primitive_parameter(datatype)
-                    elif isinstance(datatype_descriptor, NcDatatypeDescriptorStruct):
-                        parameter = self._create_compatible_parameters(test, datatype_descriptor.fields)
-
-            if parameter_descriptor.isSequence:
-                parameter = [parameter]
-
-            # Note that only NcDatatypeDescriptorTypeDef has an isSequence property
-            result[parameter_descriptor.name] = [parameter] \
-                if self._resolve_is_sequence(test, parameter_descriptor.typeName) else parameter
-
-        return result
 
     def test_ms05_01(self, test):
         """Constraints on writable properties are enforced"""
@@ -593,10 +556,14 @@ class MS0502Test(ControllerTest):
                                                          oid=readonly_property.oid,
                                                          role_path=readonly_property.role_path)
 
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}:" \
+                             f"property id={readonly_property.descriptor.id}, " \
+                             f"property name={readonly_property.descriptor.name}: "
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{readonly_property.name}: Error getting property: "
-                                 f"{str(method_result.errorMessage)} ")
-
+                return test.FAIL(f"{error_msg_base}GetProperty error:{str(method_result.errorMessage)} ")
+            if self.ms05_utils.is_error_status(method_result.status):
+                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error "
+                                           "NcMethodResultError MUST be returned on an error. "))
             original_value = method_result.value
             # Try setting this value
             method_result = self.ms05_utils.set_property(test,
@@ -644,11 +611,120 @@ class MS0502Test(ControllerTest):
 
         return self._do_check_readonly_properties(test, question, get_sequences=True)
 
-    def _do_check_methods_test(self, test, question):
+    def _resolve_is_sequence(self, test, datatype):
+        # Check datatype parents in case it's been typedef'd as a sequence
+        if datatype is None:
+            return False
+
+        class_manager = self.ms05_utils.get_class_manager(test)
+
+        datatype_descriptor = class_manager.datatype_descriptors[datatype]
+
+        if isinstance(datatype_descriptor, NcDatatypeDescriptorTypeDef):
+            return datatype_descriptor.isSequence
+
+        if isinstance(datatype_descriptor, NcDatatypeDescriptorStruct) and datatype_descriptor.parentType:
+            return self._resolve_is_sequence(test, datatype_descriptor.parentType)
+
+        return False
+
+    def _make_violate_constraints_mask(self, parameters, violate_constraints):
+        # If we're violating constraints then we want to violate each constrained parameter individually
+        # so we can test each type of violation in isolation - rather than violating all constraints all at once.
+        # This returns a list of masks. Each mask is a boolean list that corresponds exaclty to the parameters list
+        # For each parameter, the mask indicate True (violate constraints) or False (don't violate constraints)
+        # output constraints_masks list of the form e.g. [[False, True, False, False],[False, False, True, False]]
+        has_constraints = [p.constraints is not None for p in parameters]
+
+        constraints_masks = []
+        if violate_constraints:
+            for index, has_constraint in enumerate(has_constraints):
+                if has_constraint:
+                    constraint_mask = [False] * len(has_constraints)
+                    constraint_mask[index] = True
+                    constraints_masks.append(constraint_mask)
+
+        if len(constraints_masks) == 0:  # no constraints
+            # null, violate_constraints=False case
+            constraint_mask = [False] * len(has_constraints)
+            constraints_masks.append(constraint_mask)
+        return constraints_masks
+
+    def _values_dict_to_parameters_list(self, values, input_params=[{}]):
+        # Convert a values dict into list of method parameters
+        # Note this method removes all the values from values
+        # values dict of the form:
+        # e.g. {foo: [1,2,3], bar: [A,B]}
+        # output of the form:
+        # e.g. [[{foo:1,bar:A}], [{foo:1,bar:B]}],
+        #       [{foo:2,bar:A}], [{foo:2,bar:B]}],
+        #       [{foo:3,bar:A}], [{foo:3,bar:B]}]]
+        if not bool(values):  # all values have been popped
+            return input_params
+
+        item = values.popitem()
+        output_params = []
+
+        for value in item[1]:  # item[1] is values list e.g. [1,2,3]
+            params = deepcopy(input_params)
+            for param in params:
+                param[item[0]] = value  # item[0] is value key e.g. 'foo'
+            output_params += params
+
+        return self._values_dict_to_parameters_list(values, output_params)
+
+    def _create_parameters_list(self, test, parameters, violate_constraints=False):
+        # Create a list of parameters dicts. If violate_constraints=True then in each parameters dict
+        # can contain parameters that violate their constraints. In this case there will be only one violating
+        # pararmeter in each parameters dict to exercise each constraints violation case individually
+        constraints_masks = self._make_violate_constraints_mask(parameters, violate_constraints)
+        parameters_list = []
+
+        for constraints_mask in constraints_masks:
+            values = {}
+
+            for parameter_descriptor, violate_constraints in zip(parameters, constraints_mask):
+                parameter = []
+
+                # resolve the datatype to either a struct, enum, primative or None
+                datatype = self.ms05_utils.resolve_datatype(test, parameter_descriptor.typeName)
+
+                if datatype is None:
+                    parameter = [42]  # None denotes an 'any' type so set to an arbitrary type/value
+                else:
+                    class_manager = self.ms05_utils.get_class_manager(test)
+
+                    datatype_descriptor = class_manager.datatype_descriptors[datatype]
+
+                    if isinstance(datatype_descriptor, NcDatatypeDescriptorEnum):
+                        parameter.append(datatype_descriptor.items[0].value)
+                    elif isinstance(datatype_descriptor, NcDatatypeDescriptorPrimitive):
+                        if datatype == "NcString":
+                            parameter += self._generate_string_parameters(parameter_descriptor.constraints,
+                                                                          violate_constraints=violate_constraints)
+                        elif datatype == "NcBoolean":
+                            parameter.append(False)
+                        else:
+                            parameter += self._generate_number_parameters(parameter_descriptor.constraints,
+                                                                          violate_constraints=violate_constraints)
+                    elif isinstance(datatype_descriptor, NcDatatypeDescriptorStruct):
+                        parameter += self._create_parameters_list(test, datatype_descriptor.fields,
+                                                                  violate_constraints=violate_constraints)
+
+                if parameter_descriptor.isSequence:
+                    parameter = [parameter]
+
+                # Note that only NcDatatypeDescriptorTypeDef has an isSequence property
+                values[parameter_descriptor.name] = [parameter] \
+                    if self._resolve_is_sequence(test, parameter_descriptor.typeName) else parameter
+            parameters_list += self._values_dict_to_parameters_list(values)
+        return parameters_list
+
+    def _do_check_methods_test(self, test, question, get_constraints):
         """Test methods of non-standard objects within the Device Model"""
         device_model = self.ms05_utils.query_device_model(test)
 
-        methods = self._get_methods(test, device_model)
+        methods = self._get_methods(test, device_model, get_constraints)
 
         possible_methods = [{"answer_id": f"answer_{str(i)}",
                              "display_answer": p.name,
@@ -675,22 +751,54 @@ class MS0502Test(ControllerTest):
         for method in selected_methods:
             self.invoke_methods_metadata.checked = True
 
-            parameters = self._create_compatible_parameters(test, method.descriptor.parameters)
+            parameters_list = self._create_parameters_list(test, method.descriptor.parameters)
 
-            try:
-                method_result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
-                                                              oid=method.oid, role_path=method.role_path)
+            success = True
+            for parameters in parameters_list:
+                try:
+                    method_result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
+                                                                  oid=method.oid, role_path=method.role_path)
 
-                # JRT TODO: check that the returning method result is an error if it has an error status
-                # check for deprecated status codes for deprecated methods
-                if method.descriptor.isDeprecated and method_result.status != 299:
+                    error_msg_base = f"role path={self.ms05_utils.create_role_path_string(method.role_path)}, " \
+                                     f"method id={method.descriptor.id}, method name={method.name}, "
+                    if isinstance(method_result, NcMethodResultError):
+                        success = False
+                    # Check for deprecated status codes for deprecated methods
+                    if method.descriptor.isDeprecated and method_result.status != 299:
+                        self.invoke_methods_metadata.error = True
+                        self.invoke_methods_metadata.error_msg += \
+                            f"{error_msg_base}, arguments={parameters}: " \
+                            f"Deprecated method returned incorrect status code: {method_result.status}; "
+                        continue
+                    if self.ms05_utils.is_error_status(method_result.status) and \
+                            not isinstance(method_result, NcMethodResultError):
+                        self.invoke_methods_metadata.error = True
+                        self.invoke_methods_metadata.error_msg += \
+                            f"{error_msg_base}, arguments={parameters}: " \
+                            "NcMethodResultError MUST be returned on an error; "
+                        continue
+                except NMOSTestException as e:
                     self.invoke_methods_metadata.error = True
                     self.invoke_methods_metadata.error_msg += \
-                        f"Deprecated method returned incorrect status code {method.name} : {method_result.status}"
-            except NMOSTestException as e:
-                self.invoke_methods_metadata.error = True
-                self.invoke_methods_metadata.error_msg += \
-                    f"Error invoking method {method.name} : {e.args[0].detail}"
+                        f"Error invoking method {method.name}: {e.args[0].detail}; "
+
+            # Only do negative checking of constrained parameters if positive case was successful
+            if get_constraints and success:
+                invalid_parameters_list = self._create_parameters_list(test, method.descriptor.parameters,
+                                                                       violate_constraints=True)
+                for invalid_parameters in invalid_parameters_list:
+                    try:
+                        method_result = self.ms05_utils.invoke_method(test, method.descriptor.id, invalid_parameters,
+                                                                      oid=method.oid, role_path=method.role_path)
+                        if not isinstance(method_result, NcMethodResultError):
+                            self.invoke_methods_metadata.error = True
+                            self.invoke_methods_metadata.error_msg += \
+                                f"{error_msg_base}, arguments={invalid_parameters}: Constraints not enforced error; "
+                    except NMOSTestException as e:
+                        self.invoke_methods_metadata.error = True
+                        self.invoke_methods_metadata.error_msg += \
+                            f"Error invoking method {method.name} : {e.args[0].detail}; "
+
         if self.invoke_methods_metadata.error:
             return test.FAIL(self.invoke_methods_metadata.error_msg)
 
@@ -700,7 +808,7 @@ class MS0502Test(ControllerTest):
         return test.UNCLEAR("No methods checked.")
 
     def test_ms05_07(self, test):
-        """Check discovered methods"""
+        """Check discovered methods with unconstrained parameters"""
         question = """\
                    From this list of methods\
                    carefully select those that can be safely invoked by this test.
@@ -710,10 +818,25 @@ class MS0502Test(ControllerTest):
                    Once you have made you selection please press the 'Submit' button.
                    """
 
-        return self._do_check_methods_test(test, question)
+        return self._do_check_methods_test(test, question, get_constraints=False)
+
+    def test_ms05_07_01(self, test):
+        """Constraints on method parameters are enforced"""
+        question = """\
+                   From this list of methods\
+                   carefully select those that can be safely invoked by this test.
+
+                   Note that this test will NOT attempt to restore the original state of the Device Model.
+
+                   Once you have made you selection please press the 'Submit' button.
+                   """
+
+        return self._do_check_methods_test(test, question, get_constraints=True)
 
     def check_add_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
-        context = self.ms05_utils.create_role_path_string(role_path)
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
+                         f"property id={property_id}, " \
+                         f"property name={property_name}: "
         # Add a value to the end of the sequence
         # Get the first item from this sequence (then we know it is of the correct type)
         method_result = self.ms05_utils.get_sequence_item(test, property_id, index=0,
@@ -733,13 +856,13 @@ class MS0502Test(ControllerTest):
             if not isinstance(method_result, NcMethodResultXXX):
                 self.add_sequence_item_metadata.error = True
                 self.add_sequence_item_metadata.error_msg += \
-                    f"{context}{property_name}: Unexpected return type from addSequenceItem. "
+                    f"{error_msg_base}Unexpected return type from addSequenceItem. "
                 return False
             # add_sequence_item should return index of added item
             if method_result.value != new_item_index:
                 self.add_sequence_item_metadata.error = True
                 self.add_sequence_item_metadata.error_msg += \
-                    f"{context}{property_name}: Unexpected index of added item. " \
+                    f"{error_msg_base}Unexpected index of added item. " \
                     f"Expected: {str(new_item_index)}, Actual: {str(method_result.value)}"
                 return False
             # check the added item value
@@ -748,20 +871,26 @@ class MS0502Test(ControllerTest):
         if isinstance(method_result, NcMethodResultError):
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: Sequence method error: {str(method_result.errorMessage)} "
+                f"{error_msg_base}Sequence method error: {str(method_result.errorMessage)} "
             return False
-
+        if self.ms05_utils.is_error_status(method_result.status):
+            self.add_sequence_item_metadata.error = True
+            self.add_sequence_item_metadata.error_msg += \
+                f"{error_msg_base}Sequence method error: NcMethodResultError MUST be returned on an error. "
+            return False
         if method_result.value != new_item_value:
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: Error adding sequence item. " \
+                f"{error_msg_base}Error adding sequence item. " \
                 f"Expected: {str(new_item_value)}, Actual: {str(method_result.value)}, "
         self.add_sequence_item_metadata.checked = True
 
         return True
 
     def check_set_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
-        context = self.ms05_utils.create_role_path_string(role_path)
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
+                         f"property id={property_id}, " \
+                         f"property name={property_name}: "
         method_result = self.ms05_utils.get_sequence_item(test, property_id, index=sequence_length - 1,
                                                           oid=oid, role_path=role_path)
         if not isinstance(method_result, NcMethodResultError):
@@ -777,12 +906,12 @@ class MS0502Test(ControllerTest):
             if method_result.value != new_value:
                 self.set_sequence_item_metadata.error = True
                 self.set_sequence_item_metadata.error_msg += \
-                    f"{context}{property_name}: Error setting sequence value. " \
+                    f"{error_msg_base}Sequence method error. " \
                     f"Expected: {str(new_value)}, Actual: {str(method_result.value)}, "
         else:
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{context}{property_name}: Sequence method error: {str(method_result.errorMessage)} "
+                f"{error_msg_base}Sequence method error: {str(method_result.errorMessage)} "
             return False
 
         self.set_sequence_item_metadata.checked = True
@@ -798,8 +927,12 @@ class MS0502Test(ControllerTest):
             self.remove_sequence_item_metadata.error = True
             self.remove_sequence_item_metadata.error_msg += \
                 f"{self.ms05_utils.create_role_path_string(role_path)}{property_name}: " \
-                f"Error removing sequence item: {str(method_result.errorMessage)}, "
-        return False
+                f"RemoveSequenceItem error: {str(method_result.errorMessage)}; "
+        if self.ms05_utils.is_error_status(method_result.status):
+            self.remove_sequence_item_metadata.error = True
+            self.remove_sequence_item_metadata.error_msg += \
+                f"{self.ms05_utils.create_role_path_string(role_path)}{property_name}: " \
+                f"RemoveSequenceItem error: NcMethodResultError MUST be returned on an error; "
 
     def check_sequence_methods(self, test, property_id, property_name, oid, role_path):
         """Check that sequence manipulation methods work correctly"""

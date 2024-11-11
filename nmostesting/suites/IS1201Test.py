@@ -311,7 +311,7 @@ class IS1201Test(MS0501Test):
                             error = True
                             error_message += f"{context}Unexpected event type: {str(notification.eventId)}, "
 
-                        if notification.eventData.propertyId != NcObjectProperties.USER_LABEL:
+                        if notification.eventData.propertyId != NcObjectProperties.USER_LABEL.value:
                             continue
 
                         if notification.eventData.changeType != NcPropertyChangeType.ValueChanged:

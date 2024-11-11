@@ -656,6 +656,10 @@ class MS05Utils(NMOSUtils):
         """ Check class id to determine if this is a block class_id"""
         return len(class_id) > 1 and class_id[0] == 1 and class_id[1] == 1
 
+    def is_error_status(self, status):
+        return status != NcMethodStatus.OK and status != NcMethodStatus.PropertyDeprecated \
+            and status != NcMethodStatus.MethodDeprecated
+
     def resolve_datatype(self, test, datatype):
         """Resolve datatype to its base type"""
         # Datatype of None denotes 'any' in MS-05-02 framework

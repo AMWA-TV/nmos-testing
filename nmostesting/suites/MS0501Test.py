@@ -141,6 +141,12 @@ class MS0501Test(GenericTest):
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error getting role property of the Root Block: {str(method_result.errorMessage)}")
 
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
+
         role = method_result.value
 
         if role != "root":
@@ -158,6 +164,12 @@ class MS0501Test(GenericTest):
 
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error getting OID property of the Root Block: {str(method_result.errorMessage)}")
+
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
 
         oid = method_result.value
 
@@ -205,8 +217,13 @@ class MS0501Test(GenericTest):
             if isinstance(method_result, NcMethodResultError):
                 self.get_sequence_item_metadata.error = True
                 self.get_sequence_item_metadata.error_msg += \
-                    f"{context}{property_descriptor.name}: Error getting sequence item: " \
+                    f"{context}{property_descriptor.name}: GetSequenceItem error: " \
                     f"{method_result.error}, "
+            if self.ms05_utils.is_error_status(method_result.status):
+                self.get_sequence_item_metadata.error = True
+                self.get_sequence_item_metadata.error_msg += \
+                    f"{context}{property_descriptor.name}: GetSequenceItem error: " \
+                    "NcMethodResultError MUST be returned on an error"
             if property_value != method_result.value:
                 self.get_sequence_item_metadata.error = True
                 self.get_sequence_item_metadata.error_msg += \
@@ -224,9 +241,14 @@ class MS0501Test(GenericTest):
 
         if isinstance(method_result, NcMethodResultError):
             self.get_sequence_length_metadata.error_msg += \
-                f"{context}{property_descriptor.name}: {str(method_result.errorMessage)}, "
+                f"{context}{property_descriptor.name} GetSequenceLength error: {str(method_result.errorMessage)}, "
             self.get_sequence_length_metadata.error = True
             return False
+        if self.ms05_utils.is_error_status(method_result.status):
+            self.get_sequence_length_metadata.error = True
+            self.get_sequence_length_metadata.error_msg += \
+                f"{context}{property_descriptor.name} GetSequenceLength error: " \
+                "NcMethodResultError MUST be returned on an error"
         length = method_result.value
         if length != len(sequence_values):
             self.get_sequence_length_metadata.error_msg += \
@@ -256,9 +278,13 @@ class MS0501Test(GenericTest):
                                                          oid=oid, role_path=role_path)
             if isinstance(method_result, NcMethodResultError):
                 self.device_model_metadata.error = True
-                self.device_model_metadata.error_msg += f"{context}Error getting property: " \
-                    f"{str(property_descriptor.id)}: {str(method_result.errorMessage)} "
-
+                self.device_model_metadata.error_msg += f"{context}" \
+                    f"{str(property_descriptor.id)} GetProperty error: {str(method_result.errorMessage)} "
+            if self.ms05_utils.is_error_status(method_result.status):
+                self.device_model_metadata.error = True
+                self.device_model_metadata.error_msg += \
+                    f"{context}{str(property_descriptor.id)} GetProperty error: " \
+                    "NcMethodResultError MUST be returned on an error"
             property_value = method_result.value
 
             if property_descriptor.isDeprecated:
@@ -339,6 +365,12 @@ class MS0501Test(GenericTest):
             self.device_model_metadata.error_msg += f"Error getting touchpoints for object: " \
                 f"{context}: {str(method_result.errorMessage)}; "
             return
+        if self.ms05_utils.is_error_status(method_result.status):
+            self.device_model_metadata.error = True
+            self.device_model_metadata.error_msg += \
+                f"{context} GetProperty error: " \
+                "NcMethodResultError MUST be returned on an error"
+
         # touchpoints can be null
         if method_result.value is None:
             return
@@ -635,6 +667,12 @@ class MS0501Test(GenericTest):
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error getting version from Device Manager : {str(method_result.errorMessage)}")
 
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
+
         version = method_result.value
 
         if self.ms05_utils.compare_api_version(version, self.apis[MS05_API_KEY]["version"]):
@@ -659,6 +697,12 @@ class MS0501Test(GenericTest):
                                                                   role_path=class_manager.role_path)
                 if isinstance(method_result, NcMethodResultError):
                     return test.FAIL(f"Error calling getControlClass : {str(method_result.errorMessage)}")
+
+                if self.ms05_utils.is_error_status(method_result.status):
+                    return test.FAIL("NcMethodResultError MUST be returned on an error",
+                                     "https://specs.amwa.tv/ms-05-02/branches/"
+                                     f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                     "/docs/Framework.html#ncmethodresulterror")
 
                 # Yes, we already have the class descriptor, but we might want its inherited attributes
                 expected_descriptor = class_manager.get_control_class(class_descriptor.classId,
@@ -688,6 +732,12 @@ class MS0501Test(GenericTest):
                                                              role_path=class_manager.role_path)
                 if isinstance(method_result, NcMethodResultError):
                     return test.FAIL(f"Error calling getDatatype : {str(method_result.errorMessage)}")
+
+                if self.ms05_utils.is_error_status(method_result.status):
+                    return test.FAIL("NcMethodResultError MUST be returned on an error",
+                                     "https://specs.amwa.tv/ms-05-02/branches/"
+                                     f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                     "/docs/Framework.html#ncmethodresulterror")
 
                 expected_descriptor = class_manager.get_datatype(datatype_descriptor.name,
                                                                  include_inherited)
@@ -719,6 +769,12 @@ class MS0501Test(GenericTest):
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error getting label property of Root Block: {str(method_result.errorMessage)}")
 
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
+
         old_user_label = method_result.value
         # Set user label
         new_user_label = "NMOS Testing Tool"
@@ -730,6 +786,12 @@ class MS0501Test(GenericTest):
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error setting label property of Root Block: {str(method_result.errorMessage)}")
 
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
+
         # Check user label
         method_result = self.ms05_utils.get_property(test, property_id,
                                                      oid=self.ms05_utils.ROOT_BLOCK_OID,
@@ -737,6 +799,12 @@ class MS0501Test(GenericTest):
 
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error getting label property of Root Block: {str(method_result.errorMessage)}")
+
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
 
         label = method_result.value
         if label != new_user_label:
@@ -753,12 +821,24 @@ class MS0501Test(GenericTest):
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error setting label property of Root Block: {str(method_result.errorMessage)}")
 
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
+
         # Check user label
         method_result = self.ms05_utils.get_property(test, property_id,
                                                      oid=self.ms05_utils.ROOT_BLOCK_OID,
                                                      role_path=['root'])
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error getting label property of Root Block: {str(method_result.errorMessage)}")
+
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("NcMethodResultError MUST be returned on an error",
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Framework.html#ncmethodresulterror")
 
         label = method_result.value
         if label != old_user_label:
@@ -817,8 +897,11 @@ class MS0501Test(GenericTest):
         search_condition_string = f", search parameters: {str(search_condition)}" if search_condition else ""
 
         if isinstance(method_result, NcMethodResultError):
-            raise NMOSTestException(test.FAIL(f"{block_role_path_string}: Error calling function: "
+            raise NMOSTestException(test.FAIL(f"{block_role_path_string}: GetMemberDescriptors error: "
                                               f"{str(method_result.errorMessage)}"))
+        if self.ms05_utils.is_error_status(method_result.status):
+            raise NMOSTestException(test.FAIL(f"{block_role_path_string}: GetMemberDescriptors error: "
+                                              "NcMethodResultError MUST be returned on an error"))
         if method_result.value is None:
             raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
                                               f": Function returned None{str(query_string)}"))
@@ -1340,6 +1423,8 @@ class MS0501Test(GenericTest):
                                                             role_path=["root"])
         if isinstance(method_result, NcMethodResultError):
             return test.FAIL(f"Error gettign sequence length: {str(method_result.errorMessage)} ")
+        if self.ms05_utils.is_error_status(method_result.status):
+            return test.FAIL("GetSequenceLength error: NcMethodResultError MUST be returned on an error")
 
         out_of_bounds_index = method_result.value + 10
 
