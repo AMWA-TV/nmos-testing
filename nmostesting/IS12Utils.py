@@ -24,7 +24,7 @@ from .Config import WS_MESSAGE_TIMEOUT
 from .GenericTest import NMOSInitException, NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
 from .MS05Utils import NcBlockMethods, NcClassManagerMethods, NcEventId, NcMethodStatus, NcObjectMethods, \
-    NcPropertyChangedEventData
+    NcPropertyChangedEventData, NcObjectProperties
 
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
@@ -76,6 +76,8 @@ class IS12Utils(MS05Utils):
         super().reset()
         self.command_handle = 0
         self.expect_notifications = False
+        self.expect_notifications_oid = 0
+        self.expect_notifications_property = None
         self.notifications = []
 
     # Overridden functions
@@ -159,7 +161,7 @@ class IS12Utils(MS05Utils):
 
         results = []
         start_time = time.time()
-        while time.time() < start_time + WS_MESSAGE_TIMEOUT:
+        while time.time() < start_time + 2* WS_MESSAGE_TIMEOUT: # have enough time for command and notifications
             if not self.ncp_websocket.is_messages_received():
                 time.sleep(0.2)
                 continue
@@ -198,7 +200,14 @@ class IS12Utils(MS05Utils):
             if not self.expect_notifications and len(results) != 0:
                 break
             if self.expect_notifications and len(results) != 0 and len(self.notifications) != 0:
-                break
+                found_oid = False
+                for notification in self.notifications:
+                    if notification.oid == self.expect_notifications_oid and notification.eventData.propertyId == self.expect_notifications_property:
+                        found_oid = True
+                        break
+
+                if found_oid:
+                    break
 
         if len(results) == 0:
             raise NMOSTestException(test.FAIL(
@@ -209,13 +218,18 @@ class IS12Utils(MS05Utils):
         if len(results) > 1:
             raise NMOSTestException(test.FAIL(f"Received multiple responses : {len(responses)}"))
 
+        if self.expect_notifications and len(self.notifications) == 0:
+            raise NMOSTestException(test.FAIL("expected notifications not received in time"))
+
         return results[0]
 
     def get_notifications(self):
         return self.notifications
 
-    def start_logging_notifications(self):
+    def start_logging_notifications(self, oid, property):
         self.expect_notifications = True
+        self.expect_notifications_oid = oid
+        self.expect_notifications_property = property
         self.notifications = []
 
     def stop_logging_notifications(self):

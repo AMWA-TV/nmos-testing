@@ -295,14 +295,15 @@ class IS1201Test(MS0501Test):
             # Each label will be set twice; once to the new user label, and then again back to the old user label
             for label in [new_user_label, old_user_label]:
                 # Set property and log notificaiton
-                self.is12_utils.start_logging_notifications()
+                self.is12_utils.start_logging_notifications(oid, NcObjectProperties.USER_LABEL.value)
                 method_result = self.is12_utils.set_property(test, NcObjectProperties.USER_LABEL.value, label, oid=oid)
+                self.is12_utils.stop_logging_notifications()
+
                 if isinstance(method_result, NcMethodResultError):
                     error = True
                     error_message += f"Unable to set user label property from object (OID:{str(oid)}): " \
                         f"{str(method_result.errorMessage)} "
                     continue
-                self.is12_utils.stop_logging_notifications()
 
                 for notification in self.is12_utils.get_notifications():
                     if notification.oid == oid:
@@ -314,7 +315,7 @@ class IS1201Test(MS0501Test):
                         if notification.eventData.propertyId != NcObjectProperties.USER_LABEL.value:
                             continue
 
-                        if notification.eventData.changeType != NcPropertyChangeType.ValueChanged:
+                        if notification.eventData.changeType != NcPropertyChangeType.ValueChanged.value:
                             error = True
                             error_message += f"{context}Unexpected change type: " \
                                 f"{str(notification.eventData.changeType.name)}, "
