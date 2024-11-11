@@ -24,7 +24,7 @@ from .Config import WS_MESSAGE_TIMEOUT
 from .GenericTest import NMOSInitException, NMOSTestException
 from .TestHelper import WebsocketWorker, load_resolved_schema
 from .MS05Utils import NcBlockMethods, NcClassManagerMethods, NcEventId, NcMethodStatus, NcObjectMethods, \
-    NcPropertyChangedEventData, NcObjectProperties
+    NcPropertyChangedEventData
 
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
@@ -161,7 +161,7 @@ class IS12Utils(MS05Utils):
 
         results = []
         start_time = time.time()
-        while time.time() < start_time + 2* WS_MESSAGE_TIMEOUT: # have enough time for command and notifications
+        while time.time() < start_time + 2 * WS_MESSAGE_TIMEOUT:  # have enough time for command and notifications
             if not self.ncp_websocket.is_messages_received():
                 time.sleep(0.2)
                 continue
@@ -202,7 +202,8 @@ class IS12Utils(MS05Utils):
             if self.expect_notifications and len(results) != 0 and len(self.notifications) != 0:
                 found_oid = False
                 for notification in self.notifications:
-                    if notification.oid == self.expect_notifications_oid and notification.eventData.propertyId == self.expect_notifications_property:
+                    if notification.oid == self.expect_notifications_oid and \
+                            notification.eventData.propertyId == self.expect_notifications_property:
                         found_oid = True
                         break
 
