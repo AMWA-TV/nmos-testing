@@ -72,7 +72,9 @@ class IS1201Test(MS0501Test):
         start_time = time.time()
         while time.time() < start_time + WS_MESSAGE_TIMEOUT:
             if not self.is12_utils.ncp_websocket.is_open():
-                return test.FAIL("Node failed to keep WebSocket open")
+                return test.FAIL("Node failed to keep WebSocket open",
+                                 f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
+                                 "/docs/Protocol_messaging.html#control-session")
             time.sleep(0.2)
 
         return test.PASS()
@@ -97,16 +99,17 @@ class IS1201Test(MS0501Test):
                 raise e
 
             if error_msg.status is None:
-                return test.FAIL(f"Command error: {str(error_msg)}")
-
+                return test.FAIL(f"Command error: {str(error_msg)}",
+                                 f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
+                                 "/docs/Protocol_messaging.html#command-response-message-type")
             if error_msg.status == NcMethodStatus.OK:
-                return test.FAIL("Error status expected.",
+                return test.FAIL("Expected error status, Actual status OK.",
                                  f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
                                  "/docs/Protocol_messaging.html#error-messages")
 
             return test.PASS()
 
-    def test_24(self, test):
+    def test_04(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not in range 1 to 65535"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -122,7 +125,7 @@ class IS1201Test(MS0501Test):
 
         return self.do_is12_error_test(test, command_json)
 
-    def test_25(self, test):
+    def test_05(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not a number"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -138,7 +141,7 @@ class IS1201Test(MS0501Test):
 
         return self.do_is12_error_test(test, command_json)
 
-    def test_26(self, test):
+    def test_06(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -153,7 +156,7 @@ class IS1201Test(MS0501Test):
 
         return self.do_is12_error_test(test, command_json)
 
-    def test_27(self, test):
+    def test_07(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
         # Error messages MUST be used by devices to return general error messages when more specific
         # responses cannot be returned
@@ -197,7 +200,7 @@ class IS1201Test(MS0501Test):
 
         return test.PASS()
 
-    def test_28(self, test):
+    def test_08(self, test):
         """MS-05-02 Error: Node handles oid of object not found in Device Model"""
         # Referencing the Google sheet
         # MS-05-02 (15) Devices MUST use the exact status code from NcMethodStatus when errors are encountered
@@ -217,7 +220,7 @@ class IS1201Test(MS0501Test):
                                        command_json,
                                        expected_status=NcMethodStatus.BadOid)
 
-    def test_29(self, test):
+    def test_09(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -233,7 +236,7 @@ class IS1201Test(MS0501Test):
                                        command_json,
                                        expected_status=NcMethodStatus.PropertyNotImplemented)
 
-    def test_30(self, test):
+    def test_10(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -252,7 +255,7 @@ class IS1201Test(MS0501Test):
                                        command_json,
                                        expected_status=NcMethodStatus.MethodNotImplemented)
 
-    def test_33(self, test):
+    def test_11(self, test):
         """Node implements subscription and notification mechanism"""
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/NcObject.html#propertychanged-event
         # https://specs.amwa.tv/is-12/releases/v1.0.0/docs/Protocol_messaging.html#notification-message-type
@@ -275,22 +278,26 @@ class IS1201Test(MS0501Test):
         response = self.is12_utils.update_subscritions(test, list(oids.keys()))
 
         if not isinstance(response, list):
-            return test.FAIL(f"Unexpected response from subscription command: {str(response)}")
-
+            return test.FAIL(f"Unexpected response from subscription command: {str(response)}",
+                             f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
+                             "/docs/Protocol_messaging.html#subscription-response-message-type")
         for oid in oids.keys():
             if oid not in response:
-                return test.FAIL(f"Unexpected response from subscription command: {str(response)}")
+                return test.FAIL(f"Unexpected response from subscription command: {str(response)}",
+                                 f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
+                                 "/docs/Protocol_messaging.html#subscription-response-message-type")
             method_result = self.is12_utils.get_property(test, NcObjectProperties.USER_LABEL.value, oid=oid)
+
+            error_msg_base = f"oid: {str(oid)}, "
 
             if isinstance(method_result, NcMethodResultError):
                 error = True
-                error_message += f"Unable to get user label property from object (OID:{str(oid)}): " \
-                    f"{str(method_result.errorMessage)} "
+                error_message += f"{error_msg_base}GetProperty error: Unable to get userLabel property for object " \
+                    f"{str(method_result.errorMessage)}; "
                 continue
 
             old_user_label = method_result.value
             new_user_label = f"modified: {old_user_label}"
-            context = f"oid: {str(oid)}, "
 
             # Each label will be set twice; once to the new user label, and then again back to the old user label
             for label in [new_user_label, old_user_label]:
@@ -301,8 +308,9 @@ class IS1201Test(MS0501Test):
 
                 if isinstance(method_result, NcMethodResultError):
                     error = True
-                    error_message += f"Unable to set user label property from object (OID:{str(oid)}): " \
-                        f"{str(method_result.errorMessage)} "
+                    error_message += f"{error_msg_base}SetProperty error: " \
+                        "Unable to set userLabel property for object: " \
+                        f"{str(method_result.errorMessage)}; "
                     continue
 
                 for notification in self.is12_utils.get_notifications():
@@ -310,25 +318,25 @@ class IS1201Test(MS0501Test):
 
                         if notification.eventId != NcObjectEvents.PROPERTY_CHANGED.value:
                             error = True
-                            error_message += f"{context}Unexpected event type: {str(notification.eventId)}, "
+                            error_message += f"{error_msg_base}Unexpected event type: {str(notification.eventId)}; "
 
                         if notification.eventData.propertyId != NcObjectProperties.USER_LABEL.value:
                             continue
 
                         if notification.eventData.changeType != NcPropertyChangeType.ValueChanged.value:
                             error = True
-                            error_message += f"{context}Unexpected change type: " \
-                                f"{str(notification.eventData.changeType.name)}, "
+                            error_message += f"{error_msg_base}Unexpected change type: " \
+                                f"{str(notification.eventData.changeType.name)}; "
 
                         if notification.eventData.value != label:
                             error = True
-                            error_message += f"{context}Unexpected value: " \
-                                f"{str(notification.eventData.value)}, "
+                            error_message += f"{error_msg_base}Unexpected value: " \
+                                f"{str(notification.eventData.value)}; "
 
                         if notification.eventData.sequenceItemIndex is not None:
                             error = True
-                            error_message += f"{context}Unexpected sequence item index: " \
-                                f"{str(notification.eventData.sequenceItemIndex)}, "
+                            error_message += f"{error_msg_base}Unexpected sequence item index: " \
+                                f"{str(notification.eventData.sequenceItemIndex)}; "
 
                         oids[oid] += 1
 

@@ -304,14 +304,14 @@ class MS05Utils(NMOSUtils):
 
         for name, descriptor in datatype_descriptors.items():
             json_schema = self._datatype_descriptor_to_schema(descriptor)
-            with open(os.path.join(base_schema_path, name + ".json"), "w") as output_file:
+            with open(os.path.join(base_schema_path, f"{name}.json"), "w") as output_file:
                 json.dump(json_schema, output_file, indent=4)
                 datatype_schema_names.append(name)
 
         # Load resolved MS-05 datatype schemas
         datatype_schemas = {}
         for name in datatype_schema_names:
-            datatype_schemas[name] = load_resolved_schema(schema_path, name + ".json", path_prefix=False)
+            datatype_schemas[name] = load_resolved_schema(schema_path, f"{name}.json", path_prefix=False)
 
         return datatype_schemas
 
@@ -329,10 +329,10 @@ class MS05Utils(NMOSUtils):
         if isinstance(descriptor, (NcDatatypeDescriptorStruct, NcDatatypeDescriptorTypeDef)) and descriptor.parentType:
             if isinstance(descriptor, NcDatatypeDescriptorTypeDef) and descriptor.isSequence:
                 json_schema["type"] = "array"
-                json_schema["items"] = {"$ref": descriptor.parentType + ".json"}
+                json_schema["items"] = {"$ref": f"{descriptor.parentType}.json"}
             else:
                 json_schema["allOf"] = []
-                json_schema["allOf"].append({"$ref": descriptor.parentType + ".json"})
+                json_schema["allOf"].append({"$ref": f"{descriptor.parentType}.json"})
         # Primitive datatype
         elif isinstance(descriptor, NcDatatypeDescriptorPrimitive):
             json_schema["type"] = self._primitive_to_JSON(descriptor.name)
@@ -356,10 +356,10 @@ class MS05Utils(NMOSUtils):
                     if field.typeName:
                         if field.isNullable:
                             property_type["anyOf"] = []
-                            property_type["anyOf"].append({"$ref": field.typeName + ".json"})
+                            property_type["anyOf"].append({"$ref": f"{field.typeName}.json"})
                             property_type["anyOf"].append({"type": "null"})
                         else:
-                            property_type = {"$ref": field.typeName + ".json"}
+                            property_type = {"$ref": f"{field.typeName}.json"}
                     else:
                         # variant
                         property_type = {"type": variant_type}
@@ -597,13 +597,15 @@ class MS05Utils(NMOSUtils):
         members = device_model.find_members_by_class_id(class_id, include_derived=True, get_objects=True)
 
         spec_link = f"https://specs.amwa.tv/ms-05-02/branches/{self.apis[MS05_API_KEY]['spec_branch']}" \
-            + "/docs/Managers.html"
+            "/docs/Managers.html"
 
         if len(members) == 0:
             raise NMOSTestException(test.FAIL(f"Class: {class_id} not found in Root Block.", spec_link))
 
         if len(members) > 1:
-            raise NMOSTestException(test.FAIL(f"Class: {class_id} expected to be a singleton.", spec_link))
+            error_msg_base = f"Found members: {[m.role for m in members].join(', ')}: "
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}Class: {class_id} expected to be a singleton.",
+                                              spec_link))
 
         return members[0]
 

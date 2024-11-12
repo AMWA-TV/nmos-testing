@@ -15,7 +15,7 @@
 import re
 import sys
 
-from copy import deepcopy
+from copy import copy, deepcopy
 from math import floor
 from xeger import Xeger
 
@@ -213,7 +213,7 @@ class MS0502Test(ControllerTest):
         return results
 
     def _check_constrained_parameter(self, test, constrained_property, value, expect_error=True):
-        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}:" \
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}, " \
                          f"property id={constrained_property.descriptor.id}, " \
                          f"property name={constrained_property.descriptor.name}: "
 
@@ -247,12 +247,12 @@ class MS0502Test(ControllerTest):
                                                                 role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
                 # We don't want this error to be confused with a constraints violation error
-                raise NMOSTestException(test.FAIL(f"{error_msg_base}GetSequenceLength error "
+                raise NMOSTestException(test.FAIL(f"{error_msg_base}GetSequenceLength error: "
                                                   f"{str(method_result.errorMessage)}"))
             if self.ms05_utils.is_error_status(method_result.status):
                 # We don't want this error to be confused with a constraints violation error
-                raise NMOSTestException(test.FAIL(f"{error_msg_base}GetSequenceLength error "
-                                                  "NcMethodResultError MUST be returned on an error. "))
+                raise NMOSTestException(test.FAIL(f"{error_msg_base}GetSequenceLength error: "
+                                                  "NcMethodResultError MUST be returned on an error."))
             return self.ms05_utils.set_sequence_item(test,
                                                      constrained_property.descriptor.id,
                                                      method_result.value - 1,
@@ -369,18 +369,18 @@ class MS0502Test(ControllerTest):
                                                      oid=property_under_test.oid,
                                                      role_path=property_under_test.role_path)
 
-        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(property_under_test.role_path)}:" \
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(property_under_test.role_path)}, " \
                          f"property id={property_under_test.descriptor.id}, " \
-                         f"Property name={property_under_test.descriptor.name}: "
+                         f"property name={property_under_test.descriptor.name}: "
         if isinstance(method_result, NcMethodResultError):
             self.check_property_metadata.error = True
             self.check_property_metadata.error_msg += \
-                f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)} "
+                f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}; "
         else:
             self.check_property_metadata.checked = True
         if self.ms05_utils.is_error_status(method_result.status):
-            raise NMOSTestException(test.FAIL(f"{error_msg_base}SetProperty error "
-                                              "NcMethodResultError MUST be returned on an error. "))
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}SetProperty error: "
+                                              "NcMethodResultError MUST be returned on an error."))
 
     def _do_check_property_test(self, test, question, get_constraints=False, get_sequences=False, datatype_type=None):
         # Test properties of the Device Model
@@ -424,15 +424,15 @@ class MS0502Test(ControllerTest):
             method_result = self.ms05_utils.get_property(test, constrained_property.descriptor.id,
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
-            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}:" \
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}, " \
                              f"property id={constrained_property.descriptor.id}, " \
                              f"property name={constrained_property.descriptor.name}: "
             if isinstance(method_result, NcMethodResultError):
                 return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}. "
-                                 f"Constraints: {str(constraints)}")
+                                 f"constraints: {str(constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error "
-                                           "NcMethodResultError MUST be returned on an error. "))
+                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error: "
+                                           "NcMethodResultError MUST be returned on an error."))
 
             original_value = method_result.value
             try:
@@ -452,11 +452,11 @@ class MS0502Test(ControllerTest):
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
                 return test.FAIL(f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}. "
-                                 f"Original value: {str(original_value)}, "
-                                 f"Constraints: {str(constraints)}")
+                                 f"original value: {str(original_value)}, "
+                                 f"constraints: {str(constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(test.FAIL(f"{error_msg_base}SetProperty error "
-                                           "NcMethodResultError MUST be returned on an error. "))
+                return test.FAIL(test.FAIL(f"{error_msg_base}SetProperty error: "
+                                           "NcMethodResultError MUST be returned on an error."))
 
         if self.check_property_metadata.error:
             # JRT add link to constraints spec
@@ -556,14 +556,14 @@ class MS0502Test(ControllerTest):
                                                          oid=readonly_property.oid,
                                                          role_path=readonly_property.role_path)
 
-            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}:" \
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}, " \
                              f"property id={readonly_property.descriptor.id}, " \
                              f"property name={readonly_property.descriptor.name}: "
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{error_msg_base}GetProperty error:{str(method_result.errorMessage)} ")
+                return test.FAIL(f"{error_msg_base}GetProperty error:{str(method_result.errorMessage)}")
             if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error "
-                                           "NcMethodResultError MUST be returned on an error. "))
+                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error: "
+                                           "NcMethodResultError MUST be returned on an error."))
             original_value = method_result.value
             # Try setting this value
             method_result = self.ms05_utils.set_property(test,
@@ -574,7 +574,7 @@ class MS0502Test(ControllerTest):
 
             if not isinstance(method_result, NcMethodResultError):
                 # if it gets this far it's failed
-                return test.FAIL(f"{readonly_property.name}: Read only property is writable")
+                return test.FAIL(f"{error_msg_base}SetProperty error: Read only property is writable.")
             else:
                 readonly_checked = True
 
@@ -630,9 +630,9 @@ class MS0502Test(ControllerTest):
 
     def _make_violate_constraints_mask(self, parameters, violate_constraints):
         # If we're violating constraints then we want to violate each constrained parameter individually
-        # so we can test each type of violation in isolation - rather than violating all constraints all at once.
-        # This returns a list of masks. Each mask is a boolean list that corresponds exaclty to the parameters list
-        # For each parameter, the mask indicate True (violate constraints) or False (don't violate constraints)
+        # so we every combination of violation in isolation - rather than violating all constraints all at once.
+        # This returns a list of masks. Each mask is a boolean list that corresponds exactly to the parameters list
+        # For each parameter, the mask indicates True (violate constraints) or False (don't violate constraints)
         # output constraints_masks list of the form e.g. [[False, True, False, False],[False, False, True, False]]
         has_constraints = [p.constraints is not None for p in parameters]
 
@@ -650,15 +650,15 @@ class MS0502Test(ControllerTest):
             constraints_masks.append(constraint_mask)
         return constraints_masks
 
-    def _values_dict_to_parameters_list(self, values, input_params=[{}]):
+    def _values_dict_to_parameters_list(self, values_, input_params=[{}]):
         # Convert a values dict into list of method parameters
-        # Note this method removes all the values from values
         # values dict of the form:
         # e.g. {foo: [1,2,3], bar: [A,B]}
         # output of the form:
         # e.g. [[{foo:1,bar:A}], [{foo:1,bar:B]}],
         #       [{foo:2,bar:A}], [{foo:2,bar:B]}],
         #       [{foo:3,bar:A}], [{foo:3,bar:B]}]]
+        values = copy(values_)
         if not bool(values):  # all values have been popped
             return input_params
 
@@ -797,7 +797,7 @@ class MS0502Test(ControllerTest):
                     except NMOSTestException as e:
                         self.invoke_methods_metadata.error = True
                         self.invoke_methods_metadata.error_msg += \
-                            f"Error invoking method {method.name} : {e.args[0].detail}; "
+                            f"{error_msg_base}: Error invoking method {method.name} : {e.args[0].detail}; "
 
         if self.invoke_methods_metadata.error:
             return test.FAIL(self.invoke_methods_metadata.error_msg)
@@ -820,7 +820,7 @@ class MS0502Test(ControllerTest):
 
         return self._do_check_methods_test(test, question, get_constraints=False)
 
-    def test_ms05_07_01(self, test):
+    def test_ms05_08(self, test):
         """Constraints on method parameters are enforced"""
         question = """\
                    From this list of methods\
@@ -851,19 +851,19 @@ class MS0502Test(ControllerTest):
             new_item_index = method_result.value
             method_result = self.ms05_utils.add_sequence_item(test, property_id, new_item_value,
                                                               oid=oid, role_path=role_path)
-        # Check return type of addSequenceItem - should be NcMethodResultId
+        # Check return type of AddSequenceItem - should be NcMethodResultId
         if not isinstance(method_result, NcMethodResultError):
             if not isinstance(method_result, NcMethodResultXXX):
                 self.add_sequence_item_metadata.error = True
                 self.add_sequence_item_metadata.error_msg += \
-                    f"{error_msg_base}Unexpected return type from addSequenceItem. "
+                    f"{error_msg_base}AddSequenceItem error: Unexpected return type; "
                 return False
             # add_sequence_item should return index of added item
             if method_result.value != new_item_index:
                 self.add_sequence_item_metadata.error = True
                 self.add_sequence_item_metadata.error_msg += \
-                    f"{error_msg_base}Unexpected index of added item. " \
-                    f"Expected: {str(new_item_index)}, Actual: {str(method_result.value)}"
+                    f"{error_msg_base}AddSequenceItem error: Unexpected index returned: " \
+                    f"Expected: {str(new_item_index)}, Actual: {str(method_result.value)}; "
                 return False
             # check the added item value
             method_result = self.ms05_utils.get_sequence_item(test, property_id, index=sequence_length,
@@ -871,18 +871,18 @@ class MS0502Test(ControllerTest):
         if isinstance(method_result, NcMethodResultError):
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{error_msg_base}Sequence method error: {str(method_result.errorMessage)} "
+                f"{error_msg_base}GetSequenceItem error: {str(method_result.errorMessage)}; "
             return False
         if self.ms05_utils.is_error_status(method_result.status):
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{error_msg_base}Sequence method error: NcMethodResultError MUST be returned on an error. "
+                f"{error_msg_base}GetSequenceItem error: NcMethodResultError MUST be returned on an error; "
             return False
         if method_result.value != new_item_value:
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{error_msg_base}Error adding sequence item. " \
-                f"Expected: {str(new_item_value)}, Actual: {str(method_result.value)}, "
+                f"{error_msg_base}AddSequenceItem error. Value added does not match value retrieved: " \
+                f"Expected: {str(new_item_value)}, Actual: {str(method_result.value)}; "
         self.add_sequence_item_metadata.checked = True
 
         return True
@@ -907,11 +907,11 @@ class MS0502Test(ControllerTest):
                 self.set_sequence_item_metadata.error = True
                 self.set_sequence_item_metadata.error_msg += \
                     f"{error_msg_base}Sequence method error. " \
-                    f"Expected: {str(new_value)}, Actual: {str(method_result.value)}, "
+                    f"Expected: {str(new_value)}, Actual: {str(method_result.value)}; "
         else:
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"{error_msg_base}Sequence method error: {str(method_result.errorMessage)} "
+                f"{error_msg_base}Sequence method error: {str(method_result.errorMessage)}; "
             return False
 
         self.set_sequence_item_metadata.checked = True
@@ -919,30 +919,33 @@ class MS0502Test(ControllerTest):
         return True
 
     def check_remove_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
-        # remove item
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
+                         f"property id={property_id}, " \
+                         f"property name={property_name}: "
         self.remove_sequence_item_metadata.checked = True
         method_result = self.ms05_utils.remove_sequence_item(test, property_id, index=sequence_length,
                                                              oid=oid, role_path=role_path)
         if isinstance(method_result, NcMethodResultError):
             self.remove_sequence_item_metadata.error = True
             self.remove_sequence_item_metadata.error_msg += \
-                f"{self.ms05_utils.create_role_path_string(role_path)}{property_name}: " \
-                f"RemoveSequenceItem error: {str(method_result.errorMessage)}; "
+                f"{error_msg_base}RemoveSequenceItem error: {str(method_result.errorMessage)}; "
         if self.ms05_utils.is_error_status(method_result.status):
             self.remove_sequence_item_metadata.error = True
             self.remove_sequence_item_metadata.error_msg += \
-                f"{self.ms05_utils.create_role_path_string(role_path)}{property_name}: " \
-                f"RemoveSequenceItem error: NcMethodResultError MUST be returned on an error; "
+                f"{error_msg_base}RemoveSequenceItem error: NcMethodResultError MUST be returned on an error; "
 
     def check_sequence_methods(self, test, property_id, property_name, oid, role_path):
         """Check that sequence manipulation methods work correctly"""
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
+                         f"property id={property_id}, " \
+                         f"property name={property_name}: "
 
         method_result = self.ms05_utils.get_property(test, property_id, oid=oid, role_path=role_path)
 
         if isinstance(method_result, NcMethodResultError):
             self.add_sequence_item_metadata.error = True
             self.add_sequence_item_metadata.error_msg += \
-                f"error getting property: {str(property_id)}, {str(method_result.errorMessage)} "
+                f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}; "
             return
 
         response = method_result.value
@@ -965,8 +968,8 @@ class MS0502Test(ControllerTest):
             if sequence_length + 1 != method_result.value:
                 self.add_sequence_item_metadata.error = True
                 self.add_sequence_item_metadata.error_msg += \
-                    f"{property_name}: add_sequence_item resulted in unexpected sequence length. " \
-                    f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}. "
+                    f"{error_msg_base}: AddSequenceItem error, call resulted in unexpected sequence length. " \
+                    f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}; "
 
             self.check_set_sequence_item(test, property_id, property_name, sequence_length, oid, role_path)
 
@@ -976,8 +979,8 @@ class MS0502Test(ControllerTest):
             if sequence_length + 1 != method_result.value:
                 self.set_sequence_item_metadata.error = True
                 self.set_sequence_item_metadata.error_msg += \
-                    f"{property_name}: set_sequence_item resulted in unexpected sequence length." \
-                    f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}. "
+                    f"{error_msg_base}: SetSequenceItem error, call resulted in unexpected sequence length." \
+                    f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}; "
             self.check_remove_sequence_item(test, property_id, property_name, sequence_length, oid, role_path)
 
             method_result = self.ms05_utils.get_sequence_length(test, property_id, oid=oid, role_path=role_path)
@@ -986,12 +989,12 @@ class MS0502Test(ControllerTest):
             if sequence_length != method_result.value:
                 self.remove_sequence_item_metadata.error = True
                 self.remove_sequence_item_metadata.error_msg += \
-                    f"{property_name}: remove_sequence_item resulted in unexpected sequence length." \
-                    f"Expected: {str(sequence_length)}, Actual: {str(method_result.value)}. "
+                    f"{error_msg_base}: RemoveSequenceItem error, call resulted in unexpected sequence length." \
+                    f"Expected: {str(sequence_length)}, Actual: {str(method_result.value)}; "
         else:
             self.remove_sequence_item_metadata.error = True
             self.remove_sequence_item_metadata.error_msg += \
-                f"{property_name}: Error getting sequence length. {str(method_result.errorMessage)}"
+                f"{error_msg_base}: sequence method error: {str(method_result.errorMessage)}; "
 
     def validate_sequences(self, test):
         """Test all writable sequences"""
@@ -1035,7 +1038,7 @@ class MS0502Test(ControllerTest):
 
         self.sequences_validated = True
 
-    def test_ms05_08(self, test):
+    def test_ms05_09(self, test):
         """NcObject method: SetSequenceItem"""
         try:
             if not self.sequences_validated:
@@ -1055,7 +1058,7 @@ class MS0502Test(ControllerTest):
 
         return test.PASS()
 
-    def test_ms05_09(self, test):
+    def test_ms05_10(self, test):
         """NcObject method: AddSequenceItem"""
         try:
             if not self.sequences_validated:
@@ -1075,7 +1078,7 @@ class MS0502Test(ControllerTest):
 
         return test.PASS()
 
-    def test_ms05_10(self, test):
+    def test_ms05_11(self, test):
         """NcObject method: RemoveSequenceItem"""
         try:
             if not self.sequences_validated:
