@@ -22,9 +22,8 @@ from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescrip
 from ..TestResult import Test
 
 # Note: this test suite is a base class for the IS1201Test and IS1401Test test suites
-# where there are common MS-05 tests.  The test suite is not configured and
-# instantiated in the same way as the other test suites.  This is
-# explicitly instantiated by the IS-12 and IS-14 test suites
+# where there are common MS-05 tests.  Therefore this test suite is not configured and
+# instantiated in the same way as the other test suites.
 
 NODE_API_KEY = "node"
 MS05_API_KEY = "controlframework"
@@ -76,16 +75,16 @@ class MS0501Test(GenericTest):
     def basics(self):
         results = super().basics()
         try:
-            results += self.auto_tests()
+            results += self._auto_tests()
         except NMOSTestException as e:
             results.append(e.args[0])
         except Exception as e:
             results.append(self.uncaught_exception("auto_tests", e))
         return results
 
-    def validate_model_definitions(self, descriptors, reference_descriptors):
-        """ Validate Class Manager model definitions against reference model descriptors.
-            Returns [test result array] """
+    def _validate_model_definitions(self, descriptors, reference_descriptors):
+        # Validate Class Manager model definitions against reference model descriptors.
+        # Returns [test result array]
         results = list()
 
         reference_descriptor_keys = sorted(reference_descriptors.keys())
@@ -111,8 +110,9 @@ class MS0501Test(GenericTest):
 
         return results
 
-    def auto_tests(self):
-        """Automatically validate all standard datatypes and control classes. Returns [test result array]"""
+    def _auto_tests(self):
+        # Automatically validate all standard datatypes and control classes.
+        # Returns [test result array]
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html
 
         results = list()
@@ -120,11 +120,11 @@ class MS0501Test(GenericTest):
 
         class_manager = self.ms05_utils.get_class_manager(test)
 
-        results += self.validate_model_definitions(class_manager.class_descriptors,
-                                                   self.ms05_utils.reference_class_descriptors)
+        results += self._validate_model_definitions(class_manager.class_descriptors,
+                                                    self.ms05_utils.reference_class_descriptors)
 
-        results += self.validate_model_definitions(class_manager.datatype_descriptors,
-                                                   self.ms05_utils.reference_datatype_descriptors)
+        results += self._validate_model_definitions(class_manager.datatype_descriptors,
+                                                    self.ms05_utils.reference_datatype_descriptors)
         return results
 
     def test_ms05_01(self, test):
@@ -183,13 +183,13 @@ class MS0501Test(GenericTest):
 
     def _check_property_type(self, test, value, property_descriptor, role_path):
         """Check property type. Raises NMOSTestException on error"""
-        context = f"{self.ms05_utils.create_role_path_string(role_path)}: {property_descriptor.name}: "
+        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: {property_descriptor.name}: "
 
         if value is None:
             if property_descriptor.isNullable:
                 return
             else:
-                raise NMOSTestException(test.FAIL(f"{context}Non-nullable property set to null."))
+                raise NMOSTestException(test.FAIL(f"{error_msg_base}Non-nullable property set to null."))
 
         if self.ms05_utils.primitive_to_python_type(property_descriptor.typeName):
             # Special case: if this is a floating point value it
@@ -200,7 +200,7 @@ class MS0501Test(GenericTest):
                 return
 
             if not isinstance(value, self.ms05_utils.primitive_to_python_type(property_descriptor.typeName)):
-                raise NMOSTestException(test.FAIL(f"{context}{str(value)} is not of type "
+                raise NMOSTestException(test.FAIL(f"{error_msg_base}{str(value)} is not of type "
                                                   f"{str(property_descriptor.typeName)}"))
         else:
             self.ms05_utils.queried_datatype_schema_validate(test, value, property_descriptor.typeName, role_path)
@@ -208,7 +208,7 @@ class MS0501Test(GenericTest):
         return
 
     def check_get_sequence_item(self, test, oid, role_path, sequence_values, property_descriptor):
-        context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
+        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: "
         self.get_sequence_item_metadata.checked = True
         sequence_index = 0
         for property_value in sequence_values:
@@ -217,23 +217,23 @@ class MS0501Test(GenericTest):
             if isinstance(method_result, NcMethodResultError):
                 self.get_sequence_item_metadata.error = True
                 self.get_sequence_item_metadata.error_msg += \
-                    f"{context}{property_descriptor.name}: GetSequenceItem error: " \
+                    f"{error_msg_base}{property_descriptor.name}: GetSequenceItem error: " \
                     f"{method_result.error}, "
             if self.ms05_utils.is_error_status(method_result.status):
                 self.get_sequence_item_metadata.error = True
                 self.get_sequence_item_metadata.error_msg += \
-                    f"{context}{property_descriptor.name}: GetSequenceItem error: " \
+                    f"{error_msg_base}{property_descriptor.name}: GetSequenceItem error: " \
                     "NcMethodResultError MUST be returned on an error"
             if property_value != method_result.value:
                 self.get_sequence_item_metadata.error = True
                 self.get_sequence_item_metadata.error_msg += \
-                    f"{context}{property_descriptor.name}: Expected: {str(property_value)}, " \
+                    f"{error_msg_base}{property_descriptor.name}: Expected: {str(property_value)}, " \
                     f"Actual: {str(method_result.value)} " \
                     f"at index {sequence_index}, "
             sequence_index += 1
 
     def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_descriptor):
-        context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
+        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: "
 
         self.get_sequence_length_metadata.checked = True
         method_result = self.ms05_utils.get_sequence_length(test, property_descriptor.id,
@@ -241,18 +241,19 @@ class MS0501Test(GenericTest):
 
         if isinstance(method_result, NcMethodResultError):
             self.get_sequence_length_metadata.error_msg += \
-                f"{context}{property_descriptor.name} GetSequenceLength error: {str(method_result.errorMessage)}, "
+                f"{error_msg_base}{property_descriptor.name} " \
+                f"GetSequenceLength error: {str(method_result.errorMessage)}, "
             self.get_sequence_length_metadata.error = True
             return False
         if self.ms05_utils.is_error_status(method_result.status):
             self.get_sequence_length_metadata.error = True
             self.get_sequence_length_metadata.error_msg += \
-                f"{context}{property_descriptor.name} GetSequenceLength error: " \
+                f"{error_msg_base}{property_descriptor.name} GetSequenceLength error: " \
                 "NcMethodResultError MUST be returned on an error"
         length = method_result.value
         if length != len(sequence_values):
             self.get_sequence_length_metadata.error_msg += \
-                f"{context}{property_descriptor.name}: GetSequenceLength error. Expected: " \
+                f"{error_msg_base}{property_descriptor.name}: GetSequenceLength error. Expected: " \
                 f"{str(len(sequence_values))}, Actual: {str(length)}, "
             self.get_sequence_length_metadata.error = True
             return False
@@ -271,19 +272,19 @@ class MS0501Test(GenericTest):
             self.check_get_sequence_length(test, oid, role_path, sequence_values, property_descriptor)
 
     def check_object_properties(self, test, reference_class_descriptor, oid, role_path):
-        context = f"{self.ms05_utils.create_role_path_string(role_path)}: "
+        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: "
         """Check properties of an object against reference NcClassDescriptor"""
         for property_descriptor in reference_class_descriptor.properties:
             method_result = self.ms05_utils.get_property(test, property_descriptor.id,
                                                          oid=oid, role_path=role_path)
             if isinstance(method_result, NcMethodResultError):
                 self.device_model_metadata.error = True
-                self.device_model_metadata.error_msg += f"{context}" \
+                self.device_model_metadata.error_msg += f"{error_msg_base}" \
                     f"{str(property_descriptor.id)} GetProperty error: {str(method_result.errorMessage)} "
             if self.ms05_utils.is_error_status(method_result.status):
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += \
-                    f"{context}{str(property_descriptor.id)} GetProperty error: " \
+                    f"{error_msg_base}{str(property_descriptor.id)} GetProperty error: " \
                     "NcMethodResultError MUST be returned on an error"
             property_value = method_result.value
 
@@ -292,7 +293,8 @@ class MS0501Test(GenericTest):
                 if method_result.status != NcMethodStatus.PropertyDeprecated:
                     self.deprecated_property_metadata.error = True
                     self.deprecated_property_metadata.error_msg += \
-                        f"{context}PropertyDeprecated status code expected when getting {property_descriptor.name}"
+                        f"{error_msg_base}PropertyDeprecated status code expected " \
+                        f"when getting {property_descriptor.name}"
 
             if not property_value:
                 continue
@@ -353,7 +355,7 @@ class MS0501Test(GenericTest):
 
     def check_touchpoints(self, test, oid, role_path):
         """Touchpoint checks"""
-        context = self.ms05_utils.create_role_path_string(role_path)
+        error_msg_base = self.ms05_utils.create_role_path_string(role_path)
         method_result = self.ms05_utils.get_property(
             test,
             NcObjectProperties.TOUCHPOINTS.value,
@@ -363,12 +365,12 @@ class MS0501Test(GenericTest):
         if isinstance(method_result, NcMethodResultError):
             self.device_model_metadata.error = True
             self.device_model_metadata.error_msg += f"Error getting touchpoints for object: " \
-                f"{context}: {str(method_result.errorMessage)}; "
+                f"{error_msg_base}: {str(method_result.errorMessage)}; "
             return
         if self.ms05_utils.is_error_status(method_result.status):
             self.device_model_metadata.error = True
             self.device_model_metadata.error_msg += \
-                f"{context} GetProperty error: " \
+                f"{error_msg_base} GetProperty error: " \
                 "NcMethodResultError MUST be returned on an error"
 
         # touchpoints can be null
@@ -377,7 +379,7 @@ class MS0501Test(GenericTest):
 
         if not isinstance(method_result.value, list):
             self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += f"{context}Expected touchpoint sequence for object: "
+            self.device_model_metadata.error_msg += f"{error_msg_base}Expected touchpoint sequence for object: "
             return
 
         try:
@@ -393,7 +395,7 @@ class MS0501Test(GenericTest):
                 self.touchpoints_metadata.checked = True
         except NMOSTestException as e:
             self.touchpoints_metadata.error = True
-            self.touchpoints_metadata.error_msg = f"{context}{str(e.args[0].detail)}"
+            self.touchpoints_metadata.error_msg = f"{error_msg_base}{str(e.args[0].detail)}"
 
     def check_block(self, test, block, class_descriptors):
         for child_object in block.child_objects:
@@ -1089,13 +1091,13 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def check_constraint(self, test, constraint, descriptor, test_metadata, role_path):
-        context = f"{self.ms05_utils.create_role_path_string(role_path)}:{descriptor.name}:{descriptor.typeName}"
+        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}:{descriptor.name}:{descriptor.typeName}"
         if constraint.defaultValue:
             if isinstance(constraint.defaultValue, list) is not descriptor.isSequence:
                 self.test_metadata.error = True
                 message = "Default value sequence was expected " \
                     if descriptor.isSequence else "Unexpected default value sequence. "
-                self.test_metadata.error_msg = f"{context} {message}"
+                self.test_metadata.error_msg = f"{error_msg_base} {message}"
                 return
             if descriptor.isSequence:
                 for value in constraint.defaultValue:
@@ -1110,12 +1112,12 @@ class MS0501Test(GenericTest):
             if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
                                 "NcUint64", "NcFloat32", "NcFloat64"]:
                 test_metadata.error = True
-                test_metadata.error_msg = f"{context}. {datatype} " \
+                test_metadata.error_msg = f"{error_msg_base}. {datatype} " \
                     f"can not be constrainted by {constraint.__class__.__name__}."
         if isinstance(constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
             if datatype not in ["NcString"]:
                 test_metadata.error = True
-                test_metadata.error_msg = f"{context}. {datatype} " \
+                test_metadata.error_msg = f"{error_msg_base}. {datatype} " \
                     f"can not be constrainted by {constraint.__class__.__name__}."
 
     def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
@@ -1238,7 +1240,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def _check_constraint_override(self, test, constraint, override_constraint, context):
+    def _check_constraint_override(self, test, constraint, override_constraint, error_msg_base):
         def _xor_constraint(left, right):
             return bool(left is not None) ^ bool(right is not None)
 
@@ -1251,21 +1253,21 @@ class MS0501Test(GenericTest):
                     or _xor_constraint(constraint.maximum, override_constraint.maximum) \
                     or _xor_constraint(constraint.step, override_constraint.step):
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level. "
+                    test.FAIL(f"{error_msg_base}Constraints implementations MUST fully override the previous level. "
                               f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
             if constraint.minimum and override_constraint.minimum < constraint.minimum:
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
                               "the minimum constraint defined in previous levels. "
                               f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
             if constraint.maximum and override_constraint.maximum > constraint.maximum:
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
                               "the maximum constraint defined in previous levels. "
                               f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
             if constraint.step and override_constraint.step < constraint.step:
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
                               "the step constraint defined in previous levels. "
                               f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
 
@@ -1276,27 +1278,27 @@ class MS0501Test(GenericTest):
             if _xor_constraint(constraint.maxCharacters, override_constraint.maxCharacters) \
                     or _xor_constraint(constraint.pattern, override_constraint.pattern):
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST fully override the previous level. "
+                    test.FAIL(f"{error_msg_base}Constraints implementations MUST fully override the previous level. "
                               f"Constraint: {str(constraint)}, Override_constraint: "
                               f"{str(override_constraint)}"))
             if constraint.maxCharacters \
                     and override_constraint.maxCharacters > constraint.maxCharacters:
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
                               "the maxCharacters constraint defined in previous levels. "
                               f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
             # Hmm, difficult to meaningfully determine whether an overridden regex pattern is widening the constraint
             # so rule of thumb here is that a shorter pattern is less constraining that a longer pattern
             if constraint.pattern and len(override_constraint.pattern) < len(constraint.pattern):
                 raise NMOSTestException(
-                    test.FAIL(f"{context}Constraints implementations MUST not result in widening "
+                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
                               "the pattern constraint defined in previous levels. "
                               f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
         return checked
 
     def _check_constraints_hierarchy(self, test, property_descriptor, datatype_descriptors, object_runtime_constraints,
                                      role_path):
-        context = f"{self.ms05_utils.create_role_path_string(role_path)}: {property_descriptor.name}: "
+        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: {property_descriptor.name}: "
         datatype_constraints = None
         runtime_constraints = None
         checked = False
@@ -1305,9 +1307,9 @@ class MS0501Test(GenericTest):
             if datatype_descriptors.get(property_descriptor.typeName):
                 datatype_constraints = datatype_descriptors.get(property_descriptor.typeName).constraints
             else:
-                raise NMOSTestException(test.FAIL(f"{context}Unknown data type: {property_descriptor.typeName}"))
+                raise NMOSTestException(test.FAIL(f"{error_msg_base}Unknown data type: {property_descriptor.typeName}"))
         else:
-            raise NMOSTestException(test.FAIL(f"{context}Missing data type from class descriptor"))
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}Missing data type from class descriptor"))
 
         # Level 1: Property constraints
         property_constraints = property_descriptor.constraints
@@ -1320,17 +1322,20 @@ class MS0501Test(GenericTest):
         if datatype_constraints and property_constraints:
             checked = checked or \
                 self._check_constraint_override(test, datatype_constraints, property_constraints,
-                                                f"{context}Datatype constraints overridden by property constraints: ")
+                                                f"{error_msg_base}Datatype constraints overridden "
+                                                "by property constraints: ")
 
         if datatype_constraints and runtime_constraints:
             checked = checked or \
                 self._check_constraint_override(test, datatype_constraints, runtime_constraints,
-                                                f"{context}Datatype constraints overridden by runtime constraints: ")
+                                                f"{error_msg_base}Datatype constraints overridden "
+                                                "by runtime constraints: ")
 
         if property_constraints and runtime_constraints:
             checked = checked or \
                 self._check_constraint_override(test, property_constraints, runtime_constraints,
-                                                f"{context}Droperty constraints overridden by runtime constraints: ")
+                                                f"{error_msg_base}Droperty constraints overridden "
+                                                "by runtime constraints: ")
 
         return checked
 
