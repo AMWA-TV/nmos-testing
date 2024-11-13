@@ -210,7 +210,9 @@ class MS05Utils(NMOSUtils):
         method_result = NcMethodResult.factory(result)
 
         if not isinstance(method_result, NcMethodResultError):
-            self.reference_datatype_schema_validate(test, method_result.value, NcDatatypeDescriptor.__name__,
+            self.reference_datatype_schema_validate(test,
+                                                    method_result.value,
+                                                    NcDatatypeDescriptor.get_descriptor_type(method_result.value),
                                                     role_path=kwargs.get("role_path"))
             method_result.value = NcDatatypeDescriptor.factory(method_result.value)
 
@@ -333,8 +335,9 @@ class MS05Utils(NMOSUtils):
             else:
                 json_schema["allOf"] = []
                 json_schema["allOf"].append({"$ref": f"{descriptor.parentType}.json"})
+
         # Primitive datatype
-        elif isinstance(descriptor, NcDatatypeDescriptorPrimitive):
+        if isinstance(descriptor, NcDatatypeDescriptorPrimitive):
             json_schema["type"] = self._primitive_to_JSON(descriptor.name)
 
         # Struct datatype
@@ -503,7 +506,7 @@ class MS05Utils(NMOSUtils):
 
         # Validate descriptors against schema
         for r in response:
-            self.reference_datatype_schema_validate(test, r, NcDatatypeDescriptor.__name__, role_path)
+            self.reference_datatype_schema_validate(test, r, NcDatatypeDescriptor.get_descriptor_type(r), role_path)
 
         # Create NcDescriptor dictionary from response array
         descriptors = {r["name"]: NcDatatypeDescriptor.factory(r) for r in response}
@@ -920,15 +923,30 @@ class NcDatatypeDescriptor(NcDescriptor):
         self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"], "datatype")  # Optional
 
     @staticmethod
-    def factory(descriptor_json):
-        """Instantiate concrete NcDatatypeDescriptor object"""
+    def get_descriptor_type(descriptor_json):
         if "fields" in descriptor_json and "parentType" in descriptor_json:
-            return NcDatatypeDescriptorStruct(descriptor_json)
+            return "NcDatatypeDescriptorStruct"
 
         if "parentType" in descriptor_json and "isSequence" in descriptor_json:
-            return NcDatatypeDescriptorTypeDef(descriptor_json)
+            return "NcDatatypeDescriptorTypeDef"
 
         if "items" in descriptor_json:
+            return "NcDatatypeDescriptorEnum"
+
+        return "NcDatatypeDescriptorPrimitive"
+
+    @staticmethod
+    def factory(descriptor_json):
+        """Instantiate concrete NcDatatypeDescriptor object"""
+        descriptor_type = NcDatatypeDescriptor.get_descriptor_type(descriptor_json)
+
+        if descriptor_type == "NcDatatypeDescriptorStruct":
+            return NcDatatypeDescriptorStruct(descriptor_json)
+
+        if descriptor_type == "NcDatatypeDescriptorTypeDef":
+            return NcDatatypeDescriptorTypeDef(descriptor_json)
+
+        if descriptor_type == "NcDatatypeDescriptorEnum":
             return NcDatatypeDescriptorEnum(descriptor_json)
 
         return NcDatatypeDescriptorPrimitive(descriptor_json)
@@ -1224,11 +1242,11 @@ class NcClassManager(NcManager):
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors
 
-    def get_control_class(self, class_id, include_inherited):
+    def get_control_class(self, class_id, include_inherited=True):
         class_id_str = ".".join(map(str, class_id))
-        descriptor = self.class_descriptors[class_id_str]
+        descriptor = self.class_descriptors.get(class_id_str)
 
-        if not include_inherited:
+        if not include_inherited or not descriptor:
             return descriptor
 
         parent_class = class_id[:-1]
@@ -1246,10 +1264,10 @@ class NcClassManager(NcManager):
 
         return inherited_descriptor
 
-    def get_datatype(self, name, include_inherited):
-        descriptor = self.datatype_descriptors[name]
+    def get_datatype(self, name, include_inherited=True):
+        descriptor = self.datatype_descriptors.get(name)
 
-        if not include_inherited or descriptor.type != NcDatatypeType.Struct:
+        if not include_inherited or not descriptor or descriptor.type != NcDatatypeType.Struct:
             return descriptor
 
         inherited_descriptor = deepcopy(descriptor)

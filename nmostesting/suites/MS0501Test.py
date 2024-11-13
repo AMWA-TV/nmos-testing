@@ -1146,16 +1146,16 @@ class MS0501Test(GenericTest):
     def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
         if nc_object.runtime_constraints:
             for constraint in nc_object.runtime_constraints:
-                class_descriptor = \
-                    class_manager.class_descriptors.get(self.ms05_utils.create_class_id_string(nc_object.class_id))
-                for property_descriptor in class_descriptor.properties:
-                    if property_descriptor.id == constraint.propertyId:
-                        test_metadata.checked = True
-                        self.check_constraint(test,
-                                              constraint,
-                                              property_descriptor,
-                                              test_metadata,
-                                              nc_object.role_path)
+                class_descriptor = class_manager.get_control_class(nc_object.class_id)
+                if class_descriptor:
+                    for property_descriptor in class_descriptor.properties:
+                        if property_descriptor.id == constraint.propertyId:
+                            test_metadata.checked = True
+                            self.check_constraint(test,
+                                                  constraint,
+                                                  property_descriptor,
+                                                  test_metadata,
+                                                  nc_object.role_path)
 
         # Recurse through the child blocks
         if type(nc_object) is NcBlock:
@@ -1188,17 +1188,17 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def do_validate_property_constraints_test(self, test, nc_object, class_manager, test_metadata):
-        class_descriptor = \
-            class_manager.class_descriptors.get(self.ms05_utils.create_class_id_string(nc_object.class_id))
+        class_descriptor = class_manager.get_control_class(nc_object.class_id)
 
-        for property_descriptor in class_descriptor.properties:
-            if property_descriptor.constraints:
-                test_metadata.checked = True
-                self.check_constraint(test,
-                                      property_descriptor.constraints,
-                                      property_descriptor,
-                                      test_metadata,
-                                      nc_object.role_path)
+        if class_descriptor:
+            for property_descriptor in class_descriptor.properties:
+                if property_descriptor.constraints:
+                    test_metadata.checked = True
+                    self.check_constraint(test,
+                                          property_descriptor.constraints,
+                                          property_descriptor,
+                                          test_metadata,
+                                          nc_object.role_path)
         # Recurse through the child blocks
         if type(nc_object) is NcBlock:
             for child_object in nc_object.child_objects:
@@ -1368,6 +1368,8 @@ class MS0501Test(GenericTest):
         for child in block.child_objects:
             class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
 
+            if not class_descriptor:
+                continue
             for property_descriptor in class_descriptor.properties:
                 if property_descriptor.isReadOnly:
                     continue

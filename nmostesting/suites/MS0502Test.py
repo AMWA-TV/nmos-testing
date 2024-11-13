@@ -158,6 +158,8 @@ class MS0502Test(ControllerTest):
         for child in block.child_objects:
             class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
 
+            if not class_descriptor:
+                continue
             role_path = self.ms05_utils.create_role_path(block.role_path, child.role)
 
             for property_descriptor in class_descriptor.properties:
@@ -190,6 +192,8 @@ class MS0502Test(ControllerTest):
         for child in block.child_objects:
             class_descriptor = class_manager.get_control_class(child.class_id, include_inherited=True)
 
+            if not class_descriptor:
+                continue
             # Only test methods on non-standard classes, as the standard classes are already tested elsewhere
             if not self.ms05_utils.is_non_standard_class(class_descriptor.classId):
                 continue
@@ -431,8 +435,8 @@ class MS0502Test(ControllerTest):
                 return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}. "
                                  f"constraints: {str(constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error: "
-                                           "NcMethodResultError MUST be returned on an error."))
+                return test.FAIL(f"{error_msg_base}GetProperty error: "
+                                 "NcMethodResultError MUST be returned on an error.")
 
             original_value = method_result.value
             try:
@@ -455,8 +459,8 @@ class MS0502Test(ControllerTest):
                                  f"original value: {str(original_value)}, "
                                  f"constraints: {str(constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(test.FAIL(f"{error_msg_base}SetProperty error: "
-                                           "NcMethodResultError MUST be returned on an error."))
+                return test.FAIL(f"{error_msg_base}SetProperty error: "
+                                 "NcMethodResultError MUST be returned on an error.")
 
         if self.check_property_metadata.error:
             # JRT add link to constraints spec
@@ -562,8 +566,8 @@ class MS0502Test(ControllerTest):
             if isinstance(method_result, NcMethodResultError):
                 return test.FAIL(f"{error_msg_base}GetProperty error:{str(method_result.errorMessage)}")
             if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(test.FAIL(f"{error_msg_base}GetProperty error: "
-                                           "NcMethodResultError MUST be returned on an error."))
+                return test.FAIL(f"{error_msg_base}GetProperty error: "
+                                 "NcMethodResultError MUST be returned on an error.")
             original_value = method_result.value
             # Try setting this value
             method_result = self.ms05_utils.set_property(test,
