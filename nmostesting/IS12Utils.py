@@ -192,10 +192,10 @@ class IS12Utils(MS05Utils):
                 if parsed_message["messageType"] == MessageTypes.Notification:
                     self.notifications += [IS12Notification(n) for n in parsed_message["notifications"]]
                 if parsed_message["messageType"] == MessageTypes.Error:
-                    raise NMOSTestException(test.FAIL(
-                        IS12Error(parsed_message),
+                    raise NMOSTestException(test.FAIL(  # Append the IS12Error so it can be used in negative tests
+                        f"IS-I2 Error: {str(parsed_message)} for command: {str(command_json)}",
                         f"https://specs.amwa.tv/is-12/branches/{self.apis[CONTROL_API_KEY]['spec_branch']}"
-                        "/docs/Protocol_messaging.html#error-messages"))
+                        "/docs/Protocol_messaging.html#error-messages"), IS12Error(parsed_message))
 
             if not self.expect_notifications and len(results) != 0:
                 break

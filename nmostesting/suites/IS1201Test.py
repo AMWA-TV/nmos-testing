@@ -91,9 +91,13 @@ class IS1201Test(MS0501Test):
                              "/docs/Protocol_messaging.html#error-messages")
 
         except NMOSTestException as e:
-            error_msg = e.args[0].detail
-
             # Expecting an error status dictionary
+            if len(e.args) < 2:
+                # It must be some other type of error so re-throw
+                raise e
+
+            error_msg = e.args[1]  # IS12Error is apended on failure of IS12 command (see IS12Utils::send_command)
+
             if not isinstance(error_msg, IS12Error):
                 # It must be some other type of error so re-throw
                 raise e
