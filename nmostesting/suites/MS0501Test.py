@@ -131,6 +131,9 @@ class MS0501Test(GenericTest):
         """Device Model: Root Block exists with correct oid and role"""
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Blocks.html
 
+        error_msg_base = "role path=/root: " \
+                         f"property name={NcObjectProperties.ROLE.name}: " \
+                         f"property id={NcObjectProperties.ROLE.value}: "
         # Check role is correct
         method_result = self.ms05_utils.get_property(
             test,
@@ -139,11 +142,13 @@ class MS0501Test(GenericTest):
             role_path=['root'])
 
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:role:GetProperty: Error getting role property of the Root Block: "
+            return test.FAIL(f"{error_msg_base}"
+                             "GetProperty error: Error getting role property of the Root Block: "
                              f"{str(method_result.errorMessage)}")
 
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("root:role:GetProperty: NcMethodResultError MUST be returned on an error",
+            return test.FAIL(f"{error_msg_base}"
+                             "GetProperty error: NcMethodResultError MUST be returned on an error",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresulterror")
@@ -151,7 +156,8 @@ class MS0501Test(GenericTest):
         role = method_result.value
 
         if role != "root":
-            return test.FAIL(f"root:role: Unexpected role in Root Block: {str(role)}",
+            return test.FAIL(f"{error_msg_base}"
+                             f"Unexpected role in Root Block: {str(role)}",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Blocks.html")
@@ -164,11 +170,13 @@ class MS0501Test(GenericTest):
             role_path=['root'])
 
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:role:GetProperty: Error getting OID property of the Root Block: "
+            return test.FAIL(f"{error_msg_base}"
+                             "GetProperty error: Error getting OID property of the Root Block: "
                              f"{str(method_result.errorMessage)}")
 
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("root:role:GetProperty: NcMethodResultError MUST be returned on an error",
+            return test.FAIL(f"{error_msg_base}"
+                             "GetProperty error: NcMethodResultError MUST be returned on an error",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresulterror")
@@ -176,7 +184,7 @@ class MS0501Test(GenericTest):
         oid = method_result.value
 
         if oid != self.ms05_utils.ROOT_BLOCK_OID:
-            return test.FAIL("root:oid: Unexpected OID for Root Block: "
+            return test.FAIL("role path=/root: Unexpected OID for Root Block: "
                              f"Expected {self.ms05_utils.ROOT_BLOCK_OID}, Actual {str(oid)}",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
@@ -186,7 +194,8 @@ class MS0501Test(GenericTest):
 
     def _check_property_type(self, test, value, property_descriptor, role_path):
         """Check property type. Raises NMOSTestException on error"""
-        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: {property_descriptor.name}: "
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
+            f"property name={property_descriptor.name}: property id={property_descriptor.id}: "
 
         if value is None:
             if property_descriptor.isNullable:
@@ -203,7 +212,7 @@ class MS0501Test(GenericTest):
                 return
 
             if not isinstance(value, self.ms05_utils.primitive_to_python_type(property_descriptor.typeName)):
-                raise NMOSTestException(test.FAIL(f"{error_msg_base}{str(value)} is not of type "
+                raise NMOSTestException(test.FAIL(f"{error_msg_base} value={str(value)} is not of type "
                                                   f"{str(property_descriptor.typeName)}"))
         else:
             self.ms05_utils.queried_datatype_schema_validate(test, value, property_descriptor.typeName, role_path)
@@ -211,7 +220,7 @@ class MS0501Test(GenericTest):
         return
 
     def check_get_sequence_item(self, test, oid, role_path, sequence_values, property_descriptor):
-        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: "
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
         self.get_sequence_item_metadata.checked = True
         sequence_index = 0
         for property_value in sequence_values:
@@ -219,45 +228,58 @@ class MS0501Test(GenericTest):
                                                               sequence_index, oid=oid, role_path=role_path)
             if isinstance(method_result, NcMethodResultError):
                 self.get_sequence_item_metadata.error = True
-                self.get_sequence_item_metadata.error_msg += \
-                    f"{error_msg_base}{property_descriptor.name}: GetSequenceItem error: " \
-                    f"{method_result.error}; "
+                self.get_sequence_item_metadata.error_msg += f"{error_msg_base}" \
+                    f"property name={property_descriptor.name}: " \
+                    f"property id={str(property_descriptor.id)}: " \
+                    f"GetSequenceItem error: {method_result.error}; "
+                continue
             if self.ms05_utils.is_error_status(method_result.status):
                 self.get_sequence_item_metadata.error = True
-                self.get_sequence_item_metadata.error_msg += \
-                    f"{error_msg_base}{property_descriptor.name}: GetSequenceItem error: " \
+                self.get_sequence_item_metadata.error_msg += f"{error_msg_base}" \
+                    f"property name={property_descriptor.name}: " \
+                    f"property id={str(property_descriptor.id)}: " \
+                    "GetSequenceItem error: " \
                     "NcMethodResultError MUST be returned on an error; "
+                continue
             if property_value != method_result.value:
                 self.get_sequence_item_metadata.error = True
-                self.get_sequence_item_metadata.error_msg += \
-                    f"{error_msg_base}{property_descriptor.name}: Expected: {str(property_value)}, " \
-                    f"Actual: {str(method_result.value)} " \
+                self.get_sequence_item_metadata.error_msg += f"{error_msg_base}" \
+                    f"property name={property_descriptor.name}: " \
+                    f"property id={str(property_descriptor.id)}: " \
+                    f"Expected value: {str(property_value)}, " \
+                    f"Actual value: {str(method_result.value)} " \
                     f"at index {sequence_index}; "
             sequence_index += 1
 
     def check_get_sequence_length(self, test, oid, role_path, sequence_values, property_descriptor):
-        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: "
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
 
         self.get_sequence_length_metadata.checked = True
         method_result = self.ms05_utils.get_sequence_length(test, property_descriptor.id,
                                                             oid=oid, role_path=role_path)
 
         if isinstance(method_result, NcMethodResultError):
-            self.get_sequence_length_metadata.error_msg += \
-                f"{error_msg_base}{property_descriptor.name} " \
+            self.get_sequence_length_metadata.error_msg += f"{error_msg_base}" \
+                f"property name={property_descriptor.name}: " \
+                f"property id={str(property_descriptor.id)}: " \
                 f"GetSequenceLength error: {str(method_result.errorMessage)}; "
             self.get_sequence_length_metadata.error = True
             return False
         if self.ms05_utils.is_error_status(method_result.status):
             self.get_sequence_length_metadata.error = True
-            self.get_sequence_length_metadata.error_msg += \
-                f"{error_msg_base}{property_descriptor.name} GetSequenceLength error: " \
+            self.get_sequence_length_metadata.error_msg += f"{error_msg_base}" \
+                f"property name={property_descriptor.name}: " \
+                f"property id={str(property_descriptor.id)}: " \
+                "GetSequenceLength error: " \
                 "NcMethodResultError MUST be returned on an error; "
+            return False
         length = method_result.value
         if length != len(sequence_values):
-            self.get_sequence_length_metadata.error_msg += \
-                f"{error_msg_base}{property_descriptor.name}: GetSequenceLength error. Expected: " \
-                f"{str(len(sequence_values))}, Actual: {str(length)}; "
+            self.get_sequence_length_metadata.error_msg += f"{error_msg_base}" \
+                f"property name={property_descriptor.name}: " \
+                f"property id={str(property_descriptor.id)}: " \
+                "GetSequenceLength error. Expected length: " \
+                f"{str(len(sequence_values))}, Actual length: {str(length)}; "
             self.get_sequence_length_metadata.error = True
             return False
         return True
@@ -268,14 +290,16 @@ class MS0501Test(GenericTest):
             if not property_descriptor.isNullable:
                 self.get_sequence_length_metadata.error = True
                 self.get_sequence_length_metadata.error_msg += \
-                    f"{self.ms05_utils.create_role_path_string(role_path)}: " \
-                    f"{property_descriptor.name}: Non-nullable property set to null; "
+                    f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
+                    f"property name={property_descriptor.name}: " \
+                    f"property id={str(property_descriptor.id)}: " \
+                    "Non-nullable property set to null; "
         else:
             self.check_get_sequence_item(test, oid, role_path, sequence_values, property_descriptor)
             self.check_get_sequence_length(test, oid, role_path, sequence_values, property_descriptor)
 
     def check_object_properties(self, test, reference_class_descriptor, oid, role_path):
-        error_msg_base = "{self.ms05_utils.create_role_path_string(role_path)}: "
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
         """Check properties of an object against reference NcClassDescriptor"""
         for property_descriptor in reference_class_descriptor.properties:
             method_result = self.ms05_utils.get_property(test, property_descriptor.id,
@@ -283,21 +307,28 @@ class MS0501Test(GenericTest):
             if isinstance(method_result, NcMethodResultError):
                 self.device_model_metadata.error = True
                 self.device_model_metadata.error_msg += f"{error_msg_base}" \
-                    f"{str(property_descriptor.id)} GetProperty error: {str(method_result.errorMessage)}; "
+                    f"property name={property_descriptor.name}: " \
+                    f"property id={str(property_descriptor.id)}: " \
+                    f"GetProperty error: {str(method_result.errorMessage)}; "
+                continue
             if self.ms05_utils.is_error_status(method_result.status):
                 self.device_model_metadata.error = True
-                self.device_model_metadata.error_msg += \
-                    f"{error_msg_base}{str(property_descriptor.id)} GetProperty error: " \
-                    "NcMethodResultError MUST be returned on an error; "
+                self.device_model_metadata.error_msg += f"{error_msg_base}" \
+                    f"property name={property_descriptor.name}: " \
+                    f"property id={str(property_descriptor.id)}: " \
+                    "GetProperty error: NcMethodResultError MUST be returned on an error; "
+                continue
             property_value = method_result.value
 
             if property_descriptor.isDeprecated:
                 self.deprecated_property_metadata.checked = True
                 if method_result.status != NcMethodStatus.PropertyDeprecated:
                     self.deprecated_property_metadata.error = True
-                    self.deprecated_property_metadata.error_msg += \
-                        f"{error_msg_base}PropertyDeprecated status code expected " \
-                        f"when getting {property_descriptor.name}; "
+                    self.deprecated_property_metadata.error_msg += f"{error_msg_base}" \
+                        f"property name={property_descriptor.name}: " \
+                        f"property id={str(property_descriptor.id)}: " \
+                        f"Expected GetProperty to return {NcMethodStatus.PropertyDeprecated.name} " \
+                        f"({NcMethodStatus.PropertyDeprecated.value}) status; "
 
             if not property_value:
                 continue
@@ -323,20 +354,22 @@ class MS0501Test(GenericTest):
                     role_path)
         return
 
-    def check_unique_roles(self, role, role_cache):
+    def check_unique_roles(self, role, role_cache, role_path):
         """Check role is unique within containing Block"""
         if role in role_cache:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
             self.unique_roles_metadata.error = True
-            self.unique_roles_metadata.error_msg = f"Multiple objects use role={role}: "
+            self.unique_roles_metadata.error_msg += f"{error_msg_base}Multiple objects use role={role}; "
         else:
             self.unique_roles_metadata.checked = True
             role_cache.append(role)
 
-    def check_unique_oid(self, oid):
+    def check_unique_oid(self, oid, role_path):
         """Check oid is globally unique"""
         if oid in self.oid_cache:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
             self.unique_oids_metadata.error = True
-            self.unique_oids_metadata.error_msg = f"Multiple objects use OID={oid}: "
+            self.unique_oids_metadata.error_msg = f"{error_msg_base}Multiple objects use OID={oid}; "
         else:
             self.unique_oids_metadata.checked = True
             self.oid_cache.append(oid)
@@ -356,11 +389,12 @@ class MS0501Test(GenericTest):
             if owner != self.ms05_utils.ROOT_BLOCK_OID:
                 self.managers_members_root_block_metadata.error = True
                 self.managers_members_root_block_metadata.error_msg += \
-                    f"{self.ms05_utils.create_role_path_string(role_path)}: "
+                    f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
             if base_class_name in manager_cache:
                 self.managers_are_singletons_metadata.error = True
                 self.managers_are_singletons_metadata.error_msg += \
-                    f"{self.ms05_utils.create_role_path_string(role_path)}: "
+                    f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
+                    "More than one instance found in Device Model: "
             else:
                 self.managers_members_root_block_metadata.checked = True
                 self.managers_are_singletons_metadata.checked = True
@@ -368,7 +402,7 @@ class MS0501Test(GenericTest):
 
     def check_touchpoints(self, test, oid, role_path):
         """Touchpoint checks"""
-        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: "
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
         method_result = self.ms05_utils.get_property(
             test,
             NcObjectProperties.TOUCHPOINTS.value,
@@ -377,14 +411,18 @@ class MS0501Test(GenericTest):
 
         if isinstance(method_result, NcMethodResultError):
             self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += f"Error getting touchpoints for object: " \
-                f"{error_msg_base}{str(method_result.errorMessage)}; "
+            self.device_model_metadata.error_msg += f"{error_msg_base}" \
+                f"property name={NcObjectProperties.TOUCHPOINTS.name}: " \
+                f"property id={NcObjectProperties.TOUCHPOINTS.value}: " \
+                f"Error getting touchpoints for object: {str(method_result.errorMessage)}; "
             return
         if self.ms05_utils.is_error_status(method_result.status):
             self.device_model_metadata.error = True
-            self.device_model_metadata.error_msg += \
-                f"{error_msg_base}GetProperty error: " \
-                "NcMethodResultError MUST be returned on an error; "
+            self.device_model_metadata.error_msg += f"{error_msg_base}" \
+                f"property name={NcObjectProperties.TOUCHPOINTS.name}: " \
+                f"property id={NcObjectProperties.TOUCHPOINTS.value}: " \
+                "GetProperty error: NcMethodResultError MUST be returned on an error; "
+            return
 
         # touchpoints can be null
         if method_result.value is None:
@@ -423,8 +461,8 @@ class MS0501Test(GenericTest):
             descriptor = child_object.member_descriptor
             role_path = self.ms05_utils.create_role_path(block.role_path, descriptor.role)
 
-            self.check_unique_roles(descriptor.role, role_cache)
-            self.check_unique_oid(descriptor.oid)
+            self.check_unique_roles(descriptor.role, role_cache, block.role_path)
+            self.check_unique_oid(descriptor.oid, block.role_path)
             # check for non-standard classes
             if self.ms05_utils.is_non_standard_class(descriptor.classId):
                 self.organization_metadata.checked = True
@@ -439,14 +477,18 @@ class MS0501Test(GenericTest):
                                              role_path)
             else:
                 self.device_model_metadata.error = True
-                self.device_model_metadata.error_msg += f"{self.ms05_utils.create_role_path_string(role_path)}: " \
+                self.device_model_metadata.error_msg += \
+                    f"role path={self.ms05_utils.create_role_path_string(role_path)}: "\
+                    f"class id={class_identifier}" \
                     f"Class not advertised by Class Manager: {class_identifier}; "
 
             if class_identifier not in self.ms05_utils.reference_class_descriptors and \
                     not self.ms05_utils.is_non_standard_class(descriptor.classId):
                 # Not a standard or non-standard class
                 self.organization_metadata.error = True
-                self.organization_metadata.error_msg = f"{str(self.ms05_utils.create_role_path_string(role_path))}: " \
+                self.organization_metadata.error_msg = \
+                    f"role path={str(self.ms05_utils.create_role_path_string(role_path))}: " \
+                    f"class id={class_identifier}" \
                     f"Non-standard class id does not contain authority key: {class_identifier}; "
 
     def check_device_model(self, test):
@@ -487,8 +529,8 @@ class MS0501Test(GenericTest):
             return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.unique_roles_metadata.error:
-            return test.FAIL(f"{self.unique_roles_metadata.error}"
-                             "Roles must be unique. ",
+            return test.FAIL(f"{self.unique_roles_metadata.error_msg} "
+                             "The role of an object MUST be unique within its containing block.",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/NcObject.html")
@@ -509,8 +551,8 @@ class MS0501Test(GenericTest):
             return test.FAIL(e.args[0].detail, e.args[0].link)
 
         if self.unique_oids_metadata.error:
-            return test.FAIL(f"{self.unique_oids_metadata.error}"
-                             "OIDs must be globally unique. ",
+            return test.FAIL(f"{self.unique_oids_metadata.error_msg} "
+                             "Object ids (oid property) MUST uniquely identity objects in the device model.",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/NcObject.html")
@@ -657,7 +699,8 @@ class MS0501Test(GenericTest):
         class_descriptor = self.ms05_utils.reference_class_descriptors[class_id_str]
 
         if class_manager.role != class_descriptor.fixedRole:
-            return test.FAIL("Class Manager MUST have a role of ClassManager.", spec_link)
+            return test.FAIL(f"Class Manager role={class_manager.role}. "
+                             "Class Manager MUST have a role of ClassManager.", spec_link)
 
         return test.PASS()
 
@@ -675,7 +718,8 @@ class MS0501Test(GenericTest):
         class_descriptor = self.ms05_utils.reference_class_descriptors[class_id_str]
 
         if device_manager.role != class_descriptor.fixedRole:
-            return test.FAIL("Device Manager MUST have a role of DeviceManager.", spec_link)
+            return test.FAIL(f"Device Manager role={device_manager.role}. "
+                             "Device Manager MUST have a role of DeviceManager.", spec_link)
 
         # Check MS-05-02 Version
         property_id = NcDeviceManagerProperties.NCVERSION.value
@@ -715,10 +759,12 @@ class MS0501Test(GenericTest):
                                                                   oid=class_manager.oid,
                                                                   role_path=class_manager.role_path)
                 if isinstance(method_result, NcMethodResultError):
-                    return test.FAIL(f"Error calling getControlClass : {str(method_result.errorMessage)}")
+                    return test.FAIL("Error calling getControlClass on ClassManager: "
+                                     f"{str(method_result.errorMessage)}")
 
                 if self.ms05_utils.is_error_status(method_result.status):
-                    return test.FAIL("NcMethodResultError MUST be returned on an error",
+                    return test.FAIL("Error calling getControlClass on ClassManager: "
+                                     "NcMethodResultError MUST be returned on an error",
                                      "https://specs.amwa.tv/ms-05-02/branches/"
                                      f"{self.apis[MS05_API_KEY]['spec_branch']}"
                                      "/docs/Framework.html#ncmethodresulterror")
@@ -750,10 +796,11 @@ class MS0501Test(GenericTest):
                                                              oid=class_manager.oid,
                                                              role_path=class_manager.role_path)
                 if isinstance(method_result, NcMethodResultError):
-                    return test.FAIL(f"Error calling getDatatype : {str(method_result.errorMessage)}")
+                    return test.FAIL(f"Error calling getDatatype: {str(method_result.errorMessage)}")
 
                 if self.ms05_utils.is_error_status(method_result.status):
-                    return test.FAIL("NcMethodResultError MUST be returned on an error",
+                    return test.FAIL("Error calling getDatatype: "
+                                     "NcMethodResultError MUST be returned on an error",
                                      "https://specs.amwa.tv/ms-05-02/branches/"
                                      f"{self.apis[MS05_API_KEY]['spec_branch']}"
                                      "/docs/Framework.html#ncmethodresulterror")
@@ -778,6 +825,9 @@ class MS0501Test(GenericTest):
                f"{self.apis[MS05_API_KEY]['spec_branch']}" \
                "/docs/NcObject.html#generic-getter-and-setter" \
 
+        error_msg_base = "role path=/root: " \
+                         f"property name={NcObjectProperties.OID.name}: " \
+                         f"property id={NcObjectProperties.OID.value}: "
         # Attempt to set labels
         property_id = NcObjectProperties.USER_LABEL.value
 
@@ -786,11 +836,12 @@ class MS0501Test(GenericTest):
                                                      role_path=['root'])
 
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:userLabel:GetProperty: Error getting userLabel property of Root Block: "
-                             f"{str(method_result.errorMessage)}")
+            return test.FAIL(f"{error_msg_base}"
+                             f"GetProperty error: {str(method_result.errorMessage)}")
 
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("root:userLabel:GetProperty: NcMethodResultError MUST be returned on an error",
+            return test.FAIL(f"{error_msg_base}"
+                             "GetProperty error: NcMethodResultError MUST be returned on an error",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresulterror")
@@ -804,11 +855,12 @@ class MS0501Test(GenericTest):
                                                      role_path=['root'])
 
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:userLabel:SetProperty: Error setting userLabel property of Root Block: "
-                             f"{str(method_result.errorMessage)}")
+            return test.FAIL(f"{error_msg_base}"
+                             f"SetProperty error: {str(method_result.errorMessage)}")
 
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("root:userLabel:SetProperty: NcMethodResultError MUST be returned on an error",
+            return test.FAIL(f"{error_msg_base}"
+                             "SetProperty error: NcMethodResultError MUST be returned on an error",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresulterror")
@@ -819,11 +871,12 @@ class MS0501Test(GenericTest):
                                                      role_path=['root'])
 
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:userLabel:GetProperty: Error getting userLabel property of Root Block: "
-                             f"{str(method_result.errorMessage)}")
+            return test.FAIL(f"{error_msg_base}"
+                             f"GetProperty error: {str(method_result.errorMessage)}")
 
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("root:userLabel:GetProperty: NcMethodResultError MUST be returned on an error",
+            return test.FAIL(f"{error_msg_base}"
+                             "GetProperty error: NcMethodResultError MUST be returned on an error",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresulterror")
@@ -841,11 +894,12 @@ class MS0501Test(GenericTest):
                                                      role_path=['root'])
 
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:userLabel:SetProperty: error setting label property of Root Block: "
-                             f"{str(method_result.errorMessage)}")
+            return test.FAIL(f"{error_msg_base}"
+                             f"SetProperty error: {str(method_result.errorMessage)}")
 
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("root:userLabel:SetProperty: NcMethodResultError MUST be returned on an error",
+            return test.FAIL(f"{error_msg_base}"
+                             "SetProperty error: NcMethodResultError MUST be returned on an error",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresulterror")
@@ -855,11 +909,12 @@ class MS0501Test(GenericTest):
                                                      oid=self.ms05_utils.ROOT_BLOCK_OID,
                                                      role_path=['root'])
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:userLabel:GetProperty: Error getting label property of Root Block: "
-                             f"{str(method_result.errorMessage)}")
+            return test.FAIL(f"{error_msg_base}"
+                             f"GetProperty error: {str(method_result.errorMessage)}")
 
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("root:userLabel:GetProperty: NcMethodResultError MUST be returned on an error",
+            return test.FAIL(f"{error_msg_base}"
+                             "GetProperty error: NcMethodResultError MUST be returned on an error",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresulterror")
@@ -915,27 +970,27 @@ class MS0501Test(GenericTest):
 
     def _check_member_descriptors(self, test, expected_members, method_result, role_path,
                                   query_condition=None, search_condition=None):
-        block_role_path_string = self.ms05_utils.create_role_path_string(role_path)
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}"
 
         query_string = f" for query={str(query_condition)}" if query_condition else ""
         search_condition_string = f", search parameters: {str(search_condition)}" if search_condition else ""
 
         if isinstance(method_result, NcMethodResultError):
-            raise NMOSTestException(test.FAIL(f"{block_role_path_string}: GetMemberDescriptors error: "
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}: GetMemberDescriptors error: "
                                               f"{str(method_result.errorMessage)}"))
         if self.ms05_utils.is_error_status(method_result.status):
-            raise NMOSTestException(test.FAIL(f"{block_role_path_string}: GetMemberDescriptors error: "
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}: GetMemberDescriptors error: "
                                               "NcMethodResultError MUST be returned on an error"))
         if method_result.value is None:
-            raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}"
                                               f": Function returned None{str(query_string)}"))
         if not isinstance(method_result.value, list):
-            raise NMOSTestException(test.FAIL(f"{block_role_path_string}"
+            raise NMOSTestException(test.FAIL(f"{error_msg_base}"
                                               f": Result sequence expected{str(query_string)}"))
 
         if len(method_result.value) != len(expected_members):
             raise NMOSTestException(
-                test.FAIL(f"{block_role_path_string}: Expected {str(len(expected_members))}, "
+                test.FAIL(f"{error_msg_base}: Expected {str(len(expected_members))} members, "
                           f"but got {str(len(method_result.value))}"
                           f"{str(query_string)}"
                           f"{search_condition_string}"))
@@ -945,7 +1000,7 @@ class MS0501Test(GenericTest):
         for expected_member in expected_members:
             if expected_member.oid not in actual_members.keys():
                 raise NMOSTestException(
-                    test.FAIL(f"{block_role_path_string}: Unexpected search result. "
+                    test.FAIL(f"{error_msg_base}: Unexpected search result. "
                               f"{str(expected_member)}"
                               f"{str(query_string)}"
                               f"{search_condition_string}"))
@@ -953,8 +1008,8 @@ class MS0501Test(GenericTest):
             actual_member = actual_members.get(expected_member.oid)
             if expected_member != actual_member:
                 raise NMOSTestException(
-                    test.FAIL(f"{block_role_path_string}: Unexpected NcBlockMemberDescriptor value: "
-                              f"Expected {str(expected_member)}, Actual {str(actual_member)}"
+                    test.FAIL(f"{error_msg_base}: Unexpected NcBlockMemberDescriptor value: "
+                              f"Expected value: {str(expected_member)}, Actual value: {str(actual_member)}"
                               f"{str(query_string)}"
                               f"{search_condition_string}"))
 
@@ -1113,8 +1168,8 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def check_constraint(self, test, constraint, descriptor, test_metadata, role_path):
-        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}:" \
-            f"{descriptor.name}:{descriptor.typeName}: "
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
+            f"name={descriptor.name}: datatype={descriptor.typeName}: "
         if constraint.defaultValue:
             if isinstance(constraint.defaultValue, list) is not descriptor.isSequence:
                 self.test_metadata.error = True
@@ -1321,7 +1376,9 @@ class MS0501Test(GenericTest):
 
     def _check_constraints_hierarchy(self, test, property_descriptor, datatype_descriptors, object_runtime_constraints,
                                      role_path):
-        error_msg_base = f"{self.ms05_utils.create_role_path_string(role_path)}: {property_descriptor.name}: "
+        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
+            f"property name={property_descriptor.name}: " \
+            f"property id={property_descriptor.id}: "
         datatype_constraints = None
         runtime_constraints = None
         checked = False
@@ -1421,17 +1478,23 @@ class MS0501Test(GenericTest):
         # for the following scenarios...
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
+        error_msg_base = "role path=/root: " \
+                         f"property name={NcObjectProperties.OID.name}: " \
+                         f"property id={NcObjectProperties.OID.value}: "
+
         method_result = self.ms05_utils.set_property(test, NcObjectProperties.ROLE.value, "ROLE IS READ ONLY",
                                                      oid=self.ms05_utils.ROOT_BLOCK_OID, role_path=["root"])
 
         if not isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:role: Read only properties error expected.",
+            return test.FAIL(f"{error_msg_base}"
+                             "Read only properties error expected.",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresult")
 
         if method_result.status != NcMethodStatus.Readonly.value:
-            return test.WARNING(f"root:role: Unexpected status. Expected: {NcMethodStatus.Readonly.name}"
+            return test.WARNING(f"{error_msg_base}"
+                                f"Unexpected status. Expected: {NcMethodStatus.Readonly.name}"
                                 f" ({str(NcMethodStatus.Readonly.value)})"
                                 f", actual: {method_result.status.name}"
                                 f" ({str(method_result.status.value)})",
@@ -1447,14 +1510,19 @@ class MS0501Test(GenericTest):
         # for the following scenarios...
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html#ncmethodresult
 
+        error_msg_base = "role path=/root: " \
+                         f"property name={NcObjectProperties.OID.name}: " \
+                         f"property id={NcObjectProperties.OID.value}: "
+
         method_result = self.ms05_utils.get_sequence_length(test,
                                                             NcBlockProperties.MEMBERS.value,
                                                             oid=self.ms05_utils.ROOT_BLOCK_OID,
                                                             role_path=["root"])
         if isinstance(method_result, NcMethodResultError):
-            return test.FAIL(f"Error gettign sequence length: {str(method_result.errorMessage)} ")
+            return test.FAIL(f"{error_msg_base}Error getting sequence length: {str(method_result.errorMessage)} ")
         if self.ms05_utils.is_error_status(method_result.status):
-            return test.FAIL("GetSequenceLength error: NcMethodResultError MUST be returned on an error")
+            return test.FAIL(f"{error_msg_base}GetSequenceLength error: "
+                             "NcMethodResultError MUST be returned on an error")
 
         out_of_bounds_index = method_result.value + 10
 
@@ -1465,14 +1533,16 @@ class MS0501Test(GenericTest):
                                                           role_path=["root"])
 
         if not isinstance(method_result, NcMethodResultError):
-            return test.FAIL("root:members: Sequence out of bounds error expected for GetSequenceItem: "
+            return test.FAIL(f"{error_msg_base}"
+                             "Sequence out of bounds error expected for GetSequenceItem: "
                              f"index={out_of_bounds_index}: ",
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Framework.html#ncmethodresult")
 
         if method_result.status != NcMethodStatus.IndexOutOfBounds:
-            return test.WARNING("root:members: Unexpected status for GetSequenceItem "
+            return test.WARNING(f"{error_msg_base}"
+                                "Unexpected status for GetSequenceItem "
                                 f"(index={out_of_bounds_index}) out of bounds error: "
                                 f"Expected: {NcMethodStatus.IndexOutOfBounds.name}"
                                 f" ({str(NcMethodStatus.IndexOutOfBounds.value)})"

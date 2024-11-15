@@ -416,12 +416,12 @@ class MS05Utils(NMOSUtils):
                 raise NMOSTestException(test.FAIL(f"Unable to create Device Model schemas: {e.message}"))
 
         self._validate_schema(test, payload, self.datatype_schemas.get(datatype_name),
-                              f"{self.create_role_path_string(role_path)}: {datatype_name}: ")
+                              f"role path={self.create_role_path_string(role_path)}: datatype={datatype_name}: ")
 
     def reference_datatype_schema_validate(self, test, payload, datatype_name, role_path=None):
         """Validate payload against specification reference datatype schema"""
         self._validate_schema(test, payload, self.reference_datatype_schemas.get(datatype_name),
-                              f"{self.create_role_path_string(role_path)}: {datatype_name}: ")
+                              f"role path={self.create_role_path_string(role_path)}: datatype={datatype_name}: ")
 
     def _validate_schema(self, test, payload, schema, context=""):
         """Delegates to jsonschema validate. Raises NMOSTestExceptions on error"""
@@ -432,7 +432,8 @@ class MS05Utils(NMOSUtils):
             checker = FormatChecker(["ipv4", "ipv6", "uri"])
             validate(payload, schema, format_checker=checker)
         except ValidationError as e:
-            raise NMOSTestException(test.FAIL(f"{context}Schema validation error: {e.message}"))
+            raise NMOSTestException(test.FAIL(f"{context}Schema validation error: {e.message}. "
+                                              "Note that error may originate from a subschema of this schema."))
         except SchemaError as e:
             raise NMOSTestException(test.FAIL(f"{context}Schema error: {e.message}"))
 
@@ -496,7 +497,7 @@ class MS05Utils(NMOSUtils):
                                           oid=class_manager_oid, role_path=role_path)
 
         if isinstance(method_result, NcMethodResultError):
-            raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+            raise NMOSTestException(test.FAIL(f"role path={self.create_role_path_string(role_path)}: "
                                               "Error getting Class Manager Datatype property: "
                                               f"{str(method_result.errorMessage)}"))
 
@@ -518,7 +519,7 @@ class MS05Utils(NMOSUtils):
                                           oid=class_manager_oid, role_path=role_path)
 
         if isinstance(method_result, NcMethodResultError):
-            raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+            raise NMOSTestException(test.FAIL(f"role path={self.create_role_path_string(role_path)}: "
                                               "Error getting Class Manager Control Classes property: "
                                               f"{str(method_result.errorMessage)}"))
 
@@ -542,7 +543,7 @@ class MS05Utils(NMOSUtils):
                                           oid=oid, role_path=role_path)
 
         if isinstance(method_result, NcMethodResultError):
-            raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+            raise NMOSTestException(test.FAIL(f"role path={self.create_role_path_string(role_path)}: "
                                               "Unable to get runtime property constraints: "
                                               f"{str(method_result.errorMessage)}"))
 
@@ -559,12 +560,12 @@ class MS05Utils(NMOSUtils):
                                               oid=oid, role_path=role_path)
 
             if isinstance(method_result, NcMethodResultError):
-                raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+                raise NMOSTestException(test.FAIL(f"role path={self.create_role_path_string(role_path)}: "
                                                   "Unable to get members property: "
                                                   f"{str(method_result.errorMessage)}"))
 
             if method_result.value is None or not isinstance(method_result.value, list):
-                raise NMOSTestException(test.FAIL(f"{self.create_role_path_string(role_path)}: "
+                raise NMOSTestException(test.FAIL(f"role path={self.create_role_path_string(role_path)}: "
                                                   "Block members not a list: "
                                                   f"{str(method_result.value)}"))
 
@@ -604,11 +605,6 @@ class MS05Utils(NMOSUtils):
 
         if len(members) == 0:
             raise NMOSTestException(test.FAIL(f"Class: {class_id} not found in Root Block.", spec_link))
-
-        if len(members) > 1:
-            error_msg_base = f"Found members: {[m.role for m in members].join(', ')}: "
-            raise NMOSTestException(test.FAIL(f"{error_msg_base}Class: {class_id} expected to be a singleton.",
-                                              spec_link))
 
         return members[0]
 
@@ -692,7 +688,7 @@ class MS05Utils(NMOSUtils):
     def create_role_path_string(self, role_path):
         if role_path is None or not isinstance(role_path, list):
             return ""
-        return "/".join([str(r) for r in role_path])
+        return f"/{'/'.join([str(r) for r in role_path])}"
 
     def create_class_id_string(self, class_id):
         if class_id is None or not isinstance(class_id, list):
