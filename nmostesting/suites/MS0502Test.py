@@ -144,7 +144,7 @@ class MS0502Test(ControllerTest):
         if object_runtime_constraints:
             for object_runtime_constraint in object_runtime_constraints:
                 if object_runtime_constraint.propertyId == class_property.id:
-                    runtime_constraints = object_runtime_constraints
+                    runtime_constraints = object_runtime_constraint
 
         return runtime_constraints or property_constraints or datatype_constraints
 
@@ -390,7 +390,8 @@ class MS0502Test(ControllerTest):
                 f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}; "
         else:
             self.check_property_metadata.checked = True
-        if self.ms05_utils.is_error_status(method_result.status):
+        if not isinstance(method_result, NcMethodResultError) and \
+                self.ms05_utils.is_error_status(method_result.status):
             raise NMOSTestException(test.FAIL(f"{error_msg_base}SetProperty error: "
                                               "NcMethodResultError MUST be returned on an error."))
 
@@ -438,21 +439,18 @@ class MS0502Test(ControllerTest):
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}. "
-                                 f"constraints: {str(constrained_property.constraints)}")
+                return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}: "
+                                 f"constraints={str(constrained_property.constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
                 return test.FAIL(f"{error_msg_base}GetProperty error: "
                                  "NcMethodResultError MUST be returned on an error.")
 
             original_value = method_result.value
-            try:
-                if get_constraints:
-                    self._check_parameter_constraints(test, constrained_property)
-                elif datatype_type is not None and get_sequences:
-                    # Enums and Struct are validated against their type definitions
-                    self._check_sequence_datatype_type(test, constrained_property, original_value)
-            except NMOSTestException as e:
-                return test.FAIL(f"{constrained_property.name}: Error setting property: {str(e.args[0].detail)}. ")
+            if get_constraints:
+                self._check_parameter_constraints(test, constrained_property)
+            elif datatype_type is not None and get_sequences:
+                # Enums and Struct are validated against their type definitions
+                self._check_sequence_datatype_type(test, constrained_property, original_value)
 
             # Reset to original value
             method_result = self.ms05_utils.set_property(test,
@@ -461,9 +459,9 @@ class MS0502Test(ControllerTest):
                                                          oid=constrained_property.oid,
                                                          role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}. "
-                                 f"original value: {str(original_value)}, "
-                                 f"constraints: {str(constrained_property.constraints)}")
+                return test.FAIL(f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}: "
+                                 f"value={str(original_value)}, "
+                                 f"constraints={str(constrained_property.constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
                 return test.FAIL(f"{error_msg_base}SetProperty error: "
                                  "NcMethodResultError MUST be returned on an error.")
