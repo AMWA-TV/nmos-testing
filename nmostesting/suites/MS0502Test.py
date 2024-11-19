@@ -99,7 +99,7 @@ class MS0502Test(ControllerTest):
 
                    !!!Care should therefore be taken when running these tests!!!
 
-                   Each test will allow Device Model object properties to be excluded from the testing.
+                   Each test will allow Device Model object properties/methods to be excluded from the testing.
 
                    Start the tests by clicking the 'Next' button.
                    """
@@ -278,10 +278,14 @@ class MS0502Test(ControllerTest):
                                                            oid=constrained_property.oid,
                                                            role_path=constrained_property.role_path))
 
-    def _generate_number_parameters(self, constraints, violate_constraints=False):
-        # Generate a number value based on constraints if present.
+    def _generate_number_parameters(self, constraints_, violate_constraints=False):
+        # Generate list of number value based on constraints if present.
         # violate_constraints=True will generate an "invalid" value based on constraints
         parameters = []
+        constraints = deepcopy(constraints_)
+        # If constraints incorrect type fail gracefully
+        if not isinstance(constraints, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
+            constraints = None
 
         minimum = (constraints.minimum or 0 if constraints else 0)
         maximum = (constraints.maximum or sys.maxsize if constraints else sys.maxsize)
@@ -305,10 +309,14 @@ class MS0502Test(ControllerTest):
 
         return parameters
 
-    def _generate_string_parameters(self, constraints, violate_constraints):
-        # Generate a string value based on constraints if present.
+    def _generate_string_parameters(self, constraints_, violate_constraints):
+        # Generate list of string value based on constraints if present.
         # violate_constraints=True will generate an "invalid" string based on constraints
         parameters = []
+        constraints = deepcopy(constraints_)
+        # If constraints incorrect type fail gracefully
+        if not isinstance(constraints, (NcParameterConstraintsString, NcPropertyConstraintsString)):
+            constraints = None
 
         # Valid value
         if not violate_constraints and constraints and constraints.pattern:
@@ -421,19 +429,17 @@ class MS0502Test(ControllerTest):
         self.check_property_metadata = MS0502Test.TestMetadata()
 
         for constrained_property in selected_properties:
-
-            # Cache original property value
-            constraints = constrained_property.constraints
-
-            method_result = self.ms05_utils.get_property(test, constrained_property.descriptor.id,
-                                                         oid=constrained_property.oid,
-                                                         role_path=constrained_property.role_path)
             error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}, " \
                              f"property id={constrained_property.descriptor.id}, " \
                              f"property name={constrained_property.descriptor.name}: "
+
+            # Cache original property value
+            method_result = self.ms05_utils.get_property(test, constrained_property.descriptor.id,
+                                                         oid=constrained_property.oid,
+                                                         role_path=constrained_property.role_path)
             if isinstance(method_result, NcMethodResultError):
                 return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}. "
-                                 f"constraints: {str(constraints)}")
+                                 f"constraints: {str(constrained_property.constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
                 return test.FAIL(f"{error_msg_base}GetProperty error: "
                                  "NcMethodResultError MUST be returned on an error.")
@@ -457,14 +463,19 @@ class MS0502Test(ControllerTest):
             if isinstance(method_result, NcMethodResultError):
                 return test.FAIL(f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}. "
                                  f"original value: {str(original_value)}, "
-                                 f"constraints: {str(constraints)}")
+                                 f"constraints: {str(constrained_property.constraints)}")
             if self.ms05_utils.is_error_status(method_result.status):
                 return test.FAIL(f"{error_msg_base}SetProperty error: "
                                  "NcMethodResultError MUST be returned on an error.")
 
         if self.check_property_metadata.error:
-            # JRT add link to constraints spec
-            return test.FAIL(self.check_property_metadata.error_msg)
+            link = "https://specs.amwa.tv/ms-05-02/branches/" \
+                f"{self.apis[MS05_API_KEY]['spec_branch']}" \
+                "/docs/Constraints.html" if get_constraints else \
+                "https://specs.amwa.tv/ms-05-02/branches/" \
+                f"{self.apis[MS05_API_KEY]['spec_branch']}" \
+                "/docs/NcObject.html#generic-getter-and-setter"
+            return test.FAIL(self.check_property_metadata.error_msg, link)
 
         if self.check_property_metadata.checked:
             return test.PASS()
@@ -526,6 +537,9 @@ class MS0502Test(ControllerTest):
                                             datatype_type=NcDatatypeType.Struct)
 
     def _do_check_readonly_properties(self, test, question, get_sequences=False):
+        # Check that properties that have a read only property set to True
+        # cannot be written
+        # https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/NcObject.html#generic-getter-and-setter
         device_model = self.ms05_utils.query_device_model(test)
 
         readonly_properties = self._get_properties(test, device_model, get_constraints=False,
@@ -553,16 +567,15 @@ class MS0502Test(ControllerTest):
         readonly_checked = False
 
         for readonly_property in selected_properties:
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}, " \
+                             f"property id={readonly_property.descriptor.id}, " \
+                             f"property name={readonly_property.descriptor.name}: "
 
             # Cache original property value
             method_result = self.ms05_utils.get_property(test,
                                                          readonly_property.descriptor.id,
                                                          oid=readonly_property.oid,
                                                          role_path=readonly_property.role_path)
-
-            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}, " \
-                             f"property id={readonly_property.descriptor.id}, " \
-                             f"property name={readonly_property.descriptor.name}: "
             if isinstance(method_result, NcMethodResultError):
                 return test.FAIL(f"{error_msg_base}GetProperty error:{str(method_result.errorMessage)}")
             if self.ms05_utils.is_error_status(method_result.status):
@@ -575,10 +588,13 @@ class MS0502Test(ControllerTest):
                                                          original_value,
                                                          oid=readonly_property.oid,
                                                          role_path=readonly_property.role_path)
-
             if not isinstance(method_result, NcMethodResultError):
                 # if it gets this far it's failed
-                return test.FAIL(f"{error_msg_base}SetProperty error: Read only property is writable.")
+                # https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/NcObject.html#generic-getter-and-setter
+                return test.FAIL(f"{error_msg_base}SetProperty error: Read only property is writable.",
+                                 "https://specs.amwa.tv/ms-05-02/branches/"
+                                 f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                 "/docs/NcObject.html#generic-getter-and-setter")
             else:
                 readonly_checked = True
 
@@ -634,7 +650,7 @@ class MS0502Test(ControllerTest):
 
     def _make_violate_constraints_mask(self, parameters, violate_constraints):
         # If we're violating constraints then we want to violate each constrained parameter individually
-        # so we every combination of violation in isolation - rather than violating all constraints all at once.
+        # so we test every combination of violation in isolation - rather than violating all constraints all at once.
         # This returns a list of masks. Each mask is a boolean list that corresponds exactly to the parameters list
         # For each parameter, the mask indicates True (violate constraints) or False (don't violate constraints)
         # output constraints_masks list of the form e.g. [[False, True, False, False],[False, False, True, False]]
@@ -757,7 +773,7 @@ class MS0502Test(ControllerTest):
 
             parameters_list = self._create_parameters_list(test, method.descriptor.parameters)
 
-            success = True
+            method_error = False
             for parameters in parameters_list:
                 try:
                     method_result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
@@ -766,7 +782,7 @@ class MS0502Test(ControllerTest):
                     error_msg_base = f"role path={self.ms05_utils.create_role_path_string(method.role_path)}, " \
                                      f"method id={method.descriptor.id}, method name={method.name}, "
                     if isinstance(method_result, NcMethodResultError):
-                        success = False
+                        method_error = True
                     # Check for deprecated status codes for deprecated methods
                     if method.descriptor.isDeprecated and method_result.status != 299:
                         self.invoke_methods_metadata.error = True
@@ -787,7 +803,7 @@ class MS0502Test(ControllerTest):
                         f"Error invoking method {method.name}: {e.args[0].detail}; "
 
             # Only do negative checking of constrained parameters if positive case was successful
-            if get_constraints and success:
+            if get_constraints and not method_error:
                 invalid_parameters_list = self._create_parameters_list(test, method.descriptor.parameters,
                                                                        violate_constraints=True)
                 for invalid_parameters in invalid_parameters_list:

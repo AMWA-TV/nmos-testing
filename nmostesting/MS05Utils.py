@@ -1149,7 +1149,6 @@ class NcBlock(NcObject):
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
 
-    # JRT this could be simplified now that we have the role_path as a member
     def get_role_paths(self):
         role_paths = []
         for child_object in self.child_objects:

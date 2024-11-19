@@ -15,10 +15,10 @@
 from itertools import product
 
 from ..GenericTest import GenericTest, NMOSTestException
-from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescriptorStruct, \
+from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescriptor, NcDatatypeDescriptorStruct, \
     NcDeviceManagerProperties, NcMethodResultError, NcMethodStatus, NcObjectProperties, NcParameterConstraintsNumber, \
-    NcParameterConstraintsString, NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcTouchpoint, \
-    NcTouchpointNmos, NcTouchpointNmosChannelMapping, StandardClassIds
+    NcParameterConstraintsString, NcParameterDescriptor, NcPropertyConstraintsNumber, NcPropertyConstraintsString, \
+    NcPropertyDescriptor, NcTouchpoint, NcTouchpointNmos, NcTouchpointNmosChannelMapping, StandardClassIds
 from ..TestResult import Test
 
 # Note: this test suite is a base class for the IS1201Test and IS1401Test test suites
@@ -68,6 +68,8 @@ class MS0501Test(GenericTest):
         self.get_sequence_item_metadata = MS0501Test.TestMetadata()
         # checked in check_device_model, reported in test_ms05_16
         self.get_sequence_length_metadata = MS0501Test.TestMetadata()
+        # checked in _check_constraint_override, reported in test_ms05_24
+        self.constraint_hierarchy_metadata = MS0501Test.TestMetadata()
 
         self.oid_cache = []
 
@@ -1168,8 +1170,10 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def check_constraint(self, test, constraint, descriptor, test_metadata, role_path):
+        datatype_name = descriptor.name if isinstance(descriptor, NcDatatypeDescriptor) else descriptor.typeName
+
         error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
-            f"name={descriptor.name}: datatype={descriptor.typeName}: "
+            f"name={descriptor.name}: datatype={datatype_name}"
         if constraint.defaultValue:
             if isinstance(constraint.defaultValue, list) is not descriptor.isSequence:
                 self.test_metadata.error = True
@@ -1179,13 +1183,13 @@ class MS0501Test(GenericTest):
                 return
             if descriptor.isSequence:
                 for value in constraint.defaultValue:
-                    self.ms05_utils.queried_datatype_schema_validate(test, value, descriptor.typeName,
+                    self.ms05_utils.queried_datatype_schema_validate(test, value, datatype_name,
                                                                      role_path=role_path)
             else:
-                self.ms05_utils.queried_datatype_schema_validate(test, constraint.defaultValue, descriptor.typeName,
+                self.ms05_utils.queried_datatype_schema_validate(test, constraint.defaultValue, datatype_name,
                                                                  role_path=role_path)
 
-        datatype = self.ms05_utils.resolve_datatype(test, descriptor.typeName)
+        datatype = self.ms05_utils.resolve_datatype(test, datatype_name)
         if isinstance(constraint, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
             if datatype not in ["NcInt16", "NcInt32", "NcInt64", "NcUint16", "NcUint32",
                                 "NcUint64", "NcFloat32", "NcFloat64"]:
@@ -1318,108 +1322,122 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def _check_constraint_override(self, test, constraint, override_constraint, error_msg_base):
+    def _check_constraint_override(self, test, constraint, override_constraint, context):
         def _xor_constraint(left, right):
-            return bool(left is not None) ^ bool(right is not None)
+            if left:  # if left has contraint, right has to have one
+                return right is None
+            return False  # otherwise we don't care
 
-        checked = False
+        error_msg_base = f"{context}{constraint.level} constraints overridden by " \
+            f"{override_constraint.level} constraints: "
+
         # Is this a number constraint
         if isinstance(constraint, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
-            checked = True
+            self.constraint_hierarchy_metadata.checked = True
 
-            if _xor_constraint(constraint.minimum, override_constraint.minimum) \
-                    or _xor_constraint(constraint.maximum, override_constraint.maximum) \
-                    or _xor_constraint(constraint.step, override_constraint.step):
-                raise NMOSTestException(
-                    test.FAIL(f"{error_msg_base}Constraints implementations MUST fully override the previous level. "
-                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
-            if constraint.minimum and override_constraint.minimum < constraint.minimum:
-                raise NMOSTestException(
-                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
-                              "the minimum constraint defined in previous levels. "
-                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
-            if constraint.maximum and override_constraint.maximum > constraint.maximum:
-                raise NMOSTestException(
-                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
-                              "the maximum constraint defined in previous levels. "
-                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
-            if constraint.step and override_constraint.step < constraint.step:
-                raise NMOSTestException(
-                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
-                              "the step constraint defined in previous levels. "
-                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
-
+            # Are these the same type of constraints
+            if not isinstance(override_constraint, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}cannot override {constraint.__class__} constraint type " \
+                    f"with {override_constraint.__class__} constraint type. " \
+                    f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
+                return
+            if (constraint.minimum is not None and override_constraint.minimum is None) \
+                    or (constraint.maximum is not None and override_constraint.maximum is None) \
+                    or (constraint.step is not None and override_constraint.step is None):
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}Constraints implementations MUST fully override the previous level. " \
+                    f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
+                return
+            if (constraint.minimum and override_constraint.minimum < constraint.minimum) or \
+                    (constraint.maximum and override_constraint.maximum > constraint.maximum) or \
+                    (constraint.step and override_constraint.step < constraint.step):
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}Constraints implementations MUST not result in widening " \
+                    "the constraint defined in previous levels. " \
+                    f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
+                return
         # is this a string constraint
         if isinstance(constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
-            checked = True
+            self.constraint_hierarchy_metadata.checked = True
 
-            if _xor_constraint(constraint.maxCharacters, override_constraint.maxCharacters) \
-                    or _xor_constraint(constraint.pattern, override_constraint.pattern):
-                raise NMOSTestException(
-                    test.FAIL(f"{error_msg_base}Constraints implementations MUST fully override the previous level. "
-                              f"Constraint: {str(constraint)}, Override_constraint: "
-                              f"{str(override_constraint)}"))
+            # Are these the same type of constraints
+            if not isinstance(override_constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}cannot override {constraint.__class__} constraint type " \
+                    f"with {override_constraint.__class__} constraint type. " \
+                    f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
+                return
+            if (constraint.maxCharacters is not None and override_constraint.maxCharacters is None) \
+                    or (constraint.pattern is not None and override_constraint.pattern is None):
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}Constraints implementations MUST fully override the previous level. " \
+                    f"Constraint: {str(constraint)}, Override_constraint: " \
+                    f"{str(override_constraint)}; "
+                return
             if constraint.maxCharacters \
                     and override_constraint.maxCharacters > constraint.maxCharacters:
-                raise NMOSTestException(
-                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
-                              "the maxCharacters constraint defined in previous levels. "
-                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}Constraints implementations MUST not result in widening " \
+                    "the maxCharacters constraint defined in previous levels. " \
+                    f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
+                return
             # Hmm, difficult to meaningfully determine whether an overridden regex pattern is widening the constraint
             # so rule of thumb here is that a shorter pattern is less constraining that a longer pattern
             if constraint.pattern and len(override_constraint.pattern) < len(constraint.pattern):
-                raise NMOSTestException(
-                    test.FAIL(f"{error_msg_base}Constraints implementations MUST not result in widening "
-                              "the pattern constraint defined in previous levels. "
-                              f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}"))
-        return checked
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}Constraints implementations MUST not result in widening " \
+                    "the pattern constraint defined in previous levels. " \
+                    f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
 
     def _check_constraints_hierarchy(self, test, property_descriptor, datatype_descriptors, object_runtime_constraints,
-                                     role_path):
-        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
-            f"property name={property_descriptor.name}: " \
-            f"property id={property_descriptor.id}: "
+                                     context):
+        error_msg_base = f"{context}" \
+
+        if isinstance(property_descriptor, NcPropertyDescriptor):
+            error_msg_base += f"property name={property_descriptor.name}: " \
+                              f"property id={property_descriptor.id}: "
+        if isinstance(property_descriptor, NcParameterDescriptor):
+            error_msg_base += f"parameter name={property_descriptor.name}: "
+
         datatype_constraints = None
         runtime_constraints = None
-        checked = False
         # Level 0: Datatype constraints
         if property_descriptor.typeName:
             if datatype_descriptors.get(property_descriptor.typeName):
                 datatype_constraints = datatype_descriptors.get(property_descriptor.typeName).constraints
             else:
-                raise NMOSTestException(test.FAIL(f"{error_msg_base}Unknown data type: {property_descriptor.typeName}"))
-        else:
-            raise NMOSTestException(test.FAIL(f"{error_msg_base}Missing data type from class descriptor"))
+                self.constraint_hierarchy_metadata.error = True
+                self.constraint_hierarchy_metadata.error_msg += \
+                    f"{error_msg_base}Unknown data type: {property_descriptor.typeName}; "
+                return
 
         # Level 1: Property constraints
         property_constraints = property_descriptor.constraints
         # Level 3: Runtime constraints
         if object_runtime_constraints:
             for object_runtime_constraint in object_runtime_constraints:
-                if object_runtime_constraint.propertyId == property_descriptor.id:
+                if isinstance(property_descriptor, NcPropertyDescriptor) and \
+                        object_runtime_constraint.propertyId == property_descriptor.id:
                     runtime_constraints = object_runtime_constraint
 
         if datatype_constraints and property_constraints:
-            checked = checked or \
-                self._check_constraint_override(test, datatype_constraints, property_constraints,
-                                                f"{error_msg_base}Datatype constraints overridden "
-                                                "by property constraints: ")
+            self._check_constraint_override(test, datatype_constraints, property_constraints, error_msg_base)
 
         if datatype_constraints and runtime_constraints:
-            checked = checked or \
-                self._check_constraint_override(test, datatype_constraints, runtime_constraints,
-                                                f"{error_msg_base}Datatype constraints overridden "
-                                                "by runtime constraints: ")
+            self._check_constraint_override(test, datatype_constraints, runtime_constraints, error_msg_base)
 
         if property_constraints and runtime_constraints:
-            checked = checked or \
-                self._check_constraint_override(test, property_constraints, runtime_constraints,
-                                                f"{error_msg_base}Droperty constraints overridden "
-                                                "by runtime constraints: ")
+            self._check_constraint_override(test, property_constraints, runtime_constraints, error_msg_base)
 
-        return checked
-
-    def _check_constraints(self, test, block, test_metadata):
+    def _check_constraints(self, test, block):
         class_manager = self.ms05_utils.get_class_manager(test)
 
         for child in block.child_objects:
@@ -1430,20 +1448,21 @@ class MS0501Test(GenericTest):
             for property_descriptor in class_descriptor.properties:
                 if property_descriptor.isReadOnly:
                     continue
-                try:
-                    test_metadata.checked = test_metadata.checked or \
-                        self._check_constraints_hierarchy(test, property_descriptor,
-                                                          class_manager.datatype_descriptors,
-                                                          child.runtime_constraints,
-                                                          child.role_path)
-                except NMOSTestException as e:
-                    test_metadata.error = True
-                    test_metadata.error_msg += f"{str(e.args[0].detail)}; "
-
+                context = f"role path={self.ms05_utils.create_role_path_string(child.role_path)}: "
+                self._check_constraints_hierarchy(test, property_descriptor,
+                                                  class_manager.datatype_descriptors,
+                                                  child.runtime_constraints,
+                                                  context)
+            for method_descriptor in class_descriptor.methods:
+                context = f"role path={self.ms05_utils.create_role_path_string(child.role_path)}: " \
+                    f"method name={method_descriptor.name}: method id={method_descriptor.id}: "
+                for parameter_descriptor in method_descriptor.parameters:
+                    self._check_constraints_hierarchy(test, parameter_descriptor,
+                                                      class_manager.datatype_descriptors,
+                                                      None,
+                                                      context)
             if type(child) is NcBlock:
-                self._check_constraints(test, child, test_metadata)
-
-        return test_metadata
+                self._check_constraints(test, child)
 
     def test_ms05_24(self, test):
         """Constraints: check constraints hierarchy"""
@@ -1457,17 +1476,15 @@ class MS0501Test(GenericTest):
         if self.device_model_metadata.error:
             return test.FAIL(self.device_model_metadata.error_msg)
 
-        test_metadata = MS0501Test.TestMetadata()
+        self._check_constraints(test, device_model)
 
-        self._check_constraints(test, device_model, test_metadata)
-
-        if test_metadata.error:
-            return test.FAIL(test_metadata.error_msg,
+        if self.constraint_hierarchy_metadata.error:
+            return test.FAIL(self.constraint_hierarchy_metadata.error_msg,
                              "https://specs.amwa.tv/ms-05-02/branches/"
                              f"{self.apis[MS05_API_KEY]['spec_branch']}"
                              "/docs/Constraints.html")
 
-        if not test_metadata.checked:
+        if not self.constraint_hierarchy_metadata.checked:
             return test.UNCLEAR("No constraints hierarchy found.")
 
         return test.PASS()
