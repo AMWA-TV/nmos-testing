@@ -1083,6 +1083,14 @@ def run_noninteractive_tests(args):
     return exit_code
 
 
+def get_package_name(requirement):
+    pattern = r'^([^\s>=<]+)'
+    match = re.match(pattern, requirement)
+    if match:
+        return match.group(1)
+    return None
+
+
 def check_internal_requirements():
     corrections = {"gitpython": "git",
                    "pyopenssl": "OpenSSL",
@@ -1093,7 +1101,7 @@ def check_internal_requirements():
     installed_pkgs = [pkg[1] for pkg in pkgutil.iter_modules()]
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
-            requirement_name = requirement.strip().split(">")[0]
+            requirement_name = get_package_name(requirement)
             if requirement_name in corrections:
                 corrected_req = corrections[requirement_name]
             else:
