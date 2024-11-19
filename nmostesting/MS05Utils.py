@@ -476,8 +476,8 @@ class MS05Utils(NMOSUtils):
         # Compare lists
         elif isinstance(reference, list):
             if len(reference) != len(descriptor):
-                raise NMOSTestException(test.FAIL(f"{context}List unexpected length. Expected: "
-                                        f"{str(len(reference))}, actual: {str(len(descriptor))}"))
+                raise NMOSTestException(test.FAIL(f"{context}List unexpected length. Expected="
+                                        f"{str(len(reference))}, actual={str(len(descriptor))}"))
             if len(reference) > 0:
                 # If comparing lists of objects or dicts then sort by name first.
                 # Primitive arrays are unsorted as position is assumed to be important e.g. classId
@@ -488,8 +488,8 @@ class MS05Utils(NMOSUtils):
                     self.validate_descriptor(test, refvalue, value, context)
         # Compare primitives and primitive arrays directly
         elif reference != descriptor:
-            raise NMOSTestException(test.FAIL(f"{context}Expected value: "
-                                    f"{str(reference)}, actual value: {str(descriptor)}"))
+            raise NMOSTestException(test.FAIL(f"{context}Expected value="
+                                    f"{str(reference)}, actual value={str(descriptor)}"))
         return
 
     def _get_class_manager_datatype_descriptors(self, test, class_manager_oid, role_path):
@@ -694,6 +694,17 @@ class MS05Utils(NMOSUtils):
         if class_id is None or not isinstance(class_id, list):
             return ""
         return ".".join(map(str, class_id))
+
+    def get_not_subtypable_datatypes(self):
+        """These datatypes should not allow non-standard/vendor specific subtypes"""
+        return [NcDescriptor.__name__, NcBlockMemberDescriptor.__name__, NcClassDescriptor.__name__,
+                NcDatatypeDescriptor.__name__, NcDatatypeDescriptorEnum.__name__,
+                NcDatatypeDescriptorPrimitive.__name__, NcDatatypeDescriptorStruct.__name__,
+                NcDatatypeDescriptorTypeDef.__name__, NcEnumItemDescriptor.__name__, NcEventDescriptor.__name__,
+                NcFieldDescriptor.__name__, NcMethodDescriptor.__name__, NcParameterDescriptor.__name__,
+                NcPropertyDescriptor.__name__, NcPropertyConstraints.__name__, NcPropertyConstraintsNumber.__name__,
+                NcPropertyConstraintsString.__name__, NcParameterConstraints.__name__,
+                NcParameterConstraintsNumber.__name__, NcParameterConstraintsString.__name__]
 
 
 class NcMethodStatus(IntEnum):
@@ -978,6 +989,15 @@ class NcEnumItemDescriptor(NcDescriptor):
         NcDescriptor.__init__(self, descriptor_json)
         self.name = descriptor_json["name"]  # Name of option
         self.value = descriptor_json["value"]  # Enum item numerical value
+
+
+class NcEventDescriptor(NcDescriptor):
+    def __init__(self, event_json):
+        NcDescriptor.__init__(self, event_json)
+        self.id = event_json["id"]  # Event id with level and index
+        self.name = event_json["name"]  # Name of event
+        self.eventDatatype = event_json["eventDatatype"]  # Name of event data's datatype
+        self.isDeprecated = event_json["isDeprecated"]  # TRUE iff property is marked as deprecated
 
 
 class NcFieldDescriptor(NcDescriptor):
