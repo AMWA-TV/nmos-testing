@@ -60,15 +60,15 @@ class MS0501Test(GenericTest):
         self.touchpoints_metadata = MS0501Test.TestMetadata()
         # checked in check_device_model, reported in test_ms05_07
         self.deprecated_property_metadata = MS0501Test.TestMetadata()
-        # checked in check_device_model, reported in test_ms05_08
-        self.managers_members_root_block_metadata = MS0501Test.TestMetadata()
         # checked in check_device_model, reported in test_ms05_09
+        self.managers_members_root_block_metadata = MS0501Test.TestMetadata()
+        # checked in check_device_model, reported in test_ms05_10
         self.managers_are_singletons_metadata = MS0501Test.TestMetadata()
-        # checked in check_device_model, reported in test_ms05_15
-        self.get_sequence_item_metadata = MS0501Test.TestMetadata()
         # checked in check_device_model, reported in test_ms05_16
+        self.get_sequence_item_metadata = MS0501Test.TestMetadata()
+        # checked in check_device_model, reported in test_ms05_17
         self.get_sequence_length_metadata = MS0501Test.TestMetadata()
-        # checked in _check_constraint_override, reported in test_ms05_24
+        # checked in _check_constraint_override, reported in test_ms05_26
         self.constraint_hierarchy_metadata = MS0501Test.TestMetadata()
 
         self.oid_cache = []
@@ -642,6 +642,30 @@ class MS0501Test(GenericTest):
         return test.PASS()
 
     def test_ms05_08(self, test):
+        """Device Model: NcDescriptor, NcPropertyConstraint and NcParameterConstraint
+           are not subtyped by non-standard datatypes"""
+        try:
+            class_manager = self.ms05_utils.get_class_manager(test)
+            # Check for subtyping of NcDescriptor, NcParameterConstraint, NcPropertyConstraint
+            if not class_manager.datatype_descriptors:
+                return
+            not_subtypable_datatypes = self.ms05_utils.get_not_subtypable_datatypes()
+
+            illegal_subtypes = [n for n, d in class_manager.datatype_descriptors.items()
+                                if (isinstance(d, NcDatatypeDescriptorStruct)
+                                    and d.parentType in not_subtypable_datatypes  # shouldn't inherit
+                                    and n not in not_subtypable_datatypes)]  # unless a standard datatype
+
+            if bool(illegal_subtypes):
+                return test.FAIL("NcDescriptor, NcPropertyConstraint and NcParameterConstraint SHOULD NOT "
+                                 f"be subtyped: the following subtypes are illegal: {str(illegal_subtypes)}")
+        except NMOSTestException as e:
+            # Couldn't validate model so can't perform test
+            return test.FAIL(e.args[0].detail, e.args[0].link)
+
+        return test.PASS()
+
+    def test_ms05_09(self, test):
         """Managers: managers are members of the Root Block"""
         # All managers MUST always exist as members in the Root Block and have a fixed role.
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
@@ -664,7 +688,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_09(self, test):
+    def test_ms05_10(self, test):
         """Managers: managers are singletons"""
         # Managers are singleton (MUST only be instantiated once) classes.
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
@@ -687,7 +711,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_10(self, test):
+    def test_ms05_11(self, test):
         """Managers: Class Manager exists with correct role"""
         # Class manager exists in root
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
@@ -706,7 +730,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_11(self, test):
+    def test_ms05_12(self, test):
         """Managers: Device Manager exists with correct role"""
         # A minimal device implementation MUST have a device manager in the Root Block.
         # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Managers.html
@@ -745,7 +769,7 @@ class MS0501Test(GenericTest):
                              f". Actual: {str(version)}")
         return test.PASS()
 
-    def test_ms05_12(self, test):
+    def test_ms05_13(self, test):
         """Class Manager: GetControlClass method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -782,7 +806,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_13(self, test):
+    def test_ms05_14(self, test):
         """Class Manager: GetDatatype method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -817,7 +841,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_14(self, test):
+    def test_ms05_15(self, test):
         """NcObject: Get and Set methods are correct"""
         # Generic getter and setter. The value of any property of a control class MUST be retrievable
         # using the Get method.
@@ -930,7 +954,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_15(self, test):
+    def test_ms05_16(self, test):
         """NcObject: GetSequenceItem method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -950,7 +974,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_16(self, test):
+    def test_ms05_17(self, test):
         """NcObject: GetSequenceLength method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1031,7 +1055,7 @@ class MS0501Test(GenericTest):
             self._check_member_descriptors(test, expected_members, method_result, block.role_path,
                                            search_condition=search_condition)
 
-    def test_ms05_17(self, test):
+    def test_ms05_18(self, test):
         """NcBlock: GetMemberDescriptors method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1063,7 +1087,7 @@ class MS0501Test(GenericTest):
             self._check_member_descriptors(test, expected_members, method_result, block.role_path,
                                            query_condition=self.ms05_utils.create_role_path_string(path))
 
-    def test_ms05_18(self, test):
+    def test_ms05_19(self, test):
         """NcBlock: FindMemberByPath method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1114,7 +1138,7 @@ class MS0501Test(GenericTest):
                     self._check_member_descriptors(test, expected_members, method_result, block.role_path,
                                                    query_condition=query_string, search_condition=condition)
 
-    def test_ms05_19(self, test):
+    def test_ms05_20(self, test):
         """NcBlock: FindMembersByRole method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1157,7 +1181,7 @@ class MS0501Test(GenericTest):
                 self._check_member_descriptors(test, expected_members, method_result, block.role_path,
                                                query_condition=f"class_id={str(class_id)}", search_condition=condition)
 
-    def test_ms05_20(self, test):
+    def test_ms05_21(self, test):
         """NcBlock: FindMembersByClassId method is correct"""
         # Where the functionality of a device uses control classes and datatypes listed in this
         # specification it MUST comply with the model definitions published
@@ -1169,17 +1193,20 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def check_constraint(self, test, constraint, descriptor, test_metadata, role_path):
+    def check_constraint(self, test, constraint, descriptor, test_metadata, role_path=None, context=""):
         datatype_name = descriptor.name if isinstance(descriptor, NcDatatypeDescriptor) else descriptor.typeName
-
-        error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}: " \
-            f"name={descriptor.name}: datatype={datatype_name}"
+        role_path_string = f"role path={self.ms05_utils.create_role_path_string(role_path)}: " if role_path else ""
+        # runtime constraints apply to properties
+        attribute_type = constraint.level if constraint.level != "runtime" else "property"
+        datatype_type = f"{attribute_type} datatype={datatype_name}: " if constraint.level != "datatype" else ""
+        error_msg_base = f"{role_path_string}{context}" \
+            f"{attribute_type} name={descriptor.name}: {datatype_type}"
         if constraint.defaultValue:
             if isinstance(constraint.defaultValue, list) is not descriptor.isSequence:
-                self.test_metadata.error = True
+                test_metadata.error = True
                 message = "Default value sequence was expected " \
                     if descriptor.isSequence else "Unexpected default value sequence. "
-                self.test_metadata.error_msg = f"{error_msg_base}{message}; "
+                test_metadata.error_msg = f"{error_msg_base}{message}; "
                 return
             if descriptor.isSequence:
                 for value in constraint.defaultValue:
@@ -1195,14 +1222,14 @@ class MS0501Test(GenericTest):
                                 "NcUint64", "NcFloat32", "NcFloat64"]:
                 test_metadata.error = True
                 test_metadata.error_msg = f"{error_msg_base}{datatype} " \
-                    f"can not be constrainted by {constraint.__class__.__name__}; "
+                    f"cannot be constrainted by {constraint.__class__.__name__}; "
         if isinstance(constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
             if datatype not in ["NcString"]:
                 test_metadata.error = True
                 test_metadata.error_msg = f"{error_msg_base}{datatype} " \
-                    f"can not be constrainted by {constraint.__class__.__name__}; "
+                    f"cannot be constrainted by {constraint.__class__.__name__}; "
 
-    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata, context=""):
+    def do_validate_runtime_constraints_test(self, test, nc_object, class_manager, test_metadata):
         if nc_object.runtime_constraints:
             for constraint in nc_object.runtime_constraints:
                 class_descriptor = class_manager.get_control_class(nc_object.class_id)
@@ -1214,7 +1241,8 @@ class MS0501Test(GenericTest):
                                                   constraint,
                                                   property_descriptor,
                                                   test_metadata,
-                                                  nc_object.role_path)
+                                                  nc_object.role_path,
+                                                  f"property id={property_descriptor.id}: ")
 
         # Recurse through the child blocks
         if type(nc_object) is NcBlock:
@@ -1222,10 +1250,9 @@ class MS0501Test(GenericTest):
                 self.do_validate_runtime_constraints_test(test,
                                                           child_object,
                                                           class_manager,
-                                                          test_metadata,
-                                                          f"{context}{nc_object.role}: ")
+                                                          test_metadata)
 
-    def test_ms05_21(self, test):
+    def test_ms05_22(self, test):
         """Constraints: validate runtime constraints"""
 
         device_model = self.ms05_utils.query_device_model(test)
@@ -1257,7 +1284,8 @@ class MS0501Test(GenericTest):
                                           property_descriptor.constraints,
                                           property_descriptor,
                                           test_metadata,
-                                          nc_object.role_path)
+                                          nc_object.role_path,
+                                          f"property id={property_descriptor.id}: ")
         # Recurse through the child blocks
         if type(nc_object) is NcBlock:
             for child_object in nc_object.child_objects:
@@ -1266,7 +1294,7 @@ class MS0501Test(GenericTest):
                                                            class_manager,
                                                            test_metadata)
 
-    def test_ms05_22(self, test):
+    def test_ms05_23(self, test):
         """Constraints: validate property constraints"""
 
         device_model = self.ms05_utils.query_device_model(test)
@@ -1286,30 +1314,38 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def do_validate_datatype_constraints_test(self, test, datatype, test_metadata, context=[]):
-        if datatype.constraints:
+    def do_validate_datatype_constraints_test(self, test, datatype_descriptor, test_metadata, context=""):
+        if datatype_descriptor.constraints:
             test_metadata.checked = True
             self.check_constraint(test,
-                                  datatype.constraints,
-                                  datatype,
+                                  datatype_descriptor.constraints,
+                                  datatype_descriptor,
                                   test_metadata,
-                                  context)
-        if isinstance(datatype, NcDatatypeDescriptorStruct):
-            for field in datatype.fields:
+                                  role_path=None,
+                                  context=context)
+        if isinstance(datatype_descriptor, NcDatatypeDescriptorStruct):
+            constrained_field_descriptors = [f for f in datatype_descriptor.fields if f.constraints]
+            if datatype_descriptor.constraints and bool(constrained_field_descriptors):
+                # You can't specify constraints
+                test_metadata.error = True
+                test_metadata.error_msg += f"datatype name={datatype_descriptor.name}: " \
+                    "struct datatypes cannot have constraints defined at both the struct and field level; "
+                return
+            for field_descriptor in constrained_field_descriptors:
                 self.do_validate_datatype_constraints_test(test,
-                                                           field,
+                                                           field_descriptor,
                                                            test_metadata,
-                                                           [datatype.name])
+                                                           f"struct datatype name={datatype_descriptor.name}: ")
 
-    def test_ms05_23(self, test):
+    def test_ms05_24(self, test):
         """Constraints: validate datatype constraints"""
 
         class_manager = self.ms05_utils.get_class_manager(test)
 
         test_metadata = MS0501Test.TestMetadata()
 
-        for _, datatype in class_manager.datatype_descriptors.items():
-            self.do_validate_datatype_constraints_test(test, datatype, test_metadata)
+        for _, datatype_descriptor in class_manager.datatype_descriptors.items():
+            self.do_validate_datatype_constraints_test(test, datatype_descriptor, test_metadata)
 
         if test_metadata.error:
             return test.FAIL(test_metadata.error_msg,
@@ -1319,6 +1355,63 @@ class MS0501Test(GenericTest):
 
         if not test_metadata.checked:
             return test.UNCLEAR("No datatype constraints found.")
+
+        return test.PASS()
+
+    def do_validate_parameter_constraints_test(self, test, nc_object, class_manager, test_metadata):
+        class_descriptor = class_manager.get_control_class(nc_object.class_id)
+
+        if class_descriptor:
+            for method_descriptor in class_descriptor.methods:
+                for parameter_descriptor in method_descriptor.parameters:
+                    if parameter_descriptor.constraints:
+                        test_metadata.checked = True
+                        self.check_constraint(test,
+                                              parameter_descriptor.constraints,
+                                              parameter_descriptor,
+                                              test_metadata,
+                                              nc_object.role_path,
+                                              context=f"method id={method_descriptor.id}: "
+                                              f"method name={method_descriptor.name}: ")
+                    # Check field constraints if this parameter is a struct
+                    datatype_descriptor = class_manager.get_datatype(parameter_descriptor.typeName)
+                    if isinstance(datatype_descriptor, NcDatatypeDescriptorStruct):
+                        constrained_field_descriptors = [f for f in datatype_descriptor.fields if f.constraints]
+                        for field_descriptor in constrained_field_descriptors:
+                            self.check_constraint(test,
+                                                  field_descriptor.constraints,
+                                                  field_descriptor,
+                                                  test_metadata,
+                                                  nc_object.role_path,
+                                                  context=f"method id={method_descriptor.id}: "
+                                                  f"method name={method_descriptor.name}: "
+                                                  f"parameter name={parameter_descriptor.name}: "
+                                                  f"parameter datatype={parameter_descriptor.typeName}: ")
+        # Recurse through the child blocks
+        if type(nc_object) is NcBlock:
+            for child_object in nc_object.child_objects:
+                self.do_validate_parameter_constraints_test(test,
+                                                            child_object,
+                                                            class_manager,
+                                                            test_metadata)
+
+    def test_ms05_25(self, test):
+        """Constraints: validate parameter constraints"""
+
+        device_model = self.ms05_utils.query_device_model(test)
+        class_manager = self.ms05_utils.get_class_manager(test)
+
+        test_metadata = MS0501Test.TestMetadata()
+        self.do_validate_parameter_constraints_test(test, device_model, class_manager, test_metadata)
+
+        if test_metadata.error:
+            return test.FAIL(test_metadata.error_msg,
+                             "https://specs.amwa.tv/ms-05-02/branches/"
+                             f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                             "/docs/Constraints.html")
+
+        if not test_metadata.checked:
+            return test.UNCLEAR("No property constraints found.")
 
         return test.PASS()
 
@@ -1339,8 +1432,8 @@ class MS0501Test(GenericTest):
             if not isinstance(override_constraint, (NcParameterConstraintsNumber, NcPropertyConstraintsNumber)):
                 self.constraint_hierarchy_metadata.error = True
                 self.constraint_hierarchy_metadata.error_msg += \
-                    f"{error_msg_base}cannot override {constraint.__class__} constraint type " \
-                    f"with {override_constraint.__class__} constraint type. " \
+                    f"{error_msg_base}cannot override {constraint.__class__.__name__} constraint type " \
+                    f"with {override_constraint.__class__.__name__} constraint type. " \
                     f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
                 return
             if (constraint.minimum is not None and override_constraint.minimum is None) \
@@ -1368,8 +1461,8 @@ class MS0501Test(GenericTest):
             if not isinstance(override_constraint, (NcParameterConstraintsString, NcPropertyConstraintsString)):
                 self.constraint_hierarchy_metadata.error = True
                 self.constraint_hierarchy_metadata.error_msg += \
-                    f"{error_msg_base}cannot override {constraint.__class__} constraint type " \
-                    f"with {override_constraint.__class__} constraint type. " \
+                    f"{error_msg_base}cannot override {constraint.__class__.__name__} constraint type " \
+                    f"with {override_constraint.__class__.__name__} constraint type. " \
                     f"Constraint: {str(constraint)}, Override_constraint: {str(override_constraint)}; "
                 return
             if (constraint.maxCharacters is not None and override_constraint.maxCharacters is None) \
@@ -1464,7 +1557,7 @@ class MS0501Test(GenericTest):
             if type(child) is NcBlock:
                 self._check_constraints(test, child)
 
-    def test_ms05_24(self, test):
+    def test_ms05_26(self, test):
         """Constraints: check constraints hierarchy"""
 
         # When using multiple levels of constraints implementations MUST fully override the previous level
@@ -1489,7 +1582,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_25(self, test):
+    def test_ms05_27(self, test):
         """MS-05-02 Error: Node handles read only error"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
@@ -1521,7 +1614,7 @@ class MS0501Test(GenericTest):
 
         return test.PASS()
 
-    def test_ms05_26(self, test):
+    def test_ms05_28(self, test):
         """MS-05-02 Error: Node handles GetSequence index out of bounds error"""
         # Devices MUST use the exact status code from NcMethodStatus when errors are encountered
         # for the following scenarios...
