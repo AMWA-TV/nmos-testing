@@ -45,19 +45,19 @@ class MS05Utils(NMOSUtils):
 
     # Overridden functions specialized in derived classes
     def get_property_override(self, test, property_id, **kwargs):
+        """Get property vlaue from object. Raises NMOSTestException on error"""
         pass
 
     def set_property_override(self, test, property_id, argument, **kwargs):
+        """Set property value on object. Raises NMOSTestException on error"""
         pass
 
     def invoke_method_override(self, test, method_id, argument, **kwargs):
+        """Invoke method on Node. Raises NMOSTestException on error"""
         pass
 
     def get_sequence_item_override(self, test, property_id, index, **kwargs):
-        pass
-
-    def get_sequence_length_override(self, test, property_id, **kwargs):
-        """Get sequence length. Raises NMOSTestException on error"""
+        """Get sequence value. Raises NMOSTestException on error"""
         pass
 
     def set_sequence_item_override(self, test, property_id, index, value, **kwargs):
@@ -65,34 +65,39 @@ class MS05Utils(NMOSUtils):
         pass
 
     def add_sequence_item_override(self, test, property_id, value, **kwargs):
-        """Add value to a sequence property. Raises NMOSTestException on error"""
+        """Add value to a sequence. Raises NMOSTestException on error"""
         pass
 
     def remove_sequence_item_override(self, test, property_id, index, **kwargs):
-        """Get value from sequence property. Raises NMOSTestException on error"""
+        """Remove a sequence value. Raises NMOSTestException on error"""
+        pass
+
+    def get_sequence_length_override(self, test, property_id, **kwargs):
+        """Get sequence length. Raises NMOSTestException on error"""
         pass
 
     def get_member_descriptors_override(self, test, recurse, **kwargs):
+        """Get NcBlockMemberDescriptors for this block. Raises NMOSTestException on error"""
         pass
 
     def find_members_by_path_override(self, test, path, **kwargs):
-        """Query members based on role path. Raises NMOSTestException on error"""
+        """Query for NcBlockMemberDescriptors based on role path. Raises NMOSTestException on error"""
         pass
 
     def find_members_by_role_override(self, test, role, case_sensitive, match_whole_string, recurse, **kwargs):
-        """Query members based on role. Raises NMOSTestException on error"""
+        """Query for NcBlockMemberDescriptors based on role. Raises NMOSTestException on error"""
         pass
 
     def find_members_by_class_id_override(self, test, class_id, include_derived, recurse, **kwargs):
-        """Query members based on class id. Raises NMOSTestException on error"""
+        """Query for NcBlockMemberDescriptors based on class id. Raises NMOSTestException on error"""
         pass
 
     def get_control_class_override(self, test, class_id, include_inherited, **kwargs):
-        """Query Class Manager for control class. Raises NMOSTestException on error"""
+        """Query Class Manager for NcClassDescriptor. Raises NMOSTestException on error"""
         pass
 
     def get_datatype_override(self, test, name, include_inherited, **kwargs):
-        """Query Class Manager for datatype. Raises NMOSTestException on error"""
+        """Query Class Manager for NcDatatypeDescriptor. Raises NMOSTestException on error"""
         pass
 
     # End of overridden functions
@@ -119,40 +124,41 @@ class MS05Utils(NMOSUtils):
         return NcMethodResult.factory(result)
 
     def get_sequence_item(self, test, property_id, index, **kwargs):
+        """Get item from a sequence property. Returns NcMethodResult. Raises NMOSTestException on error"""
         result = self.get_sequence_item_override(test, property_id, index, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
 
     def get_sequence_length(self, test, property_id, **kwargs):
-        """Get sequence length. Returns NcMethodResult. Raises NMOSTestException on error"""
+        """Get length of a sequence property. Returns NcMethodResult. Raises NMOSTestException on error"""
         result = self.get_sequence_length_override(test, property_id, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
 
     def set_sequence_item(self, test, property_id, index, value, **kwargs):
-        """Add value to a sequence property. Raises NMOSTestException on error"""
+        """Set item in a sequence property. Raises NMOSTestException on error"""
         result = self.set_sequence_item_override(test, property_id, index, value, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
 
     def add_sequence_item(self, test, property_id, value, **kwargs):
-        """Add value to a sequence property. Raises NMOSTestException on error"""
+        """Add item to a sequence property. Raises NMOSTestException on error"""
         result = self.add_sequence_item_override(test, property_id, value, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
 
     def remove_sequence_item(self, test, property_id, index, **kwargs):
-        """Get value from sequence property. Raises NMOSTestException on error"""
+        """Remove item from a sequence property. Raises NMOSTestException on error"""
         result = self.remove_sequence_item_override(test, property_id, index, **kwargs)
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__,
                                                 role_path=kwargs.get("role_path"))
         return NcMethodResult.factory(result)
 
-    def create_NcMethodResultBlockMemberDescriptors(self, test, result, role_path):
+    def _create_NcMethodResultBlockMemberDescriptors(self, test, result, role_path):
         self.reference_datatype_schema_validate(test, result, NcMethodResult.__name__, role_path=role_path)
         method_result = NcMethodResult.factory(result)
 
@@ -171,22 +177,22 @@ class MS05Utils(NMOSUtils):
 
     def get_member_descriptors(self, test, recurse, **kwargs):
         result = self.get_member_descriptors_override(test, recurse, **kwargs)
-        return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
+        return self._create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
 
     def find_members_by_path(self, test, path, **kwargs):
         """Query members based on role path. Raises NMOSTestException on error"""
         result = self.find_members_by_path_override(test, path, **kwargs)
-        return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
+        return self._create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
 
     def find_members_by_role(self, test, role, case_sensitive, match_whole_string, recurse, **kwargs):
         """Query members based on role. Raises NMOSTestException on error"""
         result = self.find_members_by_role_override(test, role, case_sensitive, match_whole_string, recurse, **kwargs)
-        return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
+        return self._create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
 
     def find_members_by_class_id(self, test, class_id, include_derived, recurse, **kwargs):
         """Query members based on class id. Raises NMOSTestException on error"""
         result = self.find_members_by_class_id_override(test, class_id, include_derived, recurse, **kwargs)
-        return self.create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
+        return self._create_NcMethodResultBlockMemberDescriptors(test, result, kwargs.get("role_path"))
 
     def get_control_class(self, test, class_id, include_inherited, **kwargs):
         """Query Class Manager for control class. Raises NMOSTestException on error"""

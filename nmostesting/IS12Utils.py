@@ -257,13 +257,13 @@ class IS12Utils(MS05Utils):
         return response.result
 
     def get_property_override(self, test, property_id, oid, **kwargs):
-        """Get property from object. Raises NMOSTestException on error"""
+        """Get property vlaue from object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_GET.value,
                                     {"id": property_id.__dict__})
 
     def set_property_override(self, test, property_id, argument, oid, **kwargs):
-        """Get property from object. Raises NMOSTestException on error"""
+        """Set property value on object. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GENERIC_SET.value,
                                     {"id": property_id.__dict__, "value": argument})
@@ -275,49 +275,49 @@ class IS12Utils(MS05Utils):
                                     arguments)
 
     def get_sequence_item_override(self, test, property_id, index, oid, **kwargs):
-        """Get value from sequence property. Raises NMOSTestException on error"""
+        """Get sequence value. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_ITEM.value,
                                     {"id": property_id.__dict__, "index": index})
 
     def set_sequence_item_override(self, test, property_id, index, value, oid, **kwargs):
-        """Add value to a sequence property. Raises NMOSTestException on error"""
+        """Set a sequence value. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.SET_SEQUENCE_ITEM.value,
                                     {"id": property_id.__dict__, "index": index, "value": value})
 
     def add_sequence_item_override(self, test, property_id, value, oid, **kwargs):
-        """Add value to a sequence property. Raises NMOSTestException on error"""
+        """Add value to a sequence. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.ADD_SEQUENCE_ITEM.value,
                                     {"id": property_id.__dict__, "value": value})
 
     def remove_sequence_item_override(self, test, property_id, index, oid, **kwargs):
-        """Get value from sequence property. Raises NMOSTestException on error"""
+        """Remove a sequence value. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.REMOVE_SEQUENCE_ITEM.value,
                                     {"id": property_id.__dict__, "index": index})
 
     def get_sequence_length_override(self, test, property_id, oid, **kwargs):
-        """Get sequence property. Raises NMOSTestException on error"""
+        """Get sequence length. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcObjectMethods.GET_SEQUENCE_LENGTH.value,
                                     {"id": property_id.__dict__})
 
     def get_member_descriptors_override(self, test, recurse, oid, **kwargs):
-        """Get BlockMemberDescritors for this block. Raises NMOSTestException on error"""
+        """Get NcBlockMemberDescriptors for this block. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.GET_MEMBERS_DESCRIPTOR.value,
                                     {"recurse": recurse})
 
     def find_members_by_path_override(self, test, path, oid, **kwargs):
-        """Query members based on role path. Raises NMOSTestException on error"""
+        """Query for NcBlockMemberDescriptors based on role path. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_PATH.value,
                                     {"path": path})
 
     def find_members_by_role_override(self, test, role, case_sensitive, match_whole_string, recurse, oid, **kwargs):
-        """Query members based on role. Raises NMOSTestException on error"""
+        """Query for NcBlockMemberDescriptors based on role. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_ROLE.value,
                                     {"role": role,
@@ -326,7 +326,7 @@ class IS12Utils(MS05Utils):
                                      "recurse": recurse})
 
     def find_members_by_class_id_override(self, test, class_id, include_derived, recurse, oid, **kwargs):
-        """Query members based on class id. Raises NMOSTestException on error"""
+        """Query for NcBlockMemberDescriptors based on class id. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcBlockMethods.FIND_MEMBERS_BY_CLASS_ID.value,
                                     {"classId": class_id,
@@ -334,14 +334,14 @@ class IS12Utils(MS05Utils):
                                      "recurse": recurse})
 
     def get_control_class_override(self, test, class_id, include_inherited, oid, **kwargs):
-        """Query Class Manager for control class. Raises NMOSTestException on error"""
+        """Query Class Manager for NcClassDescriptor. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcClassManagerMethods.GET_CONTROL_CLASS.value,
                                     {"classId": class_id,
                                      "includeInherited": include_inherited})
 
     def get_datatype_override(self, test, name, include_inherited, oid, **kwargs):
-        """Query Class Manager for datatype. Raises NMOSTestException on error"""
+        """Query Class Manager for NcDatatypeDescriptor. Raises NMOSTestException on error"""
         return self.execute_command(test, oid,
                                     NcClassManagerMethods.GET_DATATYPE.value,
                                     {"name": name,
