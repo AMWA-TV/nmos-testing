@@ -79,7 +79,7 @@ class IS1201Test(MS0501Test):
 
         return test.PASS()
 
-    def do_is12_error_test(self, test, command_json):
+    def _do_is12_error_test(self, test, command_json):
         """Execute command with expected error status."""
         # check the syntax of the error message according to is12_error
 
@@ -127,7 +127,7 @@ class IS1201Test(MS0501Test):
         illegal_command_handle = 999999999
         command_json["commands"][0]["handle"] = illegal_command_handle
 
-        return self.do_is12_error_test(test, command_json)
+        return self._do_is12_error_test(test, command_json)
 
     def test_05(self, test):
         """IS-12 Protocol Error: Node handles command handle that is not a number"""
@@ -143,7 +143,7 @@ class IS1201Test(MS0501Test):
         invalid_command_handle = "NOT A HANDLE"
         command_json["commands"][0]["handle"] = invalid_command_handle
 
-        return self.do_is12_error_test(test, command_json)
+        return self._do_is12_error_test(test, command_json)
 
     def test_06(self, test):
         """IS-12 Protocol Error: Node handles invalid command type"""
@@ -158,7 +158,7 @@ class IS1201Test(MS0501Test):
         # Use invalid message type
         command_json["messageType"] = 7
 
-        return self.do_is12_error_test(test, command_json)
+        return self._do_is12_error_test(test, command_json)
 
     def test_07(self, test):
         """IS-12 Protocol Error: Node handles invalid JSON"""
@@ -169,9 +169,9 @@ class IS1201Test(MS0501Test):
         # Use invalid JSON
         command_json = {"not_a": "valid_command"}
 
-        return self.do_is12_error_test(test, command_json)
+        return self._do_is12_error_test(test, command_json)
 
-    def do_ms05_error_test(self, test, command_json, expected_status):
+    def _do_ms05_error_test(self, test, command_json, expected_status):
         """Execute command with expected error status."""
         # when expected_status = None checking of the status code is skipped
         # check the syntax of the error message according to is12_error
@@ -220,9 +220,9 @@ class IS1201Test(MS0501Test):
                                                 NcObjectMethods.GENERIC_GET.value,
                                                 {"id": NcObjectProperties.OID.value.__dict__})
 
-        return self.do_ms05_error_test(test,
-                                       command_json,
-                                       expected_status=NcMethodStatus.BadOid)
+        return self._do_ms05_error_test(test,
+                                        command_json,
+                                        expected_status=NcMethodStatus.BadOid)
 
     def test_09(self, test):
         """MS-05-02 Error: Node handles invalid property identifier"""
@@ -236,9 +236,9 @@ class IS1201Test(MS0501Test):
             self.is12_utils.create_command_JSON(self.is12_utils.ROOT_BLOCK_OID,
                                                 NcObjectMethods.GENERIC_GET.value,
                                                 {"id": invalid_property_identifier})
-        return self.do_ms05_error_test(test,
-                                       command_json,
-                                       expected_status=NcMethodStatus.PropertyNotImplemented)
+        return self._do_ms05_error_test(test,
+                                        command_json,
+                                        expected_status=NcMethodStatus.PropertyNotImplemented)
 
     def test_10(self, test):
         """MS-05-02 Error: Node handles invalid method identifier"""
@@ -255,9 +255,9 @@ class IS1201Test(MS0501Test):
         invalid_method_id = {"level": 1, "index": 999}
         command_json["commands"][0]["methodId"] = invalid_method_id
 
-        return self.do_ms05_error_test(test,
-                                       command_json,
-                                       expected_status=NcMethodStatus.MethodNotImplemented)
+        return self._do_ms05_error_test(test,
+                                        command_json,
+                                        expected_status=NcMethodStatus.MethodNotImplemented)
 
     def test_11(self, test):
         """Node implements subscription and notification mechanism"""
