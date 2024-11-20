@@ -770,15 +770,14 @@ class MS0502Test(ControllerTest):
             self.invoke_methods_metadata.checked = True
 
             parameters_list = self._create_parameters_list(test, method.descriptor.parameters)
-
+            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(method.role_path)}, " \
+                             f"method id={method.descriptor.id}, method name={method.name}"
             method_error = False
             for parameters in parameters_list:
                 try:
                     method_result = self.ms05_utils.invoke_method(test, method.descriptor.id, parameters,
                                                                   oid=method.oid, role_path=method.role_path)
 
-                    error_msg_base = f"role path={self.ms05_utils.create_role_path_string(method.role_path)}, " \
-                                     f"method id={method.descriptor.id}, method name={method.name}, "
                     if isinstance(method_result, NcMethodResultError):
                         method_error = True
                     # Check for deprecated status codes for deprecated methods
@@ -798,7 +797,7 @@ class MS0502Test(ControllerTest):
                 except NMOSTestException as e:
                     self.invoke_methods_metadata.error = True
                     self.invoke_methods_metadata.error_msg += \
-                        f"Error invoking method {method.name}: {e.args[0].detail}; "
+                        f"{error_msg_base}: Error invoking method: {e.args[0].detail}; "
 
             # Only do negative checking of constrained parameters if positive case was successful
             if get_constraints and not method_error:
