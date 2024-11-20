@@ -851,7 +851,7 @@ class MS0502Test(ControllerTest):
 
         return self._do_check_methods_test(test, question, get_constraints=True)
 
-    def check_add_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
+    def _check_add_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
         error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
                          f"property id={property_id}, " \
                          f"property name={property_name}: "
@@ -905,7 +905,7 @@ class MS0502Test(ControllerTest):
 
         return True
 
-    def check_set_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
+    def _check_set_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
         error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
                          f"property id={property_id}, " \
                          f"property name={property_name}: "
@@ -936,7 +936,7 @@ class MS0502Test(ControllerTest):
 
         return True
 
-    def check_remove_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
+    def _check_remove_sequence_item(self, test, property_id, property_name, sequence_length, oid, role_path):
         error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
                          f"property id={property_id}, " \
                          f"property name={property_name}: "
@@ -952,7 +952,7 @@ class MS0502Test(ControllerTest):
             self.remove_sequence_item_metadata.error_msg += \
                 f"{error_msg_base}RemoveSequenceItem error: NcMethodResultError MUST be returned on an error; "
 
-    def check_sequence_methods(self, test, property_id, property_name, oid, role_path):
+    def _check_sequence_methods(self, test, property_id, property_name, oid, role_path):
         """Check that sequence manipulation methods work correctly"""
         error_msg_base = f"role path={self.ms05_utils.create_role_path_string(role_path)}, " \
                          f"property id={property_id}, " \
@@ -977,7 +977,7 @@ class MS0502Test(ControllerTest):
 
         sequence_length = len(response)
 
-        if not self.check_add_sequence_item(test, property_id, property_name, sequence_length, oid, role_path):
+        if not self._check_add_sequence_item(test, property_id, property_name, sequence_length, oid, role_path):
             return
 
         method_result = self.ms05_utils.get_sequence_length(test, property_id,
@@ -989,7 +989,7 @@ class MS0502Test(ControllerTest):
                     f"{error_msg_base}: AddSequenceItem error, call resulted in unexpected sequence length. " \
                     f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}; "
 
-            self.check_set_sequence_item(test, property_id, property_name, sequence_length, oid, role_path)
+            self._check_set_sequence_item(test, property_id, property_name, sequence_length, oid, role_path)
 
             method_result = self.ms05_utils.get_sequence_length(test, property_id, oid=oid, role_path=role_path)
 
@@ -999,7 +999,7 @@ class MS0502Test(ControllerTest):
                 self.set_sequence_item_metadata.error_msg += \
                     f"{error_msg_base}: SetSequenceItem error, call resulted in unexpected sequence length." \
                     f"Expected: {str(sequence_length + 1)}, Actual: {str(method_result.value)}; "
-            self.check_remove_sequence_item(test, property_id, property_name, sequence_length, oid, role_path)
+            self._check_remove_sequence_item(test, property_id, property_name, sequence_length, oid, role_path)
 
             method_result = self.ms05_utils.get_sequence_length(test, property_id, oid=oid, role_path=role_path)
 
@@ -1014,7 +1014,7 @@ class MS0502Test(ControllerTest):
             self.remove_sequence_item_metadata.error_msg += \
                 f"{error_msg_base}: sequence method error: {str(method_result.errorMessage)}; "
 
-    def validate_sequences(self, test):
+    def _validate_sequences(self, test):
         """Test all writable sequences"""
         device_model = self.ms05_utils.query_device_model(test)
 
@@ -1048,11 +1048,11 @@ class MS0502Test(ControllerTest):
             selected_properties = [p["resource"] for p in possible_properties]
 
         for constrained_property in selected_properties:
-            self.check_sequence_methods(test,
-                                        constrained_property.descriptor.id,
-                                        constrained_property.descriptor.name,
-                                        constrained_property.oid,
-                                        constrained_property.role_path)
+            self._check_sequence_methods(test,
+                                         constrained_property.descriptor.id,
+                                         constrained_property.descriptor.name,
+                                         constrained_property.oid,
+                                         constrained_property.role_path)
 
         self.sequences_validated = True
 
@@ -1060,7 +1060,7 @@ class MS0502Test(ControllerTest):
         """NcObject method: SetSequenceItem"""
         try:
             if not self.sequences_validated:
-                self.validate_sequences(test)
+                self._validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
@@ -1080,7 +1080,7 @@ class MS0502Test(ControllerTest):
         """NcObject method: AddSequenceItem"""
         try:
             if not self.sequences_validated:
-                self.validate_sequences(test)
+                self._validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
@@ -1100,7 +1100,7 @@ class MS0502Test(ControllerTest):
         """NcObject method: RemoveSequenceItem"""
         try:
             if not self.sequences_validated:
-                self.validate_sequences(test)
+                self._validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
