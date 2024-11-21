@@ -244,9 +244,11 @@ class ControllerTest(GenericTest):
 
         return answer_response
 
-    def _invoke_testing_facade(self, question, answers, test_type, multipart_test=None, metadata=None):
+    def _invoke_testing_facade(self, question, answers, test_type,
+                               multipart_test=None, metadata=None, test_method_name=None):
         # Get the name of the calling test method to use as an identifier
-        test_method_name = inspect.currentframe().f_back.f_code.co_name
+        test_method_name = test_method_name if test_method_name \
+            else inspect.currentframe().f_back.f_code.co_name
 
         json_out = self._send_testing_facade_questions(
             test_method_name, question, answers, test_type, multipart_test, metadata)
