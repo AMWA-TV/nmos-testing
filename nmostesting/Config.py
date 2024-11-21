@@ -292,17 +292,6 @@ SPECIFICATIONS = {
             },
         }
     },
-    "is-14": {
-        "repo": "is-14",
-        "versions": ["v1.0"],
-        "default_version": "v1.0",
-        "apis": {
-            "configuration": {
-                "name": "Device Configuration",
-                "raml": "ConfigurationAPI.raml"
-            },
-        }
-    },
     "ms-05-02": {
         "repo": "ms-05-02",
         "versions": ["v1.0"],
@@ -320,7 +309,7 @@ SPECIFICATIONS = {
         "apis": {
             "featuresets": {
                 "name": "Control Feature Sets",
-                "repo_paths": ["identification", "monitoring", "device-configuration"]
+                "repo_paths": ["identification", "monitoring"]
             }
         }
     },
