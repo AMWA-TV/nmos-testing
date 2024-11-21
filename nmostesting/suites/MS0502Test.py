@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 import re
 import sys
 
@@ -132,6 +133,16 @@ class MS0502Test(ControllerTest):
             # post_test_introducton timed out
             pass
 
+    def _get_testing_facade_selection(self, question, possible_answers, test_type, test_method_name):
+        """Get a list of selected answer IDs, given a question and list of possible answers"""
+        # remove resources from the possible_answers before invoking the testing facade
+        filtered = deepcopy(possible_answers)
+        for p in filtered:
+            p.pop("resource", None)
+        return self._invoke_testing_facade(question, filtered,
+                                           test_type="multi_choice",
+                                           test_method_name=test_method_name)["answer_response"]
+
     def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):
         datatype_constraints = None
         runtime_constraints = None
@@ -174,8 +185,9 @@ class MS0502Test(ControllerTest):
 
                     results.append(MS0502Test.PropertyMetadata(
                         child.oid, role_path,
-                        f"{self.ms05_utils.create_role_path_string(role_path)}: {class_descriptor.name}: "
-                        f"{property_descriptor.name}",
+                        f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+                        f"class name={class_descriptor.name}: "
+                        f"property name={property_descriptor.name}",
                         constraints,
                         datatype.type,
                         property_descriptor))
@@ -209,7 +221,11 @@ class MS0502Test(ControllerTest):
 
                 if parameter_constraints == get_constraints:
                     results.append(MS0502Test.MethodMetadata(
-                        child.oid, role_path, method_descriptor.name, method_descriptor))
+                        child.oid, role_path,
+                        f"role path={self.ms05_utils.create_role_path_string(role_path)}: "
+                        f"class name={class_descriptor.name}: "
+                        f"method name={method_descriptor.name}",
+                        method_descriptor))
 
             if type(child) is NcBlock:
                 results += (self._get_methods(test, child))
@@ -374,7 +390,6 @@ class MS0502Test(ControllerTest):
 
         modified_value = list(reversed(original_value))
 
-        # Reset to original value
         method_result = self.ms05_utils.set_property(test,
                                                      property_under_test.descriptor.id,
                                                      modified_value,
@@ -416,8 +431,11 @@ class MS0502Test(ControllerTest):
             return test.UNCLEAR("No testable properties in Device Model.")
 
         if IS12_INTERACTIVE_TESTING:
+            test_method_name = inspect.currentframe().f_back.f_code.co_name
+
             selected_ids = \
-                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")["answer_response"]
+                self._get_testing_facade_selection(question, possible_properties,
+                                                   test_type="multi_choice", test_method_name=test_method_name)
 
             selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
@@ -508,6 +526,7 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_03(self, test):
         """Check writable enumeration sequences"""
+        # This test will use Get and Set to test reading/writing entire sequences, rather than per item tests
         question = """\
                    From this list of enumeration sequences\
                    carefully select those that can be safely altered by this test.
@@ -522,6 +541,7 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_04(self, test):
         """Check writable struct sequences"""
+        # This test will use Get and Set to test reading/writing entire sequences, rather than per item tests
         question = """\
                    From this list of struct sequences\
                    carefully select those that can be safely altered by this test.
@@ -551,8 +571,11 @@ class MS0502Test(ControllerTest):
             return test.UNCLEAR("No testable properties in Device Model.")
 
         if IS12_INTERACTIVE_TESTING:
+            test_method_name = inspect.currentframe().f_back.f_code.co_name
+
             selected_ids = \
-                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")["answer_response"]
+                self._get_testing_facade_selection(question, possible_properties,
+                                                   test_type="multi_choice", test_method_name=test_method_name)
 
             selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
@@ -752,8 +775,11 @@ class MS0502Test(ControllerTest):
             return test.UNCLEAR("No non standard methods in Device Model.")
 
         if IS12_INTERACTIVE_TESTING:
+            test_method_name = inspect.currentframe().f_back.f_code.co_name
+
             selected_ids = \
-                self._invoke_testing_facade(question, possible_methods, test_type="multi_choice")["answer_response"]
+                self._get_testing_facade_selection(question, possible_methods,
+                                                   test_type="multi_choice", test_method_name=test_method_name)
 
             selected_methods = [p["resource"] for p in possible_methods if p["answer_id"] in selected_ids]
 
@@ -1020,7 +1046,7 @@ class MS0502Test(ControllerTest):
         constrained_properties = self._get_properties(test, device_model, get_constraints=False, get_sequences=True)
 
         possible_properties = [{"answer_id": f"answer_{str(i)}",
-                                "display_answer": p.descriptor.name,
+                                "display_answer": p.name,
                                 "resource": p} for i, p in enumerate(constrained_properties)]
 
         if len(possible_properties) == 0:
@@ -1031,11 +1057,16 @@ class MS0502Test(ControllerTest):
                         From this list of sequences\
                         carefully select those that can be safely altered by this test.
 
+                        It should be noted that this test may attempt to Get, Set, Add and Remove sequence items.
+
+                        Also note that this test will attempt to restore the original state of the Device Model.
+
                         Once you have made you selection please press the 'Submit' button.
                         """
-
+            test_method_name = inspect.currentframe().f_back.f_code.co_name
             selected_ids = \
-                self._invoke_testing_facade(question, possible_properties, test_type="multi_choice")["answer_response"]
+                self._get_testing_facade_selection(question, possible_properties,
+                                                   test_type="multi_choice", test_method_name=test_method_name)
 
             selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
