@@ -729,7 +729,7 @@ class MS0501Test(GenericTest):
                 self.organization_metadata.error = True
                 self.organization_metadata.error_msg = \
                     f"role path={str(self.ms05_utils.create_role_path_string(role_path))}: " \
-                    f"class id={class_identifier}" \
+                    f"class id={class_identifier}: " \
                     f"Non-standard class id does not contain authority key: {class_identifier}; "
 
     def _check_device_model(self, test):
