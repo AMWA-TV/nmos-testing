@@ -357,6 +357,9 @@ class WebsocketWorker(threading.Thread):
     def get_error_message(self):
         return self.error_message
 
+    def is_messages_received(self):
+        return len(self.messages) > 0
+
     def clear_messages(self):
         self.messages.clear()
 
