@@ -491,7 +491,9 @@ class MS05Utils(NMOSUtils):
                     reference.sort(key=sort_key)
                     descriptor.sort(key=sort_key)
                 for refvalue, value in zip(reference, descriptor):
-                    self.validate_descriptor(test, refvalue, value, context)
+                    name = refvalue.name if isinstance(refvalue, NcDescriptor) else \
+                        refvalue["name"] if isinstance(dict, NcDescriptor) else ""
+                    self.validate_descriptor(test, refvalue, value, context=f"{context}{name}: ")
         # Compare primitives and primitive arrays directly
         elif reference != descriptor:
             raise NMOSTestException(test.FAIL(f"{context}Expected value="
