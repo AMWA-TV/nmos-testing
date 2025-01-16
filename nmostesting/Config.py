@@ -349,6 +349,16 @@ SPECIFICATIONS = {
             }
         }
     },
+    "bcp-008-01": {
+        "repo": "bcp-008-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "receivermonitor": {
+                "name": "Receiver Monitor"
+            }
+        }
+    },
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
         "versions": ["main"],
