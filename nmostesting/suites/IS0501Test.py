@@ -156,18 +156,21 @@ class IS0501Test(GenericTest):
     def test_11(self, test):
         """Senders are using valid combination of parameters"""
 
-        rtpGeneralParams = ['source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled']
-        fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode', 'fec_type',
+        rtpCoreParams = {'source_ip', 'destination_ip', 'destination_port', 'source_port', 'rtp_enabled'}
+        fecParams = {'fec_enabled', 'fec_destination_ip', 'fec_mode', 'fec_type',
                      'fec_block_width', 'fec_block_height', 'fec1D_destination_port',
-                     'fec1D_source_port', 'fec2D_destination_port', 'fec2D_source_port']
-        fecParams = fecParams + rtpGeneralParams
-        rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port',
-                      'rtcp_source_port']
-        rtpCombinedParams = rtcpParams + fecParams
-        rtcpParams = rtcpParams + rtpGeneralParams
-        websocketParams = ['connection_uri', 'connection_authorization']
-        mqttParams = ['destination_host', 'destination_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
-                      'connection_status_broker_topic']
+                     'fec1D_source_port', 'fec2D_destination_port', 'fec2D_source_port'}
+        rtcpParams = {'rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port',
+                      'rtcp_source_port'}
+        rtpParams = [
+            rtpCoreParams,
+            rtpCoreParams | fecParams,
+            rtpCoreParams | rtcpParams,
+            rtpCoreParams | fecParams | rtcpParams
+        ]
+        websocketParams = {'connection_uri', 'connection_authorization'}
+        mqttParams = {'destination_host', 'destination_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
+                      'connection_status_broker_topic'}
 
         if len(self.senders) > 0:
             for sender in self.senders:
@@ -177,19 +180,16 @@ class IS0501Test(GenericTest):
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
                             all_params = response[0].keys()
-                            params = [param for param in all_params if not param.startswith("ext_")]
+                            params = {param for param in all_params if not param.startswith("ext_")}
                             valid_params = False
                             if self.transport_types[sender] == "urn:x-nmos:transport:rtp":
-                                if sorted(params) == sorted(rtpGeneralParams) or \
-                                   sorted(params) == sorted(fecParams) or \
-                                   sorted(params) == sorted(rtcpParams) or \
-                                   sorted(params) == sorted(rtpCombinedParams):
+                                if params in rtpParams:
                                     valid_params = True
                             elif self.transport_types[sender] == "urn:x-nmos:transport:websocket":
-                                if sorted(params) == sorted(websocketParams):
+                                if params == websocketParams:
                                     valid_params = True
                             elif self.transport_types[sender] == "urn:x-nmos:transport:mqtt":
-                                if sorted(params) == sorted(mqttParams):
+                                if params == mqttParams:
                                     valid_params = True
                             if not valid_params:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
@@ -257,18 +257,26 @@ class IS0501Test(GenericTest):
         return self.patch_auto_params(test, self.senders, "senders", autoParams)
 
     def test_12(self, test):
-        """Receiver are using valid combination of parameters"""
+        """Receivers are using valid combination of parameters"""
 
-        rtpGeneralParams = ['source_ip', 'multicast_ip', 'interface_ip', 'destination_port', 'rtp_enabled']
-        fecParams = ['fec_enabled', 'fec_destination_ip', 'fec_mode',
-                     'fec1D_destination_port', 'fec2D_destination_port']
-        fecParams = fecParams + rtpGeneralParams
-        rtcpParams = ['rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port']
-        rtpCombinedParams = rtcpParams + fecParams
-        rtcpParams = rtcpParams + rtpGeneralParams
-        websocketParams = ['connection_uri', 'connection_authorization']
-        mqttParams = ['source_host', 'source_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
-                      'connection_status_broker_topic']
+        rtpCoreParams = {'source_ip', 'interface_ip', 'destination_port', 'rtp_enabled'}
+        multicastParams = {'multicast_ip'}
+        fecParams = {'fec_enabled', 'fec_destination_ip', 'fec_mode',
+                     'fec1D_destination_port', 'fec2D_destination_port'}
+        rtcpParams = {'rtcp_enabled', 'rtcp_destination_ip', 'rtcp_destination_port'}
+        rtpParams = [
+            rtpCoreParams,
+            rtpCoreParams | multicastParams,
+            rtpCoreParams | fecParams,
+            rtpCoreParams | multicastParams | fecParams,
+            rtpCoreParams | rtcpParams,
+            rtpCoreParams | multicastParams | rtcpParams,
+            rtpCoreParams | fecParams | rtcpParams,
+            rtpCoreParams | multicastParams | fecParams | rtcpParams
+        ]
+        websocketParams = {'connection_uri', 'connection_authorization'}
+        mqttParams = {'source_host', 'source_port', 'broker_topic', 'broker_protocol', 'broker_authorization',
+                      'connection_status_broker_topic'}
 
         if len(self.receivers) > 0:
             for receiver in self.receivers:
@@ -278,19 +286,16 @@ class IS0501Test(GenericTest):
                     if valid:
                         if len(response) > 0 and isinstance(response[0], dict):
                             all_params = response[0].keys()
-                            params = [param for param in all_params if not param.startswith("ext_")]
+                            params = {param for param in all_params if not param.startswith("ext_")}
                             valid_params = False
                             if self.transport_types[receiver] == "urn:x-nmos:transport:rtp":
-                                if sorted(params) == sorted(rtpGeneralParams) or \
-                                   sorted(params) == sorted(fecParams) or \
-                                   sorted(params) == sorted(rtcpParams) or \
-                                   sorted(params) == sorted(rtpCombinedParams):
+                                if params in rtpParams:
                                     valid_params = True
                             elif self.transport_types[receiver] == "urn:x-nmos:transport:websocket":
-                                if sorted(params) == sorted(websocketParams):
+                                if params == websocketParams:
                                     valid_params = True
                             elif self.transport_types[receiver] == "urn:x-nmos:transport:mqtt":
-                                if sorted(params) == sorted(mqttParams):
+                                if params == mqttParams:
                                     valid_params = True
                             if not valid_params:
                                 return test.FAIL("Invalid combination of parameters on constraints endpoint.")
@@ -738,7 +743,7 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_31(self, test):
-        """Sender active response schema is valid"""
+        """Return of /single/senders/{senderId}/active/ meets the schema"""
 
         if len(self.senders):
             warn = ""
@@ -759,7 +764,7 @@ class IS0501Test(GenericTest):
             return test.UNCLEAR("Not tested. No resources found.")
 
     def test_32(self, test):
-        """Receiver active response schema is valid"""
+        """Return of /single/receivers/{receiverId}/active/ meets the schema"""
 
         if len(self.receivers):
             warn = ""
