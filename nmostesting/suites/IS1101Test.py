@@ -690,7 +690,7 @@ class IS1101Test(GenericTest):
     def test_02_02_03_01(self, test):
         "Verify that the video sender supports the minimum set of video constraints"
 
-        sample = "^urn:x-nmos:cap:"
+        sample = "^urn:(x-nmos|x-[a-z]+):cap:"
 
         if len(self.flow_format_video) == 0:
             return test.UNCLEAR("There is no video format")
@@ -719,7 +719,7 @@ class IS1101Test(GenericTest):
     def test_02_02_03_02(self, test):
         "Verify that the audio sender supports the minimum set of audio constraints"
 
-        sample = "^urn:x-nmos:cap:"
+        sample = "^urn:(x-nmos|x-[a-z]+):cap:"
 
         if len(self.flow_format_audio) == 0:
             return test.UNCLEAR("There is no audio format")
@@ -2944,7 +2944,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("Non-JSON response returned from Node API")
             except KeyError as e:
                 return test.FAIL("Unable to find expected key: {}".format(e))
-            if state != "OK":
+            if state != "unconstrained":
                 return test.FAIL("The status is incorrect")
 
             if state in ["awaiting_essence", "no_essence"]:
