@@ -192,6 +192,11 @@ class CapabilitiesTest(GenericTest):
             reg_schema_obj = json.load(f)
         reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
 
+        # load the Capabilities register schema as JSON as we're only interested in the list of properties
+        reg_schema_file = str(Path(os.path.abspath(reg_path)) / "constraint_set.json")
+        with open(reg_schema_file, "r") as f:
+            reg_schema_obj = json.load(f)
+
         warning = ""
 
         for receiver in self.is04_resources["receivers"].values():
@@ -201,18 +206,51 @@ class CapabilitiesTest(GenericTest):
                 except ValidationError as e:
                     return test.FAIL("Receiver {} does not comply with schema".format(receiver["id"]))
 
+                try:
+                    caps_version = receiver["caps"]["version"]
+                    core_version = receiver["version"]
+                    
+                    if self.is04_utils.compare_resource_version(caps_version, core_version) > 0:
+                        return test.FAIL("Receiver {} caps version is later than resource version".format(receiver["id"]))
+
+                except ValidationError as e:
+                    return test.FAIL("Receiver {} do not comply with schema".format(receiver["id"]))
+
+                has_label = None
+                warn_label = False
+
                 for constraint_set in receiver["caps"]["constraint_sets"]:
                     try:
                         self.validate_schema(constraint_set, reg_schema)
                     except ValidationError as e:
                         return test.FAIL("Receiver {} constraint_sets do not comply with schema".format(receiver["id"]))
 
+                    has_current_label = "urn:x-nmos:cap:meta:label" in constraint_set
+
+                    # Ensure consistent labeling across all constraint_sets
+                    if has_label is None:
+                        has_label = has_current_label
+                    elif has_label != has_current_label:
+                        warn_label = True
+
+                    has_pattern_attribute = False
                     for param_constraint in constraint_set:
                         # enumeration do not allow empty arrays by schema, disallow empty range by test
                         if not extract_after_cap(param_constraint).startswith("meta:"):
+                            has_pattern_attribute = True
                             if "minimum" in param_constraint and "maximum" in param_constraint:
                                 if compare_min_larger_than_max(param_constraint):
                                     warning += "|" + "Receiver {} parameter constraint {} has an invalid empty range".format(receiver["id"], param_constraint)
+
+                        if param_constraint.startswith("urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
+                            warning += "|" + "Receiver {} parameter constraint {} is not registered ".format(receiver["id"], param_constraint)
+
+                    if not has_pattern_attribute:
+                        return test.FAIL("Receiver {} has an illegal constraint set without any parameter attribute".format(receiver["id"]))
+
+                if warn_label:
+                    warning += "|" + "Receiver {} constraint_sets should either 'urn:x-nmos:cap:meta:label' for all constraint sets or none".format(receiver["id"])
+
             else:
                 warning += "|" + "Receiver {} not having constraint_sets".format(receiver["id"])
 
@@ -241,6 +279,11 @@ class CapabilitiesTest(GenericTest):
             reg_schema_obj = json.load(f)
         reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
 
+        # load the Capabilities register schema as JSON as we're only interested in the list of properties
+        reg_schema_file = str(Path(os.path.abspath(reg_path)) / "constraint_set.json")
+        with open(reg_schema_file, "r") as f:
+            reg_schema_obj = json.load(f)
+
         warning = ""
 
         for sender in self.is04_resources["senders"].values():
@@ -254,23 +297,57 @@ class CapabilitiesTest(GenericTest):
                 return test.FAIL("Sender {} has an illegal 'event_types' attribute in its caps".format(sender["id"]))
 
             if "constraint_sets" in sender["caps"]:
+               
                 try:
                     self.validate_schema(sender, schema)
                 except ValidationError as e:
                     return test.FAIL("Sender {} does not comply with schema".format(sender["id"]))
 
+                try:
+                    caps_version = sender["caps"]["version"]
+                    core_version = sender["version"]
+                    
+                    if self.is04_utils.compare_resource_version(caps_version, core_version) > 0:
+                        return test.FAIL("Sender {} caps version is later than resource version".format(sender["id"]))
+
+                except ValidationError as e:
+                    return test.FAIL("Sender {} do not comply with schema".format(sender["id"]))
+
+                has_label = None
+                warn_label = False
+                
                 for constraint_set in sender["caps"]["constraint_sets"]:
                     try:
                         self.validate_schema(constraint_set, reg_schema)
                     except ValidationError as e:
                         return test.FAIL("Sender {} constraint_sets do not comply with schema".format(sender["id"]))
 
+                    has_current_label = "urn:x-nmos:cap:meta:label" in constraint_set
+
+                    # Ensure consistent labeling across all constraint_sets
+                    if has_label is None:
+                        has_label = has_current_label
+                    elif has_label != has_current_label:
+                        warn_label = True
+                        
+                    has_pattern_attribute = False
                     for param_constraint in constraint_set:
                         # enumeration do not allow empty arrays by schema, disallow empty range by test
                         if not extract_after_cap(param_constraint).startswith("meta:"):
+                            has_pattern_attribute = True
                             if "minimum" in param_constraint and "maximum" in param_constraint:
                                 if compare_min_larger_than_max(param_constraint):
                                     warning += "|" + "Sender {} parameter constraint {} has an invalid empty range".format(sender["id"], param_constraint)
+
+                        if param_constraint.startswith("urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
+                            warning += "|" + "Sender {} parameter constraint {} is not registered ".format(sender["id"], param_constraint)
+
+                    if not has_pattern_attribute:
+                        return test.FAIL("Sender {} has an illegal constraint set without any parameter attribute".format(sender["id"]))
+
+                if warn_label:
+                    warning += "|" + "Sender {} constraint_sets should either 'urn:x-nmos:cap:meta:label' for all constraint sets or none".format(sender["id"])
+
             else:
                 warning += "|" + "Sender {} not having constraint_sets".format(sender["id"])
 
