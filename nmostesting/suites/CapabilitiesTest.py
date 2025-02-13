@@ -192,11 +192,6 @@ class CapabilitiesTest(GenericTest):
             reg_schema_obj = json.load(f)
         reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
 
-        # load the Capabilities register schema as JSON as we're only interested in the list of properties
-        reg_schema_file = str(Path(os.path.abspath(reg_path)) / "constraint_set.json")
-        with open(reg_schema_file, "r") as f:
-            reg_schema_obj = json.load(f)
-
         warning = ""
 
         for receiver in self.is04_resources["receivers"].values():
@@ -278,11 +273,6 @@ class CapabilitiesTest(GenericTest):
         with open(reg_schema_file, "r") as f:
             reg_schema_obj = json.load(f)
         reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
-
-        # load the Capabilities register schema as JSON as we're only interested in the list of properties
-        reg_schema_file = str(Path(os.path.abspath(reg_path)) / "constraint_set.json")
-        with open(reg_schema_file, "r") as f:
-            reg_schema_obj = json.load(f)
 
         warning = ""
 
