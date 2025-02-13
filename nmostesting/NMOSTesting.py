@@ -437,6 +437,10 @@ TEST_DEFINITIONS = {
             "api_key": "node",
             "disable_fields": ["urlpath"]
         }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["urlpath"]
+        }, {
             "spec_key": "is-12",
             "api_key": "ncp",
             "websocket": True,
