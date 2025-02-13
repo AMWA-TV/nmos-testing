@@ -1210,7 +1210,7 @@ class IS0501Test(GenericTest):
         """
         if len(resources) > 0:
             for resource in resources:
-                dest_staged = "single/" + resourceType + "/" + resource + "/staged/"
+                dest_staged = "single/" + resourceType + "/" + resource + "/staged"
                 dest_active = "single/" + resourceType + "/" + resource + "/active/"
 
                 valid, response = self.is05_utils.checkCleanRequestJSON("GET", dest_staged)
