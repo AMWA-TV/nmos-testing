@@ -35,8 +35,8 @@ RECEIVER_CAPS_KEY = "receiver-caps"
 SENDER_CAPS_KEY = "sender-caps"
 
 # Generic capabilities from any namespace
-def extract_after_cap(s):
-    match = re.search(r'^urn:(x-nmos|x-[a-z]+):cap:(.*)', s)
+def cap_without_namespace(s):
+    match = re.search(r'^urn:[a-z0-9][a-z0-9-]+:cap:(.*)', s)
     return match.group(2) if match else None
 
 class CapabilitiesTest(GenericTest):
@@ -231,7 +231,7 @@ class CapabilitiesTest(GenericTest):
                     has_pattern_attribute = False
                     for param_constraint in constraint_set:
                         # enumeration do not allow empty arrays by schema, disallow empty range by test
-                        if not extract_after_cap(param_constraint).startswith("meta:"):
+                        if not cap_without_namespace(param_constraint).startswith("meta:"):
                             has_pattern_attribute = True
                             if "minimum" in param_constraint and "maximum" in param_constraint:
                                 if compare_min_larger_than_max(param_constraint):
@@ -323,7 +323,7 @@ class CapabilitiesTest(GenericTest):
                     has_pattern_attribute = False
                     for param_constraint in constraint_set:
                         # enumeration do not allow empty arrays by schema, disallow empty range by test
-                        if not extract_after_cap(param_constraint).startswith("meta:"):
+                        if not cap_without_namespace(param_constraint).startswith("meta:"):
                             has_pattern_attribute = True
                             if "minimum" in param_constraint and "maximum" in param_constraint:
                                 if compare_min_larger_than_max(param_constraint):
