@@ -380,6 +380,10 @@ TEST_DEFINITIONS = {
             "spec_key": "ms-05-02",
             "api_key": "controlframework",
             "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "controller-tests",
+            "api_key": "testquestion",
+            "disable_fields": ["urlpath"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "urlpath"]
         }],
         "extra_specs": [{
             "spec_key": "nmos-control-feature-sets",
