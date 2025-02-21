@@ -1097,7 +1097,7 @@ class MS0502Test(ControllerTest):
             test_method_name = inspect.currentframe().f_back.f_code.co_name
             selected_ids = \
                 self._get_testing_facade_selection(question, possible_properties,
-                                                    test_type="multi_choice", test_method_name=test_method_name)
+                                                   test_type="multi_choice", test_method_name=test_method_name)
 
             selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
