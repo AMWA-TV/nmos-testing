@@ -158,11 +158,11 @@ class ControllerTest(GenericTest):
         if len(test_names) == 1 and test_names[0] == "auto" and self.disable_auto:
             return
 
+        self.primary_registry.query_api_called = False
+
         self.pre_tests_message()
 
-        for test_name in test_names:
-            self.primary_registry.query_api_called = False
-            self.execute_test(test_name)
+        super().execute_tests(test_names)
 
         self.post_tests_message()
 
