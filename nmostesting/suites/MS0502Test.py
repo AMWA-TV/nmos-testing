@@ -20,7 +20,7 @@ from copy import copy, deepcopy
 from math import floor
 from xeger import Xeger
 
-from ..Config import IS12_INTERACTIVE_TESTING
+from ..Config import MS05_INVASIVE_TESTING, MS05_INTERACTIVE_TESTING
 from ..GenericTest import NMOSTestException
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..MS05Utils import NcDatatypeDescriptorEnum, NcDatatypeDescriptorPrimitive, NcDatatypeType, NcBlock, \
@@ -87,7 +87,7 @@ class MS0502Test(ControllerTest):
         """
         Introduction to MS-05 Invasive Tests
         """
-        if not IS12_INTERACTIVE_TESTING:
+        if not MS05_INVASIVE_TESTING or not MS05_INTERACTIVE_TESTING:
             return
 
         # In order to give the tests some context, a pre tests message is displayed
@@ -116,7 +116,7 @@ class MS0502Test(ControllerTest):
         """
         MS-05 Test Suite complete!
         """
-        if not IS12_INTERACTIVE_TESTING:
+        if not MS05_INVASIVE_TESTING or not MS05_INTERACTIVE_TESTING:
             return
         # Once the tests are complete this post tests message is displayed.
 
@@ -415,91 +415,97 @@ class MS0502Test(ControllerTest):
         # get_constraints - select properties that have constraints
         # get_sequences - select properties that are sequences
         # datatype_type - only select properties that are this datatype type (None selects all)
-        device_model = self.ms05_utils.query_device_model(test)
+        try:
+            device_model = self.ms05_utils.query_device_model(test)
 
-        constrained_properties = self._get_properties(test, device_model, get_constraints, get_sequences)
+            constrained_properties = self._get_properties(test, device_model, get_constraints, get_sequences)
 
-        # Filter constrained properties according to datatype_type
-        constrained_properties = [p for p in constrained_properties
-                                  if datatype_type is None or p.datatype_type == datatype_type]
+            # Filter constrained properties according to datatype_type
+            constrained_properties = [p for p in constrained_properties
+                                      if datatype_type is None or p.datatype_type == datatype_type]
 
-        possible_properties = [{"answer_id": f"answer_{str(i)}",
-                                "display_answer": p.name,
-                                "resource": p} for i, p in enumerate(constrained_properties)]
+            possible_properties = [{"answer_id": f"answer_{str(i)}",
+                                    "display_answer": p.name,
+                                    "resource": p} for i, p in enumerate(constrained_properties)]
 
-        if len(possible_properties) == 0:
-            return test.UNCLEAR("No testable properties in Device Model.")
+            if len(possible_properties) == 0:
+                return test.UNCLEAR("No testable properties in Device Model.")
 
-        if IS12_INTERACTIVE_TESTING:
-            test_method_name = inspect.currentframe().f_back.f_code.co_name
+            if MS05_INTERACTIVE_TESTING:
+                test_method_name = inspect.currentframe().f_back.f_code.co_name
 
-            selected_ids = \
-                self._get_testing_facade_selection(question, possible_properties,
-                                                   test_type="multi_choice", test_method_name=test_method_name)
+                selected_ids = \
+                    self._get_testing_facade_selection(question, possible_properties,
+                                                       test_type="multi_choice", test_method_name=test_method_name)
 
-            selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
+                selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
-            if len(selected_properties) == 0:
-                return test.UNCLEAR("No properties selected for testing.")
-        else:
-            # If non-interactive then test all methods
-            selected_properties = [p["resource"] for p in possible_properties]
+                if len(selected_properties) == 0:
+                    return test.UNCLEAR("No properties selected for testing.")
+            else:
+                # If non-interactive then test all methods
+                selected_properties = [p["resource"] for p in possible_properties]
 
-        self.check_property_metadata = MS0502Test.TestMetadata()
+            self.check_property_metadata = MS0502Test.TestMetadata()
 
-        for constrained_property in selected_properties:
-            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}, " \
-                             f"property id={constrained_property.descriptor.id}, " \
-                             f"property name={constrained_property.descriptor.name}: "
+            for constrained_property in selected_properties:
+                error_msg_base = \
+                    f"role path={self.ms05_utils.create_role_path_string(constrained_property.role_path)}, " \
+                    f"property id={constrained_property.descriptor.id}, " \
+                    f"property name={constrained_property.descriptor.name}: "
 
-            # Cache original property value
-            method_result = self.ms05_utils.get_property(test, constrained_property.descriptor.id,
-                                                         oid=constrained_property.oid,
-                                                         role_path=constrained_property.role_path)
-            if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}: "
-                                 f"constraints={str(constrained_property.constraints)}")
-            if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(f"{error_msg_base}GetProperty error: "
-                                 "NcMethodResultError MUST be returned on an error.")
+                # Cache original property value
+                method_result = self.ms05_utils.get_property(test, constrained_property.descriptor.id,
+                                                             oid=constrained_property.oid,
+                                                             role_path=constrained_property.role_path)
+                if isinstance(method_result, NcMethodResultError):
+                    return test.FAIL(f"{error_msg_base}GetProperty error: {str(method_result.errorMessage)}: "
+                                     f"constraints={str(constrained_property.constraints)}")
+                if self.ms05_utils.is_error_status(method_result.status):
+                    return test.FAIL(f"{error_msg_base}GetProperty error: "
+                                     "NcMethodResultError MUST be returned on an error.")
 
-            original_value = method_result.value
-            if get_constraints:
-                self._check_parameter_constraints(test, constrained_property)
-            elif datatype_type is not None and get_sequences:
-                # Enums and Struct are validated against their type definitions
-                self._check_sequence_datatype_type(test, constrained_property, original_value)
+                original_value = method_result.value
+                if get_constraints:
+                    self._check_parameter_constraints(test, constrained_property)
+                elif datatype_type is not None and get_sequences:
+                    # Enums and Struct are validated against their type definitions
+                    self._check_sequence_datatype_type(test, constrained_property, original_value)
 
-            # Reset to original value
-            method_result = self.ms05_utils.set_property(test,
-                                                         constrained_property.descriptor.id,
-                                                         original_value,
-                                                         oid=constrained_property.oid,
-                                                         role_path=constrained_property.role_path)
-            if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}: "
-                                 f"value={str(original_value)}, "
-                                 f"constraints={str(constrained_property.constraints)}")
-            if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(f"{error_msg_base}SetProperty error: "
-                                 "NcMethodResultError MUST be returned on an error.")
+                # Reset to original value
+                method_result = self.ms05_utils.set_property(test,
+                                                             constrained_property.descriptor.id,
+                                                             original_value,
+                                                             oid=constrained_property.oid,
+                                                             role_path=constrained_property.role_path)
+                if isinstance(method_result, NcMethodResultError):
+                    return test.FAIL(f"{error_msg_base}SetProperty error: {str(method_result.errorMessage)}: "
+                                     f"value={str(original_value)}, "
+                                     f"constraints={str(constrained_property.constraints)}")
+                if self.ms05_utils.is_error_status(method_result.status):
+                    return test.FAIL(f"{error_msg_base}SetProperty error: "
+                                     "NcMethodResultError MUST be returned on an error.")
 
-        if self.check_property_metadata.error:
-            link = "https://specs.amwa.tv/ms-05-02/branches/" \
-                f"{self.apis[MS05_API_KEY]['spec_branch']}" \
-                "/docs/Constraints.html" if get_constraints else \
-                "https://specs.amwa.tv/ms-05-02/branches/" \
-                f"{self.apis[MS05_API_KEY]['spec_branch']}" \
-                "/docs/NcObject.html#generic-getter-and-setter"
-            return test.FAIL(self.check_property_metadata.error_msg, link)
+            if self.check_property_metadata.error:
+                link = "https://specs.amwa.tv/ms-05-02/branches/" \
+                    f"{self.apis[MS05_API_KEY]['spec_branch']}" \
+                    "/docs/Constraints.html" if get_constraints else \
+                    "https://specs.amwa.tv/ms-05-02/branches/" \
+                    f"{self.apis[MS05_API_KEY]['spec_branch']}" \
+                    "/docs/NcObject.html#generic-getter-and-setter"
+                return test.FAIL(self.check_property_metadata.error_msg, link)
 
-        if self.check_property_metadata.checked:
-            return test.PASS()
+            if self.check_property_metadata.checked:
+                return test.PASS()
 
-        return test.UNCLEAR("No properties of this type checked")
+            return test.UNCLEAR("No properties of this type checked")
+        except TestingFacadeException as e:
+            return test.UNCLEAR(f"Testing Facade error: {e.args[0]}")
 
     def test_ms05_01(self, test):
         """Constraints on writable properties are enforced"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
         question = """\
                     From this list of properties with parameter constraints\
@@ -513,6 +519,9 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_02(self, test):
         """Constraints on writable sequences are enforced"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         question = """\
                    From this list of sequences with parameter constraints\
                    carefully select those that can be safely altered by this test.
@@ -526,6 +535,9 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_03(self, test):
         """Check writable enumeration sequences"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         # This test will use Get and Set to test reading/writing entire sequences, rather than per item tests
         question = """\
                    From this list of enumeration sequences\
@@ -541,6 +553,9 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_04(self, test):
         """Check writable struct sequences"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         # This test will use Get and Set to test reading/writing entire sequences, rather than per item tests
         question = """\
                    From this list of struct sequences\
@@ -558,74 +573,79 @@ class MS0502Test(ControllerTest):
         # Check that properties that have a read only property set to True
         # cannot be written
         # https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/NcObject.html#generic-getter-and-setter
-        device_model = self.ms05_utils.query_device_model(test)
+        try:
+            device_model = self.ms05_utils.query_device_model(test)
 
-        readonly_properties = self._get_properties(test, device_model, get_constraints=False,
-                                                   get_sequences=get_sequences, get_readonly=True)
+            readonly_properties = self._get_properties(test, device_model, get_constraints=False,
+                                                       get_sequences=get_sequences, get_readonly=True)
 
-        possible_properties = [{"answer_id": f"answer_{str(i)}",
-                                "display_answer": p.name,
-                                "resource": p} for i, p in enumerate(readonly_properties)]
+            possible_properties = [{"answer_id": f"answer_{str(i)}",
+                                    "display_answer": p.name,
+                                    "resource": p} for i, p in enumerate(readonly_properties)]
 
-        if len(possible_properties) == 0:
-            return test.UNCLEAR("No testable properties in Device Model.")
+            if len(possible_properties) == 0:
+                return test.UNCLEAR("No testable properties in Device Model.")
 
-        if IS12_INTERACTIVE_TESTING:
-            test_method_name = inspect.currentframe().f_back.f_code.co_name
+            if MS05_INTERACTIVE_TESTING:
+                test_method_name = inspect.currentframe().f_back.f_code.co_name
 
-            selected_ids = \
-                self._get_testing_facade_selection(question, possible_properties,
-                                                   test_type="multi_choice", test_method_name=test_method_name)
+                selected_ids = \
+                    self._get_testing_facade_selection(question, possible_properties,
+                                                       test_type="multi_choice", test_method_name=test_method_name)
 
-            selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
+                selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
-            if len(selected_properties) == 0:
-                return test.UNCLEAR("No properties selected for testing.")
-        else:
-            # If non-interactive then test all methods
-            selected_properties = [p["resource"] for p in possible_properties]
-
-        readonly_checked = False
-
-        for readonly_property in selected_properties:
-            error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}, " \
-                             f"property id={readonly_property.descriptor.id}, " \
-                             f"property name={readonly_property.descriptor.name}: "
-
-            # Cache original property value
-            method_result = self.ms05_utils.get_property(test,
-                                                         readonly_property.descriptor.id,
-                                                         oid=readonly_property.oid,
-                                                         role_path=readonly_property.role_path)
-            if isinstance(method_result, NcMethodResultError):
-                return test.FAIL(f"{error_msg_base}GetProperty error:{str(method_result.errorMessage)}")
-            if self.ms05_utils.is_error_status(method_result.status):
-                return test.FAIL(f"{error_msg_base}GetProperty error: "
-                                 "NcMethodResultError MUST be returned on an error.")
-            original_value = method_result.value
-            # Try setting this value
-            method_result = self.ms05_utils.set_property(test,
-                                                         readonly_property.descriptor.id,
-                                                         original_value,
-                                                         oid=readonly_property.oid,
-                                                         role_path=readonly_property.role_path)
-            if not isinstance(method_result, NcMethodResultError):
-                # if it gets this far it's failed
-                # https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/NcObject.html#generic-getter-and-setter
-                return test.FAIL(f"{error_msg_base}SetProperty error: Read only property is writable.",
-                                 "https://specs.amwa.tv/ms-05-02/branches/"
-                                 f"{self.apis[MS05_API_KEY]['spec_branch']}"
-                                 "/docs/NcObject.html#generic-getter-and-setter")
+                if len(selected_properties) == 0:
+                    return test.UNCLEAR("No properties selected for testing.")
             else:
-                readonly_checked = True
+                # If non-interactive then test all methods
+                selected_properties = [p["resource"] for p in possible_properties]
 
-        if not readonly_checked:
-            return test.UNCLEAR("No read only properties found")
+            readonly_checked = False
+
+            for readonly_property in selected_properties:
+                error_msg_base = f"role path={self.ms05_utils.create_role_path_string(readonly_property.role_path)}, " \
+                                 f"property id={readonly_property.descriptor.id}, " \
+                                 f"property name={readonly_property.descriptor.name}: "
+
+                # Cache original property value
+                method_result = self.ms05_utils.get_property(test,
+                                                             readonly_property.descriptor.id,
+                                                             oid=readonly_property.oid,
+                                                             role_path=readonly_property.role_path)
+                if isinstance(method_result, NcMethodResultError):
+                    return test.FAIL(f"{error_msg_base}GetProperty error:{str(method_result.errorMessage)}")
+                if self.ms05_utils.is_error_status(method_result.status):
+                    return test.FAIL(f"{error_msg_base}GetProperty error: "
+                                     "NcMethodResultError MUST be returned on an error.")
+                original_value = method_result.value
+                # Try setting this value
+                method_result = self.ms05_utils.set_property(test,
+                                                             readonly_property.descriptor.id,
+                                                             original_value,
+                                                             oid=readonly_property.oid,
+                                                             role_path=readonly_property.role_path)
+                if not isinstance(method_result, NcMethodResultError):
+                    # if it gets this far it's failed
+                    # https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/NcObject.html#generic-getter-and-setter
+                    return test.FAIL(f"{error_msg_base}SetProperty error: Read only property is writable.",
+                                     "https://specs.amwa.tv/ms-05-02/branches/"
+                                     f"{self.apis[MS05_API_KEY]['spec_branch']}"
+                                     "/docs/NcObject.html#generic-getter-and-setter")
+                else:
+                    readonly_checked = True
+
+            if not readonly_checked:
+                return test.UNCLEAR("No read only properties found")
+        except TestingFacadeException as e:
+            return test.UNCLEAR(f"Testing Facade error: {e.args[0]}")
 
         return test.PASS()
 
     def test_ms05_05(self, test):
         """Check read only properties are not writable"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
         question = """\
                    From this list of read only properties\
@@ -640,6 +660,8 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_06(self, test):
         """Check read only sequences are not writable"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
 
         question = """\
                    From this list of read only sequences\
@@ -774,17 +796,20 @@ class MS0502Test(ControllerTest):
         if len(possible_methods) == 0:
             return test.UNCLEAR("No non standard methods in Device Model.")
 
-        if IS12_INTERACTIVE_TESTING:
-            test_method_name = inspect.currentframe().f_back.f_code.co_name
+        if MS05_INTERACTIVE_TESTING:
+            try:
+                test_method_name = inspect.currentframe().f_back.f_code.co_name
 
-            selected_ids = \
-                self._get_testing_facade_selection(question, possible_methods,
-                                                   test_type="multi_choice", test_method_name=test_method_name)
+                selected_ids = \
+                    self._get_testing_facade_selection(question, possible_methods,
+                                                       test_type="multi_choice", test_method_name=test_method_name)
 
-            selected_methods = [p["resource"] for p in possible_methods if p["answer_id"] in selected_ids]
+                selected_methods = [p["resource"] for p in possible_methods if p["answer_id"] in selected_ids]
 
-            if len(selected_methods) == 0:
-                return test.UNCLEAR("No methods selected for testing.")
+                if len(selected_methods) == 0:
+                    return test.UNCLEAR("No methods selected for testing.")
+            except TestingFacadeException as e:
+                return test.UNCLEAR(f"Testing Facade error: {e.args[0]}")
         else:
             # If non-interactive then test all methods
             selected_methods = [p["resource"] for p in possible_methods]
@@ -852,6 +877,9 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_07(self, test):
         """Check discovered methods with unconstrained parameters"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         question = """\
                    From this list of methods\
                    carefully select those that can be safely invoked by this test.
@@ -865,6 +893,9 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_08(self, test):
         """Constraints on method parameters are enforced"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         question = """\
                    From this list of methods\
                    carefully select those that can be safely invoked by this test.
@@ -1050,9 +1081,9 @@ class MS0502Test(ControllerTest):
                                 "resource": p} for i, p in enumerate(constrained_properties)]
 
         if len(possible_properties) == 0:
-            return test.UNCLEAR("No properties with ParameterConstraints in Device Model.")
+            return
 
-        if IS12_INTERACTIVE_TESTING:
+        if MS05_INTERACTIVE_TESTING:
             question = """\
                         From this list of sequences\
                         carefully select those that can be safely altered by this test.
@@ -1066,7 +1097,7 @@ class MS0502Test(ControllerTest):
             test_method_name = inspect.currentframe().f_back.f_code.co_name
             selected_ids = \
                 self._get_testing_facade_selection(question, possible_properties,
-                                                   test_type="multi_choice", test_method_name=test_method_name)
+                                                    test_type="multi_choice", test_method_name=test_method_name)
 
             selected_properties = [p["resource"] for p in possible_properties if p["answer_id"] in selected_ids]
 
@@ -1088,12 +1119,17 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_09(self, test):
         """NcObject method: SetSequenceItem"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         try:
             if not self.sequences_validated:
                 self._validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
+        except TestingFacadeException as e:
+            return test.UNCLEAR(f"Testing Facade error: {e.args[0]}")
 
         if self.sequence_test_unclear:
             return test.UNCLEAR("No sequences selected for testing.")
@@ -1108,12 +1144,17 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_10(self, test):
         """NcObject method: AddSequenceItem"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         try:
             if not self.sequences_validated:
                 self._validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
+        except TestingFacadeException as e:
+            return test.UNCLEAR(f"Testing Facade error: {e.args[0]}")
 
         if self.sequence_test_unclear:
             return test.UNCLEAR("No sequences selected for testing.")
@@ -1128,12 +1169,17 @@ class MS0502Test(ControllerTest):
 
     def test_ms05_11(self, test):
         """NcObject method: RemoveSequenceItem"""
+        if not MS05_INVASIVE_TESTING:
+            return test.DISABLED("This test cannot be performed when MS05_INVASIVE_TESTING is False ")
+
         try:
             if not self.sequences_validated:
                 self._validate_sequences(test)
         except NMOSTestException as e:
             # Couldn't validate model so can't perform test
             return test.FAIL(e.args[0].detail, e.args[0].link)
+        except TestingFacadeException as e:
+            return test.UNCLEAR(f"Testing Facade error: {e.args[0]}")
 
         if self.sequence_test_unclear:
             return test.UNCLEAR("No sequences selected for testing.")
