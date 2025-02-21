@@ -26,7 +26,6 @@ from ..IS05Utils import IS05Utils
 from ..IS12Utils import IS12Utils
 from ..MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos
 from ..TestHelper import get_default_ip, get_mocks_hostname
-from .MS0501Test import MS0501Test
 
 from .. import Config as CONFIG
 
@@ -100,7 +99,6 @@ class BCP0080101Test(GenericTest):
         # Instantiate MS0501Tests to access automatic tests
         # Hmmm, should the automatic tests be factored into the utils to allow all
         # MS-05 based test suites to access them?
-        self.ms0502Test = MS0501Test(apis, self.is12_utils, **kwargs)
         self.is05_utils = IS05Utils(self.apis[CONN_API_KEY]["url"])
         self.node_url = apis[NODE_API_KEY]["url"]
         self.ncp_url = apis[CONTROL_API_KEY]["url"]
@@ -110,7 +108,7 @@ class BCP0080101Test(GenericTest):
         self.mock_node_base_url = ""
 
     def set_up_tests(self):
-        self.ms0502Test.set_up_tests()
+        self.is12_utils.reset()
         self.is12_utils.open_ncp_websocket()
         super().set_up_tests()
 
@@ -121,11 +119,11 @@ class BCP0080101Test(GenericTest):
         # Initialize cached test results
         self.check_touchpoint_metadata = BCP0080101Test.TestMetadata()
 
-    # Override basics to include the MS-05 auto tests
+    # Override basics to include auto tests
     def basics(self):
         results = super().basics()
         try:
-            results += self.ms0502Test._auto_tests()
+            results += self.is12_utils.auto_tests()
         except NMOSTestException as e:
             results.append(e.args[0])
         except Exception as e:
