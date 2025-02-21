@@ -32,8 +32,6 @@ from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescrip
     NcParameterDescriptor, NcPropertyConstraintsNumber, NcPropertyConstraintsString, NcPropertyDescriptor, \
     NcTouchpoint, NcTouchpointNmos, NcTouchpointNmosChannelMapping, StandardClassIds
 
-from ..TestResult import Test
-
 NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
@@ -124,56 +122,11 @@ class MS0501Test(ControllerTest):
     def basics(self):
         results = super().basics()
         try:
-            results += self._auto_tests()
+            results += self.ms05_utils.auto_tests()
         except NMOSTestException as e:
             results.append(e.args[0])
         except Exception as e:
             results.append(self.uncaught_exception("auto_tests", e))
-        return results
-
-    def _validate_model_definitions(self, descriptors, reference_descriptors):
-        # Validate Class Manager model definitions against reference model descriptors.
-        # Returns [test result array]
-        results = list()
-
-        reference_descriptor_keys = sorted(reference_descriptors.keys())
-
-        for key in reference_descriptor_keys:
-            test = Test(f"Validate {str(key)} definition", f"auto_ms05_{str(key)}")
-            try:
-                if descriptors.get(key):
-                    descriptor = descriptors[key]
-
-                    # Validate descriptor obeys the JSON schema
-                    self.ms05_utils.reference_datatype_schema_validate(test, descriptor.json,
-                                                                       descriptor.__class__.__name__)
-
-                    # Validate the content of descriptor is correct
-                    self.ms05_utils.validate_descriptor(test, reference_descriptors[key], descriptor)
-
-                    results.append(test.PASS())
-                else:
-                    results.append(test.UNCLEAR("Not Implemented"))
-            except NMOSTestException as e:
-                results.append(e.args[0])
-
-        return results
-
-    def _auto_tests(self):
-        # Automatically validate all standard datatypes and control classes.
-        # Returns [test result array]
-        # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html
-
-        results = list()
-        test = Test("Initialize auto tests", "auto_init")
-
-        class_manager = self.ms05_utils.get_class_manager(test)
-
-        results += self._validate_model_definitions(class_manager.class_descriptors,
-                                                    self.ms05_utils.reference_class_descriptors)
-
-        results += self._validate_model_definitions(class_manager.datatype_descriptors,
-                                                    self.ms05_utils.reference_datatype_descriptors)
         return results
 
     def pre_tests_message(self):

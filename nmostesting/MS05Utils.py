@@ -23,6 +23,7 @@ from itertools import takewhile, dropwhile
 from jsonschema import FormatChecker, SchemaError, validate, ValidationError
 
 from .GenericTest import NMOSTestException
+from .TestResult import Test
 from .TestHelper import load_resolved_schema
 
 MS05_API_KEY = "controlframework"
@@ -499,6 +500,51 @@ class MS05Utils(NMOSUtils):
             raise NMOSTestException(test.FAIL(f"{context}Expected value="
                                     f"{str(reference)}, actual value={str(descriptor)}"))
         return
+
+    def _validate_model_definitions(self, descriptors, reference_descriptors):
+        # Validate Class Manager model definitions against reference model descriptors.
+        # Returns [test result array]
+        results = list()
+
+        reference_descriptor_keys = sorted(reference_descriptors.keys())
+
+        for key in reference_descriptor_keys:
+            test = Test(f"Validate {str(key)} definition", f"auto_ms05_{str(key)}")
+            try:
+                if descriptors.get(key):
+                    descriptor = descriptors[key]
+
+                    # Validate descriptor obeys the JSON schema
+                    self.reference_datatype_schema_validate(test, descriptor.json,
+                                                            descriptor.__class__.__name__)
+
+                    # Validate the content of descriptor is correct
+                    self.validate_descriptor(test, reference_descriptors[key], descriptor)
+
+                    results.append(test.PASS())
+                else:
+                    results.append(test.UNCLEAR("Not Implemented"))
+            except NMOSTestException as e:
+                results.append(e.args[0])
+
+        return results
+
+    def auto_tests(self):
+        # Automatically validate all standard datatypes and control classes advertised by Class Manager.
+        # Returns [test result array]
+        # https://specs.amwa.tv/ms-05-02/releases/v1.0.0/docs/Framework.html
+
+        results = list()
+        test = Test("Initialize auto tests", "auto_init")
+
+        class_manager = self.get_class_manager(test)
+
+        results += self._validate_model_definitions(class_manager.class_descriptors,
+                                                    self.reference_class_descriptors)
+
+        results += self._validate_model_definitions(class_manager.datatype_descriptors,
+                                                    self.reference_datatype_descriptors)
+        return results
 
     def _get_class_manager_datatype_descriptors(self, test, class_manager_oid, role_path):
         method_result = self.get_property(test, NcClassManagerProperties.DATATYPES.value,
