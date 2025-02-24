@@ -690,7 +690,7 @@ class IS1101Test(GenericTest):
     def test_02_02_03_01(self, test):
         "Verify that the video sender supports the minimum set of video constraints"
 
-        sample = "^urn:(x-nmos|x-[a-z]+):cap:"
+        sample = "^urn:[a-z0-9][a-z0-9-]+:cap:"
 
         if len(self.flow_format_video) == 0:
             return test.UNCLEAR("There is no video format")
@@ -719,7 +719,7 @@ class IS1101Test(GenericTest):
     def test_02_02_03_02(self, test):
         "Verify that the audio sender supports the minimum set of audio constraints"
 
-        sample = "^urn:(x-nmos|x-[a-z]+):cap:"
+        sample = "^urn:[a-z0-9][a-z0-9-]+:cap:"
 
         if len(self.flow_format_audio) == 0:
             return test.UNCLEAR("There is no audio format")
@@ -3030,7 +3030,7 @@ class IS1101Test(GenericTest):
                 return test.FAIL("The Node API request for receiver {} has failed: {}"
                                  .format(receiver_id, response.json()))
             if response.json()["id"] != receiver_id:
-                return test.UNCLEAR(
+                return test.FAIL(
                     "The IS-11 Receiver doesn't exist on the Node API as receiver."
                 )
         return test.PASS()
@@ -3112,7 +3112,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL(response)
 
                 if response["flow_id"] is None:
-                    return test.UNCLEAR("\"flow_id\" of sender {} is null".format(sender_id))
+                    return test.DISABLED("\"flow_id\" of sender {} is null".format(sender_id))
 
                 valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "flows/" + response["flow_id"])
                 if not valid:
@@ -3127,7 +3127,7 @@ class IS1101Test(GenericTest):
            len(self.reference_senders["urn:x-nmos:format:audio"]) > 0):
             return test.PASS()
 
-        return test.UNCLEAR("Video and audio reference senders weren't found")
+        return test.DISABLED("Video and audio reference senders weren't found")
 
     def test_04_03_01(self, test):
         """
@@ -3158,7 +3158,7 @@ class IS1101Test(GenericTest):
             receiver = response
 
             if format not in self.reference_senders:
-                return test.UNCLEAR("No reference video senders found")
+                return test.DISABLED("No reference video senders found")
 
             valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
                                                                                      receiver, receiver_id)
@@ -3294,7 +3294,7 @@ class IS1101Test(GenericTest):
             receiver = response
 
             if format not in self.reference_senders:
-                return test.UNCLEAR("No reference audio senders found")
+                return test.DISABLED("No reference audio senders found")
 
             valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
                                                                                      receiver, receiver_id)
@@ -3421,7 +3421,7 @@ class IS1101Test(GenericTest):
                     return test.FAIL(response)
 
                 if response["flow_id"] is None:
-                    return test.UNCLEAR("\"flow_id\" of sender {} is null".format(sender_id))
+                    return test.DISABLED("\"flow_id\" of sender {} is null".format(sender_id))
 
                 valid, response = self.reference_is04_utils.checkCleanRequestJSON("GET", "flows/" + response["flow_id"])
                 if not valid:
@@ -3436,7 +3436,7 @@ class IS1101Test(GenericTest):
            len(self.reference_senders["urn:x-nmos:format:audio"]) > 0):
             return test.PASS()
 
-        return test.UNCLEAR("Video and audio reference senders weren't found")
+        return test.DISABLED("Video and audio reference senders weren't found")
 
     def test_04_04_01(self, test):
         """
@@ -3462,7 +3462,7 @@ class IS1101Test(GenericTest):
             receiver = response
 
             if format not in self.reference_senders:
-                return test.UNCLEAR("No reference video senders found")
+                return test.DISABLED("No reference video senders found")
 
             valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
                                                                                      receiver, receiver_id)
@@ -3507,7 +3507,7 @@ class IS1101Test(GenericTest):
             receiver = response
 
             if format not in self.reference_senders:
-                return test.UNCLEAR("No reference video senders found")
+                return test.DISABLED("No reference audio senders found")
 
             valid, response = self.is11_utils.activate_reference_sender_and_receiver(self.reference_senders, format,
                                                                                      receiver, receiver_id)
