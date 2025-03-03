@@ -29,15 +29,16 @@ from ..TestHelper import get_default_ip, get_mocks_hostname
 
 from .. import Config as CONFIG
 
+RECEIVER_MONITOR_API_KEY = "receivermonitor"
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
 CONTROL_API_KEY = "ncp"
-MS05_API_KEY = "controlframework"
+CONTROL_FRAMEWORK_API_KEY = "controlframework"
 
 RECEIVER_MONITOR_CLASS_ID = [1, 2, 2, 1]
 
-bcp_008_01_spec_root = "https://specs.amwa.tv/bcp-008-01/branches/v1.0-dev/docs/"
-ms_05_02_spec_root = "https://specs.amwa.tv/ms-05-02/branches/v1.0.x/docs/"
+RECEIVER_MONITOR_SPEC_ROOT = "https://specs.amwa.tv/bcp-008-01/branches/"
+CONTROL_FRAMEWORK_SPEC_ROOT = "https://specs.amwa.tv/ms-05-02/branches/"
 
 
 class NcReceiverMonitorProperties(Enum):
@@ -283,9 +284,10 @@ class BCP0080101Test(GenericTest):
     def _get_touchpoint_resource(self, test, oid, role_path):
         # The touchpoints property of any NcReceiverMonitor MUST have one or more touchpoints of which
         # one and only one entry MUST be of type NcTouchpointNmos where
-        # the resourceType field MUST be set to “receiver” and
+        # the resourceType field MUST be set to "receiver" and
         # the id field MUST be set to the associated IS-04 receiver UUID.
-        spec_link = f"{bcp_008_01_spec_root}Overview.html#touchpoints-and-is-04-receivers"
+        spec_link = f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/Overview.html#touchpoints-and-is-04-receivers"
 
         touchpoint_resources = []
 
@@ -295,7 +297,8 @@ class BCP0080101Test(GenericTest):
             if "contextNamespace" not in touchpoint:
                 self.check_touchpoint_metadata.error = True
                 self.check_touchpoint_metadata.error_msg = "Touchpoint doesn't obey MS-05-02 schema"
-                self.check_touchpoint_metadata.link = f"{ms_05_02_spec_root}Framework.html#nctouchpoint"
+                self.check_touchpoint_metadata.link = f"{CONTROL_FRAMEWORK_SPEC_ROOT}" \
+                    f"{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}/Framework.html#nctouchpoint"
                 continue
 
             if "resource" in touchpoint:
@@ -320,7 +323,7 @@ class BCP0080101Test(GenericTest):
         return touchpoint_resource
 
     def test_02(self, test):
-        """Check Receiver Monitor transition to Healthy state"""
+        """Check Receiver Monitor transitions to Healthy state"""
 
         checked = False
 
@@ -391,3 +394,10 @@ class BCP0080101Test(GenericTest):
             return test.PASS()
 
         return test.UNCLEAR("Unable to find any testable Receiver Monitors")
+
+    def test_03(self, test):
+        """Check domain specific statuses delay the transition to a more healthy state"""
+        """by the configured statusReportingDelay value"""
+
+        return test.MANUAL("Check by manually forcing an error condition in the Receiver")
+

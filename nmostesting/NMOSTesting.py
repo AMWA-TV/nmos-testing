@@ -410,6 +410,10 @@ TEST_DEFINITIONS = {
     "BCP-008-01": {
         "name": "BCP-008-01 Receiver Status",
         "specs": [{
+            "spec_key": "bcp-008-01",
+            "api_key": "receivermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
+        }, {
             "spec_key": "is-04",
             "api_key": "node",
             "disable_fields": ["urlpath"]
@@ -424,10 +428,6 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "ms-05-02",
             "api_key": "controlframework",
-            "disable_fields": ["host", "port", "urlpath"]
-        }, {
-            "spec_key": "bcp-008-01",
-            "api_key": "receivermonitor",
             "disable_fields": ["host", "port", "urlpath"]
         }],
         "extra_specs": [{
