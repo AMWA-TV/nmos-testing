@@ -58,10 +58,11 @@ class IS12Error():
 
 
 class IS12Notification():
-    def __init__(self, notification_json):
+    def __init__(self, notification_json, received_time):
         self.oid = notification_json["oid"]
         self.eventId = NcEventId(notification_json["eventId"])
         self.eventData = NcPropertyChangedEventData(notification_json["eventData"])
+        self.received_time = received_time
 
 
 class IS12Utils(MS05Utils):
@@ -167,8 +168,8 @@ class IS12Utils(MS05Utils):
                 continue
 
             # find the response to our request
-            for message in self.ncp_websocket.get_messages():
-                parsed_message = json.loads(message)
+            for tm in self.ncp_websocket.get_timestamped_messages():
+                parsed_message = json.loads(tm.message)
 
                 if self.message_type_to_schema_name(parsed_message.get("messageType")):
                     self._validate_is12_schema(
@@ -190,7 +191,8 @@ class IS12Utils(MS05Utils):
                 if parsed_message["messageType"] == MessageTypes.SubscriptionResponse:
                     results.append(parsed_message["subscriptions"])
                 if parsed_message["messageType"] == MessageTypes.Notification:
-                    self.notifications += [IS12Notification(n) for n in parsed_message["notifications"]]
+                    self.notifications += [IS12Notification(n, tm.received_time)
+                                           for n in parsed_message["notifications"]]
                 if parsed_message["messageType"] == MessageTypes.Error:
                     raise NMOSTestException(test.FAIL(  # Append the IS12Error so it can be used in negative tests
                         f"IS-I2 Error: {str(parsed_message)} for command: {str(command_json)}",
@@ -227,11 +229,14 @@ class IS12Utils(MS05Utils):
     def get_notifications(self):
         return self.notifications
 
+    def clear_notifications(self):
+        self.notifications = []
+
     def start_logging_notifications(self, oid, property):
         self.expect_notifications = True
         self.expect_notifications_oid = oid
         self.expect_notifications_property = property
-        self.notifications = []
+        self.clear_notifications()
 
     def stop_logging_notifications(self):
         self.expect_notifications = False
