@@ -15,7 +15,7 @@
 
 import uuid
 
-from enum import Enum
+from enum import Enum, IntEnum
 from jinja2 import Template
 from random import randint
 from requests.compat import json
@@ -61,45 +61,65 @@ class NcReceiverMonitorProperties(Enum):
     STREAM_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 10})
     AUTO_RESET_PACKET_COUNTERS = NcPropertyId({"level": 4, "index": 11})
     AUTO_RESET_SYNCHRONIZATION_SOURCE_CHANGES = NcPropertyId({"level": 4, "index": 12})
-    UNKNOWN = NcPropertyId({"level": 9999, "index": 9999})
+
+
+class NcOverallStatus(IntEnum):
+    Inactive = 0
+    Healthy = 1
+    PartiallyHealthy = 2
+    Unhealthy = 3
+    UNKNOWN = 9999
 
     @classmethod
     def _missing_(cls, _):
         return cls.UNKNOWN
 
 
-class NcOverallStatus(Enum):
-    Inactive = 0
-    Healthy = 1
-    PartiallyHealthy = 2
-    Unhealthy = 3
-
-
-class NcLinkStatus(Enum):
+class NcLinkStatus(IntEnum):
     AllUp = 1
     SomeDown = 2
     AllDown = 3
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
-class NcConnectionStatus(Enum):
+class NcConnectionStatus(IntEnum):
     Inactive = 0
     Healthy = 1
     PartiallyHealthy = 2
     Unhealthy = 3
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
-class NcSynchronizationStatus(Enum):
+class NcSynchronizationStatus(IntEnum):
     NotUsed = 0
     Healthy = 1
     PartiallyHealthy = 2
     Unhealthy = 3
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
-class NcStreamStatus(Enum):
+class NcStreamStatus(IntEnum):
     Inactive = 0
     Healthy = 1
     PartiallyHealthy = 2
     Unhealthy = 3
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
 class BCP0080101Test(GenericTest):
@@ -145,6 +165,7 @@ class BCP0080101Test(GenericTest):
         self.check_initial_healthy_state_metadata = BCP0080101Test.TestMetadata()
         self.check_touchpoint_metadata = BCP0080101Test.TestMetadata()
         self.check_overall_status_metadata = BCP0080101Test.TestMetadata()
+        self.check_status_values_valid_metadata = BCP0080101Test.TestMetadata()
 
     # Override basics to include auto tests
     def basics(self):
@@ -315,18 +336,34 @@ class BCP0080101Test(GenericTest):
 
         return touchpoint_resource
 
-    def _get_status_from_notifications(self, initial_status, notifications, property_id):
-        # Aggregate initial status with any status change notifications
-        status_notifications = [n for n in notifications if n.eventData.propertyId == property_id.value]
+    def _validate_status_values(self, statuses):
+        invalid_statuses = []
+        for property_id, status in statuses.items():
+            if property_id == NcReceiverMonitorProperties.OVERALL_STATUS:
+                if NcOverallStatus(status) == NcOverallStatus.UNKNOWN:
+                    invalid_statuses.append("overallStatus")
+            elif property_id == NcReceiverMonitorProperties.LINK_STATUS:
+                if NcLinkStatus(status) == NcLinkStatus.UNKNOWN:
+                    invalid_statuses.append("linkStatus")
+            elif property_id == NcReceiverMonitorProperties.CONNECTION_STATUS:
+                if NcConnectionStatus(status) == NcConnectionStatus.UNKNOWN:
+                    invalid_statuses.append("connectionStatus")
+            elif property_id == NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS:
+                if NcSynchronizationStatus(status) == NcSynchronizationStatus.UNKNOWN:
+                    invalid_statuses.append("externalSynchronizationStatus")
+            elif property_id == NcReceiverMonitorProperties.STREAM_STATUS:
+                if NcStreamStatus(status) == NcStreamStatus.UNKNOWN:
+                    invalid_statuses.append("streamStatus")
 
-        return status_notifications[-1].eventData.value if len(status_notifications) else initial_status
+        if len(invalid_statuses) > 0:
+            self.check_status_values_valid_metadata.error = True
+            self.check_status_values_valid_metadata.error_msg = \
+                f"Invalid status found in following properties: {", ".join(invalid_statuses)}"
+        else:
+            self.check_status_values_valid_metadata.checked = True
 
-    def _check_overall_status(self, initial_statuses, notifications):
-
-        statuses = dict([(property_id,
-                          self._get_status_from_notifications(initial_status, notifications, property_id))
-                        for property_id, initial_status in initial_statuses.items()])
-
+    def _check_overall_status(self, statuses):
+        # Ensure Overall Status has been correctly mapped
         # Test Inactive states
         if statuses[NcReceiverMonitorProperties.CONNECTION_STATUS] == NcConnectionStatus.Inactive.value \
                 and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
@@ -352,6 +389,22 @@ class BCP0080101Test(GenericTest):
                     f"actual {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name}. "
 
         self.check_overall_status_metadata.checked = True
+
+    def _check_statuses(self, initial_statuses, notifications):
+
+        def _get_status_from_notifications(initial_status, notifications, property_id):
+            # Aggregate initial status with any status change notifications
+            status_notifications = [n for n in notifications if n.eventData.propertyId == property_id.value]
+
+            return status_notifications[-1].eventData.value if len(status_notifications) else initial_status
+
+        # Get statuses from notifications, using the initial_status as a default
+        statuses = dict([(property_id,
+                          _get_status_from_notifications(initial_status, notifications, property_id))
+                        for property_id, initial_status in initial_statuses.items()])
+
+        self._check_overall_status(statuses)
+        self._validate_status_values(statuses)
 
     def _patch_receiver(self, test, receiver_id, sdp_params):
         url = "single/receivers/{}/staged".format(receiver_id)
@@ -449,18 +502,18 @@ class BCP0080101Test(GenericTest):
 
             # Check overall status before receiver patched
             status_notifications = [n for n in notifications if n.received_time < start_time]
-            self._check_overall_status(initial_statuses, status_notifications)
+            self._check_statuses(initial_statuses, status_notifications)
 
             # Check overall status during status reporting delay
             status_notifications = \
                 [n for n in notifications if n.received_time < start_time + status_reporting_delay]
 
-            self._check_overall_status(initial_statuses, status_notifications)
+            self._check_statuses(initial_statuses, status_notifications)
 
             # Check overall status after status reporting delay
             status_notifications = \
                 [n for n in notifications if n.received_time >= start_time + status_reporting_delay]
-            self._check_overall_status(initial_statuses, status_notifications)
+            self._check_statuses(initial_statuses, status_notifications)
 
             connection_status_notifications = \
                 [n for n in notifications
@@ -533,7 +586,7 @@ class BCP0080101Test(GenericTest):
                                  f"role path={self.is12_utils.create_role_path_string(monitor.role_path)}")
 
             if method_result.value != default_status_reporting_delay:
-                return test.FAIL("Unexpected statusReportingDelay on receiver monitor. "
+                return test.FAIL("Unexpected status reporting delay on receiver monitor. "
                                  f"Expected={default_status_reporting_delay} actual={method_result.value}, "
                                  f"oid={monitor.oid}, "
                                  f"role path={self.is12_utils.create_role_path_string(monitor.role_path)}")
@@ -574,5 +627,21 @@ class BCP0080101Test(GenericTest):
 
         if self.check_overall_status_metadata.error:
             return test.FAIL(self.check_overall_status_metadata.error_msg)
+
+        return test.PASS()
+
+    def test_05(self, test):
+        """Status values are valid"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_status_values_valid_metadata.checked:
+            return test.UNCLEAR("Unable to check overall status mapping")
+
+        if self.check_status_values_valid_metadata.error:
+            return test.FAIL(self.check_status_values_valid_metadata.error_msg)
 
         return test.PASS()
