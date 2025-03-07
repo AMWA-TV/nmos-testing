@@ -227,9 +227,15 @@ class IS12Utils(MS05Utils):
         return results[0]
 
     def get_notifications(self):
+        # Get any timestamped messages that have arrived in the interim period
+        for tm in self.ncp_websocket.get_timestamped_messages():
+            parsed_message = json.loads(tm.message)
+            if parsed_message["messageType"] == MessageTypes.Notification:
+                self.notifications += [IS12Notification(n, tm.received_time)
+                                       for n in parsed_message["notifications"]]
         return self.notifications
 
-    def clear_notifications(self):
+    def reset_notifications(self):
         self.notifications = []
 
     def start_logging_notifications(self, oid, property):
