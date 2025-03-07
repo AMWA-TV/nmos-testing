@@ -602,7 +602,7 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to find any testable receiver monitors")
 
         if not self.check_initial_healthy_state_metadata.checked:
-            return test.UNCLEAR("Unable to test receiver monitors")
+            return test.UNCLEAR("Unable to test")
 
         if self.check_initial_healthy_state_metadata.error:
             return test.FAIL(self.check_initial_healthy_state_metadata.error_msg)
@@ -623,7 +623,7 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to find any testable receiver monitors")
 
         if not self.check_overall_status_metadata.checked:
-            return test.UNCLEAR("Unable to check overall status mapping")
+            return test.UNCLEAR("Unable to test")
 
         if self.check_overall_status_metadata.error:
             return test.FAIL(self.check_overall_status_metadata.error_msg)
@@ -639,9 +639,25 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to find any testable receiver monitors")
 
         if not self.check_status_values_valid_metadata.checked:
-            return test.UNCLEAR("Unable to check overall status mapping")
+            return test.UNCLEAR("Unable to test")
 
         if self.check_status_values_valid_metadata.error:
             return test.FAIL(self.check_status_values_valid_metadata.error_msg)
+
+        return test.PASS()
+
+    def test_06(self, test):
+        """Receiver monitor has a valid touchpoint resource"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_touchpoint_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_touchpoint_metadata.error:
+            return test.FAIL(self.check_touchpoint_metadata.error_msg)
 
         return test.PASS()
