@@ -449,7 +449,7 @@ class BCP0080101Test(GenericTest):
         for monitor in receiver_monitors:
 
             # Hmmmmm this is misspelled - change in the IS-12 PR and merge
-            response = self.is12_utils.update_subscritions(test, [monitor.oid])
+            response = self.is12_utils.update_subscriptions(test, [monitor.oid])
 
             if not isinstance(response, list):
                 raise NMOSTestException(
