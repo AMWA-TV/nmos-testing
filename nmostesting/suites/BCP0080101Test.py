@@ -146,11 +146,11 @@ class BCP0080101Test(GenericTest):
         omit_paths = [
             "/single/senders/{senderId}/transportfile"
         ]
+        # Prevent auto testing of IS-04 and IS-05 APIs
+        apis[NODE_API_KEY].pop("raml", None)
+        apis[CONN_API_KEY].pop("raml", None)
         GenericTest.__init__(self, apis, omit_paths, **kwargs)
         self.is12_utils = IS12Utils(apis)
-        # Instantiate MS0501Tests to access automatic tests
-        # Hmmm, should the automatic tests be factored into the utils to allow all
-        # MS-05 based test suites to access them?
         self.is05_utils = IS05Utils(self.apis[CONN_API_KEY]["url"])
         self.node_url = apis[NODE_API_KEY]["url"]
         self.ncp_url = apis[CONTROL_API_KEY]["url"]
