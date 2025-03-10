@@ -24,7 +24,7 @@ from time import sleep, time
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
 from ..IS12Utils import IS12Utils
-from ..MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos
+from ..MS05Utils import NcMethodId, NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos
 from ..TestHelper import get_default_ip, get_mocks_hostname
 
 from .. import Config as CONFIG
@@ -51,16 +51,24 @@ class NcReceiverMonitorProperties(Enum):
     # NcReceiverMonitor properties
     LINK_STATUS = NcPropertyId({"level": 4, "index": 1})
     LINK_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 2})
-    CONNECTION_STATUS = NcPropertyId({"level": 4, "index": 3})
-    CONNECTION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 4})
-    EXTERNAL_SYNCHRONIZATION_STATUS = NcPropertyId({"level": 4, "index": 5})
-    EXTERNAL_SYNCHRONIZATION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 6})
-    SYNCHRONIZATION_SOURCE_ID = NcPropertyId({"level": 4, "index": 7})
-    SYNCHRONIZATION_SOURCE_CHANGES = NcPropertyId({"level": 4, "index": 8})
-    STREAM_STATUS = NcPropertyId({"level": 4, "index": 9})
-    STREAM_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 10})
-    AUTO_RESET_PACKET_COUNTERS = NcPropertyId({"level": 4, "index": 11})
-    AUTO_RESET_SYNCHRONIZATION_SOURCE_CHANGES = NcPropertyId({"level": 4, "index": 12})
+    LINK_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 3})
+    CONNECTION_STATUS = NcPropertyId({"level": 4, "index": 4})
+    CONNECTION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 5})
+    CONNECTION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 6})
+    EXTERNAL_SYNCHRONIZATION_STATUS = NcPropertyId({"level": 4, "index": 7})
+    EXTERNAL_SYNCHRONIZATION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 8})
+    EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 9})
+    SYNCHRONIZATION_SOURCE_ID = NcPropertyId({"level": 4, "index": 10})
+    STREAM_STATUS = NcPropertyId({"level": 4, "index": 11})
+    STREAM_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 12})
+    STREAM_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 13})
+    AUTO_RESET_COUNTERS = NcPropertyId({"level": 4, "index": 14})
+
+
+class NcReceiverMonitorMethods(Enum):
+    GET_LOST_PACKET_COUNTERS = NcMethodId({"level": 4, "index": 1})
+    GET_LATE_PACKET_COUNTERS = NcMethodId({"level": 4, "index": 2})
+    RESET_COUNTERS = NcMethodId({"level": 4, "index": 3})
 
 
 class NcOverallStatus(IntEnum):
@@ -659,5 +667,69 @@ class BCP0080101Test(GenericTest):
 
         if self.check_touchpoint_metadata.error:
             return test.FAIL(self.check_touchpoint_metadata.error_msg)
+
+        return test.PASS()
+
+    def test_07(self, test):
+        """GetLostPacketCounters method implemented"""
+        receiver_monitors = self._get_receiver_monitors(test)
+
+        if len(receiver_monitors) == 0:
+            return test.UNCLEAR("No receiver monitors found in Device Model")
+
+        arguments = {}  # empty arguments
+
+        for monitor in receiver_monitors:
+            method_result = self.is12_utils.invoke_method(
+                test,
+                NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value,
+                arguments,
+                oid=monitor.oid,
+                role_path=monitor.role_path)
+
+            if not self._status_ok(method_result):
+                return test.FAIL("Method invokation GetLostPacketCounters failed for receiver monitor, "
+                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
+                                 f"{method_result.errorMessage}")
+
+            if method_result.value is None or not isinstance(method_result.value, list):
+                return test.FAIL(f"Expected an array, got {str(method_result.value)} from receiver monitor, "
+                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
+                                 f"{method_result.errorMessage}")
+
+            for counter in method_result.value:
+                self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
+
+        return test.PASS()
+
+    def test_08(self, test):
+        """GetLatePacketCounters method implemented"""
+        receiver_monitors = self._get_receiver_monitors(test)
+
+        if len(receiver_monitors) == 0:
+            return test.UNCLEAR("No receiver monitors found in Device Model")
+
+        arguments = {}  # empty arguments
+
+        for monitor in receiver_monitors:
+            method_result = self.is12_utils.invoke_method(
+                test,
+                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value,
+                arguments,
+                oid=monitor.oid,
+                role_path=monitor.role_path)
+
+            if not self._status_ok(method_result):
+                return test.FAIL("Method invokation GetLatePacketCounters failed for receiver monitor, "
+                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
+                                 f"{method_result.errorMessage}")
+
+            if method_result.value is None or not isinstance(method_result.value, list):
+                return test.FAIL(f"Expected an array, got {str(method_result.value)} from receiver monitor, "
+                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
+                                 f"{method_result.errorMessage}")
+
+            for counter in method_result.value:
+                self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
 
         return test.PASS()
