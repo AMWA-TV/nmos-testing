@@ -279,7 +279,7 @@ class IS1201Test(MS0501Test):
         error = False
         error_message = ""
 
-        response = self.is12_utils.update_subscritions(test, list(oids.keys()))
+        response = self.is12_utils.update_subscriptions(test, list(oids.keys()))
 
         if not isinstance(response, list):
             return test.FAIL(f"Unexpected response from subscription command: {str(response)}",

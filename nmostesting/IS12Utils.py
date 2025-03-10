@@ -365,7 +365,7 @@ class IS12Utils(MS05Utils):
             "subscriptions": subscriptions
         }
 
-    def update_subscritions(self, test, subscriptions):
+    def update_subscriptions(self, test, subscriptions):
         """update Nodes subscriptions"""
         command_JSON = self.create_subscription_JSON(subscriptions)
         response = self.send_command(test, command_JSON)
