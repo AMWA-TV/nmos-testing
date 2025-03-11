@@ -1755,6 +1755,10 @@ class MS0501Test(ControllerTest):
 
             if not class_descriptor:
                 continue
+
+            if type(child) is NcBlock:
+                results += (self._get_methods(test, child, get_constraints))
+
             # Only test methods on non-standard classes, as the standard classes are already tested elsewhere
             if not self.ms05_utils.is_non_standard_class(class_descriptor.classId):
                 continue
@@ -1775,9 +1779,6 @@ class MS0501Test(ControllerTest):
                         f"class name={class_descriptor.name}: "
                         f"method name={method_descriptor.name}",
                         method_descriptor))
-
-            if type(child) is NcBlock:
-                results += (self._get_methods(test, child))
 
         return results
 
