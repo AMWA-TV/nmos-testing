@@ -897,6 +897,10 @@ class NcDeviceManagerProperties(Enum):
     NCVERSION = NcPropertyId({"level": 3, "index": 1})
 
 
+class NcWorkerProperties(Enum):
+    ENABLED = NcPropertyId({"level": 2, "index": 1})
+
+
 class NcObjectMethods(Enum):
     GENERIC_GET = NcMethodId({"level": 1, "index": 1})
     GENERIC_SET = NcMethodId({"level": 1, "index": 2})

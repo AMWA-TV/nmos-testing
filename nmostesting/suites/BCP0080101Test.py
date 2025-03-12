@@ -24,7 +24,8 @@ from time import sleep, time
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
 from ..IS12Utils import IS12Utils
-from ..MS05Utils import NcMethodId, NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos
+from ..MS05Utils import NcMethodId, NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos, \
+    NcWorkerProperties
 from ..TestHelper import get_default_ip, get_mocks_hostname
 
 from .. import Config as CONFIG
@@ -170,7 +171,7 @@ class BCP0080101Test(GenericTest):
 
         self.testable_receivers_found = False
         # Initialize cached test results
-        self.check_initial_healthy_state_metadata = BCP0080101Test.TestMetadata()
+        self.check_connection_status_metadata = BCP0080101Test.TestMetadata()
         self.check_touchpoint_metadata = BCP0080101Test.TestMetadata()
         self.check_overall_status_metadata = BCP0080101Test.TestMetadata()
         self.check_status_values_valid_metadata = BCP0080101Test.TestMetadata()
@@ -310,7 +311,7 @@ class BCP0080101Test(GenericTest):
         # the resourceType field MUST be set to "receiver" and
         # the id field MUST be set to the associated IS-04 receiver UUID.
         spec_link = f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/Overview.html#touchpoints-and-is-04-receivers"
+            "/docs/Overview.html#touchpoints-and-is-04-receivers"
 
         touchpoint_resources = []
 
@@ -346,28 +347,36 @@ class BCP0080101Test(GenericTest):
         return touchpoint_resource
 
     def _validate_status_values(self, statuses):
+
+        spec_link_root = f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#"
         invalid_statuses = []
         for property_id, status in statuses.items():
             if property_id == NcReceiverMonitorProperties.OVERALL_STATUS:
                 if NcOverallStatus(status) == NcOverallStatus.UNKNOWN:
                     invalid_statuses.append("overallStatus")
+                    spec_section = "receiver-overall-status"
             elif property_id == NcReceiverMonitorProperties.LINK_STATUS:
                 if NcLinkStatus(status) == NcLinkStatus.UNKNOWN:
                     invalid_statuses.append("linkStatus")
+                    spec_section = "link-status"
             elif property_id == NcReceiverMonitorProperties.CONNECTION_STATUS:
                 if NcConnectionStatus(status) == NcConnectionStatus.UNKNOWN:
                     invalid_statuses.append("connectionStatus")
+                    spec_section = "connection-status"
             elif property_id == NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS:
                 if NcSynchronizationStatus(status) == NcSynchronizationStatus.UNKNOWN:
                     invalid_statuses.append("externalSynchronizationStatus")
+                    spec_section = "external-synchronization-status"
             elif property_id == NcReceiverMonitorProperties.STREAM_STATUS:
                 if NcStreamStatus(status) == NcStreamStatus.UNKNOWN:
                     invalid_statuses.append("streamStatus")
-
+                    spec_section = "stream-status"
         if len(invalid_statuses) > 0:
             self.check_status_values_valid_metadata.error = True
             self.check_status_values_valid_metadata.error_msg = \
                 f"Invalid status found in following properties: {", ".join(invalid_statuses)}"
+            self.check_status_values_valid_metadata.link = f"{spec_link_root}{spec_section}"
         else:
             self.check_status_values_valid_metadata.checked = True
 
@@ -382,7 +391,7 @@ class BCP0080101Test(GenericTest):
         #   (e.g. Not used, Inactive)
         self.check_overall_status_metadata.link = \
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/Overview.html#receiver-overall-status"
+            "/docs/Overview.html#receiver-overall-status"
 
         # Test Inactive states
         if statuses[NcReceiverMonitorProperties.CONNECTION_STATUS] == NcConnectionStatus.Inactive.value \
@@ -433,21 +442,21 @@ class BCP0080101Test(GenericTest):
         # as long as the Receiver isn’t being deactivated, it MUST delay the reporting of
         # non Healthy states for the duration specified by statusReportingDelay, and then
         # transition to any other appropriate state.
-        self.check_initial_healthy_state_metadata.link = \
+        self.check_connection_status_metadata.link = \
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/Overview.html#receiver-status-reporting-delay"
+            "/docs/Overview.html#receiver-status-reporting-delay"
 
         if len(notifications) == 0:
-            self.check_initial_healthy_state_metadata.error = True
-            self.check_initial_healthy_state_metadata.error_msg += \
+            self.check_connection_status_metadata.error = True
+            self.check_connection_status_metadata.error_msg += \
                 "No status notifications received for receiver monitor=" \
                 f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
 
         # Check that the receiver monitor transitioned to healthy
         if len(notifications) > 0 \
                 and notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
-            self.check_initial_healthy_state_metadata.error = True
-            self.check_initial_healthy_state_metadata.error_msg += \
+            self.check_connection_status_metadata.error = True
+            self.check_connection_status_metadata.error_msg += \
                 "Expect status to transition to healthy for Receiver Monitor " \
                 f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
 
@@ -456,8 +465,8 @@ class BCP0080101Test(GenericTest):
         if len(notifications) > 1 \
                 and notifications[1].eventData.value != NcConnectionStatus.Inactive.value \
                 and notifications[1].received_time < reporting_delay_end:
-            self.check_initial_healthy_state_metadata.error = True
-            self.check_initial_healthy_state_metadata.error_msg += \
+            self.check_connection_status_metadata.error = True
+            self.check_connection_status_metadata.error_msg += \
                 "Expect status to remain healthy for at least the status reporting delay for receiver monitor=" \
                 f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
 
@@ -465,30 +474,54 @@ class BCP0080101Test(GenericTest):
         # to a less healthy state after the status reporting delay
         # i.e. expecting transition to healthy and then to less healthy (at least 2 transitions)
         if len(notifications) < 2:
-            self.check_initial_healthy_state_metadata.error = True
-            self.check_initial_healthy_state_metadata.error_msg += \
+            self.check_connection_status_metadata.error = True
+            self.check_connection_status_metadata.error_msg += \
                 "Expect status to transition to a less healthy state after " \
                 "status reporting delay for receiver monitor, " \
                 f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
 
-        self.check_initial_healthy_state_metadata.checked = True
+        self.check_connection_status_metadata.checked = True
 
     def _check_deactivate_receiver_notifications(self, monitor, notifications):
-        if len(notifications) == 0:
-            self.check_deactivate_receiver_metadata.error = True
-            self.check_deactivate_receiver_metadata.error_msg += \
-                "No status notifications received for receiver monitor=" \
-                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+        # When a receiver is being deactivated it MUST cleanly disconnect from the current stream by not
+        # generating intermediate unhealthy states (PartiallyHealthy or Unhealthy) and instead transition
+        # directly and immediately (without being delayed by the statusReportingDelay)
+        # to Inactive for the following statuses:
+        # * overallStatus
+        # * connectionStatus
+        # * streamStatus
+        self.check_deactivate_receiver_metadata.link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#deactivating-a-receiver"
 
-        # Check that the receiver monitor transitioned to healthy
-        if len(notifications) > 0 \
-                and notifications[-1].eventData.value != NcConnectionStatus.Inactive.value:
-            self.check_deactivate_receiver_metadata.error = True
-            self.check_deactivate_receiver_metadata.error_msg += \
-                "Expect status to transition to Inactive for Receiver Monitor " \
-                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+        status_properties = [NcReceiverMonitorProperties.OVERALL_STATUS,
+                             NcReceiverMonitorProperties.CONNECTION_STATUS,
+                             NcReceiverMonitorProperties.STREAM_STATUS]
 
-        self.check_deactivate_receiver_metadata.checked = True
+        for status in status_properties:
+            filtered_notifications = \
+                    [n for n in notifications
+                     if n.eventData.propertyId == status.value]
+
+            self.check_deactivate_receiver_metadata.link = \
+                f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+                "/docs/Overview.html#deactivating-a-receiver"
+
+            if len(filtered_notifications) == 0:
+                self.check_deactivate_receiver_metadata.error = True
+                self.check_deactivate_receiver_metadata.error_msg += \
+                    "No status notifications received for receiver monitor=" \
+                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+            # Check that the receiver monitor transitioned to healthy
+            if len(filtered_notifications) > 0 \
+                    and filtered_notifications[-1].eventData.value != NcConnectionStatus.Inactive.value:
+                self.check_deactivate_receiver_metadata.error = True
+                self.check_deactivate_receiver_metadata.error_msg += \
+                    "Expect status to transition to Inactive for Receiver Monitor " \
+                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+            self.check_deactivate_receiver_metadata.checked = True
 
     def _patch_receiver(self, test, receiver_id, sdp_params):
         url = "single/receivers/{}/staged".format(receiver_id)
@@ -512,7 +545,7 @@ class BCP0080101Test(GenericTest):
 
     def _check_monitor_status_changes(self, test):
 
-        if self.check_initial_healthy_state_metadata.checked:
+        if self.check_connection_status_metadata.checked:
             return
 
         receiver_monitors = self._get_receiver_monitors(test)
@@ -621,12 +654,9 @@ class BCP0080101Test(GenericTest):
             # Now process historic, time stamped, notifications
             notifications = self.is12_utils.get_notifications()
 
-            connection_status_notifications = \
-                [n for n in notifications
-                 if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS.value
-                 and n.received_time >= start_time]
+            deactivate_receiver_notifications = [n for n in notifications if n.received_time >= start_time]
 
-            self._check_deactivate_receiver_notifications(monitor, connection_status_notifications)
+            self._check_deactivate_receiver_notifications(monitor, deactivate_receiver_notifications)
 
     def test_01(self, test):
         """Status reporting delay can be set to values within the published constraints"""
@@ -672,11 +702,12 @@ class BCP0080101Test(GenericTest):
         if not self.testable_receivers_found:
             return test.UNCLEAR("Unable to find any testable receiver monitors")
 
-        if not self.check_initial_healthy_state_metadata.checked:
+        if not self.check_connection_status_metadata.checked:
             return test.UNCLEAR("Unable to test")
 
-        if self.check_initial_healthy_state_metadata.error:
-            return test.FAIL(self.check_initial_healthy_state_metadata.error_msg)
+        if self.check_connection_status_metadata.error:
+            return test.FAIL(self.check_connection_status_metadata.error_msg,
+                             self.check_connection_status_metadata.link)
 
         return test.PASS()
 
@@ -697,7 +728,8 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to test")
 
         if self.check_overall_status_metadata.error:
-            return test.FAIL(self.check_overall_status_metadata.error_msg)
+            return test.FAIL(self.check_overall_status_metadata.error_msg,
+                             self.check_overall_status_metadata.link)
 
         return test.PASS()
 
@@ -713,7 +745,8 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to test")
 
         if self.check_status_values_valid_metadata.error:
-            return test.FAIL(self.check_status_values_valid_metadata.error_msg)
+            return test.FAIL(self.check_status_values_valid_metadata.error_msg,
+                             self.check_status_values_valid_metadata.link)
 
         return test.PASS()
 
@@ -729,12 +762,17 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to test")
 
         if self.check_touchpoint_metadata.error:
-            return test.FAIL(self.check_touchpoint_metadata.error_msg, self.check_touchpoint_metadata.link)
+            return test.FAIL(self.check_touchpoint_metadata.error_msg,
+                             self.check_touchpoint_metadata.link)
 
         return test.PASS()
 
-    def test_07(self, test):
-        """GetLostPacketCounters method implemented"""
+    def _check_late_lost_packet_method(self, test, method_id):
+        """Check late or lost packet method depending on method_id"""
+        spec_link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#late-and-lost-packets"
+
         receiver_monitors = self._get_receiver_monitors(test)
 
         if len(receiver_monitors) == 0:
@@ -745,7 +783,7 @@ class BCP0080101Test(GenericTest):
         for monitor in receiver_monitors:
             method_result = self.is12_utils.invoke_method(
                 test,
-                NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value,
+                method_id,
                 arguments,
                 oid=monitor.oid,
                 role_path=monitor.role_path)
@@ -753,49 +791,25 @@ class BCP0080101Test(GenericTest):
             if not self._status_ok(method_result):
                 return test.FAIL("Method invokation GetLostPacketCounters failed for receiver monitor, "
                                  f"oid={monitor.oid}, role path={monitor.role_path}: "
-                                 f"{method_result.errorMessage}")
+                                 f"{method_result.errorMessage}", spec_link)
 
             if method_result.value is None or not isinstance(method_result.value, list):
                 return test.FAIL(f"Expected an array, got {str(method_result.value)} from receiver monitor, "
                                  f"oid={monitor.oid}, role path={monitor.role_path}: "
-                                 f"{method_result.errorMessage}")
+                                 f"{method_result.errorMessage}", spec_link)
 
             for counter in method_result.value:
                 self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
 
         return test.PASS()
+
+    def test_07(self, test):
+        """GetLostPacketCounters method implemented"""
+        return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value)
 
     def test_08(self, test):
         """GetLatePacketCounters method implemented"""
-        receiver_monitors = self._get_receiver_monitors(test)
-
-        if len(receiver_monitors) == 0:
-            return test.UNCLEAR("No receiver monitors found in Device Model")
-
-        arguments = {}  # empty arguments
-
-        for monitor in receiver_monitors:
-            method_result = self.is12_utils.invoke_method(
-                test,
-                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value,
-                arguments,
-                oid=monitor.oid,
-                role_path=monitor.role_path)
-
-            if not self._status_ok(method_result):
-                return test.FAIL("Method invokation GetLatePacketCounters failed for receiver monitor, "
-                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
-                                 f"{method_result.errorMessage}")
-
-            if method_result.value is None or not isinstance(method_result.value, list):
-                return test.FAIL(f"Expected an array, got {str(method_result.value)} from receiver monitor, "
-                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
-                                 f"{method_result.errorMessage}")
-
-            for counter in method_result.value:
-                self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
-
-        return test.PASS()
+        return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value)
 
     def test_09(self, test):
         """Receiver cleanly disconnects from the current stream on deactivation"""
@@ -809,6 +823,40 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to test")
 
         if self.check_deactivate_receiver_metadata.error:
-            return test.FAIL(self.check_deactivate_receiver_metadata.error_msg)
+            return test.FAIL(self.check_deactivate_receiver_metadata.error_msg,
+                             self.check_deactivate_receiver_metadata.link)
 
         return test.PASS()
+
+    def test_10(self, test):
+        """Receiver monitor is enabled by default"""
+        spec_link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#ncworker-inheritance"
+
+        receiver_monitors = self._get_receiver_monitors(test)
+
+        if len(receiver_monitors) == 0:
+            return test.UNCLEAR("No receiver monitors found in Device Model")
+
+        for monitor in receiver_monitors:
+            enabled = self._get_property(test,
+                                         NcWorkerProperties.ENABLED.value,
+                                         oid=monitor.oid,
+                                         role_path=monitor.role_path)
+
+            if enabled is not True:
+                return test.FAIL("Receiver monitors MUST always have the enabled property set to true.", spec_link)
+
+            method_result = self.is12_utils.set_property(test,
+                                                         NcWorkerProperties.ENABLED.value,
+                                                         True,
+                                                         oid=monitor.oid,
+                                                         role_path=monitor.role_path)
+
+            if method_result.status == NcMethodStatus.OK:
+                return test.FAIL("Receiver monitors MUST NOT allow changes to the enabled property.", spec_link)
+
+            if method_result.status != NcMethodStatus.InvalidRequest:
+                return test.FAIL("Receiver monitors MUST return InvalidRequest "
+                                 "to Set method invocations for this property.", spec_link)
