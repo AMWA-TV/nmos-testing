@@ -174,6 +174,7 @@ class BCP0080101Test(GenericTest):
         self.check_touchpoint_metadata = BCP0080101Test.TestMetadata()
         self.check_overall_status_metadata = BCP0080101Test.TestMetadata()
         self.check_status_values_valid_metadata = BCP0080101Test.TestMetadata()
+        self.check_deactivate_receiver_metadata = BCP0080101Test.TestMetadata()
 
     # Override basics to include auto tests
     def basics(self):
@@ -371,7 +372,18 @@ class BCP0080101Test(GenericTest):
             self.check_status_values_valid_metadata.checked = True
 
     def _check_overall_status(self, statuses):
-        # Ensure Overall Status has been correctly mapped
+        # Devices MUST follow the rules listed below when mapping specific domain statuses
+        # in the combined overallStatus:
+        # * When the Receiver is Inactive the overallStatus uses the Inactive option
+        # * When the Receiver is Active the overallStatus takes the least healthy state of all domain statuses
+        #   (if one status is PartiallyHealthy (or equivalent) and another is Unhealthy (or equivalent)
+        #   then the overallStatus would be Unhealthy)
+        # * The overallStatus is Healthy only when all domain statuses are either Healthy or a neutral state
+        #   (e.g. Not used, Inactive)
+        self.check_overall_status_metadata.link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/Overview.html#receiver-overall-status"
+
         # Test Inactive states
         if statuses[NcReceiverMonitorProperties.CONNECTION_STATUS] == NcConnectionStatus.Inactive.value \
                 and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
@@ -413,6 +425,70 @@ class BCP0080101Test(GenericTest):
 
         self._check_overall_status(statuses)
         self._validate_status_values(statuses)
+
+    def _check_connection_status_notifications(self, monitor, reporting_delay_end, notifications):
+        # A receiver is expected to go through a period of instability upon activation.
+        # Therefore, on Receiver activation domain specific statuses offering an Inactive option
+        # MUST transition immediately to the Healthy state. Furthermore, after activation,
+        # as long as the Receiver isn’t being deactivated, it MUST delay the reporting of
+        # non Healthy states for the duration specified by statusReportingDelay, and then
+        # transition to any other appropriate state.
+        self.check_initial_healthy_state_metadata.link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/Overview.html#receiver-status-reporting-delay"
+
+        if len(notifications) == 0:
+            self.check_initial_healthy_state_metadata.error = True
+            self.check_initial_healthy_state_metadata.error_msg += \
+                "No status notifications received for receiver monitor=" \
+                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+        # Check that the receiver monitor transitioned to healthy
+        if len(notifications) > 0 \
+                and notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
+            self.check_initial_healthy_state_metadata.error = True
+            self.check_initial_healthy_state_metadata.error_msg += \
+                "Expect status to transition to healthy for Receiver Monitor " \
+                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+        # Check that the receiver monitor stayed in the healthy state (unless transitioned to Inactive)
+        # during the status reporting delay period
+        if len(notifications) > 1 \
+                and notifications[1].eventData.value != NcConnectionStatus.Inactive.value \
+                and notifications[1].received_time < reporting_delay_end:
+            self.check_initial_healthy_state_metadata.error = True
+            self.check_initial_healthy_state_metadata.error_msg += \
+                "Expect status to remain healthy for at least the status reporting delay for receiver monitor=" \
+                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+        # There is no *actual* stream so we expect connection to transition
+        # to a less healthy state after the status reporting delay
+        # i.e. expecting transition to healthy and then to less healthy (at least 2 transitions)
+        if len(notifications) < 2:
+            self.check_initial_healthy_state_metadata.error = True
+            self.check_initial_healthy_state_metadata.error_msg += \
+                "Expect status to transition to a less healthy state after " \
+                "status reporting delay for receiver monitor, " \
+                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+        self.check_initial_healthy_state_metadata.checked = True
+
+    def _check_deactivate_receiver_notifications(self, monitor, notifications):
+        if len(notifications) == 0:
+            self.check_deactivate_receiver_metadata.error = True
+            self.check_deactivate_receiver_metadata.error_msg += \
+                "No status notifications received for receiver monitor=" \
+                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+        # Check that the receiver monitor transitioned to healthy
+        if len(notifications) > 0 \
+                and notifications[-1].eventData.value != NcConnectionStatus.Inactive.value:
+            self.check_deactivate_receiver_metadata.error = True
+            self.check_deactivate_receiver_metadata.error_msg += \
+                "Expect status to transition to Inactive for Receiver Monitor " \
+                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+
+        self.check_deactivate_receiver_metadata.checked = True
 
     def _patch_receiver(self, test, receiver_id, sdp_params):
         url = "single/receivers/{}/staged".format(receiver_id)
@@ -456,7 +532,6 @@ class BCP0080101Test(GenericTest):
 
         for monitor in receiver_monitors:
 
-            # Hmmmmm this is misspelled - change in the IS-12 PR and merge
             response = self.is12_utils.update_subscriptions(test, [monitor.oid])
 
             if not isinstance(response, list):
@@ -515,7 +590,6 @@ class BCP0080101Test(GenericTest):
             # Check overall status during status reporting delay
             status_notifications = \
                 [n for n in notifications if n.received_time < start_time + status_reporting_delay]
-
             self._check_statuses(initial_statuses, status_notifications)
 
             # Check overall status after status reporting delay
@@ -527,43 +601,32 @@ class BCP0080101Test(GenericTest):
                 [n for n in notifications
                  if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS.value
                  and n.received_time >= start_time]
+            self._check_connection_status_notifications(monitor,
+                                                        start_time + status_reporting_delay,
+                                                        connection_status_notifications)
 
-            if len(connection_status_notifications) == 0:
-                self.check_initial_healthy_state_metadata.error = True
-                self.check_initial_healthy_state_metadata.error_msg += \
-                    "No status notifications received for receiver monitor=" \
-                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
-
-            # Check that the receiver monitor transitioned to healthy
-            if len(connection_status_notifications) > 0 \
-                    and connection_status_notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
-                self.check_initial_healthy_state_metadata.error = True
-                self.check_initial_healthy_state_metadata.error_msg += \
-                    "Expect status to transition to healthy for Receiver Monitor " \
-                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
-
-            # Check that the receiver monitor stayed in the healthy state (unless transitioned to Inactive)
-            # during the status reporting delay period
-            if len(connection_status_notifications) > 1 \
-                    and connection_status_notifications[1].eventData.value != NcConnectionStatus.Inactive.value \
-                    and connection_status_notifications[1].received_time < start_time + status_reporting_delay:
-                self.check_initial_healthy_state_metadata.error = True
-                self.check_initial_healthy_state_metadata.error_msg += \
-                    "Expect status to remain healthy for at least the status reporting delay for receiver monitor=" \
-                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
-
-            # There is no *actual* stream so we expect connection to transition
-            # to a less healthy state after the status reporting delay
-            # i.e. expecting transition to healthy and then to less healthy (at least 2 transitions)
-            if len(connection_status_notifications) < 2:
-                self.check_initial_healthy_state_metadata.error = True
-                self.check_initial_healthy_state_metadata.error_msg += \
-                    "Expect status to transition to a less healthy state after " \
-                    "status reporting delay for receiver monitor, " \
-                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
-
-            self.check_initial_healthy_state_metadata.checked = True
             self._deactivate_receiver(test, receiver_id)
+            sleep(1.0)  # Let receiver settle
+
+            # Check deactivation of receiver during status replorting delay
+            start_time = time()
+
+            self._patch_receiver(test, receiver_id, sdp_params[receiver_id])
+
+            # Deactivate before the status reporting delay expires
+            sleep(1.0)
+            self._deactivate_receiver(test, receiver_id)
+            sleep(1.0)  # Let receiver settle
+
+            # Now process historic, time stamped, notifications
+            notifications = self.is12_utils.get_notifications()
+
+            connection_status_notifications = \
+                [n for n in notifications
+                 if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS.value
+                 and n.received_time >= start_time]
+
+            self._check_deactivate_receiver_notifications(monitor, connection_status_notifications)
 
     def test_01(self, test):
         """Status reporting delay can be set to values within the published constraints"""
@@ -666,7 +729,7 @@ class BCP0080101Test(GenericTest):
             return test.UNCLEAR("Unable to test")
 
         if self.check_touchpoint_metadata.error:
-            return test.FAIL(self.check_touchpoint_metadata.error_msg)
+            return test.FAIL(self.check_touchpoint_metadata.error_msg, self.check_touchpoint_metadata.link)
 
         return test.PASS()
 
@@ -731,5 +794,21 @@ class BCP0080101Test(GenericTest):
 
             for counter in method_result.value:
                 self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
+
+        return test.PASS()
+
+    def test_09(self, test):
+        """Receiver cleanly disconnects from the current stream on deactivation"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_deactivate_receiver_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_deactivate_receiver_metadata.error:
+            return test.FAIL(self.check_deactivate_receiver_metadata.error_msg)
 
         return test.PASS()
