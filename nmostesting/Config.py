@@ -320,9 +320,9 @@ SPECIFICATIONS = {
         "repo": "bcp-004-02",
         # "versions": ["v1.0-dev"],
         # "default_version": "v1.0-dev",
-        "branch": "to_sender_caps",
-        "versions": ["to_sender_caps"],
-        "default_version": "to_sender_caps",
+        "branch": "v1.0-dev",
+        "versions": ["v1.0-dev"],
+        "default_version": "v1.0-dev",
         "apis": {
             "sender-caps": {
                 "name": "Sender Capabilities"

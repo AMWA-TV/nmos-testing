@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Matrox Graphics Inc.
+# Copyright (C) 2025 Matrox Graphics Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# python3 nmos-test.py suite BCP-004 --host 127.0.0.1 127.0.0.1 --port 5058 5058 --version v1.3 v1.1
+# python3 nmos-test.py suite BCP-004-02 --host 127.0.0.1 127.0.0.1 --port 5058 5058 --version v1.3 v1.1
 
 import json
 import re
@@ -37,9 +37,9 @@ SENDER_CAPS_KEY = "sender-caps"
 # Generic capabilities from any namespace
 def cap_without_namespace(s):
     match = re.search(r'^urn:[a-z0-9][a-z0-9-]+:cap:(.*)', s)
-    return match.group(2) if match else None
+    return match.group(1) if match else None
 
-class CapabilitiesTest(GenericTest):
+class BCP0040201Test(GenericTest):
     """
     Runs Node Tests covering sender and receiver capabilities
     """
@@ -174,88 +174,6 @@ class CapabilitiesTest(GenericTest):
 
     def test_02(self, test):
 
-        """Check Receiver Capabilities"""
-
-        api = self.apis[RECEIVER_CAPS_KEY]
-
-        reg_api = self.apis["caps-register"]
-        reg_path = reg_api["spec_path"] + "/capabilities"
-
-        valid, result = self.get_is04_resources("receivers")
-        if not valid:
-            return test.FAIL(result)
-
-        schema = load_resolved_schema(api["spec_path"], "receiver_constraint_sets.json")
-
-        reg_schema_file = str(Path(os.path.abspath(reg_path)) / "constraint_set.json")
-        with open(reg_schema_file, "r") as f:
-            reg_schema_obj = json.load(f)
-        reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
-
-        warning = ""
-
-        for receiver in self.is04_resources["receivers"].values():
-            if "constraint_sets" in receiver["caps"]:
-                try:
-                    self.validate_schema(receiver, schema)
-                except ValidationError as e:
-                    return test.FAIL("Receiver {} does not comply with schema".format(receiver["id"]))
-
-                try:
-                    caps_version = receiver["caps"]["version"]
-                    core_version = receiver["version"]
-                    
-                    if self.is04_utils.compare_resource_version(caps_version, core_version) > 0:
-                        return test.FAIL("Receiver {} caps version is later than resource version".format(receiver["id"]))
-
-                except ValidationError as e:
-                    return test.FAIL("Receiver {} do not comply with schema".format(receiver["id"]))
-
-                has_label = None
-                warn_label = False
-
-                for constraint_set in receiver["caps"]["constraint_sets"]:
-                    try:
-                        self.validate_schema(constraint_set, reg_schema)
-                    except ValidationError as e:
-                        return test.FAIL("Receiver {} constraint_sets do not comply with schema".format(receiver["id"]))
-
-                    has_current_label = "urn:x-nmos:cap:meta:label" in constraint_set
-
-                    # Ensure consistent labeling across all constraint_sets
-                    if has_label is None:
-                        has_label = has_current_label
-                    elif has_label != has_current_label:
-                        warn_label = True
-
-                    has_pattern_attribute = False
-                    for param_constraint in constraint_set:
-                        # enumeration do not allow empty arrays by schema, disallow empty range by test
-                        if not cap_without_namespace(param_constraint).startswith("meta:"):
-                            has_pattern_attribute = True
-                            if "minimum" in param_constraint and "maximum" in param_constraint:
-                                if compare_min_larger_than_max(param_constraint):
-                                    warning += "|" + "Receiver {} parameter constraint {} has an invalid empty range".format(receiver["id"], param_constraint)
-
-                        if param_constraint.startswith("urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
-                            warning += "|" + "Receiver {} parameter constraint {} is not registered ".format(receiver["id"], param_constraint)
-
-                    if not has_pattern_attribute:
-                        return test.FAIL("Receiver {} has an illegal constraint set without any parameter attribute".format(receiver["id"]))
-
-                if warn_label:
-                    warning += "|" + "Receiver {} constraint_sets should either 'urn:x-nmos:cap:meta:label' for all constraint sets or none".format(receiver["id"])
-
-            else:
-                warning += "|" + "Receiver {} not having constraint_sets".format(receiver["id"])
-
-        if warning != "":
-            return test.WARNING(warning)
-        else:
-            return test.PASS()
-
-    def test_03(self, test):
-
         """Check Sender Capabilities"""
 
         api = self.apis[SENDER_CAPS_KEY]
@@ -274,20 +192,27 @@ class CapabilitiesTest(GenericTest):
             reg_schema_obj = json.load(f)
         reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
 
+        no_constraint_sets = True
+
         warning = ""
+
+        if len(self.is04_resources["senders"].values()) == 0:
+            return test.UNCLEAR("No Senders were found on the Node")
 
         for sender in self.is04_resources["senders"].values():
 
             # Make sure Senders do not use the Receiver's specific "media_types" attribute in their caps
             if "media_types" in sender["caps"]:
-                return test.FAIL("Sender {} has an illegal 'media_types' attribute in its caps".format(sender["id"]))
+                warning += "|" + "Sender {} caps has an unnecessary 'media_types' attribute that is not used with sender capabilities".format(sender["id"])
 
             # Make sure Senders do not use the Receiver's specific "event_types" attribute in their caps
             if "event_types" in sender["caps"]:
-                return test.FAIL("Sender {} has an illegal 'event_types' attribute in its caps".format(sender["id"]))
+                warning += "|" + "Sender {} caps has an unnecessary 'event_types' attribute that is not used with sender capabilities".format(sender["id"])
 
             if "constraint_sets" in sender["caps"]:
                
+                no_constraint_sets = False
+
                 try:
                     self.validate_schema(sender, schema)
                 except ValidationError as e:
@@ -301,7 +226,7 @@ class CapabilitiesTest(GenericTest):
                         return test.FAIL("Sender {} caps version is later than resource version".format(sender["id"]))
 
                 except ValidationError as e:
-                    return test.FAIL("Sender {} do not comply with schema".format(sender["id"]))
+                    return test.FAIL("Sender {} caps do not have a version attribute".format(sender["id"]))
 
                 has_label = None
                 warn_label = False
@@ -322,15 +247,22 @@ class CapabilitiesTest(GenericTest):
                         
                     has_pattern_attribute = False
                     for param_constraint in constraint_set:
-                        # enumeration do not allow empty arrays by schema, disallow empty range by test
-                        if not cap_without_namespace(param_constraint).startswith("meta:"):
-                            has_pattern_attribute = True
-                            if "minimum" in param_constraint and "maximum" in param_constraint:
-                                if compare_min_larger_than_max(param_constraint):
-                                    warning += "|" + "Sender {} parameter constraint {} has an invalid empty range".format(sender["id"], param_constraint)
 
-                        if param_constraint.startswith("urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
-                            warning += "|" + "Sender {} parameter constraint {} is not registered ".format(sender["id"], param_constraint)
+                        try:
+                            # enumeration do not allow empty arrays by schema, disallow empty range by test
+                            if not cap_without_namespace(param_constraint).startswith("meta:"):
+                                has_pattern_attribute = True
+                                if "minimum" in param_constraint and "maximum" in param_constraint:
+                                    if compare_min_larger_than_max(param_constraint):
+                                        warning += "|" + "Sender {} parameter constraint {} has an invalid empty range".format(sender["id"], param_constraint)
+
+                            # parameter constraints in the x-nmos namespace should be listed in the Capabilities register
+                            if param_constraint.startswith("urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
+                                warning += "|" + "Sender {} parameter constraint {} is not registered ".format(sender["id"], param_constraint)
+
+                        except:
+                            return test.FAIL("Sender {} has an invalid parameter constraint {}".format(sender["id"], param_constraint))
+
 
                     if not has_pattern_attribute:
                         return test.FAIL("Sender {} has an illegal constraint set without any parameter attribute".format(sender["id"]))
@@ -338,8 +270,8 @@ class CapabilitiesTest(GenericTest):
                 if warn_label:
                     warning += "|" + "Sender {} constraint_sets should either 'urn:x-nmos:cap:meta:label' for all constraint sets or none".format(sender["id"])
 
-            else:
-                warning += "|" + "Sender {} not having constraint_sets".format(sender["id"])
+        if no_constraint_sets:
+            return test.OPTIONAL("No BCP-004-02 'constraint_sets' were identified in Sender caps")
 
         if warning != "":
             return test.WARNING(warning)
