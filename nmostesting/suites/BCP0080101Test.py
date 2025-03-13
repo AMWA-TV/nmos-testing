@@ -176,6 +176,8 @@ class BCP0080101Test(GenericTest):
         self.check_overall_status_metadata = BCP0080101Test.TestMetadata()
         self.check_status_values_valid_metadata = BCP0080101Test.TestMetadata()
         self.check_deactivate_receiver_metadata = BCP0080101Test.TestMetadata()
+        self.check_reset_counters_metadata = BCP0080101Test.TestMetadata()
+        self.check_auto_reset_counters_metadata = BCP0080101Test.TestMetadata()
 
     # Override basics to include auto tests
     def basics(self):
@@ -523,6 +525,110 @@ class BCP0080101Test(GenericTest):
 
             self.check_deactivate_receiver_metadata.checked = True
 
+    def _get_non_zero_transition_counters(self, test, monitor):
+        transition_counters = {"LinkStatusTransitionCounter":
+                               NcReceiverMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
+                               "ConnectionStatusTransitionCounter":
+                               NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER,
+                               "ExternalSynchronizationStatusTransitionCounter":
+                               NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER,
+                               "StreamStatusTransitionCounter":
+                               NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER}
+        counter_values = dict([(key,
+                                self._get_property(test,
+                                                   property_id.value,
+                                                   role_path=monitor.role_path,
+                                                   oid=monitor.oid))
+                               for key, property_id in transition_counters.items()])
+
+        return [c for c, v in counter_values.items() if v > 0]
+
+    def _check_reset_counters(self, test, monitor):
+        # Devices MUST be able to reset ALL status transition counter properties
+        # when a client invokes the ResetCounters method
+        self.check_reset_counters_metadata.link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#receiver-status-transition-counters"
+
+        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+
+        if len(non_zero_counters) == 0:
+            return  # No transitions, so can't test
+
+        arguments = {}
+
+        # Invoke ResetCounters
+        method_result = self.is12_utils.invoke_method(
+            test,
+            NcReceiverMonitorMethods.RESET_COUNTERS.value,
+            arguments,
+            oid=monitor.oid,
+            role_path=monitor.role_path)
+
+        if not self._status_ok(method_result):
+            self.check_reset_counters_metadata.error = True
+            self.check_reset_counters_metadata.error_msg = \
+                "Method invokation ResetCounters failed for receiver monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}: " \
+                f"{method_result.errorMessage}. "
+            return
+
+        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+
+        if len(non_zero_counters) > 0:
+            self.check_reset_counters_metadata.error = True
+            self.check_reset_counters_metadata.error_msg = \
+                f"Transition counters {", ".join(non_zero_counters)} not reset for receiver monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}: "
+
+        self.check_reset_counters_metadata.checked = True
+
+    def _check_auto_reset_counters(self, test, monitor, receiver_id, sdp_params):
+        # Devices MUST be able to reset ALL status transition counter properties
+        # when a receiver activation occurs if autoResetCounters is set to true
+        self.check_auto_reset_counters_metadata.link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#receiver-status-transition-counters"
+
+        # Make sure autoResetCounters enabled
+        self._set_property(test,
+                           NcReceiverMonitorProperties.AUTO_RESET_COUNTERS.value,
+                           True,
+                           oid=monitor.oid,
+                           role_path=monitor.role_path)
+
+        # generate status transitions
+        status_reporting_delay = \
+            self._get_property(test,
+                               NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
+                               oid=monitor.oid,
+                               role_path=monitor.role_path)
+        self._patch_receiver(test, receiver_id, sdp_params)
+        sleep(status_reporting_delay + 1.0)  # This assumes the connection status becomes unhealty
+        self._deactivate_receiver(test, receiver_id)
+
+        # check for status transitions
+        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+
+        if len(non_zero_counters) == 0:
+            return  # No transitions, so can't test
+
+        # force auto reset
+        self._patch_receiver(test, receiver_id, sdp_params)
+        sleep(1.0)  # Settling time
+
+        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+
+        if len(non_zero_counters) > 0:
+            self.check_auto_reset_counters_metadata.error = True
+            self.check_auto_reset_counters_metadata.error_msg = \
+                f"Transition counters {", ".join(non_zero_counters)} not reset for receiver monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}: "
+
+        self.check_auto_reset_counters_metadata.checked = True
+
+        self._deactivate_receiver(test, receiver_id)
+
     def _patch_receiver(self, test, receiver_id, sdp_params):
         url = "single/receivers/{}/staged".format(receiver_id)
         activate_json = {"activation": {"mode": "activate_immediate"},
@@ -613,6 +719,9 @@ class BCP0080101Test(GenericTest):
             # Wait until one second more that status reporting delay to capture transition to less healthy state
             sleep(status_reporting_delay + 1.0)
 
+            # Ensure ResetCounter method resets counters to zero
+            self._check_reset_counters(test, monitor)
+
             # Now process historic, time stamped, notifications
             notifications = self.is12_utils.get_notifications()
 
@@ -657,6 +766,9 @@ class BCP0080101Test(GenericTest):
             deactivate_receiver_notifications = [n for n in notifications if n.received_time >= start_time]
 
             self._check_deactivate_receiver_notifications(monitor, deactivate_receiver_notifications)
+
+            # Check autoResetCounters
+            self._check_auto_reset_counters(test, monitor, receiver_id, sdp_params[receiver_id])
 
     def test_01(self, test):
         """Status reporting delay can be set to values within the published constraints"""
@@ -860,3 +972,37 @@ class BCP0080101Test(GenericTest):
             if method_result.status != NcMethodStatus.InvalidRequest:
                 return test.FAIL("Receiver monitors MUST return InvalidRequest "
                                  "to Set method invocations for this property.", spec_link)
+
+    def test_11(self, test):
+        """ResetCounters method resets status transition counters"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_reset_counters_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_reset_counters_metadata.error:
+            return test.FAIL(self.check_reset_counters_metadata.error_msg,
+                             self.check_reset_counters_metadata.link)
+
+        return test.PASS()
+
+    def test_12(self, test):
+        """autoResetCounters set to TRUE resets status transition counters on activation"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_auto_reset_counters_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_auto_reset_counters_metadata.error:
+            return test.FAIL(self.check_auto_reset_counters_metadata.error_msg,
+                             self.check_auto_reset_counters_metadata.link)
+
+        return test.PASS()
