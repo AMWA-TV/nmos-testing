@@ -437,26 +437,31 @@ class BCP0080101Test(GenericTest):
         self._check_overall_status(statuses)
         self._validate_status_values(statuses)
 
-    def _check_connection_status_notifications(self, monitor, reporting_delay_end, notifications):
+    def _check_connection_status(self, monitor, start_time, status_reporting_delay, notifications):
         # A receiver is expected to go through a period of instability upon activation.
         # Therefore, on Receiver activation domain specific statuses offering an Inactive option
         # MUST transition immediately to the Healthy state. Furthermore, after activation,
         # as long as the Receiver isn’t being deactivated, it MUST delay the reporting of
         # non Healthy states for the duration specified by statusReportingDelay, and then
         # transition to any other appropriate state.
+        connection_status_notifications = \
+            [n for n in notifications
+                if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS.value
+                and n.received_time >= start_time]
+
         self.check_connection_status_metadata.link = \
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#receiver-status-reporting-delay"
 
-        if len(notifications) == 0:
+        if len(connection_status_notifications) == 0:
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
                 "No status notifications received for receiver monitor=" \
                 f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
 
         # Check that the receiver monitor transitioned to healthy
-        if len(notifications) > 0 \
-                and notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
+        if len(connection_status_notifications) > 0 \
+                and connection_status_notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
                 "Expect status to transition to healthy for Receiver Monitor " \
@@ -464,9 +469,9 @@ class BCP0080101Test(GenericTest):
 
         # Check that the receiver monitor stayed in the healthy state (unless transitioned to Inactive)
         # during the status reporting delay period
-        if len(notifications) > 1 \
-                and notifications[1].eventData.value != NcConnectionStatus.Inactive.value \
-                and notifications[1].received_time < reporting_delay_end:
+        if len(connection_status_notifications) > 1 \
+                and connection_status_notifications[1].eventData.value != NcConnectionStatus.Inactive.value \
+                and connection_status_notifications[1].received_time < start_time + status_reporting_delay:
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
                 "Expect status to remain healthy for at least the status reporting delay for receiver monitor=" \
@@ -475,7 +480,7 @@ class BCP0080101Test(GenericTest):
         # There is no *actual* stream so we expect connection to transition
         # to a less healthy state after the status reporting delay
         # i.e. expecting transition to healthy and then to less healthy (at least 2 transitions)
-        if len(notifications) < 2:
+        if len(connection_status_notifications) < 2:
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
                 "Expect status to transition to a less healthy state after " \
@@ -484,7 +489,7 @@ class BCP0080101Test(GenericTest):
 
         self.check_connection_status_metadata.checked = True
 
-    def _check_deactivate_receiver_notifications(self, monitor, notifications):
+    def _check_deactivate_receiver(self, test, monitor_oid, monitor_role_path, receiver_id, sdp_params):
         # When a receiver is being deactivated it MUST cleanly disconnect from the current stream by not
         # generating intermediate unhealthy states (PartiallyHealthy or Unhealthy) and instead transition
         # directly and immediately (without being delayed by the statusReportingDelay)
@@ -492,6 +497,22 @@ class BCP0080101Test(GenericTest):
         # * overallStatus
         # * connectionStatus
         # * streamStatus
+
+        # Check deactivation of receiver during status replorting delay
+        start_time = time()
+
+        self._patch_receiver(test, receiver_id, sdp_params)
+
+        # Deactivate before the status reporting delay expires
+        sleep(1.0)
+        self._deactivate_receiver(test, receiver_id)
+        sleep(1.0)  # Let receiver settle
+
+        # Process time stamped notifications
+        notifications = self.is12_utils.get_notifications()
+
+        deactivate_receiver_notifications = [n for n in notifications if n.received_time >= start_time]
+
         self.check_deactivate_receiver_metadata.link = \
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#deactivating-a-receiver"
@@ -502,7 +523,7 @@ class BCP0080101Test(GenericTest):
 
         for status in status_properties:
             filtered_notifications = \
-                    [n for n in notifications
+                    [n for n in deactivate_receiver_notifications
                      if n.eventData.propertyId == status.value]
 
             self.check_deactivate_receiver_metadata.link = \
@@ -513,15 +534,15 @@ class BCP0080101Test(GenericTest):
                 self.check_deactivate_receiver_metadata.error = True
                 self.check_deactivate_receiver_metadata.error_msg += \
                     "No status notifications received for receiver monitor=" \
-                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+                    f"oid={monitor_oid}, role path={self.is12_utils.create_role_path_string(monitor_role_path)}; "
 
-            # Check that the receiver monitor transitioned to healthy
+            # Check that the receiver monitor transitioned to inactive
             if len(filtered_notifications) > 0 \
                     and filtered_notifications[-1].eventData.value != NcConnectionStatus.Inactive.value:
                 self.check_deactivate_receiver_metadata.error = True
                 self.check_deactivate_receiver_metadata.error_msg += \
                     "Expect status to transition to Inactive for Receiver Monitor " \
-                    f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+                    f"oid={monitor_oid}, role path={self.is12_utils.create_role_path_string(monitor_role_path)}; "
 
             self.check_deactivate_receiver_metadata.checked = True
 
@@ -679,7 +700,7 @@ class BCP0080101Test(GenericTest):
                               f"{CONTROL_PROTOCOL_SPEC_ROOT}{self.apis[CONTROL_API_KEY]['spec_branch']}"
                               "/docs/Protocol_messaging.html#subscription-response-message-type"))
 
-            # Capture initial states of monitor statuses
+            # Capture initial states of domain statuses
             initial_statuses = dict([(property_id,
                                       self._get_property(test,
                                                          property_id.value,
@@ -703,6 +724,7 @@ class BCP0080101Test(GenericTest):
                                                                 monitor.role_path)
 
             if touchpoint_resource is None or touchpoint_resource.resource["id"] not in sdp_params:
+                # Can't find the resource
                 continue
 
             receiver_id = touchpoint_resource.resource["id"]
@@ -710,6 +732,7 @@ class BCP0080101Test(GenericTest):
             if initial_statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
                 # This test depends on the receiver being inactive in the first instance
                 self._deactivate_receiver(test, receiver_id)
+                sleep(2.0)  # settling time
 
             # Assume that the receiver patch happens immediately after start_time
             start_time = time()
@@ -725,49 +748,29 @@ class BCP0080101Test(GenericTest):
             # Now process historic, time stamped, notifications
             notifications = self.is12_utils.get_notifications()
 
-            # Check overall status before receiver patched
+            # Check statuses before receiver patched
             status_notifications = [n for n in notifications if n.received_time < start_time]
             self._check_statuses(initial_statuses, status_notifications)
 
-            # Check overall status during status reporting delay
+            # Check statuses during status reporting delay
             status_notifications = \
                 [n for n in notifications if n.received_time < start_time + status_reporting_delay]
             self._check_statuses(initial_statuses, status_notifications)
 
-            # Check overall status after status reporting delay
+            # Check statuses after status reporting delay
             status_notifications = \
                 [n for n in notifications if n.received_time >= start_time + status_reporting_delay]
             self._check_statuses(initial_statuses, status_notifications)
 
-            connection_status_notifications = \
-                [n for n in notifications
-                 if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS.value
-                 and n.received_time >= start_time]
-            self._check_connection_status_notifications(monitor,
-                                                        start_time + status_reporting_delay,
-                                                        connection_status_notifications)
+            # Check the Connection Status stayed healthy during status reporting delay
+            # and transitioned to unhealthy afterwards (assuming not deactivated during delay)
+            self._check_connection_status(monitor, start_time, status_reporting_delay, notifications)
 
             self._deactivate_receiver(test, receiver_id)
             sleep(1.0)  # Let receiver settle
 
-            # Check deactivation of receiver during status replorting delay
-            start_time = time()
+            self._check_deactivate_receiver(test, monitor.oid, monitor.role_path, receiver_id, sdp_params[receiver_id])
 
-            self._patch_receiver(test, receiver_id, sdp_params[receiver_id])
-
-            # Deactivate before the status reporting delay expires
-            sleep(1.0)
-            self._deactivate_receiver(test, receiver_id)
-            sleep(1.0)  # Let receiver settle
-
-            # Now process historic, time stamped, notifications
-            notifications = self.is12_utils.get_notifications()
-
-            deactivate_receiver_notifications = [n for n in notifications if n.received_time >= start_time]
-
-            self._check_deactivate_receiver_notifications(monitor, deactivate_receiver_notifications)
-
-            # Check autoResetCounters
             self._check_auto_reset_counters(test, monitor, receiver_id, sdp_params[receiver_id])
 
     def test_01(self, test):
