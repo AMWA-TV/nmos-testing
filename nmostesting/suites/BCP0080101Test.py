@@ -858,6 +858,40 @@ class BCP0080101Test(GenericTest):
         return test.MANUAL("Check by manually forcing an error condition in the Receiver")
 
     def test_04(self, test):
+        """ResetCounters method resets status transition counters"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_reset_counters_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_reset_counters_metadata.error:
+            return test.FAIL(self.check_reset_counters_metadata.error_msg,
+                             self.check_reset_counters_metadata.link)
+
+        return test.PASS()
+
+    def test_05(self, test):
+        """autoResetCounters property set to TRUE resets status transition counters on activation"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_auto_reset_counters_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_auto_reset_counters_metadata.error:
+            return test.FAIL(self.check_auto_reset_counters_metadata.error_msg,
+                             self.check_auto_reset_counters_metadata.link)
+
+        return test.PASS()
+
+    def test_06(self, test):
         """Overall status is correctly mapped from domain statuses"""
 
         self._check_monitor_status_changes(test)
@@ -874,7 +908,7 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_05(self, test):
+    def test_07(self, test):
         """Status values are valid"""
 
         self._check_monitor_status_changes(test)
@@ -888,23 +922,6 @@ class BCP0080101Test(GenericTest):
         if self.check_status_values_valid_metadata.error:
             return test.FAIL(self.check_status_values_valid_metadata.error_msg,
                              self.check_status_values_valid_metadata.link)
-
-        return test.PASS()
-
-    def test_06(self, test):
-        """Receiver monitor has a valid touchpoint resource"""
-
-        self._check_monitor_status_changes(test)
-
-        if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
-
-        if not self.check_touchpoint_metadata.checked:
-            return test.UNCLEAR("Unable to test")
-
-        if self.check_touchpoint_metadata.error:
-            return test.FAIL(self.check_touchpoint_metadata.error_msg,
-                             self.check_touchpoint_metadata.link)
 
         return test.PASS()
 
@@ -944,15 +961,57 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_07(self, test):
+    def test_08(self, test):
         """GetLostPacketCounters method is implemented"""
         return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value)
 
-    def test_08(self, test):
+    def test_09(self, test):
         """GetLatePacketCounters method is implemented"""
         return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value)
 
-    def test_09(self, test):
+    def test_10(self, test):
+        """Late packet counter increments when presentation is affected by late packet arrival"""
+        # For implementations which cannot measure individual late packets the late counters
+        # MUST at the very least increment every time the presentation is affected due to late packet arrival.
+
+        return test.MANUAL("Check by manually forcing an error condition in the Receiver")
+
+    def test_11(self, test):
+        """Receiver transitions to PartiallyHealthy on synchronization source change"""
+        # Receivers MUST temporarily transition to PartiallyHealthy when detecting a synchronization source change
+
+        return test.MANUAL("Check by manually forcing a synchronization source change in the Receiver")
+
+    def test_12(self, test):
+        """synchronizationSourceID property has a valid value"""
+        # When devices intend to use external synchronization they MUST publish the synchronization source id
+        # currently being used in the synchronizationSourceId property and update the externalSynchronizationStatus
+        # property whenever it changes, setting the synchronizationSourceId to null if a synchronization source
+        # cannot be discovered. Devices which are not intending to use external synchronization MUST populate
+        # this property with 'internal' or their own id if they themselves are the synchronization source
+        # (e.g. the device is a grandmaster).
+        receiver_monitors = self._get_receiver_monitors(test)
+        spec_link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#synchronization-source-change"
+
+        if len(receiver_monitors) == 0:
+            return test.UNCLEAR("No receiver monitors found in Device Model")
+
+        for monitor in receiver_monitors:
+            syncSourceId = self._get_property(test,
+                                              NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value,
+                                              oid=monitor.oid,
+                                              role_path=monitor.role_path)
+
+            # Synchronization source id can be null, "internal" or some identifier, but it can't be empty
+            if syncSourceId == "":
+                return test.FAIL("Synchronization source id MUST be either null, 'internal' or an identifer",
+                                 spec_link)
+
+        return test.PASS()
+
+    def test_13(self, test):
         """Receiver cleanly disconnects from the current stream on deactivation"""
 
         self._check_monitor_status_changes(test)
@@ -969,7 +1028,24 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_10(self, test):
+    def test_14(self, test):
+        """Receiver monitor has a valid touchpoint resource"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable receiver monitors")
+
+        if not self.check_touchpoint_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_touchpoint_metadata.error:
+            return test.FAIL(self.check_touchpoint_metadata.error_msg,
+                             self.check_touchpoint_metadata.link)
+
+        return test.PASS()
+
+    def test_15(self, test):
         """enabled property is TRUE by default, and cannot be set to FALSE"""
         spec_link = \
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
@@ -1001,67 +1077,4 @@ class BCP0080101Test(GenericTest):
             if method_result.status != NcMethodStatus.InvalidRequest:
                 return test.FAIL("Receiver monitors MUST return InvalidRequest "
                                  "to Set method invocations for this property.", spec_link)
-        return test.PASS()
-
-    def test_11(self, test):
-        """ResetCounters method resets status transition counters"""
-
-        self._check_monitor_status_changes(test)
-
-        if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
-
-        if not self.check_reset_counters_metadata.checked:
-            return test.UNCLEAR("Unable to test")
-
-        if self.check_reset_counters_metadata.error:
-            return test.FAIL(self.check_reset_counters_metadata.error_msg,
-                             self.check_reset_counters_metadata.link)
-
-        return test.PASS()
-
-    def test_12(self, test):
-        """autoResetCounters property set to TRUE resets status transition counters on activation"""
-
-        self._check_monitor_status_changes(test)
-
-        if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
-
-        if not self.check_auto_reset_counters_metadata.checked:
-            return test.UNCLEAR("Unable to test")
-
-        if self.check_auto_reset_counters_metadata.error:
-            return test.FAIL(self.check_auto_reset_counters_metadata.error_msg,
-                             self.check_auto_reset_counters_metadata.link)
-
-        return test.PASS()
-
-    def test_13(self, test):
-        """synchronizationSourceID property has a valid value"""
-        # When devices intend to use external synchronization they MUST publish the synchronization source id
-        # currently being used in the synchronizationSourceId property and update the externalSynchronizationStatus
-        # property whenever it changes, setting the synchronizationSourceId to null if a synchronization source
-        # cannot be discovered. Devices which are not intending to use external synchronization MUST populate
-        # this property with 'internal' or their own id if they themselves are the synchronization source
-        # (e.g. the device is a grandmaster).
-        receiver_monitors = self._get_receiver_monitors(test)
-        spec_link = \
-            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#synchronization-source-change"
-
-        if len(receiver_monitors) == 0:
-            return test.UNCLEAR("No receiver monitors found in Device Model")
-
-        for monitor in receiver_monitors:
-            syncSourceId = self._get_property(test,
-                                              NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value,
-                                              oid=monitor.oid,
-                                              role_path=monitor.role_path)
-
-            # Synchronization source id can be null, "internal" or some identifier, but it can't be empty
-            if syncSourceId == "":
-                return test.FAIL("Synchronization source id MUST be either null, 'internal' or an identifer",
-                                 spec_link)
-
         return test.PASS()
