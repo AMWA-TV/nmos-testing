@@ -546,7 +546,7 @@ class BCP0080101Test(GenericTest):
 
             self.check_deactivate_receiver_metadata.checked = True
 
-    def _get_non_zero_transition_counters(self, test, monitor):
+    def _get_non_zero_counters(self, test, monitor):
         transition_counters = {"LinkStatusTransitionCounter":
                                NcReceiverMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
                                "ConnectionStatusTransitionCounter":
@@ -562,7 +562,33 @@ class BCP0080101Test(GenericTest):
                                                    oid=monitor.oid))
                                for key, property_id in transition_counters.items()])
 
-        return [c for c, v in counter_values.items() if v > 0]
+        # Get late and lost packet counters
+        results = []
+
+        arguments = {}
+        method_result = self.is12_utils.invoke_method(
+                test,
+                NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value,
+                arguments,
+                oid=monitor.oid,
+                role_path=monitor.role_path)
+
+        if self._status_ok(method_result) and \
+                len([c for c in method_result.value if "value" in c and c["value"] > 0]) > 0:
+            results += ["GetLostPacketCounter"]
+
+        method_result = self.is12_utils.invoke_method(
+                test,
+                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value,
+                arguments,
+                oid=monitor.oid,
+                role_path=monitor.role_path)
+
+        if self._status_ok(method_result) and \
+                len([c for c in method_result.value if "value" in c and c["value"] > 0]) > 0:
+            results += ["GetLatePacketCounter"]
+
+        return [c for c, v in counter_values.items() if v > 0] + results
 
     def _check_reset_counters(self, test, monitor):
         # Devices MUST be able to reset ALL status transition counter properties
@@ -571,7 +597,7 @@ class BCP0080101Test(GenericTest):
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#receiver-status-transition-counters"
 
-        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+        non_zero_counters = self._get_non_zero_counters(test, monitor)
 
         if len(non_zero_counters) == 0:
             return  # No transitions, so can't test
@@ -594,7 +620,7 @@ class BCP0080101Test(GenericTest):
                 f"{method_result.errorMessage}. "
             return
 
-        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+        non_zero_counters = self._get_non_zero_counters(test, monitor)
 
         if len(non_zero_counters) > 0:
             self.check_reset_counters_metadata.error = True
@@ -629,7 +655,7 @@ class BCP0080101Test(GenericTest):
         self._deactivate_receiver(test, receiver_id)
 
         # check for status transitions
-        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+        non_zero_counters = self._get_non_zero_counters(test, monitor)
 
         if len(non_zero_counters) == 0:
             return  # No transitions, so can't test
@@ -638,7 +664,7 @@ class BCP0080101Test(GenericTest):
         self._patch_receiver(test, receiver_id, sdp_params)
         sleep(1.0)  # Settling time
 
-        non_zero_counters = self._get_non_zero_transition_counters(test, monitor)
+        non_zero_counters = self._get_non_zero_counters(test, monitor)
 
         if len(non_zero_counters) > 0:
             self.check_auto_reset_counters_metadata.error = True
@@ -919,11 +945,11 @@ class BCP0080101Test(GenericTest):
         return test.PASS()
 
     def test_07(self, test):
-        """GetLostPacketCounters method implemented"""
+        """GetLostPacketCounters method is implemented"""
         return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value)
 
     def test_08(self, test):
-        """GetLatePacketCounters method implemented"""
+        """GetLatePacketCounters method is implemented"""
         return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value)
 
     def test_09(self, test):
@@ -944,7 +970,7 @@ class BCP0080101Test(GenericTest):
         return test.PASS()
 
     def test_10(self, test):
-        """Receiver monitor is enabled by default"""
+        """enabled property is TRUE by default, and cannot be set to FALSE"""
         spec_link = \
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#ncworker-inheritance"
@@ -965,7 +991,7 @@ class BCP0080101Test(GenericTest):
 
             method_result = self.is12_utils.set_property(test,
                                                          NcWorkerProperties.ENABLED.value,
-                                                         True,
+                                                         False,
                                                          oid=monitor.oid,
                                                          role_path=monitor.role_path)
 
@@ -975,6 +1001,7 @@ class BCP0080101Test(GenericTest):
             if method_result.status != NcMethodStatus.InvalidRequest:
                 return test.FAIL("Receiver monitors MUST return InvalidRequest "
                                  "to Set method invocations for this property.", spec_link)
+        return test.PASS()
 
     def test_11(self, test):
         """ResetCounters method resets status transition counters"""
@@ -994,7 +1021,7 @@ class BCP0080101Test(GenericTest):
         return test.PASS()
 
     def test_12(self, test):
-        """autoResetCounters set to TRUE resets status transition counters on activation"""
+        """autoResetCounters property set to TRUE resets status transition counters on activation"""
 
         self._check_monitor_status_changes(test)
 
@@ -1007,5 +1034,34 @@ class BCP0080101Test(GenericTest):
         if self.check_auto_reset_counters_metadata.error:
             return test.FAIL(self.check_auto_reset_counters_metadata.error_msg,
                              self.check_auto_reset_counters_metadata.link)
+
+        return test.PASS()
+
+    def test_13(self, test):
+        """synchronizationSourceID property has a valid value"""
+        # When devices intend to use external synchronization they MUST publish the synchronization source id
+        # currently being used in the synchronizationSourceId property and update the externalSynchronizationStatus
+        # property whenever it changes, setting the synchronizationSourceId to null if a synchronization source
+        # cannot be discovered. Devices which are not intending to use external synchronization MUST populate
+        # this property with 'internal' or their own id if they themselves are the synchronization source
+        # (e.g. the device is a grandmaster).
+        receiver_monitors = self._get_receiver_monitors(test)
+        spec_link = \
+            f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#synchronization-source-change"
+
+        if len(receiver_monitors) == 0:
+            return test.UNCLEAR("No receiver monitors found in Device Model")
+
+        for monitor in receiver_monitors:
+            syncSourceId = self._get_property(test,
+                                              NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID.value,
+                                              oid=monitor.oid,
+                                              role_path=monitor.role_path)
+
+            # Synchronization source id can be null, "internal" or some identifier, but it can't be empty
+            if syncSourceId == "":
+                return test.FAIL("Synchronization source id MUST be either null, 'internal' or an identifer",
+                                 spec_link)
 
         return test.PASS()
