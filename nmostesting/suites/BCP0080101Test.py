@@ -322,7 +322,9 @@ class BCP0080101Test(GenericTest):
         for touchpoint in touchpoints:
             if "contextNamespace" not in touchpoint:
                 self.check_touchpoint_metadata.error = True
-                self.check_touchpoint_metadata.error_msg = "Touchpoint doesn't obey MS-05-02 schema"
+                self.check_touchpoint_metadata.error_msg = "Touchpoint doesn't obey MS-05-02 schema " \
+                    f"for Receiver Monitor, oid={oid}, " \
+                    f"role path={role_path}; "
                 self.check_touchpoint_metadata.link = f"{CONTROL_FRAMEWORK_SPEC_ROOT}" \
                     f"{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}/Framework.html#nctouchpoint"
                 continue
@@ -332,7 +334,9 @@ class BCP0080101Test(GenericTest):
 
         if len(touchpoint_resources) != 1:
             self.check_touchpoint_metadata.error = True
-            self.check_touchpoint_metadata.error_msg = "One and only one touchpoint MUST be of type NcTouchpointNmos"
+            self.check_touchpoint_metadata.error_msg = "One and only one touchpoint MUST be of type NcTouchpointNmos " \
+                f"for Receiver Monitor, oid={oid}, " \
+                f"role path={role_path}; "
             self.check_touchpoint_metadata.link = spec_link
             return None
 
@@ -340,7 +344,9 @@ class BCP0080101Test(GenericTest):
 
         if touchpoint_resource.resource["resourceType"] != "receiver":
             self.check_touchpoint_metadata.error = True
-            self.check_touchpoint_metadata.error_msg = "Touchpoint resourceType field MUST be set to 'receiver'"
+            self.check_touchpoint_metadata.error_msg = "Touchpoint resourceType field MUST be set to 'receiver' " \
+                f"for Receiver Monitor, oid={oid}, " \
+                f"role path={role_path}; "
             self.check_touchpoint_metadata.link = spec_link
             return None
 
@@ -348,7 +354,7 @@ class BCP0080101Test(GenericTest):
 
         return touchpoint_resource
 
-    def _validate_status_values(self, statuses):
+    def _validate_status_values(self, statuses, oid, role_path):
 
         spec_link_root = f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#"
@@ -377,12 +383,14 @@ class BCP0080101Test(GenericTest):
         if len(invalid_statuses) > 0:
             self.check_status_values_valid_metadata.error = True
             self.check_status_values_valid_metadata.error_msg = \
-                f"Invalid status found in following properties: {", ".join(invalid_statuses)}"
+                f"Invalid status found in following properties: {", ".join(invalid_statuses)} " \
+                f"for Receiver Monitor, oid={oid}, " \
+                f"role path={role_path}; "
             self.check_status_values_valid_metadata.link = f"{spec_link_root}{spec_section}"
         else:
             self.check_status_values_valid_metadata.checked = True
 
-    def _check_overall_status(self, statuses):
+    def _check_overall_status(self, statuses, oid, role_path):
         # Devices MUST follow the rules listed below when mapping specific domain statuses
         # in the combined overallStatus:
         # * When the Receiver is Inactive the overallStatus uses the Inactive option
@@ -400,13 +408,15 @@ class BCP0080101Test(GenericTest):
                 and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
             self.check_overall_status_metadata.error = True
             self.check_overall_status_metadata.error_msg += \
-                "Overall Status expected to be Inactive when Connection Status is Inactive. "
+                "Overall Status expected to be Inactive when Connection Status is Inactive for Receiver Monitor, " \
+                f"oid={oid}, role path={role_path}; "
 
         if statuses[NcReceiverMonitorProperties.STREAM_STATUS] == NcStreamStatus.Inactive.value \
                 and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
             self.check_overall_status_metadata.error = True
             self.check_overall_status_metadata.error_msg += \
-                "Overall Status expected to be Inactive when Stream Status is Inactive. "
+                "Overall Status expected to be Inactive when Stream Status is Inactive for Receiver Monitor, " \
+                f"oid={oid}, role path={role_path}; "
 
         # Test Active states
         if statuses[NcReceiverMonitorProperties.CONNECTION_STATUS] != NcConnectionStatus.Inactive.value \
@@ -417,11 +427,13 @@ class BCP0080101Test(GenericTest):
                 self.check_overall_status_metadata.error = True
                 self.check_overall_status_metadata.error_msg += \
                     f"Expected Overall Status was {NcOverallStatus(least_healthy_state).name}, " \
-                    f"actual {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name}. "
+                    f"actual {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name} " \
+                    f"for Receiver Monitor, oid={oid}, " \
+                    f"role path={role_path}; "
 
         self.check_overall_status_metadata.checked = True
 
-    def _check_statuses(self, initial_statuses, notifications):
+    def _check_statuses(self, initial_statuses, notifications, oid, role_path):
 
         def _get_status_from_notifications(initial_status, notifications, property_id):
             # Aggregate initial status with any status change notifications
@@ -434,8 +446,8 @@ class BCP0080101Test(GenericTest):
                           _get_status_from_notifications(initial_status, notifications, property_id))
                         for property_id, initial_status in initial_statuses.items()])
 
-        self._check_overall_status(statuses)
-        self._validate_status_values(statuses)
+        self._check_overall_status(statuses, oid, role_path)
+        self._validate_status_values(statuses, oid, role_path)
 
     def _check_connection_status(self, monitor, start_time, status_reporting_delay, notifications):
         # A receiver is expected to go through a period of instability upon activation.
@@ -456,16 +468,16 @@ class BCP0080101Test(GenericTest):
         if len(connection_status_notifications) == 0:
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
-                "No status notifications received for receiver monitor=" \
-                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+                "No status notifications received for Receiver Monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         # Check that the receiver monitor transitioned to healthy
         if len(connection_status_notifications) > 0 \
                 and connection_status_notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
-                "Expect status to transition to healthy for Receiver Monitor " \
-                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+                "Expect status to transition to healthy for Receiver Monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         # Check that the receiver monitor stayed in the healthy state (unless transitioned to Inactive)
         # during the status reporting delay period
@@ -474,8 +486,8 @@ class BCP0080101Test(GenericTest):
                 and connection_status_notifications[1].received_time < start_time + status_reporting_delay:
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
-                "Expect status to remain healthy for at least the status reporting delay for receiver monitor=" \
-                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+                "Expect status to remain healthy for at least the status reporting delay for Receiver Monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         # There is no *actual* stream so we expect connection to transition
         # to a less healthy state after the status reporting delay
@@ -484,8 +496,8 @@ class BCP0080101Test(GenericTest):
             self.check_connection_status_metadata.error = True
             self.check_connection_status_metadata.error_msg += \
                 "Expect status to transition to a less healthy state after " \
-                "status reporting delay for receiver monitor, " \
-                f"oid={monitor.oid}, role path={self.is12_utils.create_role_path_string(monitor.role_path)}; "
+                "status reporting delay for Receiver Monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         self.check_connection_status_metadata.checked = True
 
@@ -533,16 +545,16 @@ class BCP0080101Test(GenericTest):
             if len(filtered_notifications) == 0:
                 self.check_deactivate_receiver_metadata.error = True
                 self.check_deactivate_receiver_metadata.error_msg += \
-                    "No status notifications received for receiver monitor=" \
-                    f"oid={monitor_oid}, role path={self.is12_utils.create_role_path_string(monitor_role_path)}; "
+                    "No status notifications received for Receiver Monitor, " \
+                    f"oid={monitor_oid}, role path={monitor_role_path}; "
 
             # Check that the receiver monitor transitioned to inactive
             if len(filtered_notifications) > 0 \
                     and filtered_notifications[-1].eventData.value != NcConnectionStatus.Inactive.value:
                 self.check_deactivate_receiver_metadata.error = True
                 self.check_deactivate_receiver_metadata.error_msg += \
-                    "Expect status to transition to Inactive for Receiver Monitor " \
-                    f"oid={monitor_oid}, role path={self.is12_utils.create_role_path_string(monitor_role_path)}; "
+                    "Expect status to transition to Inactive for Receiver Monitor, " \
+                    f"oid={monitor_oid}, role path={monitor_role_path}; "
 
             self.check_deactivate_receiver_metadata.checked = True
 
@@ -573,7 +585,7 @@ class BCP0080101Test(GenericTest):
                 oid=monitor.oid,
                 role_path=monitor.role_path)
 
-        if self._status_ok(method_result) and \
+        if self._status_ok(method_result) and isinstance(method_result.value, list) and \
                 len([c for c in method_result.value if "value" in c and c["value"] > 0]) > 0:
             results += ["GetLostPacketCounter"]
 
@@ -584,7 +596,7 @@ class BCP0080101Test(GenericTest):
                 oid=monitor.oid,
                 role_path=monitor.role_path)
 
-        if self._status_ok(method_result) and \
+        if self._status_ok(method_result) and isinstance(method_result.value, list) and \
                 len([c for c in method_result.value if "value" in c and c["value"] > 0]) > 0:
             results += ["GetLatePacketCounter"]
 
@@ -615,7 +627,7 @@ class BCP0080101Test(GenericTest):
         if not self._status_ok(method_result):
             self.check_reset_counters_metadata.error = True
             self.check_reset_counters_metadata.error_msg = \
-                "Method invokation ResetCounters failed for receiver monitor, " \
+                "Method invokation ResetCounters failed for Receiver Monitor, " \
                 f"oid={monitor.oid}, role path={monitor.role_path}: " \
                 f"{method_result.errorMessage}. "
             return
@@ -625,7 +637,7 @@ class BCP0080101Test(GenericTest):
         if len(non_zero_counters) > 0:
             self.check_reset_counters_metadata.error = True
             self.check_reset_counters_metadata.error_msg = \
-                f"Transition counters {", ".join(non_zero_counters)} not reset for receiver monitor, " \
+                f"Transition counters {", ".join(non_zero_counters)} not reset for Receiver Monitor, " \
                 f"oid={monitor.oid}, role path={monitor.role_path}: "
 
         self.check_reset_counters_metadata.checked = True
@@ -669,8 +681,9 @@ class BCP0080101Test(GenericTest):
         if len(non_zero_counters) > 0:
             self.check_auto_reset_counters_metadata.error = True
             self.check_auto_reset_counters_metadata.error_msg = \
-                f"Transition counters {", ".join(non_zero_counters)} not reset for receiver monitor, " \
-                f"oid={monitor.oid}, role path={monitor.role_path}: "
+                f"Transition counters {", ".join(non_zero_counters)} not reset for Receiver Monitor, " \
+                f"oid={monitor.oid}, " \
+                f"role path={monitor.role_path}: "
 
         self.check_auto_reset_counters_metadata.checked = True
 
@@ -701,12 +714,14 @@ class BCP0080101Test(GenericTest):
         if self.check_connection_status_metadata.checked:
             return
 
-        receiver_monitors = self._get_receiver_monitors(test)
+        all_receiver_monitors = self._get_receiver_monitors(test)
 
-        if len(receiver_monitors) > 0:
+        if len(all_receiver_monitors) > 0:
             self.testable_receivers_found = True
         else:
             return
+
+        receiver_monitors = IS12Utils.sampled_list(all_receiver_monitors)
 
         sdp_params = self._make_receiver_sdp_params(test)
 
@@ -776,17 +791,17 @@ class BCP0080101Test(GenericTest):
 
             # Check statuses before receiver patched
             status_notifications = [n for n in notifications if n.received_time < start_time]
-            self._check_statuses(initial_statuses, status_notifications)
+            self._check_statuses(initial_statuses, status_notifications, monitor.oid, monitor.role_path)
 
             # Check statuses during status reporting delay
             status_notifications = \
                 [n for n in notifications if n.received_time < start_time + status_reporting_delay]
-            self._check_statuses(initial_statuses, status_notifications)
+            self._check_statuses(initial_statuses, status_notifications, monitor.oid, monitor.role_path)
 
             # Check statuses after status reporting delay
             status_notifications = \
                 [n for n in notifications if n.received_time >= start_time + status_reporting_delay]
-            self._check_statuses(initial_statuses, status_notifications)
+            self._check_statuses(initial_statuses, status_notifications, monitor.oid, monitor.role_path)
 
             # Check the Connection Status stayed healthy during status reporting delay
             # and transitioned to unhealthy afterwards (assuming not deactivated during delay)
@@ -804,7 +819,7 @@ class BCP0080101Test(GenericTest):
         receiver_monitors = self._get_receiver_monitors(test)
 
         if len(receiver_monitors) == 0:
-            return test.UNCLEAR("No receiver monitors found in Device Model")
+            return test.UNCLEAR("No Receiver Monitors found in Device Model")
 
         default_status_reporting_delay = 3
         for monitor in receiver_monitors:
@@ -816,7 +831,7 @@ class BCP0080101Test(GenericTest):
             if not self._status_ok(method_result):
                 return test.FAIL("SetProperty error: Error setting statusReportingDelay on receiver monitor, "
                                  f"oid={monitor.oid}, "
-                                 f"role path={self.is12_utils.create_role_path_string(monitor.role_path)}")
+                                 f"role path={monitor.role_path}")
 
             method_result = self.is12_utils.get_property(
                 test, NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
@@ -825,13 +840,13 @@ class BCP0080101Test(GenericTest):
             if not self._status_ok(method_result):
                 return test.FAIL("GetProperty error: Error getting statusReportingDelay on receiver monitor, "
                                  f"oid={monitor.oid}, "
-                                 f"role path={self.is12_utils.create_role_path_string(monitor.role_path)}")
+                                 f"role path={monitor.role_path}")
 
             if method_result.value != default_status_reporting_delay:
                 return test.FAIL("Unexpected status reporting delay on receiver monitor. "
                                  f"Expected={default_status_reporting_delay} actual={method_result.value}, "
                                  f"oid={monitor.oid}, "
-                                 f"role path={self.is12_utils.create_role_path_string(monitor.role_path)}")
+                                 f"role path={monitor.role_path}")
 
         return test.PASS()
 
@@ -841,7 +856,7 @@ class BCP0080101Test(GenericTest):
         self._check_monitor_status_changes(test)
 
         if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
 
         if not self.check_connection_status_metadata.checked:
             return test.UNCLEAR("Unable to test")
@@ -863,7 +878,7 @@ class BCP0080101Test(GenericTest):
         self._check_monitor_status_changes(test)
 
         if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
 
         if not self.check_reset_counters_metadata.checked:
             return test.UNCLEAR("Unable to test")
@@ -880,7 +895,7 @@ class BCP0080101Test(GenericTest):
         self._check_monitor_status_changes(test)
 
         if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
 
         if not self.check_auto_reset_counters_metadata.checked:
             return test.UNCLEAR("Unable to test")
@@ -897,7 +912,7 @@ class BCP0080101Test(GenericTest):
         self._check_monitor_status_changes(test)
 
         if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
 
         if not self.check_overall_status_metadata.checked:
             return test.UNCLEAR("Unable to test")
@@ -914,7 +929,7 @@ class BCP0080101Test(GenericTest):
         self._check_monitor_status_changes(test)
 
         if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
 
         if not self.check_status_values_valid_metadata.checked:
             return test.UNCLEAR("Unable to test")
@@ -934,7 +949,7 @@ class BCP0080101Test(GenericTest):
         receiver_monitors = self._get_receiver_monitors(test)
 
         if len(receiver_monitors) == 0:
-            return test.UNCLEAR("No receiver monitors found in Device Model")
+            return test.UNCLEAR("No Receiver Monitors found in Device Model")
 
         arguments = {}  # empty arguments
 
@@ -947,14 +962,15 @@ class BCP0080101Test(GenericTest):
                 role_path=monitor.role_path)
 
             if not self._status_ok(method_result):
-                return test.FAIL("Method invokation GetLostPacketCounters failed for receiver monitor, "
-                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
+                return test.FAIL("Method invokation GetLostPacketCounters failed for Receiver Monitor, "
+                                 f"oid={monitor.oid}, "
+                                 f"role path={monitor.role_path}: "
                                  f"{method_result.errorMessage}", spec_link)
 
             if method_result.value is None or not isinstance(method_result.value, list):
-                return test.FAIL(f"Expected an array, got {str(method_result.value)} from receiver monitor, "
-                                 f"oid={monitor.oid}, role path={monitor.role_path}: "
-                                 f"{method_result.errorMessage}", spec_link)
+                return test.FAIL(f"Expected an array, got {str(method_result.value)} for Receiver Monitor, "
+                                 f"oid={monitor.oid}, "
+                                 f"role path={monitor.role_path}: ", spec_link)
 
             for counter in method_result.value:
                 self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
@@ -996,7 +1012,7 @@ class BCP0080101Test(GenericTest):
             "/docs/Overview.html#synchronization-source-change"
 
         if len(receiver_monitors) == 0:
-            return test.UNCLEAR("No receiver monitors found in Device Model")
+            return test.UNCLEAR("No Receiver Monitors found in Device Model")
 
         for monitor in receiver_monitors:
             syncSourceId = self._get_property(test,
@@ -1006,8 +1022,10 @@ class BCP0080101Test(GenericTest):
 
             # Synchronization source id can be null, "internal" or some identifier, but it can't be empty
             if syncSourceId == "":
-                return test.FAIL("Synchronization source id MUST be either null, 'internal' or an identifer",
-                                 spec_link)
+                return test.FAIL("Synchronization source id MUST be either null, 'internal' "
+                                 "or an identifer for Receiver Monitor, "
+                                 f"oid={monitor.oid}, "
+                                 f"role path={monitor.role_path}.", spec_link)
 
         return test.PASS()
 
@@ -1017,7 +1035,7 @@ class BCP0080101Test(GenericTest):
         self._check_monitor_status_changes(test)
 
         if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
 
         if not self.check_deactivate_receiver_metadata.checked:
             return test.UNCLEAR("Unable to test")
@@ -1034,7 +1052,7 @@ class BCP0080101Test(GenericTest):
         self._check_monitor_status_changes(test)
 
         if not self.testable_receivers_found:
-            return test.UNCLEAR("Unable to find any testable receiver monitors")
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
 
         if not self.check_touchpoint_metadata.checked:
             return test.UNCLEAR("Unable to test")
@@ -1054,7 +1072,7 @@ class BCP0080101Test(GenericTest):
         receiver_monitors = self._get_receiver_monitors(test)
 
         if len(receiver_monitors) == 0:
-            return test.UNCLEAR("No receiver monitors found in Device Model")
+            return test.UNCLEAR("No Receiver Monitors found in Device Model")
 
         for monitor in receiver_monitors:
             enabled = self._get_property(test,
@@ -1063,7 +1081,9 @@ class BCP0080101Test(GenericTest):
                                          role_path=monitor.role_path)
 
             if enabled is not True:
-                return test.FAIL("Receiver monitors MUST always have the enabled property set to true.", spec_link)
+                return test.FAIL("Receiver Monitors MUST always have the enabled property set to true "
+                                 f"for Receiver Monitor, oid={monitor.oid}, "
+                                 f"role path={monitor.role_path}.", spec_link)
 
             method_result = self.is12_utils.set_property(test,
                                                          NcWorkerProperties.ENABLED.value,
@@ -1072,9 +1092,13 @@ class BCP0080101Test(GenericTest):
                                                          role_path=monitor.role_path)
 
             if method_result.status == NcMethodStatus.OK:
-                return test.FAIL("Receiver monitors MUST NOT allow changes to the enabled property.", spec_link)
+                return test.FAIL("Receiver Monitors MUST NOT allow changes to the enabled property "
+                                 f"for Receiver Monitor, oid={monitor.oid}, "
+                                 f"role path={monitor.role_path}.", spec_link)
 
             if method_result.status != NcMethodStatus.InvalidRequest:
-                return test.FAIL("Receiver monitors MUST return InvalidRequest "
-                                 "to Set method invocations for this property.", spec_link)
+                return test.FAIL("Receiver Monitors MUST return InvalidRequest "
+                                 "to Set method invocations for this property "
+                                 f"for Receiver Monitor, oid={monitor.oid}, "
+                                 f"role path={monitor.role_path}.", spec_link)
         return test.PASS()
