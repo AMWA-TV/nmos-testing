@@ -83,6 +83,7 @@ from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import BCP00301Test
+from .suites import BCP00401Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
 
@@ -183,12 +184,6 @@ TEST_DEFINITIONS = {
         }, {
             "spec_key": "bcp-002-02",
             "api_key": "asset"
-        }, {
-            "spec_key": "bcp-004-01",
-            "api_key": "receiver-caps"
-        }, {
-            "spec_key": "nmos-parameter-registers",
-            "api_key": "caps-register"
         }],
         "class": IS0401Test.IS0401Test
     },
@@ -347,6 +342,21 @@ TEST_DEFINITIONS = {
             "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
+    },
+    "BCP-004-01": {
+        "name": "BCP-004-01 Receiver Capabilities",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "extra_specs": [{
+            "spec_key": "bcp-004-01",
+            "api_key": "receiver-caps"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "caps-register"
+        }],
+        "class": BCP00401Test.BCP00401Test
     },
     "BCP-006-01-01": {
         "name": "BCP-006-01 NMOS With JPEG XS",
