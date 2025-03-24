@@ -383,7 +383,7 @@ class BCP0080101Test(GenericTest):
         if len(invalid_statuses) > 0:
             self.check_status_values_valid_metadata.error = True
             self.check_status_values_valid_metadata.error_msg = \
-                f"Invalid status found in following properties: {", ".join(invalid_statuses)} " \
+                f"Invalid status found in following properties: {', '.join(invalid_statuses)} " \
                 f"for Receiver Monitor, oid={oid}, " \
                 f"role path={role_path}; "
             self.check_status_values_valid_metadata.link = f"{spec_link_root}{spec_section}"
@@ -637,7 +637,7 @@ class BCP0080101Test(GenericTest):
         if len(non_zero_counters) > 0:
             self.check_reset_counters_metadata.error = True
             self.check_reset_counters_metadata.error_msg = \
-                f"Transition counters {", ".join(non_zero_counters)} not reset for Receiver Monitor, " \
+                f"Transition counters {', '.join(non_zero_counters)} not reset for Receiver Monitor, " \
                 f"oid={monitor.oid}, role path={monitor.role_path}: "
 
         self.check_reset_counters_metadata.checked = True
@@ -681,7 +681,7 @@ class BCP0080101Test(GenericTest):
         if len(non_zero_counters) > 0:
             self.check_auto_reset_counters_metadata.error = True
             self.check_auto_reset_counters_metadata.error_msg = \
-                f"Transition counters {", ".join(non_zero_counters)} not reset for Receiver Monitor, " \
+                f"Transition counters {', '.join(non_zero_counters)} not reset for Receiver Monitor, " \
                 f"oid={monitor.oid}, " \
                 f"role path={monitor.role_path}: "
 
