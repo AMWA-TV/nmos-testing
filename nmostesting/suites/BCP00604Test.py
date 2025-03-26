@@ -90,14 +90,16 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        sources_linked_flows = [f["source_id"] for f in self.is04_resources["flows"] if self.has_required_flow_attr(f)]
+        valid_mpeg_ts_sources = []
+        all_flows = self.is04_resources.get("flows")
+        sources_linked_to_flow = [f.get("source_id") for f in all_flows if self.has_required_flow_attr(f)]
 
-        try:
-            valid_mpeg_sources = [s for s in self.is04_resources["sources"] if self.has_required_source_attr(s) and s["id"] in sources_linked_flows]
-        except KeyError as ex:
-            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+        for source in self.is04_resources.get("sources"):
+            linked_to_mux_flow = source.get("id") in sources_linked_to_flow
+            if self.has_required_source_attr(source) and linked_to_mux_flow:
+                valid_mpeg_ts_sources.append(source)
 
-        if len(valid_mpeg_sources) > 0:
+        if len(valid_mpeg_ts_sources) > 0:
             return test.PASS()
         else:
             return test.UNCLEAR("No MPEG-TS Sources resources were found on the Node")
@@ -109,14 +111,11 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        try:
-            valid_mpeg_flows = [f for f in self.is04_resources["flows"] if self.has_required_flow_attr(f)]
-        except KeyError as ex:
-            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+        valid_mpeg_ts_flows = [f for f in self.is04_resources.get("flows") if self.has_required_flow_attr(f)]
 
         # TODO validate schema
 
-        if len(valid_mpeg_flows) > 0:
+        if len(valid_mpeg_ts_flows) > 0:
             return test.PASS()
         else:
             return test.UNCLEAR("No MPEG-TS Flow resources were found on the Node")
@@ -132,19 +131,24 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        # TODO: Validate IS-05 Transport
-        # TODO: Check for Bit Rate attribute
-        # TODO: Check that manifest_href returns an SDP
+        # TODO: Probably fetch this from somewhere? Is only RTP valid?
+        valid_transports = ["urn:x-nmos:transport:rtp",
+                            "urn:x-nmos:transport:rtp.mcast",
+                            "urn:x-nmos:transport:rtp.ucast"]
 
         valid_flows = [f["id"] for f in self.is04_resources["flows"] if self.has_required_flow_attr(f)]
 
-        try:
-            valid_mpeg_senders = [s for s in self.is04_resources["senders"] if s["flow_id"] in valid_flows and s["manifest_href"]]
-        except KeyError as ex:
-            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+        valid_mpeg_ts_senders = []
+        for sender in self.is04_resources.get("senders"):
+            linked_to_valid_flow = sender.get("flow_id") in valid_flows
+            manifest_href_attr_set = sender.get("manifest_href")  # TODO: Check that endpoint returns an SDP
+            valid_transport = sender.get("transport") in valid_transports
+            has_bitrate_attr = sender.get("bit_rate")
 
-        if len(valid_mpeg_senders) > 0:
-            print(valid_mpeg_senders)
+            if linked_to_valid_flow and manifest_href_attr_set and valid_transport and has_bitrate_attr:
+                valid_mpeg_ts_senders.append(sender)
+
+        if len(valid_mpeg_ts_senders) > 0:
             return test.PASS()
         else:
             return test.UNCLEAR("No MPEG-TS Flow resources were found on the Node")
@@ -156,15 +160,18 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        # TODO: Validate IS-05 Transport
         # TODO: Check for Transport Bit Rate capability
 
-        try:
-            valid_mpeg_receivers = [r for r in self.is04_resources["receivers"] if self.has_required_receiver_attr(r)]
-        except KeyError as ex:
-            return test.FAIL("Expected attribute not found in IS-04 resource: {}".format(ex))
+        valid_transports = ["urn:x-nmos:transport:rtp",
+                            "urn:x-nmos:transport:rtp.mcast",
+                            "urn:x-nmos:transport:rtp.ucast"]  # TODO: Probably fetch from somewhere
 
-        if len(valid_mpeg_receivers) > 0:
+        valid_mpeg_ts_receivers = []
+        for receiver in self.is04_resources.get("receivers"):
+            if self.has_required_receiver_attr(receiver) and receiver.get("transport") in valid_transports:
+                valid_mpeg_ts_receivers.append(receiver)
+
+        if len(valid_mpeg_ts_receivers) > 0:
             return test.PASS()
         else:
             return test.UNCLEAR("No MPEG-TS Receiver resources were found on the Node")
