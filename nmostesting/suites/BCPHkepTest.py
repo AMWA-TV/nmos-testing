@@ -26,7 +26,6 @@ from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema
 from ..TestHelper import check_content_type
 
-from urllib.parse import urlparse
 from pathlib import Path
 
 NODE_API_KEY = "node"
@@ -35,28 +34,34 @@ RECEIVER_CAPS_KEY = "receiver-caps"
 SENDER_CAPS_KEY = "sender-caps"
 
 # Generic capabilities from any namespace
+
+
 def cap_without_namespace(s):
     match = re.search(r'^urn:[a-z0-9][a-z0-9-]+:cap:(.*)', s)
     return match.group(1) if match else None
+
 
 def get_key_value(obj, name):
     regex = re.compile(r'^urn:[a-z0-9][a-z0-9-]+:' + name)
     for key, value in obj.items():
         if regex.fullmatch(key):
             return value
-    return obj[name] # final try without a namespace
+    return obj[name]  # final try without a namespace
+
 
 def has_key(obj, name):
     regex = re.compile(r'^urn:[a-z0-9][a-z0-9-]+:' + name)
     for key in obj.keys():
         if regex.fullmatch(key):
             return True
-    return name in obj # final try without a namespace
+    return name in obj  # final try without a namespace
+
 
 class BCPHkepTest(GenericTest):
     """
     Runs Node Tests covering sender and receiver capabilities
     """
+
     def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
@@ -74,7 +79,8 @@ class BCPHkepTest(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONNECTION_API_KEY]["url"]
         self.is04_resources = {"senders": {}, "receivers": {}, "_requested": [], "sources": {}, "flows": {}}
-        self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {}, "transport_files": {}}
+        self.is05_resources = {"senders": [], "receivers": [],
+                               "_requested": [], "transport_types": {}, "transport_files": {}}
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.connection_url)
 
@@ -147,7 +153,8 @@ class BCPHkepTest(GenericTest):
         return True, ""
 
     def check_response_without_transport_params(self, schema, method, response):
-        """Confirm that a given Requests response conforms to the expected schema and has any expected headers without considering the 'transport_params' attribute"""
+        """Confirm that a given Requests response conforms to the expected schema and has any expected headers without
+          considering the 'transport_params' attribute"""
         ctype_valid, ctype_message = check_content_type(response.headers)
         if not ctype_valid:
             return False, ctype_message
@@ -195,7 +202,6 @@ class BCPHkepTest(GenericTest):
         return test.PASS()
 
     def test_02(self, test):
-
         """Check HKEP Sender"""
 
         api = self.apis[SENDER_CAPS_KEY]
@@ -236,37 +242,40 @@ class BCPHkepTest(GenericTest):
                 # this if the state of the sender
                 hkep = get_key_value(sender, "hkep")
 
-                # These are the states EXPLICITLY allowed by the sender's capabilities. 
+                # These are the states EXPLICITLY allowed by the sender's capabilities.
                 only_allow_true = None
                 only_allow_false = None
 
                 if "constraint_sets" in sender["caps"]:
-                
+
                     try:
                         self.validate_schema(sender, schema)
                     except ValidationError as e:
-                        return test.FAIL("Sender {} does not comply with schema".format(sender["id"]))
-                   
+                        return test.FAIL("Sender {} does not comply with schema, error {}".format(sender["id"], e))
+
                     for constraint_set in sender["caps"]["constraint_sets"]:
 
                         try:
                             self.validate_schema(constraint_set, reg_schema)
                         except ValidationError as e:
-                            return test.FAIL("Sender {} constraint_sets do not comply with schema".format(sender["id"]))
+                            return test.FAIL(
+                                "Sender {} constraint_sets do not comply with schema, error {}".format(
+                                    sender["id"], e))
 
                         # Ignore disabled constraint sets
-                        if "urn:x-nmos:cap:meta:enabled" in constraint_set and constraint_set["urn:x-nmos:cap:meta:enabled"] == False:
+                        if ("urn:x-nmos:cap:meta:enabled" in constraint_set and
+                                not constraint_set["urn:x-nmos:cap:meta:enabled"]):
                             continue
 
                         # Explicit declarations only
                         if has_key(constraint_set, "cap:transport:hkep"):
                             param_constraint = get_key_value(constraint_set, "cap:transport:hkep")
                             if "enum" in param_constraint:
-                                if True in param_constraint["enum"] and not False in param_constraint["enum"]:
+                                if (True in param_constraint["enum"]) and (False not in param_constraint["enum"]):
                                     only_allow_false = False
                                     if only_allow_true is None:
                                         only_allow_true = True
-                                if False in param_constraint["enum"] and not True in param_constraint["enum"]:
+                                if (False in param_constraint["enum"]) and (True not in param_constraint["enum"]):
                                     only_allow_true = False
                                     if only_allow_false is None:
                                         only_allow_false = True
@@ -275,13 +284,19 @@ class BCPHkepTest(GenericTest):
                                 only_allow_false = False
 
                 # Check that the sender state does not contradict its explicit capabilities
-                if not only_allow_true is None:
+                if only_allow_true is not None:
                     if only_allow_true and not hkep:
-                        return test.FAIL("Sender {} has an invalid 'hkep' state {} which is not allowed by the Sender's capabilities only allowing 'true'".format(sender["id"], hkep))
+                        return test.FAIL(
+                            "Sender {} has an invalid 'hkep' state {} "
+                            "which is not allowed by the Sender's capabilities only allowing 'true'".format(
+                                sender["id"], hkep))
 
-                if not only_allow_false is None:
+                if only_allow_false is not None:
                     if only_allow_false and hkep:
-                        return test.FAIL("Sender {} has an invalid 'hkep' state {} which is not allowed by the Sender's capabilities only allowing 'false'".format(sender["id"], hkep))
+                        return test.FAIL(
+                            "Sender {} has an invalid 'hkep' state {} "
+                            "which is not allowed by the Sender's capabilities only allowing 'false'".format(
+                                sender["id"], hkep))
 
                 # Check SDP transport file
                 if "manifest_href" not in sender:
@@ -313,17 +328,26 @@ class BCPHkepTest(GenericTest):
                         found_hkep = True
 
                 # SDP transport file must match with capabilities
-                if not only_allow_true is None:
+                if only_allow_true is not None:
                     if only_allow_true and not found_hkep:
-                        return test.FAIL("Sender {} has an invalid SDP transport file without an 'hkep' attribute which is not allowed by the Sender's capabilities only allowing 'true'".format(sender["id"]))
+                        return test.FAIL(
+                            "Sender {} has an invalid SDP transport file without an 'hkep' attribute "
+                            "which is not allowed by the Sender's capabilities only allowing 'true'".format(
+                                sender["id"]))
 
-                if not only_allow_false is None:
+                if only_allow_false is not None:
                     if only_allow_false and found_hkep:
-                        return test.FAIL("Sender {} has an invalid SDP transport file with an 'hkep' attribute which is not allowed by the Sender's capabilities only allowing 'false'".format(sender["id"]))
+                        return test.FAIL(
+                            "Sender {} has an invalid SDP transport file with an 'hkep' attribute "
+                            "which is not allowed by the Sender's capabilities only allowing 'false'".format(
+                                sender["id"]))
 
                 # sender state must match with SDP transport file
                 if hkep != found_hkep:
-                    return test.FAIL("Sender {} has an invalid SDP transport file {} an 'hkep' attribute which does not match with the Sender hkep attribute {}".format(sender["id"], "with" if found_hkep else "without", hkep))
+                    return test.FAIL(
+                        "Sender {} has an invalid SDP transport file {} an 'hkep' attribute "
+                        "which does not match with the Sender hkep attribute {}".format(
+                            sender["id"], "with" if found_hkep else "without", hkep))
 
         if access_error:
             return test.UNCLEAR("One or more of the tested Senders had null or empty 'manifest_href' or "
@@ -331,14 +355,14 @@ class BCPHkepTest(GenericTest):
         if no_hkep_senders:
             return test.OPTIONAL("No BCP-???-?? (IPMX/HKEP) Sender found")
 
-
         if warning != "":
             return test.WARNING(warning)
         else:
             return test.PASS()
-        
+
+
 def compare_min_larger_than_max(param_constraint):
-    
+
     min_val = param_constraint["minimum"]
     max_val = param_constraint["maximum"]
 
@@ -353,6 +377,6 @@ def compare_min_larger_than_max(param_constraint):
         max_num = max_val["numerator"]
         min_den = min_val.get("denominator", 1)
         max_den = max_val.get("denominator", 1)
-        return (min_num*max_den) > (max_num*min_den)
-        
+        return (min_num * max_den) > (max_num * min_den)
+
     return False

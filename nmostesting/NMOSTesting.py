@@ -379,12 +379,12 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
-   "BCP-HKEP": {
+    "BCP-HKEP": {
         "name": "IPMX/HKEP",
         "specs": [{
             "spec_key": "is-04",
             "api_key": "node"
-        },{
+        }, {
             "spec_key": "is-05",
             "api_key": "connection"
         }],
@@ -407,6 +407,7 @@ TEST_DEFINITIONS = {
         "class": BCPHkepTest.BCPHkepTest
     },
 }
+
 
 def enumerate_tests(class_def, describe=False):
     if describe:
