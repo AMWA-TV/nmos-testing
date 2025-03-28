@@ -59,7 +59,7 @@ def has_key(obj, name):
 
 class BCPHkepTest(GenericTest):
     """
-    Runs Node Tests covering sender and receiver capabilities
+    Runs Node Tests covering sender and receiver with IPMX/HKEP
     """
 
     def __init__(self, apis, **kwargs):
@@ -202,7 +202,7 @@ class BCPHkepTest(GenericTest):
         return test.PASS()
 
     def test_02(self, test):
-        """Check HKEP Sender"""
+        """Check HKEP Senders"""
 
         api = self.apis[SENDER_CAPS_KEY]
 
@@ -210,10 +210,6 @@ class BCPHkepTest(GenericTest):
         reg_path = reg_api["spec_path"] + "/capabilities"
 
         valid, result = self.get_is04_resources("senders")
-        if not valid:
-            return test.FAIL(result)
-
-        valid, result = self.get_is04_resources("flows")
         if not valid:
             return test.FAIL(result)
 
@@ -360,23 +356,69 @@ class BCPHkepTest(GenericTest):
         else:
             return test.PASS()
 
+    def test_03(self, test):
+        """Check HKEP Receivers"""
 
-def compare_min_larger_than_max(param_constraint):
+        api = self.apis[RECEIVER_CAPS_KEY]
 
-    min_val = param_constraint["minimum"]
-    max_val = param_constraint["maximum"]
+        reg_api = self.apis["caps-register"]
+        reg_path = reg_api["spec_path"] + "/capabilities"
 
-    if isinstance(min_val, int) and isinstance(max_val, int):
-        return min_val > max_val
-    elif isinstance(min_val, float) and isinstance(max_val, float):
-        return min_val > max_val
-    elif isinstance(min_val, (int, float)) and isinstance(max_val, (int, float)):
-        return float(min_val) > float(max_val)
-    elif isinstance(min_val, dict) and isinstance(max_val, dict):
-        min_num = min_val["numerator"]
-        max_num = max_val["numerator"]
-        min_den = min_val.get("denominator", 1)
-        max_den = max_val.get("denominator", 1)
-        return (min_num * max_den) > (max_num * min_den)
+        valid, result = self.get_is04_resources("receivers")
+        if not valid:
+            return test.FAIL(result)
 
-    return False
+        schema = load_resolved_schema(api["spec_path"], "receiver_constraint_sets.json")
+
+        reg_schema_file = str(Path(os.path.abspath(reg_path)) / "constraint_set.json")
+        with open(reg_schema_file, "r") as f:
+            reg_schema_obj = json.load(f)
+        reg_schema = load_resolved_schema(api["spec_path"], schema_obj=reg_schema_obj)
+
+        no_hkep_receivers = True
+        no_constraint_sets = True
+
+        warning = ""
+
+        if len(self.is04_resources["receivers"].values()) == 0:
+            return test.UNCLEAR("No Receivers were found on the Node")
+
+        for receiver in self.is04_resources["receivers"].values():
+
+            if "constraint_sets" in receiver["caps"]:
+
+                no_constraint_sets = False
+
+                try:
+                    self.validate_schema(receiver, schema)
+                except ValidationError as e:
+                    return test.FAIL("Receiver {} does not comply with schema, error {}".format(receiver["id"], e))
+
+                for constraint_set in receiver["caps"]["constraint_sets"]:
+
+                    try:
+                        self.validate_schema(constraint_set, reg_schema)
+                    except ValidationError as e:
+                        return test.FAIL(
+                            "Receiver {} constraint_sets do not comply with schema, error {}".format(
+                                receiver["id"], e))
+
+                    # Ignore disabled constraint sets
+                    if ("urn:x-nmos:cap:meta:enabled" in constraint_set and
+                            not constraint_set["urn:x-nmos:cap:meta:enabled"]):
+                        continue
+
+                    # Explicit declarations only
+                    if has_key(constraint_set, "cap:transport:hkep"):
+                        no_hkep_receivers = False
+
+        if no_constraint_sets:
+            return test.OPTIONAL("No Receiver describing BCP-004-01 Capabilities found")
+
+        if no_hkep_receivers:
+            return test.OPTIONAL("No BCP-???-?? (IPMX/HKEP) Receiver found")
+
+        if warning != "":
+            return test.WARNING(warning)
+        else:
+            return test.PASS()
