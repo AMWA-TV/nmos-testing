@@ -163,8 +163,8 @@ SDP_PREFERENCES = {
     # video/raw, etc.
     "width": 1920,
     "height": 1080,
-    "interlace": True,
-    "exactframerate": "25",
+    "interlace": False,
+    "exactframerate": "60",
     "depth": 10,
     "sampling": "YCbCr-4:2:2",
     "colorimetry": "BT709",
@@ -316,10 +316,25 @@ SPECIFICATIONS = {
             }
         }
     },
+    "bcp-004-02": {
+        "repo": "bcp-004-02",
+        # "versions": ["v1.0-dev"],
+        # "default_version": "v1.0-dev",
+        "branch": "v1.0-dev",
+        "versions": ["v1.0-dev"],
+        "default_version": "v1.0-dev",
+        "apis": {
+            "sender-caps": {
+                "name": "Sender Capabilities"
+            }
+        }
+    },
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
-        "versions": ["main"],
-        "default_version": "main",
+        "url": "https://github.com/alabou/",
+        "branch": "bcp-hkep",
+        "versions": ["bcp-hkep"],
+        "default_version": "bcp-hkep",
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
@@ -352,3 +367,4 @@ try:
         sys.exit(-1)
 except ImportError:
     pass
+
