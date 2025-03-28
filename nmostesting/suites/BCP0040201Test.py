@@ -26,7 +26,6 @@ from ..IS05Utils import IS05Utils
 from ..TestHelper import load_resolved_schema
 from ..TestHelper import check_content_type
 
-from urllib.parse import urlparse
 from pathlib import Path
 
 NODE_API_KEY = "node"
@@ -34,15 +33,18 @@ CONNECTION_API_KEY = "connection"
 RECEIVER_CAPS_KEY = "receiver-caps"
 SENDER_CAPS_KEY = "sender-caps"
 
+
 # Generic capabilities from any namespace
 def cap_without_namespace(s):
     match = re.search(r'^urn:[a-z0-9][a-z0-9-]+:cap:(.*)', s)
     return match.group(1) if match else None
 
+
 class BCP0040201Test(GenericTest):
     """
     Runs Node Tests covering sender and receiver capabilities
     """
+
     def __init__(self, apis, **kwargs):
         # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
         omit_paths = [
@@ -60,7 +62,12 @@ class BCP0040201Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.connection_url = self.apis[CONNECTION_API_KEY]["url"]
         self.is04_resources = {"senders": {}, "receivers": {}, "_requested": [], "sources": {}, "flows": {}}
-        self.is05_resources = {"senders": [], "receivers": [], "_requested": [], "transport_types": {}, "transport_files": {}}
+        self.is05_resources = {
+            "senders": [],
+            "receivers": [],
+            "_requested": [],
+            "transport_types": {},
+            "transport_files": {}}
         self.is04_utils = IS04Utils(self.node_url)
         self.is05_utils = IS05Utils(self.connection_url)
 
@@ -133,7 +140,8 @@ class BCP0040201Test(GenericTest):
         return True, ""
 
     def check_response_without_transport_params(self, schema, method, response):
-        """Confirm that a given Requests response conforms to the expected schema and has any expected headers without considering the 'transport_params' attribute"""
+        """Confirm that a given Requests response conforms to the expected schema and has any expected headers
+        without considering the 'transport_params' attribute"""
         ctype_valid, ctype_message = check_content_type(response.headers)
         if not ctype_valid:
             return False, ctype_message
@@ -173,7 +181,6 @@ class BCP0040201Test(GenericTest):
             return test.FAIL("Node API must be running v1.3 or greater in order to run this test suite")
 
     def test_02(self, test):
-
         """Check Sender Capabilities"""
 
         api = self.apis[SENDER_CAPS_KEY]
@@ -203,39 +210,42 @@ class BCP0040201Test(GenericTest):
 
             # Make sure Senders do not use the Receiver's specific "media_types" attribute in their caps
             if "media_types" in sender["caps"]:
-                warning += "|" + "Sender {} caps has an unnecessary 'media_types' attribute that is not used with sender capabilities".format(sender["id"])
+                warning += ("|" + "Sender {} caps has an unnecessary 'media_types' attribute "
+                            "that is not used with sender capabilities".format(sender["id"]))
 
             # Make sure Senders do not use the Receiver's specific "event_types" attribute in their caps
             if "event_types" in sender["caps"]:
-                warning += "|" + "Sender {} caps has an unnecessary 'event_types' attribute that is not used with sender capabilities".format(sender["id"])
+                warning += ("|" + "Sender {} caps has an unnecessary 'event_types' attribute "
+                            "that is not used with sender capabilities".format(sender["id"]))
 
             if "constraint_sets" in sender["caps"]:
-               
+
                 no_constraint_sets = False
 
                 try:
                     self.validate_schema(sender, schema)
                 except ValidationError as e:
-                    return test.FAIL("Sender {} does not comply with schema".format(sender["id"]))
+                    return test.FAIL("Sender {} does not comply with schema, error {}".format(sender["id"], e))
 
                 try:
                     caps_version = sender["caps"]["version"]
                     core_version = sender["version"]
-                    
+
                     if self.is04_utils.compare_resource_version(caps_version, core_version) > 0:
                         return test.FAIL("Sender {} caps version is later than resource version".format(sender["id"]))
 
-                except ValidationError as e:
+                except BaseException:
                     return test.FAIL("Sender {} caps do not have a version attribute".format(sender["id"]))
 
                 has_label = None
                 warn_label = False
-                
+
                 for constraint_set in sender["caps"]["constraint_sets"]:
                     try:
                         self.validate_schema(constraint_set, reg_schema)
                     except ValidationError as e:
-                        return test.FAIL("Sender {} constraint_sets do not comply with schema".format(sender["id"]))
+                        return test.FAIL("Sender {} constraint_sets do not comply with schema, error {}".format(
+                            sender["id"], e))
 
                     has_current_label = "urn:x-nmos:cap:meta:label" in constraint_set
 
@@ -244,7 +254,7 @@ class BCP0040201Test(GenericTest):
                         has_label = has_current_label
                     elif has_label != has_current_label:
                         warn_label = True
-                        
+
                     has_pattern_attribute = False
                     for param_constraint in constraint_set:
 
@@ -254,21 +264,30 @@ class BCP0040201Test(GenericTest):
                                 has_pattern_attribute = True
                                 if "minimum" in param_constraint and "maximum" in param_constraint:
                                     if compare_min_larger_than_max(param_constraint):
-                                        warning += "|" + "Sender {} parameter constraint {} has an invalid empty range".format(sender["id"], param_constraint)
+                                        warning += "|" + \
+                                            "Sender {} parameter constraint {} has an invalid empty range".format(
+                                                sender["id"], param_constraint)
 
-                            # parameter constraints in the x-nmos namespace should be listed in the Capabilities register
-                            if param_constraint.startswith("urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
-                                warning += "|" + "Sender {} parameter constraint {} is not registered ".format(sender["id"], param_constraint)
+                            # parameter constraints in the x-nmos namespace should be listed in the
+                            # Capabilities register
+                            if param_constraint.startswith(
+                                    "urn:x-nmos:") and param_constraint not in reg_schema_obj["properties"]:
+                                warning += ("|" + "Sender {} parameter constraint {}"
+                                            " is not registered ".format(sender["id"], param_constraint))
 
-                        except:
-                            return test.FAIL("Sender {} has an invalid parameter constraint {}".format(sender["id"], param_constraint))
-
+                        except BaseException:
+                            return test.FAIL(
+                                "Sender {} has an invalid parameter constraint {}".format(
+                                    sender["id"], param_constraint))
 
                     if not has_pattern_attribute:
-                        return test.FAIL("Sender {} has an illegal constraint set without any parameter attribute".format(sender["id"]))
+                        return test.FAIL(
+                            "Sender {} has an illegal constraint set without any parameter attribute".format(
+                                sender["id"]))
 
                 if warn_label:
-                    warning += "|" + "Sender {} constraint_sets should either 'urn:x-nmos:cap:meta:label' for all constraint sets or none".format(sender["id"])
+                    warning += ("|" + "Sender {} constraint_sets should either 'urn:x-nmos:cap:meta:label' "
+                                "for all constraint sets or none".format(sender["id"]))
 
         if no_constraint_sets:
             return test.OPTIONAL("No BCP-004-02 'constraint_sets' were identified in Sender caps")
@@ -277,9 +296,10 @@ class BCP0040201Test(GenericTest):
             return test.WARNING(warning)
         else:
             return test.PASS()
-        
+
+
 def compare_min_larger_than_max(param_constraint):
-    
+
     min_val = param_constraint["minimum"]
     max_val = param_constraint["maximum"]
 
@@ -294,6 +314,6 @@ def compare_min_larger_than_max(param_constraint):
         max_num = max_val["numerator"]
         min_den = min_val.get("denominator", 1)
         max_den = max_val.get("denominator", 1)
-        return (min_num*max_den) > (max_num*min_den)
-        
+        return (min_num * max_den) > (max_num * min_den)
+
     return False
