@@ -86,6 +86,7 @@ from .suites import IS1201Test
 from .suites import BCP00301Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
+from .suites import BCP0080101Test
 
 
 FLASK_APPS = []
@@ -405,6 +406,36 @@ TEST_DEFINITIONS = {
             "disable_fields": ["host", "port"]
         }],
         "class": BCP0060102Test.BCP0060102Test
+    },
+    "BCP-008-01": {
+        "name": "BCP-008-01 Receiver Status",
+        "specs": [{
+            "spec_key": "bcp-008-01",
+            "api_key": "receivermonitor",
+            "disable_fields": ["host", "port", "urlpath"]
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection",
+            "disable_fields": ["urlpath"]
+        }, {
+            "spec_key": "is-12",
+            "api_key": "ncp",
+            "websocket": True,
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port", "urlpath"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }],
+        "class": BCP0080101Test.BCP0080101Test,
+        "urlpath": True
     },
 }
 
