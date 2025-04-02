@@ -177,6 +177,7 @@ class BCP0080101Test(GenericTest):
         self.check_status_values_valid_metadata = BCP0080101Test.TestMetadata()
         self.check_deactivate_receiver_metadata = BCP0080101Test.TestMetadata()
         self.check_reset_counters_metadata = BCP0080101Test.TestMetadata()
+        self.check_transitions_counted_metadata = BCP0080101Test.TestMetadata()
         self.check_auto_reset_counters_metadata = BCP0080101Test.TestMetadata()
 
     # Override basics to include auto tests
@@ -408,14 +409,18 @@ class BCP0080101Test(GenericTest):
                 and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
             self.check_overall_status_metadata.error = True
             self.check_overall_status_metadata.error_msg += \
-                "Overall Status expected to be Inactive when Connection Status is Inactive for Receiver Monitor, " \
+                "Overall Status expected to be Inactive when Connection Status is Inactive, " \
+                f"actual Overall Status {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name}" \
+                " for Receiver Monitor, " \
                 f"oid={oid}, role path={role_path}; "
 
         if statuses[NcReceiverMonitorProperties.STREAM_STATUS] == NcStreamStatus.Inactive.value \
                 and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
             self.check_overall_status_metadata.error = True
             self.check_overall_status_metadata.error_msg += \
-                "Overall Status expected to be Inactive when Stream Status is Inactive for Receiver Monitor, " \
+                "Overall Status expected to be Inactive when Stream Status is Inactive, " \
+                f"actual Overall Status {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name}" \
+                " for Receiver Monitor, " \
                 f"oid={oid}, role path={role_path}; "
 
         # Test Active states
@@ -470,6 +475,7 @@ class BCP0080101Test(GenericTest):
             self.check_connection_status_metadata.error_msg += \
                 "No status notifications received for Receiver Monitor, " \
                 f"oid={monitor.oid}, role path={monitor.role_path}; "
+            return
 
         # Check that the receiver monitor transitioned to healthy
         if len(connection_status_notifications) > 0 \
@@ -500,6 +506,37 @@ class BCP0080101Test(GenericTest):
                 f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         self.check_connection_status_metadata.checked = True
+
+    def _check_connection_status_transition_counter(self, monitor, start_time, notifications):
+
+        # Find the unhealthy state transition
+        connection_status_notifications = \
+            [n for n in notifications
+                if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS.value
+                and n.eventData.value == NcConnectionStatus.Unhealthy]
+
+        if len(connection_status_notifications) == 0:
+            return
+
+        # Expect the transition counter to increment at approx time of the status transition
+        transition_time = connection_status_notifications[-1].received_time
+
+        connection_status_transition_counter_notifications = \
+            [n for n in notifications
+                if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER.value
+                and n.received_time > transition_time - 0.2
+                and n.received_time < transition_time + 0.2]
+
+        # Given the transition to a less healthy state we expect the transition counter to increment
+        if len(connection_status_transition_counter_notifications) == 0 or \
+                connection_status_transition_counter_notifications[-1].eventData.value == 0:
+            self.check_transitions_counted_metadata.error = True
+            self.check_transitions_counted_metadata.error_msg += \
+                "Expect transition counter to increment on less healthy state transition " \
+                "for Receiver Monitor, " \
+                f"oid={monitor.oid}, role path={monitor.role_path}; "
+
+        self.check_transitions_counted_metadata.checked = True
 
     def _check_deactivate_receiver(self, test, monitor_oid, monitor_role_path, receiver_id, sdp_params):
         # When a receiver is being deactivated it MUST cleanly disconnect from the current stream by not
@@ -774,6 +811,12 @@ class BCP0080101Test(GenericTest):
                 # This test depends on the receiver being inactive in the first instance
                 self._deactivate_receiver(test, receiver_id)
                 sleep(2.0)  # settling time
+                initial_statuses = dict([(property_id,
+                                          self._get_property(test,
+                                                             property_id.value,
+                                                             role_path=monitor.role_path,
+                                                             oid=monitor.oid))
+                                         for property_id in status_properties])
 
             # Assume that the receiver patch happens immediately after start_time
             start_time = time()
@@ -781,7 +824,7 @@ class BCP0080101Test(GenericTest):
             self._patch_receiver(test, receiver_id, sdp_params[receiver_id])
 
             # Wait until one second more that status reporting delay to capture transition to less healthy state
-            sleep(status_reporting_delay + 1.0)
+            sleep(status_reporting_delay + 2.0)
 
             # Ensure ResetCounter method resets counters to zero
             self._check_reset_counters(test, monitor)
@@ -807,8 +850,10 @@ class BCP0080101Test(GenericTest):
             # and transitioned to unhealthy afterwards (assuming not deactivated during delay)
             self._check_connection_status(monitor, start_time, status_reporting_delay, notifications)
 
+            self._check_connection_status_transition_counter(monitor, start_time, notifications)
+
             self._deactivate_receiver(test, receiver_id)
-            sleep(1.0)  # Let receiver settle
+            sleep(2.0)  # Let receiver settle
 
             self._check_deactivate_receiver(test, monitor.oid, monitor.role_path, receiver_id, sdp_params[receiver_id])
 
@@ -873,6 +918,23 @@ class BCP0080101Test(GenericTest):
         return test.MANUAL("Check by manually forcing an error condition in the Receiver")
 
     def test_04(self, test):
+        """Transitions to less healthy states are counted"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_receivers_found:
+            return test.UNCLEAR("Unable to find any testable Receiver Monitors")
+
+        if not self.check_transitions_counted_metadata.checked:
+            return test.UNCLEAR("Unable to test")
+
+        if self.check_transitions_counted_metadata.error:
+            return test.FAIL(self.check_transitions_counted_metadata.error_msg,
+                             self.check_transitions_counted_metadata.link)
+
+        return test.PASS()
+
+    def test_05(self, test):
         """ResetCounters method resets status transition counters"""
 
         self._check_monitor_status_changes(test)
@@ -889,7 +951,7 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_05(self, test):
+    def test_06(self, test):
         """autoResetCounters property set to TRUE resets status transition counters on activation"""
 
         self._check_monitor_status_changes(test)
@@ -906,7 +968,7 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_06(self, test):
+    def test_07(self, test):
         """Overall status is correctly mapped from domain statuses"""
 
         self._check_monitor_status_changes(test)
@@ -923,7 +985,7 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_07(self, test):
+    def test_08(self, test):
         """Status values are valid"""
 
         self._check_monitor_status_changes(test)
@@ -977,28 +1039,28 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_08(self, test):
+    def test_09(self, test):
         """GetLostPacketCounters method is implemented"""
         return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value)
 
-    def test_09(self, test):
+    def test_10(self, test):
         """GetLatePacketCounters method is implemented"""
         return self._check_late_lost_packet_method(test, NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value)
 
-    def test_10(self, test):
+    def test_11(self, test):
         """Late packet counter increments when presentation is affected by late packet arrival"""
         # For implementations which cannot measure individual late packets the late counters
         # MUST at the very least increment every time the presentation is affected due to late packet arrival.
 
         return test.MANUAL("Check by manually forcing an error condition in the Receiver")
 
-    def test_11(self, test):
+    def test_12(self, test):
         """Receiver transitions to PartiallyHealthy on synchronization source change"""
         # Receivers MUST temporarily transition to PartiallyHealthy when detecting a synchronization source change
 
         return test.MANUAL("Check by manually forcing a synchronization source change in the Receiver")
 
-    def test_12(self, test):
+    def test_13(self, test):
         """synchronizationSourceID property has a valid value"""
         # When devices intend to use external synchronization they MUST publish the synchronization source id
         # currently being used in the synchronizationSourceId property and update the externalSynchronizationStatus
@@ -1029,7 +1091,7 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_13(self, test):
+    def test_14(self, test):
         """Receiver cleanly disconnects from the current stream on deactivation"""
 
         self._check_monitor_status_changes(test)
@@ -1046,7 +1108,7 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_14(self, test):
+    def test_15(self, test):
         """Receiver monitor has a valid touchpoint resource"""
 
         self._check_monitor_status_changes(test)
@@ -1063,7 +1125,7 @@ class BCP0080101Test(GenericTest):
 
         return test.PASS()
 
-    def test_15(self, test):
+    def test_16(self, test):
         """enabled property is TRUE by default, and cannot be set to FALSE"""
         spec_link = \
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
