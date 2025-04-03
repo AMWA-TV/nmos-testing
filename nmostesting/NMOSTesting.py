@@ -464,7 +464,6 @@ class DataForm(Form):
 # Index page
 @core_app.route('/', methods=["GET", "POST"])
 def index_page():
-    global CMD_ARGS
     form = DataForm(request.form)
     if request.method == "POST" and not core_app.config['TEST_ACTIVE']:
         if form.validate():
