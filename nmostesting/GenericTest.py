@@ -87,7 +87,7 @@ class GenericTest(object):
         test = Test("Test initialisation")
 
         for api_name, api_data in self.apis.items():
-            if "spec_path" not in api_data or api_data["version"] is None:
+            if self.disable_auto or "spec_path" not in api_data or api_data["version"] is None:
                 continue
 
             repo = git.Repo(api_data["spec_path"])
@@ -123,7 +123,7 @@ class GenericTest(object):
     def parse_RAML(self):
         """Create a Specification object for each API defined in this object"""
         for api in self.apis:
-            if "raml" not in self.apis[api]:
+            if self.disable_auto or "raml" not in self.apis[api]:
                 continue
             raml_path = os.path.join(self.apis[api]["spec_path"] + '/APIs/' + self.apis[api]["raml"])
             self.apis[api]["spec"] = Specification(raml_path)

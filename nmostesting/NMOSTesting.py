@@ -221,6 +221,7 @@ TEST_DEFINITIONS = {
             "api_key": "query",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": IS0404Test.IS0404Test
     },
     "IS-05-01": {
@@ -256,6 +257,7 @@ TEST_DEFINITIONS = {
             "api_key": "connection",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": IS0503Test.IS0503Test
     },
     "IS-06-01": {
@@ -329,6 +331,7 @@ TEST_DEFINITIONS = {
             "api_key": "system",
             "disable_fields": ["host", "port"]
         }],
+        "disable_auto": True,
         "class": IS0902Test.IS0902Test
     },
     # IS-10 testing is disabled until testing can be refactored to deal with commercial servers
@@ -346,6 +349,7 @@ TEST_DEFINITIONS = {
             "spec_key": "bcp-003-01",
             "api_key": "secure"
         }],
+        "disable_auto": True,
         "class": BCP00301Test.BCP00301Test
     },
     "BCP-006-01-01": {
@@ -382,12 +386,11 @@ TEST_DEFINITIONS = {
 }
 
 
-def enumerate_tests(class_def, describe=False):
-    if describe:
-        tests = ["all: Runs all tests in the suite",
-                 "auto: Basic API tests derived directly from the specification RAML"]
-    else:
-        tests = ["all", "auto"]
+def enumerate_tests(class_def, describe=False, disable_auto=False):
+    tests = ["all: Runs all tests in the suite" if describe else "all"]
+    if not disable_auto:
+        tests.append("auto: Basic API tests derived directly from the specification RAML" if describe else "auto")
+
     for method_name in dir(class_def):
         if method_name.startswith("test_"):
             method = getattr(class_def, method_name)
@@ -453,8 +456,12 @@ class DataForm(Form):
     for test_id in TEST_DEFINITIONS:
         test_data[test_id] = copy.deepcopy(TEST_DEFINITIONS[test_id])
         test_data[test_id].pop("class")
-        test_data[test_id]["test_methods"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
-        test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True)
+        test_data[test_id]["test_methods"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"],
+                                                             disable_auto=TEST_DEFINITIONS[test_id]
+                                                             .get("disable_auto"))
+        test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True,
+                                                                  disable_auto=TEST_DEFINITIONS[test_id]
+                                                                  .get("disable_auto"))
 
     hidden_options = HiddenField(default=max_endpoints)
     hidden_tests = HiddenField(default=json.dumps(test_data))
@@ -616,7 +623,8 @@ def run_tests(test, endpoints, test_selection=["all"]):
                                      registries=REGISTRIES,
                                      node=NODE,
                                      dns_server=DNS_SERVER,
-                                     auths=[PRIMARY_AUTH, SECONDARY_AUTH])
+                                     auths=[PRIMARY_AUTH, SECONDARY_AUTH],
+                                     disable_auto=test_def.get("disable_auto"))
 
         core_app.config['TEST_ACTIVE'] = time.time()
         try:
@@ -838,11 +846,14 @@ def validate_args(args, access_type="cli"):
             msg = "ERROR: The requested test suite '{}' does not exist".format(args.suite)
             return_type = ExitCodes.ERROR
         elif args.list_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"])
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
+                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"))
             for test_name in tests:
                 msg += test_name + '\n'
         elif args.describe_tests:
-            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"], describe=True)
+            tests = enumerate_tests(TEST_DEFINITIONS[args.suite]["class"],
+                                    disable_auto=TEST_DEFINITIONS[args.suite].get("disable_auto"),
+                                    describe=True)
             for test_description in tests:
                 msg += test_description + '\n'
         elif getattr(args, "selection", "all") not in enumerate_tests(TEST_DEFINITIONS[args.suite]["class"]):
