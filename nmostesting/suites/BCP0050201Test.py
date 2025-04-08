@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# python3 nmos-test.py suite BCP-HKEP --host 127.0.0.1 127.0.0.1 --port 5058 5058 --version v1.3 v1.1
+# python3 nmos-test.py suite BCP-005-02 --host 127.0.0.1 127.0.0.1 --port 5058 5058 --version v1.3 v1.1
 
 import json
 import re
@@ -57,7 +57,7 @@ def has_key(obj, name):
     return name in obj  # final try without a namespace
 
 
-class BCPHkepTest(GenericTest):
+class BCP0050201Test(GenericTest):
     """
     Runs Node Tests covering sender and receiver with IPMX/HKEP
     """
@@ -183,6 +183,8 @@ class BCPHkepTest(GenericTest):
     def test_01(self, test):
         """Check that version 1.3+ the Node API and version 1.1+ of the Connection API are available"""
 
+        # REFERENCE: Nodes compliant with this specification MUST implement [IS-04][] v1.3 or higher
+        #            and [IS-05][] v1.1 or higher.
         api = self.apis[NODE_API_KEY]
         if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0:
             valid, result = self.do_request("GET", self.node_url)
@@ -209,6 +211,8 @@ class BCPHkepTest(GenericTest):
         reg_api = self.apis["caps-register"]
         reg_path = reg_api["spec_path"] + "/capabilities"
 
+        # REFERENCE:  Nodes capable of transmitting HDCP encrypted streams using the IPMX/HKEP protocol MUST have
+        #             Source, Flow and Sender resources in the IS-04 Node API.
         valid, result = self.get_is04_resources("senders")
         if not valid:
             return test.FAIL(result)
@@ -230,7 +234,12 @@ class BCPHkepTest(GenericTest):
 
         for sender in self.is04_resources["senders"].values():
 
-            # Only test if the sender declare being compliant with BCP-???-??? (IPMX/HKEP)
+            # REFERENCE A Sender compliant with the [HKEP](#hkep) section of this document MUST provide a
+            #           `urn:x-nmos:hkep` Sender attribute to indicate that HDCP encryption and the HKEP
+            #           protocol are used by the Sender.
+            #
+            # It is optional to be compliant with BCP-005-02 HKEP section so only test if the sender declares
+            # being compliant with BCP-005-02 (IPMX/HKEP).
             if has_key(sender, "hkep"):
 
                 no_hkep_senders = False
@@ -242,6 +251,10 @@ class BCPHkepTest(GenericTest):
                 only_allow_true = None
                 only_allow_false = None
 
+                # REFERENCE: A Sender MAY provide a `urn:x-nmos:cap:transport:hkep` capability to indicate that
+                #            HDCP encryption and the HKEP protocol are supported.
+                #
+                # If only_allow_true and only_allow_true are None is indicates that capabilities were not provided.
                 if "constraint_sets" in sender["caps"]:
 
                     try:
@@ -255,7 +268,7 @@ class BCPHkepTest(GenericTest):
                             self.validate_schema(constraint_set, reg_schema)
                         except ValidationError as e:
                             return test.FAIL(
-                                "Sender {} constraint_sets do not comply with schema, error {}".format(
+                                "Sender {} constraint_sets do not comply with registered schema, error {}".format(
                                     sender["id"], e))
 
                         # Ignore disabled constraint sets
@@ -281,6 +294,12 @@ class BCPHkepTest(GenericTest):
 
                 # Check that the sender state does not contradict its explicit capabilities
                 if only_allow_true is not None:
+                    # REFERENCE: If the `urn:x-nmos:cap:transport:hkep` capability only allows the value `true`, then
+                    #            the Sender's associated SDP transport file MUST have an `hkep` attribute.
+                    # REFERENCE: A Sender MAY provide a `urn:x-nmos:cap:transport:hkep` capability to indicate that
+                    #            HDCP encryption and the HKEP protocol are supported.
+                    #
+                    # If so it must be consistent
                     if only_allow_true and not hkep:
                         return test.FAIL(
                             "Sender {} has an invalid 'hkep' state {} "
@@ -288,17 +307,31 @@ class BCPHkepTest(GenericTest):
                                 sender["id"], hkep))
 
                 if only_allow_false is not None:
+
+                    # REFERENCE: If the `urn:x-nmos:cap:transport:hkep` capability only allows the value `false`, then
+                    #            the Sender's associated SDP transport file MUST NOT have an `hkep` attribute.
+                    # REFERENCE: A Sender MAY provide a `urn:x-nmos:cap:transport:hkep` capability to indicate that
+                    #            HDCP encryption and the HKEP protocol are supported.
+                    #
+                    # If so it must be consistent
                     if only_allow_false and hkep:
                         return test.FAIL(
                             "Sender {} has an invalid 'hkep' state {} "
                             "which is not allowed by the Sender's capabilities only allowing 'false'".format(
                                 sender["id"], hkep))
 
-                # Check SDP transport file
+                # Check SDP transport file. As per IS04 sender.json schema this attribute is required.
                 if "manifest_href" not in sender:
                     return test.FAIL("Sender {} MUST indicate the 'manifest_href' attribute."
                                      .format(sender["id"]))
 
+                # REFERENCE: If an SDP transport file is not currently available because the Sender is inactive, this
+                #            attribute indicates whether or not such an SDP transport file would contain an `hkep`
+                #            attribute if the Sender were active at that time.
+                #
+                # There may be no SDP transport file because the sender it inactive or because the transport used by
+                # the Sender does not support an SDP transport file. In both case we'll return an UNCLEAR status to
+                # indicate "could not test".
                 href = sender["manifest_href"]
                 if not href:
                     access_error = True
@@ -325,6 +358,8 @@ class BCPHkepTest(GenericTest):
 
                 # SDP transport file must match with capabilities
                 if only_allow_true is not None:
+                    # REFERENCE: If the `urn:x-nmos:cap:transport:hkep` capability only allows the value `true`, then
+                    #            the Sender's associated SDP transport file MUST have an `hkep` attribute.
                     if only_allow_true and not found_hkep:
                         return test.FAIL(
                             "Sender {} has an invalid SDP transport file without an 'hkep' attribute "
@@ -332,12 +367,20 @@ class BCPHkepTest(GenericTest):
                                 sender["id"]))
 
                 if only_allow_false is not None:
+                    # REFERENCE: If the `urn:x-nmos:cap:transport:hkep` capability only allows the value `false`, then
+                    #            the Sender's associated SDP transport file MUST NOT have an `hkep` attribute.
                     if only_allow_false and found_hkep:
                         return test.FAIL(
                             "Sender {} has an invalid SDP transport file with an 'hkep' attribute "
                             "which is not allowed by the Sender's capabilities only allowing 'false'".format(
                                 sender["id"]))
 
+                # REFERENCE: A Sender compliant with the [HKEP](#hkep) section of this document MUST provide a
+                #            `urn:x-nmos:hkep` Sender attribute to indicate that HDCP encryption and the HKEP
+                #            protocol are used by the Sender. This attribute MUST be `true` if an `hkep` attribute
+                #            is present in the Sender's SDP transport file, and MUST be `false` if no `hkep`
+                #            attributes are present.
+                #
                 # sender state must match with SDP transport file
                 if hkep != found_hkep:
                     return test.FAIL(
@@ -349,7 +392,7 @@ class BCPHkepTest(GenericTest):
             return test.UNCLEAR("One or more of the tested Senders had null or empty 'manifest_href' or "
                                 "returned a 404 HTTP code. Please ensure all Senders are enabled and re-test.")
         if no_hkep_senders:
-            return test.OPTIONAL("No BCP-???-?? (IPMX/HKEP) Sender found")
+            return test.OPTIONAL("No BCP-005-02 (IPMX/HKEP) Sender found")
 
         if warning != "":
             return test.WARNING(warning)
@@ -364,6 +407,8 @@ class BCPHkepTest(GenericTest):
         reg_api = self.apis["caps-register"]
         reg_path = reg_api["spec_path"] + "/capabilities"
 
+        #  REFERENCE: Nodes capable of receiving HDCP encrypted streams using the IPMX/HKEP protocol MUST have Receiver
+        #             resources in the IS-04 Node API.
         valid, result = self.get_is04_resources("receivers")
         if not valid:
             return test.FAIL(result)
@@ -400,7 +445,7 @@ class BCPHkepTest(GenericTest):
                         self.validate_schema(constraint_set, reg_schema)
                     except ValidationError as e:
                         return test.FAIL(
-                            "Receiver {} constraint_sets do not comply with schema, error {}".format(
+                            "Receiver {} constraint_sets do not comply with registered schema, error {}".format(
                                 receiver["id"], e))
 
                     # Ignore disabled constraint sets
@@ -408,7 +453,12 @@ class BCPHkepTest(GenericTest):
                             not constraint_set["urn:x-nmos:cap:meta:enabled"]):
                         continue
 
-                    # Explicit declarations only
+                    # REFERENCE: A Receiver SHOULD provide a `urn:x-nmos:cap:transport:hkep` capability to indicate
+                    #            its support for Senders that use HDCP encryption and the HKEP protocol.
+
+                    # As it is optional to declare such capability and tag receiver having an explicit declarations
+                    # only. If a receiver provides capabilities and declare an hkep capability it will be validated
+                    # by the schemas verifications above.
                     if has_key(constraint_set, "cap:transport:hkep"):
                         no_hkep_receivers = False
 
@@ -416,7 +466,7 @@ class BCPHkepTest(GenericTest):
             return test.OPTIONAL("No Receiver describing BCP-004-01 Capabilities found")
 
         if no_hkep_receivers:
-            return test.OPTIONAL("No BCP-???-?? (IPMX/HKEP) Receiver found")
+            return test.OPTIONAL("No BCP-005-02 (IPMX/HKEP) Receiver found")
 
         if warning != "":
             return test.WARNING(warning)

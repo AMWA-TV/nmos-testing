@@ -332,9 +332,9 @@ SPECIFICATIONS = {
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
         "url": "https://github.com/alabou/",
-        "branch": "bcp-hkep",
-        "versions": ["bcp-hkep"],
-        "default_version": "bcp-hkep",
+        "branch": "bcp-005-02",
+        "versions": ["bcp-005-02"],
+        "default_version": "bcp-005-02",
         "apis": {
             "caps-register": {
                 "name": "Capabilities Register"
@@ -367,4 +367,3 @@ try:
         sys.exit(-1)
 except ImportError:
     pass
-
