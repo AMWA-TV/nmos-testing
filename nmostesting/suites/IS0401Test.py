@@ -1306,11 +1306,14 @@ class IS0401Test(GenericTest):
                         api_endpoint_host_warn = True
             for service in node_self["services"]:
                 href = service["href"]
+                # Only warn about these at the end so that more major failures are flagged first
+                # Protocols other than HTTP and WebSocket may be used, so don't incorrectly flag those too
                 if href.startswith("http") and not href.startswith(self.protocol + "://"):
-                    # Only warn about these at the end so that more major failures are flagged first
-                    # Protocols other than HTTP may be used, so don't incorrectly flag those too
                     service_href_scheme_warn = True
-                if href.startswith("https://") and is_ip_address(urlparse(href).hostname):
+                if href.startswith("ws") and not href.startswith(self.ws_protocol + "://"):
+                    service_href_scheme_warn = True
+                if (href.startswith("https://") or href.startswith("wss://")) and \
+                        is_ip_address(urlparse(href).hostname):
                     service_href_hostname_warn = True
                 if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
                         service["type"].startswith("urn:x-nmos:"):
@@ -1336,11 +1339,14 @@ class IS0401Test(GenericTest):
                 for device in node_devices:
                     for control in device["controls"]:
                         href = control["href"]
+                        # Only warn about these at the end so that more major failures are flagged first
+                        # Protocols other than HTTP and WebSocket may be used, so don't incorrectly flag those too
                         if href.startswith("http") and not href.startswith(self.protocol + "://"):
-                            # Only warn about these at the end so that more major failures are flagged first
-                            # Protocols other than HTTP may be used, so don't incorrectly flag those too
                             control_href_scheme_warn = True
-                        if href.startswith("https://") and is_ip_address(urlparse(href).hostname):
+                        if href.startswith("ws") and not href.startswith(self.ws_protocol + "://"):
+                            control_href_scheme_warn = True
+                        if (href.startswith("https://") or href.startswith("wss://")) and \
+                                is_ip_address(urlparse(href).hostname):
                             control_href_hostname_warn = True
                         if self.is04_utils.compare_api_version(api["version"], "v1.3") >= 0 and \
                                 control["type"].startswith("urn:x-nmos:"):

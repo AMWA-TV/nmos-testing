@@ -1,0 +1,6 @@
+{
+    "description": "Primitive UTF-8 string",
+    "name": "NcString",
+    "type": 0,
+    "constraints": null
+}
