@@ -86,6 +86,7 @@ from .suites import IS1201Test
 from .suites import BCP00301Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
+from .suites import BCP00604Test
 
 
 FLASK_APPS = []
@@ -405,6 +406,14 @@ TEST_DEFINITIONS = {
             "disable_fields": ["host", "port"]
         }],
         "class": BCP0060102Test.BCP0060102Test
+    },
+    "BCP-006-04": {
+        "name": "BCP-006-04 NMOS With MPEG TS",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": BCP00604Test.BCP00604Test
     },
 }
 
