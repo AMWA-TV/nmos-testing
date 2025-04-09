@@ -509,27 +509,13 @@ class BCP0080101Test(GenericTest):
 
     def _check_connection_status_transition_counter(self, monitor, start_time, notifications):
 
-        # Find the unhealthy state transition
-        connection_status_notifications = \
-            [n for n in notifications
-                if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS.value
-                and n.eventData.value == NcConnectionStatus.Unhealthy]
-
-        if len(connection_status_notifications) == 0:
-            return
-
-        # Expect the transition counter to increment at approx time of the status transition
-        transition_time = connection_status_notifications[-1].received_time
-
         connection_status_transition_counter_notifications = \
             [n for n in notifications
                 if n.eventData.propertyId == NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER.value
-                and n.received_time > transition_time - 0.2
-                and n.received_time < transition_time + 0.2]
+                and n.eventData.value > 0]
 
         # Given the transition to a less healthy state we expect the transition counter to increment
-        if len(connection_status_transition_counter_notifications) == 0 or \
-                connection_status_transition_counter_notifications[-1].eventData.value == 0:
+        if len(connection_status_transition_counter_notifications) == 0:
             self.check_transitions_counted_metadata.error = True
             self.check_transitions_counted_metadata.error_msg += \
                 "Expect transition counter to increment on less healthy state transition " \
@@ -596,6 +582,9 @@ class BCP0080101Test(GenericTest):
             self.check_deactivate_receiver_metadata.checked = True
 
     def _get_non_zero_counters(self, test, monitor):
+        # Ignore late and lost packets in this check:
+        # late and lost packet counters increment independantly of these tests and therefore
+        # cannot be predicted or their value guaranteed at any given time
         transition_counters = {"LinkStatusTransitionCounter":
                                NcReceiverMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
                                "ConnectionStatusTransitionCounter":
@@ -611,33 +600,7 @@ class BCP0080101Test(GenericTest):
                                                    oid=monitor.oid))
                                for key, property_id in transition_counters.items()])
 
-        # Get late and lost packet counters
-        results = []
-
-        arguments = {}
-        method_result = self.is12_utils.invoke_method(
-                test,
-                NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS.value,
-                arguments,
-                oid=monitor.oid,
-                role_path=monitor.role_path)
-
-        if self._status_ok(method_result) and isinstance(method_result.value, list) and \
-                len([c for c in method_result.value if "value" in c and c["value"] > 0]) > 0:
-            results += ["GetLostPacketCounter"]
-
-        method_result = self.is12_utils.invoke_method(
-                test,
-                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS.value,
-                arguments,
-                oid=monitor.oid,
-                role_path=monitor.role_path)
-
-        if self._status_ok(method_result) and isinstance(method_result.value, list) and \
-                len([c for c in method_result.value if "value" in c and c["value"] > 0]) > 0:
-            results += ["GetLatePacketCounter"]
-
-        return [c for c, v in counter_values.items() if v > 0] + results
+        return [c for c, v in counter_values.items() if v > 0]
 
     def _check_reset_counters(self, test, monitor):
         # Devices MUST be able to reset ALL status transition counter properties
