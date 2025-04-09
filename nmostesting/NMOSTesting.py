@@ -851,7 +851,7 @@ def parse_arguments():
                               help="space separated versions of the APIs under test")
     suite_parser.add_argument('--selector', default=DEFAULT_ARGS["selector"], nargs="*",
                               help="space separated device selector names of the APIs under test")
-    suite_parser.add_argument('--urlpaths', default=DEFAULT_ARGS["urlpath"], nargs="*",
+    suite_parser.add_argument('--urlpath', default=DEFAULT_ARGS["urlpath"], nargs="*",
                               help="space separated device urlpaths of the APIs under test")
     suite_parser.add_argument('--ignore', default=DEFAULT_ARGS["ignore"], nargs="*",
                               help="space separated test names to ignore the results from")
@@ -1000,7 +1000,7 @@ def run_noninteractive_tests(args):
             selector = args.selector[i]
         urlpath = None
         if len(args.urlpath) == len(args.host) and args.urlpath[i] != "null":
-            urlpath = args.override[i]
+            urlpath = args.urlpath[i]
         endpoints.append({"host": args.host[i], "port": args.port[i], "version": args.version[i],
                           "selector": selector, "urlpath": urlpath})
     try:
