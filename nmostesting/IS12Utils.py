@@ -242,7 +242,7 @@ class IS12Utils(MS05Utils):
         self.expect_notifications = True
         self.expect_notifications_oid = oid
         self.expect_notifications_property = property
-        self.clear_notifications()
+        self.notifications = []
 
     def stop_logging_notifications(self):
         self.expect_notifications = False
