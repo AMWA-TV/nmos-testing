@@ -69,6 +69,7 @@ DEFAULT_ARGS = {
     "port": [],
     "version": [],
     "selector": [],
+    "urlpath": [],
     "ignore": [],
     "output": None,
     "selection": "all"
