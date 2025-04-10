@@ -32,6 +32,7 @@ The following test suites are currently supported.
 | IS-09-01 | IS-09 System API | | (X) | | System Parameters Server |
 | IS-09-02 | IS-09 System API Discovery | X | | | |
 | IS-10-01 | IS-10 Authorization API | | | | Authorization Server |
+| IS-11-01 | IS-11 Stream Compatibility Management API | X | | | |
 | IS-12-01 | IS 12 Control Protocol API | X | | | See [Invasive Device Model Testing](docs/2.10%20Usage%20-%20Invasive%20Device%20Model%20Testing.md) |
 | - | BCP-002-01 Natural Grouping | X | | | Included in IS-04 Node API suite |
 | - | BCP-002-02 Asset Distinguishing Information | X | | | Included in IS-04 Node API suite |
