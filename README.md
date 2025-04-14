@@ -37,7 +37,7 @@ The following test suites are currently supported.
 | - | BCP-002-02 Asset Distinguishing Information | X | | | Included in IS-04 Node API suite |
 | BCP-003-01 | BCP-003-01 Secure Communication | X | X | | See [Testing TLS](docs/2.2.%20Usage%20-%20Testing%20BCP-003-01%20TLS.md) |
 | - | BCP-003-02 Authorization | X | X | | See [Testing Authorization](docs/2.3.%20Usage%20-%20Testing%20IS-10%20Authorization.md) |
-| - | BCP-004-01 Receiver Capabilities | X | | | Included in IS-04 Node API and IS-05 Interaction with IS-04 suites |
+| BCP-004-01 | BCP-004-01 Receiver Capabilities | X | | | Also included in IS-05 Interaction with IS-04 suite |
 | BCP-006-01-01 | BCP-006-01 NMOS With JPEG XS | X | | | |
 | BCP-006-01-02 | BCP-006-01 Controller | | | X | See [Testing Controllers](docs/2.8.%20Usage%20-%20Testing%20Controllers.md) |
 
