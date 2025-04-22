@@ -73,6 +73,8 @@ class MS0501Test(ControllerTest):
     def __init__(self, apis, utils, **kwargs):
         # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
+        # Removing the DNS server stops this test suite depending on the QUERY_API
+        kwargs['dns_server'] = None
         ControllerTest.__init__(self, apis, disable_auto=False, **kwargs)
         self.ms05_utils = utils
 
