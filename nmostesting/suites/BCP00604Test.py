@@ -14,8 +14,11 @@
 
 import json
 
+from jsonschema import ValidationError
+
 from ..GenericTest import GenericTest
 from ..IS04Utils import IS04Utils
+from ..TestHelper import load_resolved_schema
 
 NODE_API_KEY = "node"
 FLOW_REGISTER_KEY = "flow-register"
@@ -28,11 +31,15 @@ class BCP00604Test(GenericTest):
     """
 
     def __init__(self, apis, **kwargs):
-        # Don't auto-test /transportfile as it is permitted to generate a 404 when master_enable is false
-        omit_paths = ["/single/senders/{senderId}/transportfile"]
-        GenericTest.__init__(self, apis, omit_paths, **kwargs)
+        GenericTest.__init__(self, apis, **kwargs)
         self.node_url = self.apis[NODE_API_KEY]["url"]
-        self.is04_resources = {"senders": [], "receivers": [], "_requested": [], "sources": [], "flows": []}
+        self.is04_resources = {
+            "senders": [],
+            "receivers": [],
+            "_requested": [],
+            "sources": [],
+            "flows": [],
+        }
         self.is04_utils = IS04Utils(self.node_url)
 
     # Utility function from IS0502Test
@@ -80,7 +87,7 @@ class BCP00604Test(GenericTest):
             return test.FAIL("Node API must be running v1.3 or greater to fully implement BCP-006-04")
 
     def test_02(self, test):
-        """MPEG-TS Sources linked to a mux flow have the required attributes"""
+        """The Source associated with a mux Flow MUST have its `format` attribute set to `urn:x-nmos:format:mux`"""
 
         valid, result = self.get_is04_resources("sources")
         if not valid:
@@ -90,19 +97,22 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        valid_mpeg_ts_sources = []
-        all_flows = self.is04_resources.get("flows")
-        sources_linked_to_flow = [f.get("source_id") for f in all_flows if self.has_required_flow_attr(f)]
+        mux_sources = [source for source in self.is04_resources.get("sources") if self.has_required_source_attr(source)]
+        if len(mux_sources) == 0:
+            return test.FAIL("No Sources with format=urn:x-nmos:format:mux were found on the Node")
 
-        for source in self.is04_resources.get("sources"):
-            linked_to_mux_flow = source.get("id") in sources_linked_to_flow
-            if self.has_required_source_attr(source) and linked_to_mux_flow:
-                valid_mpeg_ts_sources.append(source)
+        mux_flows = [flow for flow in self.is04_resources.get("flows") if self.has_required_flow_attr(flow)]
+        if len(mux_flows) == 0:
+            return test.FAILURE(
+                "No Flows with format=urn:x-nmos:format:mux and media_type=video/MP2T were found on the Node"
+            )
 
-        if len(valid_mpeg_ts_sources) > 0:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("No MPEG-TS Sources resources were found on the Node")
+        # check that all mux_sources are linked to a mux flow
+        for source in mux_sources:
+            if source.get("id") not in [flow.get("source_id") for flow in mux_flows]:
+                return test.FAIL("Mux Source {} is not linked to a mux flow".format(source.get("id")))
+
+        return test.PASS()
 
     def test_03(self, test):
         """MPEG-TS Flows have the required attributes"""
@@ -111,14 +121,29 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        valid_mpeg_ts_flows = [f for f in self.is04_resources.get("flows") if self.has_required_flow_attr(f)]
+        mp2t_flows = [f for f in self.is04_resources.get("flows") if self.has_required_flow_attr(f)]
+        if len(mp2t_flows) == 0:
+            return test.FAIL(
+                "No Flows with format=urn:x-nmos:format:mux and media_type=video/MP2T were found on the Node"
+            )
 
-        # TODO validate schema
+        reg_api = self.apis[FLOW_REGISTER_KEY]
+        reg_path = reg_api["spec_path"] + "/flow-attributes"
+        reg_schema = load_resolved_schema(reg_path, "flow_video_register.json", path_prefix=False)
 
-        if len(valid_mpeg_ts_flows) > 0:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("No MPEG-TS Flow resources were found on the Node")
+        for flow in mp2t_flows:
+            try:
+                self.validate_schema(flow, reg_schema)
+            except ValidationError as e:
+                return test.FAIL(
+                    "Flow {} does not comply with the schema for Video Flow additional and "
+                    "extensible attributes defined in the NMOS Parameter Registers: "
+                    "{}".format(flow["id"], str(e)),
+                    "https://specs.amwa.tv/nmos-parameter-registers/branches/{}"
+                    "/flow-attributes/flow_video_register.html".format(reg_api["spec_branch"]),
+                )
+
+        return test.PASS()
 
     def test_04(self, test):
         """MPEG-TS Senders have the required attributes and is assosicated with a mux flow"""
@@ -131,27 +156,81 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        # TODO: Probably fetch this from somewhere? Is only RTP valid?
-        valid_transports = ["urn:x-nmos:transport:rtp",
-                            "urn:x-nmos:transport:rtp.mcast",
-                            "urn:x-nmos:transport:rtp.ucast"]
+        # Currently the test does not cover other transports than RTP
+        tested_transports = [
+            "urn:x-nmos:transport:rtp",
+            "urn:x-nmos:transport:rtp.mcast",
+            "urn:x-nmos:transport:rtp.ucast",
+        ]
 
-        valid_flows = [f["id"] for f in self.is04_resources["flows"] if self.has_required_flow_attr(f)]
+        reg_api = self.apis[SENDER_REGISTER_KEY]
+        reg_path = reg_api["spec_path"] + "/sender-attributes"
+        reg_schema = load_resolved_schema(reg_path, "sender_register.json", path_prefix=False)
 
-        valid_mpeg_ts_senders = []
-        for sender in self.is04_resources.get("senders"):
-            linked_to_valid_flow = sender.get("flow_id") in valid_flows
-            manifest_href_attr_set = sender.get("manifest_href")  # TODO: Check that endpoint returns an SDP
-            valid_transport = sender.get("transport") in valid_transports
-            has_bitrate_attr = sender.get("bit_rate")
+        mp2t_flows = [f["id"] for f in self.is04_resources["flows"] if self.has_required_flow_attr(f)]
+        if len(mp2t_flows) == 0:
+            return test.FAIL(
+                "No Flows with format=urn:x-nmos:format:mux and media_type=video/MP2T were found on the Node"
+            )
 
-            if linked_to_valid_flow and manifest_href_attr_set and valid_transport and has_bitrate_attr:
-                valid_mpeg_ts_senders.append(sender)
+        mp2t_senders = [s for s in self.is04_resources.get("senders") if s.get("flow_id") in mp2t_flows]
+        if len(mp2t_senders) == 0:
+            return test.FAIL("No Senders associate with a mux flow found on the Node")
 
-        if len(valid_mpeg_ts_senders) > 0:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("No MPEG-TS Flow resources were found on the Node")
+        test_na = False
+
+        access_error = False
+        for sender in mp2t_senders:
+
+            try:
+                self.validate_schema(sender, reg_schema)
+            except ValidationError as e:
+                return test.FAIL(
+                    "Sender {} does not comply with the schema for Sender additional and "
+                    "extensible attributes defined in the NMOS Parameter Registers: "
+                    "{}".format(sender["id"], str(e)),
+                    "https://specs.amwa.tv/nmos-parameter-registers/branches/{}"
+                    "/sender-attributes/sender_register.html".format(reg_api["spec_branch"]),
+                )
+
+            if "transport" not in sender:
+                return test.FAIL("Sender {} MUST indicate the 'transport' attribute.".format(sender["id"]))
+            if sender["transport"] not in tested_transports:
+                test_na = True
+
+            if "bit_rate" not in sender:
+                return test.FAIL("Sender {} MUST indicate the 'bit_rate' attribute.".format(sender["id"]))
+
+            if "manifest_href" not in sender:
+                return test.FAIL("Sender {} MUST indicate the 'manifest_hrf' attribute.".format(sender["id"]))
+            href = sender["manifest_href"]
+            if not href:
+                access_error = True
+                continue
+
+            manifest_href_valid, manifest_href_response = self.do_request("GET", href)
+            if manifest_href_valid and manifest_href_response.status_code == 200:
+                pass
+            elif manifest_href_valid and manifest_href_response.status_code == 404:
+                access_error = True
+                continue
+            else:
+                return test.FAIL("Unexpected response from manifest_href '{}': {}".format(href, manifest_href_response))
+
+            sdp = manifest_href_response.text
+            if not sdp:
+                access_error = True
+                continue
+
+        if access_error:
+            return test.UNCLEAR(
+                "One or more of the tested Senders had null or empty 'manifest_href' or "
+                "returned a 404 HTTP code. Please ensure all Senders are enabled and re-test."
+            )
+        if test_na:
+            return test.NA("All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP")
+
+        return test.PASS()
 
     def test_05(self, test):
         """MPEG-TS Receivers have the required attributes"""
@@ -160,18 +239,65 @@ class BCP00604Test(GenericTest):
         if not valid:
             return test.FAIL(result)
 
-        # TODO: Check for Transport Bit Rate capability
+        # Currently the test does not cover other transports than RTP
+        tested_transports = [
+            "urn:x-nmos:transport:rtp",
+            "urn:x-nmos:transport:rtp.mcast",
+            "urn:x-nmos:transport:rtp.ucast",
+        ]
 
-        valid_transports = ["urn:x-nmos:transport:rtp",
-                            "urn:x-nmos:transport:rtp.mcast",
-                            "urn:x-nmos:transport:rtp.ucast"]  # TODO: Probably fetch from somewhere
+        mp2t_receivers = [r for r in self.is04_resources.get("receivers") if self.has_required_receiver_attr(r)]
+        if len(mp2t_receivers) == 0:
+            return test.FAIL(
+                "No Receivers with format=urn:x-nmos:format:mux "
+                "and media_type=video/MP2T in caps were found on the Node"
+            )
 
-        valid_mpeg_ts_receivers = []
-        for receiver in self.is04_resources.get("receivers"):
-            if self.has_required_receiver_attr(receiver) and receiver.get("transport") in valid_transports:
-                valid_mpeg_ts_receivers.append(receiver)
+        test_na = False
 
-        if len(valid_mpeg_ts_receivers) > 0:
-            return test.PASS()
-        else:
-            return test.UNCLEAR("No MPEG-TS Receiver resources were found on the Node")
+        media_type_constraint = "urn:x-nmos:cap:format:media_type"
+        recommended_constraints = {
+            "urn:x-nmos:cap:transport:bit_rate": "bit_rate",
+        }
+
+        warn_unrestricted = False
+        warn_message = ""
+
+        for receiver in mp2t_receivers:
+            if "transport" not in receiver:
+                return test.FAIL("Receiver {} MUST indicate the 'transport' attribute.".format(receiver["id"]))
+            if receiver["transport"] not in tested_transports:
+                test_na = True
+
+            if "constraint_sets" not in receiver["caps"]:
+                return test.FAIL(
+                    "Receiver {} MUST indicate constraints in accordance with BCP-004-01 using "
+                    "the 'caps' attribute 'constraint_sets'.".format(receiver["id"])
+                )
+
+            mp2t_constraint_sets = [
+                constraint_set
+                for constraint_set in receiver["caps"]["constraint_sets"]
+                if media_type_constraint not in constraint_set
+                or (
+                    "enum" in constraint_set[media_type_constraint]
+                    and "video/MP2T" in constraint_set[media_type_constraint]["enum"]
+                )
+            ]
+
+            # check recommended attributes are present
+            for constraint_set in mp2t_constraint_sets:
+                for constraint, _target in recommended_constraints.items():
+                    if constraint not in constraint_set:
+                        if not warn_unrestricted:
+                            warn_unrestricted = True
+                            warn_message = "Receiver MAY use `Transport Bit Rate` to express incoming "
+                            "bit-rate limitations. Id={}".format(receiver["id"])
+
+        if warn_unrestricted:
+            return test.WARNING(warn_message)
+
+        if test_na:
+            return test.NA("All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP")
+
+        return test.PASS()

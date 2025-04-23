@@ -386,6 +386,13 @@ TEST_DEFINITIONS = {
             "spec_key": "is-04",
             "api_key": "node"
         }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }],
         "class": BCP00604Test.BCP00604Test
     },
 }
