@@ -270,10 +270,9 @@ class BCP00604Test(GenericTest):
                 test_na = True
 
             if "constraint_sets" not in receiver["caps"]:
-                return test.FAIL(
-                    "Receiver {} MUST indicate constraints in accordance with BCP-004-01 using "
-                    "the 'caps' attribute 'constraint_sets'.".format(receiver["id"])
-                )
+                warn_unrestricted = True
+                warn_message = "Receiver MAY use `Transport Bit Rate` to express incoming limitations"
+                continue
 
             mp2t_constraint_sets = [
                 constraint_set
