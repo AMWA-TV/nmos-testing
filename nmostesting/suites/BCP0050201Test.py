@@ -42,7 +42,7 @@ def cap_without_namespace(s):
 
 
 def get_key_value(obj, name):
-    regex = re.compile(r'^urn:[a-z0-9][a-z0-9-]+:' + name)
+    regex = re.compile(r'^urn:[a-z0-9][a-z0-9-]+:' + name + r'$')
     for key, value in obj.items():
         if regex.fullmatch(key):
             return value
@@ -50,7 +50,7 @@ def get_key_value(obj, name):
 
 
 def has_key(obj, name):
-    regex = re.compile(r'^urn:[a-z0-9][a-z0-9-]+:' + name)
+    regex = re.compile(r'^urn:[a-z0-9][a-z0-9-]+:' + name + r'$')
     for key in obj.keys():
         if regex.fullmatch(key):
             return True
