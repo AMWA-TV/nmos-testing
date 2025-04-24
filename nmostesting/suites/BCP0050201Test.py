@@ -235,7 +235,7 @@ class BCP0050201Test(GenericTest):
         for sender in self.is04_resources["senders"].values():
 
             # REFERENCE A Sender compliant with the [HKEP](#hkep) section of this document MUST provide a
-            #           `urn:x-nmos:hkep` Sender attribute to indicate that HDCP encryption and the HKEP
+            #           `hkep` Sender attribute to indicate that HDCP encryption and the HKEP
             #           protocol are used by the Sender.
             #
             # It is optional to be compliant with BCP-005-02 HKEP section so only test if the sender declares
@@ -376,7 +376,7 @@ class BCP0050201Test(GenericTest):
                                 sender["id"]))
 
                 # REFERENCE: A Sender compliant with the [HKEP](#hkep) section of this document MUST provide a
-                #            `urn:x-nmos:hkep` Sender attribute to indicate that HDCP encryption and the HKEP
+                #            `hkep` Sender attribute to indicate that HDCP encryption and the HKEP
                 #            protocol are used by the Sender. This attribute MUST be `true` if an `hkep` attribute
                 #            is present in the Sender's SDP transport file, and MUST be `false` if no `hkep`
                 #            attributes are present.
