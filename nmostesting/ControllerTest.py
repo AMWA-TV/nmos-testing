@@ -76,16 +76,18 @@ class ControllerTest(GenericTest):
     """
     Testing initial set up of new test suite for controller testing
     """
-    def __init__(self, apis, registries, node, dns_server, disable_auto=True):
+    def __init__(self, apis, registries, node, dns_server, auths, disable_auto=True, **kwargs):
         # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
         if CONFIG.ENABLE_HTTPS:
             # Comms with Testing Facade are http only
-            apis[CONTROLLER_TEST_API_KEY]["base_url"] \
-                = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
-            apis[CONTROLLER_TEST_API_KEY]["url"] = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
-        GenericTest.__init__(self, apis, disable_auto=disable_auto)
-        self.authorization = False
+            if apis[CONTROLLER_TEST_API_KEY]["base_url"] is not None:
+                apis[CONTROLLER_TEST_API_KEY]["base_url"] \
+                    = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
+            if apis[CONTROLLER_TEST_API_KEY]["url"] is not None:
+                apis[CONTROLLER_TEST_API_KEY]["url"] \
+                    = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
+        GenericTest.__init__(self, apis, auths=auths, disable_auto=disable_auto)
         self.primary_registry = registries[1]
         self.node = node
         self.dns_server = dns_server
@@ -156,11 +158,11 @@ class ControllerTest(GenericTest):
         if len(test_names) == 1 and test_names[0] == "auto" and self.disable_auto:
             return
 
+        self.primary_registry.query_api_called = False
+
         self.pre_tests_message()
 
-        for test_name in test_names:
-            self.primary_registry.query_api_called = False
-            self.execute_test(test_name)
+        super().execute_tests(test_names)
 
         self.post_tests_message()
 
@@ -242,9 +244,11 @@ class ControllerTest(GenericTest):
 
         return answer_response
 
-    def _invoke_testing_facade(self, question, answers, test_type, multipart_test=None, metadata=None):
+    def _invoke_testing_facade(self, question, answers, test_type,
+                               multipart_test=None, metadata=None, test_method_name=None):
         # Get the name of the calling test method to use as an identifier
-        test_method_name = inspect.currentframe().f_back.f_code.co_name
+        test_method_name = test_method_name if test_method_name \
+            else inspect.currentframe().f_back.f_code.co_name
 
         json_out = self._send_testing_facade_questions(
             test_method_name, question, answers, test_type, multipart_test, metadata)
