@@ -75,6 +75,8 @@ class MS0501Test(ControllerTest):
         apis[NODE_API_KEY].pop("raml", None)
         # Removing the DNS server stops this test suite depending on the QUERY_API
         kwargs['dns_server'] = None
+        # Removing the registries stops this test suite from populating the mock registry
+        # with mock resources (not needed by this test)
         kwargs['registries'] = None
         ControllerTest.__init__(self, apis, disable_auto=False, **kwargs)
         self.ms05_utils = utils

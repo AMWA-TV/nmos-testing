@@ -81,7 +81,7 @@ class ControllerTest(GenericTest):
         # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
         # Ensure registration scope is added to JWT to allow authenticated
-        # registration of mock resources to secure mock registry
+        # registration of mock resources with secure mock registry
         if CONFIG.ENABLE_AUTH:
             apis[REG_API_KEY] = {}
         if CONFIG.ENABLE_HTTPS:
