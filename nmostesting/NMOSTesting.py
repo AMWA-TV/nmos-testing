@@ -82,8 +82,10 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1101Test
 from .suites import IS1201Test
 from .suites import BCP00301Test
+from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
 from .suites import BCP0080101Test
@@ -342,6 +344,20 @@ TEST_DEFINITIONS = {
     #     }],
     #     "class": IS1001Test.IS1001Test
     # },
+    "IS-11-01": {
+        "name": "IS-11 Stream Compatibility Management API",
+        "specs": [{
+            "spec_key": "is-11",
+            "api_key": "streamcompatibility"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "class": IS1101Test.IS1101Test
+    },
     "IS-12-01": {
         "name": "IS-12 NMOS Control Protocol",
         "specs": [{
@@ -375,6 +391,14 @@ TEST_DEFINITIONS = {
             "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
+    },
+    "BCP-005-01-01": {
+        "name": "BCP-005-01 EDID to Receiver Capabilities Mapping",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": BCP0050101Test.BCP0050101Test
     },
     "BCP-006-01-01": {
         "name": "BCP-006-01 NMOS With JPEG XS",
