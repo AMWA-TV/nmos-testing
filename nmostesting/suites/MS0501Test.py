@@ -23,8 +23,8 @@ from math import floor
 from xeger import Xeger
 
 from ..Config import MS05_INVASIVE_TESTING, MS05_INTERACTIVE_TESTING
-from ..GenericTest import NMOSTestException
-from ..ControllerTest import ControllerTest, TestingFacadeException
+from ..GenericTest import GenericTest, NMOSTestException
+from ..TestingFacadeUtils import TestingFacadeUtils, TestingFacadeException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescriptor, \
     NcDatatypeDescriptorEnum, NcDatatypeDescriptorPrimitive, NcDatatypeType, NcDatatypeDescriptorStruct, \
     NcDatatypeDescriptorTypeDef, NcDeviceManagerProperties, NcMethodResultError, NcMethodResultXXX, \
@@ -43,7 +43,7 @@ FEATURE_SETS_KEY = "featuresets"
 # instantiated in the same way as the other test suites.
 
 
-class MS0501Test(ControllerTest):
+class MS0501Test(GenericTest):
     """
     Runs Tests covering MS-05
     """
@@ -73,13 +73,9 @@ class MS0501Test(ControllerTest):
     def __init__(self, apis, utils, **kwargs):
         # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
-        # Removing the DNS server stops this test suite depending on the QUERY_API
-        kwargs['dns_server'] = None
-        # Removing the registries stops this test suite from populating the mock registry
-        # with mock resources (not needed by this test)
-        kwargs['registries'] = None
-        ControllerTest.__init__(self, apis, disable_auto=False, **kwargs)
+        GenericTest.__init__(self, apis, disable_auto=False, **kwargs)
         self.ms05_utils = utils
+        self.testing_facade_utils = TestingFacadeUtils(apis)
 
     def set_up_tests(self):
         super().set_up_tests()
@@ -157,7 +153,7 @@ class MS0501Test(ControllerTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
 
         except TestingFacadeException:
             # pre_test_introducton timed out
@@ -178,7 +174,7 @@ class MS0501Test(ControllerTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
 
         except TestingFacadeException:
             # post_test_introducton timed out
@@ -1693,8 +1689,8 @@ class MS0501Test(ControllerTest):
         filtered = deepcopy(possible_answers)
         for p in filtered:
             p.pop("resource", None)
-        return self._invoke_testing_facade(question, filtered,
-                                           test_type="multi_choice",
+        return self.testing_facade_utils.invoke_testing_facade(question, filtered,
+                                           test_type="multi_choice", calling_test=self,
                                            test_method_name=test_method_name)["answer_response"]
 
     def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):

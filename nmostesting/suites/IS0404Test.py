@@ -22,8 +22,7 @@ import random
 import textwrap
 
 from .. import Config as CONFIG
-from ..ControllerTest import ControllerTest, TestingFacadeException, exitTestEvent
-
+from ..ControllerTest import ControllerTest, TestingFacadeException
 
 class IS0404Test(ControllerTest):
     """
@@ -42,7 +41,7 @@ class IS0404Test(ControllerTest):
 
         # Randomly select some senders to register
         # minimum 3 to force pagination when paging_limit is set to 2
-        register_senders = self._generate_random_indices(len(self.senders), min_index_count=3)
+        register_senders = self.generate_random_indices(len(self.senders), min_index_count=3)
 
         for i in register_senders:
             self.senders[i]['registered'] = True
@@ -63,7 +62,7 @@ class IS0404Test(ControllerTest):
 
         # Randomly select some receivers to register
         # minimum 3 to force pagination when paging_limit is set to 2
-        register_receivers = self._generate_random_indices(len(self.receivers), min_index_count=3)
+        register_receivers = self.generate_random_indices(len(self.receivers), min_index_count=3)
 
         for i in register_receivers:
             self.receivers[i]['registered'] = True
@@ -104,7 +103,7 @@ class IS0404Test(ControllerTest):
 
                        Successful browsing of the Registry will be automatically logged by the test framework.
                        """
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
 
             # Fail if the REST Query API was not called, and no query subscriptions were made
             # The registry will log calls to the Query API endpoints
@@ -147,8 +146,8 @@ class IS0404Test(ControllerTest):
                                 for i, s in enumerate(self.senders)]
             expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered']]
 
-            actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice")['answer_response']
+            actual_answers = self.testing_facade_utils.invoke_testing_facade(
+                question, possible_answers, test_type="multi_choice", calling_test=self)['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect sender identified')
@@ -194,8 +193,8 @@ class IS0404Test(ControllerTest):
                                 for i, r in enumerate(self.receivers)]
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered']]
 
-            actual_answers = self._invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice")['answer_response']
+            actual_answers = self.testing_facade_utils.invoke_testing_facade(
+                question, possible_answers, test_type="multi_choice", calling_test=self)['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect receiver identified')
@@ -240,7 +239,7 @@ class IS0404Test(ControllerTest):
                        """
             possible_answers = []
 
-            self._invoke_testing_facade(question, possible_answers, test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action", calling_test=self)
 
             # Take one of the senders offline
             possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'],
@@ -250,7 +249,7 @@ class IS0404Test(ControllerTest):
             offline_sender_index = random.choice(answer_indices)
             expected_answer = 'answer_' + str(offline_sender_index)
 
-            self._delete_sender(test, self.senders[offline_sender_index])
+            self.delete_sender(test, self.senders[offline_sender_index])
             self.node.delete_sender(self.senders[offline_sender_index]["id"])
 
             # Set the offline sender to registered false for future tests
@@ -259,8 +258,8 @@ class IS0404Test(ControllerTest):
             # Recheck senders
             question = 'Please refresh your NCuT and select the sender which has been put \'offline\'.'
 
-            actual_answer = self._invoke_testing_facade(
-                question, possible_answers, test_type="single_choice", multipart_test=1)['answer_response']
+            actual_answer = self.testing_facade_utils.invoke_testing_facade(
+                question, possible_answers, test_type="single_choice", calling_test=self, multipart_test=1)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Offline/online sender not handled: Incorrect sender identified')
@@ -285,14 +284,14 @@ class IS0404Test(ControllerTest):
 
             # Send the question to the Testing Façade
             # and then put sender online before waiting for the Testing Façade response
-            sent_json = self._send_testing_facade_questions(
-                test_method_name, question, possible_answers, test_type="action", multipart_test=2)
+            sent_json = self.testing_facade_utils.send_testing_facade_questions(
+                test_method_name, question, possible_answers, test_type="action", calling_test=self, multipart_test=2)
 
             # Wait a random amount of time before bringing sender back online
-            exitTestEvent.clear()
+            self.testing_facade_utils.exit_test_event_clear()
             time_delay = random.randint(10, max_time_until_online)
             expected_time_online = time.time() + time_delay
-            exitTestEvent.wait(time_delay)
+            self.testing_facade_utils.exit_test_event_wait(time_delay)
 
             # Re-register sender
             self._register_sender(test, self.senders[offline_sender_index], codes=[200, 201])
@@ -301,7 +300,7 @@ class IS0404Test(ControllerTest):
             self.senders[offline_sender_index]['registered'] = True
 
             # Await/get testing façade response
-            response = self._wait_for_testing_facade(sent_json['question_id'], 'action')
+            response = self.testing_facade_utils.wait_for_testing_facade(sent_json['question_id'], 'action')
 
             if response['time_received'] < expected_time_online:  # Answered before sender put online
                 return test.FAIL('Offline/online sender not handled: Sender not yet online')
