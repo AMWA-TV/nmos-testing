@@ -271,7 +271,9 @@ class BCP00604Test(GenericTest):
 
             if "constraint_sets" not in receiver["caps"]:
                 warn_unrestricted = True
-                warn_message = "Receiver MAY use `Transport Bit Rate` to express incoming limitations"
+                warn_message = "No Transport Bit Rate parameter constraint published by receiver {}".format(
+                    receiver["id"]
+                )
                 continue
 
             mp2t_constraint_sets = [
@@ -290,8 +292,9 @@ class BCP00604Test(GenericTest):
                     if constraint not in constraint_set:
                         if not warn_unrestricted:
                             warn_unrestricted = True
-                            warn_message = "Receiver MAY use `Transport Bit Rate` to express incoming "
-                            "bit-rate limitations. Id={}".format(receiver["id"])
+                            warn_message = "No Transport Bit Rate parameter constraint published by receiver {}".format(
+                                receiver["id"]
+                            )
 
         if warn_unrestricted:
             return test.WARNING(warn_message)
