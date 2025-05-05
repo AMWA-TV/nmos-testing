@@ -177,10 +177,16 @@ class BCP00604Test(GenericTest):
         if len(mp2t_senders) == 0:
             return test.FAIL("No Senders associate with a mux flow found on the Node")
 
-        test_na = False
+        mp2t_rtp_senders = [s for s in mp2t_senders if s.get("transport") in tested_transports]
+
+        if len(mp2t_rtp_senders) == 0:
+            return test.NA(
+                "Could not test. No MP2T Sender with RTP transport found. "
+                "All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP."
+            )
 
         access_error = False
-        for sender in mp2t_senders:
+        for sender in mp2t_rtp_senders:
 
             try:
                 self.validate_schema(sender, reg_schema)
@@ -195,8 +201,6 @@ class BCP00604Test(GenericTest):
 
             if "transport" not in sender:
                 return test.FAIL("Sender {} MUST indicate the 'transport' attribute.".format(sender["id"]))
-            if sender["transport"] not in tested_transports:
-                test_na = True
 
             if "bit_rate" not in sender:
                 return test.FAIL("Sender {} MUST indicate the 'bit_rate' attribute.".format(sender["id"]))
@@ -227,8 +231,6 @@ class BCP00604Test(GenericTest):
                 "One or more of the tested Senders had null or empty 'manifest_href' or "
                 "returned a 404 HTTP code. Please ensure all Senders are enabled and re-test."
             )
-        if test_na:
-            return test.NA("All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP")
 
         return test.PASS()
 
@@ -253,7 +255,13 @@ class BCP00604Test(GenericTest):
                 "and media_type=video/MP2T in caps were found on the Node"
             )
 
-        test_na = False
+        mp2t_rtp_receivers = [s for s in mp2t_receivers if s.get("transport") in tested_transports]
+
+        if len(mp2t_rtp_receivers) == 0:
+            return test.NA(
+                "Could not test. No MP2T Receiver with RTP transport found. "
+                "All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP."
+            )
 
         media_type_constraint = "urn:x-nmos:cap:format:media_type"
         recommended_constraints = {
@@ -266,8 +274,6 @@ class BCP00604Test(GenericTest):
         for receiver in mp2t_receivers:
             if "transport" not in receiver:
                 return test.FAIL("Receiver {} MUST indicate the 'transport' attribute.".format(receiver["id"]))
-            if receiver["transport"] not in tested_transports:
-                test_na = True
 
             if "constraint_sets" not in receiver["caps"]:
                 warn_unrestricted = True
@@ -298,8 +304,5 @@ class BCP00604Test(GenericTest):
 
         if warn_unrestricted:
             return test.WARNING(warn_message)
-
-        if test_na:
-            return test.NA("All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP")
 
         return test.PASS()
