@@ -72,9 +72,9 @@ class MS0501Test(GenericTest):
             self.descriptor = descriptor
 
     def __init__(self, apis, utils, **kwargs):
-        # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
+        # Remove the Node API RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
-        # Remove the controller test spec_path as there are no corresponding GitHub repos for Controller Tests
+        # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
         apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
 
         GenericTest.__init__(self, apis, disable_auto=False, **kwargs)

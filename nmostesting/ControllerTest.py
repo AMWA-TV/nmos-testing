@@ -39,7 +39,7 @@ class ControllerTest(GenericTest):
     Testing initial set up of new test suite for controller testing
     """
     def __init__(self, apis, registries, node, dns_server, auths, disable_auto=True, **kwargs):
-        # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
+        # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
         apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
         # Ensure registration scope is added to JWT to allow authenticated
         # registration of mock resources with secure mock registry
