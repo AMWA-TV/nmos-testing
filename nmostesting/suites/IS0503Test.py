@@ -24,6 +24,7 @@ import textwrap
 from ..ControllerTest import ControllerTest, TestingFacadeException
 from ..TestingFacadeUtils import exitTestEvent
 
+
 class IS0503Test(ControllerTest):
     """
     Testing initial set up of new test suite for controller testing
@@ -163,7 +164,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action", calling_test=self, metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action",
+                                                            calling_test=self, metadata=metadata)
 
             # Check the staged API endpoint received the correct PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -266,7 +268,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action", calling_test=self, metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action",
+                                                            calling_test=self, metadata=metadata)
 
             # Check the staged API endpoint received a PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -403,7 +406,8 @@ class IS0503Test(ControllerTest):
 
             # Send the question to the Testing Façade
             sent_json = self.testing_facade_utils.send_testing_facade_questions(
-                test_method_name, question, possible_answers, self, test_type="action", multipart_test=2, metadata=metadata)
+                test_method_name, question, possible_answers, test_type="action", calling_test=self,
+                multipart_test=2, metadata=metadata)
 
             # Wait a random amount of time before disconnecting
             exitTestEvent.clear()

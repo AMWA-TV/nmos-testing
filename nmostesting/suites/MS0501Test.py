@@ -36,6 +36,7 @@ NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
 FEATURE_SETS_KEY = "featuresets"
+TESTING_FACADE_API_KEY = "testquestion"
 
 
 # Note: this test suite is a base class for the IS1202Test and IS1402Test test suites
@@ -73,6 +74,9 @@ class MS0501Test(GenericTest):
     def __init__(self, apis, utils, **kwargs):
         # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
+        # Remove the controller test spec_path as there are no corresponding GitHub repos for Controller Tests
+        apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
+
         GenericTest.__init__(self, apis, disable_auto=False, **kwargs)
         self.ms05_utils = utils
         self.testing_facade_utils = TestingFacadeUtils(apis)
@@ -179,6 +183,15 @@ class MS0501Test(GenericTest):
         except TestingFacadeException:
             # post_test_introducton timed out
             pass
+
+    def execute_tests(self, test_names):
+        """Perform tests defined within this class"""
+
+        self.pre_tests_message()
+
+        super().execute_tests(test_names)
+
+        self.post_tests_message()
 
     def test_ms05_01(self, test):
         """Device Model: Root Block exists with correct oid and role"""
@@ -1690,8 +1703,8 @@ class MS0501Test(GenericTest):
         for p in filtered:
             p.pop("resource", None)
         return self.testing_facade_utils.invoke_testing_facade(question, filtered,
-                                           test_type="multi_choice", calling_test=self,
-                                           test_method_name=test_method_name)["answer_response"]
+                                                               test_type="multi_choice", calling_test=self,
+                                                               test_method_name=test_method_name)["answer_response"]
 
     def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):
         datatype_constraints = None

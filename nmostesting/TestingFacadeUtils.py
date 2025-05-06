@@ -23,7 +23,7 @@ from .TestHelper import do_request, get_default_ip
 
 from flask import Flask, Blueprint, request
 
-CONTROLLER_TEST_API_KEY = "testquestion"
+TESTING_FACADE_API_KEY = "testquestion"
 QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
 REG_API_KEY = "registration"
@@ -70,22 +70,23 @@ class TestingFacadeUtils(object):
     """
     def __init__(self, apis):
         self.apis = apis
-        if CONFIG.ENABLE_HTTPS:
+        if CONFIG.ENABLE_HTTPS and TESTING_FACADE_API_KEY in apis:
             # Comms with Testing Facade are http only
-            if apis[CONTROLLER_TEST_API_KEY]["base_url"] is not None:
-                apis[CONTROLLER_TEST_API_KEY]["base_url"] \
-                    = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
-            if apis[CONTROLLER_TEST_API_KEY]["url"] is not None:
-                apis[CONTROLLER_TEST_API_KEY]["url"] \
-                    = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
-        qa_api_version = self.apis[CONTROLLER_TEST_API_KEY]["version"] \
-            if CONTROLLER_TEST_API_KEY in apis and "version" in self.apis[CONTROLLER_TEST_API_KEY] else "v1.0"
+            if apis[TESTING_FACADE_API_KEY]["base_url"] is not None:
+                apis[TESTING_FACADE_API_KEY]["base_url"] \
+                    = apis[TESTING_FACADE_API_KEY]["base_url"].replace("https", "http")
+            if apis[TESTING_FACADE_API_KEY]["url"] is not None:
+                apis[TESTING_FACADE_API_KEY]["url"] \
+                    = apis[TESTING_FACADE_API_KEY]["url"].replace("https", "http")
+        qa_api_version = self.apis[TESTING_FACADE_API_KEY]["version"] \
+            if TESTING_FACADE_API_KEY in apis and "version" in self.apis[TESTING_FACADE_API_KEY] else "v1.0"
         self.answer_uri = "http://" + get_default_ip() + ":" + str(CONFIG.PORT_BASE) + \
             CALLBACK_ENDPOINT.replace('<version>', qa_api_version)
 
     def reset(self):
         # Reset the state of the Testing Facade
-        do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json={"clear": "True"})
+        if TESTING_FACADE_API_KEY in self.apis:
+            do_request("POST", self.apis[TESTING_FACADE_API_KEY]["url"], json={"clear": "True"})
 
     async def get_answer_response(self, timeout):
         # Add API processing time to specified timeout
@@ -133,12 +134,16 @@ class TestingFacadeUtils(object):
             "metadata": metadata
         }
         # Send questions to Testing Facade API endpoint then wait
-        valid, response = do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json=json_out)
+        if TESTING_FACADE_API_KEY in self.apis:
+            valid, response = do_request("POST", self.apis[TESTING_FACADE_API_KEY]["url"], json=json_out)
 
-        if not valid or response.status_code != 202:
-            raise TestingFacadeException("Problem contacting Testing Facade: " + response.text if valid else response)
+            if not valid or response.status_code != 202:
+                raise TestingFacadeException("Problem contacting Testing Facade: "
+                                             + response.text if valid else response)
 
-        return json_out
+            return json_out
+
+        raise TestingFacadeException("Testing facade API not specified")
 
     def wait_for_testing_facade(self, question_id, test_type):
 
@@ -167,7 +172,7 @@ class TestingFacadeUtils(object):
         return answer_response
 
     def invoke_testing_facade(self, question, answers, test_type, calling_test,
-                               multipart_test=None, metadata=None, test_method_name=None):
+                              multipart_test=None, metadata=None, test_method_name=None):
         # Get the name of the calling test method to use as an identifier
         test_method_name = test_method_name if test_method_name \
             else inspect.currentframe().f_back.f_code.co_name

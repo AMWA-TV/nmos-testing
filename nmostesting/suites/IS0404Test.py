@@ -24,6 +24,7 @@ import textwrap
 from .. import Config as CONFIG
 from ..ControllerTest import ControllerTest, TestingFacadeException
 
+
 class IS0404Test(ControllerTest):
     """
     Testing initial set up of new test suite for controller testing
@@ -239,7 +240,8 @@ class IS0404Test(ControllerTest):
                        """
             possible_answers = []
 
-            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action", calling_test=self)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                            test_type="action", calling_test=self)
 
             # Take one of the senders offline
             possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'],
@@ -259,7 +261,8 @@ class IS0404Test(ControllerTest):
             question = 'Please refresh your NCuT and select the sender which has been put \'offline\'.'
 
             actual_answer = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type="single_choice", calling_test=self, multipart_test=1)['answer_response']
+                question, possible_answers, test_type="single_choice",
+                calling_test=self, multipart_test=1)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Offline/online sender not handled: Incorrect sender identified')

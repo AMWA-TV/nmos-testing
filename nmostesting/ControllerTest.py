@@ -12,17 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import time
 import json
 import uuid
-import inspect
 import random
 import textwrap
 from copy import deepcopy
 from urllib.parse import urlparse
 from dnslib import QTYPE
-from threading import Event
 
 from .GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from . import Config as CONFIG
@@ -31,9 +28,7 @@ from .TestResult import Test
 from .NMOSUtils import NMOSUtils
 from .TestingFacadeUtils import TestingFacadeUtils, TestingFacadeException
 
-from flask import Flask, Blueprint, request
-
-CONTROLLER_TEST_API_KEY = "testquestion"
+TESTING_FACADE_API_KEY = "testquestion"
 QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
 REG_API_KEY = "registration"
@@ -45,7 +40,7 @@ class ControllerTest(GenericTest):
     """
     def __init__(self, apis, registries, node, dns_server, auths, disable_auto=True, **kwargs):
         # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
-        apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
+        apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
         # Ensure registration scope is added to JWT to allow authenticated
         # registration of mock resources with secure mock registry
         if CONFIG.ENABLE_AUTH:
@@ -108,7 +103,7 @@ class ControllerTest(GenericTest):
         self.testing_facade_utils.reset()
 
         # Reset the state of the Testing Façade
-        self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json={"clear": "True"})
+        self.do_request("POST", self.apis[TESTING_FACADE_API_KEY]["url"], json={"clear": "True"})
 
         if self.dns_server:
             self.dns_server.reset()
