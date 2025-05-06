@@ -102,9 +102,6 @@ class ControllerTest(GenericTest):
 
         self.testing_facade_utils.reset()
 
-        # Reset the state of the Testing Façade
-        self.do_request("POST", self.apis[TESTING_FACADE_API_KEY]["url"], json={"clear": "True"})
-
         if self.dns_server:
             self.dns_server.reset()
 
@@ -451,7 +448,7 @@ class ControllerTest(GenericTest):
                    """)
 
         try:
-            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # pre_test_introducton timed out
@@ -470,7 +467,7 @@ class ControllerTest(GenericTest):
                    """
 
         try:
-            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # post_test_introducton timed out

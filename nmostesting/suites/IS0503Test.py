@@ -109,7 +109,7 @@ class IS0503Test(ControllerTest):
                                 if r['registered'] and r['connectable']]
 
             actual_answers = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice", calling_test=self)['answer_response']
+                question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect Receiver identified')
@@ -164,8 +164,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action",
-                                                            calling_test=self, metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                            test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received the correct PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -268,8 +268,8 @@ class IS0503Test(ControllerTest):
                          'label': receiver['label'],
                          'description': receiver['description']}}
 
-            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action",
-                                                            calling_test=self, metadata=metadata)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                            test_type="action", metadata=metadata)
 
             # Check the staged API endpoint received a PATCH request
             patch_requests = [r for r in self.node.staged_requests
@@ -353,7 +353,7 @@ class IS0503Test(ControllerTest):
                                if r['display_answer'] == receiver['display_answer']][0]
 
             actual_answer = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type="single_choice", calling_test=self)['answer_response']
+                question, possible_answers, test_type="single_choice")['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect receiver identified')
@@ -377,8 +377,8 @@ class IS0503Test(ControllerTest):
                          'description': receiver['description']}}
 
             actual_answer = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type="single_choice", calling_test=self,
-                multipart_test=1, metadata=metadata)['answer_response']
+                question, possible_answers, test_type="single_choice", multipart_test=1,
+                metadata=metadata)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Incorrect sender identified')
@@ -401,13 +401,15 @@ class IS0503Test(ControllerTest):
                        """)
             possible_answers = []
 
-            # Get the name of the calling test method to use as an identifier
+            # Get the name and the description of this test method to use as an identifier
             test_method_name = inspect.currentframe().f_code.co_name
+            method = getattr(self, test_method_name)
+            test_method_description = inspect.getdoc(method)
 
             # Send the question to the Testing Façade
             sent_json = self.testing_facade_utils.send_testing_facade_questions(
-                test_method_name, question, possible_answers, test_type="action", calling_test=self,
-                multipart_test=2, metadata=metadata)
+                test_method_name, test_method_description, question, possible_answers,
+                test_type="action", multipart_test=2, metadata=metadata)
 
             # Wait a random amount of time before disconnecting
             exitTestEvent.clear()

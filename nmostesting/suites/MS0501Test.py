@@ -157,7 +157,7 @@ class MS0501Test(GenericTest):
                    """
 
         try:
-            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # pre_test_introducton timed out
@@ -178,7 +178,7 @@ class MS0501Test(GenericTest):
                    """
 
         try:
-            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # post_test_introducton timed out
@@ -1703,7 +1703,7 @@ class MS0501Test(GenericTest):
         for p in filtered:
             p.pop("resource", None)
         return self.testing_facade_utils.invoke_testing_facade(question, filtered,
-                                                               test_type="multi_choice", calling_test=self,
+                                                               test_type="multi_choice",
                                                                test_method_name=test_method_name)["answer_response"]
 
     def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):

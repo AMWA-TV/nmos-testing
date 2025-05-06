@@ -104,7 +104,7 @@ class IS0404Test(ControllerTest):
 
                        Successful browsing of the Registry will be automatically logged by the test framework.
                        """
-            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action", calling_test=self)
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
             # Fail if the REST Query API was not called, and no query subscriptions were made
             # The registry will log calls to the Query API endpoints
@@ -148,7 +148,7 @@ class IS0404Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, s in enumerate(self.senders) if s['registered']]
 
             actual_answers = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice", calling_test=self)['answer_response']
+                question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect sender identified')
@@ -195,7 +195,7 @@ class IS0404Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, r in enumerate(self.receivers) if r['registered']]
 
             actual_answers = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type="multi_choice", calling_test=self)['answer_response']
+                question, possible_answers, test_type="multi_choice")['answer_response']
 
             if len(actual_answers) != len(expected_answers):
                 return test.FAIL('Incorrect receiver identified')
@@ -240,8 +240,7 @@ class IS0404Test(ControllerTest):
                        """
             possible_answers = []
 
-            self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
-                                                            test_type="action", calling_test=self)
+            self.testing_facade_utils.invoke_testing_facade(question, possible_answers, test_type="action")
 
             # Take one of the senders offline
             possible_answers = [{'answer_id': 'answer_'+str(i), 'display_answer': s['display_answer'],
@@ -261,8 +260,7 @@ class IS0404Test(ControllerTest):
             question = 'Please refresh your NCuT and select the sender which has been put \'offline\'.'
 
             actual_answer = self.testing_facade_utils.invoke_testing_facade(
-                question, possible_answers, test_type="single_choice",
-                calling_test=self, multipart_test=1)['answer_response']
+                question, possible_answers, test_type="single_choice", multipart_test=1)['answer_response']
 
             if actual_answer != expected_answer:
                 return test.FAIL('Offline/online sender not handled: Incorrect sender identified')
@@ -282,13 +280,16 @@ class IS0404Test(ControllerTest):
                        """)
             possible_answers = []
 
-            # Get the name of the calling test method to use as an identifier
+            # Get the name and the description of this test method to use as an identifier
             test_method_name = inspect.currentframe().f_code.co_name
+            method = getattr(self, test_method_name)
+            test_method_description = inspect.getdoc(method)
 
             # Send the question to the Testing Façade
             # and then put sender online before waiting for the Testing Façade response
             sent_json = self.testing_facade_utils.send_testing_facade_questions(
-                test_method_name, question, possible_answers, test_type="action", calling_test=self, multipart_test=2)
+                test_method_name, test_method_description, question, possible_answers,
+                test_type="action", multipart_test=2)
 
             # Wait a random amount of time before bringing sender back online
             self.testing_facade_utils.exit_test_event_clear()

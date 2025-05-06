@@ -48,7 +48,7 @@ from requests.compat import json
 from . import Config as CONFIG
 from .DNS import DNS
 from .GenericTest import NMOSInitException
-from . import ControllerTest
+from . import TestingFacadeUtils
 from .TestResult import TestStates
 from .TestHelper import get_default_ip
 from .NMOSUtils import DEFAULT_ARGS
@@ -108,7 +108,7 @@ core_app.config['TEST_ACTIVE'] = False
 core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
-core_app.register_blueprint(ControllerTest.TEST_API)
+core_app.register_blueprint(TestingFacadeUtils.TEST_API)
 FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):

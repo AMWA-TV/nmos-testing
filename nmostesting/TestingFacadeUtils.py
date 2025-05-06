@@ -98,10 +98,10 @@ class TestingFacadeUtils(object):
     def send_testing_facade_questions(
             self,
             test_method_name,
+            test_method_description,
             question,
             answers,
             test_type,
-            calling_test,
             multipart_test=None,
             metadata=None):
         """
@@ -116,8 +116,6 @@ class TestingFacadeUtils(object):
         metadata: Test details to assist fully automated testing
         """
 
-        method = getattr(calling_test, test_method_name)
-
         timeout = CONFIG.CONTROLLER_TESTING_TIMEOUT
 
         question_id = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
@@ -126,7 +124,7 @@ class TestingFacadeUtils(object):
             "test_type": test_type,
             "question_id": question_id,
             "name": test_method_name,
-            "description": inspect.getdoc(method),
+            "description": test_method_description,
             "question": question,
             "answers": answers,
             "timeout": timeout,
@@ -171,14 +169,18 @@ class TestingFacadeUtils(object):
 
         return answer_response
 
-    def invoke_testing_facade(self, question, answers, test_type, calling_test,
-                              multipart_test=None, metadata=None, test_method_name=None):
+    def invoke_testing_facade(self, question, answers, test_type,
+                              multipart_test=None, metadata=None,
+                              test_method_name=None):
         # Get the name of the calling test method to use as an identifier
-        test_method_name = test_method_name if test_method_name \
+        test_method_name = test_method_name if test_method_name\
             else inspect.currentframe().f_back.f_code.co_name
 
+        method = getattr(inspect.currentframe().f_back.f_locals["self"], test_method_name)
+        test_method_description = inspect.getdoc(method)
+
         json_out = self.send_testing_facade_questions(
-            test_method_name, question, answers, test_type, calling_test, multipart_test, metadata)
+            test_method_name, test_method_description, question, answers, test_type, multipart_test, metadata)
 
         return self.wait_for_testing_facade(json_out['question_id'], test_type)
 
