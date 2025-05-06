@@ -84,6 +84,7 @@ from .suites import IS0902Test
 # from .suites import IS1001Test
 from .suites import IS1101Test
 from .suites import IS1201Test
+from .suites import IS1401Test
 from .suites import BCP00301Test
 from .suites import BCP0050101Test
 from .suites import BCP0060101Test
@@ -382,6 +383,29 @@ TEST_DEFINITIONS = {
         }],
         "class": IS1201Test.IS1201Test,
         "urlpath": True
+    },
+    "IS-14-01": {
+        "name": "IS-14 Configuration",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-14",
+            "api_key": "configuration"
+        }, {
+            "spec_key": "ms-05-02",
+            "api_key": "controlframework",
+            "disable_fields": ["host", "port"]
+        }, {
+            "spec_key": "controller-tests",
+            "api_key": "testquestion",
+            "disable_fields": ["urlpath"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "urlpath"]
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-control-feature-sets",
+            "api_key": "featuresets"
+        }],
+        "class": IS1401Test.IS1401Test
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
