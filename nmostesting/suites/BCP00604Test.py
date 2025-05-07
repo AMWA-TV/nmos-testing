@@ -260,7 +260,7 @@ class BCP00604Test(GenericTest):
         if len(mp2t_rtp_receivers) == 0:
             return test.NA(
                 "Could not test. No MP2T Receiver with RTP transport found. "
-                "All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP."
+                "This test suite currently only supports RTP."
             )
 
         media_type_constraint = "urn:x-nmos:cap:format:media_type"
