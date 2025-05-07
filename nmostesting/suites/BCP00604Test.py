@@ -182,7 +182,7 @@ class BCP00604Test(GenericTest):
         if len(mp2t_rtp_senders) == 0:
             return test.NA(
                 "Could not test. No MP2T Sender with RTP transport found. "
-                "All IS-05 transports are valid for BCP-006-04, but this test currently only covers RTP."
+                "This test suite currently only supports RTP."
             )
 
         access_error = False
