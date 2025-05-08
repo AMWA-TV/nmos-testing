@@ -15,7 +15,6 @@
 
 import uuid
 
-from enum import Enum, IntEnum
 from jinja2 import Template
 from random import randint
 from requests.compat import json
@@ -23,9 +22,10 @@ from time import sleep, time
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
-from ..BCP008Utils import BCP008Utils
-from ..MS05Utils import NcMethodId, NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos, \
-    NcWorkerProperties
+from ..BCP008Utils import BCP008Utils, NcConnectionStatus, NcLinkStatus, NcOverallStatus, \
+    NcReceiverMonitorProperties, NcReceiverMonitorMethods, NcStatusMonitorProperties, NcStreamStatus, \
+    NcSynchronizationStatus
+from ..MS05Utils import NcMethodStatus, NcObjectProperties, NcTouchpointNmos, NcWorkerProperties
 from ..TestHelper import get_default_ip, get_mocks_hostname
 
 from .. import Config as CONFIG
@@ -41,94 +41,6 @@ RECEIVER_MONITOR_CLASS_ID = [1, 2, 2, 1]
 RECEIVER_MONITOR_SPEC_ROOT = "https://specs.amwa.tv/bcp-008-01/branches/"
 CONTROL_FRAMEWORK_SPEC_ROOT = "https://specs.amwa.tv/ms-05-02/branches/"
 CONTROL_PROTOCOL_SPEC_ROOT = "https://specs.amwa.tv/is-12/branches/"
-
-
-class NcReceiverMonitorProperties(Enum):
-    # NcStatusMonitor properties
-    OVERALL_STATUS = NcPropertyId({"level": 3, "index": 1})
-    OVERALL_STATUS_MESSAGE = NcPropertyId({"level": 3, "index": 2})
-    STATUS_REPORTING_DELAY = NcPropertyId({"level": 3, "index": 3})
-
-    # NcReceiverMonitor properties
-    LINK_STATUS = NcPropertyId({"level": 4, "index": 1})
-    LINK_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 2})
-    LINK_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 3})
-    CONNECTION_STATUS = NcPropertyId({"level": 4, "index": 4})
-    CONNECTION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 5})
-    CONNECTION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 6})
-    EXTERNAL_SYNCHRONIZATION_STATUS = NcPropertyId({"level": 4, "index": 7})
-    EXTERNAL_SYNCHRONIZATION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 8})
-    EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 9})
-    SYNCHRONIZATION_SOURCE_ID = NcPropertyId({"level": 4, "index": 10})
-    STREAM_STATUS = NcPropertyId({"level": 4, "index": 11})
-    STREAM_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 12})
-    STREAM_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 13})
-    AUTO_RESET_COUNTERS = NcPropertyId({"level": 4, "index": 14})
-
-
-class NcReceiverMonitorMethods(Enum):
-    GET_LOST_PACKET_COUNTERS = NcMethodId({"level": 4, "index": 1})
-    GET_LATE_PACKET_COUNTERS = NcMethodId({"level": 4, "index": 2})
-    RESET_COUNTERS = NcMethodId({"level": 4, "index": 3})
-
-
-class NcOverallStatus(IntEnum):
-    Inactive = 0
-    Healthy = 1
-    PartiallyHealthy = 2
-    Unhealthy = 3
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
-class NcLinkStatus(IntEnum):
-    AllUp = 1
-    SomeDown = 2
-    AllDown = 3
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
-class NcConnectionStatus(IntEnum):
-    Inactive = 0
-    Healthy = 1
-    PartiallyHealthy = 2
-    Unhealthy = 3
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
-class NcSynchronizationStatus(IntEnum):
-    NotUsed = 0
-    Healthy = 1
-    PartiallyHealthy = 2
-    Unhealthy = 3
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
-class NcStreamStatus(IntEnum):
-    Inactive = 0
-    Healthy = 1
-    PartiallyHealthy = 2
-    Unhealthy = 3
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
 
 
 class BCP0080101Test(GenericTest):
@@ -154,7 +66,6 @@ class BCP0080101Test(GenericTest):
         self.bcp008_utils = BCP008Utils(apis)
         self.is05_utils = IS05Utils(self.apis[CONN_API_KEY]["url"])
         self.node_url = apis[NODE_API_KEY]["url"]
-        self.ncp_url = apis[CONTROL_API_KEY]["url"]
         self.is04_receivers = []
         self.receiver_monitors = []
         self.mock_node = node
@@ -361,7 +272,7 @@ class BCP0080101Test(GenericTest):
             "/docs/Overview.html#"
         invalid_statuses = []
         for property_id, status in statuses.items():
-            if property_id == NcReceiverMonitorProperties.OVERALL_STATUS:
+            if property_id == NcStatusMonitorProperties.OVERALL_STATUS:
                 if NcOverallStatus(status) == NcOverallStatus.UNKNOWN:
                     invalid_statuses.append("overallStatus")
                     spec_section = "receiver-overall-status"
@@ -406,20 +317,20 @@ class BCP0080101Test(GenericTest):
 
         # Test Inactive states
         if statuses[NcReceiverMonitorProperties.CONNECTION_STATUS] == NcConnectionStatus.Inactive.value \
-                and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
+                and statuses[NcStatusMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
             self.check_overall_status_metadata.error = True
             self.check_overall_status_metadata.error_msg += \
                 "Overall Status expected to be Inactive when Connection Status is Inactive, " \
-                f"actual Overall Status {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name}" \
+                f"actual Overall Status {NcOverallStatus(statuses[NcStatusMonitorProperties.OVERALL_STATUS]).name}" \
                 " for Receiver Monitor, " \
                 f"oid={oid}, role path={role_path}; "
 
         if statuses[NcReceiverMonitorProperties.STREAM_STATUS] == NcStreamStatus.Inactive.value \
-                and statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
+                and statuses[NcStatusMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
             self.check_overall_status_metadata.error = True
             self.check_overall_status_metadata.error_msg += \
                 "Overall Status expected to be Inactive when Stream Status is Inactive, " \
-                f"actual Overall Status {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name}" \
+                f"actual Overall Status {NcOverallStatus(statuses[NcStatusMonitorProperties.OVERALL_STATUS]).name}" \
                 " for Receiver Monitor, " \
                 f"oid={oid}, role path={role_path}; "
 
@@ -427,12 +338,12 @@ class BCP0080101Test(GenericTest):
         if statuses[NcReceiverMonitorProperties.CONNECTION_STATUS] != NcConnectionStatus.Inactive.value \
                 and statuses[NcReceiverMonitorProperties.STREAM_STATUS] != NcStreamStatus.Inactive.value:
             least_healthy_state = max([status for property_id, status in statuses.items()
-                                       if property_id != NcReceiverMonitorProperties.OVERALL_STATUS])
-            if statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != least_healthy_state:
+                                       if property_id != NcStatusMonitorProperties.OVERALL_STATUS])
+            if statuses[NcStatusMonitorProperties.OVERALL_STATUS] != least_healthy_state:
                 self.check_overall_status_metadata.error = True
                 self.check_overall_status_metadata.error_msg += \
                     f"Expected Overall Status was {NcOverallStatus(least_healthy_state).name}, " \
-                    f"actual {NcOverallStatus(statuses[NcReceiverMonitorProperties.OVERALL_STATUS]).name} " \
+                    f"actual {NcOverallStatus(statuses[NcStatusMonitorProperties.OVERALL_STATUS]).name} " \
                     f"for Receiver Monitor, oid={oid}, " \
                     f"role path={role_path}; "
 
@@ -552,7 +463,7 @@ class BCP0080101Test(GenericTest):
             f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#deactivating-a-receiver"
 
-        status_properties = [NcReceiverMonitorProperties.OVERALL_STATUS,
+        status_properties = [NcStatusMonitorProperties.OVERALL_STATUS,
                              NcReceiverMonitorProperties.CONNECTION_STATUS,
                              NcReceiverMonitorProperties.STREAM_STATUS]
 
@@ -659,7 +570,7 @@ class BCP0080101Test(GenericTest):
         # generate status transitions
         status_reporting_delay = \
             self._get_property(test,
-                               NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
+                               NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
                                oid=monitor.oid,
                                role_path=monitor.role_path)
         self._patch_receiver(test, receiver_id, sdp_params)
@@ -725,7 +636,7 @@ class BCP0080101Test(GenericTest):
 
         sdp_params = self._make_receiver_sdp_params(test)
 
-        status_properties = [NcReceiverMonitorProperties.OVERALL_STATUS,
+        status_properties = [NcStatusMonitorProperties.OVERALL_STATUS,
                              NcReceiverMonitorProperties.LINK_STATUS,
                              NcReceiverMonitorProperties.CONNECTION_STATUS,
                              NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
@@ -754,7 +665,7 @@ class BCP0080101Test(GenericTest):
             # Set status reporting delay to the specification default
             status_reporting_delay = 3
             self._set_property(test,
-                               NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
+                               NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
                                status_reporting_delay,
                                oid=monitor.oid,
                                role_path=monitor.role_path)
@@ -770,7 +681,7 @@ class BCP0080101Test(GenericTest):
 
             receiver_id = touchpoint_resource.resource["id"]
 
-            if initial_statuses[NcReceiverMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
+            if initial_statuses[NcStatusMonitorProperties.OVERALL_STATUS] != NcOverallStatus.Inactive.value:
                 # This test depends on the receiver being inactive in the first instance
                 self._deactivate_receiver(test, receiver_id)
                 sleep(2.0)  # settling time
@@ -832,7 +743,7 @@ class BCP0080101Test(GenericTest):
         default_status_reporting_delay = 3
         for monitor in receiver_monitors:
             method_result = self.bcp008_utils.set_property(
-                test, NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
+                test, NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
                 default_status_reporting_delay,
                 oid=monitor.oid, role_path=monitor.role_path)
 
@@ -842,7 +753,7 @@ class BCP0080101Test(GenericTest):
                                  f"role path={monitor.role_path}")
 
             method_result = self.bcp008_utils.get_property(
-                test, NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
+                test, NcStatusMonitorProperties.STATUS_REPORTING_DELAY.value,
                 oid=monitor.oid, role_path=monitor.role_path)
 
             if not self._status_ok(method_result):
