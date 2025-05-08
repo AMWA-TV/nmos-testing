@@ -23,7 +23,7 @@ from time import sleep, time
 
 from ..GenericTest import GenericTest, NMOSTestException
 from ..IS05Utils import IS05Utils
-from ..IS12Utils import IS12Utils
+from ..BCP008Utils import BCP008Utils
 from ..MS05Utils import NcMethodId, NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos, \
     NcWorkerProperties
 from ..TestHelper import get_default_ip, get_mocks_hostname
@@ -151,7 +151,7 @@ class BCP0080101Test(GenericTest):
         apis[NODE_API_KEY].pop("raml", None)
         apis[CONN_API_KEY].pop("raml", None)
         GenericTest.__init__(self, apis, omit_paths, **kwargs)
-        self.is12_utils = IS12Utils(apis)
+        self.bcp008_utils = BCP008Utils(apis)
         self.is05_utils = IS05Utils(self.apis[CONN_API_KEY]["url"])
         self.node_url = apis[NODE_API_KEY]["url"]
         self.ncp_url = apis[CONTROL_API_KEY]["url"]
@@ -161,8 +161,8 @@ class BCP0080101Test(GenericTest):
         self.mock_node_base_url = ""
 
     def set_up_tests(self):
-        self.is12_utils.reset()
-        self.is12_utils.open_ncp_websocket()
+        self.bcp008_utils.reset()
+        self.bcp008_utils.open_ncp_websocket()
         super().set_up_tests()
 
         # Configure mock node url
@@ -184,7 +184,7 @@ class BCP0080101Test(GenericTest):
     def basics(self):
         results = super().basics()
         try:
-            results += self.is12_utils.auto_tests()
+            results += self.bcp008_utils.auto_tests()
         except NMOSTestException as e:
             results.append(e.args[0])
         except Exception as e:
@@ -193,7 +193,7 @@ class BCP0080101Test(GenericTest):
 
     def tear_down_tests(self):
         # Clean up Websocket resources
-        self.is12_utils.close_ncp_websocket()
+        self.bcp008_utils.close_ncp_websocket()
 
     def _status_ok(self, method_result):
         if not hasattr(method_result, 'status'):
@@ -205,7 +205,7 @@ class BCP0080101Test(GenericTest):
         if len(self.receiver_monitors):
             return self.receiver_monitors
 
-        device_model = self.is12_utils.query_device_model(test)
+        device_model = self.bcp008_utils.query_device_model(test)
 
         self.receiver_monitors = device_model.find_members_by_class_id(RECEIVER_MONITOR_CLASS_ID,
                                                                        include_derived=True,
@@ -292,7 +292,7 @@ class BCP0080101Test(GenericTest):
 
     def _get_property(self, test, property_id, oid, role_path):
         """Get a property and handle any error"""
-        method_result = self.is12_utils.get_property(test, property_id, oid=oid, role_path=role_path)
+        method_result = self.bcp008_utils.get_property(test, property_id, oid=oid, role_path=role_path)
 
         if not self._status_ok(method_result):
             raise NMOSTestException(test.FAIL(method_result.errorMessage))
@@ -301,7 +301,7 @@ class BCP0080101Test(GenericTest):
 
     def _set_property(self, test, property_id, value, oid, role_path):
         """Set a property and handle any error"""
-        method_result = self.is12_utils.set_property(test, property_id, value, oid=oid, role_path=role_path)
+        method_result = self.bcp008_utils.set_property(test, property_id, value, oid=oid, role_path=role_path)
 
         if not self._status_ok(method_result):
             raise NMOSTestException(test.FAIL(method_result.errorMessage))
@@ -544,7 +544,7 @@ class BCP0080101Test(GenericTest):
         sleep(1.0)  # Let receiver settle
 
         # Process time stamped notifications
-        notifications = self.is12_utils.get_notifications()
+        notifications = self.bcp008_utils.get_notifications()
 
         deactivate_receiver_notifications = [n for n in notifications if n.received_time >= start_time]
 
@@ -617,7 +617,7 @@ class BCP0080101Test(GenericTest):
         arguments = {}
 
         # Invoke ResetCounters
-        method_result = self.is12_utils.invoke_method(
+        method_result = self.bcp008_utils.invoke_method(
             test,
             NcReceiverMonitorMethods.RESET_COUNTERS.value,
             arguments,
@@ -721,7 +721,7 @@ class BCP0080101Test(GenericTest):
         else:
             return
 
-        receiver_monitors = IS12Utils.sampled_list(all_receiver_monitors)
+        receiver_monitors = BCP008Utils.sampled_list(all_receiver_monitors)
 
         sdp_params = self._make_receiver_sdp_params(test)
 
@@ -733,7 +733,7 @@ class BCP0080101Test(GenericTest):
 
         for monitor in receiver_monitors:
 
-            response = self.is12_utils.update_subscriptions(test, [monitor.oid])
+            response = self.bcp008_utils.update_subscriptions(test, [monitor.oid])
 
             if not isinstance(response, list):
                 raise NMOSTestException(
@@ -749,7 +749,7 @@ class BCP0080101Test(GenericTest):
                                                          oid=monitor.oid))
                                      for property_id in status_properties])
 
-            self.is12_utils.reset_notifications()
+            self.bcp008_utils.reset_notifications()
 
             # Set status reporting delay to the specification default
             status_reporting_delay = 3
@@ -793,7 +793,7 @@ class BCP0080101Test(GenericTest):
             self._check_reset_counters(test, monitor)
 
             # Now process historic, time stamped, notifications
-            notifications = self.is12_utils.get_notifications()
+            notifications = self.bcp008_utils.get_notifications()
 
             # Check statuses before receiver patched
             status_notifications = [n for n in notifications if n.received_time < start_time]
@@ -831,7 +831,7 @@ class BCP0080101Test(GenericTest):
 
         default_status_reporting_delay = 3
         for monitor in receiver_monitors:
-            method_result = self.is12_utils.set_property(
+            method_result = self.bcp008_utils.set_property(
                 test, NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
                 default_status_reporting_delay,
                 oid=monitor.oid, role_path=monitor.role_path)
@@ -841,7 +841,7 @@ class BCP0080101Test(GenericTest):
                                  f"oid={monitor.oid}, "
                                  f"role path={monitor.role_path}")
 
-            method_result = self.is12_utils.get_property(
+            method_result = self.bcp008_utils.get_property(
                 test, NcReceiverMonitorProperties.STATUS_REPORTING_DELAY.value,
                 oid=monitor.oid, role_path=monitor.role_path)
 
@@ -979,7 +979,7 @@ class BCP0080101Test(GenericTest):
         arguments = {}  # empty arguments
 
         for monitor in receiver_monitors:
-            method_result = self.is12_utils.invoke_method(
+            method_result = self.bcp008_utils.invoke_method(
                 test,
                 method_id,
                 arguments,
@@ -998,7 +998,7 @@ class BCP0080101Test(GenericTest):
                                  f"role path={monitor.role_path}: ", spec_link)
 
             for counter in method_result.value:
-                self.is12_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
+                self.bcp008_utils.reference_datatype_schema_validate(test, counter, "NcCounter")
 
         return test.PASS()
 
@@ -1110,11 +1110,11 @@ class BCP0080101Test(GenericTest):
                                  f"for Receiver Monitor, oid={monitor.oid}, "
                                  f"role path={monitor.role_path}.", spec_link)
 
-            method_result = self.is12_utils.set_property(test,
-                                                         NcWorkerProperties.ENABLED.value,
-                                                         False,
-                                                         oid=monitor.oid,
-                                                         role_path=monitor.role_path)
+            method_result = self.bcp008_utils.set_property(test,
+                                                           NcWorkerProperties.ENABLED.value,
+                                                           False,
+                                                           oid=monitor.oid,
+                                                           role_path=monitor.role_path)
 
             if method_result.status == NcMethodStatus.OK:
                 return test.FAIL("Receiver Monitors MUST NOT allow changes to the enabled property "
