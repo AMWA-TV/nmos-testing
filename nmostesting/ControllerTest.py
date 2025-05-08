@@ -12,65 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import time
 import json
 import uuid
-import inspect
 import random
 import textwrap
 from copy import deepcopy
 from urllib.parse import urlparse
 from dnslib import QTYPE
-from threading import Event
 
 from .GenericTest import GenericTest, NMOSTestException, NMOSInitException
 from . import Config as CONFIG
 from .TestHelper import get_default_ip, get_mocks_hostname
 from .TestResult import Test
 from .NMOSUtils import NMOSUtils
+from .TestingFacadeUtils import TestingFacadeUtils, TestingFacadeException
 
-from flask import Flask, Blueprint, request
-
-CONTROLLER_TEST_API_KEY = "testquestion"
+TESTING_FACADE_API_KEY = "testquestion"
 QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
 REG_API_KEY = "registration"
-
-CALLBACK_ENDPOINT = "/x-nmos/testanswer/<version>"
-
-# asyncio queue for passing Testing Façade answer responses back to tests
-_event_loop = asyncio.new_event_loop()
-asyncio.set_event_loop(_event_loop)
-_answer_response_queue = asyncio.Queue()
-
-# use exit Event to quit tests early that involve waiting for senders/connections
-exitTestEvent = Event()
-
-app = Flask(__name__)
-TEST_API = Blueprint('test_api', __name__)
-
-
-class TestingFacadeException(Exception):
-    """Exception thrown due to comms or data errors between NMOS Testing and Testing Façade"""
-    pass
-
-
-@TEST_API.route(CALLBACK_ENDPOINT, methods=['POST'])
-def receive_answer(version):
-
-    if request.method == 'POST':
-        if 'question_id' not in request.json:
-            return 'Invalid JSON received', 400
-
-        answer_json = request.json
-        answer_json['time_received'] = time.time()
-        _event_loop.call_soon_threadsafe(_answer_response_queue.put_nowait, answer_json)
-
-        # Interrupt any 'sleeps' that are still active
-        exitTestEvent.set()
-
-    return '', 202
 
 
 class ControllerTest(GenericTest):
@@ -78,21 +39,14 @@ class ControllerTest(GenericTest):
     Testing initial set up of new test suite for controller testing
     """
     def __init__(self, apis, registries, node, dns_server, auths, disable_auto=True, **kwargs):
-        # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
-        apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
+        # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
+        apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
         # Ensure registration scope is added to JWT to allow authenticated
         # registration of mock resources with secure mock registry
         if CONFIG.ENABLE_AUTH:
             apis[REG_API_KEY] = {}
-        if CONFIG.ENABLE_HTTPS:
-            # Comms with Testing Facade are http only
-            if apis[CONTROLLER_TEST_API_KEY]["base_url"] is not None:
-                apis[CONTROLLER_TEST_API_KEY]["base_url"] \
-                    = apis[CONTROLLER_TEST_API_KEY]["base_url"].replace("https", "http")
-            if apis[CONTROLLER_TEST_API_KEY]["url"] is not None:
-                apis[CONTROLLER_TEST_API_KEY]["url"] \
-                    = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
         GenericTest.__init__(self, apis, auths=auths, disable_auto=disable_auto, **kwargs)
+        self.testing_facade_utils = TestingFacadeUtils(apis)
         self.primary_registry = registries[1] if registries else None
         self.node = node
         self.dns_server = dns_server
@@ -109,10 +63,6 @@ class ControllerTest(GenericTest):
             if QUERY_API_KEY in apis and "version" in self.apis[QUERY_API_KEY] else "v1.3"
         self.connection_api_version = self.apis[CONN_API_KEY]["version"] \
             if CONN_API_KEY in apis and "version" in self.apis[CONN_API_KEY] else "v1.1"
-        self.qa_api_version = self.apis[CONTROLLER_TEST_API_KEY]["version"] \
-            if CONTROLLER_TEST_API_KEY in apis and "version" in self.apis[CONTROLLER_TEST_API_KEY] else "v1.0"
-        self.answer_uri = "http://" + get_default_ip() + ":" + str(CONFIG.PORT_BASE) + \
-            CALLBACK_ENDPOINT.replace('<version>', self.qa_api_version)
 
     def set_up_tests(self):
         test = Test("Test setup", "set_up_tests")
@@ -150,8 +100,7 @@ class ControllerTest(GenericTest):
         if self.primary_registry:
             self.primary_registry.disable()
 
-        # Reset the state of the Testing Façade
-        self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json={"clear": "True"})
+        self.testing_facade_utils.reset()
 
         if self.dns_server:
             self.dns_server.reset()
@@ -174,96 +123,7 @@ class ControllerTest(GenericTest):
 
         self.post_tests_message()
 
-    async def get_answer_response(self, timeout):
-        # Add API processing time to specified timeout
-        # Otherwise, if timeout is None then disable timeout mechanism
-        timeout = timeout + (2 * CONFIG.API_PROCESSING_TIMEOUT) if timeout is not None else None
-
-        return await asyncio.wait_for(_answer_response_queue.get(), timeout=timeout)
-
-    def _send_testing_facade_questions(
-            self,
-            test_method_name,
-            question,
-            answers,
-            test_type,
-            multipart_test=None,
-            metadata=None):
-        """
-        Send question and answers to Testing Façade
-        question:   text to be presented to Test User
-        answers:    list of all possible answers
-        test_type:  "single_choice" - one and only one answer
-                    "multi_choice" - multiple answers
-                    "action" - Test User asked to click button
-        multipart_test: indicates test uses multiple questions. Default None, should be increasing
-                    integers with each subsequent call within the same test
-        metadata: Test details to assist fully automated testing
-        """
-
-        method = getattr(self, test_method_name)
-
-        timeout = CONFIG.CONTROLLER_TESTING_TIMEOUT
-
-        question_id = test_method_name if not multipart_test else test_method_name + '_' + str(multipart_test)
-
-        json_out = {
-            "test_type": test_type,
-            "question_id": question_id,
-            "name": test_method_name,
-            "description": inspect.getdoc(method),
-            "question": question,
-            "answers": answers,
-            "timeout": timeout,
-            "answer_uri": self.answer_uri,
-            "metadata": metadata
-        }
-        # Send questions to Testing Façade API endpoint then wait
-        valid, response = self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json=json_out)
-
-        if not valid or response.status_code != 202:
-            raise TestingFacadeException("Problem contacting Testing Façade: " + response.text if valid else response)
-
-        return json_out
-
-    def _wait_for_testing_facade(self, question_id, test_type):
-
-        # Wait for answer response or question timeout in seconds. A timeout of None will wait indefinitely
-        timeout = CONFIG.CONTROLLER_TESTING_TIMEOUT
-
-        try:
-            answer_response = _event_loop.run_until_complete(self.get_answer_response(timeout))
-        except asyncio.TimeoutError:
-            raise TestingFacadeException("Test timed out")
-
-        # Basic integrity check for response json
-        if answer_response['question_id'] is None:
-            raise TestingFacadeException("Integrity check failed: result format error: "
-                                         + json.dump(answer_response))
-
-        if answer_response['question_id'] != question_id:
-            raise TestingFacadeException(
-                "Integrity check failed: cannot compare result of " + question_id +
-                " with expected result for " + answer_response['question_id'])
-
-        # Multi_choice question submitted without any answers should be an empty list
-        if test_type == 'multi_choice' and answer_response['answer_response'] is None:
-            answer_response['answer_response'] = []
-
-        return answer_response
-
-    def _invoke_testing_facade(self, question, answers, test_type,
-                               multipart_test=None, metadata=None, test_method_name=None):
-        # Get the name of the calling test method to use as an identifier
-        test_method_name = test_method_name if test_method_name \
-            else inspect.currentframe().f_back.f_code.co_name
-
-        json_out = self._send_testing_facade_questions(
-            test_method_name, question, answers, test_type, multipart_test, metadata)
-
-        return self._wait_for_testing_facade(json_out['question_id'], test_type)
-
-    def _generate_random_indices(self, index_range, min_index_count=2, max_index_count=4):
+    def generate_random_indices(self, index_range, min_index_count=2, max_index_count=4):
         """
         index_range: number of possible indices
         min_index_count, max_index_count: Minimum, maximum number of indices to be returned.
@@ -482,7 +342,7 @@ class ControllerTest(GenericTest):
         sender_data = self._create_sender_json(sender)
         self.post_resource(test, "sender", sender_data, codes=codes, fail=fail)
 
-    def _delete_sender(self, test, sender):
+    def delete_sender(self, test, sender):
         del_url = self.mock_registry_base_url + 'x-nmos/registration/v1.3/resource/senders/' + sender['id']
 
         valid, r = self.do_request("DELETE", del_url)
@@ -588,7 +448,7 @@ class ControllerTest(GenericTest):
                    """)
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # pre_test_introducton timed out
@@ -607,7 +467,7 @@ class ControllerTest(GenericTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # post_test_introducton timed out
