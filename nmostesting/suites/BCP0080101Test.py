@@ -139,6 +139,81 @@ class BCP0080101Test(BCP008Test):
         return sdp_params
 
     # Overloaded function to get Receiver Monitors
+    # Spec link getters
+    def get_touchpoint_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#touchpoints-and-is-04-receivers"
+
+    def get_transition_counters_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#receiver-status-transition-counters"
+
+    def get_reporting_delay_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#receiver-status-reporting-delay"
+
+    def get_deactivating_monitor_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#deactivating-a-receiver"
+
+    def get_sync_source_change_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#synchronization-source-change"
+
+    def get_woker_inheritance_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#ncworker-inheritance"
+
+    def get_counter_method_spec_link(self):
+        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#late-and-lost-packets"
+
+    # Status property and method IDs
+    def get_status_properties(self):
+        return [NcStatusMonitorProperties.OVERALL_STATUS,
+                NcReceiverMonitorProperties.LINK_STATUS,
+                NcReceiverMonitorProperties.CONNECTION_STATUS,
+                NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
+                NcReceiverMonitorProperties.STREAM_STATUS]
+
+    def get_connection_status_property(self):
+        return NcReceiverMonitorProperties.CONNECTION_STATUS
+
+    def get_connection_status_transition_counter_property(self):
+        return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER
+
+    def get_inactiveable_statuses(self):
+        return [NcStatusMonitorProperties.OVERALL_STATUS,
+                NcReceiverMonitorProperties.CONNECTION_STATUS,
+                NcReceiverMonitorProperties.STREAM_STATUS]
+
+    def get_auto_reset_counter_property(self):
+        return NcReceiverMonitorProperties.AUTO_RESET_COUNTERS
+
+    def get_sync_source_id_property(self):
+        return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID
+
+    def get_transition_counter_properties(self):
+        # Ignore late and lost packets in this check:
+        # late and lost packet counters increment independantly of these tests and therefore
+        # cannot be predicted or their value guaranteed at any given time
+        return {"LinkStatusTransitionCounter":
+                NcReceiverMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
+                "ConnectionStatusTransitionCounter":
+                NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER,
+                "ExternalSynchronizationStatusTransitionCounter":
+                NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER,
+                "StreamStatusTransitionCounter":
+                NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER}
+
+    def get_counter_method_ids(self):
+        return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS,
+                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS]
+
+    def get_auto_reset_counter_method(self):
+        return NcReceiverMonitorMethods.RESET_COUNTERS
+
+    # Resource
     def get_monitors(self, test):
         if len(self.resource_monitors):
             return self.resource_monitors
@@ -152,33 +227,8 @@ class BCP0080101Test(BCP008Test):
 
         return self.resource_monitors
 
-    def get_status_properties(self):
-        return [NcStatusMonitorProperties.OVERALL_STATUS,
-                NcReceiverMonitorProperties.LINK_STATUS,
-                NcReceiverMonitorProperties.CONNECTION_STATUS,
-                NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
-                NcReceiverMonitorProperties.STREAM_STATUS]
-
-    def get_touchpoint_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#touchpoints-and-is-04-receivers"
-
     def get_touchpoint_resource_type(self):
         return "receiver"
-
-    def get_transition_counters_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#receiver-status-transition-counters"
-
-    def is_valid_resource(self, test, touchpoint_resource):
-
-        if not self.sdp_params:
-            self.sdp_params = self._make_receiver_sdp_params(test)
-
-        if touchpoint_resource is None or touchpoint_resource.resource["id"] not in self.sdp_params:
-            return False
-
-        return True
 
     def patch_resource(self, test, receiver_id):
         url = "single/receivers/{}/staged".format(receiver_id)
@@ -190,6 +240,26 @@ class BCP0080101Test(BCP008Test):
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, activate_json)
         if not valid:
             raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
+
+    def deactivate_resource(self, test, resource_id):
+        url = "single/receivers/{}/staged".format(resource_id)
+        deactivate_json = {"master_enable": False, 'sender_id': None,
+                           "activation": {"mode": "activate_immediate"}}
+
+        valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, deactivate_json)
+        if not valid:
+            raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
+
+    # Validation
+    def is_valid_resource(self, test, touchpoint_resource):
+
+        if not self.sdp_params:
+            self.sdp_params = self._make_receiver_sdp_params(test)
+
+        if touchpoint_resource is None or touchpoint_resource.resource["id"] not in self.sdp_params:
+            return False
+
+        return True
 
     def check_overall_status(self, statuses, oid, role_path):
         # Devices MUST follow the rules listed below when mapping specific domain statuses
@@ -272,72 +342,6 @@ class BCP0080101Test(BCP008Test):
             self.check_status_values_valid_metadata.link = f"{spec_link_root}{spec_section}"
         else:
             self.check_status_values_valid_metadata.checked = True
-
-    def get_connection_status_property(self):
-        return NcReceiverMonitorProperties.CONNECTION_STATUS
-
-    def get_reporting_delay_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#receiver-status-reporting-delay"
-
-    def get_connection_status_transition_counter_property(self):
-        return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER
-
-    def deactivate_resource(self, test, resource_id):
-        url = "single/receivers/{}/staged".format(resource_id)
-        deactivate_json = {"master_enable": False, 'sender_id': None,
-                           "activation": {"mode": "activate_immediate"}}
-
-        valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, deactivate_json)
-        if not valid:
-            raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
-
-    def get_deactivating_monitor_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#deactivating-a-receiver"
-
-    def get_inactiveable_statuses(self):
-        return [NcStatusMonitorProperties.OVERALL_STATUS,
-                NcReceiverMonitorProperties.CONNECTION_STATUS,
-                NcReceiverMonitorProperties.STREAM_STATUS]
-
-    def get_auto_reset_counter_property(self):
-        return NcReceiverMonitorProperties.AUTO_RESET_COUNTERS
-
-    def get_sync_source_change_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#synchronization-source-change"
-
-    def get_sync_source_id_property(self):
-        return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID
-
-    def get_woker_inheritance_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#ncworker-inheritance"
-
-    def get_counter_method_spec_link(self):
-        return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#late-and-lost-packets"
-
-    def get_counter_method_ids(self):
-        return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS,
-                NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS]
-
-    def get_transition_counter_properties(self):
-        # Ignore late and lost packets in this check:
-        # late and lost packet counters increment independantly of these tests and therefore
-        # cannot be predicted or their value guaranteed at any given time
-        return {"LinkStatusTransitionCounter":
-                NcReceiverMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
-                "ConnectionStatusTransitionCounter":
-                NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER,
-                "ExternalSynchronizationStatusTransitionCounter":
-                NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER,
-                "StreamStatusTransitionCounter":
-                NcReceiverMonitorProperties.STREAM_STATUS_TRANSITION_COUNTER}
-
-    def get_auto_reset_counter_method(self):
-        return NcReceiverMonitorMethods.RESET_COUNTERS
 
     # BCP-008-01 only tests
 

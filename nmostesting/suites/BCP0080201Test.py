@@ -55,6 +55,80 @@ class BCP0080201Test(BCP008Test):
         BCP008Test.__init__(self, apis, **kwargs)
 
     # Overloaded function to get Sender Monitors
+    # Spec link getters
+    def get_touchpoint_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#touchpoints-and-is-04-receivers"
+
+    def get_transition_counters_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#sender-status-transition-counters"
+
+    def get_reporting_delay_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#sender-status-reporting-delay"
+
+    def get_deactivating_monitor_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#deactivating-a-sender"
+
+    def get_sync_source_change_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#synchronization-source-change"
+
+    def get_woker_inheritance_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#ncworker-inheritance"
+
+    def get_counter_method_spec_link(self):
+        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
+            "/docs/Overview.html#transmission-error-counters"
+
+    # Status property and method IDs
+    def get_status_properties(self):
+        return [NcStatusMonitorProperties.OVERALL_STATUS,
+                NcSenderMonitorProperties.LINK_STATUS,
+                NcSenderMonitorProperties.TRANSMISSION_STATUS,
+                NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
+                NcSenderMonitorProperties.ESSENCE_STATUS]
+
+    def get_connection_status_property(self):
+        return NcSenderMonitorProperties.TRANSMISSION_STATUS
+
+    def get_connection_status_transition_counter_property(self):
+        return NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER
+
+    def get_inactiveable_statuses(self):
+        return [NcStatusMonitorProperties.OVERALL_STATUS,
+                NcSenderMonitorProperties.TRANSMISSION_STATUS,
+                NcSenderMonitorProperties.ESSENCE_STATUS]
+
+    def get_auto_reset_counter_property(self):
+        return NcSenderMonitorProperties.AUTO_RESET_COUNTERS
+
+    def get_sync_source_id_property(self):
+        return NcSenderMonitorProperties.SYNCHRONIZATION_SOURCE_ID
+
+    def get_transition_counter_properties(self):
+        # Ignore tranmission error counter in this check:
+        # tranmission error counter increments independantly of these tests and therefore
+        # cannot be predicted or its value guaranteed at any given time
+        return {"LinkStatusTransitionCounter":
+                NcSenderMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
+                "TransmissionStatusTransitionCounter":
+                NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER,
+                "ExternalSynchronizationStatusTransitionCounter":
+                NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER,
+                "EssenceStatusTransitionCounter":
+                NcSenderMonitorProperties.ESSENCE_STATUS_TRANSITION_COUNTER}
+
+    def get_counter_method_ids(self):
+        return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS]
+
+    def get_auto_reset_counter_method(self):
+        return NcSenderMonitorMethods.RESET_COUNTERS
+
+    # Resource
     def get_monitors(self, test):
         if len(self.resource_monitors):
             return self.resource_monitors
@@ -68,36 +142,8 @@ class BCP0080201Test(BCP008Test):
 
         return self.resource_monitors
 
-    def get_status_properties(self):
-        return [NcStatusMonitorProperties.OVERALL_STATUS,
-                NcSenderMonitorProperties.LINK_STATUS,
-                NcSenderMonitorProperties.TRANSMISSION_STATUS,
-                NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
-                NcSenderMonitorProperties.ESSENCE_STATUS]
-
-    def get_touchpoint_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#touchpoints-and-is-04-receivers"
-
     def get_touchpoint_resource_type(self):
         return "sender"
-
-    def get_transition_counters_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#sender-status-transition-counters"
-
-    def is_valid_resource(self, test, touchpoint_resource):
-        # Check it's an RTP resource
-        if touchpoint_resource is not None:
-            url = "single/senders/{}/transporttype".format(touchpoint_resource.resource["id"])
-
-            valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
-            if not valid:
-                return False
-
-            return response == "urn:x-nmos:transport:rtp"
-
-        return False
 
     def patch_resource(self, test, receiver_id):
         url = "single/senders/{}/staged".format(receiver_id)
@@ -122,6 +168,29 @@ class BCP0080201Test(BCP008Test):
         valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, activate_json)
         if not valid:
             raise NMOSTestException(test.FAIL("Error patching Sender " + str(response)))
+
+    def deactivate_resource(self, test, resource_id):
+        url = "single/senders/{}/staged".format(resource_id)
+        deactivate_json = {"master_enable": False, 'sender_id': None,
+                           "activation": {"mode": "activate_immediate"}}
+
+        valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, deactivate_json)
+        if not valid:
+            raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
+
+    # Validation
+    def is_valid_resource(self, test, touchpoint_resource):
+        # Check it's an RTP resource
+        if touchpoint_resource is not None:
+            url = "single/senders/{}/transporttype".format(touchpoint_resource.resource["id"])
+
+            valid, response = self.is05_utils.checkCleanRequestJSON("GET", url)
+            if not valid:
+                return False
+
+            return response == "urn:x-nmos:transport:rtp"
+
+        return False
 
     def check_overall_status(self, statuses, oid, role_path):
         # Devices MUST follow the rules listed below when mapping specific domain statuses
@@ -204,68 +273,3 @@ class BCP0080201Test(BCP008Test):
             self.check_status_values_valid_metadata.link = f"{spec_link_root}{spec_section}"
         else:
             self.check_status_values_valid_metadata.checked = True
-
-    def get_connection_status_property(self):
-        return NcSenderMonitorProperties.TRANSMISSION_STATUS
-
-    def get_reporting_delay_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#sender-status-reporting-delay"
-
-    def get_connection_status_transition_counter_property(self):
-        return NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER
-
-    def deactivate_resource(self, test, resource_id):
-        url = "single/senders/{}/staged".format(resource_id)
-        deactivate_json = {"master_enable": False, 'sender_id': None,
-                           "activation": {"mode": "activate_immediate"}}
-
-        valid, response = self.is05_utils.checkCleanRequestJSON("PATCH", url, deactivate_json)
-        if not valid:
-            raise NMOSTestException(test.FAIL("Error patching Receiver " + str(response)))
-
-    def get_deactivating_monitor_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#deactivating-a-sender"
-
-    def get_inactiveable_statuses(self):
-        return [NcStatusMonitorProperties.OVERALL_STATUS,
-                NcSenderMonitorProperties.TRANSMISSION_STATUS,
-                NcSenderMonitorProperties.ESSENCE_STATUS]
-
-    def get_auto_reset_counter_property(self):
-        return NcSenderMonitorProperties.AUTO_RESET_COUNTERS
-
-    def get_sync_source_change_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#synchronization-source-change"
-
-    def get_sync_source_id_property(self):
-        return NcSenderMonitorProperties.SYNCHRONIZATION_SOURCE_ID
-
-    def get_woker_inheritance_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#ncworker-inheritance"
-
-    def get_counter_method_spec_link(self):
-        return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
-            "/docs/Overview.html#transmission-error-counters"
-
-    def get_counter_method_ids(self):
-        return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS]
-
-    def get_transition_counter_properties(self):
-        # Ignore tranmission error counter in this check:
-        # tranmission error counter increments independantly of these tests and therefore
-        # cannot be predicted or its value guaranteed at any given time
-        return {"LinkStatusTransitionCounter":
-                NcSenderMonitorProperties.LINK_STATUS_TRANSITION_COUNTER,
-                "TransmissionStatusTransitionCounter":
-                NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER,
-                "ExternalSynchronizationStatusTransitionCounter":
-                NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER,
-                "EssenceStatusTransitionCounter":
-                NcSenderMonitorProperties.ESSENCE_STATUS_TRANSITION_COUNTER}
-
-    def get_auto_reset_counter_method(self):
-        return NcSenderMonitorMethods.RESET_COUNTERS

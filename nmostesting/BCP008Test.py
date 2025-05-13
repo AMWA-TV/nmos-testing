@@ -152,7 +152,8 @@ class BCP008Test(GenericTest):
 
         self.testable_resources_found = False
         # Initialize cached test results
-        self.check_connection_status_metadata = BCP008Test.TestMetadata()
+        self.check_activation_metadata = BCP008Test.TestMetadata()
+        self.check_transition_to_unhealthy_metadata = BCP008Test.TestMetadata()
         self.check_touchpoint_metadata = BCP008Test.TestMetadata()
         self.check_overall_status_metadata = BCP008Test.TestMetadata()
         self.check_status_values_valid_metadata = BCP008Test.TestMetadata()
@@ -183,58 +184,20 @@ class BCP008Test(GenericTest):
             or method_result.status == NcMethodStatus.PropertyDeprecated
 
     # Overridden functions specialized in derived classes
-    def get_monitors(self, test):
-        pass
-
-    def get_status_properties(self):
-        pass
-
+    # Spec link getters
     def get_touchpoint_spec_link(self):
-        pass
-
-    def get_touchpoint_resource_type(self):
         pass
 
     def get_transition_counters_spec_link(self):
         pass
 
-    def is_valid_resource(self, touchpoint_resource):
-        pass
-
-    def patch_resource(self, test, resource_id):
-        pass
-
-    def check_overall_status(self, statuses, oid, role_path):
-        pass
-
-    def validate_status_values(self, statuses, oid, role_path):
-        pass
-
-    def get_connection_status_property(self):
-        pass
-
     def get_reporting_delay_spec_link(self):
-        pass
-
-    def get_connection_status_transition_counter_property(self):
-        pass
-
-    def deactivate_resource(self, test, resource_id):
         pass
 
     def get_deactivating_monitor_spec_link(self):
         pass
 
-    def get_inactiveable_statuses(self):
-        pass
-
-    def get_auto_reset_counter_property(self):
-        pass
-
     def get_sync_source_change_spec_link(self):
-        pass
-
-    def get_sync_source_id_property(self):
         pass
 
     def get_woker_inheritance_spec_link(self):
@@ -243,13 +206,55 @@ class BCP008Test(GenericTest):
     def get_counter_method_spec_link(self):
         pass
 
-    def get_counter_method_ids(self):
+    # Status property and method IDs
+    def get_status_properties(self):
+        pass
+
+    def get_connection_status_property(self):
+        pass
+
+    def get_connection_status_transition_counter_property(self):
+        pass
+
+    def get_inactiveable_statuses(self):
+        pass
+
+    def get_auto_reset_counter_property(self):
+        pass
+
+    def get_sync_source_id_property(self):
         pass
 
     def get_transition_counter_properties(self):
         pass
 
+    def get_counter_method_ids(self):
+        pass
+
     def get_auto_reset_counter_method(self):
+        pass
+
+    # Resource
+    def get_monitors(self, test):
+        pass
+
+    def get_touchpoint_resource_type(self):
+        pass
+
+    def patch_resource(self, test, resource_id):
+        pass
+
+    def deactivate_resource(self, test, resource_id):
+        pass
+
+    # Validation
+    def is_valid_resource(self, touchpoint_resource):
+        pass
+
+    def check_overall_status(self, statuses, oid, role_path):
+        pass
+
+    def validate_status_values(self, statuses, oid, role_path):
         pass
 
     def _get_property(self, test, property_id, oid, role_path):
@@ -349,11 +354,11 @@ class BCP008Test(GenericTest):
                 if n.eventData.propertyId == connection_status_property.value
                 and n.received_time >= start_time]
 
-        self.check_connection_status_metadata.link = self.get_reporting_delay_spec_link()
+        self.check_activation_metadata.link = self.get_reporting_delay_spec_link()
 
         if len(connection_status_notifications) == 0:
-            self.check_connection_status_metadata.error = True
-            self.check_connection_status_metadata.error_msg += \
+            self.check_activation_metadata.error = True
+            self.check_activation_metadata.error_msg += \
                 "No status notifications received for Monitor, " \
                 f"oid={monitor.oid}, role path={monitor.role_path}; "
             return
@@ -361,8 +366,8 @@ class BCP008Test(GenericTest):
         # Check that the monitor transitioned to healthy
         if len(connection_status_notifications) > 0 \
                 and connection_status_notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
-            self.check_connection_status_metadata.error = True
-            self.check_connection_status_metadata.error_msg += \
+            self.check_activation_metadata.error = True
+            self.check_activation_metadata.error_msg += \
                 "Expect status to transition to healthy for Monitor, " \
                 f"oid={monitor.oid}, role path={monitor.role_path}; "
 
@@ -371,22 +376,18 @@ class BCP008Test(GenericTest):
         if len(connection_status_notifications) > 1 \
                 and connection_status_notifications[1].eventData.value != NcConnectionStatus.Inactive.value \
                 and connection_status_notifications[1].received_time < start_time + status_reporting_delay:
-            self.check_connection_status_metadata.error = True
-            self.check_connection_status_metadata.error_msg += \
+            self.check_activation_metadata.error = True
+            self.check_activation_metadata.error_msg += \
                 "Expect status to remain healthy for at least the status reporting delay for Monitor, " \
                 f"oid={monitor.oid}, role path={monitor.role_path}; "
 
         # There is no *actual* stream so we expect connection to transition
         # to a less healthy state after the status reporting delay
         # i.e. expecting transition to healthy and then to less healthy (at least 2 transitions)
-        if len(connection_status_notifications) < 2:
-            self.check_connection_status_metadata.error = True
-            self.check_connection_status_metadata.error_msg += \
-                "Expect status to transition to a less healthy state after " \
-                "status reporting delay for Monitor, " \
-                f"oid={monitor.oid}, role path={monitor.role_path}; "
+        if len(connection_status_notifications) > 1:
+            self.check_transition_to_unhealthy_metadata.checked = True
 
-        self.check_connection_status_metadata.checked = True
+        self.check_activation_metadata.checked = True
 
     def _check_connection_status_transition_counter(self, notifications):
 
@@ -500,7 +501,7 @@ class BCP008Test(GenericTest):
 
     def _check_monitor_status_changes(self, test):
 
-        if self.check_connection_status_metadata.checked:
+        if self.check_activation_metadata.checked:
             return
 
         all_monitors = self.get_monitors(test)
@@ -736,21 +737,34 @@ class BCP008Test(GenericTest):
         if not self.testable_resources_found:
             return test.UNCLEAR("Unable to find any testable Monitors")
 
-        if self.check_connection_status_metadata.error:
-            return test.FAIL(self.check_connection_status_metadata.error_msg,
-                             self.check_connection_status_metadata.link)
+        if self.check_activation_metadata.error:
+            return test.FAIL(self.check_activation_metadata.error_msg,
+                             self.check_activation_metadata.link)
 
-        if not self.check_connection_status_metadata.checked:
+        if not self.check_activation_metadata.checked:
             return test.UNCLEAR("Unable to test")
 
         return test.PASS()
 
     def test_03(self, test):
+        """Transition to Non-healthy states at activation"""
+
+        self._check_monitor_status_changes(test)
+
+        if not self.testable_resources_found:
+            return test.UNCLEAR("Unable to find any testable Monitors")
+
+        if not self.check_transition_to_unhealthy_metadata.checked:
+            return test.MANUAL("Check by manually forcing an error condition")
+
+        return test.PASS()
+
+    def test_04(self, test):
         """Monitor delays transition to more healthy states by status reporting delay"""
 
         return test.MANUAL("Check by manually forcing an error condition")
 
-    def test_04(self, test):
+    def test_05(self, test):
         """Transitions to less healthy states are counted"""
 
         self._check_monitor_status_changes(test)
@@ -759,11 +773,11 @@ class BCP008Test(GenericTest):
             return test.UNCLEAR("Unable to find any testable Monitors")
 
         if not self.check_transitions_counted_metadata.checked:
-            return test.MANUAL("Check by manually forcing an error condition.")
+            return test.MANUAL("Check by manually forcing an error condition")
 
         return test.PASS()
 
-    def test_05(self, test):
+    def test_06(self, test):
         """ResetCounters method resets status transition counters"""
 
         self._check_monitor_status_changes(test)
@@ -780,7 +794,7 @@ class BCP008Test(GenericTest):
 
         return test.PASS()
 
-    def test_06(self, test):
+    def test_07(self, test):
         """autoResetCounters property set to TRUE resets status transition counters on activation"""
 
         self._check_monitor_status_changes(test)
@@ -793,11 +807,11 @@ class BCP008Test(GenericTest):
                              self.check_auto_reset_counters_metadata.link)
 
         if not self.check_auto_reset_counters_metadata.checked:
-            return test.MANUAL("Check autoResetCounters property manually.")
+            return test.MANUAL("Check autoResetCounters property manually")
 
         return test.PASS()
 
-    def test_07(self, test):
+    def test_08(self, test):
         """Overall status is correctly mapped from domain statuses"""
 
         self._check_monitor_status_changes(test)
@@ -814,7 +828,7 @@ class BCP008Test(GenericTest):
 
         return test.PASS()
 
-    def test_08(self, test):
+    def test_09(self, test):
         """Status values are valid"""
 
         self._check_monitor_status_changes(test)
@@ -831,7 +845,7 @@ class BCP008Test(GenericTest):
 
         return test.PASS()
 
-    def test_09(self, test):
+    def test_10(self, test):
         """Counter methods are implemented"""
         spec_link = self.get_counter_method_spec_link()
 
@@ -852,7 +866,7 @@ class BCP008Test(GenericTest):
         """Monitor transitions to PartiallyHealthy on synchronization source change"""
         # Monitors MUST temporarily transition to PartiallyHealthy when detecting a synchronization source change
 
-        return test.MANUAL("Check by manually forcing a synchronization source change.")
+        return test.MANUAL("Check by manually forcing a synchronization source change")
 
     def test_12(self, test):
         """synchronizationSourceID property has a valid value"""
