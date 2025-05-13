@@ -456,21 +456,29 @@ class BCP008Test(GenericTest):
         self.deactivate_resource(test, resource_id)
 
     def _check_monitor_status_changes(self, test):
+        def is_monitor_valid(test, monitor):
+            touchpoint_resource = self._get_touchpoint_resource(test,
+                                                                monitor.oid,
+                                                                monitor.role_path)
+            return self.is_valid_resource(test, touchpoint_resource)
+
         if self.check_activation_metadata.checked:
             return
 
         all_monitors = self.get_monitors(test)
 
-        if len(all_monitors) > 0:
+        valid_monitors = [m for m in all_monitors if is_monitor_valid(test, m)]
+
+        if len(valid_monitors) > 0:
             self.testable_resources_found = True
         else:
             return
 
-        monitors = IS12Utils.sampled_list(all_monitors)
+        testable_monitors = IS12Utils.sampled_list(valid_monitors)
 
         status_properties = self.get_status_property_ids()
 
-        for monitor in monitors:
+        for monitor in testable_monitors:
 
             response = self.is12_utils.update_subscriptions(test, [monitor.oid])
 
@@ -502,10 +510,6 @@ class BCP008Test(GenericTest):
             touchpoint_resource = self._get_touchpoint_resource(test,
                                                                 monitor.oid,
                                                                 monitor.role_path)
-
-            if not self.is_valid_resource(test, touchpoint_resource):
-                # Can't find the resource
-                continue
 
             resource_id = touchpoint_resource.resource["id"]
 
