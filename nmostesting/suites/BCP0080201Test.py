@@ -273,3 +273,10 @@ class BCP0080201Test(BCP008Test):
             self.check_status_values_valid_metadata.link = f"{spec_link_root}{spec_section}"
         else:
             self.check_status_values_valid_metadata.checked = True
+
+    # BCP-008-02
+
+    def test_16(self, test):
+        """Transmission error counter is reset when a client invokes the ResetCounters method"""
+
+        return test.MANUAL("Check manually")

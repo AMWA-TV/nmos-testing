@@ -350,4 +350,9 @@ class BCP0080101Test(BCP008Test):
         # For implementations which cannot measure individual late packets the late counters
         # MUST at the very least increment every time the presentation is affected due to late packet arrival.
 
-        return test.MANUAL("Check by manually forcing an error condition.")
+        return test.MANUAL("Check by manually forcing an error condition")
+
+    def test_17(self, test):
+        """Late and lost packet counters are reset when a client invokes the ResetCounters method"""
+
+        return test.MANUAL("Check manually")
