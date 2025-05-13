@@ -611,7 +611,7 @@ class BCP008Test(GenericTest):
         monitors = self.get_monitors(test)
 
         if len(monitors) == 0:
-            return test.UNCLEAR("No Monitors found in Device Model")
+            return test.UNCLEAR("Unable to find any testable Monitors")
 
         arguments = {}  # empty arguments
 
@@ -698,7 +698,7 @@ class BCP008Test(GenericTest):
         monitors = self.get_monitors(test)
 
         if len(monitors) == 0:
-            return test.UNCLEAR("No Monitors found in Device Model")
+            return test.UNCLEAR("Unable to find any testable Monitors")
 
         default_status_reporting_delay = 3
         for monitor in monitors:
@@ -881,7 +881,7 @@ class BCP008Test(GenericTest):
         spec_link = self.get_sync_source_change_spec_link()
 
         if len(monitors) == 0:
-            return test.UNCLEAR("No Monitors found in Device Model")
+            return test.UNCLEAR("Unable to find any testable Monitors")
 
         sync_source_id_property = self.get_sync_source_id_property_id()
 
@@ -941,7 +941,7 @@ class BCP008Test(GenericTest):
         monitors = self.get_monitors(test)
 
         if len(monitors) == 0:
-            return test.UNCLEAR("No Monitors found in Device Model")
+            return test.UNCLEAR("Unable to find any testable Monitors")
 
         for monitor in monitors:
             enabled = self._get_property(test,
