@@ -16,13 +16,11 @@
 from enum import Enum, IntEnum
 from time import sleep, time
 
-from .TestResult import TestStates
-
 from .GenericTest import GenericTest, NMOSTestException
 from .IS05Utils import IS05Utils
 from .IS12Utils import IS12Utils
-from .MS05Utils import NcMethodStatus, NcObjectProperties, NcTouchpointNmos, NcWorkerProperties, \
-    NcMethodId, NcPropertyId
+from .MS05Utils import NcMethodStatus, NcObjectProperties, NcPropertyId, NcTouchpointNmos, NcWorkerProperties
+from .TestResult import TestStates
 
 NODE_API_KEY = "node"
 CONN_API_KEY = "connection"
@@ -37,28 +35,6 @@ class NcStatusMonitorProperties(Enum):
     OVERALL_STATUS = NcPropertyId({"level": 3, "index": 1})
     OVERALL_STATUS_MESSAGE = NcPropertyId({"level": 3, "index": 2})
     STATUS_REPORTING_DELAY = NcPropertyId({"level": 3, "index": 3})
-
-
-class NcSenderMonitorProperties(Enum):
-    LINK_STATUS = NcPropertyId({"level": 4, "index": 1})
-    LINK_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 2})
-    LINK_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 3})
-    TRANSMISSION_STATUS = NcPropertyId({"level": 4, "index": 4})
-    TRANSMISSION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 5})
-    TRANSMISSION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 6})
-    EXTERNAL_SYNCHRONIZATION_STATUS = NcPropertyId({"level": 4, "index": 7})
-    EXTERNAL_SYNCHRONIZATION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 8})
-    EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 9})
-    SYNCHRONIZATION_SOURCE_ID = NcPropertyId({"level": 4, "index": 10})
-    ESSENCE_STATUS = NcPropertyId({"level": 4, "index": 11})
-    ESSENCE_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 12})
-    ESSENCE_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 13})
-    AUTO_RESET_COUNTERS = NcPropertyId({"level": 4, "index": 14})
-
-
-class NcSenderMonitorMethods(Enum):
-    GET_TRANSMISSION_ERROR_COUNTERS = NcMethodId({"level": 4, "index": 1})
-    RESET_COUNTERS = NcMethodId({"level": 4, "index": 2})
 
 
 class NcOverallStatus(IntEnum):
@@ -84,32 +60,8 @@ class NcLinkStatus(IntEnum):
         return cls.UNKNOWN
 
 
-class NcConnectionStatus(IntEnum):
-    Inactive = 0
-    Healthy = 1
-    PartiallyHealthy = 2
-    Unhealthy = 3
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
 class NcSynchronizationStatus(IntEnum):
     NotUsed = 0
-    Healthy = 1
-    PartiallyHealthy = 2
-    Unhealthy = 3
-    UNKNOWN = 9999
-
-    @classmethod
-    def _missing_(cls, _):
-        return cls.UNKNOWN
-
-
-class NcStreamStatus(IntEnum):
-    Inactive = 0
     Healthy = 1
     PartiallyHealthy = 2
     Unhealthy = 3
@@ -349,6 +301,10 @@ class BCP008Test(GenericTest):
         # transition to any other appropriate state.
         connection_status_property = self.get_connection_status_property_id()
 
+        # These values are common across NcConnectionStatus (Receivers) and NcTransmissionStatus (Senders)
+        CONNECTION_STATUS_INACTIVE = 0
+        CONNECTION_STATUS_HEALTHY = 1
+
         connection_status_notifications = \
             [n for n in notifications
                 if n.eventData.propertyId == connection_status_property.value
@@ -365,7 +321,7 @@ class BCP008Test(GenericTest):
 
         # Check that the monitor transitioned to healthy
         if len(connection_status_notifications) > 0 \
-                and connection_status_notifications[0].eventData.value != NcConnectionStatus.Healthy.value:
+                and connection_status_notifications[0].eventData.value != CONNECTION_STATUS_HEALTHY:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
                 "Expect status to transition to healthy for Monitor, " \
@@ -374,7 +330,7 @@ class BCP008Test(GenericTest):
         # Check that the monitor stayed in the healthy state (unless transitioned to Inactive)
         # during the status reporting delay period
         if len(connection_status_notifications) > 1 \
-                and connection_status_notifications[1].eventData.value != NcConnectionStatus.Inactive.value \
+                and connection_status_notifications[1].eventData.value != CONNECTION_STATUS_INACTIVE \
                 and connection_status_notifications[1].received_time < start_time + status_reporting_delay:
             self.check_activation_metadata.error = True
             self.check_activation_metadata.error_msg += \
@@ -407,10 +363,10 @@ class BCP008Test(GenericTest):
         # When a resource is being deactivated it MUST cleanly disconnect from the current stream by not
         # generating intermediate unhealthy states (PartiallyHealthy or Unhealthy) and instead transition
         # directly and immediately (without being delayed by the statusReportingDelay)
-        # to Inactive for the following statuses:
-        # * overallStatus
-        # * connectionStatus
-        # * streamStatus
+        # to Inactive for all "inactiveable" statuses:
+
+        # This value is common across NcConnectionStatus (Receivers) and NcTransmissionStatus (Senders)
+        CONNECTION_STATUS_INACTIVE = 0
 
         # Check deactivation of resource during status replorting delay
         start_time = time()
@@ -444,7 +400,7 @@ class BCP008Test(GenericTest):
 
             # Check that the monitor transitioned to inactive
             if len(filtered_notifications) > 0 \
-                    and filtered_notifications[-1].eventData.value != NcConnectionStatus.Inactive.value:
+                    and filtered_notifications[-1].eventData.value != CONNECTION_STATUS_INACTIVE:
                 self.check_deactivate_monitor_metadata.error = True
                 self.check_deactivate_monitor_metadata.error_msg += \
                     "Expect status to transition to Inactive for Monitor, " \
@@ -500,7 +456,6 @@ class BCP008Test(GenericTest):
         self.deactivate_resource(test, resource_id)
 
     def _check_monitor_status_changes(self, test):
-
         if self.check_activation_metadata.checked:
             return
 
@@ -606,8 +561,7 @@ class BCP008Test(GenericTest):
 
             self._check_auto_reset_counters(test, monitor, resource_id)
 
-    def _check_late_lost_packet_method(self, test, method_id, spec_link):
-        """Check late or lost packet method depending on method_id"""
+    def _check_counter_method(self, test, method_id, spec_link):
         monitors = self.get_monitors(test)
 
         if len(monitors) == 0:
@@ -624,7 +578,7 @@ class BCP008Test(GenericTest):
                 role_path=monitor.role_path)
 
             if not self._status_ok(method_result):
-                return test.FAIL("Method invokation GetLostPacketCounters failed for Monitor, "
+                return test.FAIL("Method invokation failed for Monitor, "
                                  f"oid={monitor.oid}, "
                                  f"role path={monitor.role_path}: "
                                  f"{method_result.errorMessage}", spec_link)
@@ -640,7 +594,6 @@ class BCP008Test(GenericTest):
         return test.PASS()
 
     def _get_non_zero_counters(self, test, monitor):
-
         transition_counters = self.get_transition_counter_property_map()
 
         counter_values = dict([(key,
@@ -852,7 +805,7 @@ class BCP008Test(GenericTest):
         method_ids = self.get_counter_method_ids()
 
         for method_id in method_ids:
-            result = self._check_late_lost_packet_method(
+            result = self._check_counter_method(
                 test,
                 method_id.value,
                 spec_link)

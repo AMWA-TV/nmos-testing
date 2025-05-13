@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import Enum, IntEnum
 from jinja2 import Template
 from random import randint
 from requests.compat import json
 from uuid import uuid4
 from ..GenericTest import NMOSTestException
 from ..TestHelper import get_default_ip
-from .. import Config as CONFIG
-from enum import Enum
-
-from ..BCP008Test import BCP008Test, NcStatusMonitorProperties, \
-    NcOverallStatus, NcConnectionStatus, NcStreamStatus, NcLinkStatus, \
-    NcSynchronizationStatus
+from ..BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus
 from ..MS05Utils import NcMethodId, NcPropertyId
+from .. import Config as CONFIG
 
 RECEIVER_MONITOR_API_KEY = "receivermonitor"
 RECEIVER_MONITOR_CLASS_ID = [1, 2, 2, 1]
@@ -52,6 +49,30 @@ class NcReceiverMonitorMethods(Enum):
     GET_LOST_PACKET_COUNTERS = NcMethodId({"level": 4, "index": 1})
     GET_LATE_PACKET_COUNTERS = NcMethodId({"level": 4, "index": 2})
     RESET_COUNTERS = NcMethodId({"level": 4, "index": 3})
+
+
+class NcConnectionStatus(IntEnum):
+    Inactive = 0
+    Healthy = 1
+    PartiallyHealthy = 2
+    Unhealthy = 3
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
+
+
+class NcStreamStatus(IntEnum):
+    Inactive = 0
+    Healthy = 1
+    PartiallyHealthy = 2
+    Unhealthy = 3
+    UNKNOWN = 9999
+
+    @classmethod
+    def _missing_(cls, _):
+        return cls.UNKNOWN
 
 
 class BCP0080101Test(BCP008Test):
@@ -231,6 +252,9 @@ class BCP0080101Test(BCP008Test):
         return "receiver"
 
     def patch_resource(self, test, receiver_id):
+        if not self.sdp_params:
+            self.sdp_params = self._make_receiver_sdp_params(test)
+
         url = "single/receivers/{}/staged".format(receiver_id)
         activate_json = {"activation": {"mode": "activate_immediate"},
                          "master_enable": True,
@@ -252,7 +276,6 @@ class BCP0080101Test(BCP008Test):
 
     # Validation
     def is_valid_resource(self, test, touchpoint_resource):
-
         if not self.sdp_params:
             self.sdp_params = self._make_receiver_sdp_params(test)
 

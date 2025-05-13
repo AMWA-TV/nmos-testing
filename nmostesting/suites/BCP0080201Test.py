@@ -12,14 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import IntEnum
-from ..BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcSenderMonitorProperties, \
-    NcSenderMonitorMethods, NcStatusMonitorProperties, NcSynchronizationStatus
+from enum import Enum, IntEnum
+from ..BCP008Test import BCP008Test, NcLinkStatus, NcOverallStatus, NcStatusMonitorProperties, NcSynchronizationStatus
 from ..GenericTest import NMOSTestException
+from ..MS05Utils import NcMethodId, NcPropertyId
 
 SENDER_MONITOR_API_KEY = "sendermonitor"
 SENDER_MONITOR_SPEC_ROOT = "https://specs.amwa.tv/bcp-008-02/branches/"
 SENDER_MONITOR_CLASS_ID = [1, 2, 2, 2]
+
+
+class NcSenderMonitorProperties(Enum):
+    LINK_STATUS = NcPropertyId({"level": 4, "index": 1})
+    LINK_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 2})
+    LINK_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 3})
+    TRANSMISSION_STATUS = NcPropertyId({"level": 4, "index": 4})
+    TRANSMISSION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 5})
+    TRANSMISSION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 6})
+    EXTERNAL_SYNCHRONIZATION_STATUS = NcPropertyId({"level": 4, "index": 7})
+    EXTERNAL_SYNCHRONIZATION_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 8})
+    EXTERNAL_SYNCHRONIZATION_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 9})
+    SYNCHRONIZATION_SOURCE_ID = NcPropertyId({"level": 4, "index": 10})
+    ESSENCE_STATUS = NcPropertyId({"level": 4, "index": 11})
+    ESSENCE_STATUS_MESSAGE = NcPropertyId({"level": 4, "index": 12})
+    ESSENCE_STATUS_TRANSITION_COUNTER = NcPropertyId({"level": 4, "index": 13})
+    AUTO_RESET_COUNTERS = NcPropertyId({"level": 4, "index": 14})
+
+
+class NcSenderMonitorMethods(Enum):
+    GET_TRANSMISSION_ERROR_COUNTERS = NcMethodId({"level": 4, "index": 1})
+    RESET_COUNTERS = NcMethodId({"level": 4, "index": 2})
 
 
 class NcTransmissionStatus(IntEnum):
