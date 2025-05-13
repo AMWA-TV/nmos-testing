@@ -35,6 +35,7 @@ from flask import Flask, Blueprint, request
 CONTROLLER_TEST_API_KEY = "testquestion"
 QUERY_API_KEY = "query"
 CONN_API_KEY = "connection"
+REG_API_KEY = "registration"
 
 CALLBACK_ENDPOINT = "/x-nmos/testanswer/<version>"
 
@@ -79,6 +80,10 @@ class ControllerTest(GenericTest):
     def __init__(self, apis, registries, node, dns_server, auths, disable_auto=True, **kwargs):
         # Remove the spec_path as there are no corresponding GitHub repos for Controller Tests
         apis[CONTROLLER_TEST_API_KEY].pop("spec_path", None)
+        # Ensure registration scope is added to JWT to allow authenticated
+        # registration of mock resources with secure mock registry
+        if CONFIG.ENABLE_AUTH:
+            apis[REG_API_KEY] = {}
         if CONFIG.ENABLE_HTTPS:
             # Comms with Testing Facade are http only
             if apis[CONTROLLER_TEST_API_KEY]["base_url"] is not None:
@@ -87,8 +92,8 @@ class ControllerTest(GenericTest):
             if apis[CONTROLLER_TEST_API_KEY]["url"] is not None:
                 apis[CONTROLLER_TEST_API_KEY]["url"] \
                     = apis[CONTROLLER_TEST_API_KEY]["url"].replace("https", "http")
-        GenericTest.__init__(self, apis, auths=auths, disable_auto=disable_auto)
-        self.primary_registry = registries[1]
+        GenericTest.__init__(self, apis, auths=auths, disable_auto=disable_auto, **kwargs)
+        self.primary_registry = registries[1] if registries else None
         self.node = node
         self.dns_server = dns_server
         self.mock_registry_base_url = ''
@@ -121,27 +126,29 @@ class ControllerTest(GenericTest):
                     "_nmos-query._tcp.{}.".format(CONFIG.DNS_DOMAIN)
                 ]
             )
-        # Reset registry to clear previous heartbeats, etc.
-        self.primary_registry.reset()
-        self.primary_registry.enable()
+        if self.primary_registry:
+            # Reset registry to clear previous heartbeats, etc.
+            self.primary_registry.reset()
+            self.primary_registry.enable()
 
-        host = get_mocks_hostname() if CONFIG.ENABLE_HTTPS else get_default_ip()
-        self.mock_registry_base_url = self.protocol + '://' + host + ':'\
-            + str(self.primary_registry.get_data().port) + '/'
-        self.mock_node_base_url = self.protocol + '://' + host + ':' + str(self.node.port) + '/'
+            host = get_mocks_hostname() if CONFIG.ENABLE_HTTPS else get_default_ip()
+            self.mock_registry_base_url = self.protocol + '://' + host + ':'\
+                + str(self.primary_registry.get_data().port) + '/'
+            self.mock_node_base_url = self.protocol + '://' + host + ':' + str(self.node.port) + '/'
 
-        # Populate mock registry with senders and receivers and store the results
-        try:
-            self._populate_registry(test)
-        except NMOSTestException as e:
-            raise NMOSInitException(e.args[0].detail)
+            # Populate mock registry with senders and receivers and store the results
+            try:
+                self._populate_registry(test)
+            except NMOSTestException as e:
+                raise NMOSInitException(e.args[0].detail)
 
-        # Set up mock node
-        self.node.registry_url = self.mock_registry_base_url
-        self.node.registry_version = self.query_api_version
+            # Set up mock node
+            self.node.registry_url = self.mock_registry_base_url
+            self.node.registry_version = self.query_api_version
 
     def tear_down_tests(self):
-        self.primary_registry.disable()
+        if self.primary_registry:
+            self.primary_registry.disable()
 
         # Reset the state of the Testing Façade
         self.do_request("POST", self.apis[CONTROLLER_TEST_API_KEY]["url"], json={"clear": "True"})
@@ -158,7 +165,8 @@ class ControllerTest(GenericTest):
         if len(test_names) == 1 and test_names[0] == "auto" and self.disable_auto:
             return
 
-        self.primary_registry.query_api_called = False
+        if self.primary_registry:
+            self.primary_registry.query_api_called = False
 
         self.pre_tests_message()
 
@@ -272,7 +280,8 @@ class ControllerTest(GenericTest):
     def _populate_registry(self, test):
         """Populate registry and mock node with mock senders and receivers"""
         self.node.reset()  # Ensure previously added senders and receivers are removed
-        self.primary_registry.common.reset()  # Ensure any previously registered senders and receivers are removed
+        if self.primary_registry:
+            self.primary_registry.common.reset()  # Ensure any previously registered senders and receivers are removed
         sender_ip_final_octet = 159
 
         # Register node

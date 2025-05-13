@@ -88,6 +88,7 @@ from .suites import BCP00301Test
 from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
+from .suites import BCP00604Test
 from .suites import BCP0080101Test
 from .suites import BCP0080201Test
 
@@ -491,6 +492,21 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0080201Test.BCP0080201Test,
         "urlpath": True
+    },
+    "BCP-006-04": {
+        "name": "BCP-006-04 NMOS With MPEG TS",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }],
+        "class": BCP00604Test.BCP00604Test
     }
 }
 
