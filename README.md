@@ -42,7 +42,8 @@ The following test suites are currently supported.
 | BCP-006-01-01 | BCP-006-01 NMOS With JPEG XS | X | | | |
 | BCP-006-01-02 | BCP-006-01 Controller | | | X | See [Testing Controllers](docs/2.8.%20Usage%20-%20Testing%20Controllers.md) |
 | BCP-006-04 | BCP-006-04 NMOS With MPEG-TS | X | | | |
-| BCP-008-01 | BCP-008-01 Receiver Status | X | | | |
+| BCP-008-01-01 | BCP-008-01 Receiver Status Monitoring | X | | | |
+| BCP-008-02-01 | BCP-008-02 Sender Status Monitoring | X | | | |
 
 When testing any of the above APIs it is important that they contain representative data. The test results will generate 'Could Not Test' results if no testable entities can be located. In addition, if devices support many modes of operation (including multiple video/audio formats) it is strongly recommended to re-test them in multiple modes.
 
