@@ -389,24 +389,26 @@ TEST_DEFINITIONS = {
         "name": "IS-14 Configuration",
         "specs": [{
             "spec_key": "is-04",
-            "api_key": "node"
+            "api_key": "node",
+            "disable_fields": ["selector"]
         }, {
             "spec_key": "is-14",
             "api_key": "configuration"
         }, {
             "spec_key": "ms-05-02",
             "api_key": "controlframework",
-            "disable_fields": ["host", "port"]
+            "disable_fields": ["host", "port", "selector"]
         }, {
             "spec_key": "controller-tests",
             "api_key": "testquestion",
-            "disable_fields": ["urlpath"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "urlpath"]
+            "disable_fields": ["selector"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "selector"]
         }],
         "extra_specs": [{
             "spec_key": "nmos-control-feature-sets",
             "api_key": "featuresets"
         }],
-        "class": IS1401Test.IS1401Test
+        "class": IS1401Test.IS1401Test,
+        "selector": True
     },
     "BCP-003-01": {
         "name": "BCP-003-01 Secure Communication",
