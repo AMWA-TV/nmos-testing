@@ -207,31 +207,31 @@ class BCP008Test(GenericTest):
         pass
 
     # Status property and method IDs
-    def get_status_properties(self):
+    def get_status_property_ids(self):
         pass
 
-    def get_connection_status_property(self):
+    def get_connection_status_property_id(self):
         pass
 
-    def get_connection_status_transition_counter_property(self):
+    def get_connection_status_transition_counter_property_id(self):
         pass
 
-    def get_inactiveable_statuses(self):
+    def get_inactiveable_status_property_ids(self):
         pass
 
-    def get_auto_reset_counter_property(self):
+    def get_auto_reset_counter_property_id(self):
         pass
 
-    def get_sync_source_id_property(self):
+    def get_sync_source_id_property_id(self):
         pass
 
-    def get_transition_counter_properties(self):
+    def get_transition_counter_property_map(self):
         pass
 
     def get_counter_method_ids(self):
         pass
 
-    def get_auto_reset_counter_method(self):
+    def get_auto_reset_counter_method_id(self):
         pass
 
     # Resource
@@ -347,7 +347,7 @@ class BCP008Test(GenericTest):
         # as long as the resource isn’t being deactivated, it MUST delay the reporting of
         # non Healthy states for the duration specified by statusReportingDelay, and then
         # transition to any other appropriate state.
-        connection_status_property = self.get_connection_status_property()
+        connection_status_property = self.get_connection_status_property_id()
 
         connection_status_notifications = \
             [n for n in notifications
@@ -391,7 +391,7 @@ class BCP008Test(GenericTest):
 
     def _check_connection_status_transition_counter(self, notifications):
 
-        connection_status_transition_counter_property = self.get_connection_status_transition_counter_property()
+        connection_status_transition_counter_property = self.get_connection_status_transition_counter_property_id()
 
         connection_status_transition_counter_notifications = \
             [n for n in notifications
@@ -429,12 +429,12 @@ class BCP008Test(GenericTest):
 
         self.check_deactivate_monitor_metadata.link = self.get_deactivating_monitor_spec_link()
 
-        status_properties = self.get_inactiveable_statuses()
+        status_property_ids = self.get_inactiveable_status_property_ids()
 
-        for status in status_properties:
+        for property_id in status_property_ids:
             filtered_notifications = \
                     [n for n in deactivate_resource_notifications
-                     if n.eventData.propertyId == status.value]
+                     if n.eventData.propertyId == property_id.value]
 
             if len(filtered_notifications) == 0:
                 self.check_deactivate_monitor_metadata.error = True
@@ -457,7 +457,7 @@ class BCP008Test(GenericTest):
         # when a resource activation occurs if autoResetCounters is set to true
         self.check_auto_reset_counters_metadata.link = self.get_transition_counters_spec_link()
 
-        auto_reset_counter_property = self.get_auto_reset_counter_property()
+        auto_reset_counter_property = self.get_auto_reset_counter_property_id()
 
         # Make sure autoResetCounters enabled
         self._set_property(test,
@@ -513,7 +513,7 @@ class BCP008Test(GenericTest):
 
         monitors = IS12Utils.sampled_list(all_monitors)
 
-        status_properties = self.get_status_properties()
+        status_properties = self.get_status_property_ids()
 
         for monitor in monitors:
 
@@ -641,7 +641,7 @@ class BCP008Test(GenericTest):
 
     def _get_non_zero_counters(self, test, monitor):
 
-        transition_counters = self.get_transition_counter_properties()
+        transition_counters = self.get_transition_counter_property_map()
 
         counter_values = dict([(key,
                                 self._get_property(test,
@@ -666,7 +666,7 @@ class BCP008Test(GenericTest):
         arguments = {}
 
         # Invoke ResetCounters
-        reset_counters_method = self.get_auto_reset_counter_method()
+        reset_counters_method = self.get_auto_reset_counter_method_id()
 
         method_result = self.is12_utils.invoke_method(
             test,
@@ -883,7 +883,7 @@ class BCP008Test(GenericTest):
         if len(monitors) == 0:
             return test.UNCLEAR("No Monitors found in Device Model")
 
-        sync_source_id_property = self.get_sync_source_id_property()
+        sync_source_id_property = self.get_sync_source_id_property_id()
 
         for monitor in monitors:
             syncSourceId = self._get_property(test,

@@ -160,7 +160,7 @@ class BCP0080101Test(BCP008Test):
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#synchronization-source-change"
 
-    def get_woker_inheritance_spec_link(self):
+    def get_worker_inheritance_spec_link(self):
         return f"{RECEIVER_MONITOR_SPEC_ROOT}{self.apis[RECEIVER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#ncworker-inheritance"
 
@@ -169,31 +169,31 @@ class BCP0080101Test(BCP008Test):
             "/docs/Overview.html#late-and-lost-packets"
 
     # Status property and method IDs
-    def get_status_properties(self):
+    def get_status_property_ids(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcReceiverMonitorProperties.LINK_STATUS,
                 NcReceiverMonitorProperties.CONNECTION_STATUS,
                 NcReceiverMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
                 NcReceiverMonitorProperties.STREAM_STATUS]
 
-    def get_connection_status_property(self):
+    def get_connection_status_property_id(self):
         return NcReceiverMonitorProperties.CONNECTION_STATUS
 
-    def get_connection_status_transition_counter_property(self):
+    def get_connection_status_transition_counter_property_id(self):
         return NcReceiverMonitorProperties.CONNECTION_STATUS_TRANSITION_COUNTER
 
-    def get_inactiveable_statuses(self):
+    def get_inactiveable_status_property_ids(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcReceiverMonitorProperties.CONNECTION_STATUS,
                 NcReceiverMonitorProperties.STREAM_STATUS]
 
-    def get_auto_reset_counter_property(self):
+    def get_auto_reset_counter_property_id(self):
         return NcReceiverMonitorProperties.AUTO_RESET_COUNTERS
 
-    def get_sync_source_id_property(self):
+    def get_sync_source_id_property_id(self):
         return NcReceiverMonitorProperties.SYNCHRONIZATION_SOURCE_ID
 
-    def get_transition_counter_properties(self):
+    def get_transition_counter_property_map(self):
         # Ignore late and lost packets in this check:
         # late and lost packet counters increment independantly of these tests and therefore
         # cannot be predicted or their value guaranteed at any given time
@@ -210,7 +210,7 @@ class BCP0080101Test(BCP008Test):
         return [NcReceiverMonitorMethods.GET_LOST_PACKET_COUNTERS,
                 NcReceiverMonitorMethods.GET_LATE_PACKET_COUNTERS]
 
-    def get_auto_reset_counter_method(self):
+    def get_auto_reset_counter_method_id(self):
         return NcReceiverMonitorMethods.RESET_COUNTERS
 
     # Resource

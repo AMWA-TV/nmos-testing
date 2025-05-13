@@ -76,7 +76,7 @@ class BCP0080201Test(BCP008Test):
         return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#synchronization-source-change"
 
-    def get_woker_inheritance_spec_link(self):
+    def get_worker_inheritance_spec_link(self):
         return f"{SENDER_MONITOR_SPEC_ROOT}{self.apis[SENDER_MONITOR_API_KEY]['spec_branch']}" \
             "/docs/Overview.html#ncworker-inheritance"
 
@@ -85,31 +85,31 @@ class BCP0080201Test(BCP008Test):
             "/docs/Overview.html#transmission-error-counters"
 
     # Status property and method IDs
-    def get_status_properties(self):
+    def get_status_property_ids(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcSenderMonitorProperties.LINK_STATUS,
                 NcSenderMonitorProperties.TRANSMISSION_STATUS,
                 NcSenderMonitorProperties.EXTERNAL_SYNCHRONIZATION_STATUS,
                 NcSenderMonitorProperties.ESSENCE_STATUS]
 
-    def get_connection_status_property(self):
+    def get_connection_status_property_id(self):
         return NcSenderMonitorProperties.TRANSMISSION_STATUS
 
-    def get_connection_status_transition_counter_property(self):
+    def get_connection_status_transition_counter_property_id(self):
         return NcSenderMonitorProperties.TRANSMISSION_STATUS_TRANSITION_COUNTER
 
-    def get_inactiveable_statuses(self):
+    def get_inactiveable_status_property_ids(self):
         return [NcStatusMonitorProperties.OVERALL_STATUS,
                 NcSenderMonitorProperties.TRANSMISSION_STATUS,
                 NcSenderMonitorProperties.ESSENCE_STATUS]
 
-    def get_auto_reset_counter_property(self):
+    def get_auto_reset_counter_property_id(self):
         return NcSenderMonitorProperties.AUTO_RESET_COUNTERS
 
-    def get_sync_source_id_property(self):
+    def get_sync_source_id_property_id(self):
         return NcSenderMonitorProperties.SYNCHRONIZATION_SOURCE_ID
 
-    def get_transition_counter_properties(self):
+    def get_transition_counter_property_map(self):
         # Ignore tranmission error counter in this check:
         # tranmission error counter increments independantly of these tests and therefore
         # cannot be predicted or its value guaranteed at any given time
@@ -125,7 +125,7 @@ class BCP0080201Test(BCP008Test):
     def get_counter_method_ids(self):
         return [NcSenderMonitorMethods.GET_TRANSMISSION_ERROR_COUNTERS]
 
-    def get_auto_reset_counter_method(self):
+    def get_auto_reset_counter_method_id(self):
         return NcSenderMonitorMethods.RESET_COUNTERS
 
     # Resource
