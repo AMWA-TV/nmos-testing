@@ -15,7 +15,7 @@
 # from ..GenericTest import NMOSTestException
 from copy import copy
 from nmostesting.GenericTest import NMOSTestException
-from nmostesting.MS05Utils import NcBlockProperties, NcMethodResultError
+from nmostesting.MS05Utils import NcBlockProperties, NcClassDescriptor, NcMethodResult, NcMethodResultError
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
@@ -39,6 +39,17 @@ class IS1401Test(MS0501Test):
     def tear_down_tests(self):
         super().tear_down_tests()
 
+    def _do_request_json(self, test, method, url):
+        valid, response = self.do_request(method, url)
+
+        if not valid or response.status_code != 200:
+            raise NMOSTestException(test.FAIL(f"Failed to get role paths from endpoint {url}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {url}"))
+
+        return response.json()
+
     def test_01(self, test):
         """Control Endpoint: Node under test advertises IS-14 control endpoint matching API under test"""
         # https://specs.amwa.tv/is-14/branches/v1.0-dev/docs/IS-04_interactions.html
@@ -57,12 +68,9 @@ class IS1401Test(MS0501Test):
 
         role_paths_endpoint = f"{self.configuration_url}rolePaths/"
 
-        valid, response = self.do_request("GET", role_paths_endpoint)
+        response = self._do_request_json(test, "GET", role_paths_endpoint)
 
-        if not valid or response.status_code != 200:
-            test.FAIL("Failed to get roles")
-
-        for role_path in response.json():
+        for role_path in response:
             if role_path != "root" and not role_path.startswith("root."):
                 test.FAIL("Unexpected role path syntax.", "https://specs.amwa.tv/is-14/branches/"
                           + f"{self.apis[CONFIGURATION_API_KEY]['spec_branch']}"
@@ -70,7 +78,7 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def check_block_member_role_syntax(self, test, role_path):
-        """  Check syntax of roles in this block """
+        """Check syntax of roles in this block"""
         method_result = self.is14_utils.get_property(test, NcBlockProperties.MEMBERS.value, role_path=role_path)
 
         if isinstance(method_result, NcMethodResultError):
@@ -96,5 +104,97 @@ class IS1401Test(MS0501Test):
         # https://specs.amwa.tv/is-14/branches/v1.0-dev/docs/API_requests.html#url-and-usage
 
         self.check_block_member_role_syntax(test, ["root"])
+
+        return test.PASS()
+
+    def test_04(self, test):
+        """RolePaths endpoint MUST return all the device model's role paths"""
+
+        # Get expected role paths from device model
+        device_model = self.is14_utils.query_device_model(test)
+
+        if not device_model:
+            return test.FAIL("Unable to query Device Model")
+
+        device_model_role_paths = device_model.get_role_paths()
+
+        expected_role_paths = ([f"root.{'.'.join(p)}/" for p in device_model_role_paths])
+        expected_role_paths.append("root/")
+
+        # Get actual role paths from IS-14 endpoint
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/"
+
+        actual_role_paths = self._do_request_json(test, "GET", role_paths_endpoint)
+
+        difference = list(set(expected_role_paths) - set(actual_role_paths))
+
+        if len(difference) > 0:
+            return test.FAIL(f"Expected role paths not returned from role paths endpoint: {str(difference)}")
+
+        return test.PASS()
+
+    def test_05(self, test):
+        """Class descriptor is of type NcMethodResultClassDescriptor including all inherited elements."""
+
+        class_manager = self.is14_utils.get_class_manager(test)
+
+        if not class_manager:
+            return test.FAIL("Unable to query Class Manager")
+
+        # Get role paths from IS-14 endpoint
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/"
+
+        role_paths = self._do_request_json(test, "GET", role_paths_endpoint)
+
+        for role_path in role_paths:
+            class_descriptor_endpoint = f"{role_paths_endpoint}{role_path}descriptor"
+
+            method_result_json = self._do_request_json(test, "GET", class_descriptor_endpoint)
+
+            role_path_array = role_path.split(".")
+            # Check this is of type NcMethodResult
+            self.is14_utils.reference_datatype_schema_validate(test, method_result_json,
+                                                               NcMethodResult.__name__, role_path=role_path_array)
+            method_result = NcMethodResult.factory(method_result_json)
+
+            # Check the result value is of type NcClassDescriptor
+            self.is14_utils.reference_datatype_schema_validate(test, method_result.value,
+                                                               NcClassDescriptor.__name__, role_path=role_path_array)
+
+            actual_descriptor = NcClassDescriptor(method_result.value)
+
+            # Yes, we already have the class descriptor, but we might want its inherited attributes
+
+            expected_descriptor = class_manager.get_control_class(actual_descriptor.classId, True)
+
+            self.is14_utils.validate_descriptor(
+                test,
+                expected_descriptor,
+                actual_descriptor,
+                f"role path={role_path}, class={str(actual_descriptor.name)}: ")
+
+        return test.PASS()
+
+    def test_06(self, test):
+        """Devices MUST return a response of type NcMethodResultError or a derived datatype on an error"""
+
+        # Force an error with a bogus role path
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/this.url.does.not.exist"
+
+        valid, response = self.do_request("GET", role_paths_endpoint)
+
+        if not valid or response.status_code != 404:
+            return test.FAIL("Expected 404 status code for unknown role path")
+
+        if "application/json" not in response.headers["Content-Type"]:
+            return test.FAIL(f"JSON response expected from endpoint {role_paths_endpoint}")
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test, response.json(),
+                                                           NcMethodResult.__name__)
+        method_result = NcMethodResult.factory(response.json())
+
+        if not isinstance(method_result, NcMethodResultError):
+            return test.FAIL("Expected a response of type NcMethodResultError")
 
         return test.PASS()
