@@ -23,8 +23,8 @@ from math import floor
 from xeger import Xeger
 
 from ..Config import MS05_INVASIVE_TESTING, MS05_INTERACTIVE_TESTING
-from ..GenericTest import NMOSTestException
-from ..ControllerTest import ControllerTest, TestingFacadeException
+from ..GenericTest import GenericTest, NMOSTestException
+from ..TestingFacadeUtils import TestingFacadeUtils, TestingFacadeException
 from ..MS05Utils import MS05Utils, NcBlock, NcBlockProperties, NcDatatypeDescriptor, \
     NcDatatypeDescriptorEnum, NcDatatypeDescriptorPrimitive, NcDatatypeType, NcDatatypeDescriptorStruct, \
     NcDatatypeDescriptorTypeDef, NcDeviceManagerProperties, NcMethodResultError, NcMethodResultXXX, \
@@ -36,6 +36,7 @@ NODE_API_KEY = "node"
 CONTROL_API_KEY = "ncp"
 MS05_API_KEY = "controlframework"
 FEATURE_SETS_KEY = "featuresets"
+TESTING_FACADE_API_KEY = "testquestion"
 
 
 # Note: this test suite is a base class for the IS1202Test and IS1402Test test suites
@@ -43,7 +44,7 @@ FEATURE_SETS_KEY = "featuresets"
 # instantiated in the same way as the other test suites.
 
 
-class MS0501Test(ControllerTest):
+class MS0501Test(GenericTest):
     """
     Runs Tests covering MS-05
     """
@@ -71,12 +72,14 @@ class MS0501Test(ControllerTest):
             self.descriptor = descriptor
 
     def __init__(self, apis, utils, **kwargs):
-        # Remove the RAML key to prevent this test suite from auto-testing IS-04 API
+        # Remove the Node API RAML key to prevent this test suite from auto-testing IS-04 API
         apis[NODE_API_KEY].pop("raml", None)
-        # Removing the DNS server stops this test suite depending on the QUERY_API
-        kwargs['dns_server'] = None
-        ControllerTest.__init__(self, apis, disable_auto=False, **kwargs)
+        # Remove the Testing Facade spec_path as there are no corresponding GitHub repos for the Testing Facade API
+        apis[TESTING_FACADE_API_KEY].pop("spec_path", None)
+
+        GenericTest.__init__(self, apis, disable_auto=False, **kwargs)
         self.ms05_utils = utils
+        self.testing_facade_utils = TestingFacadeUtils(apis)
 
     def set_up_tests(self):
         super().set_up_tests()
@@ -154,7 +157,7 @@ class MS0501Test(ControllerTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # pre_test_introducton timed out
@@ -175,11 +178,20 @@ class MS0501Test(ControllerTest):
                    """
 
         try:
-            self._invoke_testing_facade(question, [], test_type="action")
+            self.testing_facade_utils.invoke_testing_facade(question, [], test_type="action")
 
         except TestingFacadeException:
             # post_test_introducton timed out
             pass
+
+    def execute_tests(self, test_names):
+        """Perform tests defined within this class"""
+
+        self.pre_tests_message()
+
+        super().execute_tests(test_names)
+
+        self.post_tests_message()
 
     def test_ms05_01(self, test):
         """Device Model: Root Block exists with correct oid and role"""
@@ -1690,9 +1702,9 @@ class MS0501Test(ControllerTest):
         filtered = deepcopy(possible_answers)
         for p in filtered:
             p.pop("resource", None)
-        return self._invoke_testing_facade(question, filtered,
-                                           test_type="multi_choice",
-                                           test_method_name=test_method_name)["answer_response"]
+        return self.testing_facade_utils.invoke_testing_facade(question, filtered,
+                                                               test_type="multi_choice",
+                                                               test_method_name=test_method_name)["answer_response"]
 
     def _get_constraints(self, test, class_property, datatype_descriptors, object_runtime_constraints):
         datatype_constraints = None

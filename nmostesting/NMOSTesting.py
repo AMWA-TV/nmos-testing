@@ -48,7 +48,7 @@ from requests.compat import json
 from . import Config as CONFIG
 from .DNS import DNS
 from .GenericTest import NMOSInitException
-from . import ControllerTest
+from . import TestingFacadeUtils
 from .TestResult import TestStates
 from .TestHelper import get_default_ip
 from .NMOSUtils import DEFAULT_ARGS
@@ -82,11 +82,15 @@ from .suites import IS0802Test
 from .suites import IS0901Test
 from .suites import IS0902Test
 # from .suites import IS1001Test
+from .suites import IS1101Test
 from .suites import IS1201Test
 from .suites import BCP00301Test
+from .suites import BCP0050101Test
 from .suites import BCP0060101Test
 from .suites import BCP0060102Test
 from .suites import BCP0040201Test
+from .suites import BCP00604Test
+
 
 FLASK_APPS = []
 DNS_SERVER = None
@@ -106,7 +110,7 @@ core_app.config['TEST_ACTIVE'] = False
 core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
-core_app.register_blueprint(ControllerTest.TEST_API)
+core_app.register_blueprint(TestingFacadeUtils.TEST_API)
 FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
@@ -215,7 +219,7 @@ TEST_DEFINITIONS = {
     "IS-04-04": {
         "name": "IS-04 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -246,7 +250,7 @@ TEST_DEFINITIONS = {
     "IS-05-03": {
         "name": "IS-05 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -341,6 +345,20 @@ TEST_DEFINITIONS = {
     #     }],
     #     "class": IS1001Test.IS1001Test
     # },
+    "IS-11-01": {
+        "name": "IS-11 Stream Compatibility Management API",
+        "specs": [{
+            "spec_key": "is-11",
+            "api_key": "streamcompatibility"
+        }, {
+            "spec_key": "is-04",
+            "api_key": "node"
+        }, {
+            "spec_key": "is-05",
+            "api_key": "connection"
+        }],
+        "class": IS1101Test.IS1101Test
+    },
     "IS-12-01": {
         "name": "IS-12 NMOS Control Protocol",
         "specs": [{
@@ -356,7 +374,7 @@ TEST_DEFINITIONS = {
             "api_key": "controlframework",
             "disable_fields": ["host", "port", "urlpath"]
         }, {
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion",
             "disable_fields": ["urlpath"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "urlpath"]
         }],
@@ -374,6 +392,14 @@ TEST_DEFINITIONS = {
             "api_key": "secure"
         }],
         "class": BCP00301Test.BCP00301Test
+    },
+    "BCP-005-01-01": {
+        "name": "BCP-005-01 EDID to Receiver Capabilities Mapping",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "class": BCP0050101Test.BCP0050101Test
     },
     "BCP-006-01-01": {
         "name": "BCP-006-01 NMOS With JPEG XS",
@@ -393,7 +419,7 @@ TEST_DEFINITIONS = {
     "BCP-006-01-02": {
         "name": "BCP-006-01 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -434,6 +460,23 @@ TEST_DEFINITIONS = {
         "class": BCP0040201Test.BCP0040201Test
     },
 }
+    "BCP-006-04": {
+        "name": "BCP-006-04 NMOS With MPEG TS",
+        "specs": [{
+            "spec_key": "is-04",
+            "api_key": "node"
+        }],
+        "extra_specs": [{
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "flow-register"
+        }, {
+            "spec_key": "nmos-parameter-registers",
+            "api_key": "sender-register"
+        }],
+        "class": BCP00604Test.BCP00604Test
+    },
+}
+
 
 def enumerate_tests(class_def, describe=False):
     if describe:
