@@ -200,6 +200,16 @@ MQTT_PASSWORD = None
 # Bash shell to use for running testssl.sh
 TEST_SSL_BASH = "bash"
 
+# URLs of Node API and Connection API of a Node with reference Senders
+# for testing IS-11 Receivers under live streaming conditions.
+# Expected URL format is "{http|https}://{api_host}:{api_port}/x-nmos/{api_name}/v{api_version}/"
+IS11_REFERENCE_SENDER_NODE_API_URL = ""
+IS11_REFERENCE_SENDER_CONNECTION_API_URL = ""
+
+# Stability delay for any request on IS-11
+STABLE_STATE_DELAY = 3
+STABLE_STATE_ATTEMPTS = 5
+
 # Definition of each API specification and its versions.
 SPECIFICATIONS = {
     "is-04": {
@@ -287,6 +297,17 @@ SPECIFICATIONS = {
             }
         }
     },
+    "is-11": {
+        "repo": "is-11",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {
+            "streamcompatibility": {
+                "name": "Stream Compatibility Management API",
+                "raml": "StreamCompatibilityManagementAPI.raml"
+            }
+        }
+    },
     "is-12": {
         "repo": "is-12",
         "versions": ["v1.0"],
@@ -367,6 +388,12 @@ SPECIFICATIONS = {
             }
         }
     },
+    "bcp-005-01": {
+        "repo": "bcp-005-01",
+        "versions": ["v1.0"],
+        "default_version": "v1.0",
+        "apis": {}
+    },
     "nmos-parameter-registers": {
         "repo": "nmos-parameter-registers",
         "url": "https://github.com/alabou/",
@@ -385,7 +412,7 @@ SPECIFICATIONS = {
             }
         }
     },
-    "controller-tests": {
+    "testing-facade": {
         "repo": None,
         "versions": ["v1.0"],
         "default_version": "v1.0",
