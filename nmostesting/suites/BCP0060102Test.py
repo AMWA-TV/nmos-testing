@@ -27,7 +27,7 @@ class BCP0060102Test(ControllerTest):
     Runs Controller Tests covering BCP-006-01
     """
     def __init__(self, apis, registries, node, dns_server, **kwargs):
-        ControllerTest.__init__(self, apis, registries, node, dns_server)
+        ControllerTest.__init__(self, apis, registries, node, dns_server, **kwargs)
 
     def _create_interop_point(self, sdp_base, override_params):
         interop_point = {**sdp_base, **override_params}
@@ -715,7 +715,7 @@ class BCP0060102Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_senders)
                                 if 'video/jxsv' == r['sdp_params']['media_type']]
 
-            actual_answers = self._invoke_testing_facade(
+            actual_answers = self.testing_facade_utils.invoke_testing_facade(
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
             actual = set(actual_answers)
@@ -773,7 +773,7 @@ class BCP0060102Test(ControllerTest):
             expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_receivers)
                                 if 'video/jxsv' in r['caps']['media_types']]
 
-            actual_answers = self._invoke_testing_facade(
+            actual_answers = self.testing_facade_utils.invoke_testing_facade(
                 question, possible_answers, test_type='multi_choice')['answer_response']
 
             actual = set(actual_answers)
@@ -845,7 +845,7 @@ class BCP0060102Test(ControllerTest):
                 expected_answers = ['answer_'+str(i) for i, r in enumerate(candidate_receivers)
                                     if self._is_compatible(sender, r)]
 
-                actual_answers = self._invoke_testing_facade(
+                actual_answers = self.testing_facade_utils.invoke_testing_facade(
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
                 actual = set(actual_answers)
@@ -921,7 +921,7 @@ class BCP0060102Test(ControllerTest):
                 expected_answers = ['answer_'+str(i) for i, s in enumerate(candidate_senders)
                                     if self._is_compatible(s, receiver)]
 
-                actual_answers = self._invoke_testing_facade(
+                actual_answers = self.testing_facade_utils.invoke_testing_facade(
                     question, possible_answers, test_type='multi_choice', multipart_test=i)['answer_response']
 
                 actual = set(actual_answers)
@@ -998,7 +998,8 @@ class BCP0060102Test(ControllerTest):
                              'label': receiver['label'],
                              'description': receiver['description']}}
 
-                self._invoke_testing_facade(question, possible_answers, test_type='action', metadata=metadata)
+                self.testing_facade_utils.invoke_testing_facade(question, possible_answers,
+                                                                test_type='action', metadata=metadata)
 
                 # Check the staged API endpoint received the correct PATCH request
                 patch_requests = [r for r in self.node.staged_requests

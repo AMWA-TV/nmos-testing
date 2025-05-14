@@ -48,7 +48,7 @@ from requests.compat import json
 from . import Config as CONFIG
 from .DNS import DNS
 from .GenericTest import NMOSInitException
-from . import ControllerTest
+from . import TestingFacadeUtils
 from .TestResult import TestStates
 from .TestHelper import get_default_ip
 from .NMOSUtils import DEFAULT_ARGS
@@ -109,7 +109,7 @@ core_app.config['TEST_ACTIVE'] = False
 core_app.config['PORT'] = CONFIG.PORT_BASE
 core_app.config['SECURE'] = False
 core_app.register_blueprint(NODE_API)  # Dependency for IS0401Test
-core_app.register_blueprint(ControllerTest.TEST_API)
+core_app.register_blueprint(TestingFacadeUtils.TEST_API)
 FLASK_APPS.append(core_app)
 
 for instance in range(NUM_REGISTRIES):
@@ -218,7 +218,7 @@ TEST_DEFINITIONS = {
     "IS-04-04": {
         "name": "IS-04 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -249,7 +249,7 @@ TEST_DEFINITIONS = {
     "IS-05-03": {
         "name": "IS-05 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",
@@ -373,7 +373,7 @@ TEST_DEFINITIONS = {
             "api_key": "controlframework",
             "disable_fields": ["host", "port", "urlpath"]
         }, {
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion",
             "disable_fields": ["urlpath"] if CONFIG.MS05_INTERACTIVE_TESTING else ["host", "port", "urlpath"]
         }],
@@ -418,7 +418,7 @@ TEST_DEFINITIONS = {
     "BCP-006-01-02": {
         "name": "BCP-006-01 Controller",
         "specs": [{
-            "spec_key": "controller-tests",
+            "spec_key": "testing-facade",
             "api_key": "testquestion"
         }, {
             "spec_key": "is-04",

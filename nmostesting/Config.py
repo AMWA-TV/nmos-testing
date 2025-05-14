@@ -397,7 +397,7 @@ SPECIFICATIONS = {
             }
         }
     },
-    "controller-tests": {
+    "testing-facade": {
         "repo": None,
         "versions": ["v1.0"],
         "default_version": "v1.0",
