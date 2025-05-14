@@ -432,7 +432,7 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0060102Test.BCP0060102Test
     },
-   "BCP-004-02": {
+    "BCP-004-02": {
         "name": "Sender Capabilities",
         "specs": [{
             "spec_key": "is-04",
@@ -459,7 +459,6 @@ TEST_DEFINITIONS = {
         }],
         "class": BCP0040201Test.BCP0040201Test
     },
-}
     "BCP-006-04": {
         "name": "BCP-006-04 NMOS With MPEG TS",
         "specs": [{
