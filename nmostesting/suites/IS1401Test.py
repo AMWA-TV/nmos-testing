@@ -181,18 +181,12 @@ class IS1401Test(MS0501Test):
         # Force an error with a bogus role path
         role_paths_endpoint = f"{self.configuration_url}rolePaths/this.url.does.not.exist"
 
-        valid, response = self.do_request("GET", role_paths_endpoint)
-
-        if not valid or response.status_code != 404:
-            return test.FAIL("Expected 404 status code for unknown role path")
-
-        if "application/json" not in response.headers["Content-Type"]:
-            return test.FAIL(f"JSON response expected from endpoint {role_paths_endpoint}")
+        method_result_json = self._do_request_json(test, "GET", role_paths_endpoint)
 
         # Check this is of type NcMethodResult
-        self.is14_utils.reference_datatype_schema_validate(test, response.json(),
+        self.is14_utils.reference_datatype_schema_validate(test, method_result_json,
                                                            NcMethodResult.__name__)
-        method_result = NcMethodResult.factory(response.json())
+        method_result = NcMethodResult.factory(method_result_json)
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Expected a response of type NcMethodResultError")
