@@ -457,11 +457,23 @@ class MS05Utils(NMOSUtils):
         non_normative_keys = ["description"]
 
         # If the reference is an object then convert to a dict before comparison
-        if isinstance(reference, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
+        if isinstance(reference, (NcDescriptor, NcElementId)):
             self.validate_descriptor(test, reference.__dict__, descriptor, context)
+        elif isinstance(reference, (NcPropertyConstraints, NcParameterConstraints)):
+            # level is a decoratation to improve reporting
+            # and threrefore not needed for comparison
+            reference_dict = reference.__dict__
+            reference_dict.pop("level", None)
+            self.validate_descriptor(test, reference_dict, descriptor, context)
         # If the descriptor being checked is an object then convert to a dict before comparison
-        elif isinstance(descriptor, (NcDescriptor, NcElementId, NcPropertyConstraints, NcParameterConstraints)):
+        elif isinstance(descriptor, (NcDescriptor, NcElementId)):
             self.validate_descriptor(test, reference, descriptor.__dict__, context)
+        elif isinstance(descriptor, (NcPropertyConstraints, NcParameterConstraints)):
+            # level is a decoratation to improve reporting
+            # and threrefore not needed for comparison
+            descriptor_dict = descriptor.__dict__
+            descriptor_dict.pop("level", None)
+            self.validate_descriptor(test, reference, descriptor_dict, context)
         # Compare dictionaries
         elif isinstance(reference, dict):
             # NcDescriptor objects have a json field that caches the json used to construct it
