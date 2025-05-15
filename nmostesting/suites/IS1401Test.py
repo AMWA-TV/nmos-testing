@@ -16,7 +16,7 @@
 from copy import copy
 from nmostesting.GenericTest import NMOSTestException
 from nmostesting.MS05Utils import NcBlockProperties, NcClassDescriptor, NcDatatypeDescriptor, \
-    NcMethodResult, NcMethodResultError, NcPropertyId
+    NcMethodResult, NcMethodResultError, NcPropertyId, StandardClassIds
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
@@ -315,5 +315,65 @@ class IS1401Test(MS0501Test):
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
+
+    def _check_bulk_properties_recurse_param(self, test, nc_block):
+
+        role_paths = nc_block.get_role_paths()
+        root_role_path = '.'.join(nc_block.role_path)
+        formatted_role_paths = ([f"{root_role_path}.{'.'.join(p)}/" for p in role_paths])
+        formatted_role_paths.append(f"{root_role_path}/")
+
+        conditions = [{"query_string": "", "expected_object_count": len(formatted_role_paths)},
+                      {"query_string": "?recurse=true", "expected_object_count": len(formatted_role_paths)},
+                      {"query_string": "?recurse=false", "expected_object_count": 1}]
+
+        for condition in conditions:
+
+            bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{root_role_path}/" \
+                f"bulkProperties{condition['query_string']}"
+
+            method_result_json = self._do_request_json(test, "GET", bulk_properties_endpoint)
+
+            # Check this is of type NcMethodResult
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               method_result_json,
+                                                               NcMethodResult.__name__,
+                                                               role_path=f"{bulk_properties_endpoint}")
+            method_result = NcMethodResult.factory(method_result_json)
+
+            # Check the result value is of type NcBulkValuesHolder
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               method_result.value,
+                                                               NcBulkValuesHolder.__name__,
+                                                               role_path=f"{bulk_properties_endpoint}")
+
+            bulk_values_holder = NcBulkValuesHolder(method_result.value)
+
+            if len(bulk_values_holder.values) != condition["expected_object_count"]:
+                raise NMOSTestException(test.FAIL("Unexpected NcBulkValueHolders returned. "
+                                                  f"Expected {condition['expected_object_count']}, "
+                                                  f"actual {len(bulk_values_holder.values)} "
+                                                  f"for endpoint {bulk_properties_endpoint}"))
+
+    def test_09(self, test):
+        """Recurse query parameter defaults to true on bulkProperties endpoint"""
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        if not device_model:
+            return test.FAIL("Unable to query Device Model")
+
+        # Check root block
+        self._check_bulk_properties_recurse_param(test, device_model)
+
+        blocks = device_model.find_members_by_class_id(class_id=StandardClassIds.NCBLOCK.value,
+                                                       include_derived=False,
+                                                       recurse=True,
+                                                       get_objects=True)
+        # Check other blocks in Device Model
+        for block in blocks:
+            self._check_bulk_properties_recurse_param(test, block)
 
         return test.PASS()
