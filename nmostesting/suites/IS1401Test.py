@@ -15,12 +15,37 @@
 # from ..GenericTest import NMOSTestException
 from copy import copy
 from nmostesting.GenericTest import NMOSTestException
-from nmostesting.MS05Utils import NcBlockProperties, NcClassDescriptor, NcMethodResult, NcMethodResultError
+from nmostesting.MS05Utils import NcBlockProperties, NcClassDescriptor, NcDatatypeDescriptor, \
+    NcMethodResult, NcMethodResultError, NcPropertyId
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
 NODE_API_KEY = "node"
 CONFIGURATION_API_KEY = "configuration"
+
+
+class NcPropertyValueHolder():
+    def __init__(self, property_value_holder_json):
+        self.id = NcPropertyId(property_value_holder_json["id"])
+        self.name = property_value_holder_json["name"]
+        self.typeName = property_value_holder_json["typeName"]
+        self.isReadOnly = property_value_holder_json["isReadOnly"]
+        self.value = property_value_holder_json["value"]
+
+
+class NcObjectPropertiesHolder():
+    def __init__(self, object_properties_holder_json):
+        self.path = object_properties_holder_json["path"]
+        self.dependencyPaths = object_properties_holder_json["dependencyPaths"]
+        self.allowedMembersClasses = object_properties_holder_json["allowedMembersClasses"]
+        self.values = [NcPropertyValueHolder(v) for v in object_properties_holder_json["values"]]
+        self.isRebuildable = object_properties_holder_json["isRebuildable"]
+
+
+class NcBulkValuesHolder():
+    def __init__(self, bulk_values_holder_json):
+        self.validationFingerprint = bulk_values_holder_json["validationFingerprint"]
+        self.values = [NcObjectPropertiesHolder(v) for v in bulk_values_holder_json["values"]]
 
 
 class IS1401Test(MS0501Test):
@@ -108,7 +133,7 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def test_04(self, test):
-        """RolePaths endpoint MUST return all the device model's role paths"""
+        """RolePaths endpoint returns all the device model's role paths"""
 
         # Get expected role paths from device model
         device_model = self.is14_utils.query_device_model(test)
@@ -134,7 +159,7 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def test_05(self, test):
-        """Class descriptor is of type NcMethodResultClassDescriptor including all inherited elements."""
+        """Class descriptor endpoint returns NcMethodResultClassDescriptor including all inherited elements."""
 
         class_manager = self.is14_utils.get_class_manager(test)
 
@@ -151,15 +176,18 @@ class IS1401Test(MS0501Test):
 
             method_result_json = self._do_request_json(test, "GET", class_descriptor_endpoint)
 
-            role_path_array = role_path.split(".")
             # Check this is of type NcMethodResult
-            self.is14_utils.reference_datatype_schema_validate(test, method_result_json,
-                                                               NcMethodResult.__name__, role_path=role_path_array)
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               method_result_json,
+                                                               NcMethodResult.__name__,
+                                                               role_path=f"{role_path}descriptor")
             method_result = NcMethodResult.factory(method_result_json)
 
             # Check the result value is of type NcClassDescriptor
-            self.is14_utils.reference_datatype_schema_validate(test, method_result.value,
-                                                               NcClassDescriptor.__name__, role_path=role_path_array)
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               method_result.value,
+                                                               NcClassDescriptor.__name__,
+                                                               role_path=f"{role_path}descriptor")
 
             actual_descriptor = NcClassDescriptor(method_result.value)
 
@@ -176,16 +204,113 @@ class IS1401Test(MS0501Test):
         return test.PASS()
 
     def test_06(self, test):
-        """Devices MUST return a response of type NcMethodResultError or a derived datatype on an error"""
+        """Role path endpoint returns a response of type NcMethodResultError or a derived datatype on error"""
 
         # Force an error with a bogus role path
         role_paths_endpoint = f"{self.configuration_url}rolePaths/this.url.does.not.exist"
 
-        method_result_json = self._do_request_json(test, "GET", role_paths_endpoint)
+        valid, response = self.do_request("GET", role_paths_endpoint)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Failed to access endpoint {role_paths_endpoint}"))
+
+        if response.status_code != 404:
+            raise NMOSTestException(test.FAIL(f"Expected 404 status code for {role_paths_endpoint}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {role_paths_endpoint}"))
+
+        method_result_json = response.json()
 
         # Check this is of type NcMethodResult
-        self.is14_utils.reference_datatype_schema_validate(test, method_result_json,
-                                                           NcMethodResult.__name__)
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=role_paths_endpoint)
+        method_result = NcMethodResult.factory(method_result_json)
+
+        if not isinstance(method_result, NcMethodResultError):
+            return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
+
+    def test_07(self, test):
+        """Datatype descriptor endpoint returns NcMethodResultDatatypeDescriptor including all inherited elements."""
+
+        class_manager = self.is14_utils.get_class_manager(test)
+
+        if not class_manager:
+            return test.FAIL("Unable to query Class Manager")
+
+        # Get role paths from IS-14 endpoint
+        role_paths_endpoint = f"{self.configuration_url}rolePaths/"
+
+        role_paths = self._do_request_json(test, "GET", role_paths_endpoint)
+
+        for role_path in role_paths:
+            properties_endpoint = f"{role_paths_endpoint}{role_path}properties/"
+
+            properties_json = self._do_request_json(test, "GET", properties_endpoint)
+
+            for property_id in properties_json:
+                descriptor_endpoint = f"{properties_endpoint}{property_id}descriptor/"
+
+                method_result_json = self._do_request_json(test, "GET", descriptor_endpoint)
+
+                # Check this is of type NcMethodResult
+                self.is14_utils.reference_datatype_schema_validate(
+                    test,
+                    method_result_json,
+                    NcMethodResult.__name__,
+                    role_path=f"{role_path}properties/{property_id}descriptor/")
+
+                method_result = NcMethodResult.factory(method_result_json)
+
+                # Check the result value is of type NcClassDescriptor
+                self.is14_utils.reference_datatype_schema_validate(
+                    test,
+                    method_result.value,
+                    NcDatatypeDescriptor.__name__,
+                    role_path=f"{role_path}properties/{property_id}descriptor/")
+
+                actual_descriptor = NcDatatypeDescriptor(method_result.value)
+
+                # Yes, we already have the class descriptor, but we might want its inherited attributes
+
+                expected_descriptor = class_manager.get_datatype(actual_descriptor.name, True)
+
+                self.is14_utils.validate_descriptor(
+                    test,
+                    expected_descriptor,
+                    actual_descriptor,
+                    f"role path={role_path}, datatype={str(actual_descriptor.name)}: ")
+
+        return test.PASS()
+
+    def test_08(self, test):
+        """Properties endpoint returns a response of type NcMethodResultError or a derived datatype on error"""
+
+        # Force an error with a bogus property endpoint
+        property_endpoint = f"{self.configuration_url}rolePaths/root/properties/999p999/"
+
+        valid, response = self.do_request("GET", property_endpoint)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Failed to access endpoint {property_endpoint}"))
+
+        if response.status_code != 404:
+            raise NMOSTestException(test.FAIL(f"Expected 404 status code for {property_endpoint}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {property_endpoint}"))
+
+        method_result_json = response.json()
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=property_endpoint)
         method_result = NcMethodResult.factory(method_result_json)
 
         if not isinstance(method_result, NcMethodResultError):

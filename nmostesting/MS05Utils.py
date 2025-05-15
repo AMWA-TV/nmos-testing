@@ -752,8 +752,10 @@ class MS05Utils(NMOSUtils):
         return role_path
 
     def create_role_path_string(self, role_path):
-        if role_path is None or not isinstance(role_path, list):
+        if role_path is None:
             return ""
+        if not isinstance(role_path, list):
+            return role_path
         return f"/{'/'.join([str(r) for r in role_path])}"
 
     def create_class_id_string(self, class_id):
