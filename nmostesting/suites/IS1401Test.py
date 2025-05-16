@@ -14,9 +14,10 @@
 
 # from ..GenericTest import NMOSTestException
 from copy import copy
-from nmostesting.GenericTest import NMOSTestException
-from nmostesting.MS05Utils import NcBlockProperties, NcClassDescriptor, NcDatatypeDescriptor, \
-    NcMethodResult, NcMethodResultError, NcPropertyId, StandardClassIds
+from functools import cmp_to_key
+from ..GenericTest import GenericTest, NMOSTestException
+from ..MS05Utils import NcBlock, NcBlockProperties, NcClassDescriptor, NcDatatypeDescriptor, \
+    NcMethodResult, NcMethodResultError, NcObject, NcPropertyDescriptor, NcPropertyId, StandardClassIds
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
@@ -31,6 +32,10 @@ class NcPropertyValueHolder():
         self.typeName = property_value_holder_json["typeName"]
         self.isReadOnly = property_value_holder_json["isReadOnly"]
         self.value = property_value_holder_json["value"]
+
+    def __str__(self):
+        return f"[id={self.id}, name={self.name}, typeName={self.typeName}, " \
+            f"isReadOnly={self.isReadOnly}, value={self.value}"
 
 
 class NcObjectPropertiesHolder():
@@ -74,6 +79,24 @@ class IS1401Test(MS0501Test):
             raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {url}"))
 
         return response.json()
+
+    def _compare_property_ids(self, a: NcPropertyId, b: NcPropertyId):
+        if a.level > b.level:
+            return 1
+        elif a.level < b.level:
+            return -1
+        elif a.index > b.index:
+            return 1
+        elif a.index < b.index:
+            return -1
+        else:
+            return 0
+
+    def _compare_property_descriptors(self, a: NcPropertyDescriptor, b: NcPropertyDescriptor):
+        return self._compare_property_ids(a.id, b.id)
+
+    def _compare_property_value_holders(self, a: NcPropertyValueHolder, b: NcPropertyValueHolder):
+        return self._compare_property_ids(a.id, b.id)
 
     def test_01(self, test):
         """Control Endpoint: Node under test advertises IS-14 control endpoint matching API under test"""
@@ -138,9 +161,6 @@ class IS1401Test(MS0501Test):
         # Get expected role paths from device model
         device_model = self.is14_utils.query_device_model(test)
 
-        if not device_model:
-            return test.FAIL("Unable to query Device Model")
-
         device_model_role_paths = device_model.get_role_paths()
 
         expected_role_paths = ([f"root.{'.'.join(p)}/" for p in device_model_role_paths])
@@ -162,9 +182,6 @@ class IS1401Test(MS0501Test):
         """Class descriptor endpoint returns NcMethodResultClassDescriptor including all inherited elements."""
 
         class_manager = self.is14_utils.get_class_manager(test)
-
-        if not class_manager:
-            return test.FAIL("Unable to query Class Manager")
 
         # Get role paths from IS-14 endpoint
         role_paths_endpoint = f"{self.configuration_url}rolePaths/"
@@ -238,9 +255,6 @@ class IS1401Test(MS0501Test):
         """Datatype descriptor endpoint returns NcMethodResultDatatypeDescriptor including all inherited elements."""
 
         class_manager = self.is14_utils.get_class_manager(test)
-
-        if not class_manager:
-            return test.FAIL("Unable to query Class Manager")
 
         # Get role paths from IS-14 endpoint
         role_paths_endpoint = f"{self.configuration_url}rolePaths/"
@@ -362,9 +376,6 @@ class IS1401Test(MS0501Test):
 
         device_model = self.is14_utils.query_device_model(test)
 
-        if not device_model:
-            return test.FAIL("Unable to query Device Model")
-
         # Check root block
         self._check_bulk_properties_recurse_param(test, device_model)
 
@@ -375,5 +386,76 @@ class IS1401Test(MS0501Test):
         # Check other blocks in Device Model
         for block in blocks:
             self._check_bulk_properties_recurse_param(test, block)
+
+        return test.PASS()
+
+    def _check_bulk_properties(self, test: GenericTest, nc_object: NcObject):
+        if isinstance(nc_object, NcBlock):
+            for child in nc_object.child_objects:
+                self._check_bulk_properties(test, child)
+
+        role_path = ".".join(nc_object.role_path)
+
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{role_path}/bulkProperties?recurse=false"
+
+        method_result_json = self._do_request_json(test, "GET", bulk_properties_endpoint)
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=f"{bulk_properties_endpoint}")
+        method_result = NcMethodResult.factory(method_result_json)
+
+        # Check the result value is of type NcBulkValuesHolder
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result.value,
+                                                           NcBulkValuesHolder.__name__,
+                                                           role_path=f"{bulk_properties_endpoint}")
+
+        bulk_values_holder = NcBulkValuesHolder(method_result.value)
+
+        if len(bulk_values_holder.values) != 1:
+            raise NMOSTestException(test.FAIL("Expected number of NcObjectPropertiesHolder "
+                                              f"in NcBulkValuesHolder for endpoint {bulk_properties_endpoint}"))
+
+        class_manager = self.is14_utils.get_class_manager(test)
+
+        class_descriptor = class_manager.get_control_class(nc_object.member_descriptor.classId,
+                                                           include_inherited=True)
+
+        # Check all NcPropertyIds have been returned
+        expected_property_ids = [p.id for p in class_descriptor.properties]
+        actual_property_ids = [p.id for p in bulk_values_holder.values[0].values]
+
+        difference = list(set(expected_property_ids) - set(actual_property_ids))
+
+        if len(difference) > 0:
+            raise NMOSTestException(test.FAIL("Expected properties not returned from bulkProperties endpoint. "
+                                              f"Missing properties={str(difference)}, "
+                                              f"endpoint={bulk_properties_endpoint}"))
+
+        # Compare NcPropertyDescriptors from class descriptor to the NcPropertyValueHolders from bulk values holder
+        property_descriptors = sorted(class_descriptor.properties,
+                                      key=cmp_to_key(self._compare_property_descriptors))
+        property_value_holders = sorted(bulk_values_holder.values[0].values,
+                                        key=cmp_to_key(self._compare_property_value_holders))
+
+        for property_descriptor, property_value_holder in zip(property_descriptors, property_value_holders):
+            if property_descriptor.name != property_value_holder.name or \
+                    property_descriptor.typeName != property_value_holder.typeName or \
+                    property_descriptor.isReadOnly != property_value_holder.isReadOnly:
+                raise NMOSTestException(
+                    test.FAIL("Definition of property in NcPropertyValueHolder inconsistant with class "
+                              f"descriptor's NcPropertyDescriptor. NcPropertyDescriptor={property_descriptor}, "
+                              f"NcPropertyValueHolder={property_value_holder} "
+                              f"for endpoint {bulk_properties_endpoint}"))
+
+    def test_10(self, test):
+        """All properties of the target role path are returned from bulkProperties endpoint"""
+
+        device_model = self.is14_utils.query_device_model(test)
+
+        self._check_bulk_properties(test, device_model)
 
         return test.PASS()

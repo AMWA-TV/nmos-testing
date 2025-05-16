@@ -462,7 +462,7 @@ class MS05Utils(NMOSUtils):
         elif isinstance(reference, (NcPropertyConstraints, NcParameterConstraints)):
             # level is a decoratation to improve reporting
             # and threrefore not needed for comparison
-            reference_dict = reference.__dict__
+            reference_dict = deepcopy(reference.__dict__)
             reference_dict.pop("level", None)
             self.validate_descriptor(test, reference_dict, descriptor, context)
         # If the descriptor being checked is an object then convert to a dict before comparison
@@ -471,17 +471,19 @@ class MS05Utils(NMOSUtils):
         elif isinstance(descriptor, (NcPropertyConstraints, NcParameterConstraints)):
             # level is a decoratation to improve reporting
             # and threrefore not needed for comparison
-            descriptor_dict = descriptor.__dict__
+            descriptor_dict = deepcopy(descriptor.__dict__)
             descriptor_dict.pop("level", None)
             self.validate_descriptor(test, reference, descriptor_dict, context)
         # Compare dictionaries
         elif isinstance(reference, dict):
             # NcDescriptor objects have a json field that caches the json used to construct it
-            reference.pop("json", None)
-            descriptor.pop("json", None)
+            reference_copy = deepcopy(reference)
+            descriptor_copy = deepcopy(descriptor)
+            reference_copy.pop("json", None)
+            descriptor_copy.pop("json", None)
 
-            reference_keys = set(reference.keys())
-            descriptor_keys = set(descriptor.keys())
+            reference_keys = set(reference_copy.keys())
+            descriptor_keys = set(descriptor_copy.keys())
 
             # compare the keys to see if any extra/missing
             key_diff = (set(reference_keys) | set(descriptor_keys)) - (set(reference_keys) & set(descriptor_keys))
@@ -491,7 +493,7 @@ class MS05Utils(NMOSUtils):
                 # Ignore keys that contain non-normative information
                 if key in non_normative_keys:
                     continue
-                self.validate_descriptor(test, reference[key], descriptor[key], context=f"{context}{key}->")
+                self.validate_descriptor(test, reference_copy[key], descriptor_copy[key], context=f"{context}{key}->")
         # Compare lists
         elif isinstance(reference, list):
             if len(reference) != len(descriptor):
@@ -678,6 +680,9 @@ class MS05Utils(NMOSUtils):
         """Get the Class Manager queried from the Node under test's Device Model"""
         if not self.class_manager:
             self.class_manager = self._get_singleton_object_by_class_id(test, StandardClassIds.NCCLASSMANAGER.value)
+
+        if not self.class_manager:
+            return test.FAIL("Unable to query Class Manager")
         return self.class_manager
 
     def get_device_manager(self, test):
@@ -865,6 +870,9 @@ class NcElementId():
     def __str__(self):
         return f"[level={self.level}, index={self.index}]"
 
+    def __hash__(self):
+        return self.level * 251 + self.index
+
 
 class NcPropertyId(NcElementId):
     def __init__(self, id_json):
@@ -955,6 +963,12 @@ class NcPropertyDescriptor(NcDescriptor):
         self.isSequence = descriptor_json["isSequence"]  # TRUE iff property is a sequence
         self.isDeprecated = descriptor_json["isDeprecated"]  # TRUE iff property is marked as deprecated
         self.constraints = NcParameterConstraints.factory(descriptor_json["constraints"], "property")  # Optional
+
+    def __str__(self):
+        return f"[id={self.id}, name={self.name}, typeName={self.typeName}, " \
+            f"isReadOnly={self.isReadOnly}, owner={self.isNullable}, " \
+            f"isSequence={self.isSequence}, isDeprecated={self.isDeprecated}, " \
+            f"constraints={self.constraints}"
 
 
 class NcBlockMemberDescriptor(NcDescriptor):
@@ -1219,7 +1233,9 @@ class NcPropertyChangedEventData():
 
 
 class NcObject():
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
+    def __init__(self, class_id: list, oid: int, role: str, role_path: list,
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
         self.class_id = class_id
         self.oid = oid
         self.role = role
@@ -1229,7 +1245,9 @@ class NcObject():
 
 
 class NcBlock(NcObject):
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
+    def __init__(self, class_id: list, oid: int, role: str, role_path: list,
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
         self.child_objects = []
 
@@ -1237,7 +1255,7 @@ class NcBlock(NcObject):
     def add_child_object(self, nc_object):
         self.child_objects.append(nc_object)
 
-    def get_role_paths(self):
+    def get_role_paths(self) -> list[list[str]]:
         role_paths = []
         for child_object in self.child_objects:
             role_paths.append([child_object.role])
@@ -1249,7 +1267,7 @@ class NcBlock(NcObject):
                     role_paths.append(role_path)
         return role_paths
 
-    def get_oids(self, root=True):
+    def get_oids(self, root=True) -> list[int]:
         oids = [self.oid] if root else []
         for child_object in self.child_objects:
             oids.append(child_object.oid)
@@ -1258,7 +1276,7 @@ class NcBlock(NcObject):
         return oids
 
     # NcBlock Methods
-    def get_member_descriptors(self, recurse=False):
+    def get_member_descriptors(self, recurse=False) -> list[NcBlockMemberDescriptor]:
         query_results = []
         for child_object in self.child_objects:
             query_results.append(child_object.member_descriptor)
@@ -1266,7 +1284,7 @@ class NcBlock(NcObject):
                 query_results += child_object.get_member_descriptors(recurse)
         return query_results
 
-    def find_members_by_path(self, role_path):
+    def find_members_by_path(self, role_path) -> list[NcBlockMemberDescriptor]:
         query_results = []
         query_role = role_path[0]
         for child_object in self.child_objects:
@@ -1277,7 +1295,11 @@ class NcBlock(NcObject):
                     query_results.append(child_object.member_descriptor)
         return query_results
 
-    def find_members_by_role(self, role, case_sensitive=False, match_whole_string=False, recurse=False):
+    def find_members_by_role(self,
+                             role,
+                             case_sensitive=False,
+                             match_whole_string=False,
+                             recurse=False) -> list[NcBlockMemberDescriptor]:
         def match(query_role, role, case_sensitive, match_whole_string):
             if case_sensitive:
                 return query_role == role if match_whole_string else query_role in role
@@ -1294,7 +1316,11 @@ class NcBlock(NcObject):
                                                                    recurse)
         return query_results
 
-    def find_members_by_class_id(self, class_id, include_derived=False, recurse=False, get_objects=False):
+    def find_members_by_class_id(self,
+                                 class_id,
+                                 include_derived=False,
+                                 recurse=False,
+                                 get_objects=False) -> list[NcBlockMemberDescriptor] | list[NcObject]:
         def match(query_class_id, class_id, include_derived):
             if query_class_id == (class_id[:len(query_class_id)] if include_derived else class_id):
                 return True
@@ -1314,18 +1340,23 @@ class NcBlock(NcObject):
 
 
 class NcManager(NcObject):
-    def __init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor):
+    def __init__(self, class_id: list, oid: int, role: list, role_path: str,
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
 
 
 class NcClassManager(NcManager):
-    def __init__(self, class_id, oid, role, role_path, class_descriptors, datatype_descriptors, runtime_constraints,
-                 member_descriptor):
+    def __init__(self, class_id: list, oid: int, role: list, role_path: str,
+                 class_descriptors: list[NcClassDescriptor],
+                 datatype_descriptors: list[NcDatatypeDescriptor],
+                 runtime_constraints: NcPropertyConstraints | None,
+                 member_descriptor: NcBlockMemberDescriptor):
         NcObject.__init__(self, class_id, oid, role, role_path, runtime_constraints, member_descriptor)
         self.class_descriptors = class_descriptors
         self.datatype_descriptors = datatype_descriptors
 
-    def get_control_class(self, class_id, include_inherited=True):
+    def get_control_class(self, class_id, include_inherited=True) -> NcClassDescriptor:
         class_id_str = ".".join(map(str, class_id))
         descriptor = self.class_descriptors.get(class_id_str)
 
@@ -1347,7 +1378,7 @@ class NcClassManager(NcManager):
 
         return inherited_descriptor
 
-    def get_datatype(self, name, include_inherited=True):
+    def get_datatype(self, name, include_inherited=True) -> NcDatatypeDescriptor:
         descriptor = self.datatype_descriptors.get(name)
 
         if not include_inherited or not descriptor or descriptor.type != NcDatatypeType.Struct:
