@@ -462,3 +462,35 @@ class IS1401Test(MS0501Test):
         self._check_bulk_properties(test, device_model)
 
         return test.PASS()
+
+    def test_11(self, test):
+        """BulkProperties endpoint returns a response of type NcMethodResultError or a derived datatype on PUT error."""
+
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties/"
+
+        bogus_backup_dataset = {"this": "is", "not": "a", "backup": "dataset"}
+
+        valid, response = self.do_request("PUT", bulk_properties_endpoint, json=bogus_backup_dataset)
+
+        if not valid:
+            raise NMOSTestException(test.FAIL(f"Failed to access endpoint {bulk_properties_endpoint}"))
+
+        if response.status_code < 300:
+            raise NMOSTestException(test.FAIL(f"Expected error status code for {bulk_properties_endpoint}"))
+
+        if "application/json" not in response.headers["Content-Type"]:
+            raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {bulk_properties_endpoint}"))
+
+        method_result_json = response.json()
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=bulk_properties_endpoint)
+        method_result = NcMethodResult.factory(method_result_json)
+
+        if not isinstance(method_result, NcMethodResultError):
+            return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
