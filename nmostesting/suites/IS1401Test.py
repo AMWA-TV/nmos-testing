@@ -287,9 +287,9 @@ class IS1401Test(MS0501Test):
                     NcDatatypeDescriptor.__name__,
                     role_path=f"{role_path}properties/{property_id}descriptor/")
 
-                actual_descriptor = NcDatatypeDescriptor(method_result.value)
+                actual_descriptor = NcDatatypeDescriptor.factory(method_result.value)
 
-                # Yes, we already have the class descriptor, but we might want its inherited attributes
+                # Yes, we already have the descriptor, but we might want its inherited attributes
 
                 expected_descriptor = class_manager.get_datatype(actual_descriptor.name, True)
 
@@ -297,7 +297,8 @@ class IS1401Test(MS0501Test):
                     test,
                     expected_descriptor,
                     actual_descriptor,
-                    f"role path={role_path}, datatype={str(actual_descriptor.name)}: ")
+                    f"role path={role_path}properties/{property_id}descriptor/, "
+                    f"datatype={str(actual_descriptor.name)}: ")
 
         return test.PASS()
 
@@ -421,7 +422,7 @@ class IS1401Test(MS0501Test):
 
         class_manager = self.is14_utils.get_class_manager(test)
 
-        class_descriptor = class_manager.get_control_class(nc_object.member_descriptor.classId,
+        class_descriptor = class_manager.get_control_class(nc_object.class_id,
                                                            include_inherited=True)
 
         # Check all NcPropertyIds have been returned
