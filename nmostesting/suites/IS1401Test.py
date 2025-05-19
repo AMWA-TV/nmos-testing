@@ -58,6 +58,8 @@ class IS1401Test(MS0501Test):
     Runs Tests covering MS-05 and IS-14
     """
     def __init__(self, apis, **kwargs):
+        # override the featuresets repos to only test against the device-configuration repo
+        apis['featuresets']['repo_paths'] = ['device-configuration']
         self.is14_utils = IS14Utils(apis)
         MS0501Test.__init__(self, apis, self.is14_utils, **kwargs)
         self.node_url = apis[NODE_API_KEY]["url"]
