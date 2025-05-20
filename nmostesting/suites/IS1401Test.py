@@ -13,16 +13,23 @@
 # limitations under the License.
 
 # from ..GenericTest import NMOSTestException
-from copy import copy
+from copy import copy, deepcopy
+from enum import IntEnum
 from functools import cmp_to_key
 from ..GenericTest import GenericTest, NMOSTestException
 from ..MS05Utils import NcBlock, NcBlockProperties, NcClassDescriptor, NcDatatypeDescriptor, \
-    NcMethodResult, NcMethodResultError, NcObject, NcPropertyDescriptor, NcPropertyId, StandardClassIds
+    NcMethodResult, NcMethodResultError, NcObject, NcObjectProperties, NcPropertyDescriptor, NcPropertyId, \
+    StandardClassIds
 from ..IS14Utils import IS14Utils
 from .MS0501Test import MS0501Test
 
 NODE_API_KEY = "node"
 CONFIGURATION_API_KEY = "configuration"
+
+
+class NcRestoreMode(IntEnum):
+    Modify = 0
+    Rebuild = 1
 
 
 class NcPropertyValueHolder():
@@ -53,6 +60,35 @@ class NcBulkValuesHolder():
         self.values = [NcObjectPropertiesHolder(v) for v in bulk_values_holder_json["values"]]
 
 
+class NcRestoreValidationStatus(IntEnum):
+    Ok = 200  # Restore successful
+    Failed = 400  # Restore failed
+    NotFound = 404  # Role path not found
+    DeviceError = 500  # Internal device error
+
+
+class NcPropertyRestoreNoticeType(IntEnum):
+    Warning = 300
+    Error = 400
+
+
+class NcPropertyRestoreNotice():
+    def __init__(self, property_restore_notice_json):
+        self.id = NcPropertyId(property_restore_notice_json["id"])
+        self.name = property_restore_notice_json["name"]
+        self.noticeType = NcPropertyRestoreNoticeType(property_restore_notice_json["noticeType"])
+        self.noticeMessage = property_restore_notice_json["noticeMessage"]
+
+
+class NcObjectPropertiesSetValidation():
+    def __init__(self, object_properties_set_validation_json):
+        self.path = object_properties_set_validation_json["path"]
+        self.status = NcRestoreValidationStatus(object_properties_set_validation_json["status"])
+        self.notices = [NcPropertyRestoreNotice(n) for n in object_properties_set_validation_json["notices"]]
+        self.statusMessage = object_properties_set_validation_json["statusMessage"] \
+            if object_properties_set_validation_json["statusMessage"] else None
+
+
 class IS1401Test(MS0501Test):
     """
     Runs Tests covering MS-05 and IS-14
@@ -71,11 +107,13 @@ class IS1401Test(MS0501Test):
     def tear_down_tests(self):
         super().tear_down_tests()
 
-    def _do_request_json(self, test, method, url):
-        valid, response = self.do_request(method, url)
+    def _do_request_json(self, test, method, url, **kwargs):
+        valid, response = self.do_request(method, url, **kwargs)
 
         if not valid or response.status_code != 200:
-            raise NMOSTestException(test.FAIL(f"Failed to get role paths from endpoint {url}"))
+            raise NMOSTestException(test.FAIL(f"Error from endpoint {url}: "
+                                              f"response code: {response.status_code}, "
+                                              f"response content: {response.content}"))
 
         if "application/json" not in response.headers["Content-Type"]:
             raise NMOSTestException(test.FAIL(f"JSON response expected from endpoint {url}"))
@@ -99,6 +137,78 @@ class IS1401Test(MS0501Test):
 
     def _compare_property_value_holders(self, a: NcPropertyValueHolder, b: NcPropertyValueHolder):
         return self._compare_property_ids(a.id, b.id)
+
+    def _to_dict(self, obj):
+        if isinstance(obj, dict):
+            data = {}
+            for (k, v) in obj.items():
+                data[k] = self._to_dict(v)
+            return data
+        elif isinstance(obj, list):
+            return [self._to_dict(e) for e in obj]
+        elif hasattr(obj, "__dict__"):
+            data = {}
+            for (k, v) in obj.__dict__.items():
+                data[k] = self._to_dict(v)
+            return data
+        else:
+            return obj
+
+    def _get_bulk_values_holder(self, test, endpoint):
+        method_result_json = self._do_request_json(test, "GET", endpoint)
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=f"{endpoint}")
+        method_result = NcMethodResult.factory(method_result_json)
+
+        # Check the result value is of type NcBulkValuesHolder
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result.value,
+                                                           NcBulkValuesHolder.__name__,
+                                                           role_path=f"{endpoint}")
+
+        return NcBulkValuesHolder(method_result.value)
+
+    def _apply_bulk_values_holder(self, test, method, endpoint, bulk_values_holder):
+        backup_dataset = {
+            "arguments": {
+                "dataSet": self._to_dict(bulk_values_holder),
+                "recurse": True,
+                "restoreMode": NcRestoreMode.Modify.value
+                }
+            }
+
+        # Attempt to set on Device
+        method_result_json = self._do_request_json(test, method, endpoint, json=backup_dataset)
+
+        # Check this is of type NcMethodResult
+        self.is14_utils.reference_datatype_schema_validate(test,
+                                                           method_result_json,
+                                                           NcMethodResult.__name__,
+                                                           role_path=f"{endpoint}")
+        method_result = NcMethodResult.factory(method_result_json)
+
+        # Check result value is
+        if not isinstance(method_result.value, list):
+            raise NMOSTestException(test.FAIL("Sequence of NcObjectPropertiesSetValidation expected"))
+
+        for value in method_result.value:
+            # Check this is of type NcMethodResult
+            self.is14_utils.reference_datatype_schema_validate(test,
+                                                               value,
+                                                               NcObjectPropertiesSetValidation.__name__,
+                                                               role_path=f"{endpoint}")
+
+        return [NcObjectPropertiesSetValidation(v) for v in method_result.value]
+
+    def _restore_bulk_values_holder(self, test, endpoint, bulk_values_holder):
+        return self._apply_bulk_values_holder(test, "PUT", endpoint, bulk_values_holder)
+
+    def _validate_bulk_values_holder(self, test, endpoint, bulk_values_holder):
+        return self._apply_bulk_values_holder(test, "PATCH", endpoint, bulk_values_holder)
 
     def test_01(self, test):
         """Control Endpoint: Node under test advertises IS-14 control endpoint matching API under test"""
@@ -351,22 +461,7 @@ class IS1401Test(MS0501Test):
             bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{root_role_path}/" \
                 f"bulkProperties{condition['query_string']}"
 
-            method_result_json = self._do_request_json(test, "GET", bulk_properties_endpoint)
-
-            # Check this is of type NcMethodResult
-            self.is14_utils.reference_datatype_schema_validate(test,
-                                                               method_result_json,
-                                                               NcMethodResult.__name__,
-                                                               role_path=f"{bulk_properties_endpoint}")
-            method_result = NcMethodResult.factory(method_result_json)
-
-            # Check the result value is of type NcBulkValuesHolder
-            self.is14_utils.reference_datatype_schema_validate(test,
-                                                               method_result.value,
-                                                               NcBulkValuesHolder.__name__,
-                                                               role_path=f"{bulk_properties_endpoint}")
-
-            bulk_values_holder = NcBulkValuesHolder(method_result.value)
+            bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
             if len(bulk_values_holder.values) != condition["expected_object_count"]:
                 raise NMOSTestException(test.FAIL("Unexpected NcBulkValueHolders returned. "
@@ -401,22 +496,7 @@ class IS1401Test(MS0501Test):
 
         bulk_properties_endpoint = f"{self.configuration_url}rolePaths/{role_path}/bulkProperties?recurse=false"
 
-        method_result_json = self._do_request_json(test, "GET", bulk_properties_endpoint)
-
-        # Check this is of type NcMethodResult
-        self.is14_utils.reference_datatype_schema_validate(test,
-                                                           method_result_json,
-                                                           NcMethodResult.__name__,
-                                                           role_path=f"{bulk_properties_endpoint}")
-        method_result = NcMethodResult.factory(method_result_json)
-
-        # Check the result value is of type NcBulkValuesHolder
-        self.is14_utils.reference_datatype_schema_validate(test,
-                                                           method_result.value,
-                                                           NcBulkValuesHolder.__name__,
-                                                           role_path=f"{bulk_properties_endpoint}")
-
-        bulk_values_holder = NcBulkValuesHolder(method_result.value)
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
 
         if len(bulk_values_holder.values) != 1:
             raise NMOSTestException(test.FAIL("Expected number of NcObjectPropertiesHolder "
@@ -492,5 +572,45 @@ class IS1401Test(MS0501Test):
 
         if not isinstance(method_result, NcMethodResultError):
             return test.FAIL("Expected a response of type NcMethodResultError")
+
+        return test.PASS()
+
+    def test_12(self, test):
+        """Check bulkProperties endpoint"""
+        bulk_properties_endpoint = f"{self.configuration_url}rolePaths/root/bulkProperties"
+
+        bulk_values_holder = self._get_bulk_values_holder(test, bulk_properties_endpoint)
+
+        # Cache bulk_values_holder
+        original_bulk_values_holder = deepcopy(bulk_values_holder)
+
+        # Modify user labels
+        user_labels = []
+        for object_property_holder in bulk_values_holder.values:
+            user_labels.extend([v for v in object_property_holder.values
+                                if v.id == NcObjectProperties.USER_LABEL.value])
+
+        for property_value_holder in user_labels:
+            property_value_holder.value = str(property_value_holder.id)
+
+        validations = self._restore_bulk_values_holder(test, bulk_properties_endpoint, bulk_values_holder)
+
+        # Check there is one validation per object changed
+        expected_object_holder_paths = [o.path for o in bulk_values_holder.values]
+        actual_validation_paths = [v.path for v in validations]
+
+        if len(expected_object_holder_paths) != len(actual_validation_paths):
+            return test.FAIL(f"Expected {len(expected_object_holder_paths)} NcObjectPropertiesSetValidation "
+                             f"objects, actually got {len(actual_validation_paths)}")
+
+        for e, a in zip(expected_object_holder_paths, actual_validation_paths):
+            if e != a:
+                return test.FAIL("Unexpected NcObjectPropertiesSetValidation objects "
+                                 "returned from bulkProperties endpoint "
+                                 f"for role paths={str(a)}, "
+                                 f"endpoint={bulk_properties_endpoint}")
+
+        # Reset to original backup dataset
+        self._restore_bulk_values_holder(test, bulk_properties_endpoint, original_bulk_values_holder)
 
         return test.PASS()
