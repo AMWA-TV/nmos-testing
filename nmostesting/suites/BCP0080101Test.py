@@ -147,7 +147,7 @@ class BCP0080101Test(BCP008Test):
 
             src_ip = get_default_ip()
             dst_ip = "232.40.50.{}".format(randint(1, 254))
-            dst_port = randint(5000, 5999)
+            dst_port = (randint(5000, 5999) >> 1) << 1  # Choose a random even port
 
             sdp_params[receiver["id"]] = template.render({**CONFIG.SDP_PREFERENCES,
                                                           'src_ip': src_ip,
